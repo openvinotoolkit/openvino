@@ -13,7 +13,7 @@
 
 namespace vpu {
 
-void FrontEnd::unrollLoops(ie::ICNNNetwork& network) {
+void FrontEnd::unrollLoops(ie::CNNNetwork& network) {
     VPU_PROFILE(unrollLoops);
 
     const auto& env = CompileEnv::get();
@@ -23,7 +23,7 @@ void FrontEnd::unrollLoops(ie::ICNNNetwork& network) {
 
     if (!env.config.irWithVpuScalesDir.empty()) {
         // TODO: Scale dumps does not work with IR, which contain Tensor Iterator layers, because we cannot serialize them. #-23429
-        for (auto iterator = ie::details::CNNNetworkIterator(&network); iterator != ie::details::CNNNetworkIterator(); ++iterator) {
+        for (auto iterator = ie::details::CNNNetworkIterator(network); iterator != ie::details::CNNNetworkIterator(); ++iterator) {
             const auto& layer = *iterator;
             VPU_THROW_UNLESS(!ie::details::CaselessEq<std::string>()(layer->type, "TensorIterator"),
                 "Scale dumps does not work with IR, which contain Tensor Iterator layers.");

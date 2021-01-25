@@ -55,8 +55,8 @@ IE_SUPPRESS_DEPRECATED_END
  * @param network A network to clone
  * @return A cloned object
  */
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<InferenceEngine::ICNNNetwork>)
-cloneNetwork(const InferenceEngine::ICNNNetwork& network);
+INFERENCE_ENGINE_API_CPP(InferenceEngine::CNNNetwork)
+cloneNetwork(const InferenceEngine::CNNNetwork& network);
 
 /**
  * @brief Clones the whole network. All layers and data objects will be cloned
@@ -65,7 +65,7 @@ cloneNetwork(const InferenceEngine::ICNNNetwork& network);
  * @return A cloned object
  */
 INFERENCE_ENGINE_API_CPP(InferenceEngine::details::CNNNetworkImplPtr)
-cloneNet(const InferenceEngine::ICNNNetwork& network);
+cloneNet(const InferenceEngine::CNNNetwork& network);
 
 using ordered_properties = std::vector<std::pair<std::string, std::string>>;
 using printer_callback =
@@ -79,16 +79,14 @@ using printer_callback =
  * @param layer_cb - callback function, that called on every printed layer node
  */
 INFERENCE_ENGINE_API_CPP(void)
-saveGraphToDot(const InferenceEngine::ICNNNetwork& network, std::ostream& out, printer_callback layer_cb = nullptr);
+saveGraphToDot(const InferenceEngine::CNNNetwork& network, std::ostream& out, printer_callback layer_cb = nullptr);
 
 /**
   @brief Return root data objects, i.e. objects came from input or const layers
-
   @param network - network to process
-
   @return set of root data objects,
   */
 INFERENCE_ENGINE_API_CPP(std::unordered_set<DataPtr>)
-getRootDataObjects(ICNNNetwork& network);
+getRootDataObjects(const InferenceEngine::CNNNetwork& network);
 
 }  // namespace InferenceEngine

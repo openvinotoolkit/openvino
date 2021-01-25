@@ -57,44 +57,41 @@ protected:
 };
 
 TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
+    auto icnnnet = static_cast<ICNNNetwork::Ptr>(clone);
 
     //network was copied not just assigned
-    ASSERT_NE(clone.get(), mockNet.get());
+    ASSERT_NE(icnnnet.get(), mockNet.get());
 
-    ASSERT_EQ(clone->getBatchSize(), 12);
+    ASSERT_EQ(clone.getBatchSize(), 12);
 }
 
 
 TEST_F(GraphCopyTests, canPreserveInputs) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
 
-    InputsDataMap inputs, inputsTarget;
+    InputsDataMap inputs = clone.getInputsInfo(), inputsTarget;
     InputsDataMap heads, headsTarget;
 
-    clone->getInputsInfo(inputs);
     mockNet->getInputsInfo(inputsTarget);
     ASSERT_INPUTS_INFO_EQ(inputs, inputsTarget);
 }
 
 TEST_F(GraphCopyTests, canPreserveOutputs) {
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
 
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
-
-    OutputsDataMap outTarget, outSource;
-    clone->getOutputsInfo(outTarget);
+    OutputsDataMap outTarget = clone.getOutputsInfo(), outSource;
     mockNet->getOutputsInfo(outSource);
 
     ASSERT_OUTPUTS_INFO_EQ(outSource, outTarget);
 }
 
 TEST_F(GraphCopyTests, canPreserveAttributes) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
     ADD_ATTR(1, "id", "r-1-2-3");
     ADD_ATTR(2, "id", "r-1-2-3");
-    CNNNetwork cloned (clone);
-    auto idMemOutput = CommonTestUtils::getLayerByName(cloned, "1")->GetParamAsString("id");
-    auto idMemInput  = CommonTestUtils::getLayerByName(cloned, "2")->GetParamAsString("id");
+    auto idMemOutput = CommonTestUtils::getLayerByName(clone, "1")->GetParamAsString("id");
+    auto idMemInput  = CommonTestUtils::getLayerByName(clone, "2")->GetParamAsString("id");
 
     ASSERT_STREQ(idMemInput.c_str(), idMemOutput.c_str());
     ASSERT_STREQ(idMemInput.c_str(), "r-1-2-3");
@@ -107,9 +104,7 @@ struct _FP32_2_FP32  : public GNAPluginNS::frontend::QuantDescTmpl<float, float,
 using FP32_2_FP32 = GNAPluginNS::frontend::QuantPair<_FP32_2_FP32 , _FP32_2_FP32 >;
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
-
-    auto iclone = ModelQuantizer<FP32_2_FP32>().quantize(*mockNet, std::vector<float >({1.0f, 1.0f}));
-    auto clone = CNNNetwork(iclone);
+    auto clone = ModelQuantizer<FP32_2_FP32>().quantize(CNNNetwork(mockNet), std::vector<float >({1.0f, 1.0f}));
 
     CNNNetBFS(CommonTestUtils::getLayerByName(clone, "1"), [&](CNNLayerPtr layer) {
         auto params = getInjectedData<QuantizedLayerParams>(layer);

@@ -13,7 +13,7 @@
 
 namespace vpu {
 
-InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::ICNNNetwork::Ptr& convertedNetwork,
+InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::CNNNetwork& convertedNetwork,
                                                     const std::shared_ptr<const ngraph::Function>& function,
                                                     const std::string& pluginName, const std::set<std::string>& supportedLayers) {
     InferenceEngine::QueryNetworkResult res;
@@ -47,7 +47,7 @@ InferenceEngine::QueryNetworkResult getQueryNetwork(const InferenceEngine::ICNNN
         }
     };
 
-    for (InferenceEngine::details::CNNNetworkIterator itLayer{convertedNetwork.get()};
+    for (InferenceEngine::details::CNNNetworkIterator itLayer{convertedNetwork};
             itLayer != InferenceEngine::details::CNNNetworkIterator();
             itLayer++) {
         const auto fusedNode = (*itLayer)->getNode();

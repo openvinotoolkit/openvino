@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "ie_icnn_network.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "legacy/graph_tools.hpp"
 
 namespace InferenceEngine {
@@ -22,7 +22,7 @@ IE_SUPPRESS_DEPRECATED_START
  * @param net network to modify
  * @return true if all Tensor iterator was converted
  */
-INFERENCE_ENGINE_API_CPP(bool) CombineRNNSeq(ICNNNetwork& net);
+INFERENCE_ENGINE_API_CPP(bool) CombineRNNSeq(CNNNetwork& net);
 INFERENCE_ENGINE_API_CPP(bool) CombineRNNSeq(TensorIterator::Body& net);
 
 /**
@@ -59,7 +59,7 @@ details::CNNSubnet GetInternalSubnet(const CNNLayerPtr &layer);
  * @param net network to modify
  * @return true if all Tensor iterator was unrolled successfully
  */
-INFERENCE_ENGINE_API_CPP(bool) UnrollTI(ICNNNetwork& net);
+INFERENCE_ENGINE_API_CPP(bool) UnrollTI(CNNNetwork& net);
 
 /**
  * Unroll all RNN specific layers by predicate
@@ -70,7 +70,7 @@ INFERENCE_ENGINE_API_CPP(bool) UnrollTI(ICNNNetwork& net);
  * @param pred predicate to mark layer to unroll
  * @return true if all RNN layers was unrolled successfully
  */
-INFERENCE_ENGINE_API_CPP(bool) UnrollRNN_if(ICNNNetwork& net, std::function<bool(const RNNCellBase&)> pred);
+INFERENCE_ENGINE_API_CPP(bool) UnrollRNN_if(CNNNetwork& net, std::function<bool(const RNNCellBase&)> pred);
 
 /**
  * Construct a copy of provided subnet. Will change names by adding suffix if it was provided.
@@ -99,9 +99,9 @@ IE_SUPPRESS_DEPRECATED_END
  * @param from precision of tensors required conversion
  * @param to resulting precision of tensors
  */
-INFERENCE_ENGINE_API_CPP(void) ConvertPrecision(ICNNNetwork& net, Precision from, Precision to);
+INFERENCE_ENGINE_API_CPP(void) ConvertPrecision(CNNNetwork& net, Precision from, Precision to);
 
-INFERENCE_ENGINE_API_CPP(void) ConvertIOPrecision(ICNNNetwork& net, Precision from, Precision to);
+INFERENCE_ENGINE_API_CPP(void) ConvertIOPrecision(CNNNetwork& net, Precision from, Precision to);
 
 }  // namespace NetPass
 }  // namespace InferenceEngine

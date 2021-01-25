@@ -1570,8 +1570,7 @@ void BreakFusingOfOutputLayersPass::run() {
 #if GNA_LIB_VER == 1
     return;
 #endif
-    OutputsDataMap outputsMap;
-    this->getPassManager()->getNetwork()->getOutputsInfo(outputsMap);
+    OutputsDataMap outputsMap = this->getPassManager()->getNetwork().getOutputsInfo();
     for (auto layer : *pLayers) {
         for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
             auto& output = layer->outData[output_idx];
@@ -1607,7 +1606,7 @@ void BreakFusingOfOutputLayersPass::run() {
 }
 
 void UnrollLSTMCellPass::run() {
-    InferenceEngine::NetPass::UnrollRNN_if(*getPassManager()->getNetwork(), [] (const RNNCellBase& rnn) -> bool {
+    InferenceEngine::NetPass::UnrollRNN_if(getPassManager()->getNetwork(), [] (const RNNCellBase& rnn) -> bool {
         if (rnn.clip != 0.0f)
             return true;
         if (rnn.type == "GRUCell" ||
@@ -1623,7 +1622,7 @@ void UnrollLSTMCellPass::run() {
 }
 
 void UnrollTIPass::run() {
-    auto sts = InferenceEngine::NetPass::UnrollTI(*getPassManager()->getNetwork());
+    auto sts = InferenceEngine::NetPass::UnrollTI(getPassManager()->getNetwork());
     if (!sts) {
         THROW_GNA_EXCEPTION << "TensorIterator layer cannot be unrolled!";
     }
@@ -1631,7 +1630,8 @@ void UnrollTIPass::run() {
 
 void RemoveConstPass::run() {
     auto network = getPassManager()->getNetwork();
-    auto* implNetwork = dynamic_cast<details::CNNNetworkImpl*>(network.get());
+    auto & icnnnet = static_cast<ICNNNetwork &>(network);
+    auto* implNetwork = dynamic_cast<details::CNNNetworkImpl*>(&icnnnet);
     if (!implNetwork) {
         THROW_GNA_EXCEPTION << "Remove const layers pass can only work on cnnnetworkimpl type";
     }
@@ -1977,10 +1977,10 @@ int PassManager::run(int index) {
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
         std::ofstream out(name + ".dot");
-        saveGraphToDot(*network.get(), out, [](const CNNLayerPtr layer,
-                                               ordered_properties &printed_properties,
-                                               ordered_properties &node_properties) {});
-        network->serialize(name + ".xml", name + ".bin", nullptr);
+        saveGraphToDot(network, out, [](const CNNLayerPtr layer,
+                                        ordered_properties &printed_properties,
+                                        ordered_properties &node_properties) {});
+        network.serialize(name + ".xml", name + ".bin", nullptr);
     };
 #else
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};
@@ -1990,7 +1990,7 @@ int PassManager::run(int index) {
         if (settings.runBeforeCopy != pass->runBeforeCopyPass()) {
             continue;
         }
-        auto layers = CNNNetSortTopologically(*network.get());
+        auto layers = CNNNetSortTopologically(network);
         pass->attach(layers);
         gnalog() << "PASS: " << ++index << "/" << passes.size() << ":" << pass->getName() << "\n";
         pass->run();

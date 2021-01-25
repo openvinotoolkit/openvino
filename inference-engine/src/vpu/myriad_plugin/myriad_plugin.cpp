@@ -94,7 +94,7 @@ QueryNetworkResult Engine::QueryNetwork(
 
     if (auto function = network.getFunction()) {
         auto clonedNetwork = cloneNetwork(network);
-        auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
+        auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
 
         res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
     } else {

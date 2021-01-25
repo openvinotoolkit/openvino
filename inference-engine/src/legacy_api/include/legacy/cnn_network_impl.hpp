@@ -15,20 +15,22 @@
 #include "ie_data.h"
 #include "ie_input_info.hpp"
 #include <ie_icnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 
 #include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
 
-class IShapeInferExtension;
-using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
-
 namespace details {
 
-class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
+IE_SUPPRESS_DEPRECATED_START
+
+class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork,
+    public std::enable_shared_from_this<ICNNNetwork> {
 public:
     CNNNetworkImpl();
     explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl);
+    explicit CNNNetworkImpl(const CNNNetwork & ngraphImpl);
     ~CNNNetworkImpl() override;
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
@@ -135,6 +137,9 @@ protected:
     DataPtr _emptyData;
 };
 
+IE_SUPPRESS_DEPRECATED_END
+
 typedef std::shared_ptr<CNNNetworkImpl> CNNNetworkImplPtr;
+
 }  // namespace details
 }  // namespace InferenceEngine

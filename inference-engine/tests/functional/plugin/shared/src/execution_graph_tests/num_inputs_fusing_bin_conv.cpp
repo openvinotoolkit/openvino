@@ -17,7 +17,7 @@
 
 #include "execution_graph_tests/num_inputs_fusing_bin_conv.hpp"
 
-std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network);
+std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::CNNNetwork& network);
 
 namespace ExecutionGraphTests {
 
@@ -89,7 +89,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
 
             IE_SUPPRESS_DEPRECATED_START
             InferenceEngine::CNNLayerPtr cnnLayer;
-            ASSERT_NO_THROW(cnnLayer = CommonTestUtils::getLayerByName(convertedExecGraph.get(), op->get_friendly_name()));
+            ASSERT_NO_THROW(cnnLayer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedExecGraph), op->get_friendly_name()));
             ASSERT_EQ(cnnLayer->name, op->get_friendly_name());
             auto variantType = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(
                 op->get_rt_info()[ExecGraphInfoSerialization::LAYER_TYPE]);;

@@ -3,8 +3,8 @@
 //
 
 /**
- * \brief header file for ICNNNetwork
- * \file ie_icnn_network.hpp
+ * \brief header file for MockICNNNetwork
+ * \file mock_icnn_network.hpp
  */
 #pragma once
 
@@ -19,7 +19,7 @@
 IE_SUPPRESS_DEPRECATED_START
 
 /**
- * @class ICNNNetwork
+ * @class MockICNNNetwork
  * @brief Main interface to describe the NN topology
  */
 class MockICNNNetwork : public InferenceEngine::ICNNNetwork {
@@ -47,7 +47,7 @@ class MockICNNNetwork : public InferenceEngine::ICNNNetwork {
 };
 
 /**
- * @class ICNNNetwork
+ * @class MockCNNNetworkImpl
  * @brief Main interface to describe the NN topology
  */
 class MockCNNNetworkImpl: public InferenceEngine::details::CNNNetworkImpl {
