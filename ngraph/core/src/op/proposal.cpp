@@ -37,59 +37,78 @@ op::v0::Proposal::Proposal(const Output<Node>& class_probs,
 void op::v0::Proposal::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_Proposal_validate_and_infer_types);
-    const auto& class_probs_pshape = get_input_partial_shape(0);
-    const auto& class_bbox_deltas_pshape = get_input_partial_shape(1);
-    const auto& image_shape_pshape = get_input_partial_shape(2);
-    if (class_probs_pshape.is_static() && class_bbox_deltas_pshape.is_static() &&
-        image_shape_pshape.is_static())
-    {
-        const Shape class_probs_shape{class_probs_pshape.to_shape()};
-        const Shape class_bbox_deltas_shape{class_bbox_deltas_pshape.to_shape()};
-        const Shape image_shape_shape{image_shape_pshape.to_shape()};
+    const auto& class_probs_ps = get_input_partial_shape(0);
+    const auto& bbox_deltas_ps = get_input_partial_shape(1);
+    const auto& image_shape_ps = get_input_partial_shape(2);
+    auto out_dimension = Dimension::dynamic();
 
+    if (class_probs_ps.is_static())
+    {
         NODE_VALIDATION_CHECK(
             this,
-            class_probs_shape.size() == 4,
+            class_probs_ps.rank().get_length() == 4,
             "Proposal layer shape class_probs input must have rank 4 (class_probs_shape: ",
-            class_probs_shape,
+            class_probs_ps,
             ").");
+    }
 
+    if (bbox_deltas_ps.is_static())
+    {
         NODE_VALIDATION_CHECK(this,
-                              class_bbox_deltas_shape.size() == 4,
+                              bbox_deltas_ps.rank().get_length() == 4,
                               "Proposal layer shape class_bbox_deltas_shape input must have rank 4 "
                               "(class_bbox_deltas_shape: ",
-                              class_bbox_deltas_shape,
+                              bbox_deltas_ps,
                               ").");
+        if (class_probs_ps.is_static())
+        {
+            // class probs shape was also static, check anchor count and batch number
+            // consistency
+            NODE_VALIDATION_CHECK(this,
+                                  class_probs_ps[1].get_length() * 2 ==
+                                      bbox_deltas_ps[1].get_length(),
+                                  "Anchor number inconsistent between class_probs (",
+                                  class_probs_ps[1].get_length() / 2,
+                                  "), and bbox_deltas (",
+                                  class_probs_ps[1].get_length() / 4,
+                                  ").");
 
-        NODE_VALIDATION_CHECK(
-            this,
-            image_shape_shape.size() == 1,
-            "Proposal layer image_shape input must have rank 1 (image_shape_shape: ",
-            image_shape_shape,
-            ").");
-
-        NODE_VALIDATION_CHECK(
-            this,
-            image_shape_shape[0] >= 3 && image_shape_shape[0] <= 4,
-            "Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]",
-            image_shape_shape[0],
-            ").");
-
-        NODE_VALIDATION_CHECK(this,
-                              class_probs_shape[1] * 2 == class_bbox_deltas_shape[1],
-                              "Anchor number inconsistent between class_probs (",
-                              class_probs_shape[1] / 2,
-                              "), and bbox_deltas (",
-                              class_bbox_deltas_shape[1] / 4,
-                              ").");
-
-        auto batch_size = class_probs_shape[0];
-        set_output_type(0, get_input_element_type(0), Shape{batch_size * m_attrs.post_nms_topn, 5});
+            NODE_VALIDATION_CHECK(this,
+                                  class_probs_ps[0] == bbox_deltas_ps[0],
+                                  "Batch size inconsistent between class_probs (",
+                                  class_probs_ps[0],
+                                  ") and bbox deltas (",
+                                  bbox_deltas_ps[0],
+                                  ").");
+        }
     }
-    else
+
+    if (image_shape_ps.is_static())
     {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+        NODE_VALIDATION_CHECK(
+            this,
+            image_shape_ps.rank().get_length() == 1,
+            "Proposal layer image_shape input must have rank 1 (image_shape_shape: ",
+            image_shape_ps,
+            ").");
+
+        NODE_VALIDATION_CHECK(
+            this,
+            image_shape_ps[0].get_length() >= 3 && image_shape_ps[0].get_length() <= 4,
+            "Image_shape 1D tensor must have => 3 and <= 4 elements (image_shape_shape[0]",
+            image_shape_ps[0],
+            ").");
     }
+
+    // intersect the batch size
+    Dimension batch_dim = class_probs_ps[0] & bbox_deltas_ps[0];
+
+    if (batch_dim.is_static())
+    {
+        out_dimension = Dimension(batch_dim.get_length() * m_attrs.post_nms_topn);
+    }
+
+    set_output_type(0, get_input_element_type(0), PartialShape{out_dimension, 5});
 }
 
 shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const

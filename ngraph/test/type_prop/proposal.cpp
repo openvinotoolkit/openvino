@@ -103,7 +103,7 @@ TEST(type_prop, proposal_v0_invalid_image_shape_rank)
 {
     op::ProposalAttrs attrs;
     auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
     auto image_shape = make_shared<op::Parameter>(element::f32, Shape{2, 1});
 
     try
@@ -128,7 +128,7 @@ TEST(type_prop, proposal_v0_invalid_image_shape_size)
 {
     op::ProposalAttrs attrs;
     auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
     auto image_shape = make_shared<op::Parameter>(element::f32, Shape{5});
 
     try
@@ -167,6 +167,81 @@ TEST(type_prop, proposal_v0_shape_infer)
     ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
 }
 
+TEST(type_prop, proposal_v0_dynamic_class_probs_dim1_batch_size_infer)
+{
+    op::ProposalAttrs attrs;
+    const size_t batch_size = 2;
+    auto class_probs =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+}
+
+TEST(type_prop, proposal_v0_dynamic_bbox_deltas_dim1_batch_size_infer)
+{
+    op::ProposalAttrs attrs;
+    const size_t batch_size = 2;
+    auto class_probs =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+}
+
+TEST(type_prop, proposal_v0_dynamic_class_probs_bbox_deltas_dim1_batch_size_infer)
+{
+    op::ProposalAttrs attrs;
+    const size_t batch_size = 2;
+    auto class_probs =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
+    auto class_bbox_deltas =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 5}));
+}
+
+TEST(type_prop, proposal_v0_dynamic_image_shape_shape_infer)
+{
+    op::ProposalAttrs attrs;
+    attrs.base_size = 1;
+    attrs.pre_nms_topn = 20;
+    attrs.post_nms_topn = 200;
+    const size_t batch_size = 7;
+
+    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{batch_size, 12, 34, 62});
+    auto class_bbox_deltas =
+        make_shared<op::Parameter>(element::f32, Shape{batch_size, 24, 34, 62});
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+}
+
+TEST(type_prop, proposal_v0_everything_dynamic_shape_infer)
+{
+    op::ProposalAttrs attrs;
+    const size_t batch_size = 2;
+    auto class_probs = make_shared<op::Parameter>(element::f32,
+                                                  PartialShape{Dimension::dynamic(),
+                                                               Dimension::dynamic(),
+                                                               Dimension::dynamic(),
+                                                               Dimension::dynamic()});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32,
+                                                        PartialShape{Dimension::dynamic(),
+                                                                     Dimension::dynamic(),
+                                                                     Dimension::dynamic(),
+                                                                     Dimension::dynamic()});
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 5}));
+}
 // ------------------------------ V4 ------------------------------
 
 TEST(type_prop, proposal_v4_invalid_class_probs_rank)
@@ -224,7 +299,7 @@ TEST(type_prop, proposal_v4_invalid_image_shape_rank)
 {
     op::ProposalAttrs attrs;
     auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
     auto image_shape = make_shared<op::Parameter>(element::f32, Shape{2, 1});
 
     try
@@ -249,7 +324,7 @@ TEST(type_prop, proposal_v4_invalid_image_shape_size)
 {
     op::ProposalAttrs attrs;
     auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
     auto image_shape = make_shared<op::Parameter>(element::f32, Shape{5});
 
     try
@@ -287,4 +362,80 @@ TEST(type_prop, proposal_v4_shape_infer)
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
     ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
     ASSERT_EQ(op->get_output_shape(1), (Shape{batch_size * attrs.post_nms_topn}));
+}
+
+TEST(type_prop, proposal_v4_dynamic_class_probs_dim1_batch_size_infer)
+{
+    op::ProposalAttrs attrs;
+    const size_t batch_size = 2;
+    auto class_probs =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+}
+
+TEST(type_prop, proposal_v4_dynamic_bbox_deltas_dim1_batch_size_infer)
+{
+    op::ProposalAttrs attrs;
+    const size_t batch_size = 2;
+    auto class_probs =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+}
+
+TEST(type_prop, proposal_v4_dynamic_class_probs_bbox_deltas_dim1_batch_size_infer)
+{
+    op::ProposalAttrs attrs;
+    const size_t batch_size = 2;
+    auto class_probs =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
+    auto class_bbox_deltas =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 5}));
+}
+
+TEST(type_prop, proposal_v4_dynamic_image_shape_shape_infer)
+{
+    op::ProposalAttrs attrs;
+    attrs.base_size = 1;
+    attrs.pre_nms_topn = 20;
+    attrs.post_nms_topn = 200;
+    const size_t batch_size = 7;
+
+    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{batch_size, 12, 34, 62});
+    auto class_bbox_deltas =
+        make_shared<op::Parameter>(element::f32, Shape{batch_size, 24, 34, 62});
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_shape(0), (Shape{batch_size * attrs.post_nms_topn, 5}));
+}
+
+TEST(type_prop, proposal_v4_everything_dynamic_shape_infer)
+{
+    op::ProposalAttrs attrs;
+    const size_t batch_size = 2;
+    auto class_probs = make_shared<op::Parameter>(element::f32,
+                                                  PartialShape{Dimension::dynamic(),
+                                                               Dimension::dynamic(),
+                                                               Dimension::dynamic(),
+                                                               Dimension::dynamic()});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32,
+                                                        PartialShape{Dimension::dynamic(),
+                                                                     Dimension::dynamic(),
+                                                                     Dimension::dynamic(),
+                                                                     Dimension::dynamic()});
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 5}));
 }
