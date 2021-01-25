@@ -70,7 +70,7 @@ namespace ngraph
                         test(reg_sz, reg_sz);
                         jz(exit);
 
-                        sub(rsp, 8 * sizeof(float));                    // allocate array for 8 floats on stack
+                        sub(rsp, 8 * sizeof(float)); // allocate array for 8 floats on stack
                         xor_(rsi, rsi);
 
                         mov(qword[rsp], rsi);
@@ -80,10 +80,10 @@ namespace ngraph
 
                         // Tail conversion
                         L(tail_loop);
-                        movzx(edi, byte[reg_src]);                      // read u8
-                        cvtsi2ss(xmm0, edi);                            // convert u8 to float
-                        movss(dword[rsp + rsi * sizeof(float)], xmm0);  // save float on stack
-                        lea(reg_src, ptr[reg_src + sizeof(uint8_t)]);   // reg_src++
+                        movzx(edi, byte[reg_src]);                     // read u8
+                        cvtsi2ss(xmm0, edi);                           // convert u8 to float
+                        movss(dword[rsp + rsi * sizeof(float)], xmm0); // save float on stack
+                        lea(reg_src, ptr[reg_src + sizeof(uint8_t)]);  // reg_src++
                         inc(rsi);
                         cmp(rsi, reg_sz);
                         jl(tail_loop);
@@ -103,7 +103,7 @@ namespace ngraph
                         cmp(rsi, reg_sz);
                         jl(copy_loop);
 
-                        add(rsp, 8 * sizeof(float));                    // Free the array on stack
+                        add(rsp, 8 * sizeof(float)); // Free the array on stack
 
                         L(exit);
 
@@ -172,7 +172,7 @@ namespace ngraph
                         test(reg_sz, reg_sz);
                         jz(exit);
 
-                        sub(rsp, 8 * sizeof(float));                    // allocate array for 8 floats on stack
+                        sub(rsp, 8 * sizeof(float)); // allocate array for 8 floats on stack
                         xor_(rsi, rsi);
 
                         mov(qword[rsp], rsi);
@@ -202,7 +202,7 @@ namespace ngraph
                         cmp(rsi, reg_sz);
                         jl(copy_loop);
 
-                        add(rsp, 8 * sizeof(float));                    // Free the array on stack
+                        add(rsp, 8 * sizeof(float)); // Free the array on stack
 
                         L(exit);
 
