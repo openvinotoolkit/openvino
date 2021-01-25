@@ -292,54 +292,54 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
         return true;
     };
 
-    auto initializeWeightsZeroPoints = [](MKLDNNNodePtr node, MKLDNNNodePtr parent0) {
-        auto* convNode = dynamic_cast<MKLDNNConvolutionNode*>(node.get());
-        if (convNode == nullptr)
-            THROW_IE_EXCEPTION << "Cannot get convolution node " << node->getName();
-
-        int OC = node->getChildEdgesAtPort(0)[0]->getDims()[1];
-
-        if (parent0->getType() == Eltwise) {
-            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(parent0.get());
-            if (eltwiseNode->getOpType() != Subtract)
-                return false;
-
-            if (parent0->getParentEdges().size() != 2)
-                return false;
-
-            if (parent0->getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->type == "Const") {
-                auto arg0 = parent0->getParentEdgesAtPort(1)[0]->getParent();
-                if (arg0->getCnnLayer()->outData[0]->getPrecision() != Precision::I8)
-                    return false;
-
-                if (parent0->getParentEdgesAtPort(1)[0]->getDims()[0] != 1 &&
-                    parent0->getParentEdgesAtPort(1)[0]->getDims()[0] != OC)
-                    return false;
-
-                auto arg1 = parent0->getParentEdgesAtPort(0)[0]->getParent();
-                if (arg1->getCnnLayer()->outData[0]->getPrecision() != Precision::I8)
-                    return false;
-
-                auto zeroPointsBlob = dynamic_cast<TBlob<int8_t>*>(arg0->getCnnLayer()->blobs["custom"].get());
-                if (zeroPointsBlob == nullptr)
-                    THROW_IE_EXCEPTION << "Cannot cast to TBlob internal zero points blob";
-
-                auto zeroPointsData = zeroPointsBlob->buffer().as<int8_t*>();
-                if (zeroPointsData == nullptr)
-                    THROW_IE_EXCEPTION << "zeroPointsBlob has not allocated buffer";
-
-                for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[0]; j++) {
-                    convNode->weightsZeroPoints.push_back(static_cast<float>(zeroPointsData[j]));
-                }
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
-
-        return true;
-    };
+//    auto initializeWeightsZeroPoints = [](MKLDNNNodePtr node, MKLDNNNodePtr parent0) {
+//        auto* convNode = dynamic_cast<MKLDNNConvolutionNode*>(node.get());
+//        if (convNode == nullptr)
+//            THROW_IE_EXCEPTION << "Cannot get convolution node " << node->getName();
+//
+//        int OC = node->getChildEdgesAtPort(0)[0]->getDims()[1];
+//
+//        if (parent0->getType() == Eltwise) {
+//            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(parent0.get());
+//            if (eltwiseNode->getOpType() != Subtract)
+//                return false;
+//
+//            if (parent0->getParentEdges().size() != 2)
+//                return false;
+//
+//            if (parent0->getParentEdgesAtPort(1)[0]->getParent()->getCnnLayer()->type == "Const") {
+//                auto arg0 = parent0->getParentEdgesAtPort(1)[0]->getParent();
+//                if (arg0->getCnnLayer()->outData[0]->getPrecision() != Precision::I8)
+//                    return false;
+//
+//                if (parent0->getParentEdgesAtPort(1)[0]->getDims()[0] != 1 &&
+//                    parent0->getParentEdgesAtPort(1)[0]->getDims()[0] != OC)
+//                    return false;
+//
+//                auto arg1 = parent0->getParentEdgesAtPort(0)[0]->getParent();
+//                if (arg1->getCnnLayer()->outData[0]->getPrecision() != Precision::I8)
+//                    return false;
+//
+//                auto zeroPointsBlob = dynamic_cast<TBlob<int8_t>*>(arg0->getCnnLayer()->blobs["custom"].get());
+//                if (zeroPointsBlob == nullptr)
+//                    THROW_IE_EXCEPTION << "Cannot cast to TBlob internal zero points blob";
+//
+//                auto zeroPointsData = zeroPointsBlob->buffer().as<int8_t*>();
+//                if (zeroPointsData == nullptr)
+//                    THROW_IE_EXCEPTION << "zeroPointsBlob has not allocated buffer";
+//
+//                for (int j = 0; j < parent0->getParentEdgesAtPort(1)[0]->getDims()[0]; j++) {
+//                    convNode->weightsZeroPoints.push_back(static_cast<float>(zeroPointsData[j]));
+//                }
+//            } else {
+//                return false;
+//            }
+//        } else {
+//            return false;
+//        }
+//
+//        return true;
+//    };
 
     auto initializeOutputCompensation = [](MKLDNNNodePtr node) {
         auto* convNode = dynamic_cast<MKLDNNConvolutionNode*>(node.get());
