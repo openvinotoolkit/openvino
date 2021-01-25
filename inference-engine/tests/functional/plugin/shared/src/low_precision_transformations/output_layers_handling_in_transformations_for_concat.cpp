@@ -46,7 +46,6 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::Gener
     const float low = 0.f / k;
     const float hight = 255.f / k;
     InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
-    const auto buffer = input->buffer().as<float*>();
     return input;
 }
 
@@ -74,8 +73,6 @@ void OutputLayersHandlingInTransformationsForConcat::SetUp() {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
     input1->set_friendly_name("input1");
 
-    const float low = 0.f;
-    const float hight = 255.f;
     const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
         input1->output(0), ngPrecision, 256ul, { 1ul },
         { 0.f }, { 255.f }, { 0.f }, { 255.f });

@@ -55,7 +55,6 @@ void op::v6::CTCGreedyDecoderSeqLen::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v6_CTCGreedyDecoderSeqLen_validate_and_infer_types);
     const auto& logits_pshape = get_input_partial_shape(0);
     const auto& seq_len_pshape = get_input_partial_shape(1);
-    auto input_et = get_input_element_type(0);
     const bool logits_is_static_rank = logits_pshape.rank().is_static();
     const bool seq_len_is_static_rank = seq_len_pshape.rank().is_static();
 

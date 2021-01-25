@@ -22,7 +22,7 @@
 
 #include "execution_graph_tests/unique_node_names.hpp"
 
-std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network);
+std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::CNNNetwork& network);
 
 namespace ExecutionGraphTests {
 

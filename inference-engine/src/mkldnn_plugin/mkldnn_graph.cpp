@@ -84,7 +84,7 @@ void MKLDNNGraph::ApplyUnrollPasses(NET &net) {
 }
 
 template void MKLDNNGraph::ApplyUnrollPasses(TensorIterator::Body&);
-template void MKLDNNGraph::ApplyUnrollPasses(ICNNNetwork&);
+template void MKLDNNGraph::ApplyUnrollPasses(CNNNetwork&);
 
 template<typename NET>
 void MKLDNNGraph::CreateGraph(const NET &net, const MKLDNNExtensionManager::Ptr& extMgr,
@@ -102,8 +102,6 @@ void MKLDNNGraph::CreateGraph(const NET &net, const MKLDNNExtensionManager::Ptr&
 }
 
 template void MKLDNNGraph::CreateGraph(const TensorIterator::Body&,
-        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
-template void MKLDNNGraph::CreateGraph(const ICNNNetwork&,
         const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 template void MKLDNNGraph::CreateGraph(const CNNNetwork&,
         const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
@@ -203,9 +201,8 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
     }
 }
 
-void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
-    InputsDataMap inputs;
-    network.getInputsInfo(inputs);
+void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
+    InputsDataMap inputs = network.getInputsInfo();
     if (inputs.empty()) {
         THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: No inputs for the topology";
     }
@@ -269,9 +266,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
         }
     }
 
-    std::map<std::string, DataPtr> outputs;
-    network.getOutputsInfo(outputs);
-
+    OutputsDataMap outputs = network.getOutputsInfo();
     for (const auto &output : outputs) {
         const auto data = output.second;
 
