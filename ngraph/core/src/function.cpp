@@ -352,7 +352,8 @@ int64_t Function::get_result_index(const Output<Node>& value) const
 }
 
 bool Function::evaluate(const HostTensorVector& output_tensors,
-                        const HostTensorVector& input_tensors) const
+                        const HostTensorVector& input_tensors,
+                        HostTensorVector* buffer_tensors) const
 {
     std::map<RawNodeOutput, HostTensorPtr> value_map;
     for (size_t i = 0; i < m_parameters.size(); ++i)
@@ -367,7 +368,7 @@ bool Function::evaluate(const HostTensorVector& output_tensors,
         output_tensor_map[result] = output_tensors.at(i);
         outputs.push_back(result);
     }
-    evaluate_nodes(value_map, output_tensor_map, outputs);
+    evaluate_nodes(value_map, output_tensor_map, outputs, buffer_tensors);
     return true;
 }
 

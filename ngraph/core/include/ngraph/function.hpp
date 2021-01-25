@@ -147,7 +147,8 @@ namespace ngraph
         /// \param outputs Tensors for the outputs to compute. One for each result
         /// \param inputs Tensors for the inputs. One for each inputs.
         bool evaluate(const HostTensorVector& output_tensors,
-                      const HostTensorVector& input_tensors) const;
+                      const HostTensorVector& input_tensors,
+                      HostTensorVector* buffer_tensors = nullptr) const;
 
         /// \brief Return a list of function's sinks.
         const SinkVector& get_sinks() const { return m_sinks; }

@@ -17,16 +17,19 @@
 #include <algorithm>
 
 #include "ngraph/evaluator.hpp"
+#include "ngraph/op/assign.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/gather.hpp"
 #include "ngraph/op/min.hpp"
 #include "ngraph/op/minimum.hpp"
+#include "ngraph/op/read_value.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/unsqueeze.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/copy.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
@@ -1158,14 +1161,22 @@ pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
     return pair<bool, uint64_t>(val.m_value < numeric_limits<uint64_t>::max(), val.m_value);
 }
 
+template <element::Type_t ET>
+inline bool copy_tensor(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+{
+    runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+    return true;
+}
+
 void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                             std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
-                            const OutputVector& outputs)
+                            const OutputVector& outputs,
+                            HostTensorVector* buffer_tensors)
 {
     Evaluator<HostTensorPtr> evaluator({}, value_map);
     evaluator.set_univeral_handler(
-        [&output_tensor_map](Node* node,
-                             const HostTensorVector& input_tensors) -> HostTensorVector {
+        [&output_tensor_map,
+         &buffer_tensors](Node* node, const HostTensorVector& input_tensors) -> HostTensorVector {
             HostTensorVector output_tensors;
             for (auto v : node->outputs())
             {
@@ -1180,13 +1191,98 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                     output_tensors.push_back(it->second);
                 }
             }
-            if (node->evaluate(output_tensors, input_tensors))
+            if (is_type<op::v3::ReadValue>(node) || is_type<op::v3::Assign>(node))
             {
+                NGRAPH_CHECK(buffer_tensors != nullptr, "Evaluation of ReadValue/Assign op failed");
+
+                if (is_type<op::v3::Assign>(node))
+                {
+                    cout << "Assign op\n";
+                    auto assign = static_cast<op::Assign*>(node);
+                    // as_type_ptr<op::v3::Assign>(node);
+                    auto var_id = assign->get_variable_id();
+                    // Look for variable_id into buffer
+                    for (auto tensor : *buffer_tensors)
+                    {
+                        if (tensor->get_name() == var_id)
+                        {
+                            cout << "Bingo. variable_id found\n";
+                            // comparing element type?
+                            // write input_tensors[0] into tensor from buffer_tensors
+                            switch (tensor->get_element_type())
+                            {
+                            case element::Type_t::f32:
+                                copy_tensor<element::Type_t::f32>(
+                                    input_tensors[0], tensor, shape_size(tensor->get_shape()));
+                                break;
+                            default: NGRAPH_CHECK(false, "Error");
+                            }
+                        }
+                    }
+                    // NGRAPH_CHECK(false, "Variable not found");
+                }
+                else
+                {
+                    cout << "ReadValue op\n";
+                    auto read_value = static_cast<op::ReadValue*>(node);
+                    auto var_id = read_value->get_variable_id();
+                    bool found = false;
+                    for (size_t i = 0; i < (*buffer_tensors).size() && !found; i++)
+                    {
+                        auto tensor = (*buffer_tensors)[i];
+                        if (tensor->get_name() == var_id)
+                        {
+                            cout << "variable_id found\n";
+                            found = true;
+                            // Read tensor from buffer and set it as input for evaluate/ copy it to
+                            // output
+                            switch (tensor->get_element_type())
+                            {
+                            case element::Type_t::f32:
+                                copy_tensor<element::Type_t::f32>(
+                                    tensor, output_tensors[0], shape_size(tensor->get_shape()));
+                                break;
+                            default: NGRAPH_CHECK(false, "Error");
+                            }
+                        }
+                    }
+                    if (!found)
+                    {
+                        cout << "variable_id not found\n";
+                        auto t = make_shared<HostTensor>(read_value->get_element_type(),
+                                                         read_value->get_output_partial_shape(0),
+                                                         read_value->get_variable_id());
+                        // Write data from input of read_value op to tensor
+                        // runtime::reference::copy(input_tensors[0]->get_data_ptr<>(),
+                        // t->get_data_ptr<>(), size);
+                        switch (read_value->get_element_type())
+                        {
+                        case element::Type_t::f32:
+                            copy_tensor<element::Type_t::f32>(
+                                input_tensors[0], t, shape_size(t->get_shape()));
+                            copy_tensor<element::Type_t::f32>(
+                                input_tensors[0],
+                                output_tensors[0],
+                                shape_size(output_tensors[0]->get_shape()));
+                            break;
+                        default: NGRAPH_CHECK(false, "Error");
+                        }
+                        // push_back tensor into buffer
+                        (*buffer_tensors).push_back(t);
+                    }
+                }
                 return output_tensors;
             }
             else
             {
-                NGRAPH_CHECK(false, "Evaluation failed on ", node);
+                if (node->evaluate(output_tensors, input_tensors))
+                {
+                    return output_tensors;
+                }
+                else
+                {
+                    NGRAPH_CHECK(false, "Evaluation failed on ", node);
+                }
             }
         });
     for (auto value : outputs)

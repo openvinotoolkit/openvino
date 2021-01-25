@@ -81,6 +81,7 @@ set(SRC
     op_eval/matmul.cpp
     op_eval/mish.cpp
     op_eval/non_zero.cpp
+    op_eval/infr_ops.cpp
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
     op_eval/roi_align.cpp

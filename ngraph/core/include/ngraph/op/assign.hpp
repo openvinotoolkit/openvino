@@ -44,6 +44,8 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
 
                 std::string get_variable_id() { return m_variable_id; }
                 std::shared_ptr<ngraph::Variable> get_variable() { return m_variable; }
@@ -60,7 +62,8 @@ namespace ngraph
                 std::string m_variable_id;
                 std::shared_ptr<ngraph::Variable> m_variable;
             };
-        }
+        } // namespace v3
         using v3::Assign;
-    }
-}
+    } // namespace op
+
+} // namespace ngraph
