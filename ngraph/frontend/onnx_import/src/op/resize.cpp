@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "resize.hpp"
+#include "op/resize.hpp"
 #include <map>
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
@@ -148,29 +148,6 @@ namespace ngraph
                     calculate_output_shape_based_on_scales(const Output<ngraph::Node>& data,
                                                            const Output<ngraph::Node>& scales)
                 {
-                    const auto& data_shape = data.get_partial_shape();
-                    const auto& scales_shape = scales.get_partial_shape();
-
-                    if (ngraph::op::is_constant(scales.get_node()) && data_shape.is_static())
-                    {
-                        const auto scales_const =
-                            as_type_ptr<default_opset::Constant>(scales.get_node_shared_ptr());
-
-                        const auto scales_vector = scales_const->cast_vector<float>();
-                        const auto data_static_shape = data_shape.to_shape();
-
-                        std::vector<int64_t> output_shape;
-                        for (size_t i = 0; i < data_static_shape.size(); ++i)
-                        {
-                            output_shape.push_back(
-                                std::floor(data_static_shape.at(i) * scales_vector.at(i)));
-                        }
-                        auto output_shape_const = default_opset::Constant::create(
-                            element::u64, Shape({output_shape.size()}), output_shape);
-
-                        return output_shape_const;
-                    }
-
                     const auto shape_of_data = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::ShapeOf>(data), scales.get_element_type());
                     const auto multiply =
@@ -185,33 +162,7 @@ namespace ngraph
                     calculate_scales_based_on_sizes(const Output<ngraph::Node>& data,
                                                     const Output<ngraph::Node>& sizes)
                 {
-                    const auto& data_shape = data.get_partial_shape();
-                    const auto& sizes_shape = sizes.get_partial_shape();
-
                     const float epsilon = 1.0e-5;
-
-                    if (ngraph::op::is_constant(sizes.get_node()) && data_shape.is_static())
-                    {
-                        const auto sizes_const =
-                            as_type_ptr<default_opset::Constant>(sizes.get_node_shared_ptr());
-
-                        const auto sizes_vector = sizes_const->cast_vector<int64_t>();
-                        const auto data_static_shape = data_shape.to_shape();
-
-                        std::vector<float> scales;
-                        for (size_t i = 0; i < data_static_shape.size(); ++i)
-                        {
-                            float scale = static_cast<float>(sizes_vector.at(i)) /
-                                              static_cast<float>(data_static_shape.at(i)) +
-                                          epsilon;
-                            scales.push_back(scale);
-                        }
-                        auto scales_const = default_opset::Constant::create(
-                            element::f32, Shape({scales.size()}), scales);
-
-                        return scales_const;
-                    }
-
                     const auto shape_of_data = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
                     const auto converted_sizes =

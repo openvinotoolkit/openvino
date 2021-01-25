@@ -3,6 +3,10 @@
 
 set(TARGET_NAME "GNAPlugin")
 
+if(CMAKE_COMPILER_IS_GNUCC)
+    ie_add_compiler_flags(-Wno-all)
+endif()
+
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
@@ -49,7 +53,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 # Static version for tests
 #
 
-add_library(${TARGET_NAME}_test_static STATIC ${SOURCES} ${HEADERS})
+add_library(${TARGET_NAME}_test_static STATIC EXCLUDE_FROM_ALL ${SOURCES} ${HEADERS})
 
 target_compile_definitions(${TARGET_NAME}_test_static
         PRIVATE
@@ -66,8 +70,7 @@ target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOU
 set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
-                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
-                                 EXCLUDE_FROM_ALL ON)
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
 # install
 

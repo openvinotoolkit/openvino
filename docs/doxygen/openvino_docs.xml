@@ -1,3 +1,21 @@
+<!--
+******************************************************************************
+Copyright 2017-2021 Intel Corporation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+******************************************************************************
+-->
+
 <doxygenlayout version="1.0" xmlns:xi="http://www.w3.org/2001/XInclude">
     <!-- Navigation index tabs for HTML output -->
     <navindex>
@@ -39,6 +57,7 @@
                 <tab type="user" title="Linux" url="@ref openvino_docs_get_started_get_started_linux"/>
                 <tab type="user" title="Windows" url="@ref openvino_docs_get_started_get_started_windows"/>
                 <tab type="user" title="macOS" url="@ref openvino_docs_get_started_get_started_macos"/>
+                <tab type="user" title="Raspbian" url="@ref openvino_docs_get_started_get_started_raspbian"/>
                 <tab type="user" title="Get Started with OpenVINO via DL Workbench" url="@ref openvino_docs_get_started_get_started_dl_workbench"/>
                 <tab type="user" title="Legal Information" url="@ref openvino_docs_Legal_Information"/>
             </tab>

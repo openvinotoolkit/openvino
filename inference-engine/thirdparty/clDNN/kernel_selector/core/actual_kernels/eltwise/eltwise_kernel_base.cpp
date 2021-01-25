@@ -612,8 +612,6 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
                                    false,
                                    GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return {kd};
 }
 }  // namespace kernel_selector

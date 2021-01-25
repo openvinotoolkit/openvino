@@ -52,9 +52,9 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
 
         std::vector<size_t> useless_axes;
         size_t axis_idx = 0;
-        for (auto axis = 0; axis < input_shape.size(); ++axis) {
+        for (size_t axis = 0; axis < input_shape.size(); ++axis) {
             if (interpolate_axes.count(axis)) {
-                if (input_shape[axis] == out_spatial_shape[axis_idx] && axis < 2)
+                if (static_cast<int64_t>(input_shape[axis]) == out_spatial_shape[axis_idx] && axis < 2)
                     // keeping only those not spatial dimensions that are going to be changed
                     useless_axes.push_back(axis);
                 ++axis_idx;

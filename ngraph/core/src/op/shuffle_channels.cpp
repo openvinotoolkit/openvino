@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ op::ShuffleChannels::ShuffleChannels(const Output<Node>& data,
 
 bool ngraph::op::v0::ShuffleChannels::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("group", m_group);
     return true;
@@ -69,6 +70,7 @@ size_t op::ShuffleChannels::get_zero_based_axis() const
 
 void op::ShuffleChannels::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
     if (get_input_partial_shape(0).is_static())
     {
@@ -102,6 +104,7 @@ void op::ShuffleChannels::validate_and_infer_types()
 
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_clone_with_new_inputs);
     if (new_args.size() != 1)
     {
         throw ngraph_error("Expected 1 element in new_args for the ShuffleChannels op but got " +
@@ -163,7 +166,6 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
     {
         reshaped_out_shape[3] *= ds[i];
     }
-    size_t data_size = shape_size(data_shape) * elem_size;
 
     // first reshape from data_shape to reshaped_out_shape is skipped since it doesn't affect
     // out
@@ -187,6 +189,6 @@ bool op::ShuffleChannels::evaluate_shuffle_channels(const HostTensorVector& outp
 bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(ShuffleChannels_evaluate) { return evaluate_shuffle_channels(outputs, inputs); }
-    return false;
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_evaluate);
+    return evaluate_shuffle_channels(outputs, inputs);
 }

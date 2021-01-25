@@ -29,6 +29,12 @@ public:
         const FakeQuantizeOnDataWithConstant& fakeQuantize1,
         const FakeQuantizeOnDataWithConstant& fakeQuantize2);
 
+    static std::shared_ptr<ngraph::Function> getOriginalWithChildAndOutput(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fakeQuantize1,
+        const FakeQuantizeOnData& fakeQuantize2);
+
     static std::shared_ptr<ngraph::Function> getOriginalWithNeighbors(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
@@ -84,11 +90,14 @@ public:
         const DequantizationOperations& dequantizationOperations);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
+        const ngraph::element::Type inputPrecision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantize1,
         const FakeQuantizeOnDataWithConstant& fakeQuantize2,
-        const DequantizationOperations& dequantizationOperations);
+        const ngraph::element::Type precisionBeforeOp,
+        const DequantizationOperations& dequantizationBefore,
+        const ngraph::element::Type precisionAfterOperation,
+        const DequantizationOperations& dequantizationAfter);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(
         const ngraph::element::Type precision,
@@ -96,6 +105,9 @@ public:
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
         const FakeQuantizeOnData& fqOnData3,
+        const ngraph::element::Type precisionBeforeOp,
+        const DequantizationOperations& dequantizationBefore,
+        const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2);
 
@@ -105,6 +117,10 @@ public:
         const bool transparentIntermediate,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
+        const ngraph::element::Type precisionBeforeOp,
+        const DequantizationOperations& dequantizationBefore1,
+        const DequantizationOperations& dequantizationBefore2,
+        const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2);
 
@@ -113,6 +129,10 @@ public:
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
+        const ngraph::element::Type precisionBeforeOp,
+        const DequantizationOperations& dequantizationBefore1,
+        const DequantizationOperations& dequantizationBefore2,
+        const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2);
 
@@ -122,6 +142,10 @@ public:
         const bool transparentIntermediate,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
+        const ngraph::element::Type precisionBeforeOp,
+        const DequantizationOperations& dequantizationBefore1,
+        const DequantizationOperations& dequantizationBefore2,
+        const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2);
 
@@ -131,8 +155,11 @@ public:
         const bool multiChannel,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
-        const DequantizationOperations& dequantizationOperations1,
-        const DequantizationOperations& dequantizationOperations2);
+        const ngraph::element::Type precisionBeforeOp,
+        const DequantizationOperations& dequantizationBefore,
+        const ngraph::element::Type precisionAfterOperation,
+        const DequantizationOperations& dequantizationAfter1,
+        const DequantizationOperations& dequantizationAfter2);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithIntermediateWithConstant(
         const ngraph::element::Type precision,
@@ -152,6 +179,8 @@ public:
         const FakeQuantizeOnDataWithConstant& fqOnData1,
         const FakeQuantizeOnDataWithConstant& fqOnData2,
         const FakeQuantizeOnDataWithConstant& fqOnData3,
+        const ngraph::element::Type precisionBeforeOp,
+        const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations);
 
 private:

@@ -1132,7 +1132,7 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_split2) {
         input_layout("input", input.get_layout()),
         data("weights_1", weights_1),
         data("biases_1", biases_1),
-        convolution("conv", "input", { "weights_1" }, { "biases_1" }, 2, tensor(1), tensor(0), tensor(1), tensor{1, 2, 3, 3, 3}, data_types::f32));
+        convolution("conv", "input", { "weights_1" }, { "biases_1" }, 2, tensor(1), tensor(0), tensor(1), tensor{1, 2, 3, 3, 3}, data_types::f32, true));
 
     network network(engine, topology);
     network.set_input_data("input", input);
@@ -4295,7 +4295,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weight_an
         data("a_zp", a_zp),
         data("w_zp", w_zp),
         convolution("conv", "input", { "weights" }, { "biases" }, { "w_zp" }, { "a_zp" }, 1, data_types::f32,
-                    tensor{ 0, 0, 2, 2 }, tensor(0), tensor{1, 1, 1, 1}, tensor{1, 2, 3, 2}),
+                    tensor{ 0, 0, 2, 2 }, tensor(0), tensor{1, 1, 1, 1}, tensor{1, 2, 3, 2}, false),
         reorder("out", "conv", format::bfyx, data_types::f32));
 
     build_options opts;
@@ -4366,7 +4366,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
         data("biases", biases),
         data("a_zp", a_zp),
         convolution("conv", "input", { "weights" }, { "biases" }, { }, { "a_zp" }, 1, data_types::f32,
-                    tensor{ 0, 0, 2, 2 }, tensor(0), tensor{1, 1, 1, 1}, tensor{1, 2, 3, 2}),
+                    tensor{ 0, 0, 2, 2 }, tensor(0), tensor{1, 1, 1, 1}, tensor{1, 2, 3, 2}, false),
         reorder("out", "conv", format::bfyx, data_types::f32));
 
     build_options opts;
@@ -4451,7 +4451,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
         data("biases", biases),
         data("a_zp", a_zp),
         convolution("conv", "input", { "weights" }, { "biases" }, { }, { "a_zp" }, 1, data_types::f32,
-                    tensor{ 0, 0, 2, 2 }, tensor(0), tensor{1, 1, 1, 1}, tensor{1, 2, 3, 2}),
+                    tensor{ 0, 0, 2, 2 }, tensor(0), tensor{1, 1, 1, 1}, tensor{1, 2, 3, 2}, false),
         reorder("out", "conv", format::bfyx, data_types::f32));
 
     build_options opts;
@@ -4552,7 +4552,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
         activation("activation", "input", activation_func::relu),  // needed just to add padding
         eltwise("in", {"activation", "a_zp"}, eltwise_mode::sub, data_types::f32),
         convolution("conv", "in", { "weights" }, { "biases" }, 1,
-                    tensor{ 0, 0, 2, 2 }, tensor(0), tensor{1, 1, 1, 1}, tensor{1, 2, 3, 2}, data_types::f32),
+                    tensor{ 0, 0, 2, 2 }, tensor(0), tensor{1, 1, 1, 1}, tensor{1, 2, 3, 2}, data_types::f32, false),
         reorder("out", "conv", format::bfyx, data_types::f32));
 
     build_options opts;
@@ -4623,7 +4623,7 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_weights_p
         data("biases", biases),
         data("w_zp", w_zp),
         convolution("conv", "input", { "weights" }, { "biases" }, { "w_zp" }, { }, 1, data_types::f32,
-                    tensor{ 0, 0, 2, 2 }, tensor(0), tensor{1, 1, 1, 1}, tensor{1, 2, 3, 2}),
+                    tensor{ 0, 0, 2, 2 }, tensor(0), tensor{1, 1, 1, 1}, tensor{1, 2, 3, 2}, false),
         reorder("out", "conv", format::bfyx, data_types::f32));
 
     build_options opts;
@@ -7018,7 +7018,7 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
         reorder("input_reordered", "input", reordered_input_layout),
         data("weights", weights),
         data("bias", bias),
-        convolution("conv", "input_reordered", { "weights" }, { "bias" }, num_groups, stride, input_offset, dilation, output_size, data_types::f32),
+        convolution("conv", "input_reordered", { "weights" }, { "bias" }, num_groups, stride, input_offset, dilation, output_size, data_types::f32, true),
         reorder("out", "conv", format::bfyx, data_types::f32));
 
     build_options options;
@@ -7440,7 +7440,8 @@ TEST_P(convolution_grouped_gpu, base) {
                                   stride_tensor,
                                   tensor(batch(0), feature(0), spatial(-input_offset_x, -input_offset_y, -input_offset_z, 0)),
                                   tensor(batch(1), feature(1), spatial(1, 1, 1, 1)),
-                                  ref_conv_out_size),
+                                  ref_conv_out_size,
+                                  true),
                       reorder("out", "conv", {data_types::f32, format::bfzyx, ref_conv_out_size}));
 
     if (has_input_zp)
@@ -7523,25 +7524,19 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
 
     const int input_x = testing::get<0>(GetParam()),
               input_y = testing::get<1>(GetParam()),
-              input_z = testing::get<2>(GetParam()),
               input_f = testing::get<3>(GetParam()),
               output_f = testing::get<4>(GetParam()),
               filter_x = testing::get<5>(GetParam()),
               filter_y = testing::get<6>(GetParam()),
-              filter_z = testing::get<7>(GetParam()),
               groups = testing::get<8>(GetParam()),
               stride = testing::get<9>(GetParam()),
               batch_num = testing::get<10>(GetParam()),
               output_padding = 0,
-              input_offset_z = (filter_z - 1) / 2,
               input_offset_y = (filter_y - 1) / 2,
               input_offset_x = (filter_x - 1) / 2;
     auto input_data_format = testing::get<11>(GetParam());
     auto impl_name = testing::get<12>(GetParam());
     auto with_bias = testing::get<13>(GetParam());
-
-    const int output_y = 1 + (input_y + 2 * (-input_offset_y) - filter_y) / stride + 2 * output_padding;
-    const int output_x = 1 + (input_x + 2 * (-input_offset_x) - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_x, input_y);
     auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);

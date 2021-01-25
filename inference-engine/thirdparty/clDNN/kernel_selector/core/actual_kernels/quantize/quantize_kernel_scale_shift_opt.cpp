@@ -35,6 +35,7 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::bfwzyx);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
@@ -45,6 +46,7 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableOutputLayout(DataLayout::bfwzyx);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
@@ -121,4 +123,7 @@ bool QuantizeKernelScaleShift::Validate(const Params& p, const optional_params&)
     return true;
 }
 
+KernelsPriority QuantizeKernelScaleShift::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
 }  // namespace kernel_selector

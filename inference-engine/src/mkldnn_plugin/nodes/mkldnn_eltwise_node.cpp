@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -70,9 +70,12 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
         for (int i = 0; i < eltwiseNode.getFusedWith().size(); i++) {
             if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
                 std::set<Precision> prcs = get_supported_precisions(*eltwiseNode.getFusedWith()[i].get());
+                std::set<Precision> prcs_intersect = {};
 
                 std::set_intersection(supported_precision_intersection.begin(), supported_precision_intersection.end(),
-                                      prcs.begin(), prcs.end(), std::inserter(supported_precision_intersection, supported_precision_intersection.begin()));
+                                      prcs.begin(), prcs.end(), std::inserter(prcs_intersect, prcs_intersect.begin()));
+
+                supported_precision_intersection = prcs_intersect;
             }
         }
 
@@ -1723,8 +1726,28 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
         return false;
     };
 
+    auto isSuitableNode = [](const MKLDNNEltwiseNode* node) {
+        // [WA] Since execution precision change from I32 to FP32 for Divide operation may lead to incorrect results
+        // we disable its fusing otherwise there is no guarantee it will be executed it I32
+        // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
+        // (all should be handled via explicit convert operations)
+        if (node->getOpType() == Divide) {
+            for (int i = 0; i < node->getCnnLayer()->insData.size(); i++) {
+                if (node->getCnnLayer()->insData[i].lock()->getPrecision() == Precision::I32) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    };
+
     if (!mayiuse(cpu::sse42))
         return false;
+
+    if (!isSuitableNode(this)) {
+        return false;
+    }
 
     // FQ inputs with quantization parameters will be hided inside post_op object, so will not increase inputs number
     size_t addedInputEdgesNum = node->getType() != Quantize ? (node->getParentEdges().size() - 1) : 0;
@@ -1734,6 +1757,10 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
     if (node->getType() == Eltwise) {
         auto eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
         if (eltwiseNode->getParentEdgesAtPort(0)[0]->getParent().get() != this) {
+            if (!isSuitableNode(this)) {
+                return false;
+            }
+
             // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for 0-th port.
             if (isOneOf(eltwiseNode->getOpType(), {Subtract, Divide, FloorMod, Mod, PowerDynamic, Greater, GreaterEqual, Less, LessEqual})) {
                 return false;
@@ -1759,6 +1786,19 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
     }
 
     return false;
+}
+
+InferenceEngine::Precision MKLDNNEltwiseNode::getRuntimePrecision() const {
+    std::vector<InferenceEngine::Precision> inputPrecisions;
+    // Don't take bias precision into account
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        auto parentEdge = getParentEdgeAt(i);
+        if (parentEdge && parentEdge->getStatus() == MKLDNNEdge::Status::Validated && !parentEdge->getParent()->isConstant()) {
+            inputPrecisions.emplace_back(MKLDNNExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+        }
+    }
+
+    return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNEltwiseNode, Eltwise);
