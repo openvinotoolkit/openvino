@@ -5,6 +5,7 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
+#include "transformations/serialize.hpp"
 
 #include "template/template_config.hpp"
 #include "template_plugin.hpp"
@@ -36,13 +37,49 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
 // ! [executable_network:ctor_cnnnetwork]
 
 // ! [executable_network:ctor_import_stream]
-TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &                 model,
-                                                     const Configuration&           cfg,
-                                                     const Plugin::Ptr&             plugin) :
+TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
+                                                     const Configuration& cfg,
+                                                     const Plugin::Ptr&   plugin) :
     _cfg(cfg),
     _plugin(plugin) {
-    // TODO: since Import network is not a mandatory functionality, this ctor can just be removed
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    // read XML content
+    std::string xmlString;
+    std::uint64_t dataSize = 0;
+    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    xmlString.resize(dataSize);
+    model.read(const_cast<char*>(xmlString.c_str()), dataSize);
+
+    // read blob content
+    InferenceEngine::Blob::Ptr dataBlob;
+    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    if (0 != dataSize) {
+        dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                        {static_cast<std::size_t>(dataSize)},
+                                        InferenceEngine::Layout::C));
+        dataBlob->allocate();
+        model.read(dataBlob->buffer(), dataSize);
+    }
+
+    // TODO: implement Import / Export of configuration options
+    // TODO: implement Import / Export of network precisions, layouts, preprocessing info
+
+    auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+
+    setNetworkInputs(cnnnetwork.getInputsInfo());
+    setNetworkOutputs(cnnnetwork.getOutputsInfo());
+    SetPointerToPlugin(_plugin->shared_from_this());
+
+    try {
+        CompileNetwork(cnnnetwork.getFunction());
+        InitExecutor(); // creates thread-based executor using for async requests
+    } catch (const InferenceEngine::details::InferenceEngineException&) {
+        throw;
+    } catch (const std::exception & e) {
+        THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
+    } catch (...) {
+        THROW_IE_EXCEPTION << "Generic exception is thrown";
+    }
 }
 // ! [executable_network:ctor_import_stream]
 
@@ -52,6 +89,8 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
 
 void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function) {
     // TODO: perform actual graph compilation / mapping to backend graph representation / kernels
+
+    // apply plugins transformations
     _function = TransformNetwork(function);
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
@@ -119,13 +158,13 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetConfig(const st
 // ! [executable_network:get_metric]
 InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name) const {
     // TODO: return more supported values for metrics
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
+    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{
             METRIC_KEY(NETWORK_NAME),
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(SUPPORTED_CONFIG_KEYS),
             METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)});
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> configKeys = {
             CONFIG_KEY(DEVICE_ID),
             CONFIG_KEY(PERF_COUNT),
@@ -135,10 +174,10 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
             configKeys.emplace_back(configKey);
         }
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
-    } else if (METRIC_KEY(NETWORK_NAME) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) == name) {
         auto networkName = _function->get_friendly_name();
         IE_SET_METRIC_RETURN(NETWORK_NAME, networkName);
-    } else if (METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
+    } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
         unsigned int value = _cfg._streamsExecutorConfig._streams;
         IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {
@@ -149,7 +188,24 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
 
 // ! [executable_network:export_impl]
 void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
-    // TODO: Code which exports graph from std::ostream
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    // Note: custom ngraph extensions are not supported
+    std::map<std::string, ngraph::OpSet> custom_opsets;
+    std::stringstream xmlFile, binFile;
+    ngraph::pass::Serialize serializer(xmlFile, binFile,
+        ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+    serializer.run_on_function(_function);
+
+    auto m_constants = binFile.str();
+    auto m_model = xmlFile.str();
+
+    auto dataSize = static_cast<std::uint64_t>(m_model.size());
+    modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    modelStream.write(m_model.c_str(), dataSize);
+
+    dataSize = static_cast<std::uint64_t>(m_constants.size());
+    modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    modelStream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+
+    // TODO: implement network precision, layout, preprocessing info serialization
 }
 // ! [executable_network:export_impl]

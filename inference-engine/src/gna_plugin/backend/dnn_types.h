@@ -71,25 +71,7 @@ struct DnnActivation {
 
 static_assert(std::is_trivial<DnnActivation>::value, "DnnActivation is not trival type");
 
-static const char *intel_dnn_activation_name[kActNumType] = {
-        "kActNone",
-        "kActSigmoid",
-        "kActTanh",
-        "kActRelu",
-        "kActLeakyRelu",
-        "kActIdentity",
-        "kActKaldiLstmClipping",
-        "kActExp",
-        "kActLog",
-        "kActSign",
-        "kActAbs",
-        "kActNegLog",
-        "kActNegHalfLog",
-        "kActCustom",
-        "kActSoftSign",
-        "kActPow",
-        "kActFakeQuantize"
-};
+extern const char *intel_dnn_activation_name[kActNumType];
 
 typedef enum DnnSoftmaxType {
     kSoftmaxNone,
@@ -99,12 +81,7 @@ typedef enum DnnSoftmaxType {
     kSoftmaxNumType
 } intel_dnn_softmax_type_t;
 
-static const char *intel_dnn_softmax_name[kSoftmaxNumType] = {
-        "kSoftmaxNone",
-        "kSoftmaxKaldiSumGroup",
-        "kSoftmaxKaldiApplyLog",
-        "kSoftmaxGoogle"
-};
+extern const char *intel_dnn_softmax_name[kSoftmaxNumType];
 
 typedef enum {
     kDnnUnknownOrientation = 100,
@@ -128,19 +105,7 @@ typedef enum {
     kDnnNumOp
 } intel_dnn_operation_t;
 
-static const char* intel_dnn_operation_name[kDnnNumOp] = {
-        "kDnnNullOp",
-        "kDnnAffineOp",
-        "kDnnDiagonalOp",
-        "kDnnConvolutional1dOp",
-        "kDnnConvolutional2dOp",
-        "kDnnPiecewiselinearOp",
-        "kDnnMaxPoolOp",
-        "kDnnRecurrentOp",
-        "kDnnInterleaveOp",
-        "kDnnDeinterleaveOp",
-        "kDnnCopyOp"
-};
+extern const char* intel_dnn_operation_name[kDnnNumOp];
 
 typedef enum {
     kDnnMacroOpNone,
@@ -149,11 +114,7 @@ typedef enum {
     kDnnNumMacroOp
 } intel_dnn_macro_operation_t;
 
-static const char *intel_dnn_macro_operation_name[kDnnNumMacroOp] = {
-        "kDnnMacroOpNone",
-        "kDnnMacroOpLstm",
-        "kDnnMacroOpBiLstm"
-};
+extern const char *intel_dnn_macro_operation_name[kDnnNumMacroOp];
 
 typedef enum {
     kDnnFloat,
@@ -161,10 +122,7 @@ typedef enum {
     kDnnNumNumberType
 } intel_dnn_number_type_t;
 
-static const char *intel_dnn_number_type_name[kDnnNumNumberType] = {
-        "kDnnFloat",
-        "kDnnInt"
-};
+extern const char *intel_dnn_number_type_name[kDnnNumNumberType];
 
 typedef struct {
     uint32_t num_bytes_per_weight;

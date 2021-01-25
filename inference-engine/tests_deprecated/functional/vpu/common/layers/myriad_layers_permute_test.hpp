@@ -63,7 +63,6 @@ TEST_P(myriadLayersPermuteTests_smoke, Permute) {
     int32_t IH = 0;
     int32_t IC = 0;
     int32_t I_N = 0;
-    size_t  group = 0;
 
     auto p = ::testing::WithParamInterface<PermuteParams>::GetParam();
     auto input_tensor = std::get<0>(p);
