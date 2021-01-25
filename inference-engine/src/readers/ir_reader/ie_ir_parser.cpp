@@ -670,7 +670,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         { "LSTMCell", std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell") },
         { "ReorgYolo", std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo") },
         { "PSROIPooling", std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling") },
-        { "VariadicSplit", std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit") },
         { "LogicalAnd", std::make_shared<LayerCreator<ngraph::op::v1::LogicalAnd>>("LogicalAnd") },
         { "LogicalOr", std::make_shared<LayerCreator<ngraph::op::v1::LogicalOr>>("LogicalOr") },
         { "LogicalXor", std::make_shared<LayerCreator<ngraph::op::v1::LogicalXor>>("LogicalXor") },
@@ -882,15 +881,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Equal>::cr
         const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 2);
     return std::make_shared<ngraph::op::v1::Equal>(inputs[0], inputs[1]);
-}
-
-// VariadicSplit layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::VariadicSplit>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 3);
-    return std::make_shared<ngraph::op::VariadicSplit>(inputs[0], inputs[1], inputs[2]);
 }
 
 // DepthToSpace layer
