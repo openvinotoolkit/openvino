@@ -32,9 +32,9 @@ public:
 
     explicit FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core);
 
-    ModelPtr buildInitialModel(const ie::ICNNNetwork& network);
+    ModelPtr buildInitialModel(const ie::CNNNetwork& network);
 
-    std::set<std::string> checkSupportedLayers(const ie::ICNNNetwork& network);
+    std::set<std::string> checkSupportedLayers(const ie::CNNNetwork& network);
 
     const std::vector<ie::CNNLayerPtr>& origLayers() const {
         return _ieParsedNetwork.orderedLayers;
@@ -45,11 +45,11 @@ public:
 //
 
 private:
-    ModelPtr runCommonPasses(const ie::ICNNNetwork& network);
+    ModelPtr runCommonPasses(const ie::CNNNetwork& network);
 
     using SupportedLayerCallback = std::function<void(const ie::CNNLayerPtr&)>;
     using UnsupportedLayerCallback = std::function<void(const Model&, const ie::CNNLayerPtr&, const DataVector&, const DataVector&, const std::string&)>;
-    ModelPtr runCommonPasses(ie::ICNNNetwork::Ptr network, const UnsupportedLayerCallback& unsupportedLayer,
+    ModelPtr runCommonPasses(ie::CNNNetwork network, const UnsupportedLayerCallback& unsupportedLayer,
                              const SupportedLayerCallback& supportedLayer = nullptr);
 
     //
@@ -57,14 +57,14 @@ private:
     //
 
     void unrollLoops(
-            ie::ICNNNetwork& network);
+            ie::CNNNetwork& network);
 
     void detectNetworkBatch(
-            ie::ICNNNetwork& network,
+            ie::CNNNetwork& network,
             const Model& model);
 
     void removeConstLayers(
-            ie::ICNNNetwork& network);
+            ie::CNNNetwork& network);
 
     //
     // Process internal VPU Model
@@ -188,7 +188,7 @@ public:
     //
 
     static CustomLayer::Ptr getSuitableCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr&cnnLayer);
-    static ie::ICNNNetwork::Ptr convertNetwork(ie::ICNNNetwork& network);
+    static ie::CNNNetwork convertNetwork(ie::CNNNetwork& network);
 
 private:
     Data getVpuData(const ie::DataPtr& ieData) const;

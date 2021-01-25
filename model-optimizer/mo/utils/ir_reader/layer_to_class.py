@@ -125,8 +125,13 @@ def restore_correct_ports(graph: Graph):
         if 'out' in d:
             node = Node(graph, u)
             num_of_in_nodes = len(node.in_nodes())
-            # we need to check operation type, if it is const op, we don't renumber out ports
-            decremented_number = d['out'] - num_of_in_nodes if node.type != 'Const' else d['out']
+            decremented_number = d['out'] - num_of_in_nodes
+            # Initially Const operation in IR has output port with number 1. But later the behaviour was changed
+            # so the output port become 0. This change was made to be consistent with the IR serializer in the IE which
+            # generates Const with output port 0. For the backward compatibility reason we need to decrement the Const
+            # output port number but for current version this number shouldn't be changed during reading the IR.
+            if node.type == 'Const' and d['out'] == 0:
+                decremented_number = d['out']
             out_port_id = decremented_number if not is_control_flow else 'control_flow_' + str(decremented_number)
             from_node_attrs['_out_ports'].update({out_port_id: {'control_flow': is_control_flow}})
             d['out'] = decremented_number
@@ -140,6 +145,10 @@ def propagate_const_values(op: Node):
     """
     assert op.soft_get('type') == 'Const', 'Wrong operation type, {} instead of Const!' \
                                            ''.format(op.soft_get('type'))
+    assert 0 in op.in_nodes(), 'Can\'t propagate restored value to Const operation with name: {}, check input ports' \
+                               ''.format(op.soft_get('name'))
+    assert 0 in op.out_nodes(), 'Can\'t propagate restored value to Const operation with name: {}, check output ports' \
+                                ''.format(op.soft_get('name'))
 
     in_data_node = op.in_node()
     out_data_node = op.out_node()

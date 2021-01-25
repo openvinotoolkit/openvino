@@ -43,6 +43,17 @@ TYPED_TEST_P(topk_type_prop, topk_negative_axis_support)
     ASSERT_EQ(topk->get_output_shape(1), expect_shape);
 }
 
+TYPED_TEST_P(topk_type_prop, topk_default_index_element_type)
+{
+    const auto data_shape = Shape{1, 2, 3, 4};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto k = op::Constant::create(element::i64, Shape{}, {2});
+    const int64_t axis = -2;
+
+    const auto op = make_shared<op::v1::TopK>(data, k, axis, "max", "value");
+    ASSERT_EQ(op->get_index_element_type(), element::i32);
+}
+
 TYPED_TEST_P(topk_type_prop, topk_negative_axis_dynamic_rank)
 {
     const auto data_shape = PartialShape::dynamic();
@@ -109,7 +120,8 @@ REGISTER_TYPED_TEST_CASE_P(topk_type_prop,
                            topk_negative_axis_support,
                            topk_negative_axis_dynamic_rank,
                            topk_v1_partial_ouptut,
-                           topk_rank_static_k_unknown);
+                           topk_rank_static_k_unknown,
+                           topk_default_index_element_type);
 
 typedef ::testing::Types<op::v1::TopK, op::v3::TopK> TopKTypes;
 INSTANTIATE_TYPED_TEST_CASE_P(type_prop, topk_type_prop, TopKTypes, );
