@@ -35,7 +35,7 @@ public:
      *
      * Example: dims [2, 3, 8, 8] with blocking by 16 for second dim. Will lead
      *          to effective dims [2, 16, 8, 8] with zeroing all values
-     *          [:, 3:8, :, :]
+     *          [:, 3:16, :, :]
      *
      * @param dims to check on zero auto padding
      * @return true if provided dims will use auto padding. Otherwise false.

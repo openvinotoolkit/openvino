@@ -63,7 +63,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_vec_idxs, const
     for (auto idx : pool_vec_idxs)
         aux_vec_idxs.push_back(idx);
 
-    // For sse42 mask register has to be Xmm(0)
+    // For sse41 mask register has to be Xmm(0)
     if (host_isa_ == cpu::x64::sse41 && aux_vecs_count() > 0) {
         size_t idx = 0;
         assert(std::find(in_vec_idxs.begin(), in_vec_idxs.end(), idx) == in_vec_idxs.end());

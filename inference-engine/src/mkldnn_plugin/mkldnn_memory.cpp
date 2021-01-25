@@ -201,46 +201,12 @@ bool MKLDNNMemory::isConsistant(const mkldnn::memory::dims& dims, mkldnn::memory
 }
 
 Precision MKLDNNMemory::convertToIePrec(memory::data_type dataType) {
-    switch (dataType) {
-        case memory::data_type::f32:
-            return Precision::FP32;
-        case memory::data_type::u8:
-            return Precision::U8;
-        case memory::data_type::s8:
-            return Precision::I8;
-        case memory::data_type::s32:
-            return Precision::I32;
-        case memory::data_type::bin:
-            return Precision::BIN;
-        case memory::data_type::bf16:
-            return Precision::BF16;
-        default:
-           THROW_IE_EXCEPTION << "Unknown mkldnn data type";
-    }
+    return MKLDNNExtensionUtils::DataTypeToIEPrecision(dataType);
 }
 
 memory::data_type MKLDNNMemory::convertToDataType(const InferenceEngine::Precision &precision) {
-    switch (precision) {
-        case Precision::FP32:
-            return memory::data_type::f32;
-        case Precision::FP16:
-            return memory::data_type::f16;
-        case Precision::BF16:
-            return memory::data_type::bf16;
-        case Precision::I32:
-            return memory::data_type::s32;
-        case Precision::U8:
-        case Precision::BOOL:
-            return memory::data_type::u8;
-        case Precision::I8:
-            return memory::data_type::s8;
-        case Precision::BIN:
-            return memory::data_type::bin;
-        default:
-            THROW_IE_EXCEPTION << "Unknown mkldnn data type";
-    }
+    return MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 }
-
 
 memory::format_tag MKLDNNMemory::Convert(const InferenceEngine::Layout layout) {
     switch (layout) {
@@ -289,13 +255,12 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const mkldnn::memory::dims& dims, mkldnn::mem
         } else {
             desc = mkldnn::memory::desc(dims, dataType, format);
         }
-        return;
     } else {
         // Trying to create plain descriptor
         // This WA is needed since memory::format_tag doesn't contain plain tag for tensors with rank > 6D
         mkldnn::memory::dims strides(dims.size(), 1);
         for (int d = dims.size() - 2; d >= 0; d--) {
-            strides[d] = strides[d + 1] * (std::max)((int64_t)1, dims[d + 1]);
+            strides[d] = strides[d + 1] * dims[d + 1];
         }
 
         desc = mkldnn::memory::desc(dims, dataType, strides);
@@ -803,10 +768,10 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
         return;
     }
 
-    SizeVector ie_blkdDims = tDesc.getBlockingDesc().getBlockDims();
-    SizeVector ie_order = tDesc.getBlockingDesc().getOrder();
-    SizeVector ie_offsetsToData = tDesc.getBlockingDesc().getOffsetPaddingToData();
-    SizeVector ie_strides = tDesc.getBlockingDesc().getStrides();
+    auto ie_blkdDims = tDesc.getBlockingDesc().getBlockDims();
+    auto ie_order = tDesc.getBlockingDesc().getOrder();
+    auto ie_offsetsToData = tDesc.getBlockingDesc().getOffsetPaddingToData();
+    auto ie_strides = tDesc.getBlockingDesc().getStrides();
 
     size_t outer_ndims = dims.size();
     size_t inner_ndims = ie_order.size() - dims.size();

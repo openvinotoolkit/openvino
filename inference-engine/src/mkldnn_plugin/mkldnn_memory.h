@@ -31,7 +31,7 @@
 namespace MKLDNNPlugin {
 
 /**
- * Represent internal plugin speabstraction of tensor description
+ * Represent internal plugin abstraction of tensor description
  *
  */
 class MKLDNNMemoryDesc {
@@ -142,7 +142,7 @@ public:
 
     mkldnn::memory::dims GetDims() const {
         auto data = GetDescriptor().data;
-        return {data.dims, data.dims + data.ndims};
+        return {std::begin(data.dims), std::begin(data.dims) + data.ndims};
     }
 
     void Create(const mkldnn::memory::dims& dims, mkldnn::memory::data_type data_type, mkldnn::memory::format_tag format,

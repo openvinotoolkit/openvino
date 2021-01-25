@@ -56,7 +56,7 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
 InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::data_type dataType) {
     switch (dataType) {
         case memory::data_type::f32:
-            return InferenceEngine::Precision(InferenceEngine::Precision::FP32);
+            return InferenceEngine::Precision::FP32;
         case memory::data_type::s32:
             return InferenceEngine::Precision::I32;
         case memory::data_type::bf16:

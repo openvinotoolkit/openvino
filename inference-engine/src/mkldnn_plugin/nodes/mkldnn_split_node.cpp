@@ -58,11 +58,6 @@ static TensorDesc makeChannelBlockedTensorDesc(const Precision& precision, const
     return TensorDesc(precision, srcDims, {blkDims, order});
 }
 
-static inline uint8_t* getDataPtr(const MKLDNNMemory& memoryPtr) {
-    return reinterpret_cast<uint8_t*>(memoryPtr.GetData()) + memoryPtr.GetDescriptor().data.offset0 *
-        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(memoryPtr.GetDescriptor().data.data_type));
-}
-
 MKLDNNSplitNode::MKLDNNSplitNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
         MKLDNNNode(layer, eng, cache) {}
 
@@ -245,7 +240,7 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
         return;
 
     int MB = batchToProcess();
-    uint8_t* srcData = getDataPtr(this->getParentEdgeAt(0)->getMemory());
+    uint8_t* srcData = reinterpret_cast<uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     size_t batch = this->getParentEdgeAt(0)->getDims()[0];
 
     if (batch != MB)
@@ -418,7 +413,7 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
     optimizedParams.dataSize.resize(this->getChildEdges().size());
     optimizedParams.dstMemPtrs.clear();
     for (int i = 0; i < this->getChildEdges().size(); i++) {
-        if (uint8_t* dstData = getDataPtr(this->getChildEdgeAt(i)->getMemory())) {
+        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(i)->getMemoryPtr()->GetPtr())) {
             optimizedParams.dstMemPtrs.push_back(dstData);
         } else {
             THROW_ERROR << "can't get child edge indx " << i << "data.";
