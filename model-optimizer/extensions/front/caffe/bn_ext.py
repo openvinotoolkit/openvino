@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ class BatchNormalizationExtractor(FrontExtractorOp):
     def extract(cls, node):
         eps = node.pb.batch_norm_param.eps
         attrs = {
-           'eps': eps,
+           'eps': eps
         }
         pb_model = None if not node.has('pb_model') else node.pb_model
         if pb_model:

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ def node_pb_arg(pb_extractor):
 Keys are names that appear as layer names in .prototxt.
 Full list is available here: http://caffe.berkeleyvision.org/tutorial/layers.html
 """
+
 caffe_type_extractors = {}
 
 
@@ -43,6 +44,7 @@ def common_caffe_fields(node: Node) -> dict:
     if isinstance(layer_type, int):
         layer_type = pb.LayerType.DESCRIPTOR.values_by_number[layer_type].name
     layer_type = str(layer_type)
+
     return {
         'kind': 'op',
         'name': pb.name,

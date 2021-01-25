@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ class BNToScaleShift(FrontReplacementOp):
     """
     Replaces BN layer with ScaleShift.
     """
-    op = "batchNormInference"
+    op = "BN"
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
@@ -35,6 +35,7 @@ class BNToScaleShift(FrontReplacementOp):
 
         param = graph.node[node.id]['pb'].bn_param
         pb_model = graph.node[node.id]['model_pb']
+
         blobs = pb_model.blobs
 
         if len(blobs) != 4:
