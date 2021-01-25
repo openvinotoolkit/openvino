@@ -88,3 +88,9 @@ bool op::v1::GreaterEqual::evaluate(const HostTensorVector& outputs,
     NGRAPH_OP_SCOPE(v1_GreaterEqual_evaluate);
     return greater_equalop::evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
+
+bool op::v1::GreaterEqual::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v1_GreaterEqual_visit_attributes);
+    return true;
+}
