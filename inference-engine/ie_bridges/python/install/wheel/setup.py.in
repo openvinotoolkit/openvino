@@ -2,6 +2,7 @@ import os.path
 import sys
 import fnmatch
 import re
+import subprocess
 from pathlib import Path
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
@@ -18,11 +19,11 @@ CMAKE_INSTALL_NGRAPH_DIR = "libs.ngraph"
 CMAKE_INSTALL_TBB_DIR = "libs.tbb"
 CMAKE_INSTALL_BIND_DIR = "bindings"
 CMAKE_BUILD_DIR = "${CMAKE_BINARY_DIR}"
-CMAKE_INSTALL_CORE_SUBDIR = "${IE_CPACK_RUNTIME_PATH}"
-CMAKE_INSTALL_PLUGINS_SUBDIR = "${IE_CPACK_RUNTIME_PATH}"
-CMAKE_INSTALL_NGRAPH_SUBDIR = "${IE_CPACK_IE_DIR}/../ngraph/lib"
-CMAKE_INSTALL_TBB_SUBDIR = "${IE_CPACK_IE_DIR}/external/tbb/bin"
-CMAKE_INSTALL_BIND_SUBDIR = "${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}"
+CMAKE_INSTALL_CORE_SUBDIR = os.path.normpath("${IE_CPACK_RUNTIME_PATH}")
+CMAKE_INSTALL_PLUGINS_SUBDIR = os.path.normpath("${IE_CPACK_RUNTIME_PATH}")
+CMAKE_INSTALL_NGRAPH_SUBDIR = os.path.normpath("${IE_CPACK_IE_DIR}/../ngraph/lib")
+CMAKE_INSTALL_BIND_SUBDIR = os.path.normpath("${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}")
+CMAKE_INSTALL_TBB_SUBDIR = os.path.normpath(f"${IE_CPACK_IE_DIR}/external/tbb/{'bin' if sys.platform == "win32" else 'lib'}")
 
 CORE_LIBS_DIR = os.path.join(CMAKE_INSTALL_CORE_DIR, CMAKE_INSTALL_CORE_SUBDIR)
 PLUGINS_LIBS_DIR = os.path.join(CMAKE_INSTALL_PLUGINS_DIR, CMAKE_INSTALL_CORE_SUBDIR)
@@ -123,7 +124,6 @@ class PrepareLibs(build_clib):
                     set_rpath(rpath, path)
 
 
-
 class CopyExt(build_ext):
     def run(self):
         for extension in self.extensions:
@@ -142,7 +142,16 @@ class CopyExt(build_ext):
 
 def set_rpath(rpath, executable):
     print(f"Setting rpath {rpath} for {executable}")
-
+    cmd = ""
+    if sys.platform == "linux":
+        cmd = ["patchelf", "--set-rpath", rpath,  executable]
+    elif sys.platform == "darwin":
+        cmd = ["install_name_tool ", "-add_rpath", rpath,  executable]
+    ret_info = subprocess.run(cmd)
+    if ret_info.returncode != 0:
+        print(f"The exit code: {ret_info.returncode}")
+        print(f"Could not set rpath: {rpath} for {executable}")
+        exit(2)
 
 def find_data_files(src_dirs, install_subdir):
     data_files = []
@@ -151,7 +160,7 @@ def find_data_files(src_dirs, install_subdir):
         for root, directories, filenames in os.walk(local_base_dir):
             for filename in filenames:
                 data_files.append([os.path.join(install_subdir, os.path.relpath(root, local_base_dir)), [os.path.join(root, filename)]])
-    
+
     return list(data_files)
 
 
@@ -189,11 +198,11 @@ else:
     exit(2)
 
 
-setup(  
+setup(
     version='${WHEEL_VERSION}',
     author_email="${WHEEL_AUTOR_EMAIL}",
     name="${WHEEL_PACKAGE_NAME}",
-    license="${WHEEL_LICENCE_TYPE}", 
+    license="${WHEEL_LICENCE_TYPE}",
     author="${WHEEL_AUTOR}",
     description="${WHEEL_DESC}",
     long_description=long_description,
