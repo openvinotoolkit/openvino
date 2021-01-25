@@ -332,7 +332,7 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string& model_dir) {
             }
             std::map<std::string, google::protobuf::RepeatedPtrField<std::string>> inputs_dict;
             for (const auto& input : op.inputs()) {
-                outputs_dict[input.parameter()] = input.arguments();
+                inputs_dict[input.parameter()] = input.arguments();
             }
             if (op.type() == "feed") {
                 auto layer_name = outputs_dict["Out"][0];
@@ -375,6 +375,9 @@ int main(int argc, char* argv[]) {
     try {
         std::string model_path = "/home/mvafin/.paddlehub/modules/resnet_v2_50_imagenet/model";
         auto func = convert_model(model_path);
+        CNNNetwork net(func);
+        net.reshape({ {"@HUB_resnet_v2_50_imagenet@image"}, {1, 3, 224, 224} });
+        net.serialize("PDPD_Resnet50_Function.xml", "PDPD_Resnet50_Function.bin");
     }
     catch (const std::exception& ex) {
         slog::err << ex.what() << slog::endl;
