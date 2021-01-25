@@ -38,18 +38,16 @@ public:
     /**
      * @brief A default constructor
      */
-    CNNNetwork() = default;
+    CNNNetwork();
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Allows helper class to manage lifetime of network object
      *
      * @param network Pointer to the network object
      */
-    explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network)
-        : network(network) {
-        actual = network.get();
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-    }
+    explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network);
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief A constructor from ngraph::Function object
@@ -62,23 +60,13 @@ public:
                         const std::vector<IExtensionPtr>& exts = {});
 
     /**
-     * @brief A destructor
-     */
-    virtual ~CNNNetwork() {}
-
-    /**
      * @copybrief ICNNNetwork::getOutputsInfo
      *
      * Wraps ICNNNetwork::getOutputsInfo
      *
      * @return outputs Reference to the OutputsDataMap object
      */
-    virtual OutputsDataMap getOutputsInfo() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        OutputsDataMap outputs;
-        actual->getOutputsInfo(outputs);
-        return outputs;
-    }
+    OutputsDataMap getOutputsInfo() const;
 
     /**
      * @copybrief ICNNNetwork::getInputsInfo
@@ -87,12 +75,7 @@ public:
      *
      * @return inputs Reference to InputsDataMap object
      */
-    virtual InputsDataMap getInputsInfo() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        InputsDataMap inputs;
-        actual->getInputsInfo(inputs);
-        return inputs;
-    }
+    InputsDataMap getInputsInfo() const;
 
     /**
      * @copybrief ICNNNetwork::layerCount
@@ -101,10 +84,7 @@ public:
      *
      * @return The number of layers as an integer value
      */
-    size_t layerCount() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->layerCount();
-    }
+    size_t layerCount() const;
 
     /**
      * @copybrief ICNNNetwork::getName
@@ -113,10 +93,7 @@ public:
      *
      * @return Network name
      */
-    const std::string& getName() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getName();
-    }
+    const std::string& getName() const;
 
     /**
      * @copybrief ICNNNetwork::setBatchSize
@@ -125,9 +102,7 @@ public:
      *
      * @param size Size of batch to set
      */
-    virtual void setBatchSize(const size_t size) {
-        CALL_STATUS_FNC(setBatchSize, size);
-    }
+    void setBatchSize(const size_t size);
 
     /**
      * @copybrief ICNNNetwork::getBatchSize
@@ -136,59 +111,50 @@ public:
      *
      * @return The size of batch as a size_t value
      */
-    virtual size_t getBatchSize() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getBatchSize();
-    }
+    size_t getBatchSize() const;
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
+     * @deprecated InferenceEngine::ICNNNetwork interface is deprecated
      * @brief An overloaded operator cast to get pointer on current network
      *
      * @return A shared pointer of the current network
      */
-    operator ICNNNetwork::Ptr() {
-        return network;
-    }
+    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    operator ICNNNetwork::Ptr();
 
     /**
+     * @deprecated InferenceEngine::ICNNNetwork interface is deprecated
      * @brief An overloaded operator & to get current network
      *
      * @return An instance of the current network
      */
-    operator ICNNNetwork&() {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return *actual;
-    }
+    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    operator ICNNNetwork&();
 
     /**
+     * @deprecated InferenceEngine::ICNNNetwork interface is deprecated
      * @brief An overloaded operator & to get current network
      *
      * @return A const reference of the current network
      */
-    operator const ICNNNetwork&() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return *actual;
-    }
+    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    operator const ICNNNetwork&() const;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Returns constant nGraph function
      *
      * @return constant nGraph function
      */
-    std::shared_ptr<ngraph::Function> getFunction() {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getFunction();
-    }
+    std::shared_ptr<ngraph::Function> getFunction();
 
     /**
      * @brief Returns constant nGraph function
      *
      * @return constant nGraph function
      */
-    std::shared_ptr<const ngraph::Function> getFunction() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getFunction();
-    }
+    std::shared_ptr<const ngraph::Function> getFunction() const;
 
     /**
      * @copybrief ICNNNetwork::addOutput
@@ -198,40 +164,21 @@ public:
      * @param layerName Name of the layer
      * @param outputIndex Index of the output
      */
-    void addOutput(const std::string& layerName, size_t outputIndex = 0) {
-        CALL_STATUS_FNC(addOutput, layerName, outputIndex);
-    }
+    void addOutput(const std::string& layerName, size_t outputIndex = 0);
 
     /**
      * @brief Helper method to get collect all input shapes with names of corresponding Data objects
      *
      * @return Map of pairs: input name and its dimension.
      */
-    virtual ICNNNetwork::InputShapes getInputShapes() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        ICNNNetwork::InputShapes shapes;
-        InputsDataMap inputs;
-        actual->getInputsInfo(inputs);
-        for (const auto& pair : inputs) {
-            auto info = pair.second;
-            if (info) {
-                auto data = info->getInputData();
-                if (data) {
-                    shapes[data->getName()] = data->getTensorDesc().getDims();
-                }
-            }
-        }
-        return shapes;
-    }
+    ICNNNetwork::InputShapes getInputShapes() const;
 
     /**
      * @brief Run shape inference with new input shapes for the network
      *
      * @param inputShapes - map of pairs: name of corresponding data and its dimension.
      */
-    virtual void reshape(const ICNNNetwork::InputShapes& inputShapes) {
-        CALL_STATUS_FNC(reshape, inputShapes);
-    }
+    void reshape(const ICNNNetwork::InputShapes& inputShapes);
 
     /**
      * @brief Serialize network to IR and weights files.
@@ -240,11 +187,10 @@ public:
      * @param binPath Path to output weights file. The parameter is skipped in case
      * of executable graph info serialization.
      */
-    void serialize(const std::string& xmlPath, const std::string& binPath = "") const {
-        CALL_STATUS_FNC(serialize, xmlPath, binPath);
-    }
+    void serialize(const std::string& xmlPath, const std::string& binPath = {}) const;
 
 protected:
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Network extra interface, might be nullptr
      */
@@ -254,6 +200,8 @@ protected:
      * @brief A pointer to the current network
      */
     ICNNNetwork* actual = nullptr;
+    IE_SUPPRESS_DEPRECATED_END
+
     /**
      * @brief A pointer to output data
      */

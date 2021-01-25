@@ -10,7 +10,7 @@
 #pragma once
 #include <vector>
 
-#include "ie_icnn_network.hpp"
+#include "cpp/ie_cnn_network.h"
 
 #include <legacy/ie_layers.h>
 
@@ -18,7 +18,7 @@ namespace InferenceEngine {
 namespace details {
 
 INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-INFERENCE_ENGINE_API_CPP(std::vector<CNNLayerPtr>) CNNNetSortTopologically(const ICNNNetwork& network);
+INFERENCE_ENGINE_API_CPP(std::vector<CNNLayerPtr>) CNNNetSortTopologically(const CNNNetwork& network);
 
 }  // namespace details
 }  // namespace InferenceEngine
