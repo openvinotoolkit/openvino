@@ -597,24 +597,6 @@ CNNLayer::Ptr NodeConverter<ExecGraphInfoSerialization::ExecutionNode>::createLa
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::ReorgYolo>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReorgYolo",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::ReorgYolo>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-
-    res->params["stride"] = value;
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Log>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Log",
                           details::convertPrecision(layer->get_output_element_type(0))};
