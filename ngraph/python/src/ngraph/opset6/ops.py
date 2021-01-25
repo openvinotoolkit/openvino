@@ -63,9 +63,9 @@ def ctc_greedy_decoder_seq_len(
         data: NodeInput,
         sequence_length: NodeInput,
         blank_index: Optional[int] = 0,
-        merge_repeated: Optional[int] = 0,
-        classes_index_type: Optional[int] = 0,
-        sequence_length_type: Optional[int] = 0,
+        merge_repeated: bool = True,
+        classes_index_type: str = "i32",
+        sequence_length_type: str = "i32",
         name: Optional[str] = None,
 ) -> Node:
     """Return a node which performs CTCGreedyDecoderSeqLen.

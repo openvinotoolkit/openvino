@@ -79,14 +79,14 @@ def test_ctc_greedy_decoder(dtype):
 
 @pytest.mark.parametrize("fp_dtype, int_dtype, int_ci, int_sl, merge_repeated",
                          [
-                             (np.float32, np.int32, np.int32, np.int32, True),
-                             (np.float32, np.int32, np.int64, np.int32, True),
-                             (np.float32, np.int32, np.int32, np.int64, True),
-                             (np.float32, np.int32, np.int64, np.int64, True),
-                             (np.float32, np.int32, np.int32, np.int32, False),
-                             (np.float32, np.int32, np.int64, np.int32, False),
-                             (np.float32, np.int32, np.int32, np.int64, False),
-                             (np.float32, np.int32, np.int64, np.int64, False)
+                             (np.float32, np.int32, "i32", "i32", True),
+                             (np.float32, np.int32, "i64", "i32", True),
+                             (np.float32, np.int32, "i32", "i64", True),
+                             (np.float32, np.int32, "i64", "i64", True),
+                             (np.float64, np.int64, "i32", "i32", False),
+                             (np.float64, np.int64, "i64", "i32", False),
+                             (np.float64, np.int64, "i32", "i64", False),
+                             (np.float64, np.int64, "i64", "i64", False)
                          ],)
 def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated):
     input0_shape = [8, 20, 128]
