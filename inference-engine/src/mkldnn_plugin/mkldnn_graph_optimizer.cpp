@@ -47,24 +47,6 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 
-static constexpr mkldnn::algorithm depthwise_scale_shift = mkldnn::algorithm::depthwise_scale_shift;
-static constexpr mkldnn::algorithm depthwise_prelu = mkldnn::algorithm::depthwise_prelu;
-
-static constexpr mkldnn::algorithm eltwise_relu = mkldnn::algorithm::eltwise_relu;
-static constexpr mkldnn::algorithm eltwise_elu = mkldnn::algorithm::eltwise_elu;
-static constexpr mkldnn::algorithm eltwise_gelu = mkldnn::algorithm::eltwise_gelu;
-static constexpr mkldnn::algorithm eltwise_logistic = mkldnn::algorithm::eltwise_logistic;
-static constexpr mkldnn::algorithm eltwise_bounded_relu = mkldnn::algorithm::eltwise_bounded_relu;
-static constexpr mkldnn::algorithm eltwise_clamp = mkldnn::algorithm::eltwise_clip;
-static constexpr mkldnn::algorithm eltwise_swish = mkldnn::algorithm::eltwise_swish;
-static constexpr mkldnn::algorithm eltwise_mish = mkldnn::algorithm::eltwise_mish;
-static constexpr mkldnn::algorithm eltwise_hswish = mkldnn::algorithm::eltwise_hswish;
-static constexpr mkldnn::algorithm eltwise_tanh = mkldnn::algorithm::eltwise_tanh;
-static constexpr mkldnn::algorithm eltwise_linear = mkldnn::algorithm::eltwise_linear;
-static constexpr mkldnn::algorithm eltwise_abs = mkldnn::algorithm::eltwise_abs;
-static constexpr mkldnn::algorithm eltwise_square = mkldnn::algorithm::eltwise_square;
-static constexpr mkldnn::algorithm eltwise_sqrt = mkldnn::algorithm::eltwise_sqrt;
-
 MKLDNNGraphOptimizer::MKLDNNGraphOptimizer() {}
 
 void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
