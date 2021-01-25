@@ -117,9 +117,6 @@ const std::vector<std::vector<int64_t>> masks = {
 const std::vector<bool> do_softmax = {true, false};
 const std::vector<size_t> classes = {80, 20};
 const std::vector<size_t> num_regions = {5, 9};
-const size_t coords = 4;
-const int start_axis = 1;
-const int end_axis = 3;
 
 const regionYoloAttributes yoloV3attr = {80, 4, 9, false, 1, 3};
 

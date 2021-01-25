@@ -23,8 +23,8 @@ class DynamicToStaticShapeConvert : public CommonTestUtils::TestsCommon,
 public:
     void SetUp() override {
         const auto& parameters = GetParam();
-        const auto& dataType = std::get<0>(GetParam());
-        const auto& dataDims = std::get<1>(GetParam());
+        const auto& dataType = std::get<0>(parameters);
+        const auto& dataDims = std::get<1>(parameters);
 
         ngraph::helpers::CompareFunctions(*transform(dataType, dataDims), *reference(dataType, dataDims));
     }

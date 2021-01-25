@@ -21,9 +21,7 @@ class MyriadProtocolTests : public testing::Test,
                             public MyriadDevicesInfo {
 public:
     // IE variables
-    InferenceEngine::IInferRequest::Ptr request;
-    InferenceEngine::ResponseDesc resp;
-    StatusCode statusCode = StatusCode::GENERAL_ERROR;
+    InferenceEngine::InferRequest request;
     static std::shared_ptr<InferenceEngine::Core> ie;
 
     // MVNC variables

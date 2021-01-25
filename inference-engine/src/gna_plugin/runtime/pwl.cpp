@@ -74,7 +74,6 @@ double pivot_search(std::vector<pwl_t>& result,
     double max_epsilon = 0.0;
     double max_epsilon_prev;
     double min_epsilon;
-    double min_epsilon2;
     double sgn = (negative) ? -1.0 : 1.0;
     int j;
 

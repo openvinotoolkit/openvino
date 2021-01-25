@@ -638,7 +638,6 @@ void MKLDNNMVNNode::createPrimitive() {
 }
 
 void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
-    int blob_idx = 0;
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
