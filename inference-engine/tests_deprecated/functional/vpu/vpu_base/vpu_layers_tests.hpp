@@ -111,20 +111,19 @@ protected:
     void createInferRequest(const NetworkParams& params);
 
 protected:
-    IECoreAdapter::Ptr                        _vpuPluginPtr;
+    IECoreAdapter::Ptr                             _vpuPluginPtr;
 
     std::map<std::string, std::string>             _config;
 
     IRVersion                                      _irVersion = IRVersion::v7;
 
     InferenceEngine::CNNNetwork                    _cnnNetwork;
-    InferenceEngine::ResponseDesc                  _resp;
     InferenceEngine::InputsDataMap                 _inputsInfo;
     InferenceEngine::BlobMap                       _inputMap;
     InferenceEngine::BlobMap                       _outputMap;
     InferenceEngine::OutputsDataMap                _outputsInfo;
-    InferenceEngine::IExecutableNetwork::Ptr       _exeNetwork;
-    InferenceEngine::IInferRequest::Ptr            _inferRequest;
+    InferenceEngine::ExecutableNetwork             _exeNetwork;
+    InferenceEngine::InferRequest                  _inferRequest;
 
     InferenceEngine::Blob::Ptr                     _refBlob;
     VpuTestNet                                     _testNet;
