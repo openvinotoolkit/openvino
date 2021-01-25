@@ -56,15 +56,12 @@ public:
         const MultiplyTransformationTestValues testParams = std::get<3>(GetParam());
 
         actualFunction = MultiplyFunction::get(precision, shape, testParams.actual);
-        VisualizeTree("/home/vzinoviev/work/model_dumps/multiply_actual.dot").run_on_function(actualFunction);
         SimpleLowPrecisionTransformer transform;
         transform.add<low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(
             low_precision::LayerTransformation::Params(testParams.transformationParams));
         transform.transform(actualFunction);
-        VisualizeTree("/home/vzinoviev/work/model_dumps/multiply_transformed.dot").run_on_function(actualFunction);
 
         referenceFunction = MultiplyFunction::get(precision, shape, testParams.expected);
-        VisualizeTree("/home/vzinoviev/work/model_dumps/multiply_ref.dot").run_on_function(referenceFunction);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
