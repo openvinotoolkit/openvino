@@ -16,7 +16,6 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::getOrigina
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnData& fqOnData,
     const FakeQuantizeOnWeights& fqOnWeights) {
-    const float k = 50.f;
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     const auto fakeQuantizeOnActivations = fqOnData.empty() ?
