@@ -334,34 +334,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PowerIE>::createLayer(const std::shared_
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Eltwise",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::Eltwise>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string type;
-    switch (castedLayer->eltwise_type) {
-    case ELTWISE_TYPE::Sum:
-        type = "sum";
-        break;
-    case ELTWISE_TYPE::Sub:
-        type = "sub";
-        break;
-    case ELTWISE_TYPE::Prod:
-        type = "prod";
-        break;
-    default:
-        THROW_IE_EXCEPTION << "Not supported eltwise type!";
-    }
-
-    res->params["operation"] = type;
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ResampleV2>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Resample", details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);

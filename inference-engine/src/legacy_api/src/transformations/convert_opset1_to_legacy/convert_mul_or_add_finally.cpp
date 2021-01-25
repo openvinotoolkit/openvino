@@ -20,13 +20,13 @@ template <typename T>
 bool convert_to_eltwise(std::shared_ptr<T> & node,
                         ngraph::Output<ngraph::Node> data1,
                         ngraph::Output<ngraph::Node> data2) {
-    ELTWISE_TYPE et;
+    ngraph::op::Eltwise::EltwiseType et;
     if (std::is_same<T, ngraph::opset1::Multiply>()) {
-        et = ELTWISE_TYPE::Prod;
+        et = ngraph::op::Eltwise::EltwiseType::Prod;
     } else if (std::is_same<T, ngraph::opset1::Add>()) {
-        et = ELTWISE_TYPE::Sum;
+        et = ngraph::op::Eltwise::EltwiseType::Sum;
     } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
-        et = ELTWISE_TYPE::Sub;
+        et = ngraph::op::Eltwise::EltwiseType::Sub;
     } else {
         return false;
     }

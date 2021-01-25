@@ -452,10 +452,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                 if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
                 std::string type;
                 switch (castedLayer->eltwise_type) {
-                case ELTWISE_TYPE::Sum:
+                case ::ngraph::op::Eltwise::EltwiseType::Sum:
                     type = "sum";
                     break;
-                case ELTWISE_TYPE::Prod:
+                case ::ngraph::op::Eltwise::EltwiseType::Prod:
                     type = "prod";
                     break;
                 default:
@@ -1625,7 +1625,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
         };
         static const std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Eltwise>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Ceiling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::FullyConnected>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GenericIE>>(),
