@@ -6485,10 +6485,13 @@ public:
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
         network network_fused(this->engine, this->topology_fused, bo_fused);
 
+        auto inputs = network_fused.get_input_ids();
         network_fused.set_input_data("input", input_prim);
-        network_fused.set_input_data("input2", input_prim2);
         network_not_fused.set_input_data("input", input_prim);
-        network_not_fused.set_input_data("input2", input_prim2);
+        if (std::find(inputs.begin(), inputs.end(), "input2") != inputs.end()) {
+            network_fused.set_input_data("input2", input_prim2);
+            network_not_fused.set_input_data("input2", input_prim2);
+        }
 
         compare(network_not_fused, network_fused, p);
     }
@@ -6561,6 +6564,28 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_1, 3, 4},
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_2, 3, 4},
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_3, 3, 4},
+                        }), );
+
+class eltwise_const_path : public EltwiseFusingTest {};
+TEST_P(eltwise_const_path, not_fuse_to_const_eltwise) {
+    auto p = GetParam();
+    create_topologies(data("const1", get_mem(get_input_layout2(p), -10, 10)),
+                      data("const2", get_mem(get_input_layout2(p), -10, 10)),
+                      input_layout("input", get_input_layout2(p)),
+                      eltwise("eltwise", {"const1", "const2"}, p.mode, p.default_type),
+                      eltwise("add", {"eltwise", "input"}, eltwise_mode::sum),
+                      activation("activation", "add", activation_func::negative),
+                      reorder("out", "activation", p.default_format, data_types::f32));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu,
+                        eltwise_const_path,
+                        ::testing::ValuesIn(std::vector<eltwise_test_params>{
+                            eltwise_test_params{CASE_ELTWISE_FP16_3, 2, 3},
+                            eltwise_test_params{CASE_ELTWISE_FP32_3, 2, 3},
                         }), );
 
 class eltwise_fp32_fsv16 : public EltwiseFusingTest {};
