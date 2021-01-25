@@ -50,11 +50,6 @@ class ModelQuantizer {
         IE_ASSERT(copiedNet.get() != nullptr);
         copiedNet = InferenceEngine::CNNNetCopy(*copiedNet, visitor);
 
-        // TODO: probably not the best way of using dynamic cast in order to transform Precision
-        // one of solution is to create not copyNet overloads, that accepts 2 functors, one for layer copy
-        // and another one for net copy
-        auto rawNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(copiedNet.get());
-
         // allow client code to access copied topology, to avoid copies if user would like to chain quantisation with
         // another preprocessing
         cb(copiedNet, false);

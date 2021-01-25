@@ -104,7 +104,6 @@ TEST_P(myriadLayersTestsFullyConnectedBatch_smoke, TestsFullyConnected)
 
     size_t sz_weights = IC * IH * IW * out_size;
     size_t sz_bias = 0;
-    size_t sz = sz_weights + sz_bias;
     _genDataCallback = genTestData1;
     _testNet.addLayer(LayerInitParams("FullyConnected")
              .params(params)
@@ -142,7 +141,6 @@ TEST_P(myriadLayersTestsFullyConnectedPVA_smoke, TestsFullyConnected)
 
     size_t sz_weights = IC * IH * IW * out_size;
     size_t sz_bias = 0;
-    size_t sz = sz_weights + sz_bias;
     _genDataCallback = genTestData1;
     _testNet.addLayer(LayerInitParams("FullyConnected")
              .params(params)
