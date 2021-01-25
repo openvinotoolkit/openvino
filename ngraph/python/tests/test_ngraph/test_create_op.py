@@ -103,7 +103,7 @@ def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_r
     )
 
     assert node.get_type_name() == "CTCGreedyDecoderSeqLen"
-    assert node.get_output_size() == 1
+    assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == expected_shape
 
 
