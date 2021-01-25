@@ -285,7 +285,6 @@ private:
         //
 
         int  inputNDims =  inputShape.size();
-        int kernelNDims = kernelShape.size();
 
         int batchDim    = inputNDims > 3 ? 0 : -1;
         int channelsDim = interleaved ? inputNDims - 1 : batchDim + 1;

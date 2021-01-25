@@ -11,6 +11,10 @@ set(IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR ${InferenceEngineTemplatePlugin_SOURCE_DI
 
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wall)
+endif()
+
 add_subdirectory(src)
 
 if(ENABLE_TESTS)

@@ -4,6 +4,10 @@
 
 enable_testing()
 
+if(NOT MSVC)
+    ie_add_compiler_flags(-Wno-unused-variable)
+endif()
+
 add_subdirectory(helpers)
 
 if (ENABLE_GAPI_TESTS)
