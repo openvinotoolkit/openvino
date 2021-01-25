@@ -375,6 +375,9 @@ namespace ngraph
                 using Node::set_output_type;
 
                 int64_t max_boxes_output_from_input() const;
+                float iou_threshold_from_input() const;
+                float score_threshold_from_input() const;
+                float soft_nms_sigma_from_input() const;
                 bool is_soft_nms_sigma_constant_and_default() const;
 
             protected:

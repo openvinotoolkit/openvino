@@ -844,6 +844,54 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const
     return max_output_boxes;
 }
 
+float op::v5::NonMaxSuppression::iou_threshold_from_input() const
+{
+    float iou_threshold = 0.0f;
+
+    if (inputs().size() < 4)
+    {
+        return iou_threshold;
+    }
+
+    const auto iou_threshold_input =
+        as_type_ptr<op::Constant>(input_value(iou_threshold_port).get_node_shared_ptr());
+    iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
+
+    return iou_threshold;
+}
+
+float op::v5::NonMaxSuppression::score_threshold_from_input() const
+{
+    float score_threshold = 0.0f;
+
+    if (inputs().size() < 5)
+    {
+        return score_threshold;
+    }
+
+    const auto score_threshold_input =
+        as_type_ptr<op::Constant>(input_value(score_threshold_port).get_node_shared_ptr());
+    score_threshold = score_threshold_input->cast_vector<float>().at(0);
+
+    return score_threshold;
+}
+
+float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
+{
+    float soft_nms_sigma = 0.0f;
+
+    if (inputs().size() < 6)
+    {
+        return soft_nms_sigma;
+    }
+
+    const auto soft_nms_sigma_input =
+        as_type_ptr<op::Constant>(input_value(soft_nms_sigma_port).get_node_shared_ptr());
+    soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
+
+    return soft_nms_sigma;
+}
+
 bool op::v5::NonMaxSuppression::is_soft_nms_sigma_constant_and_default() const
 {
     auto soft_nms_sigma_node = input_value(soft_nms_sigma_port).get_node_shared_ptr();
