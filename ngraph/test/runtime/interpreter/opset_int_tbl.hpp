@@ -89,5 +89,6 @@ NGRAPH_OP(NonMaxSuppression, op::v5)
 NGRAPH_OP(RNNSequence, op::v5)
 NGRAPH_OP(Round, op::v5)
 
+NGRAPH_OP(CTCGreedyDecoderSeqLen, op::v6)
 NGRAPH_OP(GatherElements, op::v6)
 NGRAPH_OP(MVN, ngraph::op::v6)
