@@ -137,8 +137,7 @@ endif ()
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
 
-    reset_deps_cache(TBBROOT)
-    reset_deps_cache(TBB_DIR)
+    reset_deps_cache(TBBROOT TBB_DIR)
 
     if (WIN32 AND X86_64)
         #TODO: add target_path to be platform specific as well, to avoid following if
