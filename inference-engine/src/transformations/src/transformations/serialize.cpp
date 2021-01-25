@@ -77,6 +77,42 @@ std::string get_special_opset_for_op(const ngraph::Node::type_info_t& type_info)
     return "";
 }
 
+namespace rt_info {
+const std::vector<std::string> list_of_names {
+    "PrimitivesPriority",
+    "alt_width",
+};
+
+class XmlSerializer {
+public:
+    explicit XmlSerializer(pugi::xml_node &xml_node)
+        : m_xml_node(xml_node) {
+    }
+
+    void serialize(const ngraph::Node::RTMap& rt_info) {
+        for (const auto& rt_info_name : list_of_names) {
+            const auto &found_rt_info = rt_info.find(rt_info_name);
+            if (found_rt_info != rt_info.end()) {
+                xml_node_append_attribute<std::string>(rt_info_name, found_rt_info->second);
+            }
+        }
+    }
+
+private:
+    template<typename VariantType>
+    void xml_node_append_attribute(const std::string& name,
+                                   const std::shared_ptr<ngraph::Variant>& variant) {
+        if ( auto v = std::dynamic_pointer_cast<ngraph::VariantImpl<VariantType>>(variant) ) {
+            const auto& value = v->get();
+            m_xml_node.append_attribute(name.c_str()).set_value(value.c_str());
+        }
+    }
+
+    pugi::xml_node& m_xml_node;
+};
+
+} // namespace rt_info
+
 class XmlSerializer : public ngraph::AttributeVisitor {
     pugi::xml_node& m_xml_node;
     std::ostream& m_bin_data;
@@ -239,6 +275,12 @@ public:
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<double>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(adapter.get());
+    }
+    void on_adapter(
+        const std::string& name,
+        ngraph::ValueAccessor<std::vector<int>>& adapter) override {
+        m_xml_node.append_attribute(name.c_str())
+            .set_value(create_atribute_list(adapter).c_str());
     }
     void on_adapter(
         const std::string& name,
@@ -551,6 +593,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
             XmlSerializer visitor(data, bin_file, node_type_name, custom_opsets);
             NGRAPH_CHECK(node->visit_attributes(visitor),
                          "Visitor API is not supported in ", node);
+            rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
         }
         layer_type_attribute.set_value(
             translate_type_name(node_type_name).c_str());
@@ -641,30 +684,40 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
 // serialize.cpp
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
-    // prepare data
-    pugi::xml_document xml_doc;
-    std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-    NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
-    switch (m_version) {
-    case Version::IR_V10:
-        {
-            std::string name = "net";
-            pugi::xml_node net_node = xml_doc.append_child(name.c_str());
-            XmlSerializer visitor(net_node, bin_file, name, m_custom_opsets);
-            visitor.on_attribute(name, f);
-        }
-        break;
-    default:
-        NGRAPH_UNREACHABLE("Unsupported version");
-        break;
-    }
 
-    // create xml file
-    std::ofstream xml_file(m_xmlPath, std::ios::out);
-    NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
-    xml_doc.save(xml_file);
-    xml_file.flush();
-    bin_file.flush();
+    auto serializeFunc = [&] (std::ostream & xml_file, std::ostream & bin_file) {
+        switch (m_version) {
+        case Version::IR_V10:
+            {
+                std::string name = "net";
+                pugi::xml_document xml_doc;
+                pugi::xml_node net_node = xml_doc.append_child(name.c_str());
+                XmlSerializer visitor(net_node, bin_file, name, m_custom_opsets);
+                visitor.on_attribute(name, f);
+
+                xml_doc.save(xml_file);
+                xml_file.flush();
+                bin_file.flush();
+            }
+            break;
+        default:
+            NGRAPH_UNREACHABLE("Unsupported version");
+            break;
+        }
+    };
+
+    if (m_xmlFile && m_binFile) {
+        serializeFunc(*m_xmlFile, *m_binFile);
+    } else {
+        std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
+        NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
+
+        // create xml file
+        std::ofstream xml_file(m_xmlPath, std::ios::out);
+        NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
+
+        serializeFunc(xml_file, bin_file);
+    }
 
     // Return false because we didn't change nGraph Function
     return false;
@@ -697,11 +750,26 @@ std::string provide_bin_path(const std::string &xmlPath, const std::string &binP
 
 } // namespace
 
+pass::Serialize::Serialize(std::ostream& xmlFile,
+                           std::ostream& binFile,
+                           pass::Serialize::Version version,
+                           std::map<std::string, OpSet> custom_opsets)
+    : m_xmlFile{&xmlFile}
+    , m_binFile{&binFile}
+    , m_xmlPath{}
+    , m_binPath{}
+    , m_version{version}
+    , m_custom_opsets{custom_opsets}
+{
+}
+
 pass::Serialize::Serialize(const std::string& xmlPath,
                            const std::string& binPath,
                            pass::Serialize::Version version,
                            std::map<std::string, OpSet> custom_opsets)
-    : m_xmlPath{valid_xml_path(xmlPath)}
+    : m_xmlFile{nullptr}
+    , m_binFile{nullptr}
+    , m_xmlPath{valid_xml_path(xmlPath)}
     , m_binPath{provide_bin_path(xmlPath, binPath)}
     , m_version{version}
     , m_custom_opsets{custom_opsets}

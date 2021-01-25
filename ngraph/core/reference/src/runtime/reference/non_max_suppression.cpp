@@ -173,8 +173,6 @@ namespace ngraph
 
                 size_t boxes_per_class = static_cast<size_t>(max_output_boxes_per_class);
 
-                int64_t num_of_valid_boxes = 0;
-
                 std::vector<BoxInfo> filteredBoxes;
 
                 for (int64_t batch = 0; batch < num_batches; batch++)

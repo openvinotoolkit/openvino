@@ -93,7 +93,6 @@ namespace ngraph
                 NGRAPH_CHECK(input_shape.size() == 4);
 
                 const int batches = input_shape[0];
-                const int channels = input_shape[1];
                 const int height = input_shape[2];
                 const int width = input_shape[3];
 
