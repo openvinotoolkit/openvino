@@ -1097,7 +1097,6 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         }
         if (CNN2DAtInput) {
             auto dims = input.second->getTensorDesc().getDims();
-            auto layout = input.second->getTensorDesc().getLayout();
             auto hwDim = dims[2] * dims[3];
             auto chanelsDim = dims[1];
             RotateFeatures(reinterpret_cast<uint8_t*>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
