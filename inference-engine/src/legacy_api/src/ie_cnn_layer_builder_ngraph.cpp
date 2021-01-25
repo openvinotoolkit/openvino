@@ -170,38 +170,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Exp>::createLayer(const std::shared_ptr<
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::CropIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Crop",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CropLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::CropIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->axes) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["axis"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->dim) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["dim"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->offset) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["offset"] = value;
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::Maximum>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Eltwise",
                           details::convertPrecision(layer->get_output_element_type(0))};
