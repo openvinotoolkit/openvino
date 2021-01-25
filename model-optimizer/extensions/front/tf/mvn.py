@@ -98,3 +98,4 @@ class MVNReplacer(FrontReplacementSubgraph):
 
         node.graph.remove_edge(node.in_node(2).id, node.id)
         node.old_infer(node)
+        node['infer'] = node.old_infer

@@ -97,3 +97,4 @@ class MVNUnrolled(FrontReplacementSubgraph):
         for i in range(2, 5):
             node.graph.remove_edge(node.in_node(i).id, node.id)
         node.old_infer(node)
+        node['infer'] = node.old_infer
