@@ -29,6 +29,10 @@ struct ScaleFactorUpdateResult {
     }
 };
 
+static bool fp32eq(float p1, float p2) {
+    return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+}
+
 /**
  * @brief calculates output scale factor per layer
  * @tparam T
@@ -49,6 +53,55 @@ class ScaleFactorPerLayer {
     }
 };
 
+static float selectBestOutputScaleFactors(float inScale, std::vector<float> outScales, const std::vector<double>& slopes) {
+    std::vector<float> scaleErrors;
+    for (size_t i = 0; i < outScales.size(); ++i) {
+        auto outScale = outScales[i];
+
+        auto sd = 0.0;
+        for (size_t j = 0; j < slopes.size(); ++j) {
+            auto s = gna_slope(slopes[j], inScale, outScale);
+            auto slope = static_cast<uint32_t>(s.slope * s.slope_scale);
+            if (slope < std::numeric_limits<int16_t>::min() && slope > std::numeric_limits<int16_t>::max()) {
+                sd += std::numeric_limits<int8_t>::max();
+                continue;
+            }
+
+            auto testSlope = static_cast<double>(slope) / s.slope_scale * inScale / outScale;
+            sd += pow(testSlope - slopes[j], 2.0);
+        }
+
+        sd /= slopes.size();
+        sd = sqrtf(sd);
+        scaleErrors.push_back(sd);
+    }
+
+    size_t minIndex = 0;
+    auto minError = scaleErrors[0];
+    for (size_t i = 1; i < scaleErrors.size(); ++i) {
+        if (scaleErrors[i] < minError) {
+            minError = scaleErrors[i];
+            minIndex = i;
+        }
+    }
+
+    return outScales[minIndex];
+}
+
+static std::vector<float> generateScaleFactors(float startRange, float endRange, size_t numIterations) {
+    auto scaleFactors = std::vector<float>{};
+    auto domain = endRange - startRange;
+    auto step = domain / numIterations;
+    for (size_t i = 0; i <= numIterations; ++i) {
+        auto scale = startRange + step * i;
+        if (!std::isnan(scale)) {
+            scaleFactors.push_back(scale);
+        }
+    }
+
+    return scaleFactors;
+}
+
 template<>
 class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
  private :
@@ -59,10 +112,6 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
     const double pow_domain = 16;
 
  protected :
-    static bool fp32eq(float p1, float p2) {
-        return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-    }
-
     float getActivationScale(InferenceEngine::CNNLayer const* cnnLayer,
                              GNAPluginNS::LayerInfo const& layer) {
         auto quantizedParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
@@ -70,7 +119,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         // todo: calculate proper scale factor where we need to expand it a bit to be safe to stay in int16 weights
         // set the initial value
         float result = activation_scale_factor;
-        if (layer.isIdentity()) {
+        if (layer.isIdentity() || layer.isRelu()) {
 // #define accurate_identity_scale_factor
 #ifdef accurate_identity_scale_factor
             // searching more accurate scale factor for identity
@@ -95,20 +144,10 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                 }
             }
 #else
-            // GNA scale factor encoding might poor represent target slop scale, we are probing 2 values
-            auto s = gna_slope(1.0, quantizedParams->_src_quant.GetScale(), identity_scale_factor);
-            auto scale_default = s.slope * s.slope_scale;
-            // probing one more quite good approximation for identity
-            s = gna_slope(1.0, quantizedParams->_src_quant.GetScale(), identity_scale_factor / 2);
-            auto scale_extra = s.slope * s.slope_scale;
-            result = fabs(scale_extra) > fabs(scale_default) ?  identity_scale_factor / 2 : identity_scale_factor;
+            auto scaleFactors = generateScaleFactors(2048, 1024, 1024 * 10);
+            result = selectBestOutputScaleFactors(quantizedParams->_src_quant.GetScale(), scaleFactors, { 1.0f });
 
 #endif
-        } else if (layer.isRelu() &&
-                static_cast<uint64_t>(activation_scale_factor * quantizedParams->_src_quant.GetScale())
-                                                            > std::numeric_limits<int32_t>::max()-1) {
-            // if activation is one from relu family, we need to apply heuristic to avoid activation output overflow
-            result = (activation_scale_factor * 0.5);
         } else if (layer.isPower()) {
             auto powerLayer = dynamic_cast<InferenceEngine::PowerLayer const*>(cnnLayer);
             if (!powerLayer) {
@@ -270,7 +309,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             }
 
             auto abs_val = std::max(std::abs(max_val), std::abs(min_val));
-            auto scale_val = static_cast<float>(std::numeric_limits<int16_t>::max()) / abs_val;
+            auto scale_val = static_cast<float>(MAX_VAL_2B_FEAT) / abs_val;
 
             // TODO: Investigate what should be the scale in such cases (31910)
             if (std::isinf(scale_val)) {
@@ -418,9 +457,6 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
             THROW_GNA_EXCEPTION << "Concat layer has unsupported number of incoming layers.";
         }
 
-        auto fp32eq = [](float p1, float p2) -> bool {
-            return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
-        };
 
         auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
         std::vector<InferenceEngine::CNNLayerPtr> inputLayers;
@@ -437,7 +473,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         auto in0 = inputLayers.front();
         auto quantParams0 = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0);
         auto scaleFactor = quantParams0->_dst_quant.GetScale();
-        auto scaleFactorCheck = [scaleFactor, &fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
+        auto scaleFactorCheck = [scaleFactor](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
             return fp32eq(quantParams->_dst_quant.GetScale(), scaleFactor);
         };
@@ -485,7 +521,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 std::reverse(inputLayers.begin(), inputLayers.end());
             }
             if (((restartedCountIt->second) / 4) % 2 == 0) {
-                auto sourceLayerCheck = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
+                auto sourceLayerCheck = [](InferenceEngine::CNNLayerPtr& inputLayer) {
                     auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
                     LayerInfo info(inputLayer);
                     return !info.isActivation() && !fp32eq(quantParams->_dst_quant.GetScale(), 1.0f);
@@ -496,7 +532,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         ++restartedCountIt->second;
 
         if (sourceLayerIt == inputLayers.end()) {
-            auto nonDefaultScaleFactor = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
+            auto nonDefaultScaleFactor = [](InferenceEngine::CNNLayerPtr& inputLayer) {
                 auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
                 return !fp32eq(quantParams->_dst_quant.GetScale(), 1.0f);
             };
@@ -526,7 +562,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         }
 
         auto updatedScaleFactor = InferenceEngine::getInjectedData<QuantizedLayerParams>(in0)->_dst_quant.GetScale();
-        auto equalScaleFactor = [updatedScaleFactor, &fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
+        auto equalScaleFactor = [updatedScaleFactor](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
             return fp32eq(quantParams->_dst_quant.GetScale(), updatedScaleFactor);
         };
