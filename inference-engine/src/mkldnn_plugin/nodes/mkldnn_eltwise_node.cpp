@@ -568,6 +568,8 @@ private:
                         uni_vcvtdq2ps(vmm_src, vmm_src);
                     break;
                 case Precision::I32:
+                    if (src_prc == Precision::FP32 || src_prc == Precision::BF16)
+                        uni_vcvtps2dq(vmm_src, vmm_src);
                     break;
                 default:
                     assert(!"unknown dst_prc");
@@ -611,6 +613,8 @@ private:
                     uni_vcvtdq2ps(xmm_src, xmm_src);
                 break;
             case Precision::I32:
+                if (src_prc == Precision::FP32 || src_prc == Precision::BF16)
+                    uni_vcvtps2dq(xmm_src, xmm_src);
                 break;
             default:
                 assert(!"unknown dst_prc");
@@ -627,6 +631,8 @@ private:
                     uni_vcvtps2dq(vmm_dst, vmm_dst);
                 break;
             case Precision::I32:
+                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16)
+                    uni_vcvtdq2ps(vmm_dst, vmm_dst);
                 break;
             default:
                 assert(!"unknown src_prc");
@@ -700,6 +706,8 @@ private:
                     uni_vcvtps2dq(xmm_dst, xmm_dst);
                 break;
             case Precision::I32:
+                if (dst_prc == Precision::FP32 || dst_prc == Precision::BF16)
+                    uni_vcvtdq2ps(xmm_dst, xmm_dst);
                 break;
             default:
                 assert(!"unknown src_prc");
