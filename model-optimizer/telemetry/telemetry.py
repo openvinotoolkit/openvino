@@ -37,6 +37,8 @@ class Telemetry(metaclass=SingletonMetaClass):
     """
     def __init__(self, app_name: str = None, app_version: str = None, tid: [None, str] = None,
                  backend: [str, None] = 'ga'):
+        if not hasattr(self, 'tid'):
+            self.tid = None
         if app_name is not None:
             self.consent = isip.isip_consent() == isip.ISIPConsent.APPROVED
             # override default tid
@@ -71,20 +73,6 @@ class Telemetry(metaclass=SingletonMetaClass):
         if self.consent:
             self.sender.send(self.backend, self.backend.build_event_message(event_category, event_action, event_label,
                                                                             event_value, **kwargs))
-
-    def bulk_send_event(self, event_category: str, event_action: str, values: dict, **kwargs):
-        """
-        Send bulk of events with the same category and action but different label/value pairs specified with a "values"
-        dictionary.
-
-        :param event_category: category of the event
-        :param event_action: action of the event
-        :param values: the dictionary with label/value pairs
-        :param kwargs: additional parameters
-        :return: None
-        """
-        if self.consent:
-            pass
 
     def start_session(self, **kwargs):
         """

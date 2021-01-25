@@ -24,9 +24,10 @@ class GABackend(TelemetryBackend):
     backend_url = 'https://www.google-analytics.com/collect'
     id = 'ga'
 
-    def __init__(self, tid: str, app_name: str, app_version: str):
+    def __init__(self, tid: str = None, app_name: str = None, app_version: str = None):
         super(GABackend, self).__init__(tid, app_name, app_version)
-
+        if tid is None:
+            tid = 'UA-17808594-29'
         self.tid = tid
         self.uid = get_or_generate_uid('openvino_ga_uid', lambda: str(uuid.uuid4()), is_valid_uuid4)
         self.app_name = app_name
