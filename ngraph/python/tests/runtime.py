@@ -39,10 +39,19 @@ def get_runtime():
     return runtime(backend_name=tests.BACKEND_NAME)
 
 
-def convert_i64_to_i32(cnn_network: IENetwork) -> None:
+def _convert_inputs(cnn_network: IENetwork) -> None:
+    """WA converts unsupported input images formats."""
+    precision_map = {
+        "FP64": "FP32",
+        "U32": "I32",
+    }
+
     for cnn_input in cnn_network.input_info:
-        if cnn_network.input_info[cnn_input].precision == "I64":
-            cnn_network.input_info[cnn_input].precision = "I32"
+        try:
+            _precision = precision_map[cnn_network.input_info[cnn_input].precision]
+            cnn_network.input_info[cnn_input].precision = _precision
+        except KeyError:
+            pass
 
 
 class Runtime(object):
@@ -105,8 +114,8 @@ class Computation(object):
             cnn_network = IENetwork(capsule)
             if self.function.is_dynamic():
                 cnn_network.reshape(dict(zip(param_names, input_shapes)))
-            # Convert inputs of the network from I64 to I32
-            convert_i64_to_i32(cnn_network)
+            # Convert unsupported inputs of the network
+            _convert_inputs(cnn_network)
             self.network_cache[str(input_shapes)] = cnn_network
         else:
             cnn_network = self.network_cache[str(input_shapes)]
