@@ -17,7 +17,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND LINK_LIBRARIES onnx_custom_op)
     list(APPEND DEPENDENCIES template_extension onnx_custom_op)
 else()
-    set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/extension")
+    set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/extension")
 endif()
 
 addIeTargetTest(
