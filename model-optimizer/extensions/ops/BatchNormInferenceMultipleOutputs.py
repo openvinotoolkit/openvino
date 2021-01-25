@@ -32,7 +32,7 @@ class BatchNormInferenceMO(Op):
             'type': None,
             'op': self.op,
             'in_ports_count': 5,
-            'out_ports_count': 6,
+            'out_ports_count': 1,
             'infer': self.infer
         }, attrs)
 

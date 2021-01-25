@@ -58,7 +58,7 @@ nodes_attributes = {
     'placeholder_2/Reshape_const': {'type': 'Const', 'kind': 'op', 'op': 'Const', 'value': None},
     'placeholder_2/Reshape_const_data': {'kind': 'data', 'value': None, 'shape': None},
     # BatchNorm operation
-    'bn_op': {'type': None, 'kind': 'op', 'op': 'BatchNorm', 'can_be_fused': True},
+    'bn_op': {'type': None, 'kind': 'op', 'op': 'BatchNormInference', 'can_be_fused': True},
     'const_bn_const': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'bn_const': {'value': None, 'shape': None, 'kind': 'data'},
     'const_bn_beta': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
@@ -68,10 +68,27 @@ nodes_attributes = {
     'const_bn_var': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     'bn_var': {'value': None, 'shape': None, 'kind': 'data'},
     'bn_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'var_add_eps': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Add'},
+    'var_add_eps_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'neg_mul_mean': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Mul'},
+    'neg_mul_mean_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'shift': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Mul'},
+    'shift_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_bn_eps': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
+    'bn_eps': {'value': None, 'shape': None, 'kind': 'data'},
+    'const_bn_neg': {'value': np.float32(-1.), 'kind': 'op', 'op': 'Const'},
+    'bn_neg': {'value': np.float32(-1.), 'kind': 'data'},
+    'const_bn_pow_val': {'value': np.float32(-0.5), 'kind': 'op', 'op': 'Const'},
+    'bn_pow_val': {'value': np.float32(-0.5), 'kind': 'data'},
+    'bn_pow': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Pow'},
+    'bn_pow_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'non_const_bn_mean': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
+    'non_const_bn_var': {'value': None, 'shape': None, 'kind': 'op', 'op': 'Const'},
     # Concat1 operation
     'concat': {'type': 'Concat', 'kind': 'op', 'op': 'Concat'},
     'concat_data': {'value': None, 'shape': None, 'kind': 'data'},
     'op_output': {'kind': 'op', 'op': 'Result'}
+
 }
 
 
@@ -515,33 +532,87 @@ class BatchNormDecomposition(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_data')
         self.assertTrue(flag, resp)
 
-    # def test_bn_non_constant_var_mean(self):
+    def test_bn_non_constant_var_mean(self):
         # TODO: Rewrite unit test and add unit tests for NCHW
-        # graph = build_graph(nodes_attributes,
-        #                     [('placeholder_1', 'placeholder_1_data'),
-        #                      ('placeholder_1_data', 'bn_op'),
-        #                      ('const_bn_const', 'bn_const'),
-        #                      ('const_bn_beta', 'bn_beta'),
-        #                      ('const_bn_mean', 'bn_mean'),
-        #                      ('const_bn_var', 'bn_var'),
-        #                      ('bn_const', 'bn_op'),
-        #                      ('bn_beta', 'bn_op'),
-        #                      ('bn_mean', 'bn_op'),
-        #                      ('bn_var', 'bn_op'),
-        #                      ('bn_op', 'bn_data'),
-        #                      ('concat', 'concat_data'),
-        #                      ('bn_data', 'concat'),
-        #                      ('concat_data', 'op_output')
-        #                      ],
-        #                     {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
-        #                      'bn_op': {'eps': 1.2},
-        #                      'bn_const': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
-        #                      'bn_beta': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
-        #                      'bn_mean': {'shape': np.array([3]), 'value': None},
-        #                      'bn_var': {'shape': np.array([3]), 'value': None},
-        #                      'bn_data': {'shape': np.array([1, 227, 227, 3])},
-        #                      'concat_data': {}
-        #                      }, nodes_with_edges_only=True)
-        # graph.graph['layout'] = 'NHWC'
-        # convert_batch_norm(graph)
-        # graph.clean_up()
+        graph = build_graph(nodes_attributes,
+                            [('placeholder_1', 'placeholder_1_data'),
+                             ('placeholder_1_data', 'bn_op'),
+                             ('const_bn_const', 'bn_const'),
+                             ('const_bn_beta', 'bn_beta'),
+                             ('non_const_bn_mean', 'bn_mean'),
+                             ('non_const_bn_var', 'bn_var'),
+                             ('bn_const', 'bn_op'),
+                             ('bn_beta', 'bn_op'),
+                             ('bn_mean', 'bn_op'),
+                             ('bn_var', 'bn_op'),
+                             ('bn_op', 'bn_data'),
+                             ('concat', 'concat_data'),
+                             ('bn_data', 'concat'),
+                             ('concat_data', 'op_output')
+                             ],
+                            {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
+                             'bn_op': {'eps': np.float32(1.2), 'can_be_fused':False},
+                             'bn_const': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
+                             'bn_beta': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
+                             'bn_mean': {'shape': np.array([3]), 'value': None},
+                             'bn_var': {'shape': np.array([3]), 'value': None},
+                             'bn_data': {'shape': np.array([1, 227, 227, 3])},
+                             'concat_data': {}
+                             }, nodes_with_edges_only=True)
+        graph.graph['layout'] = 'NHWC'
+        convert_batch_norm(graph)
+        graph.clean_up()
+
+        graph_ref = build_graph(nodes_attributes,
+                                [('placeholder_1', 'placeholder_1_data'),
+                                 ('placeholder_1_data', 'mul_1'),
+                                 ('non_const_bn_var', 'bn_var'),
+                                 ('bn_var', 'var_add_eps'),
+                                 ('const_bn_eps', 'bn_eps'),
+                                 ('bn_eps', 'var_add_eps'),
+                                 ('var_add_eps', 'var_add_eps_data'),
+                                 ('var_add_eps_data', 'bn_pow'),
+                                 ('const_bn_pow_val', 'bn_pow_val'),
+                                 ('bn_pow_val', 'bn_pow'),
+                                 ('bn_pow', 'bn_pow_data'),
+                                 ('non_const_bn_mean', 'bn_mean'),
+                                 ('bn_mean', 'neg_mul_mean'),
+                                 ('const_bn_neg', 'bn_neg'),
+                                 ('bn_neg', 'neg_mul_mean'),
+                                 ('neg_mul_mean', 'neg_mul_mean_data'),
+                                 ('bn_pow_data', 'shift'),
+                                 ('neg_mul_mean_data', 'shift'),
+                                 ('shift', 'shift_data'),
+                                 ('bn_pow_data', 'mul_1'),
+                                 ('mul_1', 'mul_1_data'),
+                                 ('mul_1_data', 'add_1'),
+                                 ('shift_data', 'add_1'),
+                                 ('add_1', 'add_1_data'),
+                                 ('add_1_data', 'mul_2'),
+                                 ('const_bn_const', 'bn_const'),
+                                 ('bn_const', 'mul_2'),
+                                 ('mul_2', 'mul_2_data'),
+                                 ('mul_2_data', 'add_2'),
+                                 ('const_bn_beta', 'bn_beta'),
+                                 ('bn_beta', 'add_2'),
+                                 ('add_2', 'add_2_data'),
+                                 ('concat', 'concat_data'),
+                                 ('add_2_data', 'concat'),
+                                 ('concat_data', 'op_output')
+                                 ],
+                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 3])},
+                                 'bn_eps': {'value': np.float32(1.2)},
+                                 'bn_var': {'shape':np.array([3])},
+                                 'bn_mean': {'shape':np.array([3])},
+                                 'bn_const': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
+                                 'bn_beta': {'shape': np.array([3]), 'value': np.array([1, 2, 3])},
+                                 'mul_1': {'can_be_fused': False},
+                                 'mul_2': {'can_be_fused': False},
+                                 'add_1': {'can_be_fused': False},
+                                 'add_2': {'can_be_fused': False},
+                                 'concat_data': {}
+                                 })
+        (flag, resp) = compare_graphs(graph, graph_ref, 'op_output')
+        self.assertTrue(flag, resp)
+
+
