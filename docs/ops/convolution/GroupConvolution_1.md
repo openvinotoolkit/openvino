@@ -4,11 +4,13 @@
 
 **Category**: Convolution
 
-**Short description**: [Reference](http://caffe.berkeleyvision.org/tutorial/layers/convolution.html)
+**Short description**: Splits input into multiple groups, convolves them with group filters and concatenates results. 
 
-**Detailed description**: [Reference](http://cs231n.github.io/convolutional-networks/#conv)
+**Detailed description**: [ImageNet Classification with Deep Convolutional
+Neural Networks](https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf)
 
 **Attributes**
+The operation has the same attributes as a regular _Convolution_. Number of groups is derived from the kernel shape. 
 
 * *strides*
 
@@ -47,50 +49,34 @@
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
-    * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
-    * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
+    * *explicit* - use explicit padding values from `pads_begin` and `pads_end`.
+    * *same_upper* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
+    * *same_lower* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
     * *valid* - do not use padding.
   * **Type**: string
-  * **Default value**: None
+  * **Default value**: explicit
   * **Required**: *no*
   * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is specified.
 
 **Inputs**:
 
-*   **1**: 4D or 5D input tensor. Required.
+*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is NCZYX (number of batches, number of channels, spatial axes Z, Y, X). Required.
+*   **2**: Convolution kernel tensor of type *T* and rank 4, 5 or 6. Layout is GOIZYX (number of groups, number of output channels, number of input channels, spatial axes Z, Y, X), 
+  *   **Note** Number of groups is derived from the shape of the kernel and not specified by any attribute. 
+  *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
+      * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
+      * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X
+      * 3D convolution (input tensors rank 5) means that there are three spatial axes Z, Y, X
 
-*   **2**: Convolution kernel tensor. Weights layout is GOIYX (GOIZYX for 3D convolution), which means that *X* is changing the fastest, then *Y*, then *Input*, *Output* and *Group*. The size of kernel and number of groups are derived from the shape of this input and aren't specified by any attribute. Required.
+**Types**
 
-
-**Mathematical Formulation**
-
-*   For the convolutional layer, the number of output features in each dimension is calculated using the formula:
-\f[
-n_{out} = \left ( \frac{n_{in} + 2p - k}{s} \right ) + 1
-\f]
-*   The receptive field in each layer is calculated using the formulas:
-    *   Jump in the output feature map:
-        \f[
-        j_{out} = j_{in} * s
-        \f]
-    *   Size of the receptive field of output feature:
-        \f[
-        r_{out} = r_{in} + ( k - 1 ) * j_{in}
-        \f]
-    *   Center position of the receptive field of the first output feature:
-        \f[
-        start_{out} = start_{in} + ( \frac{k - 1}{2} - p ) * j_{in}
-        \f]
-    *   Output is calculated using the following formula:
-        \f[
-        out = \sum_{i = 0}^{n}w_{i}x_{i} + b
-        \f]
+* *T*: any numeric type.
 
 **Example**
 
 ```xml
 <layer type="GroupConvolution" ...>
-    <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1"/>
+    <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" auto_pad="explicit"/>
     <input>
         <port id="0">
             <dim>1</dim>
