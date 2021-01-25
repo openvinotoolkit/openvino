@@ -41,8 +41,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
-        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
+        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
@@ -71,8 +70,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
-        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
+        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         FAIL();
     }
