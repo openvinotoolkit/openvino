@@ -9,7 +9,8 @@ set(WHEEL_DESC "Inference Engine Python* API" CACHE STRING "Short, summary descr
 set(WHEEL_VERSION "0.0.0" CACHE STRING "Version of this release")
 set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
 set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
-set(LIBS_CPACK_PATH "libs")
+set(LIBS_CPACK_PATH "wheel.libs")
+set(BINDINGS_CPACK_PATH "wheel.bindings")
 
 # set version using CI value
 if (WHEEL_VERSION STREQUAL  "0.0.0")
@@ -17,9 +18,9 @@ if (WHEEL_VERSION STREQUAL  "0.0.0")
 endif()
 
 # runtime libs
-set(LIB_DIRS    ${CMAKE_INSTALL_PREFIX}/${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH})
+set(LIB_DIRS    ${IE_CPACK_RUNTIME_PATH})
 # python bindings
-set(BINDINGS_DIR ${CMAKE_INSTALL_PREFIX}/${PYTHON_BRIDGE_CPACK_PATH})
+set(BINDINGS_DIR ${BINDINGS_CPACK_PATH})
 
 # prepare setup.py
 configure_file(${SETUP_PY_IN} ${SETUP_PY})
@@ -73,21 +74,24 @@ endif()
 # install wheel specific files
 install(FILES ${SETUP_PY} ${CMAKE_CURRENT_SOURCE_DIR}/pypi_overview.md
     DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}
-    COMPONENT ${PYTHON_VERSION}
+    COMPONENT ie_wheel
+    EXCLUDE_FROM_ALL
 )
 
 # install runtime libs
-install(TARGETS ${runtime_targets}
-                ${plugin_targets}
-        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
-        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
-        COMPONENT ${PYTHON_VERSION}
+install(TARGETS ${runtime_targets} ${plugin_targets}
+    RUNTIME DESTINATION ${LIBS_CPACK_PATH}
+    LIBRARY DESTINATION ${LIBS_CPACK_PATH}
+    COMPONENT ie_wheel
+    EXCLUDE_FROM_ALL
 )
 
 # install targets specific files
 install(FILES ${target_files}
-        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
-        COMPONENT ${PYTHON_VERSION})
+     DESTINATION ${LIBS_CPACK_PATH}
+     COMPONENT ie_wheel
+     EXCLUDE_FROM_ALL
+)
 
 # install tbb libs
 if(EXISTS "${TBB}")
@@ -98,7 +102,29 @@ if(EXISTS "${TBB}")
          "${TBB}/bin/*.dll"
     )
     install(FILES ${tbb_libs}
-            DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${LIBS_CPACK_PATH}
-            COMPONENT ${PYTHON_VERSION}
+        DESTINATION ${LIBS_CPACK_PATH}
+        COMPONENT ie_wheel
+        EXCLUDE_FROM_ALL
     )
 endif()
+
+add_custom_command(TARGET ie_wheel POST_BUILD
+  COMMAND cmake --install ../../ --prefix ${CMAKE_CURRENT_BINARY_DIR}
+  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+  COMMENT ""
+  VERBATIM
+)
+
+#add_custom_command(TARGET ie_wheel POST_BUILD
+#  COMMAND python setup.py bdist_wheel
+#  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+#  COMMENT ""
+#  VERBATIM
+#)
+
+#add_custom_command(TARGET ie_wheel POST_BUILD
+#  COMMAND cmake --install . --prefix ${CMAKE_CURRENT_BINARY_DIR}/temp --component core 
+#  WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+#  COMMENT ""
+#  VERBATIM
+#)
