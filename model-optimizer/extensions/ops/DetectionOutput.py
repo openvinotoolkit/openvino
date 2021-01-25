@@ -16,7 +16,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
-from mo.front.extractor import get_boolean_attr
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 
@@ -47,20 +47,20 @@ class DetectionOutput(Op):
     def supported_attrs(self):
         return [
             'background_label_id',
-            ('clip_after_nms', lambda node: get_boolean_attr(node, 'clip_after_nms')),
-            ('clip_before_nms', lambda node: get_boolean_attr(node, 'clip_before_nms')),
+            ('clip_after_nms', lambda node: bool_to_str(node, 'clip_after_nms')),
+            ('clip_before_nms', lambda node: bool_to_str(node, 'clip_before_nms')),
             'code_type',
             'confidence_threshold',
-            ('decrease_label_id', lambda node: get_boolean_attr(node, 'decrease_label_id')),
+            ('decrease_label_id', lambda node: bool_to_str(node, 'decrease_label_id')),
             'input_height',
             'input_width',
             'keep_top_k',
             'nms_threshold',
-            ('normalized', lambda node: get_boolean_attr(node, 'normalized')),
+            ('normalized', lambda node: bool_to_str(node, 'normalized')),
             'num_classes',
-            ('share_location', lambda node: get_boolean_attr(node, 'share_location')),
+            ('share_location', lambda node: bool_to_str(node, 'share_location')),
             'top_k',
-            ('variance_encoded_in_target', lambda node: get_boolean_attr(node, 'variance_encoded_in_target')),
+            ('variance_encoded_in_target', lambda node: bool_to_str(node, 'variance_encoded_in_target')),
             'objectness_score',
         ]
 

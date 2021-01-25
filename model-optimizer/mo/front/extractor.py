@@ -131,7 +131,7 @@ def attr_getter(node: Node, name: str):
     return None
 
 
-def get_boolean_attr(node: Node, attr: str):
+def bool_to_str(node: Node, attr: str):
     # Function converts 0/1 or bool False/True values to str 'false'/'true' which need to appear in IR
     if isinstance(node[attr], bool):
         return str(node[attr]).lower()

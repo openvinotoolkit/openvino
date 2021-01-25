@@ -17,7 +17,7 @@
 import numpy as np
 
 from mo.front.common.layout import get_width_dim, get_height_dim
-from mo.front.extractor import attr_getter, get_boolean_attr
+from mo.front.extractor import attr_getter, bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -68,11 +68,11 @@ class PriorBoxOp(Op):
 
     def backend_attrs(self):
         return [
-            ('flip', lambda node: get_boolean_attr(node, 'flip')),
-            ('clip', lambda node: get_boolean_attr(node, 'clip')),
+            ('flip', lambda node: bool_to_str(node, 'flip')),
+            ('clip', lambda node: bool_to_str(node, 'clip')),
             'step',
             'offset',
-            ('scale_all_sizes', lambda node: get_boolean_attr(node, 'scale_all_sizes')),
+            ('scale_all_sizes', lambda node: bool_to_str(node, 'scale_all_sizes')),
             ('min_size', lambda node: attr_getter(node, 'min_size')),
             ('max_size', lambda node: attr_getter(node, 'max_size')),
             ('aspect_ratio', lambda node: attr_getter(node, 'aspect_ratio')),

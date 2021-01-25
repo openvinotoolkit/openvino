@@ -18,7 +18,7 @@ import logging as log
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import get_boolean_attr
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from mo.ops.op import Op
@@ -54,11 +54,11 @@ class NonMaxSuppression(Op):
     def backend_attrs(self):
         version = self.get_opset()
         if version in ['opset3', 'opset4', 'opset5']:
-            return [('sort_result_descending', lambda node: get_boolean_attr(node, 'sort_result_descending')),
+            return [('sort_result_descending', lambda node: bool_to_str(node, 'sort_result_descending')),
                     'box_encoding',
                     ('output_type', lambda node: np_data_type_to_destination_type(node.output_type))]
         elif version == 'opset1':
-            return [('sort_result_descending', lambda node: get_boolean_attr(node, 'sort_result_descending')),
+            return [('sort_result_descending', lambda node: bool_to_str(node, 'sort_result_descending')),
                     'box_encoding']
         else:
             raise Error('Unsupported operation opset version "{}"'.format(version))
