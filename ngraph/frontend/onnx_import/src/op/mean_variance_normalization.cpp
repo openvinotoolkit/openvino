@@ -58,6 +58,21 @@ namespace ngraph
 
             } // namespace set_9
 
+            namespace set_13
+            {
+                OutputVector mean_variance_normalization(const Node& node)
+                {
+                    auto data = node.get_ng_inputs().at(0);
+                    auto axes =
+                        node.get_attribute_value<std::vector<std::int64_t>>("axes", {0, 2, 3});
+                    auto const_axes =
+                        default_opset::Constant::create(element::i64, Shape{axes.size()}, axes);
+                    return {std::make_shared<ngraph::op::v6::MVN>(
+                        data, const_axes, true, 1e-09, ngraph::op::MVNEpsMode::OUTSIDE_SQRT)};
+                }
+
+            } // namespace set_13
+
         } // namespace op
 
     } // namespace onnx_import

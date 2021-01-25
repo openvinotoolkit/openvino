@@ -246,7 +246,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_argmin_no_keepdims_random_select_last_index_cpu"),
     (xfail_issue_38091,
         "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu",
-        "OnnxBackendNodeModelTest.test_mvn_cpu",
+        # "OnnxBackendNodeModelTest.test_mvn_cpu",
         "OnnxBackendNodeModelTest.test_elu_example_cpu",),
     (xfail_issue_40319,
         "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_broadcast_cpu",
