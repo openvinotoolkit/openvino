@@ -287,7 +287,7 @@ def driver(argv: argparse.Namespace):
 
 
 def main(cli_parser: argparse.ArgumentParser, framework: str):
-    telemetry = tm.Telemetry(tid='UA-186253784-1', app_name='Model Optimizer', app_version=get_version())
+    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_version())
     telemetry.start_session()
     telemetry.send_event('mo', 'version', get_version())
     try:
