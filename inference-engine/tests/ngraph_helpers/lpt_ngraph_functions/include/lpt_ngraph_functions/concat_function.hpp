@@ -29,6 +29,12 @@ public:
         const FakeQuantizeOnDataWithConstant& fakeQuantize1,
         const FakeQuantizeOnDataWithConstant& fakeQuantize2);
 
+    static std::shared_ptr<ngraph::Function> getOriginalWithChildAndOutput(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fakeQuantize1,
+        const FakeQuantizeOnData& fakeQuantize2);
+
     static std::shared_ptr<ngraph::Function> getOriginalWithNeighbors(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,

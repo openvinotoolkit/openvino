@@ -548,7 +548,6 @@ void V10Parser::parsePreProcess(CNNNetwork& network, const pugi::xml_node& root,
     if (!meanSegmentPrecision || meanSegmentPrecision == Precision::MIXED)
         THROW_IE_EXCEPTION << "mean blob defined without specifying precision.";
 
-    ResponseDesc resp;
     InferenceEngine::PreProcessChannel::Ptr preProcessChannel;
 
     int lastChanNo = -1;
@@ -664,9 +663,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                     const Blob::CPtr& weights,
                                                     const GenericLayerParams& params) {
     static const InferenceEngine::details::caseless_unordered_map<std::string, std::shared_ptr<LayerBaseCreator>> creators = {
-        { "GreaterEqual", std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual") },
-        { "Equal", std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal") },
-        { "LSTMCell", std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell") },
         { "ReorgYolo", std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo") },
         { "PSROIPooling", std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling") },
         { "VariadicSplit", std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit") },
@@ -832,44 +828,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 }
 
 namespace InferenceEngine {
-
-// LSTMCell layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 6);
-    pugi::xml_node dn = node.child("data");
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    std::vector<std::string> activations = getParameters<std::string>(dn, "activations", {"sigmoid", "tanh", "tanh"});
-    std::vector<float> activations_alpha = getParameters<float>(dn, "activations_alpha", {});
-    std::vector<float> activations_beta = getParameters<float>(dn, "activations_beta", {});
-    float clip = GetFloatAttr(dn, "clip", 0.f);
-    return std::make_shared<ngraph::op::v0::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
-                                                  GetUInt64Attr(dn, "hidden_size"), ngraph::op::LSTMWeightsFormat::IFCO,
-                                                  activations, activations_alpha, activations_beta, clip);
-}
-
-// GreaterEqual layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GreaterEqual>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::GreaterEqual>(inputs[0], inputs[1]);
-}
-
-// Equal layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Equal>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::Equal>(inputs[0], inputs[1]);
-}
-
 // VariadicSplit layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::VariadicSplit>::createLayer(

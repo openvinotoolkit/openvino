@@ -63,8 +63,6 @@ static const char softSignLayersCounter[] = "numSoftSignLayers";
  * @brief helper injections of diagonal layer with certain value
  */
 
-static const char diagonalLayerCounterName[] = "diagonalLayerCounter";
-
 static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
                                        InferenceEngine::CNNLayerPtr nextLayer,
                                        std::shared_ptr<IPassManager> passmanager,
@@ -549,13 +547,6 @@ void ReversePermutationsPass::run() {
 
         return prev;
     };
-
-    auto prevLayerSkipReshape = [&prevLayerSkipCertain](CNNLayerPtr layer) -> CNNLayerPtr {
-        return prevLayerSkipCertain(layer, [] (CNNLayerPtr l2) {
-            return LayerInfo(l2).isNonFunctional();
-        });
-    };
-
 
     std::function<CNNLayerPtr(CNNLayerPtr)> nextLayerSkipReshape = [&nextLayerSkipReshape](CNNLayerPtr layer) -> CNNLayerPtr {
         if (layer->outData.empty()) {
@@ -1445,7 +1436,6 @@ void SubstituteScaleShiftBroadCastPass::run() {
         auto batchSize = dataDims[0];
         auto nElements = product(begin(dataDims), end(dataDims)) / batchSize;
         auto weightsElements = scaleShift->_weights->size();
-        auto weightsBytes = scaleShift->_weights->byteSize();
 
         if (!reshape_batch && nElements == weightsElements) {
             continue;
@@ -1941,7 +1931,6 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         float fqLevels = fqLayer.getLevels();
-        float scaleInput = (fqLevels - 1) / (inputRange.second[0] - inputRange.first[0]);
         float scaleOutputs = (fqLevels - 1) / (outputRange.second[0] - outputRange.first[0]);
 
         // Before FQ layer is removed, the previous layer has to be updated with its quantization data
