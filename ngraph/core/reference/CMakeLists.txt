@@ -44,10 +44,6 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create shared library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
-
-target_include_directories(${TARGET_NAME} PRIVATE ${xbyak_SOURCE_DIR})
-
 if(COMMAND ie_faster_build)
     ie_faster_build(${TARGET_NAME}
         UNITY
@@ -55,8 +51,11 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
+target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
+
 # Defines macro in C++ to load backend plugin
-target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH})
+target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH}
+                                          PRIVATE ${xbyak_SOURCE_DIR})
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::reference ALIAS ${TARGET_NAME})

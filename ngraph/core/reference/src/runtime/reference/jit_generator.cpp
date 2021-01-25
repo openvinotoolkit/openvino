@@ -88,6 +88,7 @@ namespace ngraph
                 return false;
             }
 
+            bool Generator::is_x64() { return sizeof(void*) == 8; }
             Generator::Generator(void* code_ptr, size_t code_size)
                 : Xbyak::CodeGenerator(code_size, code_ptr)
                 , size_of_abi_save_regs(num_abi_save_gpr_regs * rax.getBit() / 8 +

@@ -122,7 +122,7 @@ namespace ngraph
 
                     static fn_t get()
                     {
-                        if (mayiuse(avx) && mayiuse(avx2) && mayiuse(fp16))
+                        if (is_x64() && mayiuse(avx) && mayiuse(avx2) && mayiuse(fp16))
                         {
                             static jit_convert_u8_to_f16 generator;
                             return (fn_t)generator.getCode();
@@ -221,7 +221,7 @@ namespace ngraph
 
                     static fn_t get()
                     {
-                        if (mayiuse(avx) && mayiuse(fp16))
+                        if (is_x64() && mayiuse(avx) && mayiuse(fp16))
                         {
                             static jit_convert_f16_to_f32 generator;
                             return (fn_t)generator.getCode();

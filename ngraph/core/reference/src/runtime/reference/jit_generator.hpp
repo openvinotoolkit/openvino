@@ -60,6 +60,7 @@ namespace ngraph
                 } cpu_isa_t;
 
                 static bool mayiuse(const cpu_isa_t cpu_isa);
+                static bool is_x64();
 
                 Generator(void* code_ptr = nullptr, size_t code_size = 16 * 1024);
                 void preamble();
