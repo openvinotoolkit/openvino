@@ -57,7 +57,7 @@ public:
         std::tie(featureMapShape, proposal, outputDim, groupSize,
                  spatialScale, spatialBinsX, spatialBinsY, mode) = psroiPar;
         std::ostringstream result;
-        result << "ROIAlignTest_";
+        result << "PSROIPoolingTest_";
         result << std::to_string(obj.index) << "_";
         result << "binsX=" << spatialBinsX << "_";
         result << "binsY=" << spatialBinsY << "_";
