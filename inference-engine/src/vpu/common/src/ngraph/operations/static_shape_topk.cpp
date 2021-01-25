@@ -92,7 +92,7 @@ void ngraph::vpu::op::StaticShapeTopK::validate_and_infer_types() {
     m_normalized_axis = ngraph::normalize_axis(this->description(), m_axis, output_shape.rank());
     if (k != 0) {
         output_shape[m_normalized_axis] = k;
-    } else {
+    } else if (m_maximumK == -1) {
         auto max_k = maximum_value(input_value(1));
         const auto is_max_value_calculated = max_k.first;
         const auto calculated_max_value = max_k.second;
