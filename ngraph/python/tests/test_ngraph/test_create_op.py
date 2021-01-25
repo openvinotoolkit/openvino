@@ -91,11 +91,12 @@ def test_ctc_greedy_decoder(dtype):
 def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated):
     input0_shape = [8, 20, 128]
     input1_shape = [8]
+    input2_shape = [1]
     expected_shape = [8, 20]
 
     parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=fp_dtype)
     parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=int_dtype)
-    parameter_input2 = ng.parameter(input1_shape, name="Input2", dtype=int_dtype)
+    parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=int_dtype)
 
     node = ng.ctc_greedy_decoder_seq_len(
         parameter_input0, parameter_input1, parameter_input2, merge_repeated, int_ci, int_sl
