@@ -40,7 +40,7 @@ namespace ngraph
                         auto reg_dst = rbx;
                         auto reg_sz = rdx;
 
-                        Label loop;
+                        Label loop, tail, tail_loop, copy_loop, exit;
 
                         preamble();
 
@@ -49,6 +49,9 @@ namespace ngraph
                         mov(reg_sz, ptr[param + offsetof(args_t, count)]);
 
                         L(loop);
+
+                        cmp(reg_sz, 8);
+                        jl(tail);
 
                         movq(u8vec, qword[reg_src]);
                         vpmovzxbd(i32vec, u8vec);
@@ -59,9 +62,50 @@ namespace ngraph
                         lea(reg_src, ptr[reg_src + sizeof(uint8_t) * 8]);
                         lea(reg_dst, ptr[reg_dst + sizeof(float16) * 8]);
 
-                        dec(reg_sz);
+                        sub(reg_sz, 8);
+                        jmp(loop);
+
+                        L(tail);
+
                         test(reg_sz, reg_sz);
-                        jnz(loop);
+                        jz(exit);
+
+                        sub(rsp, 8 * sizeof(float));                    // allocate array for 8 floats on stack
+                        xor_(rsi, rsi);
+
+                        mov(qword[rsp], rsi);
+                        mov(qword[rsp + 8], rsi);
+                        mov(qword[rsp + 16], rsi);
+                        mov(qword[rsp + 24], rsi);
+
+                        // Tail conversion
+                        L(tail_loop);
+                        movzx(edi, byte[reg_src]);                      // read u8
+                        cvtsi2ss(xmm0, edi);                            // convert u8 to float
+                        movss(dword[rsp + rsi * sizeof(float)], xmm0);  // save float on stack
+                        lea(reg_src, ptr[reg_src + sizeof(uint8_t)]);   // reg_src++
+                        inc(rsi);
+                        cmp(rsi, reg_sz);
+                        jl(tail_loop);
+
+                        vmovups(fvec, yword[rsp]);
+                        vcvtps2ph(f16vec, fvec, 0);
+                        movdqu(xword[rsp], f16vec);
+
+                        xor_(rsi, rsi);
+
+                        // Tail copying
+                        L(copy_loop);
+                        mov(di, word[rsp + rsi * sizeof(float16)]);
+                        mov(word[reg_dst], di);
+                        lea(reg_dst, ptr[reg_dst + sizeof(float16)]);
+                        inc(rsi);
+                        cmp(rsi, reg_sz);
+                        jl(copy_loop);
+
+                        add(rsp, 8 * sizeof(float));                    // Free the array on stack
+
+                        L(exit);
 
                         postamble();
                     }
@@ -149,25 +193,19 @@ namespace ngraph
             template <>
             void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count)
             {
-                size_t i = 0;
-                const size_t step = 8;
-                const size_t n = count / step;
+                auto converter = jit_convert_u8_to_f16::get();
 
-                if (n)
+                if (converter)
                 {
-                    auto converter = jit_convert_u8_to_f16::get();
-
-                    if (converter)
-                    {
-                        jit_convert_u8_to_f16::args_t args = {arg, out, n};
-                        converter(&args);
-                        i = n * step;
-                    }
+                    jit_convert_u8_to_f16::args_t args = {arg, out, count};
+                    converter(&args);
                 }
-
-                for (; i < count; ++i)
+                else
                 {
-                    out[i] = static_cast<float16>(arg[i]);
+                    for (size_t i = 0; i < count; ++i)
+                    {
+                        out[i] = static_cast<float16>(arg[i]);
+                    }
                 }
             }
 
