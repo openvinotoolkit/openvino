@@ -136,51 +136,45 @@ endif ()
 
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    reset_deps_cache(TBBROOT)
 
-    if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
-        if (WIN32 AND X86_64)
-            #TODO: add target_path to be platform specific as well, to avoid following if
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_WIN "tbb2020_20200415_win.zip"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
-        elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
-        elseif(LINUX AND X86_64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
-        elseif(LINUX AND AARCH64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
-                    TARGET_PATH "${TEMP}/tbb_yocto"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "57ad3ceeab119c8a4d5e9fc38e80952fc19d4bf23ae065e9540cde89b25561d5")
-        elseif(APPLE AND X86_64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
-        else()
-            message(FATAL_ERROR "TBB is not available on current platform")
-        endif()
+    reset_deps_cache(TBBROOT TBB_DIR)
+
+    if (WIN32 AND X86_64)
+        #TODO: add target_path to be platform specific as well, to avoid following if
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_WIN "tbb2020_20200415_win.zip"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
+    elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
+    elseif(LINUX AND X86_64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+    elseif(LINUX AND AARCH64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
+                TARGET_PATH "${TEMP}/tbb_yocto"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "57ad3ceeab119c8a4d5e9fc38e80952fc19d4bf23ae065e9540cde89b25561d5")
+    elseif(APPLE AND X86_64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
     else()
-        if(DEFINED TBB_DIR)
-            get_filename_component(TBB ${TBB_DIR} DIRECTORY)
-        else()
-            get_filename_component(TBB $ENV{TBB_DIR} DIRECTORY)
-        endif()
+        message(FATAL_ERROR "TBB is not available on current platform")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
+    update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
 
     if (WIN32)
         log_rpath_from_dir(TBB "${TBB}/bin")
