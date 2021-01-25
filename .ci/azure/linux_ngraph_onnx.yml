@@ -35,6 +35,7 @@ jobs:
       vmstat -s
       df
       lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
+      free -h
     displayName: 'System info'
 
   - checkout: self
