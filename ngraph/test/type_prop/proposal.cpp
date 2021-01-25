@@ -170,6 +170,7 @@ TEST(type_prop, proposal_v0_shape_infer)
 TEST(type_prop, proposal_v0_dynamic_class_probs_dim1_batch_size_infer)
 {
     op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 1;
     const size_t batch_size = 2;
     auto class_probs =
         make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
@@ -183,6 +184,7 @@ TEST(type_prop, proposal_v0_dynamic_class_probs_dim1_batch_size_infer)
 TEST(type_prop, proposal_v0_dynamic_bbox_deltas_dim1_batch_size_infer)
 {
     op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 1;
     const size_t batch_size = 2;
     auto class_probs =
         make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
@@ -365,6 +367,7 @@ TEST(type_prop, proposal_v4_shape_infer)
 TEST(type_prop, proposal_v4_dynamic_class_probs_dim1_batch_size_infer)
 {
     op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 1;
     const size_t batch_size = 2;
     auto class_probs =
         make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
@@ -379,6 +382,7 @@ TEST(type_prop, proposal_v4_dynamic_bbox_deltas_dim1_batch_size_infer)
 {
     op::ProposalAttrs attrs;
     const size_t batch_size = 2;
+    attrs.post_nms_topn = 1;
     auto class_probs =
         make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 2, 3, 4});
     auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{batch_size, 4, 3, 4});
