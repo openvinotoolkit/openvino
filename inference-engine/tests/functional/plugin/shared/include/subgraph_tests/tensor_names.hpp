@@ -114,11 +114,9 @@ TEST_P(TensorNamesTest, CheckAddOutput) {
     ASSERT_EQ(1, function->get_results().size());
 
     // Check that relu_prev doesn't exist in output and input maps
-    for (const auto& names : {inNames, outNames}) {
-        ASSERT_THROW(cnnNetwork.getOVNameForOperation("relu_prev"), InferenceEngine::NotFound);
-        for (const std::string& tensor_name : {"relu_prev_t", "identity_prev_t"}) {
-            ASSERT_THROW(cnnNetwork.getOVNameForOperation(tensor_name), InferenceEngine::NotFound);
-        }
+    ASSERT_THROW(cnnNetwork.getOVNameForOperation("relu_prev"), InferenceEngine::NotFound);
+    for (const std::string& tensor_name : {"relu_prev_t", "identity_prev_t"}) {
+        ASSERT_THROW(cnnNetwork.getOVNameForOperation(tensor_name), InferenceEngine::NotFound);
     }
 
     // Add relu_prev as output
