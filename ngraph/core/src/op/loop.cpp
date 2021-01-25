@@ -43,14 +43,6 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("output_descriptions", m_output_descriptions);
     visitor.on_attribute("special_body_ports", m_special_body_ports);
 
-    for (const auto& output_description : m_output_descriptions)
-    {
-        if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description))
-        {
-            m_num_iterations = ((std::abs(concat->m_end - concat->m_start)) / concat->m_part_size);
-        }
-    }
-
     return true;
 }
 
