@@ -3,6 +3,10 @@
 #
 
 if(NOT ENABLE_DOCKER)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        ie_add_compiler_flags(-Wall)
+    endif()
+
     add_subdirectory(snippets)
 
     # Detect nGraph

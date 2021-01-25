@@ -25,8 +25,6 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 if (MSVC)
     set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error")
 endif()
 
 # This version of PROTOBUF is required by Microsoft ONNX Runtime.

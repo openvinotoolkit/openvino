@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 #include <legacy/ie_layers.h>
-#include <ie_icnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 
 namespace vpu {
 
@@ -21,6 +21,6 @@ struct IeParsedNetwork final {
     std::vector<ie::CNNLayerPtr> orderedLayers;
 };
 
-IeParsedNetwork parseNetwork(const ie::ICNNNetwork& network);
+IeParsedNetwork parseNetwork(const ie::CNNNetwork& network);
 
 }  // namespace vpu
