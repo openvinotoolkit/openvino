@@ -34,6 +34,7 @@
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_broadcast3.hpp>
 #include <transformations/op_conversions/reduce_l1_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l2_decomposition.hpp>
 #include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
@@ -265,6 +266,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
             pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
             pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+            pass_config->disable<ngraph::pass::ConvertBroadcast3>();
 
             pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
