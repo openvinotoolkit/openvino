@@ -22,6 +22,7 @@ const std::vector<std::vector<size_t>> pooledShapes_max = {
 };
 
 const std::vector<std::vector<size_t>> pooledShapes_bilinear = {
+    {1, 1},
     {2, 2},
     {3, 3},
     {6, 6}
