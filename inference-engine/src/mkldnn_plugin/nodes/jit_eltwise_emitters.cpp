@@ -1500,6 +1500,74 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     Vmm vmm_aux3 = Vmm(aux_vec_idxs[3]);
     Vmm vmm_aux4 = Vmm(aux_vec_idxs[4]);
 
+    auto compute_cmp_mask = [&](const Vmm &vmm_src,
+        const Xbyak::Operand &compare_operand, int cmp_predicate) {
+        if (host_isa_ == cpu::avx512_common) {
+            h->vcmpps(k_mask, vmm_src, compare_operand, cmp_predicate);
+        }
+        else {
+            h->uni_vcmpps(vmm_mask, vmm_src, compare_operand, cmp_predicate);
+        }
+    };
+
+    auto blend_with_mask = [&](const Vmm &vmm_dst, const Xbyak::Operand &src) {
+        if (host_isa_ == cpu::avx512_common) {
+            h->vblendmps(vmm_dst | k_mask, vmm_dst, src);
+        }
+        else {
+            h->uni_vblendvps(vmm_dst, vmm_dst, src, vmm_mask);
+        }
+    };
+
+    auto exp_compute_vector_fwd = [&](const Vmm &vmm_src) {
+        // get mask of values lower than log(FLT_MIN) to zero them in the output
+        compute_cmp_mask(vmm_src, table_val("exp_ln_flt_min_f"), _cmp_lt_os);
+
+        h->uni_vminps(vmm_src, vmm_src, table_val("exp_ln_flt_max_f"));
+        h->uni_vmaxps(vmm_src, vmm_src, table_val("exp_ln_flt_min_f"));
+        h->uni_vmovups(vmm_aux1, vmm_src);
+        // calculate exp(x)
+        // fx = x * log2ef + 0.5
+        h->uni_vmulps(vmm_src, vmm_src, table_val("exp_log2ef"));
+        h->uni_vaddps(vmm_src, vmm_src, table_val("half"));
+
+        // tmp = floorf(fx)
+        const auto _op_floor = 1u;
+        h->uni_vroundps(vmm_aux2, vmm_src, _op_floor);
+
+        // keep vmm_src = fx for further computations
+        h->uni_vmovups(vmm_src, vmm_aux2);
+
+        // x = x - fx * ln2
+        h->uni_vfnmadd231ps(vmm_aux1, vmm_aux2, table_val("ln2f"));
+
+        // compute 2^n
+        h->uni_vcvtps2dq(vmm_aux2, vmm_src);
+        h->uni_vpaddd(vmm_aux2, vmm_aux2, table_val("exponent_bias"));
+        const int n_mantissa_bits = 23;
+        h->uni_vpslld(vmm_aux2, vmm_aux2, n_mantissa_bits); //Vmm(6) = 2^-fx
+
+                                                            // use vmm_src as tmp vmm_zero when applying mask
+        h->uni_vpxor(vmm_src, vmm_src, vmm_src);
+        // set zeroes at those points which were < log(FLT_MIN)
+        blend_with_mask(vmm_aux2, vmm_src);
+
+        // compute polynomial
+        h->uni_vmovups(vmm_src, table_val("ex_pol5"));
+        h->uni_vfmadd213ps(vmm_src, vmm_aux1, table_val("ex_pol4"));
+        h->uni_vfmadd213ps(vmm_src, vmm_aux1, table_val("ex_pol3"));
+        h->uni_vfmadd213ps(vmm_src, vmm_aux1, table_val("ex_pol2"));
+        h->uni_vfmadd213ps(vmm_src, vmm_aux1, table_val("ex_pol1"));
+        h->uni_vfmadd213ps(vmm_src, vmm_aux1, table_val("one"));
+        // y = y * 2^n
+        h->uni_vmulps(vmm_src, vmm_src, vmm_aux2);
+    };
+
+    auto abs_compute_vector_fwd = [&](const Vmm &vmm_src) {
+        // compute abs(x) = _mm_and_ps(x, 01111..111));
+        h->uni_vandps(vmm_src, vmm_src, table_val("positive_mask"));
+    };
+
     // IMPORTANT: we use vmm_aux3 to save `x` as exp_compute does not use it.
     h->uni_vmovups(vmm_aux3, vmm_src);
 
@@ -1507,6 +1575,7 @@ void jit_erf_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const std
     h->uni_vmulps(vmm_src, vmm_src, vmm_src);
     h->uni_vxorps(vmm_src, vmm_src, table_val("sign_mask"));
 
+    //exp_compute_vector_fwd(vmm_src);
     if (host_isa_ == cpu::sse42) {
         exp_injector_sse42->compute_vector(vmm_src.getIdx());
     } else if (host_isa_ == cpu::avx2) {

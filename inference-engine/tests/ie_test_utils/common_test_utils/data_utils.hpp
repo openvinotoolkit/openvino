@@ -33,7 +33,7 @@ static void fill_data_sine(float *data, size_t size, float center, float ampl, f
 }
 
 /**
- * @brief Create vector of floats with length of vec_len, with values ranging from min to max, 
+ * @brief Create vector of floats with length of vec_len, with values ranging from min to max,
  * with initial seed equal to variable seed with default of 0
  */
 static inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min, float max, int seed = 0) {
@@ -269,7 +269,8 @@ void inline fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint3
     auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
     for (size_t i = 0; i < blob->size(); i++) {
         auto value = static_cast<float>(distribution(random));
-        value /= static_cast<float>(k);
+        // value /= static_cast<float>(k);
+        value = 0.f;
         if (PRC == InferenceEngine::Precision::FP16) {
             rawBlobDataPtr[i] = ngraph::float16(value).to_bits();
         } else if (PRC == InferenceEngine::Precision::BF16) {
