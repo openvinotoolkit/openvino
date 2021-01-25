@@ -1559,7 +1559,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"Loop"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+    addSpecificCreator({"Loop"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                    const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         auto res = createSubGraphLayer(node);
         res->type = "Loop";
         return res;
@@ -1579,6 +1580,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
         res->params["do_softmax"] = res->getBoolStrParamAsIntStr("do_softmax");
+        return res;
+    });
+
+    addSpecificCreator({"PSROIPooling"}, [](const std::shared_ptr<::ngraph::Node> &node,
+                                            const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "PSROIPooling", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
         return res;
     });
 }
@@ -1617,7 +1626,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReorgYolo>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PSROIPooling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ScaleShiftIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
