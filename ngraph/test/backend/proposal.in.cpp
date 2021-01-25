@@ -2561,7 +2561,6 @@ NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
 
     size_t proposal_ref_size = sizeof(proposal_ref) / sizeof(proposal_ref[0]);
 
-    const int max_proposals = 50;
     const float iou_threshold = 0.7f;
     const int min_bbox_size = 16;
     const int feature_stride = 16;
