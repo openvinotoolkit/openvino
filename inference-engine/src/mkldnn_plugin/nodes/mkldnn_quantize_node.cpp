@@ -1196,7 +1196,8 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
 void MKLDNNQuantizeNode::createPrimitive() {
     auto config = getSelectedPrimitiveDescriptor()->getConfig();
 
-    jqp.c = config.inConfs[0].desc.getDims()[1];
+    auto inDims = config.inConfs[0].desc.getDims();
+    jqp.c = inDims.size() > 1 ? inDims[1] : 1;
 
     jqp.src_prc = config.inConfs[0].desc.getPrecision();
     jqp.wei_prc = Precision::FP32;
