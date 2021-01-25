@@ -138,7 +138,7 @@ endif ()
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT)
 
-    if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
+    if((NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR}) OR NOT EXISTS TBBROOT)
         if (WIN32 AND X86_64)
             #TODO: add target_path to be platform specific as well, to avoid following if
             RESOLVE_DEPENDENCY(TBB
