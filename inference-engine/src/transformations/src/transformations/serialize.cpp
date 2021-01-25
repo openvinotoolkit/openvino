@@ -278,6 +278,12 @@ public:
     }
     void on_adapter(
         const std::string& name,
+        ngraph::ValueAccessor<std::vector<int>>& adapter) override {
+        m_xml_node.append_attribute(name.c_str())
+            .set_value(create_atribute_list(adapter).c_str());
+    }
+    void on_adapter(
+        const std::string& name,
         ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
         m_xml_node.append_attribute(name.c_str())
             .set_value(create_atribute_list(adapter).c_str());
