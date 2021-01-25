@@ -140,10 +140,6 @@ def propagate_const_values(op: Node):
     """
     assert op.soft_get('type') == 'Const', 'Wrong operation type, {} instead of Const!' \
                                            ''.format(op.soft_get('type'))
-    assert 0 in op.in_nodes(), 'Can\'t propagate restored value to Const operation with name: {}, check input ports' \
-                               ''.format(op.soft_get('name'))
-    assert 0 in op.out_nodes(), 'Can\'t propagate restored value to Const operation with name: {}, check output ports' \
-                                ''.format(op.soft_get('name'))
 
     in_data_node = op.in_node()
     out_data_node = op.out_node()
