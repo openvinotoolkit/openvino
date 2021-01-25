@@ -124,6 +124,8 @@ const std::vector<float> spatialScaleVector = { 1.0f };
 
 const std::vector<std::vector<size_t>> inputShapeVector = {
         SizeVector({ 2, 200, 20, 20 }),
+        SizeVector({ 2, 200, 20, 16 }),
+        SizeVector({ 2, 200, 16, 20 }),
         SizeVector({ 3, 200, 16, 16 })
 };
 

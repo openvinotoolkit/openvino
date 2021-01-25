@@ -119,6 +119,15 @@ public:
                       unsigned long& inputChannelsPadding, unsigned long& outputChannelsPadding) {
         inFmt = srcDesc.getLayout();
         outFmt = dstDesc.getLayout();
+        int expectedInBlockDimsSize = (inFmt == Layout::BLOCKED ? 5 : 4);
+        int expectedOutBlockDimsSize = (outFmt == Layout::BLOCKED ? 5 : 4);
+        auto inBlkDims = srcDesc.getBlockingDesc().getBlockDims();
+        auto outBlkDims = dstDesc.getBlockingDesc().getBlockDims();
+        if (inBlkDims.size() != expectedInBlockDimsSize)
+            THROW_IE_EXCEPTION << "Unexpected size of blocking dims in input (given " << inBlkDims.size() << ", expected " << expectedInBlockDimsSize << ")";
+        if (outBlkDims.size() != expectedOutBlockDimsSize)
+            THROW_IE_EXCEPTION << "Unexpected size of blocking dims in output (given " << outBlkDims.size() << ", expected " << expectedOutBlockDimsSize << ")";
+
         inBlockSize = (inFmt == Layout::BLOCKED ? srcDesc.getBlockingDesc().getBlockDims()[4] : 1);
         outBlockSize = (outFmt == Layout::BLOCKED ? dstDesc.getBlockingDesc().getBlockDims()[4] : 1);
         inputChannelsPadding = srcDesc.getBlockingDesc().getBlockDims()[1] * inBlockSize;
