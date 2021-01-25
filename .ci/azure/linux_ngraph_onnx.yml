@@ -18,6 +18,10 @@ jobs:
     MODELS_DIR: /mnt/onnxtestdata/models
     TMP_DIR: /mnt/tmp
 
+  - script: sudo fallocate -l 10G $(TMP_DIR)/swapfile ; sudo chmod 777 $(TMP_DIR)/swapfile ; sudo mkswap $(TMP_DIR)/swapfile ;
+    displayName: 'Create swap'
+    enabled: true
+
   steps:
   - script: |
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
@@ -36,7 +40,7 @@ jobs:
       df
       lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
       free -h
-    displayName: 'System info'
+    displayName: 'de'
 
   - checkout: self
     clean: true
