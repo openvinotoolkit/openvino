@@ -25,8 +25,6 @@ namespace ngraph
             {
                 const size_t indices_len = indicesShape[0];
                 const size_t segments_num = outShape[0];
-                const size_t inDimsSize = outShape.size();
-                const size_t embDimsNum = outShape.size() - 1;
 
                 size_t embDepth = 1lu;
                 for (size_t i = 1; i < outShape.size(); i++)

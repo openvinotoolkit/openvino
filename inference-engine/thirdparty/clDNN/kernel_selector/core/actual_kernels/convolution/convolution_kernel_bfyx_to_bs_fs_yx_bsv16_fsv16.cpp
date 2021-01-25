@@ -21,7 +21,6 @@
 
 namespace kernel_selector {
 
-static const size_t sub_group_size = 16;
 static const size_t feature_block_size = 16;
 static const size_t batch_block_size = 16;
 
@@ -54,9 +53,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::
                                                                                            int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernel_bfyx_to_bfyx_f16::SetDefault(params, autoTuneIndex);
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
-
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 bool ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::Validate(const Params& p, const optional_params& o) const {

@@ -572,11 +572,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     uint32_t num_feature_map_rows = (in_channels * in_height * in_width) / num_feature_map_columns;
 
     uint32_t filter_n = convolution._out_depth;
-    uint32_t num_columns_in = num_inputs;
-
     uint32_t original_num_feature_map_rows = num_feature_map_rows;
-    uint32_t original_input_padding = num_input_padding;
-    uint32_t additional_padding = 0;
 
     // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
     if (num_input_padding == 0) {
@@ -689,11 +685,10 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         transposedWeights.resize(transposedWeights.size() + kernelPad);
     }
 
-    const auto t = convolution._weights->byteSize();
-        gnamem->readonly().push_local_ptr(ptr_weights,
-            transposedWeights.data(),
-            transposedWeights.size(),
-            64);
+    gnamem->readonly().push_local_ptr(ptr_weights,
+        transposedWeights.data(),
+        transposedWeights.size(),
+        64);
 
     if (convolution._biases) {
         gnamem->readonly().push_ptr(ptr_biases,
@@ -2011,6 +2006,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"LSTMCell"}, SKIP},
         {{"FakeQuantize"}, CREATE(FakeQuantizePrimitive)}  // TODO: fakequantize layer should be properly converted to GNA scale factors for integer case
     };
+    (void)layersBuilder;
     auto it = LayersBuilder::getStorage().find(layer->type);
     if (it != LayersBuilder::getStorage().end()) {
         it->second(this, layer);

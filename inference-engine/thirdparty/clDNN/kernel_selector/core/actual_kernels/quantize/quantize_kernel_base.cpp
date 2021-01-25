@@ -84,8 +84,6 @@ KernelsData QuantizeKernelBase::GetKernelsData(const Params& params, const optio
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false);
 
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return {kd};
 }
 }  // namespace kernel_selector
