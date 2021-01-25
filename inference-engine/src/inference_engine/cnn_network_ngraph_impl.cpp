@@ -54,24 +54,6 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     return specialized_function;
 }
 
-CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph,
-                       const std::vector<IExtensionPtr>& exts) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetwork::CNNNetwork");
-
-    if (graph == nullptr) {
-        THROW_IE_EXCEPTION << "CNNNetwork was not initialized: 'graph' object is empty";
-    }
-
-    // Create CNNNetworkNGraphImpl
-    network = std::make_shared<CNNNetworkNGraphImpl>(graph, exts);
-    actual = network.get();
-    if (actual == nullptr) {
-        THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-    }
-}
-
-ICNNNetwork::~ICNNNetwork() {}
-
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName,
                                                DataPtr& ptr) {
     const auto isCompatible = [](size_t size, const Layout& l) -> bool {
@@ -162,17 +144,17 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
     }
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
-    const auto* net = dynamic_cast<const CNNNetworkNGraphImpl*>(&network);
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
+    IE_SUPPRESS_DEPRECATED_START
+    const ICNNNetwork& iNetwork = network;
+    const auto net = dynamic_cast<const CNNNetworkNGraphImpl*>(&iNetwork);
     if (network.getFunction() == nullptr || !net) {
         THROW_IE_EXCEPTION << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
     _ngraph_function = copyFunction(network.getFunction(), false);
-    InputsDataMap inputs;
-    OutputsDataMap outputs;
-    network.getInputsInfo(inputs);
-    network.getOutputsInfo(outputs);
+    InputsDataMap inputs = network.getInputsInfo();
+    OutputsDataMap outputs = network.getOutputsInfo();
 
     _opNames = net->_opNames;
     _tensorNames = net->_tensorNames;
@@ -194,6 +176,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
         info->setLayout(inputInfo.second->getLayout());
         _inputData[name] = info;
     }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 void CNNNetworkNGraphImpl::setInputInfo(InputInfo::Ptr data) {
@@ -307,8 +290,6 @@ std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool const
 }
 
 void CNNNetworkNGraphImpl::reshape() {
-    ResponseDesc desc;
-
     // Disable reshape for generic nodes
     ::ngraph::op::GenericIE::DisableReshape noReshape(_ngraph_function);
     reshape({});
