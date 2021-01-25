@@ -84,20 +84,3 @@ TEST_F(SerializationTensorIteratorTest, TiNegativeStride) {
 
     serialize_and_compare(model_path, weights);
 }
-
-TEST_F(SerializationTensorIteratorTest, Loop2dAdd) {
-    const std::string model_path = IR_SERIALIZATION_MODELS_PATH "loop_2d_add.xml";
-
-    size_t weights_size = 8;
-
-    auto weights = InferenceEngine::make_shared_blob<uint8_t>(
-            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {weights_size}, InferenceEngine::Layout::C));
-    weights->allocate();
-    CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
-
-    auto *data = weights->buffer().as<float*>();
-    data[0] = 0;
-    data[1] = 0;
-
-    serialize_and_compare(model_path, weights);
-}
