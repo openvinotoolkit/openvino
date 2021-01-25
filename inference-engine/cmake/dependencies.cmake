@@ -139,8 +139,8 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     reset_deps_cache(TBBROOT)
 
     if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
-        ## pre-production package for hybrid support (windows only)
-        if (WIN32 AND X86_64)
+        ## pre-production package for hybrid support (windows/macos/linux only)
+        if (NOT ANDROID AND NOT(LINUX AND AARCH64))
             if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
                 set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
             elseif(DEFINED THIRDPARTY_SERVER_PATH)
@@ -149,11 +149,13 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 message(FATAL_ERROR "THIRDPARTY_SERVER_PATH is not set (env or cmake cmd-line define). Pre-production TBB cannot be loaded. Aborting...")
             endif()
             message(STATUS "THIRDPARTY_SERVER_PATH=${IE_PATH_TO_DEPS}")
-     	RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_WIN "oneapi-tbb-2021.1-hybrid-cpu-v02.zip"
+        endif()
+        if (WIN32 AND X86_64)
+        RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_WIN "oneapi-tbb-2021.2.0-win.zip"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
-                    SHA256 "24481fc9ba198aa9239a9a0a2d99b907851e1da4c0d7d3d79788d4a451ee2be9")
+                    SHA256 "3f92b99ddabdfdeb512467043f4806ce2bde7086c4dda2f66865830174bc6a83")
         elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -162,9 +164,9 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                     SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
         elseif(LINUX AND X86_64)
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
+                    ARCHIVE_LIN "oneapi-tbb-2021.2.0-lin.tgz"
                     TARGET_PATH "${TEMP}/tbb"
-                    SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+                    SHA256 "cae47d9e837da577712586d41accb9a93777aad8d9b29eba466586bb59e30535")
         elseif(LINUX AND AARCH64)
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
@@ -173,10 +175,10 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                     SHA256 "57ad3ceeab119c8a4d5e9fc38e80952fc19d4bf23ae065e9540cde89b25561d5")
         elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
+                    ARCHIVE_MAC "oneapi-tbb-2021.2.0-mac.tgz"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
-                    SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
+                    SHA256 "ee09b2ae7217f853db5bd29301af2ba1c3a09a71855ae47a93d344779defbeef")
         else()
             message(FATAL_ERROR "TBB is not available on current platform")
         endif()

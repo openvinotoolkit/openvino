@@ -74,9 +74,11 @@ public:
         * @brief Create appropriate multithreaded configuration
         *        filing unconfigured values from initial configuration using hardware properties
         * @param initial Inital configuration
+        * @param fp_intesive additional hint for the the (Hybrid) core-types selection logic
+         *       whether the executor should be configured for floating point intensive work (as opposite to int8 intensive)
         * @return configured values
         */
-        static Config MakeDefaultMultiThreaded(const Config& initial);
+        static Config MakeDefaultMultiThreaded(const Config& initial, const bool fp_intesive = true);
 
         std::string        _name;  //!< Used by `ITT` to name executor threads
         int                _streams                 = 1;  //!< Number of streams.

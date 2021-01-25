@@ -70,12 +70,12 @@ struct CPUStreamsExecutor::Impl {
             const auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
             #if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
-               if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType ) {
+               if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
                    if (Config::PreferredCoreType::NONE == _impl->_config._threadPreferredCoreType) {
                        _taskArena.reset(new tbb::task_arena{ concurrency });
                        // TODO: REMOVE THE DEBUG PRINTF
                        printf("%s, NO BINDING, StreamId: %d (%d threads) \n",
-                           _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream, concurrency);
+                           _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream);
                    } else {
                        const auto selected_core_type = Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
                            ? oneapi::tbb::info::core_types().back() // runing on Big cores only
@@ -92,7 +92,7 @@ struct CPUStreamsExecutor::Impl {
                     const auto total_streams = _impl->total_streams_on_core_types.back().second;
                     const auto streamId_wrapped = _streamId % total_streams;
                     const auto& selected_core_type = std::find_if(_impl->total_streams_on_core_types.cbegin(), _impl->total_streams_on_core_types.cend(),
-                        [streamId_wrapped](const auto& p) { return p.second > streamId_wrapped; })->first;
+                        [streamId_wrapped](const decltype(_impl->total_streams_on_core_types)::value_type & p) { return p.second > streamId_wrapped; })->first;
                     _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{selected_core_type, concurrency} });
                     // TODO: REMOVE THE DEBUG PRINTF
                     printf("%s StreamId: %d (wrapped %d) assigned CORE TYPE : %d (total #streams: %d) \n",
