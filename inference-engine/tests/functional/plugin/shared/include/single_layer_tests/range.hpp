@@ -12,4 +12,8 @@ TEST_P(RangeNumpyLayerTest, CompareWithRefs) {
     Run();
 }
 
+TEST_P(RangeLayerTest, CompareWithRefs) {
+    Run();
+}
+
 }  // namespace LayerTestsDefinitions
