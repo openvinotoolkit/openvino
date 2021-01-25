@@ -489,7 +489,6 @@ TEST(softmax_gpu_yxfb_f32, normalize_f) {
         out_buffer[i] = get_value<float>(output_ptr, i);
     }
 
-    float sum = 0;
     float expected_sum = 1.0f;
 
     float temp_max = 0;

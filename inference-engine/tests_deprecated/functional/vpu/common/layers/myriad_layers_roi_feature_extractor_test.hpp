@@ -39,9 +39,6 @@ static void genROIs(InferenceEngine::Blob::Ptr rois,
     const int max_range_width = params.in_net_w * 4 / 5;
     const int max_range_height = params.in_net_h * 4 / 5;
 
-    float scale_width = (float)params.in_net_w;
-    float scale_height = (float)params.in_net_h;
-
     for (int i = 0; i < num_rois; i++) {
         int x0 = std::rand() % max_range_width;
         int x1 = x0 + (std::rand() % (params.in_net_w - x0 - 1)) + 1;

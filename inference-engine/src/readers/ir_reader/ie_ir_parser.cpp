@@ -548,7 +548,6 @@ void V10Parser::parsePreProcess(CNNNetwork& network, const pugi::xml_node& root,
     if (!meanSegmentPrecision || meanSegmentPrecision == Precision::MIXED)
         THROW_IE_EXCEPTION << "mean blob defined without specifying precision.";
 
-    ResponseDesc resp;
     InferenceEngine::PreProcessChannel::Ptr preProcessChannel;
 
     int lastChanNo = -1;

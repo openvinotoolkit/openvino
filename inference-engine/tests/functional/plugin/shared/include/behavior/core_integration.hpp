@@ -11,7 +11,6 @@
 #include <fstream>
 #include <ngraph/variant.hpp>
 #include <hetero/hetero_plugin_config.hpp>
-#include <legacy/graph_tools.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ngraph/op/util/op_types.hpp>
@@ -1071,8 +1070,9 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
         Parameter deviceConfigValue = deviceExeNetwork.GetConfig(deviceConf);
 
         // HETERO returns EXCLUSIVE_ASYNC_REQUESTS as a boolean value
-        if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf)
+        if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf) {
             ASSERT_EQ(deviceConfigValue, heteroConfigValue);
+        }
     }
 }
 
@@ -1109,8 +1109,9 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
         Parameter deviceMetricValue = deviceExeNetwork.GetMetric(deviceMetricName);
 
         if (std::find(heteroSpecificMetrics.begin(), heteroSpecificMetrics.end(), deviceMetricName) ==
-            heteroSpecificMetrics.end())
+            heteroSpecificMetrics.end()) {
             ASSERT_TRUE(heteroMetricValue == deviceMetricValue);
+        }
     }
 }
 
