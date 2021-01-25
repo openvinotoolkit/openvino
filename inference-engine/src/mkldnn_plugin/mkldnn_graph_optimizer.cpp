@@ -891,8 +891,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
                                  everyone_is(1, allPads.end[X_AXIS], allPads.end[Y_AXIS]) &&
                                  everyone_is(1, childLayer->_dilation[X_AXIS], childLayer->_dilation[Y_AXIS]) &&
                                  childLayer->_stride[X_AXIS] == childLayer->_stride[Y_AXIS] &&
-                                 false &&  // TODO [oneDNN]: disabled while not ported
-                                 one_of(childLayer->_stride[X_AXIS], 1 /*, 2*/) &&  // TODO [oneDNN]: stride 2 should also be supported
+                                 one_of(childLayer->_stride[X_AXIS], 1, 2) &&
                                  childNode->getChildEdgeAt(0)->getDims().ndims() == 4;
 
         return isSupportedParams;

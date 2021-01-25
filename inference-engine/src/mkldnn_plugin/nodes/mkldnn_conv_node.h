@@ -84,6 +84,8 @@ private:
     std::vector<ptrdiff_t> dw_conv_strides;
     mkldnn::memory::data_type dw_conv_in_dt;
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
+    MKLDNNMemoryPtr DWConvPostOpWeightsBlobMemory = nullptr; // todo: [antonvor] or internalBlobMemory?
+    MKLDNNMemoryPtr DWConvPostOpBiasesBlobMemory = nullptr; // todo: [antonvor] or internalBlobMemory?
 
     InferenceEngine::Blob::Ptr wScale, oScale;
 
