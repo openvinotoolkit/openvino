@@ -40,7 +40,8 @@ from tests import (
     xfail_issue_43209,
     xfail_issue_43213,
     xfail_issue_37973,
-    xfail_issue_47430)
+    xfail_issue_47430,
+    xfail_issue_47495)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
@@ -201,6 +202,7 @@ if len(zoo_models) > 0:
             (xfail_issue_38084, "test_MSFT_opset10_faster_rcnn_faster_rcnn_R_50_FPN_1x_cpu"),
 
             (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
+            (xfail_issue_47495, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
             (xfail_issue_45457, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
 
         ]
