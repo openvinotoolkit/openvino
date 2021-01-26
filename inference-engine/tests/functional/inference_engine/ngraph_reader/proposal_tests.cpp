@@ -32,9 +32,9 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork) {
             </output>
         </layer>
         <layer id="2" name="in3" type="Const" version="opset1">
-            <data element_type="i64" offset="0" shape="3" size="24"/>
+            <data element_type="f32" offset="0" shape="3" size="24"/>
             <output>
-                <port id="0" precision="I64">
+                <port id="0" precision="FP32">
                     <dim>3</dim>
                 </port>
             </output>
@@ -85,7 +85,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork) {
     std::string model_v6  = R"V0G0N(
 <net name="Network" version="6" batch="1">
     <layers>
-        <layer name="in3" type="Const" precision="I64" id="4">
+        <layer name="in3" type="Const" precision="FP32" id="4">
             <output>
                 <port id="2">
                     <dim>1</dim>
@@ -183,9 +183,9 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
             </output>
         </layer>
         <layer id="2" name="in3" type="Const" version="opset1">
-            <data element_type="i64" offset="0" shape="4" size="32"/>
+            <data element_type="f32" offset="0" shape="4" size="32"/>
             <output>
-                <port id="0" precision="I64">
+                <port id="0" precision="FP32">
                     <dim>4</dim>
                 </port>
             </output>
@@ -236,7 +236,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
     std::string model_v6  = R"V0G0N(
 <net name="Network" version="6" batch="1">
     <layers>
-        <layer name="in3" type="Const" precision="I64" id="4">
+        <layer name="in3" type="Const" precision="FP32" id="4">
             <output>
                 <port id="2">
                     <dim>1</dim>
