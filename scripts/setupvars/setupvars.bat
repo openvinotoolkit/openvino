@@ -28,7 +28,7 @@ set "INTEL_CVSDK_DIR=%INTEL_OPENVINO_DIR%"
 if not "%1"=="" (
     if "%1"=="-pyver" (
         set python_version=%2
-        echo python_version = !pyversion!
+        echo python_version = !python_version!
         shift
     )
     shift
