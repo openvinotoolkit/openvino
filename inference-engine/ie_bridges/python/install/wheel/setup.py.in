@@ -12,6 +12,7 @@ from distutils.command.build import build
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
 
+WHEEL_LIBS_INSTALL_DIR = "openvino.libs"
 
 CMAKE_INSTALL_CORE_DIR = "libs.core"
 CMAKE_INSTALL_PLUGINS_DIR = "libs.plugins"
@@ -33,6 +34,7 @@ BINDINGS_DIR = os.path.join(CMAKE_INSTALL_BIND_DIR, CMAKE_INSTALL_BIND_SUBDIR)
 RELOCATABLE_LIBS = {CORE_LIBS_DIR, NGRAPH_LIBS_DIR}
 ALL_LIBS = {CORE_LIBS_DIR, PLUGINS_LIBS_DIR, NGRAPH_LIBS_DIR, TBB_LIBS_DIR}
 
+
 class PrebuiltExtension(Extension):
     def __init__(self, name, sources, *args, **kw):
         if len(sources) != 1:
@@ -45,6 +47,7 @@ class CustomBuild(build):
     def run(self):
         self.run_command('build_clib')
         build.run(self)
+
 
 class CustomInstall(install):
     def run(self):
@@ -137,15 +140,17 @@ class CopyExt(build_ext):
             except OSError as exc:
                 if exc.errno != errno.EEXIST:
                     raise
-            copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
-            #setting relative path to find dlls
-            rpath = os.path.relpath(BINDINGS_DIR, os.path.dirname(src))
-            if sys.platform == "linux":
-                rpath = os.path.join("$ORIGIN", rpath, "openvino.libs")
-            elif sys.platform == "darwin":
-                rpath = os.path.join("@loader_path", rpath, "openvino.libs")
-            set_rpath(rpath, dst)
 
+            #setting relative path to find dlls
+            if sys.platform != "win32":
+                rpath = os.path.relpath(BINDINGS_DIR, os.path.dirname(src))
+                if sys.platform == "linux":
+                    rpath = os.path.join("$ORIGIN", rpath, WHEEL_LIBS_INSTALL_DIR)
+                elif sys.platform == "darwin":
+                    rpath = os.path.join("@loader_path", rpath, WHEEL_LIBS_INSTALL_DIR)
+                set_rpath(rpath, src)
+
+            copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
 
 def set_rpath(rpath, executable):
     print(f"Setting rpath {rpath} for {executable}")
@@ -159,6 +164,7 @@ def set_rpath(rpath, executable):
         print(f"The exit code: {ret_info.returncode}")
         print(f"Could not set rpath: {rpath} for {executable}")
         exit(2)
+
 
 def find_data_files(src_dirs, install_subdir):
     data_files = []
@@ -194,13 +200,13 @@ binding_dir = os.path.join(python_version)
 
 if sys.platform == "linux":
     content_pattern = "**/*.so"
-    libs_subdir = f"lib/{python_version}/site-packages/openvino.libs"
+    libs_subdir = f"lib/{python_version}/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
 elif sys.platform == "win32":
     content_pattern = "**/*.pyd"
-    libs_subdir = "Lib/site-packages/openvino.libs"
+    libs_subdir = f"Lib/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
 elif sys.platform == "darwin":
     content_pattern = "**/*.so"
-    libs_subdir = f"lib/{python_version}/site-packages/openvino.libs"
+    libs_subdir = f"lib/{python_version}/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
 else:
     print("Unsupported OS: {}, expected: {}".format(sys.platform, "linux, win32, darwin"))
     exit(2)
