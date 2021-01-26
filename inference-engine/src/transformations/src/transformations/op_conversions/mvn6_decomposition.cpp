@@ -17,7 +17,7 @@ ngraph::pass::MVN6Decomposition::MVN6Decomposition() {
     MATCHER_SCOPE(MVN6Decomposition);
     // Decomposes MVN(x, axes) op if normalize_variance is false into sub-graph
     // x - ReduceMean(x, axes), if normalize_variance is true into sub-graph
-    // (x - ReduceMean(x, axes)) / Sqrt(ReduceSum((x - ReduceMean(x, axes)) ^ 2))
+    // (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
     auto mvn = ngraph::pattern::wrap_type<opset6::MVN>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
