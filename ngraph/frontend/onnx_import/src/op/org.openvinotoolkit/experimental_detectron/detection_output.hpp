@@ -44,12 +44,15 @@ namespace ngraph
                     attrs.max_delta_log_wh = node.get_attribute_value<float>("max_delta_log_wh");
                     attrs.num_classes = node.get_attribute_value<std::int64_t>("num_classes");
                     attrs.post_nms_count = node.get_attribute_value<std::int64_t>("post_nms_count");
-                    attrs.max_detections_per_image = node.get_attribute_value<std::size_t>("max_detections_per_image");
-                    attrs.class_agnostic_box_regression = static_cast<bool>(node.get_attribute_value<int64_t>("class_agnostic_box_regression"));
-                    attrs.deltas_weights = node.get_attribute_value<std::vector<float>>("deltas_weights");
+                    attrs.max_detections_per_image =
+                        node.get_attribute_value<std::size_t>("max_detections_per_image");
+                    attrs.class_agnostic_box_regression = static_cast<bool>(
+                        node.get_attribute_value<int64_t>("class_agnostic_box_regression"));
+                    attrs.deltas_weights =
+                        node.get_attribute_value<std::vector<float>>("deltas_weights");
 
-                    return {std::make_shared<DetectionOutput>(rois, deltas, scores, im_info, attrs)};
-
+                    return {
+                        std::make_shared<DetectionOutput>(rois, deltas, scores, im_info, attrs)};
                 }
 
             } // namespace set_1

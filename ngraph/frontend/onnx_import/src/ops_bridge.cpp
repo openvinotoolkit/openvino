@@ -467,17 +467,31 @@ namespace ngraph
             // custom OPs
             REGISTER_OPERATOR_WITH_DOMAIN(
                 OPENVINO_ONNX_DOMAIN, "DetectionOutput", 1, detection_output);
-            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronDetectionOutput", 1, experimental_detectron_detection_output);
-            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronGenerateProposalsSingleImage", 1, experimental_detectron_generate_proposals);
-            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronPriorGridGenerator", 1, experimental_detectron_prior_grid_generator);
-            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronROIFeatureExtractor", 1, experimental_detectron_roi_feature_extractor);
-            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronTopKROIs", 1, experimental_detectron_topk_rois);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronDetectionOutput",
+                                          1,
+                                          experimental_detectron_detection_output);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronGenerateProposalsSingleImage",
+                                          1,
+                                          experimental_detectron_generate_proposals);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronPriorGridGenerator",
+                                          1,
+                                          experimental_detectron_prior_grid_generator);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronROIFeatureExtractor",
+                                          1,
+                                          experimental_detectron_roi_feature_extractor);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronTopKROIs",
+                                          1,
+                                          experimental_detectron_topk_rois);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GroupNorm", 1, group_norm);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Swish", 1, swish);
-
         }
 
 #undef REGISTER_OPERATOR

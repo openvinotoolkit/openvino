@@ -30,7 +30,8 @@ namespace ngraph
             {
                 OutputVector experimental_detectron_generate_proposals(const Node& node)
                 {
-                    using GenerateProposalsSingleImage = ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
+                    using GenerateProposalsSingleImage =
+                        ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
                     auto inputs = node.get_ng_inputs();
                     auto im_info = inputs[0];
@@ -44,8 +45,8 @@ namespace ngraph
                     attrs.post_nms_count = node.get_attribute_value<std::int64_t>("post_nms_count");
                     attrs.pre_nms_count = node.get_attribute_value<std::int64_t>("pre_nms_count");
 
-                    return {std::make_shared<GenerateProposalsSingleImage>(im_info, anchors, deltas, scores, attrs)};
-
+                    return {std::make_shared<GenerateProposalsSingleImage>(
+                        im_info, anchors, deltas, scores, attrs)};
                 }
 
             } // namespace set_1

@@ -20,7 +20,6 @@
 #include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "onnx_import/core/node.hpp"
 
-
 namespace ngraph
 {
     namespace onnx_import
@@ -31,15 +30,18 @@ namespace ngraph
             {
                 OutputVector experimental_detectron_roi_feature_extractor(const Node& node)
                 {
-                    using ROIFeatureExtractor = ngraph::op::v6::ExperimentalDetectronROIFeatureExtractor;
+                    using ROIFeatureExtractor =
+                        ngraph::op::v6::ExperimentalDetectronROIFeatureExtractor;
 
                     auto inputs = node.get_ng_inputs();
 
                     ROIFeatureExtractor::Attributes attrs{};
                     attrs.output_size = node.get_attribute_value<std::int64_t>("output_size");
                     attrs.sampling_ratio = node.get_attribute_value<std::int64_t>("sampling_ratio");
-                    attrs.pyramid_scales = node.get_attribute_value<std::vector<std::int64_t>>("pyramid_scales");
-                    attrs.aligned = static_cast<bool>(node.get_attribute_value<std::int64_t>("aligned"));
+                    attrs.pyramid_scales =
+                        node.get_attribute_value<std::vector<std::int64_t>>("pyramid_scales");
+                    attrs.aligned =
+                        static_cast<bool>(node.get_attribute_value<std::int64_t>("aligned"));
 
                     return {std::make_shared<ROIFeatureExtractor>(inputs, attrs)};
                 }

@@ -30,7 +30,8 @@ namespace ngraph
             {
                 OutputVector experimental_detectron_prior_grid_generator(const Node& node)
                 {
-                    using PriorGridGenerator = ngraph::op::v6::ExperimentalDetectronPriorGridGenerator;
+                    using PriorGridGenerator =
+                        ngraph::op::v6::ExperimentalDetectronPriorGridGenerator;
 
                     auto inputs = node.get_ng_inputs();
                     auto priors = inputs[0];
@@ -38,14 +39,15 @@ namespace ngraph
                     auto im_data = inputs[2];
 
                     PriorGridGenerator::Attributes attrs{};
-                    attrs.flatten = static_cast<bool>(node.get_attribute_value<int64_t>("flatten1"));
+                    attrs.flatten =
+                        static_cast<bool>(node.get_attribute_value<int64_t>("flatten1"));
                     attrs.h = node.get_attribute_value<int64_t>("h");
                     attrs.w = node.get_attribute_value<int64_t>("w");
                     attrs.stride_x = node.get_attribute_value<float>("stride_x");
                     attrs.stride_x = node.get_attribute_value<float>("stride_y");
 
-                    return {std::make_shared<PriorGridGenerator>(priors, feature_map, im_data, attrs)};
-
+                    return {
+                        std::make_shared<PriorGridGenerator>(priors, feature_map, im_data, attrs)};
                 }
 
             } // namespace set_1

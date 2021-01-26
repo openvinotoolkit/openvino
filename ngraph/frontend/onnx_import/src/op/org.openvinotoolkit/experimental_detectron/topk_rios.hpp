@@ -20,7 +20,6 @@
 #include "ngraph/op/experimental_detectron_topkrois.hpp"
 #include "onnx_import/core/node.hpp"
 
-
 namespace ngraph
 {
     namespace onnx_import
@@ -36,7 +35,8 @@ namespace ngraph
                     auto inputs = node.get_ng_inputs();
                     auto input_rois = inputs[0];
                     auto rois_probs = inputs[1];
-                    auto max_rois = static_cast<std::size_t>(node.get_attribute_value<std::int64_t>("max_rois", 0));
+                    auto max_rois = static_cast<std::size_t>(
+                        node.get_attribute_value<std::int64_t>("max_rois", 0));
 
                     return {std::make_shared<TopKROIs>(input_rois, rois_probs, max_rois)};
                 }
