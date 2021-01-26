@@ -203,7 +203,7 @@ public:
                 }
             } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                         <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-                pugi::xml_node port_map = m_xml_node.parent().find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
+                pugi::xml_node port_map = m_xml_node.parent().child("port_map");
                 if (!port_map) {
                     port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
                 }
@@ -228,6 +228,23 @@ public:
                             output.append_attribute("part_size").set_value(concat_output->m_part_size);
                         }
                     }
+                }
+            } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
+                pugi::xml_node port_map = m_xml_node.parent().child("port_map");
+                NGRAPH_CHECK(port_map, "port_map section not found, purpose attribute cannot be added.");
+
+                if (a->get().current_iteration_input_idx != -1) {
+                    pugi::xml_node iter_input = port_map.append_child("input");
+                    iter_input.append_attribute("external_port_id").set_value("-1");
+                    iter_input.append_attribute("internal_layer_id").set_value(parameter_mapping[a->get().current_iteration_input_idx].c_str());
+                    iter_input.append_attribute("purpose").set_value("current_iteration");
+                }
+
+                if (a->get().body_condition_output_idx != -1) {
+                    pugi::xml_node exec_output = port_map.append_child("output");
+                    exec_output.append_attribute("external_port_id").set_value("-1");
+                    exec_output.append_attribute("internal_layer_id").set_value(result_mapping[a->get().body_condition_output_idx].c_str());
+                    exec_output.append_attribute("purpose").set_value("execution_condition");
                 }
             }
         }
@@ -315,8 +332,8 @@ public:
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
             ngfunction_2_irv10(xml_body, m_bin_data, *adapter.get(), m_custom_opsets);
-            xml_body.first_child().remove_attribute("name");
-            xml_body.first_child().remove_attribute("version");
+            xml_body.remove_attribute("name");
+            xml_body.remove_attribute("version");
         } else if (name == "net") {
             ngfunction_2_irv10(m_xml_node, m_bin_data, *adapter.get(), m_custom_opsets);
         } else {
@@ -630,7 +647,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 }
             }
 
-            if (node_type_name == "TensorIterator") {
+            if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
                 layer.prepend_move(input);
             }
         }
@@ -651,7 +668,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                         .set_value(std::to_string(d).c_str());
                 }
             }
-            if (node_type_name == "TensorIterator") {
+            if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
                 layer.insert_move_after(output, layer.first_child());
             }
         }
