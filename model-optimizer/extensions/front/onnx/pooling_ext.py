@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -136,7 +136,7 @@ def common_onnx_pool_extractor(node):
         'pad': final_pads,
         'pad_spatial_shape': np.array(pads, dtype=np.int64) if pads is not None else None,
         'pool_method': method,
-        'exclude_pad': 'true' if exclude_pad else 'false',
+        'exclude_pad': True if exclude_pad else False,
         'global_pool': global_pooling,
         'output_spatial_shape': None,
         'rounding_type': rt,

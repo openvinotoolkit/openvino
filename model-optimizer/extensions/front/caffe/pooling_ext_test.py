@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class TestPooling(unittest.TestCase):
             'pad': np.array([[0, 0], [0, 0], [0, 0], [0, 0]], dtype=np.int64),
             'pad_spatial_shape': np.array([[0, 0], [0, 0]], dtype=np.int64),
             'pool_method': 'max',
-            'exclude_pad': 'true',
+            'exclude_pad': True,
             'infer': Pooling.infer,
             'global_pool': 1,
             'output_spatial_shape': None,
@@ -84,7 +84,7 @@ class TestPooling(unittest.TestCase):
             'pad': np.array([[0, 0], [0, 0], [3, 3], [3, 3]], dtype=np.int64),
             'pad_spatial_shape': np.array([[3, 3], [3, 3]], dtype=np.int64),
             'pool_method': 'avg',
-            'exclude_pad': 'false',
+            'exclude_pad': False,
             'infer': Pooling.infer,
             'global_pool': 0,
             'output_spatial_shape': None,
