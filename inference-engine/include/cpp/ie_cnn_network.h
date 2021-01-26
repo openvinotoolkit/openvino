@@ -190,7 +190,7 @@ public:
     void serialize(const std::string& xmlPath, const std::string& binPath = {}) const;
 
     /**
-     * @brief Methods maps framework tensor name to OpenVINO name
+     * @brief Method maps framework tensor name to OpenVINO name
      *
      * @param orig_name Framework tensor name
      *
@@ -203,7 +203,7 @@ public:
     }
 
     /**
-     * @brief Methods maps framework operator name to OpenVINO name
+     * @brief Method maps framework operator name to OpenVINO name
      *
      * @param orig_name Framework operation name
      *
