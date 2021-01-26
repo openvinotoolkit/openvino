@@ -23,7 +23,7 @@ CMAKE_INSTALL_CORE_SUBDIR = os.path.normpath("${IE_CPACK_RUNTIME_PATH}")
 CMAKE_INSTALL_PLUGINS_SUBDIR = os.path.normpath("${IE_CPACK_RUNTIME_PATH}")
 CMAKE_INSTALL_NGRAPH_SUBDIR = os.path.normpath("${IE_CPACK_IE_DIR}/../ngraph/lib")
 CMAKE_INSTALL_BIND_SUBDIR = os.path.normpath("${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}")
-CMAKE_INSTALL_TBB_SUBDIR = os.path.normpath(f"${IE_CPACK_IE_DIR}/external/tbb/{'bin' if sys.platform == "win32" else 'lib'}")
+CMAKE_INSTALL_TBB_SUBDIR = os.path.normpath(f"${IE_CPACK_IE_DIR}/external/tbb/{'bin' if sys.platform == 'win32' else 'lib'}")
 
 CORE_LIBS_DIR = os.path.join(CMAKE_INSTALL_CORE_DIR, CMAKE_INSTALL_CORE_SUBDIR)
 PLUGINS_LIBS_DIR = os.path.join(CMAKE_INSTALL_PLUGINS_DIR, CMAKE_INSTALL_CORE_SUBDIR)
@@ -114,10 +114,10 @@ class PrepareLibs(build_clib):
             rpath = ""
             lib_pattern = ""
             if sys.platform == "linux":
-                rpath = "$ORIGIN/../../../openvino.libs"
+                rpath = "$ORIGIN"
                 lib_pattern = "*.so"
             elif sys.platform == "darwin":
-                rpath = "@loader_path/../../../openvino.libs"
+                rpath = "@loader_path"
                 lib_pattern = "*.dylib"
             for lib in RELOCATABLE_LIBS:
                 for path in Path(lib).glob(lib_pattern):
@@ -138,6 +138,13 @@ class CopyExt(build_ext):
                 if exc.errno != errno.EEXIST:
                     raise
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
+            #setting relative path to find dlls
+            rpath = os.path.relpath(BINDINGS_DIR, os.path.dirname(src))
+            if sys.platform == "linux":
+                rpath = os.path.join("$ORIGIN", rpath, "openvino.libs")
+            elif sys.platform == "darwin":
+                rpath = os.path.join("@loader_path", rpath, "openvino.libs")
+            set_rpath(rpath, dst)
 
 
 def set_rpath(rpath, executable):
@@ -176,6 +183,7 @@ def find_prebuilt_extensions(base_dir, ext_pattern):
         name = ".".join(package_names)
         extensions.append(PrebuiltExtension(name, sources=[str(path)]))
     return extensions
+
 
 # reading description from README.md
 with open("pypi_overview.md", "r", encoding="utf-8") as fh:
