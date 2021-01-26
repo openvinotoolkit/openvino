@@ -73,13 +73,13 @@ class PrepareLibs(build_clib):
         self.spawn(["cmake",
                     "--install", CMAKE_BUILD_DIR,
                     "--prefix", CMAKE_INSTALL_PLUGINS_DIR,
-                    "--component", "cldnn"])
+                    "--component", "gpu"])
 
         self.announce("Installing mklDNN plugin", level=3)
         self.spawn(["cmake",
                     "--install", CMAKE_BUILD_DIR,
                     "--prefix", CMAKE_INSTALL_PLUGINS_DIR,
-                    "--component", "mkldnn"])
+                    "--component", "cpu"])
 
         self.announce("Installing multi plugin", level=3)
         self.spawn(["cmake",
