@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -62,6 +62,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/extract_image_patches.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/fill.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_elements.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_nd.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_tree.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/grn.cpp
