@@ -14,7 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-
 #include "ngraph/op/experimental_detectron_prior_grid_generator.hpp"
 #include <algorithm>
 #include <cmath>
@@ -99,7 +98,7 @@ namespace ngraph
                     float* rois_ptr = outputs[0]->get_data_ptr<float>();
                     memcpy(rois_ptr,
                            output_rois.data(),
-                           output_rois_shape.shape_size() * sizeof(float));
+                           shape_size(output_rois_shape) * sizeof(float));
                 }
                 break;
                 default:;
