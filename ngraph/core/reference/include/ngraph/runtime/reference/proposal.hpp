@@ -262,7 +262,7 @@ namespace ngraph
                             const T y0j = proposals[tail].y0;
                             const T x1j = proposals[tail].x1;
                             const T y1j = proposals[tail].y1;
-         
+
                             //   +(x0i, y0i)-----------+
                             //   |                     |
                             //   |        + (x0j, y0j)-|-----+
@@ -271,8 +271,8 @@ namespace ngraph
                             //            |                  |
                             //            +------------------+ (x1j, y1j)
                             // Checking if the boxes are overlapping:
-                            // x0i <= x1j && y0i <= y1j - the first box begins before the second ends
-                            // x0j <= x1i && y0j <= y1i - the second box begins before the first ends
+                            // x0i <= x1j && y0i <= y1j first box begins before second ends
+                            // x0j <= x1i && y0j <= y1i second box begins before the first ends
                             if (x0i <= x1j && y0i <= y1j && x0j <= x1i && y0j <= y1i)
                             {
                                 // overlapped region (= box)
