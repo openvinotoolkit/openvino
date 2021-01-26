@@ -12,6 +12,7 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
 
+## TODO
 set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_batchnorm_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_bin_conv_node.cpp
@@ -34,8 +35,8 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reshape_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_rnn.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_pooling_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_align_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_pooling_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_softmax_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tensoriterator_node.cpp
@@ -144,25 +145,11 @@ include_directories(
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_BINARY_DIR}/include)
-
-include_directories(SYSTEM
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include)
+        ${CMAKE_BINARY_DIR}/include
+)
 
 if (GEMM STREQUAL "MKL")
     log_rpath_from_dir(MKL "${MKL}/lib")
-endif()
-
-if (THREADING STREQUAL "TBB")
-    set(MKLDNN_THR MKLDNN_THR_TBB)
-elseif (THREADING STREQUAL "TBB_AUTO")
-    set(MKLDNN_THR MKLDNN_THR_TBB_AUTO)
-elseif (THREADING STREQUAL "OMP")
-    set(MKLDNN_THR MKLDNN_THR_OMP)
-else()
-    set(MKLDNN_THR MKLDNN_THR_SEQ)
 endif()
 
 # create plugin
@@ -174,10 +161,11 @@ ie_add_plugin(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
-
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
                                              inference_engine_transformations inference_engine_lp_transformations openvino::conditional_compilation)
+
+target_include_directories(${TARGET_NAME} PRIVATE
+        $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -201,18 +189,22 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 #  add test object library
 
 add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
+target_link_libraries(${TARGET_NAME}_obj PUBLIC mkldnn)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+                                              PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
+                                                      $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
-target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
-                                              PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+target_compile_definitions(${TARGET_NAME}_obj
+        PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+)
 
 set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 
