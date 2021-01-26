@@ -112,7 +112,7 @@ namespace {
 std::vector<CPUSpecificParams> resCPUParams {
     CPUSpecificParams{{nchw, nc}, {nchw}, {}, {}},
     CPUSpecificParams{{nhwc, nc}, {nhwc}, {}, {}},
-    CPUSpecificParams{{nChw16c, nc}, {blocked}, {}, {}}
+    CPUSpecificParams{{nChw16c, nc}, {nChw16c}, {}, {}}
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
