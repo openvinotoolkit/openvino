@@ -85,21 +85,23 @@ std::string name(const Node& n) {
     return n->get_friendly_name();
 }
 
+namespace attr_comparison {
+
 using AttrName = std::string;
 
-class Result {
+class CmpResult {
 public:
-    explicit Result(std::string m = {}) : m_message(std::move(m)) {}
+    explicit CmpResult(std::string m = {}) : m_message(std::move(m)) {}
 
     const std::string& message() const {
         return m_message;
     }
 
-    explicit operator bool() const {
-        return m_message.empty();
+    bool has_error() const {
+        return !m_message.empty();
     }
 
-    Result& operator+=(const std::string& msg) {
+    CmpResult& operator+=(const std::string& msg) {
         m_message.append(1, '\n').append(msg);
         return *this;
     }
@@ -107,6 +109,16 @@ public:
 private:
     std::string m_message;
 };
+
+using SubGraphOpInputDescription =
+    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>;
+
+using SubGraphOpOutputDescription =
+    std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>;
+
+using SpecialBodyPorts = ngraph::op::v5::Loop::SpecialBodyPorts;
+
+namespace storage {
 
 class MemoryChunk {
 public:
@@ -171,7 +183,10 @@ class Storage : private AttributeStorage<MemoryChunk>,
                 private AttributeStorage<std::vector<uint64_t>>,
                 private AttributeStorage<std::vector<float>>,
                 private AttributeStorage<std::vector<double>>,
-                private AttributeStorage<std::vector<std::string>> {
+                private AttributeStorage<std::vector<std::string>>,
+                private AttributeStorage<SubGraphOpInputDescription>,
+                private AttributeStorage<SubGraphOpOutputDescription>,
+                private AttributeStorage<SpecialBodyPorts> {
 public:
     template <typename AttrValue>
     const AttributeStorage<AttrValue>& storage() const {
@@ -181,26 +196,63 @@ public:
     AttributeStorage<AttrValue>& storage() {
         return *static_cast<AttributeStorage<AttrValue>*>(this);
     }
+
+    size_t stored_attributes_number() const {
+        return storage<MemoryChunk>().get_attributes_number() +
+               storage<bool>().get_attributes_number() +
+               storage<std::string>().get_attributes_number() +
+               storage<int8_t>().get_attributes_number() +
+               storage<int16_t>().get_attributes_number() +
+               storage<int32_t>().get_attributes_number() +
+               storage<int64_t>().get_attributes_number() +
+               storage<uint8_t>().get_attributes_number() +
+               storage<uint16_t>().get_attributes_number() +
+               storage<uint32_t>().get_attributes_number() +
+               storage<uint64_t>().get_attributes_number() +
+               storage<float>().get_attributes_number() +
+               storage<double>().get_attributes_number() +
+               storage<std::vector<int8_t>>().get_attributes_number() +
+               storage<std::vector<int16_t>>().get_attributes_number() +
+               storage<std::vector<int32_t>>().get_attributes_number() +
+               storage<std::vector<int64_t>>().get_attributes_number() +
+               storage<std::vector<uint8_t>>().get_attributes_number() +
+               storage<std::vector<uint16_t>>().get_attributes_number() +
+               storage<std::vector<uint32_t>>().get_attributes_number() +
+               storage<std::vector<uint64_t>>().get_attributes_number() +
+               storage<std::vector<float>>().get_attributes_number() +
+               storage<std::vector<double>>().get_attributes_number() +
+               storage<std::vector<std::string>>().get_attributes_number() +
+               storage<SubGraphOpInputDescription>().get_attributes_number() +
+               storage<SubGraphOpOutputDescription>().get_attributes_number() +
+               storage<SpecialBodyPorts>().get_attributes_number();
+    }
 };
 
-class ReadAndStoreAttributes : public ngraph::AttributeVisitor, protected Storage {
+}  // namespace storage
+
+class ReadAndStoreAttributes : public ngraph::AttributeVisitor, protected storage::Storage {
 public:
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        std::cout << "store   attr [ ERR ]: " << name << " [drop `void` comparison which is '"
-                  << adapter.get_type_info().name << "']" << std::endl;
-        ///
-        /// TODO what is not cover by rest of overloads?
-        ///
-        /// AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>
-        /// AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>
-        ///
-        ///
+        if (auto inputs =
+                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+            insert(name, inputs->get());
+        } else if (
+            auto outputs =
+                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+            insert(name, outputs->get());
+        } else if (
+            auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+            insert(name, ports->get());
+        } else {
+            std::cout << "store   attr [ ERR ]: " << name << " [drop `void` comparison which is '"
+                      << adapter.get_type_info().name << "']" << std::endl;
+        }
     }
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override {
         const auto beg = static_cast<unsigned char*>(adapter.get_ptr());
         const auto end = beg + adapter.size();
-        insert(name, MemoryChunk{MemoryChunk::Data(beg, end)});
+        insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
     }
 
 #define ON_ADAPTER(TYPE)                                                                      \
@@ -235,10 +287,8 @@ public:
 #undef ON_ADAPTER
 
     void on_adapter(
-        const std::string& name,
-        ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override {
-        std::cout << "store   attr [ ERR ]: " << name << " [drop `Function` comparison]"
-                  << std::endl;
+        const std::string&, ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>&) override {
+        // handled by `compare_functions` drop it here
     }
 
     template <typename AttrValue>
@@ -252,32 +302,11 @@ public:
     }
 
     size_t attributes_number() const {
-        return storage<MemoryChunk>().get_attributes_number() +
-               storage<bool>().get_attributes_number() +
-               storage<std::string>().get_attributes_number() +
-               storage<int8_t>().get_attributes_number() +
-               storage<int16_t>().get_attributes_number() +
-               storage<int32_t>().get_attributes_number() +
-               storage<int64_t>().get_attributes_number() +
-               storage<uint8_t>().get_attributes_number() +
-               storage<uint16_t>().get_attributes_number() +
-               storage<uint32_t>().get_attributes_number() +
-               storage<uint64_t>().get_attributes_number() +
-               storage<float>().get_attributes_number() +
-               storage<double>().get_attributes_number() +
-               storage<std::vector<int8_t>>().get_attributes_number() +
-               storage<std::vector<int16_t>>().get_attributes_number() +
-               storage<std::vector<int32_t>>().get_attributes_number() +
-               storage<std::vector<int64_t>>().get_attributes_number() +
-               storage<std::vector<uint8_t>>().get_attributes_number() +
-               storage<std::vector<uint16_t>>().get_attributes_number() +
-               storage<std::vector<uint32_t>>().get_attributes_number() +
-               storage<std::vector<uint64_t>>().get_attributes_number() +
-               storage<std::vector<float>>().get_attributes_number() +
-               storage<std::vector<double>>().get_attributes_number() +
-               storage<std::vector<std::string>>().get_attributes_number();
+        return stored_attributes_number();
     }
 };
+
+namespace equal {
 
 template <typename Value>
 static constexpr bool in_range(Value v, std::pair<Value, Value> range) {
@@ -321,22 +350,139 @@ struct Equal<std::vector<float>> {
     }
 };
 
+template <>
+struct Equal<SubGraphOpInputDescription::value_type> {
+    static bool equal_value(
+        SubGraphOpInputDescription::const_reference lhs,
+        SubGraphOpInputDescription::const_reference rhs) {
+        const auto& lhs_type_info = lhs->get_type_info();
+        const auto& rhs_type_info = rhs->get_type_info();
+        if (lhs_type_info != rhs_type_info) {
+            return false;
+        }
+        using SubGraphOp = ngraph::op::util::SubGraphOp;
+        if (lhs_type_info == SubGraphOp::SliceInputDescription::type_info) {
+            const auto& l_input = static_cast<const SubGraphOp::SliceInputDescription&>(*lhs);
+            const auto& r_input = static_cast<const SubGraphOp::SliceInputDescription&>(*rhs);
+            return l_input.m_start == r_input.m_start && l_input.m_stride == r_input.m_stride &&
+                   l_input.m_part_size == r_input.m_part_size && l_input.m_end == r_input.m_end &&
+                   l_input.m_axis == r_input.m_axis;
+        } else if (lhs_type_info == SubGraphOp::MergedInputDescription::type_info) {
+            return true;
+        } else if (lhs_type_info == SubGraphOp::InvariantInputDescription::type_info) {
+            return true;
+        }
+        return false;
+    }
+};
+
+template <>
+struct Equal<SubGraphOpInputDescription> {
+    static bool equal_value(
+        const SubGraphOpInputDescription& lhs, const SubGraphOpInputDescription& rhs) {
+        if (lhs.size() != rhs.size()) {
+            return false;
+        }
+        return std::is_permutation(
+            begin(lhs), end(lhs), begin(rhs),
+            Equal<SubGraphOpInputDescription::value_type>::equal_value);
+    }
+};
+
+template <>
+struct Equal<SubGraphOpOutputDescription::value_type> {
+    static bool equal_value(
+        SubGraphOpOutputDescription::const_reference lhs,
+        SubGraphOpOutputDescription::const_reference rhs) {
+        const auto& lhs_type_info = lhs->get_type_info();
+        const auto& rhs_type_info = rhs->get_type_info();
+        if (lhs_type_info != rhs_type_info) {
+            return false;
+        }
+        using SubGraphOp = ngraph::op::util::SubGraphOp;
+        if (lhs_type_info == SubGraphOp::ConcatOutputDescription::type_info) {
+            const auto& l_output = static_cast<const SubGraphOp::ConcatOutputDescription&>(*lhs);
+            const auto& r_output = static_cast<const SubGraphOp::ConcatOutputDescription&>(*rhs);
+            return l_output.m_start == r_output.m_start && l_output.m_stride == r_output.m_stride &&
+                   l_output.m_part_size == r_output.m_part_size &&
+                   l_output.m_end == r_output.m_end && l_output.m_axis == r_output.m_axis;
+        } else if (lhs_type_info == SubGraphOp::BodyOutputDescription::type_info) {
+            const auto& l_output = static_cast<const SubGraphOp::BodyOutputDescription&>(*lhs);
+            const auto& r_output = static_cast<const SubGraphOp::BodyOutputDescription&>(*rhs);
+            return l_output.m_iteration == r_output.m_iteration;
+        }
+        return false;
+    }
+};
+
+template <>
+struct Equal<SubGraphOpOutputDescription> {
+    static bool equal_value(
+        const SubGraphOpOutputDescription& lhs, const SubGraphOpOutputDescription& rhs) {
+        if (lhs.size() != rhs.size()) {
+            return false;
+        }
+        return std::is_permutation(
+            begin(lhs), end(lhs), begin(rhs),
+            Equal<SubGraphOpOutputDescription::value_type>::equal_value);
+    }
+};
+
+template <>
+struct Equal<SpecialBodyPorts> {
+    static bool equal_value(const SpecialBodyPorts& lhs, const SpecialBodyPorts& rhs) {
+        return true;
+        // lhs.current_iteration_input_idx == rhs.current_iteration_input_idx &&
+        // lhs.body_condition_output_idx == rhs.body_condition_output_idx;
+    }
+};
+
+}  // namespace equal
+
 class ReadAndCompareAttributes : public ngraph::AttributeVisitor {
 public:
     ReadAndCompareAttributes(const ReadAndStoreAttributes& ref) : m_attr_ref(ref) {}
 
-    enum Tribool { FALSE, INDETERMINATE, TRUE };
-
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        std::cout << "compare attr [ ERR ]: " << name << " [drop `void` comparison]" << std::endl;
+        if (auto inputs =
+                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+            verify(name, inputs->get());
+        } else if (
+            auto outputs =
+                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+            verify(name, outputs->get());
+        } else if (
+            auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+            verify(name, ports->get());
+        } else {
+            std::cout << "compare attr [ ERR ]: " << name << " [drop `void` comparison which is '"
+                      << adapter.get_type_info().name << "']" << std::endl;
+        }
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override {
+        if (should_return()) {
+            return;
+        }
+        m_visited_attributes.insert(name);
+        const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
+        if (!ref_value) {
+            m_cmp_result += "missing attribute name: " + name;
+            return;
+        }
+
+        if (adapter.size() != ref_value->size() ||
+            std::memcmp(ref_value->data(), adapter.get_ptr(), ref_value->size()) != 0) {
+            m_cmp_result += "mismatch in value: " + name;
+            return;
+        }
     }
 
 #define ON_ADAPTER(TYPE)                                                                      \
     void on_adapter(const std::string& name, ngraph::ValueAccessor<TYPE>& adapter) override { \
-        verify(name, adapter);                                                                \
+        verify(name, adapter.get());                                                          \
     }
 
-    ON_ADAPTER(void*)
     ON_ADAPTER(bool)
     ON_ADAPTER(std::string)
     ON_ADAPTER(int8_t)
@@ -364,88 +510,86 @@ public:
 #undef ON_ADAPTER
 
     void on_adapter(
-        const std::string& name,
-        ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override {
-        std::cout << "compare attr [ ERR ]: " << name << " [drop `Function` comparison]"
-                  << std::endl;
+        const std::string&, ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>&) override {
+        // handled by `compare_functions` drop it here
     }
 
     bool all_attr_was_compared() const {
         return m_visited_attributes.size() == m_attr_ref.attributes_number();
     }
 
-    const Result& resutl() const {
-        return m_result;
+    size_t compared_attr_number() const {
+        return m_visited_attributes.size();
+    }
+
+    const CmpResult& cmp_result() const {
+        return m_cmp_result;
     }
 
 private:
+    bool should_return() const {
+        return m_fast_exit && m_cmp_result.has_error();
+    }
     template <typename AttrValue>
-    const AttrValue* extract_attr_val_and_mark_as_read(const std::string& name) {
+    void verify(const std::string& name, const AttrValue& attr_value) {
+        if (should_return()) {
+            return;
+        }
         m_visited_attributes.insert(name);
         const auto ref_value = m_attr_ref.get<AttrValue>(name);
         if (!ref_value) {
-            m_result += "missing attribute name: " + name;
-        }
-        return ref_value;
-    }
-
-    template <typename AttrValue>
-    void verify(const std::string& name, ngraph::ValueAccessor<AttrValue>& adapter) {
-        const AttrValue* ref_value = extract_attr_val_and_mark_as_read<AttrValue>(name);
-        if (!ref_value) {
+            m_cmp_result += "missing attribute name: " + name;
             return;
         }
 
-        if (!Equal<AttrValue>::equal_value(*ref_value, adapter.get())) {
-            m_result += "mismatch in value: " + name;
-            return;
-        }
-    }
-
-    void verify(const std::string& name, ngraph::ValueAccessor<void*>& adapter) {
-        const MemoryChunk* ref_value = extract_attr_val_and_mark_as_read<MemoryChunk>(name);
-        if (!ref_value) {
-            return;
-        }
-
-        if (adapter.size() != ref_value->size() ||
-            std::memcmp(ref_value->data(), adapter.get_ptr(), ref_value->size()) != 0) {
-            m_result += "mismatch in value: " + name;
+        if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
+            m_cmp_result += "mismatch in value: " + name;
             return;
         }
     }
 
     const ReadAndStoreAttributes& m_attr_ref;
-    Result m_result;
+    CmpResult m_cmp_result;
     std::set<AttrName> m_visited_attributes;
+    bool m_fast_exit{true};
 };
+
+}  // namespace attr_comparison
 
 class CompareNodesAttributes {
 public:
     CompareNodesAttributes() : m_compare_attr(m_store_attr) {}
 
-    ReadAndStoreAttributes& get_ref_reder() {
+    attr_comparison::ReadAndStoreAttributes& get_ref_reder() {
         return m_store_attr;
     }
 
-    ReadAndCompareAttributes& get_cmp_reader() {
+    attr_comparison::ReadAndCompareAttributes& get_cmp_reader() {
         return m_compare_attr;
     }
 
     bool equal() const {
-        return m_compare_attr.all_attr_was_compared() && static_cast<bool>(m_compare_attr.resutl());
+        return m_compare_attr.all_attr_was_compared() && !m_compare_attr.cmp_result().has_error();
     }
 
     friend std::string to_string(const CompareNodesAttributes& c) {
-        const auto& result = c.m_compare_attr.resutl();
-        return !!result ? std::string{"Node equal (I guess)"} : result.message();
+        const auto& result = c.m_compare_attr.cmp_result();
+        if (result.has_error()) {
+            return result.message();
+        }
+        if (!c.m_compare_attr.all_attr_was_compared()) {
+            return "not all of attr was compared: " +
+                   std::to_string(c.m_compare_attr.compared_attr_number()) + " vs " +
+                   std::to_string(c.m_store_attr.attributes_number());
+        }
+        return "looks good [compared " + std::to_string(c.m_compare_attr.compared_attr_number()) +
+               " attributes]";
     }
 
 private:
-    ReadAndStoreAttributes m_store_attr;
-    ReadAndCompareAttributes m_compare_attr;
+    attr_comparison::ReadAndStoreAttributes m_store_attr;
+    attr_comparison::ReadAndCompareAttributes m_compare_attr;
 };
-
 }  // namespace
 
 std::pair<bool, std::string> compare_functions(
@@ -627,12 +771,12 @@ std::pair<bool, std::string> compare_functions(
 
         if (compareAttribures) {
             CompareNodesAttributes compare_nodes;
-            // std::cout << "proceed node1: " << name(node1) << std::endl;
             node1->visit_attributes(compare_nodes.get_ref_reder());
-            // std::cout << "proceed node2: " << name(node1) << std::endl;
             node2->visit_attributes(compare_nodes.get_cmp_reader());
             if (!compare_nodes.equal()) {
-                return {false, to_string(compare_nodes)};
+                return error(
+                    "Comparison of attributes failed for nodes" + name(node1) + ", " + name(node2) +
+                    " [cmp status: " + to_string(compare_nodes) + "]");
             }
         }
     }
