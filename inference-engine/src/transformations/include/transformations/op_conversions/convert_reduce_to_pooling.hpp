@@ -74,6 +74,11 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
         auto input = reduce->input_value(0);
 
+        // if input to Reduce op is a constant, it should be constant folded instead
+        if (std::dynamic_pointer_cast<ngraph::opset1::Constant>(input.get_node_shared_ptr())) {
+            return false;
+        }
+
         auto axes_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(reduce->input_value(1).get_node_shared_ptr());
         if (!axes_node) {
             return false;
