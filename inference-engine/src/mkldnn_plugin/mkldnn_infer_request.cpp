@@ -113,14 +113,14 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
             // these precisions are supported by mkldnn, so we push the blob directly
             // BUT if a mean image exists, we convert the blob and send FP32
             case InferenceEngine::Precision::U8:
-            case InferenceEngine::Precision::BOOL:
-            case InferenceEngine::Precision::I16: {
+            case InferenceEngine::Precision::BOOL: {
                 if (graph->hasMeanImageFor(input.first))
                     inPrec = InferenceEngine::Precision::FP32;
                 break;
             }
             // these precisions are unsupported by mkldnn, so we convert the blob and send I32
             case InferenceEngine::Precision::U16:
+            case InferenceEngine::Precision::I16:
             case InferenceEngine::Precision::I64:
             case InferenceEngine::Precision::U64: {
                 inPrec = InferenceEngine::Precision::I32;
@@ -143,9 +143,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushStates() {
                     auto cur_state_mem = cur_node->getStore();
                     auto data_ptr = state->GetState()->cbuffer().as<void*>();
                     auto data_size = state->GetState()->byteSize();
-                    auto elemSize = MKLDNNExtensionUtils::sizeOfDataType(cur_state_mem->GetDataType());
-                    auto padSize = cur_state_mem->GetDescriptor().data.layout_desc.blocking.offset_padding;
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData()) + padSize * elemSize;
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
 
                     cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
                 }
@@ -164,9 +162,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::PullStates() {
                     auto cur_state_mem = cur_node->getStore();
                     auto data_ptr = state->GetState()->cbuffer().as<void*>();
                     auto data_size = state->GetState()->byteSize();
-                    auto elemSize = MKLDNNExtensionUtils::sizeOfDataType(cur_state_mem->GetDataType());
-                    auto padSize = cur_state_mem->GetDescriptor().data.layout_desc.blocking.offset_padding;
-                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetData()) + padSize * elemSize;
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
 
                     cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
                 }
