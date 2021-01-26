@@ -48,7 +48,6 @@ enum Type {
     Concatenation,
     Eltwise,
     Gemm,
-    Crop,
     Reshape,
     Tile,
     SimplerNMS,
@@ -58,6 +57,7 @@ enum Type {
     Flatten,
     Pad,
     Permute,
+    StridedSlice,
     Copy,
     MemoryOutput,
     MemoryInput,
@@ -122,8 +122,6 @@ static std::string NameFromType(Type type) {
             return "Concatenation";
         case Depthwise:
             return "Depthwise";
-        case Crop:
-            return "Crop";
         case Reshape:
             return "Reshape";
         case Tile:
@@ -142,6 +140,8 @@ static std::string NameFromType(Type type) {
             return "Pad";
         case Permute:
             return "Permute";
+        case StridedSlice:
+            return "StridedSlice";
         case Copy:
             return "Copy";
         case MemoryOutput:
