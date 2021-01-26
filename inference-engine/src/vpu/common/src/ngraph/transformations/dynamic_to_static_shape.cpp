@@ -8,6 +8,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_broadcast.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_concat.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_gather.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_gather_elements.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_gather_nd.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_matmul.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_non_max_suppression.hpp"
@@ -30,6 +31,7 @@
 #include "ngraph/opsets/opset3.hpp"
 #include <ngraph/validation_util.hpp>
 #include "ngraph/opsets/opset5.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 namespace vpu {
 
@@ -110,6 +112,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Clamp::type_info,                 dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Floor::type_info,                 dynamicToStaticUnaryElementwise},
         {ngraph::opset5::Ceiling::type_info,               dynamicToStaticUnaryElementwise},
+        {ngraph::opset5::Round::type_info,                 dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Log::type_info,                   dynamicToStaticUnaryElementwise},
         {ngraph::opset3::Relu::type_info,                  dynamicToStaticUnaryElementwise},
         {ngraph::opset3::ScatterUpdate::type_info,         dynamicToStaticUnaryElementwise},
@@ -129,6 +132,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::MatMul::type_info,                dynamicToStaticShapeMatMul},
         {ngraph::opset5::Split::type_info,                 dynamicToStaticShapeSplit},
         {ngraph::opset5::GatherND::type_info,              dynamicToStaticShapeGatherND},
+        {ngraph::opset6::GatherElements::type_info,        dynamicToStaticShapeGatherElements},
 
         // reduction
         {ngraph::opset3::ReduceLogicalAnd::type_info, dynamicToStaticShapeReduce},

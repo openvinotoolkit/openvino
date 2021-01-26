@@ -48,6 +48,8 @@ struct jit_uni_mvn_mean_variance_kernel {
     explicit jit_uni_mvn_mean_variance_kernel(jit_mvn_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
     virtual ~jit_uni_mvn_mean_variance_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_mvn_config_params jcp_;
 };
 
@@ -61,6 +63,8 @@ struct jit_uni_mvn_kernel {
 
     explicit jit_uni_mvn_kernel(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_mvn_kernel() {}
+
+    virtual void create_ker() = 0;
 
     jit_mvn_config_params jcp_;
     const mkldnn_primitive_attr &attr_;

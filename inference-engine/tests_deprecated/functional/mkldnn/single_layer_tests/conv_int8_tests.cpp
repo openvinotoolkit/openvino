@@ -302,12 +302,8 @@ protected:
 #define case_3d_7 conv_base_params({{1, 4, 8, 8, 8},  {1, 1, 1}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, {1, 1, 1}, 16, 4, {0, 0, 0}})
 
 using smoke_conv_u8s32 = smoke_ConvolutionInt8OnlyTest<uint8_t>;
-using smoke_conv_s8s32 = smoke_ConvolutionInt8OnlyTest<int8_t>;
 
 TEST_P(smoke_conv_u8s32, TestsConvolution) {
-}
-
-TEST_P(smoke_conv_s8s32, TestsConvolution) {
 }
 
 std::string getTestCaseInt8Name(testing::TestParamInfo<conv_test_params> obj) {
@@ -365,9 +361,3 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         TestConvolution_3d, smoke_conv_u8s32, ::testing::ValuesIn(conv_only_int8_3d_test_cases), getTestCaseInt8Name);
-
-INSTANTIATE_TEST_CASE_P(
-        TestConvolution, smoke_conv_s8s32, ::testing::ValuesIn(conv_only_int8_test_cases), getTestCaseInt8Name);
-
-INSTANTIATE_TEST_CASE_P(
-        TestConvolution_3d, smoke_conv_s8s32, ::testing::ValuesIn(conv_only_int8_3d_test_cases), getTestCaseInt8Name);

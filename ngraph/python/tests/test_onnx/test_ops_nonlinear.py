@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2018-2020 Intel Corporation
+# Copyright 2018-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
-from tests import xfail_issue_35918, xfail_issue_35924
+from tests import xfail_issue_35918
 
 
 def import_and_compute(op_type, input_data, **node_attrs):
@@ -111,7 +111,7 @@ def test_selu():
         pytest.param([0.0], 1, marks=xfail_issue_35918),
         pytest.param([-0.9, -0.8, -0.7, -0.4, -0.3, -0.2, -0.1], 1, marks=xfail_issue_35918),
         pytest.param([[1, 2, 3], [4, 5, 6]], 1, marks=xfail_issue_35918),
-        pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 0.5, marks=xfail_issue_35924)
+        pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 0.5)
     ]
 )
 def test_elu(data, alpha_value):

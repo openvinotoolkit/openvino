@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,19 +13,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-#include "onnx_import/op/loop.hpp"
+#include "op/loop.hpp"
 
 #include <iterator>
 #include <memory>
 
+#include "core/graph.hpp"
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "onnx_import/core/graph.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -141,7 +141,6 @@ namespace ngraph
                     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size();
                          ++i)
                     {
-                        const auto& body_output_shape = body_outputs[i].get_partial_shape();
                         body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(
                             body_outputs[i], concat_axis_const);
                     }

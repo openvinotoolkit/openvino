@@ -161,6 +161,10 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
 }
 
 KernelsData ReduceKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_6);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority ReduceKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

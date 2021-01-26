@@ -115,8 +115,10 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params, const opt
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
-    kd.estimatedTime = FORCE_PRIORITY_8;
-
     return {kd};
+}
+
+KernelsPriority EltwiseKernel_vload8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

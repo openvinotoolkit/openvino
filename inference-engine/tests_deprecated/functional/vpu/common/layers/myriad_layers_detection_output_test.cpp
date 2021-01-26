@@ -863,8 +863,6 @@ public:
             gen_confidence[i] = static_cast<float>(std::rand()) / RAND_MAX;
         }
 
-        StatusCode st;
-
         InferenceEngine::Core ie;
         auto network = ie.ReadNetwork(PRIOR_BOX_CLUSTERED_MODEL, InferenceEngine::Blob::CPtr());
 
@@ -877,20 +875,13 @@ public:
         outputsInfo["data2_copy"]->setPrecision(Precision::FP16);
         outputsInfo["priorboxclustered_copy"]->setPrecision(Precision::FP16);
 
-        IExecutableNetwork::Ptr exeNetwork;
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, network, {}, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(exeNetwork, nullptr) << _resp.msg;
+        ExecutableNetwork exeNetwork;
+        ASSERT_NO_THROW(exeNetwork = _vpuPluginPtr->LoadNetwork(network));
 
-        IInferRequest::Ptr inferRequest;
-        ASSERT_NO_THROW(st = exeNetwork->CreateInferRequest(inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(inferRequest->GetBlob("priorboxclustered_copy", priorOutput, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        InferRequest inferRequest;
+        ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
+        ASSERT_NO_THROW(inferRequest.Infer());
+        ASSERT_NO_THROW(priorOutput = inferRequest.GetBlob("priorboxclustered_copy"));
     }
 
     TBlob<float>::Ptr refOutput;
@@ -998,8 +989,6 @@ public:
 TEST_F(myriadDetectionOutputTests_smoke, NoConst) {
     ASSERT_NO_FATAL_FAILURE(PrepareInput());
     ASSERT_NO_FATAL_FAILURE(CalcRefOutput(false));
-
-    StatusCode st;
     
     InferenceEngine::Core ie;
     auto network = ie.ReadNetwork(DETECTION_OUTPUT_MODEL, InferenceEngine::Blob::CPtr());
@@ -1015,18 +1004,14 @@ TEST_F(myriadDetectionOutputTests_smoke, NoConst) {
     outputsInfo["data2_copy"]->setPrecision(Precision::FP16);
     outputsInfo["detection_out"]->setPrecision(Precision::FP16);
 
-    IExecutableNetwork::Ptr exeNetwork;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(exeNetwork, nullptr) << _resp.msg;
+    ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = _vpuPluginPtr->LoadNetwork(network));
 
-    IInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(st = exeNetwork->CreateInferRequest(inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
 
     Blob::Ptr locations;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("locations", locations, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(locations = inferRequest.GetBlob("locations"));
     {
         ie_fp16 *dst = locations->buffer().as<ie_fp16 *>();
         for (int i = 0; i < NUM_LOC; ++i) {
@@ -1035,8 +1020,7 @@ TEST_F(myriadDetectionOutputTests_smoke, NoConst) {
     }
 
     Blob::Ptr confidence;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("confidence", confidence, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(confidence = inferRequest.GetBlob("confidence"));
     {
         ie_fp16 *dst = confidence->buffer().as<ie_fp16 *>();
         for (int i = 0; i < NUM_CONF; ++i) {
@@ -1044,11 +1028,8 @@ TEST_F(myriadDetectionOutputTests_smoke, NoConst) {
         }
     }
 
-    ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(inferRequest->GetBlob("detection_out", myriadOutput, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inferRequest.Infer());
+    ASSERT_NO_THROW(myriadOutput = inferRequest.GetBlob("detection_out"));
 
     CheckResults();
 }
@@ -1056,8 +1037,6 @@ TEST_F(myriadDetectionOutputTests_smoke, NoConst) {
 TEST_F(myriadDetectionOutputTests_smoke, MxNet) {
     ASSERT_NO_FATAL_FAILURE(PrepareInput());
     ASSERT_NO_FATAL_FAILURE(CalcRefOutput(true));
-
-    StatusCode st;
 
     TBlob<uint8_t>::Ptr weights(new TBlob<uint8_t>({Precision::U8, {priorOutput->byteSize()}, Layout::C}, priorOutput->buffer().as<uint8_t *>()));
     
@@ -1071,18 +1050,14 @@ TEST_F(myriadDetectionOutputTests_smoke, MxNet) {
     auto outputsInfo = network.getOutputsInfo();
     outputsInfo["detection_out"]->setPrecision(Precision::FP16);
 
-    IExecutableNetwork::Ptr exeNetwork;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(exeNetwork, nullptr) << _resp.msg;
+    ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = _vpuPluginPtr->LoadNetwork(network));
 
-    IInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(st = exeNetwork->CreateInferRequest(inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
 
     Blob::Ptr locations;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("locations", locations, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(locations = inferRequest.GetBlob("locations"));
     {
         ie_fp16 *dst = locations->buffer().as<ie_fp16 *>();
         for (int i = 0; i < NUM_LOC; ++i) {
@@ -1091,8 +1066,7 @@ TEST_F(myriadDetectionOutputTests_smoke, MxNet) {
     }
 
     Blob::Ptr confidence;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("confidence", confidence, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(confidence = inferRequest.GetBlob("confidence"));
     {
         ie_fp16 *dst = confidence->buffer().as<ie_fp16 *>();
         for (int i = 0; i < NUM_CONF; ++i) {
@@ -1100,11 +1074,8 @@ TEST_F(myriadDetectionOutputTests_smoke, MxNet) {
         }
     }
 
-    ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(inferRequest->GetBlob("detection_out", myriadOutput, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inferRequest.Infer());
+    ASSERT_NO_THROW(myriadOutput = inferRequest.GetBlob("detection_out"));
 
     CheckResults();
 }
@@ -1112,8 +1083,6 @@ TEST_F(myriadDetectionOutputTests_smoke, MxNet) {
 TEST_F(myriadDetectionOutputTests_smoke, WithConst) {
     ASSERT_NO_FATAL_FAILURE(PrepareInput());
     ASSERT_NO_FATAL_FAILURE(CalcRefOutput(false));
-
-    StatusCode st;
 
     TBlob<uint8_t>::Ptr weights(new TBlob<uint8_t>({Precision::U8, {priorOutput->byteSize()}, Layout::C}, priorOutput->buffer().as<uint8_t *>()));
    
@@ -1127,18 +1096,14 @@ TEST_F(myriadDetectionOutputTests_smoke, WithConst) {
     auto outputsInfo = network.getOutputsInfo();
     outputsInfo["detection_out"]->setPrecision(Precision::FP16);
 
-    IExecutableNetwork::Ptr exeNetwork;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(exeNetwork, nullptr) << _resp.msg;
+    ExecutableNetwork exeNetwork;
+    ASSERT_NO_THROW(exeNetwork = _vpuPluginPtr->LoadNetwork(network));
 
-    IInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(st = exeNetwork->CreateInferRequest(inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
 
     Blob::Ptr locations;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("locations", locations, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(locations = inferRequest.GetBlob("locations"));
     {
         ie_fp16 *dst = locations->buffer().as<ie_fp16 *>();
         for (int i = 0; i < NUM_LOC; ++i) {
@@ -1147,8 +1112,7 @@ TEST_F(myriadDetectionOutputTests_smoke, WithConst) {
     }
 
     Blob::Ptr confidence;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob("confidence", confidence, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(confidence = inferRequest.GetBlob("confidence"));
     {
         ie_fp16 *dst = confidence->buffer().as<ie_fp16 *>();
         for (int i = 0; i < NUM_CONF; ++i) {
@@ -1156,11 +1120,8 @@ TEST_F(myriadDetectionOutputTests_smoke, WithConst) {
         }
     }
 
-    ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(inferRequest->GetBlob("detection_out", myriadOutput, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inferRequest.Infer());
+    ASSERT_NO_THROW(myriadOutput = inferRequest.GetBlob("detection_out"));
 
     CheckResults();
 }

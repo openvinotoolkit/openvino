@@ -19,6 +19,14 @@
 #include "ie_input_info.hpp"
 #include "details/ie_irelease.hpp"
 
+#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN || 1
+# define INFERENCE_ENGINE_ICNNNETWORK_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
+#else
+# define INFERENCE_ENGINE_ICNNNETWORK_CLASS(...)                                 \
+    INFERENCE_ENGINE_INTERNAL("Use InferenceEngine::CNNNetwork wrapper instead") \
+    INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
+#endif
+
 namespace ngraph {
 
 class Function;
@@ -33,10 +41,11 @@ namespace InferenceEngine {
 using OutputsDataMap = std::map<std::string, DataPtr>;
 
 /**
+ * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
  * @interface ICNNNetwork
  * @brief This is the main interface to describe the NN topology
  */
-class INFERENCE_ENGINE_API_CLASS(ICNNNetwork): public details::IRelease {
+class INFERENCE_ENGINE_ICNNNETWORK_CLASS(ICNNNetwork) : public details::IRelease {
 public:
     /**
      * @brief A shared pointer to a ICNNNetwork interface

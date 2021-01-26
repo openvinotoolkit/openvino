@@ -46,6 +46,6 @@ public:
 protected:
     virtual JitConstants GetJitConstants(const grn_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const grn_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 };
 }  // namespace kernel_selector

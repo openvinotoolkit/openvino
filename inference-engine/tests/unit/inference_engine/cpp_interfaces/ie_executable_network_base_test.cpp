@@ -16,6 +16,8 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+IE_SUPPRESS_DEPRECATED_START
+
 class ExecutableNetworkThreadSafeAsyncOnlyTests : public ::testing::Test {
 protected:
     shared_ptr<MockExecutableNetworkThreadSafeAsyncOnly> mockExeNetwork;

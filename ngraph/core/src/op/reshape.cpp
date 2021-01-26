@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -286,7 +286,6 @@ bool op::v1::Reshape::evaluate_reshape(const HostTensorVector& outputs,
 {
     // infer and set output shape if the output shape contain -1
     // and zero value dimension
-    size_t output_rank = inputs[1]->get_shape()[0];
     std::vector<int64_t> out_shape_val;
 
     switch (inputs[1]->get_element_type())
