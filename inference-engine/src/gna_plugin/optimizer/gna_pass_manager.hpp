@@ -30,7 +30,7 @@ public:
     virtual ~IPassManager() = default;
     virtual int &getIntVar(std::string name) = 0;
     virtual const Policy &getPolicy() const = 0;
-    virtual const InferenceEngine::CNNNetPtr &getNetwork() const = 0;
+    virtual InferenceEngine::CNNNetwork &getNetwork() = 0;
 };
 
 class BasePass : public Pass {
@@ -219,12 +219,12 @@ struct PassManagerSettings {
 
 class PassManager : public IPassManager, public std::enable_shared_from_this<PassManager> {
     PassManagerSettings settings;
-    InferenceEngine::CNNNetPtr network;
+    InferenceEngine::CNNNetwork network;
     std::vector<std::shared_ptr<Pass>> passes;
     std::map<std::string, int> intMap;
 
 public:
-    explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetPtr network) noexcept
+    explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetwork network) noexcept
     : settings(settings)
     , network(network) {}
 
@@ -238,7 +238,7 @@ public:
     const Policy & getPolicy() const override {
         return settings.policy;
     }
-    const InferenceEngine::CNNNetPtr & getNetwork() const override {
+    InferenceEngine::CNNNetwork& getNetwork() override {
         return network;
     }
     /**

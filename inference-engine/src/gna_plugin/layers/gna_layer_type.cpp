@@ -17,12 +17,11 @@ GNAPluginNS::LayerType GNAPluginNS::LayerTypeFromStr(const std::string &str) {
         return NO_TYPE;
 }
 
-bool GNAPluginNS::AreLayersSupported(InferenceEngine::ICNNNetwork& network, std::string& errMessage) {
+bool GNAPluginNS::AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMessage) {
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNLayerSet inputLayers;
-    InferenceEngine::InputsDataMap inputs;
+    InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::unordered_set<InferenceEngine::CNNLayer *> allLayers;
-    network.getInputsInfo(inputs);
     IE_ASSERT(!inputs.empty());
     auto network_input_precision = inputs.begin()->second->getPrecision();
     auto batch_size = network.getBatchSize();
