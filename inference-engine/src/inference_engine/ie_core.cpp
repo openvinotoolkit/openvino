@@ -219,7 +219,7 @@ class Core::Impl : public ICore {
     ExecutableNetwork LoadNetworkImpl(const CNNNetwork& network, const std::string& deviceName,
                                       std::map<std::string, std::string> config,
                                       const RemoteContext::Ptr & context) {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
+        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::LoadNetwork");
 
         // check whether the network is already compiled and cached
         auto compileConfig = config;
@@ -282,6 +282,8 @@ class Core::Impl : public ICore {
         modelCacheEnabled = true;
 
         if (modelCacheEnabled && networkHash.empty() && deviceSupportsImport(this)) {
+            OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::hashing");
+
             // Note: the following information from remote context is taken into account:
             // * device name (part of compileConfig under DEVICE_NAME key)
 
@@ -332,6 +334,7 @@ class Core::Impl : public ICore {
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
             auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
             try {
+                OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::ImportNetwork");
                 std::cout << "try to import from core to " << deviceName << "\n\n" << std::endl;
                 std::ifstream networkStream(blobFileName);
                 execNetwork = context ?
@@ -365,6 +368,7 @@ class Core::Impl : public ICore {
         if (!networkIsImported) {
             auto parsed = parseDeviceNameIntoConfig(deviceName, config);
             {
+                OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::LoadNetwork");
                 // to limit plugin scope
                 auto plugin = GetCPPPluginByName(parsed._deviceName);
                 execNetwork = context ? plugin.LoadNetwork(network, parsed._config) :
@@ -374,9 +378,24 @@ class Core::Impl : public ICore {
             if (cachingIsAvailable) {
                 try {
                     // need to export network for further import from "cache"
-                    execNetwork.Export(blobFileName);
-                    std::cout << "Network is exported for " << parsed._deviceName
-                        << " as " << networkHash << std::endl;
+                    {
+                        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
+                        execNetwork.Export(blobFileName);
+                        std::cout << "Network is exported for " << parsed._deviceName
+                            << " as " << networkHash << std::endl;
+                    }
+                    {
+                        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::DesctroyExe");
+                        execNetwork = {};
+                    }
+                    {
+                        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::ImportNetwork_fake");
+                        std::ifstream networkStream(blobFileName);
+                        auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
+                        execNetwork = context ?
+                            ImportNetwork(networkStream, context, importConfig._config) :
+                            ImportNetwork(networkStream, importConfig._deviceName, importConfig._config);
+                    }
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
                     removeCacheEntry(blobFileName);

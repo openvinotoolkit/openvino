@@ -30,7 +30,7 @@ struct NetworkCompilationContext final {
             m_compileOptions{compileOptions},
             m_inputsInfo{network.getInputsInfo()},
             m_outputsInfo{network.getOutputsInfo()} {
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "NetworkCompilationContext::serialize_ir");
+        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "NetworkCompilationContext::serialize_ir");
 
         try {
             auto & icnnnet = static_cast<ICNNNetwork &>(network);
@@ -82,7 +82,7 @@ struct NetworkCompilationContext final {
 
     std::string computeHash() const {
         IE_ASSERT(isCachingAvailable());
-        OV_ITT_SCOPED_TASK(itt::domains::IE, "NetworkCompilationContext::computeHash");
+        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "NetworkCompilationContext::computeHash");
 
         size_t seed {};
         seed = hash_combine(seed, m_xmlFile.str());
