@@ -624,6 +624,7 @@ extensions/ops/constant_fill.py
 extensions/ops/copyop.py
 extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py
+extensions/ops/ctc_greedy_decoder_seq_len.py
 extensions/ops/ctc_loss.py
 extensions/ops/cumsum.py
 extensions/ops/data_augmentation.py
