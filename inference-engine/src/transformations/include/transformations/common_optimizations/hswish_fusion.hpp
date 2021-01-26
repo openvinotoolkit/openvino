@@ -17,7 +17,8 @@ class TRANSFORMATIONS_API HSwishFusion;
 class TRANSFORMATIONS_API HSwishFusionWithReluDiv;
 class TRANSFORMATIONS_API HSwishFusionWithReluMul;
 class TRANSFORMATIONS_API HSwishFusionWithoutRelu;
-class TRANSFORMATIONS_API HSwishFusionWithClamp;
+class TRANSFORMATIONS_API HSwishFusionWithClampMul;
+class TRANSFORMATIONS_API HSwishFusionWithClampDiv;
 
 
 }  // namespace pass
@@ -34,7 +35,8 @@ public:
         add_matcher<ngraph::pass::HSwishFusionWithReluDiv>();
         add_matcher<ngraph::pass::HSwishFusionWithReluMul>();
         add_matcher<ngraph::pass::HSwishFusionWithoutRelu>();
-        add_matcher<ngraph::pass::HSwishFusionWithClamp>();
+        add_matcher<ngraph::pass::HSwishFusionWithClampMul>();
+        add_matcher<ngraph::pass::HSwishFusionWithClampDiv>();
     }
 };
 
@@ -72,8 +74,18 @@ public:
  * @ingroup ie_transformation_common_api
  * @brief HSwishFusion transformation replaces a sub-graph x * (Clamp(x + 3, 0, 6) * const(1/6)) with a HSwish op.
  */
-class ngraph::pass::HSwishFusionWithClamp: public ngraph::pass::MatcherPass {
+class ngraph::pass::HSwishFusionWithClampMul: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    HSwishFusionWithClamp();
+    HSwishFusionWithClampMul();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief HSwishFusion transformation replaces a sub-graph x * (Clamp(x + 3, 0, 6) / 6) with a HSwish op.
+ */
+class ngraph::pass::HSwishFusionWithClampDiv: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    HSwishFusionWithClampDiv();
 };
