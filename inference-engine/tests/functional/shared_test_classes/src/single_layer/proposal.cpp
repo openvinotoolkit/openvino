@@ -102,7 +102,7 @@ void ProposalLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {{"a_scores", scoresShape}, {"b_boxes", boxesShape}});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(
+    auto proposal = std::dynamic_pointer_cast<ngraph::opset4::Proposal>(
              ngraph::builder::makeProposal(paramOuts[0], paramOuts[1], img_info, ngPrc,
                                            base_size,
                                            pre_nms_topn,
@@ -119,7 +119,9 @@ void ProposalLayerTest::SetUp() {
                                            box_coordinate_scale,
                                            framework));
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(proposal)};
+    ngraph::ResultVector results{
+        std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
+        std::make_shared<ngraph::opset1::Result>(proposal->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
 }
 

@@ -15,7 +15,6 @@
 //*****************************************************************************
 #include "ngraph/op/proposal.hpp"
 #include "ngraph/shape.hpp"
-#include <iomanip>
 namespace ngraph
 {
     namespace runtime
@@ -351,10 +350,21 @@ namespace ngraph
 
                     if (num_rois < post_nms_topn_)
                     {
-                        for (int i = 5 * num_rois; i < 5 * post_nms_topn_; i++)
+                        for (int i = num_rois; i < post_nms_topn_; i++)
                         {
-                            rois[i] = static_cast<T>(0.f);
+                            rois[i * 5 + 0] = static_cast<T>(0.f);
+                            rois[i * 5 + 1] = static_cast<T>(0.f);
+                            rois[i * 5 + 2] = static_cast<T>(0.f);
+                            rois[i * 5 + 3] = static_cast<T>(0.f);
+                            rois[i * 5 + 4] = static_cast<T>(0.f);
+                            if (probs)
+                            {
+                                probs[i] = static_cast<T>(0.f);
+                            }
                         }
+                        // TODO: decision has to be made regarding alignment to plugins
+                        // in the matter of how this should be terminated
+                        // rois[num_rois * 5] = static_cast<T>(-1);
                     }
                 }
             } // namespace details
@@ -547,7 +557,8 @@ namespace ngraph
                                  attrs.post_nms_topn,
                                  static_cast<T>(coordinates_offset));
 
-                    T* p_probs = p_prob_item ? p_prob_item + batch_idx * attrs.post_nms_topn : nullptr;
+                    T* p_probs =
+                        p_prob_item ? p_prob_item + batch_idx * attrs.post_nms_topn : nullptr;
                     details::retrieve_rois(num_rois,
                                            batch_idx,
                                            pre_nms_topn,
