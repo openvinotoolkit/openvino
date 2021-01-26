@@ -662,19 +662,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                     const pugi::xml_node& node,
                                                     const Blob::CPtr& weights,
                                                     const GenericLayerParams& params) {
-    static const InferenceEngine::details::caseless_unordered_map<std::string, std::shared_ptr<LayerBaseCreator>> creators = {
-    };
-
-    // Check that operation in default opsets
-    auto isDefaultOpSet = [](const std::string& version) -> bool {
-        static char const * prefix = "opset";
-        static size_t const prefixLen = strlen(prefix);
-        return version.length() == prefixLen + 1
-                && version.compare(0, prefixLen, prefix) == 0
-                && version[prefixLen] >= '1'
-                && version[prefixLen] <= '6';
-    };
-
+    // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
             THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
@@ -688,21 +676,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
     // Find registerd opset
     auto opsetIt = opsets.find(params.version);
-
-    if (isDefaultOpSet(params.version)) {
-        // Try to create operation from creators
-        auto creatorIt = creators.find(params.type);
-        if (creatorIt != creators.end()) {
-            auto const & creator = creatorIt->second;
-            // Check that opset isn't registered
-            // or opset should contains the same version of operation
-            // or doesn't contain operation with current type
-            if (opsetIt == opsets.end()
-                || opsetIt->second.contains_type(creator->getNodeType())
-                || !opsetIt->second.contains_type(params.type))
-                ngraphNode = creator->createLayer(inputs, node, weights, params);
-        }
-    }
 
     // Try to create operation from loaded opsets
     auto version = params.version;
@@ -823,20 +796,3 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
     return ngraphNode;
 }
-
-namespace InferenceEngine {
-
-// DepthToSpace layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::DepthToSpace>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::DepthToSpace>(inputs[0], GetStrAttr(dn, "mode"), GetIntAttr(dn, "block_size", 1));
-}
-}  // namespace InferenceEngine
