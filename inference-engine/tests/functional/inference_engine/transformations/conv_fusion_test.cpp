@@ -231,8 +231,6 @@ TEST(GroupConvMulFusion, WeightsWithoutReshape) {
 }
 
 
-
-
 TEST(GroupConvMulFusion, WeightsWithFakeQuantizeAndReshape) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
