@@ -19,7 +19,7 @@ cmake_minimum_required (VERSION 3.13)
 project (pyngraph)
 
 if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage QUIET)
+    find_package(InferenceEngineDeveloperPackage REQUIRED)
     find_package(ngraph REQUIRED)
 endif()
 
@@ -51,7 +51,7 @@ else()
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-    add_compile_options(-fPIC)
+    add_compile_options(-Wno-unused-value)
 endif()
 
 if (APPLE)
@@ -59,13 +59,17 @@ if (APPLE)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    #disable warning: This operator was deprecated and will be removed with v0 operation.
+    # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
 endif()
 
 file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
+
+# create target
+
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
-target_include_directories(_${PROJECT_NAME} PRIVATE src)
+
+target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
 
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
