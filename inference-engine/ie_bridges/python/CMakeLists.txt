@@ -67,7 +67,7 @@ if(ENABLE_WHEEL)
 endif()
 
 if(ENABLE_WHEEL)
-    add_subdirectory(install/wheel)
+    add_subdirectory(install)
 endif()
 
 # Check Cython version

@@ -45,14 +45,14 @@ configure_file("${OVERVIEW_IN}" "${CMAKE_CURRENT_BINARY_DIR}/pypi_overview.md" C
 configure_file("${REQUIREMENTS_IN}" "${CMAKE_CURRENT_BINARY_DIR}/requirements.txt" COPYONLY)
 configure_file("${LICENSE_IN}" "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.txt" COPYONLY)
 
-add_custom_target(ie_wheel ALL DEPENDS inference_engine clDNNPlugin MKLDNNPlugin HeteroPlugin MultiDevicePlugin myriadPlugin ngraph ie_api _pyngraph)
-
+add_custom_target(ie_wheel ALL DEPENDS inference_engine ngraph ie_api)
 add_custom_command(TARGET ie_wheel
     POST_BUILD
     COMMAND python ${SETUP_PY} clean bdist_wheel
         --build=${WHEEL_BUILD}
         --dist-dir ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}/wheels
         --plat-name=${WHEEL_PLATFORM}
+
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Building wheel distribution package ${WHEEL_PACKAGE_NAME}"
     VERBATIM
