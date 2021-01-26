@@ -37,7 +37,6 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
     const uint dim0 = get_global_id(0);
     const uint dim1 = get_global_id(1);
     const uint dim2 = get_global_id(2);
-
 #ifndef IS_SECOND_ITER // First kernel
     #if OUTPUT_DIMS == 4
         const uint x = dim0;
@@ -58,8 +57,9 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
         const uint f = dim2 % OUTPUT_FEATURE_NUM;
         const uint b = dim2 / OUTPUT_FEATURE_NUM;
     #endif
-    
+
     const uint output_idx = GET_OUTPUT_INDEX(ORDER);
+
     INPUT0_TYPE val = dictionary[output_idx];
     #if HAS_FUSED_OPS
         FUSED_OPS_FIRST_KERNEL;
@@ -69,70 +69,34 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
     #endif
 
 #else // Second kernel
-    #if OUTPUT_DIMS == 4
-        const uint x = dim0;
+    #if (INPUT2_DIMS == 4)
+        // bf|y|x
+        const uint b = dim2 / INPUT2_FEATURE_NUM;
+        const uint f = dim2 % INPUT2_FEATURE_NUM;
         const uint y = dim1;
-        #if AXIS_VALUE == 0
-            const uint f = dim2 % OUTPUT_FEATURE_NUM;
-            const uint b = dim2 / OUTPUT_FEATURE_NUM;
-        #else
-            const uint f = dim2 / OUTPUT_BATCH_NUM;
-            const uint b = dim2 % OUTPUT_BATCH_NUM;
-        #endif
-    #elif OUTPUT_DIMS == 5
+        const uint x = dim0;
+    #elif (INPUT2_DIMS == 5)
+        // bf|z|yx
+        const uint b = dim2 / INPUT2_FEATURE_NUM;
+        const uint f = dim2 % INPUT2_FEATURE_NUM;
         const uint z = dim1;
-        #if AXIS_VALUE == 1
-            const uint f = dim2 / OUTPUT_BATCH_NUM;
-            const uint b = dim2 % OUTPUT_BATCH_NUM;
-            const uint x = dim0 % OUTPUT_SIZE_X;
-            const uint y = dim0 / OUTPUT_SIZE_X;
-        #elif AXIS_VALUE == 4
-            const uint f = dim2 % OUTPUT_FEATURE_NUM;
-            const uint b = dim2 / OUTPUT_FEATURE_NUM;
-            const uint x = dim0 / OUTPUT_SIZE_Y;
-            const uint y = dim0 % OUTPUT_SIZE_Y;
-        #else
-            const uint f = dim2 % OUTPUT_FEATURE_NUM;
-            const uint b = dim2 / OUTPUT_FEATURE_NUM;
-            const uint x = dim0 % OUTPUT_SIZE_X;
-            const uint y = dim0 / OUTPUT_SIZE_X;
-        #endif
-    #elif OUTPUT_DIMS == 6
-        #if AXIS_VALUE == 1
-            const uint f = dim2 / OUTPUT_BATCH_NUM;
-            const uint b = dim2 % OUTPUT_BATCH_NUM;
-            const uint x = dim0 % OUTPUT_SIZE_X;
-            const uint y = dim0 / OUTPUT_SIZE_X;
-            const uint z = dim1 % OUTPUT_SIZE_Z;
-            const uint w = dim1 / OUTPUT_SIZE_Z;
-        #elif AXIS_VALUE == 3
-            const uint f = dim2 % OUTPUT_FEATURE_NUM;
-            const uint b = dim2 / OUTPUT_FEATURE_NUM;
-            const uint x = dim0 % OUTPUT_SIZE_X;
-            const uint y = dim0 / OUTPUT_SIZE_X;
-            const uint z = dim1 / OUTPUT_SIZE_W;
-            const uint w = dim1 % OUTPUT_SIZE_W;
-        #elif AXIS_VALUE == 5
-            const uint f = dim2 % OUTPUT_FEATURE_NUM;
-            const uint b = dim2 / OUTPUT_FEATURE_NUM;
-            const uint x = dim0 / OUTPUT_SIZE_Y;
-            const uint y = dim0 % OUTPUT_SIZE_Y;
-            const uint z = dim1 % OUTPUT_SIZE_Z;
-            const uint w = dim1 / OUTPUT_SIZE_Z;
-        #else
-            const uint f = dim2 % OUTPUT_FEATURE_NUM;
-            const uint b = dim2 / OUTPUT_FEATURE_NUM;
-            const uint x = dim0 % OUTPUT_SIZE_X;
-            const uint y = dim0 / OUTPUT_SIZE_X;
-            const uint z = dim1 % OUTPUT_SIZE_Z;
-            const uint w = dim1 / OUTPUT_SIZE_Z;
-        #endif
+        const uint y = dim0 / INPUT2_SIZE_X;
+        const uint x = dim0 % INPUT2_SIZE_X;
+    #elif (INPUT2_DIMS == 6)
+        // bf|wz|yx
+        const uint b = dim2 / INPUT2_FEATURE_NUM;
+        const uint f = dim2 % INPUT2_FEATURE_NUM;
+        const uint w = dim1 / INPUT2_SIZE_Z;
+        const uint z = dim1 % INPUT2_SIZE_Z;
+        const uint y = dim0 / INPUT2_SIZE_X;
+        const uint x = dim0 % INPUT2_SIZE_X;
     #endif
 
     const uint output_idx = GET_OUTPUT_INDEX(SECOND_ITER_OUTPUT_INDEX_ORDER);
     const uint updates_idx = GET_UPDATES_INDEX(INPUT2, UPDATES_INDEX_ORDER);
 
     INPUT2_TYPE val = updates[updates_idx];
+
     #if HAS_FUSED_OPS
         FUSED_OPS_SECOND_KERNEL;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
