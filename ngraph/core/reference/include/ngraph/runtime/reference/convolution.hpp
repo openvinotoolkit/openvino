@@ -76,13 +76,6 @@ namespace ngraph
                     return tensor(t.buffer, new_shape);
                 }
 
-                enum class ConvolutionType
-                {
-                    Conv1D,
-                    Conv2D,
-                    Conv3D
-                };
-
                 struct ConvolutionParams
                 {
                     std::vector<int> strides;
@@ -104,104 +97,6 @@ namespace ngraph
                 constexpr inline bool in_range(Int val, std::pair<Int, Int> range) noexcept
                 {
                     return val >= range.first && val < range.second;
-                }
-
-                template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
-                void convolve_1D_channels(const ConvolutionParams& p,
-                                          const Tensor<const INPUT*>& batch,
-                                          const Tensor<const FILTER*>& filter,
-                                          Tensor<OUTPUT*>& out)
-                {
-                    const int input_size_x = batch.shape[1];
-                    const int filter_size_x = filter.shape[1];
-                    const int dilated_filter_size_x =
-                        filter_size_x + (filter_size_x - 1) * (p.dilation[0] - 1);
-
-                    for (int i_x = -p.pads_begin[0];
-                         i_x <= (p.pads_end[0] + input_size_x - dilated_filter_size_x);
-                         i_x += p.strides[0])
-                    {
-                        ACCU sum = 0;
-                        auto input_channel = tensor_slice(batch);
-                        auto filter_channel = tensor_slice(filter);
-                        size_t filter_channels_count = filter.shape[0];
-                        while (filter_channels_count--)
-                        {
-                            for (int f_x = 0; f_x < filter_size_x; ++f_x)
-                            {
-                                int rel_i_x = i_x + (f_x * p.dilation[0]);
-                                bool padding = !in_range(rel_i_x, {0, input_size_x});
-                                if (padding)
-                                    continue;
-
-                                int f_buf_idx = f_x;
-                                int i_buf_idx = rel_i_x;
-
-                                sum += static_cast<ACCU>(input_channel.buffer[i_buf_idx]) *
-                                       static_cast<ACCU>(filter_channel.buffer[f_buf_idx]);
-                            }
-                            ++input_channel;
-                            ++filter_channel;
-                        }
-                        *out.buffer = sum;
-                        ++out.buffer;
-                    }
-                }
-
-                template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
-                void convolve_2D_channels(const ConvolutionParams& p,
-                                          const Tensor<const INPUT*>& batch,
-                                          const Tensor<const FILTER*>& filter,
-                                          Tensor<OUTPUT*>& out)
-                {
-                    const int input_size_y = batch.shape[1];
-                    const int input_size_x = batch.shape[2];
-                    const int filter_size_y = filter.shape[1];
-                    const int filter_size_x = filter.shape[2];
-                    const int dilated_filter_size_y =
-                        filter_size_y + (filter_size_y - 1) * (p.dilation[0] - 1);
-                    const int dilated_filter_size_x =
-                        filter_size_x + (filter_size_x - 1) * (p.dilation[1] - 1);
-
-                    for (int i_y = -p.pads_begin[0];
-                         i_y <= (p.pads_end[0] + input_size_y - dilated_filter_size_y);
-                         i_y += p.strides[0])
-                    {
-                        for (int i_x = -p.pads_begin[1];
-                             i_x <= (p.pads_end[1] + input_size_x - dilated_filter_size_x);
-                             i_x += p.strides[1])
-                        {
-                            ACCU sum = 0;
-                            auto input_channel = tensor_slice(batch);
-                            auto filter_channel = tensor_slice(filter);
-                            size_t filter_channels_count = filter.shape[0];
-                            while (filter_channels_count--)
-                            {
-                                for (int f_y = 0; f_y < filter_size_y; ++f_y)
-                                {
-                                    for (int f_x = 0; f_x < filter_size_x; ++f_x)
-                                    {
-                                        int rel_i_y = i_y + (f_y * p.dilation[0]);
-                                        int rel_i_x = i_x + (f_x * p.dilation[1]);
-
-                                        bool padding = !(in_range(rel_i_x, {0, input_size_x}) &&
-                                                         in_range(rel_i_y, {0, input_size_y}));
-                                        if (padding)
-                                            continue;
-
-                                        int f_buf_idx = (f_y * filter_size_x) + f_x;
-                                        int i_buf_idx = (rel_i_y * input_size_x) + rel_i_x;
-                                        sum += static_cast<ACCU>(input_channel.buffer[i_buf_idx]) *
-                                               static_cast<ACCU>(filter_channel.buffer[f_buf_idx]);
-                                    }
-                                }
-                                ++input_channel;
-                                ++filter_channel;
-                            }
-                            *out.buffer = sum;
-                            ++out.buffer;
-                        }
-                    }
                 }
 
                 template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
@@ -281,46 +176,23 @@ namespace ngraph
                     }
                 }
 
-                template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
-                void convolve_channels(const ConvolutionType& type,
-                                       const ConvolutionParams& p,
-                                       const Tensor<const INPUT*>& in,
-                                       const Tensor<const FILTER*>& f,
-                                       Tensor<OUTPUT*>& out)
+                void extend_to_3D(ConvolutionParams& p, Shape& in_shape, Shape& filter_shape)
                 {
-                    switch (type)
+                    int spatial_rank = in_shape.size() - 2;
+                    if (spatial_rank < 3)
                     {
-                    case ConvolutionType::Conv1D:
-                        convolve_1D_channels<INPUT, FILTER, OUTPUT, ACCU>(p, in, f, out);
-                        break;
-                    case ConvolutionType::Conv2D:
-                        convolve_2D_channels<INPUT, FILTER, OUTPUT, ACCU>(p, in, f, out);
-                        break;
-                    case ConvolutionType::Conv3D:
-                        convolve_3D_channels<INPUT, FILTER, OUTPUT, ACCU>(p, in, f, out);
-                        break;
-                    }
-                }
-
-                template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
-                void conv_impl(const ConvolutionType& type,
-                               const ConvolutionParams& params,
-                               const Tensor<const INPUT*> input,
-                               const Tensor<const FILTER*> filters,
-                               Tensor<OUTPUT*> output)
-                {
-                    const size_t batch_count = input.shape[in_batch_axis];
-                    const size_t filters_count = filters.shape[filter_out_ch_axis];
-
-                    auto batch = tensor_slice(input);
-                    for (size_t batch_idx = 0; batch_idx < batch_count; ++batch_idx, ++batch)
-                    {
-                        auto filter = tensor_slice(filters);
-                        for (size_t f_idx = 0; f_idx < filters_count; ++f_idx, ++filter)
-                        {
-                            convolve_channels<INPUT, FILTER, OUTPUT, ACCU>(
-                                type, params, batch, filter, output);
-                        }
+                        int missing_dims = 3 - spatial_rank;
+                        p.dilation.insert(
+                            std::next(p.dilation.end(), -spatial_rank), missing_dims, 1);
+                        p.strides.insert(
+                            std::next(p.strides.end(), -spatial_rank), missing_dims, 1);
+                        p.pads_begin.insert(
+                            std::next(p.pads_begin.end(), -spatial_rank), missing_dims, 0);
+                        p.pads_end.insert(
+                            std::next(p.pads_end.end(), -spatial_rank), missing_dims, 0);
+                        in_shape.insert(std::next(in_shape.end(), -spatial_rank), missing_dims, 1);
+                        filter_shape.insert(
+                            std::next(filter_shape.end(), -spatial_rank), missing_dims, 1);
                     }
                 }
             }
@@ -342,28 +214,48 @@ namespace ngraph
                              const Strides&)
 
             {
-                const ConvolutionType type = [&]() {
-                    switch (filter_shape.size())
-                    {
-                    case 3: return ConvolutionType::Conv1D;
-                    case 4: return ConvolutionType::Conv2D;
-                    case 5: return ConvolutionType::Conv3D;
-                    default: NGRAPH_UNREACHABLE("Unsupported kernel rank: ", filter_shape);
-                    }
-                }();
+                // this implementation supports 1D, 2D & 3D convolutions
+                NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
+                             "Unsupported input rank: ",
+                             in_shape);
+
+                NGRAPH_CHECK(filter_shape.size() >= 3 && filter_shape.size() <= 5,
+                             "Unsupported kernel rank: ",
+                             filter_shape);
 
                 auto old_mode = std::fegetround();
                 std::fesetround(FE_TONEAREST);
 
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later
-                const ConvolutionParams params{strides, dilation, pads_begin, pads_end};
+                ConvolutionParams params{strides, dilation, pads_begin, pads_end};
 
-                const auto input = tensor(in, in_shape);
-                const auto filter = tensor(f, filter_shape);
-                const auto output = tensor(out, out_shape);
+                // here we are extending spatial dimensions to 3D, because we are going to use 3D
+                // convolution implementation to convolve also in 1D & 2D case
+                Shape input_shape{in_shape};
+                Shape filters_shape{filter_shape};
+                if (in_shape.size() < 5)
+                {
+                    extend_to_3D(params, input_shape, filters_shape);
+                }
 
-                conv_impl<INPUT, FILTER, OUTPUT, ACCU>(type, params, input, filter, output);
+                const auto input = tensor(in, input_shape);
+                const auto filters = tensor(f, filters_shape);
+                auto output = tensor(out, out_shape);
+
+                const size_t batch_count = input.shape[in_batch_axis];
+                const size_t filters_count = filters.shape[filter_out_ch_axis];
+
+                auto batch = tensor_slice(input);
+                for (size_t batch_idx = 0; batch_idx < batch_count; ++batch_idx, ++batch)
+                {
+                    auto filter = tensor_slice(filters);
+                    for (size_t f_idx = 0; f_idx < filters_count; ++f_idx, ++filter)
+                    {
+                        convolve_3D_channels<INPUT, FILTER, OUTPUT, ACCU>(
+                            params, batch, filter, output);
+                    }
+                }
 
                 std::fesetround(old_mode);
             }
