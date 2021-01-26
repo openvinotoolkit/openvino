@@ -176,7 +176,7 @@ if len(zoo_models) > 0:
             # ONNX Model Zoo
             (xfail_issue_39704, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_ResNet101_DUC_HDC_cpu"),
             (xfail_issue_43213, "test_onnx_model_zoo_vision_object_detection_segmentation_retinanet_model_retinanet_9_test_retinanet_resnet101_retinanet_9_cpu"),
-            (xfail_issue_43208, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_10_GPT2_model_cpu"),
+            (pytest.mark.skip(), "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_10_GPT2_model_cpu"),
             (xfail_issue_43209, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_lm_head_10_GPT_2_LM_HEAD_model_cpu"),
             (xfail_issue_40957, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_10_download_sample_10_bertsquad10_cpu"),
             (xfail_issue_40957, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
