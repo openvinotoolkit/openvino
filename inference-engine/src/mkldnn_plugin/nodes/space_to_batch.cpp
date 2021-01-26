@@ -23,73 +23,96 @@ public:
             if (!spaceToBatchLayer)
                 IE_THROW() << "'" << layer->name << "' layer is not instance of SpaceToBatchLayer class";
 
-            if (spaceToBatchLayer->insData.size() != 4 || spaceToBatchLayer->outData.size() != 1)
-                IE_THROW() << "'" << spaceToBatchLayer->name << "' layer has incorrect number of input or output edges!";
+            if (spaceToBatchLayer->insData.size() != 4)
+                IE_THROW() << "'" << spaceToBatchLayer->name << "' has incorrect number of input edges";
 
-            auto inData = spaceToBatchLayer->insData[0].lock();
-            if (inData == nullptr)
-                IE_THROW() << "'" << spaceToBatchLayer->name << "' layer has nullable input data";
+            if (spaceToBatchLayer->outData.size() != 1)
+                IE_THROW() << "'" << spaceToBatchLayer->name << "' has incorrect number of output edges";
 
-            if (inData->getLayout() != NCHW && inData->getLayout() != NCDHW)
-                IE_THROW() << "'" << spaceToBatchLayer->name << "' layer has unsupported layout: " << inData->getLayout();
+            inDims = spaceToBatchLayer->insData[0].lock()->getTensorDesc().getDims();
+            if (inDims.size() < 4)
+                IE_THROW() << "'" << spaceToBatchLayer->name
+                                   << "' has incorrect number of input dimensions";
 
-            const auto precision = inData->getTensorDesc().getPrecision();
+            if (inDims.size() > 5)
+                IE_THROW() << "'" << spaceToBatchLayer->name
+                                   << "' doesn't support dimensions with rank greater than 5";
+
+            outDims = spaceToBatchLayer->outData[0]->getTensorDesc().getDims();
+            if (inDims.size() != outDims.size())
+                IE_THROW() << "'" << spaceToBatchLayer->name
+                                   << "' has incorrect number of input/output dimensions";
+
+            if (inDims[1] != outDims[1])
+                IE_THROW() << "'" << spaceToBatchLayer->name << "' layer has different IN and OUT channels number";
+
+            const auto precision = spaceToBatchLayer->insData[0].lock()->getTensorDesc().getPrecision();
             const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
             if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
                 IE_THROW() << "'" << spaceToBatchLayer->name << "' layer has unsupported precision: " << precision.name();
 
-            const SizeVector& in_dims = inData->getTensorDesc().getDims();
-            const SizeVector& out_dims = layer->outData[0]->getTensorDesc().getDims();
-            if (in_dims[1] != out_dims[1])
-                IE_THROW() << "'" << spaceToBatchLayer->name << "' layer has different IN and OUT channels number";
-
             _block_shape = spaceToBatchLayer->_block_shape;
             _pads_begin = spaceToBatchLayer->_pads_begin;
-            _pads_end = spaceToBatchLayer->_pads_end;
+
+            if (inDims.size() == 4 || inDims.size() == 5) {
+                LayerConfig config;
+                // TODO: remove Const layers
+                for (int i = 0; i < spaceToBatchLayer->insData.size(); i++) {
+                    auto inData = spaceToBatchLayer->insData[i].lock();
+                    if (!inData)
+                        IE_THROW() << "'" << spaceToBatchLayer->name << "' layer has nullable input data";
+                    DataConfig inConfig;
+                    if (i == 0)
+                        inConfig.desc = TensorDesc(precision, inData->getTensorDesc().getDims(), inDims.size() == 4 ? NHWC : NDHWC);
+                    else
+                        inConfig.desc = TensorDesc(precision, inData->getTensorDesc().getDims(), inData->getTensorDesc().getLayout());
+                    config.inConfs.push_back(inConfig);
+                }
+
+                DataConfig outConfig;
+                outConfig.desc = TensorDesc(precision, outDims, outDims.size() == 4 ? NHWC : NDHWC);
+                config.outConfs.push_back(outConfig);
+
+                config.dynBatchSupport = false;
+                confs.push_back(config);
+            }
 
             LayerConfig config;
-            config.inConfs.resize(spaceToBatchLayer->insData.size());
             // TODO: remove Const layers
             for (int i = 0; i < spaceToBatchLayer->insData.size(); i++) {
                 auto inData = spaceToBatchLayer->insData[i].lock();
-                if (inData == nullptr)
+                if (!inData)
                     IE_THROW() << "'" << spaceToBatchLayer->name << "' layer has nullable input data";
-                config.inConfs[i].desc = TensorDesc(precision, inData->getTensorDesc().getDims(), inData->getTensorDesc().getLayout());
+                DataConfig inConfig;
+                inConfig.desc = TensorDesc(precision, inData->getTensorDesc().getDims(),
+                                           inData->getTensorDesc().getLayout());
+                config.inConfs.push_back(inConfig);
             }
 
             DataConfig outConfig;
-            outConfig.desc = TensorDesc(precision, out_dims, layer->outData[0]->getTensorDesc().getLayout());
+            outConfig.desc = TensorDesc(precision, outDims, InferenceEngine::TensorDesc::getLayoutByDims(outDims));
             config.outConfs.push_back(outConfig);
+
             config.dynBatchSupport = false;
             confs.push_back(config);
-        } catch (InferenceEngine::Exception &ex) {
+        } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
         switch (inputs[0]->getTensorDesc().getPrecision().size()) {
-            case 1: {
-                process_data<PrecisionTrait<Precision::U8>::value_type>(inputs, outputs);
-                break;
-            }
-            case 2: {
-                process_data<PrecisionTrait<Precision::U16>::value_type>(inputs, outputs);
-                break;
-            }
-            case 4: {
-                process_data<PrecisionTrait<Precision::I32>::value_type>(inputs, outputs);
-                break;
-            }
-            case 8: {
-                process_data<PrecisionTrait<Precision::U64>::value_type>(inputs, outputs);
-                break;
-            }
+            case 1: spaceToBatchKernel<PrecisionTrait<Precision::U8>::value_type>(inputs, outputs); break;
+            case 2: spaceToBatchKernel<PrecisionTrait<Precision::U16>::value_type>(inputs, outputs); break;
+            case 4: spaceToBatchKernel<PrecisionTrait<Precision::I32>::value_type>(inputs, outputs); break;
+            case 8: spaceToBatchKernel<PrecisionTrait<Precision::U64>::value_type>(inputs, outputs); break;
             default: {
                 if (resp) {
-                    std::string errorMsg = "SpaceToBatch layer does not support precision '"
-                            + std::string(inputs[0]->getTensorDesc().getPrecision().name()) + "'";
+                    std::string errorMsg = "SpaceToDepth layer with name does not support precision '"
+                                           + std::string(inputs[0]->getTensorDesc().getPrecision().name()) + "'";
                     errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+
+                    return GENERAL_ERROR;
                 }
             }
         }
@@ -97,124 +120,117 @@ public:
         return OK;
     }
 
+private:
+    std::vector<size_t> getShape5D(const SizeVector& shape) {
+        std::vector<size_t> shape5D(5, 1);
+        for (int i = 0; i < shape.size(); i++) {
+            shape5D[i] = shape[i];
+        }
+        return shape5D;
+    }
     template<typename T>
-    void process_data(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) noexcept {
-        const T* src_data = inputs[0]->cbuffer().as<const T*>() +
-            inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        T* dst_data = outputs[0]->buffer().as<T*>() +
-            outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    void spaceToBatchKernel(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) noexcept {
+        const T* src_data = inputs[0]->cbuffer().as<const T *>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        T* dst_data = outputs[0]->buffer().as<T *>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
-        const auto& inDims = inputs[0]->getTensorDesc().getDims();
         const size_t dims_size = inDims.size();
         const auto layout = inputs[0]->getTensorDesc().getLayout();
 
-        const int64_t IB = inDims[0];
-        const int64_t IC = inDims[1];
-        const int64_t ID = layout == NCDHW ? inDims[dims_size - 3] : 1lu;
-        const int64_t IH = inDims[dims_size - 2];
-        const int64_t IW = inDims[dims_size - 1];
+        auto inShape5D  = getShape5D(outDims);
+        auto outShape5D = getShape5D(inDims);
 
-        const auto& outDims = outputs[0]->getTensorDesc().getDims();
+        size_t inSpatialStep = inShape5D[2] * inShape5D[3] * inShape5D[4];
+        size_t inBatchStep = inShape5D[1] * inSpatialStep;
 
-        const size_t OB = outDims[0];
-        const size_t OC = outDims[1];
-        const size_t OD = layout == NCDHW ? outDims[dims_size - 3] : 1lu;
-        const size_t OH = outDims[dims_size - 2];
-        const size_t OW = outDims[dims_size - 1];
+        size_t outSpatialStep = outShape5D[2] * outShape5D[3] * outShape5D[4];
+        size_t outBatchStep = outShape5D[1] * outSpatialStep;
 
-        const int64_t cBSD = layout == NCDHW ? _block_shape[dims_size - 3] : 1lu;  // Do not use name BSD. It affects MacOS build
-        const int64_t BSH = _block_shape[dims_size - 2];
-        const int64_t BSW = _block_shape[dims_size - 1];
-
-        const int64_t PF = layout == NCDHW ? _pads_begin[dims_size - 3] : 0;
+        const int64_t PF = inDims.size() == 5 ? _pads_begin[dims_size - 3] : 0;
         const int64_t PT = _pads_begin[dims_size - 2];
         const int64_t PL = _pads_begin[dims_size - 1];
+        const size_t ID = inDims.size() == 5 ? inShape5D[dims_size - 3] : 1lu;
 
-        const size_t OH_OW = OH * OW;
-        const size_t IH_IW = IH * IW;
-        const size_t ID_IH_IW = ID * IH_IW;
-        const size_t IC_ID_IH_IW = IC * ID_IH_IW;
-
-        const size_t work_amount = OB*OC*OD*OH*OW;
-
-        auto thread_body = [&](const int ithr, const int nthr) {
-            size_t start(0lu), end(0lu);
-            splitter(work_amount, nthr, ithr, start, end);
-            if (start >= end)
-                return;
-            int64_t ob(0), oc(0), od(0), oh(0), ow(0);
-            parallel_it_init(start, ob, OB, oc, OC, od, OD, oh, OH, ow, OW);
-
-            for (; ob < OB; ob++) {
-                const int64_t ib = ob % IB;
-                const int64_t ib_k = ib * IC_ID_IH_IW;
-                int64_t bi = ob / IB;
-                const int64_t shift_w = bi % BSW - PL;
-                bi /= BSW;
-                const int64_t shift_h = (layout == NCDHW ? bi % BSH : bi) - PT;
-                const int64_t shift_d = layout == NCDHW ? (bi / BSH - PF) : 0;
-                for (; oc < OC; oc++) {
-                    const int64_t ic_k = ib_k + oc * ID_IH_IW;
-                    for (; od < OD; od++) {
-                        const int64_t id = od * cBSD + shift_d;
-                        if (id < 0 || id >= ID) {
-                            std::fill(dst_data + start, dst_data + start + OH_OW, T(0));
-                            start += OH_OW;
-                            if (start >= end)
-                                break;
-                            continue;
-                        }
-                        const int64_t id_k = ic_k + id * IH_IW;
-                        for (; oh < OH; oh++) {
-                            const int64_t ih = oh * BSH + shift_h;
-                            if (ih < 0 || ih >= IH) {
-                                std::fill(dst_data + start, dst_data + start + OW, T(0));
-                                start += OW;
-                                if (start >= end)
-                                    break;
-                                continue;
-                            }
-                            const int64_t ih_k = id_k + ih * IW;
-                            for (; ow < OW; ow++) {
-                                const int64_t iw = ow * BSW + shift_w;
-                                if (iw < 0 || iw >= IW) {
-                                    dst_data[start] = T(0);
-                                    start++;
-                                    if (start >= end)
-                                        break;
-                                    continue;
-                                }
-                                const int64_t src_idx = ih_k + iw;
-                                dst_data[start] = src_data[src_idx];
-                                start++;
-                                if (start >= end)
-                                    break;
-                            }
-                            if (start >= end)
-                                break;
-                            ow = 0;
-                        }
-                        if (start >= end)
-                            break;
-                        oh = 0;
-                    }
-                    if (start >= end)
-                        break;
-                    od = 0;
+        if (layout == NHWC || layout == NDHWC) {
+            parallel_for(inShape5D[0], [&](size_t i0) {
+                int64_t b_idx = i0 / outShape5D[0];
+                size_t srcIdx1 = (i0 - (b_idx * outShape5D[0])) * outBatchStep;
+                size_t dstIdx1 = i0 * inBatchStep;
+                const int64_t ow_add = b_idx % _block_shape[dims_size - 1] - PL;
+                b_idx /= _block_shape[dims_size - 1];
+                int64_t oh_add = (layout == NDHWC ? b_idx % _block_shape[dims_size - 2] : b_idx) - PT;
+                int64_t od_add = layout == NDHWC ? b_idx / _block_shape[dims_size - 2] - PF : 0lu;
+                size_t i2_begin = layout == NDHWC ? (2 - od_add) / _block_shape[dims_size - 3] : 0lu;
+                size_t i2_end   = layout == NDHWC ? (outShape5D[dims_size - 3] - 1 - od_add) / _block_shape[dims_size - 3] + 1 : 1lu;
+                for (size_t _i2_ = 0; _i2_ < ID; _i2_++) {
+                    size_t end = inShape5D[dims_size - 2] * inShape5D[dims_size - 1] * inShape5D[1];
+                    size_t dstIdx2 = dstIdx1 + _i2_ * end;
+                    std::fill(dst_data + dstIdx2, dst_data + dstIdx2 + end, T(0));
                 }
-                if (start >= end)
-                    break;
-                oc = 0;
-            }
-        };
-
-        parallel_nt(0, thread_body);
+                for (size_t i2 = i2_begin; i2 < i2_end; i2++) {
+                    size_t tmp_od = i2 * _block_shape[dims_size - 3] + od_add;
+                    size_t dstIdx2 = dstIdx1 + i2 * inShape5D[dims_size - 2] * inShape5D[dims_size - 1] * inShape5D[1];
+                    size_t srcIdx2 = srcIdx1 + tmp_od * outShape5D[dims_size - 2] * outShape5D[dims_size - 1] * outShape5D[1];
+                    size_t i3_begin = (1 - oh_add) / _block_shape[dims_size - 2];
+                    for (size_t i3 = i3_begin; i3 < inShape5D[dims_size - 2]; i3++) {
+                        size_t tmp_oh = i3 * _block_shape[dims_size - 2] + oh_add;
+                        size_t dstIdx3 = dstIdx2 + i3 * inShape5D[dims_size - 1] * inShape5D[1];
+                        size_t srcIdx3 = srcIdx2 + tmp_oh * outShape5D[dims_size - 1] * outShape5D[1];
+                        size_t i4_begin = (1 - ow_add) / _block_shape[dims_size - 1];
+                        for (size_t i4 = i4_begin; i4 < inShape5D[dims_size - 1]; i4++) {
+                            size_t tmp_ow = i4 * _block_shape[dims_size - 1] + ow_add;
+                            size_t dstIdx4 = dstIdx3 + i4 * inShape5D[1];
+                            size_t srcIdx4 = srcIdx3 + tmp_ow * outShape5D[1];
+                            for (size_t i1 = 0; i1 < outShape5D[1]; ++i1) {
+                                size_t dstIdx5 = dstIdx4 + i1;
+                                size_t srcIdx5 = srcIdx4 + i1;
+                                dst_data[dstIdx5] = src_data[srcIdx5];
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            parallel_for2d(inShape5D[0], inShape5D[1], [&](size_t i0, size_t i1) {
+                int64_t b_idx = i0 / outShape5D[0];
+                size_t srcIdx1 = (i0 - (b_idx * outShape5D[0])) * outBatchStep + i1 * outSpatialStep;
+                size_t dstIdx1 = i0 * inBatchStep + i1 * inSpatialStep;
+                const int64_t ow_add = b_idx % _block_shape[dims_size - 1] - PL;
+                b_idx /= _block_shape[dims_size - 1];
+                int64_t oh_add = (layout == NCDHW ? b_idx % _block_shape[dims_size - 2] : b_idx) - PT;
+                int64_t od_add = layout == NCDHW ? b_idx / _block_shape[dims_size - 2] - PF : 0lu;
+                size_t i2_begin = layout == NCDHW ? (2 - od_add) / _block_shape[dims_size - 3] : 0lu;
+                size_t i2_end   = layout == NCDHW ? (outShape5D[dims_size - 3] - 1 - od_add) / _block_shape[dims_size - 3] + 1 : 1lu;
+                for (size_t _i2_ = 0; _i2_ < ID; _i2_++) {
+                    size_t end = inShape5D[dims_size - 2] * inShape5D[dims_size - 1];
+                    size_t dstIdx2 = dstIdx1 + _i2_ * end;
+                    std::fill(dst_data + dstIdx2, dst_data + dstIdx2 + end, T(0));
+                }
+                for (size_t i2 = i2_begin; i2 < i2_end; i2++) {
+                    size_t tmp_od = i2 *  _block_shape[dims_size - 3] + od_add;
+                    size_t dstIdx2 = dstIdx1 + i2 * inShape5D[dims_size - 2] * inShape5D[dims_size - 1];
+                    size_t srcIdx2 = srcIdx1 + tmp_od * outShape5D[dims_size - 2] * outShape5D[dims_size - 1];
+                    size_t i3_begin = (1 - oh_add) / _block_shape[dims_size - 2];
+                    for (size_t i3 = i3_begin; i3 < inShape5D[dims_size - 2]; i3++) {
+                        size_t tmp_oh = i3 * _block_shape[dims_size - 2] + oh_add;
+                        size_t dstIdx3 = dstIdx2 + i3 * inShape5D[dims_size - 1];
+                        size_t srcIdx3 = srcIdx2 + tmp_oh * outShape5D[dims_size - 1];
+                        size_t i4_begin = (1 - ow_add) / _block_shape[dims_size - 1];
+                        for (size_t i4 = i4_begin; i4 < inShape5D[dims_size - 1]; i4++) {
+                            size_t tmp_ow = i4 * _block_shape[dims_size - 1] + ow_add;
+                            size_t dstIdx4 = dstIdx3 + i4;
+                            size_t srcIdx4 = srcIdx3 + tmp_ow;
+                            dst_data[dstIdx4] = src_data[srcIdx4];
+                        }
+                    }
+                }
+            });
+        }
     }
 
-private:
+    SizeVector inDims;
+    SizeVector outDims;
     std::vector<size_t> _block_shape;
     std::vector<size_t> _pads_begin;
-    std::vector<size_t> _pads_end;
 };
 
 REG_FACTORY_FOR(SpaceToBatchImpl, SpaceToBatch);
@@ -222,3 +238,4 @@ REG_FACTORY_FOR(SpaceToBatchImpl, SpaceToBatch);
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace InferenceEngine
+
