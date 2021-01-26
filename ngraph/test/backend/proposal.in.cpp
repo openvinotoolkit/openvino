@@ -2603,7 +2603,7 @@ NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
         class_probs_param, bbox_deltas_param, image_shape_param, attrs);
     auto f = make_shared<Function>(
         proposal, ParameterVector{class_probs_param, bbox_deltas_param, image_shape_param});
-    
+
     std::vector<float> c{std::begin(cls_scores_data), std::end(cls_scores_data)};
     std::vector<float> b{std::begin(bbox_pred_data), std::end(bbox_pred_data)};
     std::vector<float> i{image_h, image_w, image_z};
