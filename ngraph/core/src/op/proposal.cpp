@@ -163,16 +163,12 @@ void op::v4::Proposal::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v4_Proposal_validate_and_infer_types);
     v0::Proposal::validate_and_infer_types();
 
-    const auto& class_probs_pshape = get_input_partial_shape(0);
-    const auto& class_bbox_deltas_pshape = get_input_partial_shape(1);
-    const auto& image_shape_pshape = get_input_partial_shape(2);
-    auto batch_size = class_probs_pshape[0];
-    if (class_probs_pshape.is_static() && class_bbox_deltas_pshape.is_static() &&
-        image_shape_pshape.is_static())
-        set_output_type(
-            1, get_input_element_type(0), PartialShape{batch_size * m_attrs.post_nms_topn});
+    // Output shape was inferred in v0's validate_and_infer_types
+    const auto out_ps = get_output_partial_shape(0);
+    if (out_ps[0].is_static())
+        set_output_type(1, get_input_element_type(0), PartialShape{out_ps[0].get_length()});
     else
-        set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+        set_output_type(1, get_input_element_type(0), PartialShape{Dimension::dynamic()});
 }
 
 std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const

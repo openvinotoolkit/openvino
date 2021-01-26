@@ -555,6 +555,7 @@ TEST(type_prop, proposal_v4_dynamic_class_probs_bbox_deltas_dim1_batch_size_infe
 
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
     ASSERT_EQ(op->get_output_partial_shape(0), (PartialShape{Dimension::dynamic(), 5}));
+    ASSERT_EQ(op->get_output_partial_shape(1), (PartialShape{Dimension::dynamic()}));
 }
 
 TEST(type_prop, proposal_v4_dynamic_image_shape_shape_infer)

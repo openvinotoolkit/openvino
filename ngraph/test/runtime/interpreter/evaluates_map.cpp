@@ -833,15 +833,35 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::proposal<T>(inputs[0]->get_data_ptr<T>(),
-                                        inputs[1]->get_data_ptr<T>(),
-                                        inputs[2]->get_data_ptr<T>(),
-                                        outputs[0]->get_data_ptr<T>(),
-                                        inputs[0]->get_shape(),
-                                        inputs[1]->get_shape(),
-                                        inputs[2]->get_shape(),
-                                        outputs[0]->get_shape(),
-                                        op.get()->get_attrs());
+        runtime::reference::proposal_v0<T>(inputs[0]->get_data_ptr<T>(),
+                                           inputs[1]->get_data_ptr<T>(),
+                                           inputs[2]->get_data_ptr<T>(),
+                                           outputs[0]->get_data_ptr<T>(),
+                                           inputs[0]->get_shape(),
+                                           inputs[1]->get_shape(),
+                                           inputs[2]->get_shape(),
+                                           outputs[0]->get_shape(),
+                                           op.get()->get_attrs());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v4::Proposal>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::proposal_v4<T>(inputs[0]->get_data_ptr<T>(),
+                                           inputs[1]->get_data_ptr<T>(),
+                                           inputs[2]->get_data_ptr<T>(),
+                                           outputs[0]->get_data_ptr<T>(),
+                                           outputs[1]->get_data_ptr<T>(),
+                                           inputs[0]->get_shape(),
+                                           inputs[1]->get_shape(),
+                                           inputs[2]->get_shape(),
+                                           outputs[0]->get_shape(),
+                                           outputs[1]->get_shape(),
+                                           op.get()->get_attrs());
         return true;
     }
 
