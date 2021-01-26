@@ -510,6 +510,93 @@ namespace
                                 scores_ps[0].get_length();
                 }
             }
+            return result;
+        }
+
+        std::vector<int64_t> get_integers(const std::shared_ptr<HostTensor>& input,
+                                          const Shape& shape)
+        {
+            size_t input_size = shape_size(shape);
+            std::vector<int64_t> result(input_size);
+
+            switch (input->get_element_type())
+            {
+            case element::Type_t::i8:
+            {
+                auto p = input->get_data_ptr<int8_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::i16:
+            {
+                auto p = input->get_data_ptr<int16_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::i32:
+            {
+                auto p = input->get_data_ptr<int32_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::i64:
+            {
+                auto p = input->get_data_ptr<int64_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::u8:
+            {
+                auto p = input->get_data_ptr<uint8_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::u16:
+            {
+                auto p = input->get_data_ptr<uint16_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::u32:
+            {
+                auto p = input->get_data_ptr<uint32_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::u64:
+            {
+                auto p = input->get_data_ptr<uint64_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            default:
+                throw std::runtime_error("Unsupported data type in op NonMaxSuppression-5");
+                break;
+            }
 
             return result;
         }
@@ -636,10 +723,11 @@ namespace
         {
             InfoForNMS5 result;
 
-            result.max_output_boxes_per_class = nms5->max_boxes_output_from_input();
-            result.iou_threshold = nms5->iou_threshold_from_input();
-            result.score_threshold = nms5->score_threshold_from_input();
-            result.soft_nms_sigma = nms5->soft_nms_sigma_from_input();
+            result.max_output_boxes_per_class =
+                inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
+            result.iou_threshold = inputs.size() > 3 ? get_floats(inputs[3], Shape({}))[0] : 0.0f;
+            result.score_threshold = inputs.size() > 4 ? get_floats(inputs[4], Shape({}))[0] : 0.0f;
+            result.soft_nms_sigma = inputs.size() > 5 ? get_floats(inputs[5], Shape({}))[0] : 0.0f;
 
             auto selected_indices_shape =
                 infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
