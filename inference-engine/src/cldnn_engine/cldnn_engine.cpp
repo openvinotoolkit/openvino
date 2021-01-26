@@ -62,6 +62,7 @@
 
 #include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
+#include <low_precision/strided_slice.hpp>
 
 #include "cldnn_engine.h"
 #include "cldnn_executable_network.h"
@@ -286,7 +287,9 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                                                       LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
                                                       true);                                                       // supportAsymmetricQuantization
             LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
+                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false))
+                // INT8 StridedSlice not supported
+                .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
 
             transformer.transform(nGraphFunc);
         }
