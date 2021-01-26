@@ -438,9 +438,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_with_weight_expanded_cpu",  # noqa
         "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_reduction_sum_expanded_cpu",  # noqa
         "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_reduction_mean_expanded_cpu",  # noqa
-        "OnnxBackendNodeModelTest.test_gather_elements_0_cpu",
         "OnnxBackendNodeModelTest.test_gather_elements_negative_indices_cpu",
-        "OnnxBackendNodeModelTest.test_gather_elements_1_cpu",
         "OnnxBackendNodeModelTest.test_nllloss_NC_cpu",
         "OnnxBackendNodeModelTest.test_nllloss_NC_expanded_cpu",
         "OnnxBackendNodeModelTest.test_nllloss_NCd1_cpu",

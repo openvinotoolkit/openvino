@@ -440,6 +440,12 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
                                       ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
                                       ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
 
+std::shared_ptr<ngraph::Node> makeGatherElements(
+                                      const ngraph::Output<Node>& dataNode,
+                                      const ngraph::Shape& indicesShape,
+                                      const element::Type& indicesType,
+                                      const int axis);
+
 std::shared_ptr<ngraph::Node> makeGatherND(
                                       const ngraph::Output<Node>& dataNode,
                                       const ngraph::Shape& indicesShape,
