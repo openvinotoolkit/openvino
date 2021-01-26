@@ -547,8 +547,7 @@ namespace
             }
             break;
             default:
-                throw std::runtime_error("Unsupported data type.");
-                break;
+                throw std::runtime_error("Unsupported data type."); break;
             }
 
             return result;
@@ -722,14 +721,13 @@ namespace
         constexpr size_t feature_map_port = 1;
         constexpr size_t im_data_port = 2;
 
-        PartialShape
-            infer_output_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
-                               const Shape& priors_shape,
-                               const Shape& feature_map_shape,
-                               bool flatten)
+        PartialShape infer_output_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                        const Shape& priors_shape,
+                                        const Shape& feature_map_shape,
+                                        bool flatten)
         {
-            PartialShape out_shape =
-                {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
+            PartialShape out_shape = {
+                Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
 
             if (flatten)
             {
@@ -775,10 +773,8 @@ namespace
             result.output_type = prior_grid->get_input_element_type(0);
             result.priors_data = nms_v5::get_floats(inputs[priors_port], result.priors_shape);
 
-            auto output_rois_shape = infer_output_shape(inputs,
-                                                        result.priors_shape,
-                                                        result.feature_map_shape,
-                                                        attrs.flatten);
+            auto output_rois_shape = infer_output_shape(
+                inputs, result.priors_shape, result.feature_map_shape, attrs.flatten);
             result.output_shape = output_rois_shape.to_shape();
 
             return result;
