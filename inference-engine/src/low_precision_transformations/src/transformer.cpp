@@ -44,6 +44,7 @@
 #include "low_precision/squeeze.hpp"
 #include "low_precision/subtract.hpp"
 #include "low_precision/split.hpp"
+#include "low_precision/strided_slice.hpp"
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
@@ -218,6 +219,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<ReluTransformation, opset1::Relu>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
         add<SqueezeTransformation, opset1::Squeeze>(params).
+        add<StridedSliceTransformation, opset1::StridedSlice>(params).
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
         add<InterpolateTransformation, opset4::Interpolate>(params).
@@ -302,7 +304,9 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, "TypeRelaxedReplacer");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     transformation->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 TypeRelaxedReplacer::TypeRelaxedReplacer() {

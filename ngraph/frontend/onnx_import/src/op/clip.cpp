@@ -17,9 +17,9 @@
 #include <limits>
 #include <memory>
 
+#include "core/null_node.hpp"
 #include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
-#include "onnx_import/core/null_node.hpp"
 #include "op/clip.hpp"
 
 namespace ngraph
@@ -63,7 +63,7 @@ namespace ngraph
                     }
                     else
                     {
-                        min = builder::make_constant(
+                        min = builder::make_constant_from_double(
                             data_type, Shape{}, std::numeric_limits<double>::lowest());
                     }
 
@@ -75,7 +75,7 @@ namespace ngraph
                     }
                     else
                     {
-                        max = builder::make_constant(
+                        max = builder::make_constant_from_double(
                             data_type, Shape{}, std::numeric_limits<double>::max());
                     }
 

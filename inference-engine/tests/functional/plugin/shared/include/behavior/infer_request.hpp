@@ -37,7 +37,7 @@ TEST_P(InferRequestTests, SetEmptyConfig) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     // Load CNNNetwork to target plugins
-    InferenceEngine::IExecutableNetwork::Ptr execNet;
+    InferenceEngine::ExecutableNetwork execNet;
     std::map<std::string, std::string> config {};
     if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
         targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
@@ -55,7 +55,7 @@ TEST_P(InferRequestTests, canLoadCorrectNetworkToGetExecutable) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    InferenceEngine::IExecutableNetwork::Ptr execNet;
+    InferenceEngine::ExecutableNetwork execNet;
     ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
 }
 
@@ -64,7 +64,7 @@ TEST_P(InferRequestTests,  CanCreateTwoExeNetworks) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    InferenceEngine::IExecutableNetwork::Ptr execNet;
+    InferenceEngine::ExecutableNetwork execNet;
     for (auto i = 0; i < 2; i++) {
         ASSERT_NO_THROW(execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration));
         ASSERT_NE(nullptr, cnnNet.getFunction());
@@ -422,7 +422,7 @@ TEST_P(InferRequestTests, canStartAsyncInferWithGetInOutWithStatusOnlyWait) {
     InferenceEngine::StatusCode sts;
     sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::STATUS_ONLY);
     ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK ||
-    InferenceEngine::StatusCode::RESULT_NOT_READY);
+        sts == InferenceEngine::StatusCode::RESULT_NOT_READY);
 }
 
 // Plugin correct infer request with allocating input and result BlobMaps inside plugin
@@ -482,8 +482,6 @@ TEST_P(InferRequestTests, canRun3AsyncRequestsConsistentlyWithWait) {
     auto req1 = execNet.CreateInferRequest();
     auto req2 = execNet.CreateInferRequest();
     auto req3 = execNet.CreateInferRequest();
-    InferenceEngine::ResponseDesc response1, response2, response3;
-    InferenceEngine::StatusCode sts1, sts2, sts3;
 
     req1.StartAsync();
     ASSERT_NO_THROW(req1.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
@@ -644,7 +642,6 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     // Create InferRequest
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-    InferenceEngine::ResponseDesc response;
     InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
     std::promise<std::chrono::system_clock::time_point> callbackTimeStamp;
     auto callbackTimeStampFuture = callbackTimeStamp.get_future();

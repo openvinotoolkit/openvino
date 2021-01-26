@@ -356,9 +356,9 @@ std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
 std::shared_ptr<ngraph::Node> makeScatterUpdate(const ngraph::Output<Node> &in,
                                                 const element::Type& indicesType,
                                                 const std::vector<size_t>& indicesShape,
-                                                const std::vector<size_t>& indices,
+                                                const std::vector<int64_t>& indices,
                                                 const ngraph::Output<Node> &update,
-                                                std::size_t axis);
+                                                int64_t axis);
 
 std::shared_ptr<ngraph::Node> makeScatterElementsUpdate(const ngraph::Output<Node> &in,
                                                         const element::Type& indicesType,
@@ -439,6 +439,12 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
                                       bool make_sequence = false,
                                       ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
                                       ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
+
+std::shared_ptr<ngraph::Node> makeGatherElements(
+                                      const ngraph::Output<Node>& dataNode,
+                                      const ngraph::Shape& indicesShape,
+                                      const element::Type& indicesType,
+                                      const int axis);
 
 std::shared_ptr<ngraph::Node> makeGatherND(
                                       const ngraph::Output<Node>& dataNode,

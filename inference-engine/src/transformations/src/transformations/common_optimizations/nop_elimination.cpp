@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "itt.hpp"
 #include <functional>
 #include <memory>
 #include <typeindex>
@@ -24,8 +25,6 @@
 #include <ngraph/util.hpp>
 #include <ngraph/log.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -331,6 +330,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
 
 bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
+    RUN_ON_FUNCTION_SCOPE(NopElimination);
     static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
         dispatcher{{TI(opset3::Pad), &eliminate_nop},
                    {TI(opset3::Convert), &eliminate_convert},

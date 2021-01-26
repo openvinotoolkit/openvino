@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/batch_norm_decomposition.hpp"
 
 #include <memory>
@@ -17,6 +18,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormDecomposition, "BatchNormDecomposition", 0);
 
 ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
+    MATCHER_SCOPE(BatchNormDecomposition);
     auto bn = pattern::wrap_type<opset1::BatchNormInference>({
         pattern::any_input(pattern::has_static_rank()),
         pattern::any_input(pattern::has_static_shape()),
@@ -73,7 +75,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, "BatchNormDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, matcher_name);
     this->register_matcher(m, callback);
 }
 
@@ -81,6 +83,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormV5Decomposition, "BatchNormDecompo
 
 // TODO: this pass will be unified with BatchNormDecomposition pass
 ngraph::pass::BatchNormV5Decomposition::BatchNormV5Decomposition() {
+    MATCHER_SCOPE(BatchNormV5Decomposition);
     auto bn = pattern::wrap_type<opset5::BatchNormInference>({
         pattern::any_input(pattern::has_static_rank()),
         pattern::any_input(pattern::has_static_shape()),
@@ -137,6 +140,6 @@ ngraph::pass::BatchNormV5Decomposition::BatchNormV5Decomposition() {
 
         return true;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, "BatchNormDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, matcher_name);
     this->register_matcher(m, callback);
 }

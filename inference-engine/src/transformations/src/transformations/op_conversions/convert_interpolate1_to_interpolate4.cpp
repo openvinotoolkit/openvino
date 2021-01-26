@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
 
 #include <memory>
@@ -15,6 +16,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolate1ToInterpolate4, "ConvertInterpolate1ToInterpolate4", 0);
 
 ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4() {
+    MATCHER_SCOPE(ConvertInterpolate1ToInterpolate4);
     auto interpolate1 = ngraph::pattern::wrap_type<ngraph::opset1::Interpolate>({pattern::any_input(pattern::has_static_rank()), pattern::any_input()});
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto interpolate1 = std::dynamic_pointer_cast<ngraph::opset1::Interpolate>(m.get_match_root());
@@ -64,6 +66,6 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate1, "ConvertInterpolate1ToInterpolate4");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate1, matcher_name);
     this->register_matcher(m, callback);
 }

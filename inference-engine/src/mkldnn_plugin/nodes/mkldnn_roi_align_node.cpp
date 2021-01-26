@@ -151,7 +151,6 @@ template <typename inputType, typename outputType>
 void MKLDNNROIAlignNode::executeSpecified() {
     auto &srcMemory0 = getParentEdgeAt(0)->getMemory();
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto &srcMemory2 = getParentEdgeAt(2)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
     auto srcBlockDesc = srcMemory0.GetDescriptor().data.layout_desc.blocking;
@@ -248,7 +247,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
                         } else {
                             sampleYHigh = sampleYLow + 1;
                         }
-                        if (sampleXLow >= H - 1) {
+                        if (sampleXLow >= W - 1) {
                             sampleXHigh = sampleXLow = W - 1;
                             sampleX = static_cast<float>(sampleXLow);
                         } else {

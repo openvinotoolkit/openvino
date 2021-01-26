@@ -88,15 +88,8 @@ xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is no
 xfail_issue_35924 = xfail_test(reason="Assertion error - elu results mismatch")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_40319 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format FP64 is not "
-                                      "supported yet...")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
-xfail_issue_40485 = xfail_test(reason="Computation missmatch")
-xfail_issue_36476 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U32 is "
-                               "not supported yet...")
-xfail_issue_36478 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U64 is "
-                               "not supported yet...")
 xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
                                "by CPU plugin")
 xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed at "
@@ -167,8 +160,8 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "NegativeLogLikelihoodLoss")
-xfail_issue_43523 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError:"
-                                      " Unrecognized attribute: axes for operator ReduceSum")
+xfail_issue_45177 = xfail_test(reason="RuntimeError: axes has zero dimension which is not allowed")
+xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
 xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
 xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
 xfail_issue_44851 = xfail_test(reason="E   Unsupported dynamic op: Broadcast")
@@ -183,6 +176,14 @@ xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
 xfail_issue_44970 = xfail_test(reason="Assertion error")
 xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
                                       "FakeQuantize_xxx has non const input on 1 port")
+xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if u16 data type is used")
+xfail_issue_46765 = xfail_test(reason="select_last_index attribute is not supported by ArgMin and ArgMax")
+xfail_issue_47317 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Add): 2>': "
+                                      "Check shape_size(axes_shape) == input_rank' failed")
+xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support FP64")
+xfail_issue_47330 = xfail_test(reason="RuntimeError: Eltwise node with name `[name]` doesn't support "
+                                      "FP64 precision.")
+xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -207,7 +208,6 @@ xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation
                                       "NonMaxSuppressionIE operation.")
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
-xfail_issue_41894 = xfail_test(reason="CPU plugin elementwise computation missmatch")
 
 
 xfail_issue_39704 = xfail_test(reason="ResNet101_DUC_HDC - AssertionError: zoo models results mismatch")

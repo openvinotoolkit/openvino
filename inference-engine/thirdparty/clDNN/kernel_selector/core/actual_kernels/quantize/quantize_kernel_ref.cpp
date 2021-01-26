@@ -54,7 +54,7 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, 
     } else {
         dispatchData.gws[0] = output.Batch().v;
         dispatchData.gws[1] = params.packed_binary_output ? CeilDiv(output.Feature().v, 32) : output.Feature().v;
-        dispatchData.gws[2] = Align(output.X().v * output.Y().v * output.Z().v, 16);
+        dispatchData.gws[2] = Align(output.X().v * output.Y().v * output.Z().v * output.W().v, 16);
 
         dispatchData.lws[0] = 1;
         dispatchData.lws[1] = 1;
@@ -89,4 +89,7 @@ bool QuantizeKernelRef::Validate(const Params& p, const optional_params&) const 
     return true;
 }
 
+KernelsPriority QuantizeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
 }  // namespace kernel_selector

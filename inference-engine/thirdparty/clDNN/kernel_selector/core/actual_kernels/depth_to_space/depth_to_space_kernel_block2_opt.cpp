@@ -64,6 +64,10 @@ JitConstants DepthToSpaceKernelBlock2Opt::GetJitConstants(const depth_to_space_p
 }
 
 KernelsData DepthToSpaceKernelBlock2Opt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_5);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority DepthToSpaceKernelBlock2Opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

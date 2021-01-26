@@ -670,7 +670,7 @@ public:
         }
     }
 
-    void PrepareInputAndReference(const std::string& model_prior_network, const std::string& output_layer, StatusCode& st)
+    void PrepareInputAndReference(const std::string& model_prior_network, const std::string& output_layer)
     {
         SetSeed(DEFAULT_SEED_VALUE);
 
@@ -692,22 +692,17 @@ public:
         std::map<std::string, std::string> networkConfig;
         networkConfig["VPU_HW_STAGES_OPTIMIZATION"] = "NO";
 
-        IExecutableNetwork::Ptr exeNetwork;
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, network_part, networkConfig, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(exeNetwork, nullptr) << _resp.msg;
+        ExecutableNetwork exeNetwork;
+        ASSERT_NO_THROW(exeNetwork = _vpuPluginPtr->LoadNetwork(network_part, networkConfig));
 
-        IInferRequest::Ptr inferRequest;
-        ASSERT_NO_THROW(st = exeNetwork->CreateInferRequest(inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        InferRequest inferRequest;
+        ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
 
         Blob::Ptr input0;
-        ASSERT_NO_THROW(st = inferRequest->GetBlob("input0", input0, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(input0 = inferRequest.GetBlob("input0"));
 
         Blob::Ptr input1;
-        ASSERT_NO_THROW(st = inferRequest->GetBlob("input1", input1, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(input1 = inferRequest.GetBlob("input1"));
 
         // Allocate buffer
         input0_share = make_shared_blob<ie_fp16>({Precision::FP16, input0->getTensorDesc().getDims(), ANY});
@@ -729,14 +724,11 @@ public:
         std::copy(input0_share_data, input0_share_data + input0_share->size(), input0_data);
         std::copy(input1_share_data, input1_share_data + input1_share->size(), input1_data);
 
-        ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = inferRequest->GetBlob(output_layer.c_str(), prior_network_output, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(inferRequest.Infer());
+        ASSERT_NO_THROW(prior_network_output = inferRequest.GetBlob(output_layer.c_str()));
     }
 
-    void RunNetwork(const std::string& model, const std::string& output_layer, StatusCode& st)
+    void RunNetwork(const std::string& model, const std::string& output_layer)
     {
         ASSERT_NO_THROW(readNetwork(model));
 
@@ -754,23 +746,16 @@ public:
         std::map<std::string, std::string> networkConfig;
         networkConfig["VPU_HW_STAGES_OPTIMIZATION"] = "NO";
 
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, networkConfig, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, networkConfig));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
 
         Blob::Ptr input0;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("input0", input0, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(input0 = _inferRequest.GetBlob("input0"));
 
         Blob::Ptr input1;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("input1", input1, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(input1 = _inferRequest.GetBlob("input1"));
 
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob(output_layer.c_str(), outputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob(output_layer.c_str()));
 
         _refBlob = make_shared_blob<ie_fp16>({Precision::FP16, outputBlob->getTensorDesc().getDims(), ANY});
         _refBlob->allocate();
@@ -786,8 +771,7 @@ public:
         std::copy(input0_share_data, input0_share_data + input0_share->size(), input0_data);
         std::copy(input1_share_data, input1_share_data + input1_share->size(), input1_data);
 
-        ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(_inferRequest.Infer());
     }
 
     Blob::Ptr input0_share;
@@ -798,15 +782,11 @@ public:
 
 TEST_F(myriadLayersRfcnTests_smoke, ReshapeRfcn)
 {
-    StatusCode st = GENERAL_ERROR;
-
     std::string prior_network_output_layer = "cls_prob";
     std::string test_network_output_layer = "cls_prob_reshape";
 
-    ASSERT_NO_THROW(PrepareInputAndReference(model_to_softmax, prior_network_output_layer, st));
-    ASSERT_EQ(StatusCode::OK, st) << "PrepareInputAndReference failed";
-    ASSERT_NO_THROW(RunNetwork(model_to_reshape, test_network_output_layer, st));
-    ASSERT_EQ(StatusCode::OK, st) << "RunNetwork failed";
+    ASSERT_NO_THROW(PrepareInputAndReference(model_to_softmax, prior_network_output_layer));
+    ASSERT_NO_THROW(RunNetwork(model_to_reshape, test_network_output_layer));
 
     ASSERT_EQ(outputBlob->size(), prior_network_output->size());
     CompareCommonAbsolute(outputBlob, prior_network_output, 0.0f);
@@ -814,15 +794,11 @@ TEST_F(myriadLayersRfcnTests_smoke, ReshapeRfcn)
 
 TEST_F(myriadLayersRfcnTests_smoke, SoftmaxRfcn)
 {
-    StatusCode st = GENERAL_ERROR;
-
     std::string prior_network_output_layer = "ave_cls_score_rois";
     std::string test_network_output_layer = "cls_prob";
 
-    ASSERT_NO_THROW(PrepareInputAndReference(model_to_pooling, prior_network_output_layer, st));
-    ASSERT_EQ(StatusCode::OK, st) << "PrepareInputAndReference failed";
-    ASSERT_NO_THROW(RunNetwork(model_to_softmax, test_network_output_layer, st));
-    ASSERT_EQ(StatusCode::OK, st) << "RunNetwork failed";
+    ASSERT_NO_THROW(PrepareInputAndReference(model_to_pooling, prior_network_output_layer));
+    ASSERT_NO_THROW(RunNetwork(model_to_softmax, test_network_output_layer));
 
     int param_axis = 1;
     ref_soft_max(prior_network_output, _refBlob, param_axis);
@@ -832,15 +808,11 @@ TEST_F(myriadLayersRfcnTests_smoke, SoftmaxRfcn)
 
 TEST_F(myriadLayersRfcnTests_smoke, GlobalAvgPooling7x7Rfcn)
 {
-    StatusCode st = GENERAL_ERROR;
-
     std::string prior_network_output_layer = "PSROIPooling";
     std::string test_network_output_layer = "ave_cls_score_rois";
 
-    ASSERT_NO_THROW(PrepareInputAndReference(model_to_psroipooling, prior_network_output_layer, st));
-    ASSERT_EQ(StatusCode::OK, st) << "PrepareInputAndReference failed";
-    ASSERT_NO_THROW(RunNetwork(model_to_pooling, test_network_output_layer, st));
-    ASSERT_EQ(StatusCode::OK, st) << "RunNetwork failed";
+    ASSERT_NO_THROW(PrepareInputAndReference(model_to_psroipooling, prior_network_output_layer));
+    ASSERT_NO_THROW(RunNetwork(model_to_pooling, test_network_output_layer));
 
     refGlobalAvgPooling7x7Rfcn(prior_network_output, _refBlob);
 

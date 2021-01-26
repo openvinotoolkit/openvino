@@ -15,20 +15,29 @@ namespace ngraph {
 namespace pass {
 
 class INFERENCE_ENGINE_API_CLASS(ConvertPriorBox);
+class INFERENCE_ENGINE_API_CLASS(ConvertPriorBoxToLegacy);
+class INFERENCE_ENGINE_API_CLASS(ConvertPriorBoxClusteredToLegacy);
 
 }  // namespace pass
 }  // namespace ngraph
 
+class ngraph::pass::ConvertPriorBoxToLegacy : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertPriorBoxToLegacy();
+};
+
+class ngraph::pass::ConvertPriorBoxClusteredToLegacy : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertPriorBoxClusteredToLegacy();
+};
+
 class ngraph::pass::ConvertPriorBox: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertPriorBox() : GraphRewrite() {
-        convert_prior_box();
-        convert_prior_box_clustered();
+    ConvertPriorBox() {
+        add_matcher<ngraph::pass::ConvertPriorBoxToLegacy>();
+        add_matcher<ngraph::pass::ConvertPriorBoxClusteredToLegacy>();
     }
-
-private:
-    void convert_prior_box();
-
-    void convert_prior_box_clustered();
 };

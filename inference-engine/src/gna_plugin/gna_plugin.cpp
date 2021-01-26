@@ -352,14 +352,13 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
-void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork & network) {
+void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork & network) {
     // fp32 emulation mode dont need any modifications to configuration
     if (config.gnaFlags.sw_fp32) return;
 
     // search for FQ layers
     // only supports cases of int16 or int8
-    auto it = details::CNNNetworkIterator(&network);
-    auto end = details::CNNNetworkIterator();
+    auto it = details::CNNNetworkIterator(network), end = details::CNNNetworkIterator();
     for (; it != end; it++) {
         if (!LayerInfo(*it).isFakeQuantize()) {
             continue;
@@ -388,14 +387,13 @@ void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork & net
     }
 }
 
-void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & network) {
+void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & network) {
     // fp32 emulation mode dont need any modifications to configuration
     if (config.gnaFlags.sw_fp32) return;
 
     // search for FQ layers
     // only supports cases of int16 or int8
-    InputsDataMap  inputs;
-    network.getInputsInfo(inputs);
+    InputsDataMap inputs = network.getInputsInfo();
     for (auto && input : inputs) {
         auto data = input.second->getInputData();
         size_t inputIdx = 0;
@@ -436,8 +434,8 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & netwo
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
-        std::shared_ptr<ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(_network);
-        const auto& graph = clonedNetwork->getFunction();
+        CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
+        const auto& graph = clonedNetwork.getFunction();
         // Disable shape inference (WA for generic operations)
         ngraph::op::GenericIE::DisableReshape noReshape(graph);
         ngraph::pass::Manager manager;
@@ -458,7 +456,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
                     return node->get_rt_info().count("UNROLL_TI") == 0;
             });
         manager.run_passes(graph);
-        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *clonedNetwork);
+        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
     InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
 
@@ -478,7 +476,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
     // network optimisation phases
     int passIdx = 0;
-    auto run_passes = [&] (const CNNNetPtr& network, bool runBeforeCopy) {
+    auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy) {
         auto passes = make_shared<PassManager>(PassManagerSettings{policy, runBeforeCopy}, network);
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
@@ -521,7 +519,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passIdx = passes->run(passIdx);
     };
 
-    ICNNNetwork::Ptr newNet;
+    InferenceEngine::CNNNetwork newNet;
     if (gnaFlags->sw_fp32) {
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
             transformLayer(lp, WeightsConverter());
@@ -559,7 +557,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         }
     }
 
-    auto inputLayers = CNNNetGetAllInputLayers(*newNet);
+    auto inputLayers = CNNNetGetAllInputLayers(newNet);
 
 #ifdef PLOT
     std::ofstream file("gna_passes.dot");
@@ -576,7 +574,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     });
 #endif
 
-    auto sortedNet = CNNNetSortTopologicallyEx(*newNet, make_fuzed_order);
+    auto sortedNet = CNNNetSortTopologicallyEx(newNet, make_fuzed_order);
 
     // passing policy to compiler
     graphCompiler.setPolicy(policy);
@@ -624,13 +622,13 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     }
 
     // keep inputs information and create input primitives
-    newNet->getInputsInfo(inputsDataMap);
+    inputsDataMap = newNet.getInputsInfo();
     if (inputsDataMap.empty()) {
         THROW_GNA_EXCEPTION << " No inputs for the topology";
     }
 
     // keep output dims
-    newNet->getOutputsInfo(outputsDataMap);
+    outputsDataMap = newNet.getOutputsInfo();
     if (outputsDataMap.empty()) {
         THROW_GNA_EXCEPTION << "No outputs for the topology";
     }
@@ -1045,8 +1043,8 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             THROW_GNA_EXCEPTION << "network not loaded : input pointer for (" << input.first << " at inferRequest #"
                                 << idx << " not set";
         }
-
-        if (inputsDesc->getOrientation(input.first) == kDnnUnknownOrientation) {
+        const auto inputOrientation = inputsDesc->getOrientation(input.first);
+        if (inputOrientation == kDnnUnknownOrientation) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input orientation for " << input.first << " not set";
         }
@@ -1075,16 +1073,18 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                      input.second->cbuffer().as<float *>(),
                      input.second->getTensorDesc().getPrecision(),
                      gnaFlags->sw_fp32 ? 1.0f : inputsDesc->getScaleFactor(inputNum),
-                     inputsDesc->getOrientation(input.first),
+                     inputOrientation,
                      importedFrames,
                      targetGroups,
                      importedElements,
                      importedElements);
 
+        bool CNN2DAtInput = input.second->getTensorDesc().getLayout() == Layout::NCHW && inputOrientation == kDnnNonInterleavedOrientation;
         bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
-        if (do_rotate_input && ((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
-            != (inputsDesc->getOrientation(input.first) == kDnnInterleavedOrientation))
-            && !isOneChannel) {
+        if (do_rotate_input && ((inputLayout == Layout::NC)
+            != (inputOrientation == kDnnInterleavedOrientation))
+            && !isOneChannel
+            && !CNN2DAtInput) {
             RotateFeatures(reinterpret_cast<uint8_t *>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
                            gnadevice ? 2 : 4,
                            // TODO: only works for cnn4a and google command so far
@@ -1093,9 +1093,20 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                            num_rotate_rows,
                            num_rotate_columns);
         }
+        if (CNN2DAtInput) {
+            auto dims = input.second->getTensorDesc().getDims();
+            auto hwDim = dims[2] * dims[3];
+            auto chanelsDim = dims[1];
+            RotateFeatures(reinterpret_cast<uint8_t*>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
+                gnadevice ? 2 : 4,
+                dims[0],
+                chanelsDim* hwDim,
+                chanelsDim,
+                hwDim);
+        }
         ++inputNum;
     }
-
+    // If there is no gnadevice infer using reference FP32 transforamtions
     if (!gnadevice) {
         auto runtime = runtime::FP(dnn);
         runtime.infer();
