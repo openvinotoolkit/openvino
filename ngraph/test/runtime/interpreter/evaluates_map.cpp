@@ -546,8 +546,7 @@ namespace
                 memcpy(result.data(), p, input_size * sizeof(float));
             }
             break;
-            default:
-                throw std::runtime_error("Unsupported data type."); break;
+            default: throw std::runtime_error("Unsupported data type."); break;
             }
 
             return result;
