@@ -696,8 +696,8 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                 : params.type;
 
         if (params.version == "opset1") {
-            // MVN and ROIPooling were missing in opset1
-            if (type == "MVN" || type == "ROIPooling") {
+            // MVN, ROIPooling and ReorgYolo were missing in opset1
+            if (type == "MVN" || type == "ROIPooling" || type == "ReorgYolo") {
                 opsetIt = opsets.find("opset2");
                 if (opsetIt == opsets.end()) {
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
