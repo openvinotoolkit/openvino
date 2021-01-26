@@ -547,7 +547,7 @@ namespace
             }
             break;
             default:
-                throw std::runtime_error("Unsupported data type in op NonMaxSuppression-5");
+                throw std::runtime_error("Unsupported data type.");
                 break;
             }
 
@@ -718,11 +718,69 @@ namespace
             float stride_w;
         };
 
+        constexpr size_t priors_port = 0;
+        constexpr size_t feature_map_port = 1;
+        constexpr size_t im_data_port = 2;
+
+        PartialShape
+            infer_output_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                               const Shape& priors_shape,
+                               const Shape& feature_map_shape,
+                               bool flatten)
+        {
+            PartialShape out_shape =
+                {Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 4};
+
+            if (flatten)
+            {
+                out_shape = PartialShape{Dimension::dynamic(), 4};
+            }
+
+            if (priors_shape.rank().is_dynamic() || feature_map_shape.rank().is_dynamic())
+            {
+                return out_shape;
+            }
+
+            auto num_priors = priors_shape[0];
+            auto featmap_height = feature_map_shape[2];
+            auto featmap_width = feature_map_shape[3];
+
+            if (flatten)
+            {
+                out_shape = PartialShape{featmap_height * featmap_width * num_priors, 4};
+            }
+            else
+            {
+                out_shape = PartialShape{featmap_height, featmap_width, num_priors, 4};
+            }
+
+            return out_shape;
+        }
+
         InfoForEDPriorGrid get_info_for_ed_prior_grid_eval(
             const std::shared_ptr<op::v6::ExperimentalDetectronPriorGridGenerator>& prior_grid,
             const std::vector<std::shared_ptr<HostTensor>>& inputs)
         {
             InfoForEDPriorGrid result;
+
+            auto attrs = prior_grid->get_attrs();
+
+            result.grid_h = attrs.h;
+            result.grid_w = attrs.w;
+            result.stride_h = attrs.stride_y;
+            result.stride_w = attrs.stride_x;
+            result.priors_shape = inputs[priors_port]->get_shape();
+            result.feature_map_shape = inputs[feature_map_port]->get_shape();
+            result.im_data_shape = inputs[im_data_port]->get_shape();
+            result.output_type = prior_grid->get_input_element_type(0);
+            result.priors_data = nms_v5::get_floats(inputs[priors_port], result.priors_shape);
+
+            auto output_rois_shape = infer_output_shape(inputs,
+                                                        result.priors_shape,
+                                                        result.feature_map_shape,
+                                                        attrs.flatten);
+            result.output_shape = output_rois_shape.to_shape();
+
             return result;
         }
     } // namespace experimental_prior_grid
