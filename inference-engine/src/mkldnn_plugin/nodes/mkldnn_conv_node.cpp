@@ -709,8 +709,6 @@ void MKLDNNConvolutionNode::addScaleToPrimitiveAttr(mkldnn::primitive_attr attr)
             }
         }
 
-        // TODO: where is an output_round_mode??
-//        attr.set_int_output_round_mode(mkldnn::round_nearest);
         attr.set_output_scales(1 << 1 /*through C dim*/, oScaleDataVector);
     }
 }

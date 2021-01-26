@@ -21,12 +21,9 @@ public:
     mkldnn::primitive operator*();
 
     void reset(mkldnn::primitive* primitive);
-    void setBatchLimit(int batch, size_t inputNum, size_t outputNum);
 
 private:
     std::shared_ptr<mkldnn::primitive> prim;
-    std::vector<int> originInputBatches;
-    std::vector<int> originOutputBatches;
 };
 
 }  // namespace MKLDNNPlugin

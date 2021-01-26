@@ -25,8 +25,3 @@ MKLDNNPrimitive &MKLDNNPrimitive::operator=(const std::shared_ptr<mkldnn::primit
     prim = primitive;
     return *this;
 }
-
-void MKLDNNPrimitive::setBatchLimit(int batch, size_t inputNum, size_t outputNum) {
-    // TODO [oneDNN] : Set dynamic batch technic is changed for oneDNN. currently is not implemented.
-    THROW_IE_EXCEPTION << "currently unsupported method for DNNL";
-}

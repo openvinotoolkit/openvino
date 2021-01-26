@@ -380,9 +380,6 @@ void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
         THROW_ERROR << "Dynamic batch is not supported by split layer with axis == 0 parameter";
 
     dynBatchLim = lim;
-    if (prim) {
-//        prim.setBatchLimit(batchToProcess(), getParentEdges().size(), getChildEdges().size());
-    }
 }
 
 void MKLDNNSplitNode::prepareOptimizedParams() {

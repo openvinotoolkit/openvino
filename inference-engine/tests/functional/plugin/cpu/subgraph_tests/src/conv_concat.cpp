@@ -285,6 +285,7 @@ namespace ConvolutionConact {
 
 /* ============= Convolution (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
+    conv_ref_2D,
     conv_gemm_2D,
     conv_sse42_2D,
     conv_avx2_2D,
@@ -303,6 +304,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Convolution2D, ConvConcatSubgraphTest, params2D, C
 
 /* ============= Convolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
+    conv_ref_3D,
     conv_gemm_3D,
     conv_avx2_3D,
     conv_avx512_3D
@@ -324,6 +326,7 @@ namespace GroupConvolutionConcat {
 
 /* ============= GroupConvolution (2D) ============= */
 const std::vector<CPUSpecificParams> CPUParams2D = {
+    conv_ref_2D,
     conv_gemm_2D,
     conv_sse42_2D,
     conv_avx2_2D,
@@ -342,6 +345,7 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D, ConvConcatSubgraphTest, params
 
 /* ============= GroupConvolution (3D) ============= */
 const std::vector<CPUSpecificParams> CPUParams3D = {
+    conv_ref_3D,
     conv_gemm_3D,
     conv_avx2_3D,
     conv_avx512_3D
