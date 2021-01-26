@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,8 +14,28 @@
 # limitations under the License.
 # ******************************************************************************
 
-add_subdirectory(itt)
-add_subdirectory(conditional_compilation)
-add_subdirectory(itt_collector)
+set(TARGET_NAME sea_itt_lib)
 
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::itt openvino::conditional_compilation)
+set(CMAKE_DEBUG_POSTFIX "")
+set(CMAKE_RELEASE_POSTFIX "")
+
+add_library(${TARGET_NAME} SHARED
+    sea_itt_lib.cpp
+    IttNotifyStdSrc.cpp
+    IttNotifyStdSrc.h
+    Recorder.cpp
+    Recorder.h
+    TraceEventFormat.h
+    Utils.cpp
+    Utils.h
+)
+
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME IntelSEAPI)
+
+target_link_libraries(${TARGET_NAME} PRIVATE ittnotify)
+
+if(UNIX)
+    target_link_libraries(${TARGET_NAME} PRIVATE dl)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-undef -Wno-deprecated-declarations -Wno-multichar)
+endif()

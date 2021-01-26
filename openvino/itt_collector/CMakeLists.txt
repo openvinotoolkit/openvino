@@ -1,4 +1,4 @@
-# ******************************************************************************
+﻿# ******************************************************************************
 # Copyright 2017-2020 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +14,6 @@
 # limitations under the License.
 # ******************************************************************************
 
-add_subdirectory(itt)
-add_subdirectory(conditional_compilation)
-add_subdirectory(itt_collector)
-
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::itt openvino::conditional_compilation)
+if(SELECTIVE_BUILD STREQUAL "COLLECT")
+    add_subdirectory(sea_itt_lib)
+endif()
