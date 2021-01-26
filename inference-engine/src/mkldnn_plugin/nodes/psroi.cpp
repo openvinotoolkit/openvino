@@ -312,9 +312,8 @@ public:
             dstData[dstIndex] = accum;
         };
 
-        int outputBlockIdx, binOffsetOutput, outputBlockResidual;
         if (inFmt == Layout::NHWC) {
-            binOffsetOutput = currentRoi * nc * nh * nw;
+            const int binOffsetOutput = currentRoi * nc * nh * nw;
             parallel_for2d(nh, nw, [&](int h, int w) {
                 for (int c = 0; c < nc; c++) {
                     bilinearPsroi(c, h, w, 0, binOffsetOutput + c);
@@ -329,9 +328,9 @@ public:
                 int cStart = blkIdx * outBlockSize;
                 int cEnd = (blkIdx == outBlockCount - 1 ? nc : cStart + outBlockSize);
                 for (int c = cStart; c < cEnd; c++) {
-                    outputBlockIdx = (c / inBlockSize) * inBlockSize;
-                    binOffsetOutput = (currentRoi * outputChannelsPadding + outputBlockIdx) * binCount;
-                    outputBlockResidual = (inFmt == Layout::BLOCKED ? c % inBlockSize : 0);
+                    const int outputBlockIdx = (c / inBlockSize) * inBlockSize;
+                    const int binOffsetOutput = (currentRoi * outputChannelsPadding + outputBlockIdx) * binCount;
+                    const int outputBlockResidual = (inFmt == Layout::BLOCKED ? c % inBlockSize : 0);
                     bilinearPsroi(c, h, w, outputBlockResidual, binOffsetOutput);
                 }
             });
