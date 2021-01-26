@@ -41,7 +41,8 @@ TEST(type_prop, proposal_v0_invalid_class_probs_rank)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("Proposal layer shape class_probs should be rank 4 compatible"));
+            error.what(),
+            std::string("Proposal layer shape class_probs should be rank 4 compatible"));
     }
     catch (...)
     {
@@ -115,8 +116,9 @@ TEST(type_prop, proposal_v0_invalid_image_shape_rank)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Proposal layer shape image_shape should be rank 1 compatible"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Proposal layer shape image_shape should be rank 1 compatible"));
     }
     catch (...)
     {
@@ -332,7 +334,8 @@ TEST(type_prop, proposal_v4_invalid_class_probs_rank)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
-            error.what(), std::string("Proposal layer shape class_probs should be rank 4 compatible"));
+            error.what(),
+            std::string("Proposal layer shape class_probs should be rank 4 compatible"));
     }
     catch (...)
     {
@@ -382,8 +385,9 @@ TEST(type_prop, proposal_v4_invalid_image_shape_rank)
     }
     catch (const NodeValidationFailure& error)
     {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("Proposal layer shape image_shape should be rank 1 compatible"));
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Proposal layer shape image_shape should be rank 1 compatible"));
     }
     catch (...)
     {
