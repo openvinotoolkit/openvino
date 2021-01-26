@@ -148,30 +148,40 @@ private:
     std::map<AttrName, AttrValue> m_attributes;
 };
 
-class Storage : public AttributeStorage<MemoryChunk>,
-                public AttributeStorage<bool>,
-                public AttributeStorage<std::string>,
-                public AttributeStorage<int8_t>,
-                public AttributeStorage<int16_t>,
-                public AttributeStorage<int32_t>,
-                public AttributeStorage<int64_t>,
-                public AttributeStorage<uint8_t>,
-                public AttributeStorage<uint16_t>,
-                public AttributeStorage<uint32_t>,
-                public AttributeStorage<uint64_t>,
-                public AttributeStorage<float>,
-                public AttributeStorage<double>,
-                public AttributeStorage<std::vector<int8_t>>,
-                public AttributeStorage<std::vector<int16_t>>,
-                public AttributeStorage<std::vector<int32_t>>,
-                public AttributeStorage<std::vector<int64_t>>,
-                public AttributeStorage<std::vector<uint8_t>>,
-                public AttributeStorage<std::vector<uint16_t>>,
-                public AttributeStorage<std::vector<uint32_t>>,
-                public AttributeStorage<std::vector<uint64_t>>,
-                public AttributeStorage<std::vector<float>>,
-                public AttributeStorage<std::vector<double>>,
-                public AttributeStorage<std::vector<std::string>> {};
+class Storage : private AttributeStorage<MemoryChunk>,
+                private AttributeStorage<bool>,
+                private AttributeStorage<std::string>,
+                private AttributeStorage<int8_t>,
+                private AttributeStorage<int16_t>,
+                private AttributeStorage<int32_t>,
+                private AttributeStorage<int64_t>,
+                private AttributeStorage<uint8_t>,
+                private AttributeStorage<uint16_t>,
+                private AttributeStorage<uint32_t>,
+                private AttributeStorage<uint64_t>,
+                private AttributeStorage<float>,
+                private AttributeStorage<double>,
+                private AttributeStorage<std::vector<int8_t>>,
+                private AttributeStorage<std::vector<int16_t>>,
+                private AttributeStorage<std::vector<int32_t>>,
+                private AttributeStorage<std::vector<int64_t>>,
+                private AttributeStorage<std::vector<uint8_t>>,
+                private AttributeStorage<std::vector<uint16_t>>,
+                private AttributeStorage<std::vector<uint32_t>>,
+                private AttributeStorage<std::vector<uint64_t>>,
+                private AttributeStorage<std::vector<float>>,
+                private AttributeStorage<std::vector<double>>,
+                private AttributeStorage<std::vector<std::string>> {
+public:
+    template <typename AttrValue>
+    const AttributeStorage<AttrValue>& storage() const {
+        return *static_cast<const AttributeStorage<AttrValue>*>(this);
+    }
+    template <typename AttrValue>
+    AttributeStorage<AttrValue>& storage() {
+        return *static_cast<AttributeStorage<AttrValue>*>(this);
+    }
+};
 
 class ReadAndStoreAttributes : public ngraph::AttributeVisitor, protected Storage {
 public:
@@ -233,49 +243,39 @@ public:
 
     template <typename AttrValue>
     const AttrValue* get(const AttrName& name) const {
-        return storage<AttrValue>()->get_value(name);
+        return storage<AttrValue>().get_value(name);
     }
 
     template <typename AttrValue>
     bool insert(AttrName name, AttrValue value) {
-        return storage<AttrValue>()->insert_value(std::move(name), std::move(value));
+        return storage<AttrValue>().insert_value(std::move(name), std::move(value));
     }
 
     size_t attributes_number() const {
-        return storage<MemoryChunk>()->get_attributes_number() +
-               storage<bool>()->get_attributes_number() +
-               storage<std::string>()->get_attributes_number() +
-               storage<int8_t>()->get_attributes_number() +
-               storage<int16_t>()->get_attributes_number() +
-               storage<int32_t>()->get_attributes_number() +
-               storage<int64_t>()->get_attributes_number() +
-               storage<uint8_t>()->get_attributes_number() +
-               storage<uint16_t>()->get_attributes_number() +
-               storage<uint32_t>()->get_attributes_number() +
-               storage<uint64_t>()->get_attributes_number() +
-               storage<float>()->get_attributes_number() +
-               storage<double>()->get_attributes_number() +
-               storage<std::vector<int8_t>>()->get_attributes_number() +
-               storage<std::vector<int16_t>>()->get_attributes_number() +
-               storage<std::vector<int32_t>>()->get_attributes_number() +
-               storage<std::vector<int64_t>>()->get_attributes_number() +
-               storage<std::vector<uint8_t>>()->get_attributes_number() +
-               storage<std::vector<uint16_t>>()->get_attributes_number() +
-               storage<std::vector<uint32_t>>()->get_attributes_number() +
-               storage<std::vector<uint64_t>>()->get_attributes_number() +
-               storage<std::vector<float>>()->get_attributes_number() +
-               storage<std::vector<double>>()->get_attributes_number() +
-               storage<std::vector<std::string>>()->get_attributes_number();
-    }
-
-private:
-    template <typename AttrValue>
-    const AttributeStorage<AttrValue>* storage() const {
-        return static_cast<const AttributeStorage<AttrValue>*>(this);
-    }
-    template <typename AttrValue>
-    AttributeStorage<AttrValue>* storage() {
-        return static_cast<AttributeStorage<AttrValue>*>(this);
+        return storage<MemoryChunk>().get_attributes_number() +
+               storage<bool>().get_attributes_number() +
+               storage<std::string>().get_attributes_number() +
+               storage<int8_t>().get_attributes_number() +
+               storage<int16_t>().get_attributes_number() +
+               storage<int32_t>().get_attributes_number() +
+               storage<int64_t>().get_attributes_number() +
+               storage<uint8_t>().get_attributes_number() +
+               storage<uint16_t>().get_attributes_number() +
+               storage<uint32_t>().get_attributes_number() +
+               storage<uint64_t>().get_attributes_number() +
+               storage<float>().get_attributes_number() +
+               storage<double>().get_attributes_number() +
+               storage<std::vector<int8_t>>().get_attributes_number() +
+               storage<std::vector<int16_t>>().get_attributes_number() +
+               storage<std::vector<int32_t>>().get_attributes_number() +
+               storage<std::vector<int64_t>>().get_attributes_number() +
+               storage<std::vector<uint8_t>>().get_attributes_number() +
+               storage<std::vector<uint16_t>>().get_attributes_number() +
+               storage<std::vector<uint32_t>>().get_attributes_number() +
+               storage<std::vector<uint64_t>>().get_attributes_number() +
+               storage<std::vector<float>>().get_attributes_number() +
+               storage<std::vector<double>>().get_attributes_number() +
+               storage<std::vector<std::string>>().get_attributes_number();
     }
 };
 
