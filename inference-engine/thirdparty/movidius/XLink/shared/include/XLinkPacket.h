@@ -111,6 +111,7 @@ struct PacketPool_t {
     XLINK_ALIGN_TO_BOUNDARY(64) Packet packets[XLINK_MAX_PACKET_PER_STREAM];
 
     pthread_mutex_t packetAccessLock;
+    pthread_cond_t packetAccessCond;
     packetId_t nexUniqueId;
 
     // Metrics

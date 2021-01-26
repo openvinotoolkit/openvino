@@ -66,6 +66,8 @@ XLinkError_t Stream_Open(Stream* stream, const char* name) {
         return X_LINK_ALREADY_OPEN;
     }
 
+    mvLog(MVLOG_DEBUG, "Stream opening, name %s, id %u", name, stream->streamId);
+
     stream->streamStatus = STREAM_OPENED;
     mv_strcpy(stream->name, MAX_STREAM_NAME_LENGTH, name);
 
@@ -110,8 +112,10 @@ XLinkError_t Stream_Close(Stream* stream) {
         return X_LINK_SUCCESS;
     }
 
-    ASSERT_XLINK(stream->inPacketsPool.busyPacketsCount == 0);
-    ASSERT_XLINK(stream->outPacketsPool.busyPacketsCount == 0);
+    mvLog(MVLOG_DEBUG, "Stream closing, name %s, id %u", stream->name, stream->streamId);
+
+    PacketPool_FreePendingPackets(&stream->inPacketsPool, PACKET_DROPPED);
+    PacketPool_FreePendingPackets(&stream->outPacketsPool, PACKET_DROPPED);
 
     PacketPool_Destroy(&stream->inPacketsPool);
     PacketPool_Destroy(&stream->outPacketsPool);
