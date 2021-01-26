@@ -73,7 +73,7 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher(bool force_
         std::shared_ptr<op::NonMaxSuppressionIE3> nms_legacy{nullptr};
 
         auto output_type = force_i32_output_type ? element::i32 : nms_5->get_output_type();
-        if (num_of_inputs > 5 && nms_5->soft_nms_sigma_from_input() != 0.0f) {
+        if (num_of_inputs > 5 && !nms_5->is_soft_nms_sigma_constant_and_default()) {
             new_soft_nms_sigma = std::make_shared<opset1::Reshape>(new_args.at(5), new_shape_for_soft_nms_sigma, true);
             new_ops.emplace_back(new_soft_nms_sigma.get_node_shared_ptr());
             nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(
