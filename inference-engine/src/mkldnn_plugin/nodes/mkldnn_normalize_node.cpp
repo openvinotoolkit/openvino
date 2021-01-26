@@ -603,7 +603,7 @@ private:
             if (mayiuse(avx512_core_bf16))
                 vcvtneps2bf16(ymm_dst, vmm_dst);
             else
-                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                emu_vcvtneps2bf16->emit({vmm_dst.getIdx()}, {ymm_dst.getIdx()});
             vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);

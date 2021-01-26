@@ -475,14 +475,14 @@ private:
     }
 
     inline void compute_eltwise_op() {
-        std::vector<size_t> in_idxs;
-        std::vector<size_t> aux_idxs;
+        std::vector<int> in_idxs;
+        std::vector<int> aux_idxs;
         for (int i = 0; i < eltwise_emitter->get_inputs_num(); i++)
             in_idxs.push_back(get_vmm_reg(i).getIdx());
         for (int i = 0; i < eltwise_emitter->aux_vecs_count(); i++)
             aux_idxs.push_back(get_aux_vmm(i).getIdx());
 
-        std::vector<size_t> out_idxs;
+        std::vector<int> out_idxs;
         out_idxs.push_back(vmm_dst.getIdx());
 
         eltwise_emitter->emit(in_idxs, out_idxs, aux_idxs);
@@ -494,15 +494,15 @@ private:
         int quantization_post_op_idx = 0;
         for (int i = 0; i < eltwiseNode.getFusedWith().size(); i++) {
             if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
-                std::vector<size_t> in_idxs;
-                std::vector<size_t> aux_idxs;
+                std::vector<int> in_idxs;
+                std::vector<int> aux_idxs;
                 in_idxs.push_back(vmm_dst.getIdx());
                 for (int j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++)
                     in_idxs.push_back(get_vmm_reg(input_idx++).getIdx());
                 for (int j = 0; j < post_op_emitters[eltwise_post_op_idx]->aux_vecs_count(); j++)
                     aux_idxs.push_back(get_aux_vmm(j).getIdx());
 
-                std::vector<size_t> out_idxs;
+                std::vector<int> out_idxs;
                 out_idxs.push_back(vmm_dst.getIdx());
 
                 post_op_emitters[eltwise_post_op_idx]->emit(in_idxs, out_idxs, aux_idxs);
@@ -647,7 +647,7 @@ private:
                 if (mayiuse(avx512_core_bf16))
                     vcvtneps2bf16(ymm_dst, vmm_dst);
                 else
-                    emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                    emu_vcvtneps2bf16->emit({vmm_dst.getIdx()}, {ymm_dst.getIdx()});
                 vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:

@@ -13,11 +13,11 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 struct load_emitter_context : public emitter_context {
-    load_emitter_context() : offset_byte_(0), load_num_(8), src_prc_(Precision::FP32),
-    dst_prc_(InferenceEngine::Precision::FP32), is_fill_(false), fill_value_("zero") {}
+    load_emitter_context() : src_prc_(Precision::FP32), dst_prc_(Precision::FP32), load_num_(8),
+    offset_byte_(0), is_fill_(false), fill_value_("zero") {}
 
-    load_emitter_context(int load_num, Precision src_prc, Precision dst_prc, bool is_fill = false, std::string fill_value = "zero", int offset_byte = 0):
-    load_num_(load_num), src_prc_(src_prc), dst_prc_(dst_prc), is_fill_(is_fill), fill_value_(fill_value), offset_byte_(offset_byte) {}
+    load_emitter_context(Precision src_prc, Precision dst_prc, int load_num, bool is_fill = false, std::string fill_value = "zero", int offset_byte = 0):
+    src_prc_(src_prc), dst_prc_(dst_prc), load_num_(load_num), is_fill_(is_fill), fill_value_(fill_value), offset_byte_(offset_byte) {}
 
     int offset_byte_;
     int load_num_;
@@ -28,11 +28,11 @@ struct load_emitter_context : public emitter_context {
 };
 
 struct store_emitter_context : public emitter_context {
-    store_emitter_context() : offset_byte_(0), store_num_(8), src_prc_(InferenceEngine::Precision::FP32),
-    dst_prc_(InferenceEngine::Precision::FP32) {}
+    store_emitter_context() : src_prc_(Precision::FP32), dst_prc_(Precision::FP32),
+    store_num_(8), offset_byte_(0) {}
 
-    store_emitter_context(int store_num, Precision src_prc, Precision dst_prc, int offset_byte = 0)
-    : store_num_(store_num), src_prc_(src_prc), dst_prc_(dst_prc), offset_byte_(offset_byte) {}
+    store_emitter_context(Precision src_prc, Precision dst_prc, int store_num, int offset_byte = 0)
+    : src_prc_(src_prc), dst_prc_(dst_prc), store_num_(store_num), offset_byte_(offset_byte) {}
 
     int offset_byte_;
     int store_num_;
@@ -63,8 +63,8 @@ public:
     * \|/
     * dst_prc
     */
-    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+    void emit_impl(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
+                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
                   const emitter_context *emit_context) override;
 
     size_t get_inputs_num() override;
@@ -116,8 +116,8 @@ public:
     * dst_prc
     * note: FP32/I32-->BF16(x*) is supported only on at least avx512-core plateform
     */
-    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+    void emit_impl(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
+                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
                   const emitter_context *emit_context) override;
 
     size_t get_inputs_num() override;

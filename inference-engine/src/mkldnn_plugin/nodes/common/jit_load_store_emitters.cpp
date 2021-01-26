@@ -32,8 +32,8 @@ size_t jit_load_emitter::aux_gprs_count() const {
     return 2;
 }
 
-void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+void jit_load_emitter::emit_impl(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
+                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
                   const emitter_context *emit_context) {
     const auto* load_emitter_context = dynamic_cast<const MKLDNNPlugin::load_emitter_context*>(emit_context);
     if (load_emitter_context == nullptr) {
@@ -509,8 +509,8 @@ size_t jit_store_emitter::aux_vecs_count() const {
 
 size_t jit_store_emitter::get_inputs_num() { return 1; }
 
-void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+void jit_store_emitter::emit_impl(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
+                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
                   const emitter_context *emit_context) {
     const auto* store_emitter_context = dynamic_cast<const MKLDNNPlugin::store_emitter_context*>(emit_context);
     if (store_emitter_context == nullptr) {
@@ -828,7 +828,7 @@ template <typename Vmm>
             if (mayiuse(cpu::avx512_core_bf16)) {
                 h->vcvtneps2bf16(ymm, zmm);
             } else {
-                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
+                emu_vcvtneps2bf16->emit({vmm.getIdx()}, {ymm.getIdx()});
             }
             if (store_num == 16) {
                 h->vmovdqu16(ptr[reg + offset], ymm);

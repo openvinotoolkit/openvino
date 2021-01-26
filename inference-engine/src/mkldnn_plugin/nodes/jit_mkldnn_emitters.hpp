@@ -19,9 +19,9 @@ public:
 
     size_t get_inputs_num() override;
 
-    void emit(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-              const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {},
-              const emitter_context *emit_context = nullptr) override;
+    void emit(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
+              const std::vector<int> &pool_vec_idxs = {}, const std::vector<int> &pool_gpr_idxs = {},
+              const std::shared_ptr<emitter_context> &emit_context = nullptr) override;
 
     void emit_table() override;
 
