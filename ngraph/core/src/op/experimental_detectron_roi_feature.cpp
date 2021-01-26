@@ -70,8 +70,9 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
         NODE_VALIDATION_CHECK(
             this, rois_shape.rank().get_length() == 2, "Input rois rank must be equal to 2.");
 
+        auto input_rois_last_dim_intersection_with_4 = rois_shape[1] & Dimension(4);
         NODE_VALIDATION_CHECK(this,
-                              rois_shape[1].is_static() && rois_shape[1].get_length() == 4u,
+                              !input_rois_last_dim_intersection_with_4.get_interval().empty(),
                               "The last dimension of the 'input_rois' input must be equal to 4. "
                               "Got: ",
                               rois_shape[1]);
@@ -95,9 +96,9 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
                                   "Rank of each element of the pyramid must be equal to 4. Got: ",
                                   current_rank);
 
+            auto first_dim_intersection_with_1 = current_shape[0] & Dimension(1);
             NODE_VALIDATION_CHECK(this,
-                                  current_shape[0].is_static() &&
-                                      current_shape[0].get_length() == 1u,
+                                  !first_dim_intersection_with_1.get_interval().empty(),
                                   "The first dimension of each pyramid element must be equal to 1. "
                                   "Got: ",
                                   current_shape[0]);
