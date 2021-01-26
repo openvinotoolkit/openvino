@@ -363,17 +363,30 @@ DECLARE_CONFIG_KEY(DUMP_EXEC_GRAPH_AS_DOT);
 DECLARE_CONFIG_KEY(ENFORCE_BF16);
 
 /**
-* @brief This key defines the directory which will be used to store any data cached by plugins.
-*
-* This key supports unicode symbols in path
-* The underlying cache structure is not defined and might differ between OpenVINO releases
-* Cached data might be platform/device specific and might be invalid after OpenVINO version change
-* If this key is not specified or value is empty string, then caching is disabled.
-* The key might enable caching for all plugin or some specific ones, e.g.:
-* ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}) - enables cache for all plugins that might want to use it
-* ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, {"GPU"}) - enables cache only for GPU plugin
-*/
+ * @brief This key defines the directory which will be used to store any data cached by plugins.
+ *
+ * The underlying cache structure is not defined and might differ between OpenVINO releases
+ * Cached data might be platform/device specific and might be invalid after OpenVINO version change
+ * If this key is not specified or value is empty string, then caching is disabled.
+ * The key might enable caching for the plugin using the following code:
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, {"GPU"}); // enables cache for GPU plugin
+ * @endcode
+ *
+ * @note This key supports unicode symbols in path
+ */
 DECLARE_CONFIG_KEY(CACHE_DIR);
+
+/**
+ * @brief This key defines the directory which will be used to store cached models.
+ */
+DECLARE_CONFIG_KEY(MODEL_CACHE_DIR);
+
+/**
+ * @brief This key defines custom model hash which is used to cache the model.
+ */
+DECLARE_CONFIG_KEY(MODEL_HASH);
 
 }  // namespace PluginConfigParams
 }  // namespace InferenceEngine

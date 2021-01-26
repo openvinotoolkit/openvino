@@ -158,6 +158,52 @@ class Core::Impl : public ICore {
 
     mutable std::map<std::string, InferencePlugin> plugins;
 
+    class CoreConfig {
+        std::string _modelCacheDir {};
+        std::string _modelHash {};
+        bool _isModelCacheEnabled = false;
+        std::map<std::string, std::string> _config;
+
+    public:
+        using ConfigMap = std::map<std::string, std::string>;
+
+        CoreConfig() = default;
+
+        CoreConfig(std::map<std::string, std::string> & config,
+                   const CoreConfig & globalConfig) {
+            // set global config settings
+            *this = globalConfig;
+
+            // parse local config
+            {
+                auto it = config.find(CONFIG_KEY(MODEL_CACHE_DIR));
+                if (it != config.end()) {
+                    _config[it->first] = it->second;
+                    _modelCacheDir = it->second;
+                    _isModelCacheEnabled = true;
+                    config.erase(it);
+                }
+            }
+
+            {
+                auto it = config.find(CONFIG_KEY(MODEL_HASH));
+                if (it != config.end()) {
+                    _config[it->first] = it->second;
+                    _modelHash = it->second;
+                    _isModelCacheEnabled = true;
+                    config.erase(it);
+                }
+            }
+        }
+
+        bool isModelCacheEnabled() const { return _isModelCacheEnabled; }
+        std::string getModelCacheRoot() const { return _modelCacheDir; }
+        std::string getModelHash() const { return _modelHash; }
+    };
+
+    // Core settings for specific devices
+    mutable std::map<std::string, CoreConfig> coreConfig;
+
     struct PluginDescriptor {
         FileUtils::FilePath libraryLocation;
         std::map<std::string, std::string> defaultConfig;
@@ -171,7 +217,7 @@ class Core::Impl : public ICore {
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
 
     ExecutableNetwork LoadNetworkImpl(const CNNNetwork& network, const std::string& deviceName,
-                                      const std::map<std::string, std::string>& config,
+                                      std::map<std::string, std::string> config,
                                       const RemoteContext::Ptr & context) {
         OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
 
@@ -179,7 +225,12 @@ class Core::Impl : public ICore {
         auto compileConfig = config;
         compileConfig["DEVICE_NAME"] = deviceName;
 
-        bool deviceSupportsImport = [&] (ICore * core) -> bool {
+        // save inference engine version instead of plugin GUID
+        // it does not work only for cases when we locally build the same version
+        // multiple times, but change the code frequently
+        compileConfig["INFERENCE_ENGINE_VERSION"] = GetInferenceEngineVersion()->buildNumber;
+
+        auto deviceSupportsImport = [&] (ICore * core) -> bool {
             std::stringstream dummyStream;
             bool supports = true;
             try {
@@ -205,18 +256,39 @@ class Core::Impl : public ICore {
             }
 
             return supports;
-        } (this);
+        };
 
-        bool cachingIsAvailable = false, networkIsImported = false;
-        std::string networkHash;
+        std::string deviceFamily; // MULTI:CPU -> MULTI, GPU.0 -> GPU, CPU -> CPU and so on
+        {
+            auto parsed = parseDeviceNameIntoConfig<std::string>(deviceName);
+            deviceFamily = parsed._deviceName;
+        }
 
-        if (deviceSupportsImport) {
+        // Note:
+        //   core.SetConfig({ { DECLARE_CONFIG_KEY(MODEL_CACHE_DIR), "" } }, "MULTI");
+        // will cache models only for MULTI itself, but not for MULTI devices
+        // To enable caching for MULTI sub-devices, enable it via
+        //   core.SetConfig({ { DECLARE_CONFIG_KEY(MODEL_CACHE_DIR), "" } }, "CPU");
+        // or using a global version:
+        //   core.SetConfig({ { DECLARE_CONFIG_KEY(MODEL_CACHE_DIR), "" } });
+        // which tries to use caching for all devices (if import / export is available).
+
+        CoreConfig localCoreConfig(config, coreConfig[deviceFamily]);
+        bool modelCacheEnabled = localCoreConfig.isModelCacheEnabled(),
+            cachingIsAvailable = false, networkIsImported = false;
+        std::string networkHash = localCoreConfig.getModelHash();
+
+        // FORCE MODEL CACHE
+        modelCacheEnabled = true;
+
+        if (modelCacheEnabled && networkHash.empty() && deviceSupportsImport(this)) {
             // Note: the following information from remote context is taken into account:
-            // - device name (part of compileConfig under DEVICE_NAME key)
+            // * device name (part of compileConfig under DEVICE_NAME key)
 
             NetworkCompilationContext context(network, compileConfig);
             cachingIsAvailable = context.isCachingAvailable();
 
+            // auto-hashing since CONFIG_KEY(MODEL_HASH) is not passed
             if (cachingIsAvailable)
                 networkHash = context.computeHash();
         }
@@ -632,16 +704,24 @@ public:
      * @brief Sets config values for a plugin or set of plugins
      * @param deviceName A device name to set config to
      *        If empty, config is set for all the plugins / plugin's meta-data
+     * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:FPGA,CPU
+     *        just simple forms like CPU, GPU, MULTU, GPU.0, etc
      */
     void SetConfigForPlugins(const std::map<std::string, std::string>& config, const std::string& deviceName) {
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
-        // set config for plugins in registry
+        // set config for plugins in registry (not created plugins)
         bool configIsSet = false;
-        for (auto& desc : pluginRegistry) {
+        for (auto & desc : pluginRegistry) {
+            PluginDescriptor & pluginDesc = desc.second;
             if (deviceName.empty() || deviceName == desc.first) {
-                for (auto&& conf : config) {
-                    desc.second.defaultConfig[conf.first] = conf.second;
+                // copy config since it's going to be modified
+                auto configCopy = config;
+                // extract common options to core config
+                coreConfig[desc.first] = CoreConfig(configCopy, coreConfig[desc.first]);
+                // the rest of the options are to device itself
+                for (auto&& conf : configCopy) {
+                    pluginDesc.defaultConfig[conf.first] = conf.second;
                 }
                 configIsSet = true;
             }
@@ -655,7 +735,12 @@ public:
         for (auto& plugin : plugins) {
             if (deviceName.empty() || deviceName == plugin.first) {
                 allowNotImplemented([&]() {
-                    plugin.second.SetConfig(config);
+                    // copy config since it's going to be modified
+                    auto configCopy = config;
+                    // extract common options to core config
+                    coreConfig[plugin.first] = CoreConfig(configCopy, coreConfig[plugin.first]);
+                    // the rest of the options are to device itself
+                    plugin.second.SetConfig(configCopy);
                 });
             }
         }
@@ -843,19 +928,21 @@ QueryNetworkResult Core::QueryNetwork(const CNNNetwork& network, const std::stri
 
 void Core::SetConfig(const std::map<std::string, std::string>& config, const std::string& deviceName) {
     // HETERO case
-    {
-        if (deviceName.find("HETERO:") == 0) {
-            THROW_IE_EXCEPTION << "SetConfig is supported only for HETERO itself (without devices). "
-                                  "You can configure the devices with SetConfig before creating the HETERO on top.";
-        }
+    if (deviceName.find("HETERO:") == 0) {
+        THROW_IE_EXCEPTION << "SetConfig is supported only for HETERO itself (without devices). "
+                                "You can configure the devices with SetConfig before creating the HETERO on top.";
     }
 
     // MULTI case
-    {
-        if (deviceName.find("MULTI:") == 0) {
-            THROW_IE_EXCEPTION << "SetConfig is supported only for MULTI itself (without devices). "
-                                  "You can configure the devices with SetConfig before creating the MULTI on top.";
-        }
+    if (deviceName.find("MULTI:") == 0) {
+        THROW_IE_EXCEPTION << "SetConfig is supported only for MULTI itself (without devices). "
+                                "You can configure the devices with SetConfig before creating the MULTI on top.";
+    }
+
+    // GPU.0, FPGA.1 cases
+    if (deviceName.find(".") != std::string::npos) {
+        THROW_IE_EXCEPTION << "SetConfig is supported only for device family itself (without particular device .#). "
+                                "You can pass .# as a particular device instance to QueryNetwork, LoadNetwork, ImportNetwork only";
     }
 
     if (deviceName.empty()) {
