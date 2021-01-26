@@ -48,34 +48,6 @@ namespace ngraph
                 constexpr size_t out_channel_axis = 1;
                 constexpr size_t spatial_axis = 2;
 
-                template <typename T>
-                struct Tensor
-                {
-                    T buffer;
-                    const Shape shape;
-                    const size_t size;
-
-                    Tensor& operator++()
-                    {
-                        buffer += size;
-                        return *this;
-                    }
-                };
-
-                template <typename Buf>
-                Tensor<Buf> tensor(Buf buffer, const Shape& s)
-                {
-                    static_assert(std::is_pointer<Buf>::value, "expecting ptr");
-                    return Tensor<Buf>{buffer, s, shape_size(s)};
-                }
-
-                template <typename Tens>
-                Tens tensor_slice(Tens t)
-                {
-                    Shape new_shape(++t.shape.begin(), t.shape.end());
-                    return tensor(t.buffer, new_shape);
-                }
-
                 struct ConvolutionParams
                 {
                     std::vector<int> strides;
@@ -101,22 +73,29 @@ namespace ngraph
 
                 template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
                 void convolve_3D_channels(const ConvolutionParams& p,
-                                          const Tensor<const INPUT*>& batch,
-                                          const Tensor<const FILTER*>& filter,
-                                          Tensor<OUTPUT*>& out)
+                                          const INPUT* batch,
+                                          const Shape& batch_shape,
+                                          const FILTER* filter,
+                                          const Shape& filter_shape,
+                                          OUTPUT*& out)
                 {
-                    const int input_size_z = batch.shape[1];
-                    const int input_size_y = batch.shape[2];
-                    const int input_size_x = batch.shape[3];
-                    const int filter_size_z = filter.shape[1];
-                    const int filter_size_y = filter.shape[2];
-                    const int filter_size_x = filter.shape[3];
+                    const int input_size_z = batch_shape[1];
+                    const int input_size_y = batch_shape[2];
+                    const int input_size_x = batch_shape[3];
+                    const int filter_size_z = filter_shape[1];
+                    const int filter_size_y = filter_shape[2];
+                    const int filter_size_x = filter_shape[3];
                     const int dilated_filter_size_z =
                         filter_size_z + (filter_size_z - 1) * (p.dilation[0] - 1);
                     const int dilated_filter_size_y =
                         filter_size_y + (filter_size_y - 1) * (p.dilation[1] - 1);
                     const int dilated_filter_size_x =
                         filter_size_x + (filter_size_x - 1) * (p.dilation[2] - 1);
+
+                    const Shape input_channel_shape(++batch_shape.begin(), batch_shape.end());
+                    const size_t input_channel_size = shape_size(input_channel_shape);
+                    const Shape filter_channel_shape(++filter_shape.begin(), filter_shape.end());
+                    const size_t filter_channel_size = shape_size(filter_channel_shape);
 
                     for (int i_z = -p.pads_begin[0];
                          i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z);
@@ -130,10 +109,10 @@ namespace ngraph
                                  i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x);
                                  i_x += p.strides[2])
                             {
+                                auto input_channel = batch;
+                                auto filter_channel = filter;
                                 ACCU sum = 0;
-                                auto input_channel = tensor_slice(batch);
-                                auto filter_channel = tensor_slice(filter);
-                                size_t filter_channels_count = filter.shape[0];
+                                size_t filter_channels_count = filter_shape[0];
                                 while (filter_channels_count--)
                                 {
                                     for (int f_z = 0; f_z < filter_size_z; ++f_z)
@@ -159,18 +138,16 @@ namespace ngraph
                                                 int i_buf_idx =
                                                     (rel_i_z * input_size_y * input_size_x) +
                                                     (rel_i_y * input_size_x) + rel_i_x;
-                                                sum += static_cast<ACCU>(
-                                                           input_channel.buffer[i_buf_idx]) *
-                                                       static_cast<ACCU>(
-                                                           filter_channel.buffer[f_buf_idx]);
+                                                sum += static_cast<ACCU>(input_channel[i_buf_idx]) *
+                                                       static_cast<ACCU>(filter_channel[f_buf_idx]);
                                             }
                                         }
                                     }
-                                    ++input_channel;
-                                    ++filter_channel;
+                                    input_channel += input_channel_size;
+                                    filter_channel += filter_channel_size;
                                 }
-                                *out.buffer = sum;
-                                ++out.buffer;
+                                *out = sum;
+                                ++out;
                             }
                         }
                     }
@@ -205,7 +182,7 @@ namespace ngraph
                              const FILTER* f,
                              OUTPUT* out,
                              const Shape& in_shape,
-                             const Shape& filter_shape,
+                             const Shape& f_shape,
                              const Shape& out_shape,
                              const Strides& strides,
                              const Strides& dilation,
@@ -214,14 +191,14 @@ namespace ngraph
                              const Strides&)
 
             {
-                // this implementation supports 1D, 2D & 3D convolutions
+                // this implementation supports 1D, 2D and 3D convolutions
                 NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
                              "Unsupported input rank: ",
                              in_shape);
 
-                NGRAPH_CHECK(filter_shape.size() >= 3 && filter_shape.size() <= 5,
+                NGRAPH_CHECK(f_shape.size() >= 3 && f_shape.size() <= 5,
                              "Unsupported kernel rank: ",
-                             filter_shape);
+                             f_shape);
 
                 auto old_mode = std::fegetround();
                 std::fesetround(FE_TONEAREST);
@@ -233,28 +210,31 @@ namespace ngraph
                 // here we are extending spatial dimensions to 3D, because we are going to use 3D
                 // convolution implementation to convolve also in 1D & 2D case
                 Shape input_shape{in_shape};
-                Shape filters_shape{filter_shape};
+                Shape filters_shape{f_shape};
                 if (in_shape.size() < 5)
                 {
                     extend_to_3D(params, input_shape, filters_shape);
                 }
 
-                const auto input = tensor(in, input_shape);
-                const auto filters = tensor(f, filters_shape);
-                auto output = tensor(out, out_shape);
+                const size_t batches_count = input_shape[in_batch_axis];
+                const Shape batch_shape(++input_shape.begin(), input_shape.end());
+                const size_t batch_size = shape_size(batch_shape);
 
-                const size_t batch_count = input.shape[in_batch_axis];
-                const size_t filters_count = filters.shape[filter_out_ch_axis];
+                const size_t filters_count = filters_shape[filter_out_ch_axis];
+                const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
+                const size_t filter_size = shape_size(filter_shape);
 
-                auto batch = tensor_slice(input);
-                for (size_t batch_idx = 0; batch_idx < batch_count; ++batch_idx, ++batch)
+                auto batch = in;
+                for (size_t batch_idx = 0; batch_idx < batches_count; ++batch_idx)
                 {
-                    auto filter = tensor_slice(filters);
-                    for (size_t f_idx = 0; f_idx < filters_count; ++f_idx, ++filter)
+                    auto filter = f;
+                    for (size_t f_idx = 0; f_idx < filters_count; ++f_idx)
                     {
                         convolve_3D_channels<INPUT, FILTER, OUTPUT, ACCU>(
-                            params, batch, filter, output);
+                            params, batch, batch_shape, filter, filter_shape, out);
+                        filter += filter_size;
                     }
+                    batch += batch_size;
                 }
 
                 std::fesetround(old_mode);
