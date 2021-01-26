@@ -164,7 +164,7 @@ protected:
         // performance counters
         expectedPrecisions["Convolution_1"] = "FP32";
         expectedPrecisions["ReLU_1"] = "ndef";
-        expectedPrecisions["AvgPool_1"] = "BF16";
+        expectedPrecisions["AvgPool_1"] = netPrecision == Precision::BF16 ? "BF16" : "FP32";
         expectedPrecisions["Convolution_2"] = "BF16";
         expectedPrecisions["ReLU_2"] = "ndef";
         expectedPrecisions["MaxPool_2"] = "BF16";
