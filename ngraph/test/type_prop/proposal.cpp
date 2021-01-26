@@ -315,6 +315,83 @@ TEST(type_prop, proposal_v0_invalid_image_shape_dynamic)
     }
 }
 
+TEST(type_prop, proposal_v0_invalid_class_probs_type)
+{
+    op::ProposalAttrs attrs;
+    auto class_probs = make_shared<op::Parameter>(element::i32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    try
+    {
+        auto proposal =
+            make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Invalid input tensor rank.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Proposal layer input class_probs should have floating point type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, proposal_v0_invalid_bbox_deltas_type)
+{
+    op::ProposalAttrs attrs;
+    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::i32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    try
+    {
+        auto proposal =
+            make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Invalid input tensor rank.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Proposal layer input bbox_deltas should have floating point type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, proposal_v0_invalid_image_shape_type)
+{
+    op::ProposalAttrs attrs;
+    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::i32, Shape{3});
+
+    try
+    {
+        auto proposal =
+            make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Invalid input tensor rank.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Proposal layer input image_shape should have floating point type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
 // ------------------------------ V4 ------------------------------
 
 TEST(type_prop, proposal_v4_invalid_class_probs_rank)
@@ -578,6 +655,84 @@ TEST(type_prop, proposal_v4_invalid_image_shape_dynamic)
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("Proposal layer shape image_shape should be rank 1 compatible"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, proposal_v4_invalid_class_probs_type)
+{
+    op::ProposalAttrs attrs;
+    auto class_probs = make_shared<op::Parameter>(element::i32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    try
+    {
+        auto proposal =
+            make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Invalid input tensor rank.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Proposal layer input class_probs should have floating point type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, proposal_v4_invalid_bbox_deltas_type)
+{
+    op::ProposalAttrs attrs;
+    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::i32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::f32, Shape{3});
+
+    try
+    {
+        auto proposal =
+            make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Invalid input tensor rank.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Proposal layer input bbox_deltas should have floating point type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, proposal_v4_invalid_image_shape_type)
+{
+    op::ProposalAttrs attrs;
+    auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3, 4});
+    auto image_shape = make_shared<op::Parameter>(element::i32, Shape{3});
+
+    try
+    {
+        auto proposal =
+            make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Invalid input tensor rank.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Proposal layer input image_shape should have floating point type"));
     }
     catch (...)
     {

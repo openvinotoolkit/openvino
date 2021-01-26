@@ -43,6 +43,24 @@ void op::v0::Proposal::validate_and_infer_types()
     auto out_dimension = Dimension::dynamic();
 
     NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).is_real(),
+                          "Proposal layer input class_probs should have floating point type (",
+                          get_input_element_type(0),
+                          ").");
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(1).is_real(),
+                          "Proposal layer input bbox_deltas should have floating point type (",
+                          get_input_element_type(1),
+                          ").");
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(2).is_real(),
+                          "Proposal layer input image_shape should have floating point type (",
+                          get_input_element_type(2),
+                          ").");
+
+    NODE_VALIDATION_CHECK(this,
                           class_probs_ps.rank().compatible(4),
                           "Proposal layer shape class_probs should be rank 4 compatible (",
                           class_probs_ps,
