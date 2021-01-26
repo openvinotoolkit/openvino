@@ -15,3 +15,4 @@
 # ******************************************************************************
 
 add_subdirectory(itt_collector)
+add_subdirectory(xbyak)

@@ -21,20 +21,6 @@ file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 set(REF_IMPL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-include(FetchContent)
-
-FetchContent_Declare(
-    xbyak
-    GIT_REPOSITORY https://github.com/herumi/xbyak.git
-    GIT_TAG v5.991
-)
-
-FetchContent_GetProperties(xbyak)
-if(NOT xbyak_POPULATED)
-    FetchContent_Populate(xbyak)
-    add_subdirectory(${xbyak_SOURCE_DIR} ${xbyak_BINARY_DIR})
-endif()
-
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
@@ -54,8 +40,9 @@ endif()
 target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH}
-                                          PRIVATE ${xbyak_SOURCE_DIR})
+target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH})
+
+target_link_libraries(${TARGET_NAME} PRIVATE xbyak::xbyak)
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::reference ALIAS ${TARGET_NAME})

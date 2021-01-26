@@ -143,6 +143,7 @@ function(openvino_developer_export_targets)
         "A list of OpenVINO exported components" FORCE)
 endfunction()
 
+add_subdirectory(thirdparty)
 add_subdirectory(openvino)
 add_subdirectory(thirdparty)
 build_ngraph()
