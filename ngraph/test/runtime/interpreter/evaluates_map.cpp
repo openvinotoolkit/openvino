@@ -722,8 +722,6 @@ namespace
         constexpr size_t im_data_port = 2;
 
         PartialShape infer_output_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
-                                        const Shape& priors_shape,
-                                        const Shape& feature_map_shape,
                                         bool flatten)
         {
             PartialShape out_shape = {
@@ -733,6 +731,9 @@ namespace
             {
                 out_shape = PartialShape{Dimension::dynamic(), 4};
             }
+
+            const auto priors_shape = inputs[priors_port]->get_partial_shape();
+            const auto feature_map_shape = inputs[feature_map_port]->get_partial_shape();
 
             if (priors_shape.rank().is_dynamic() || feature_map_shape.rank().is_dynamic())
             {
@@ -773,8 +774,7 @@ namespace
             result.output_type = prior_grid->get_input_element_type(0);
             result.priors_data = nms_v5::get_floats(inputs[priors_port], result.priors_shape);
 
-            auto output_rois_shape = infer_output_shape(
-                inputs, result.priors_shape, result.feature_map_shape, attrs.flatten);
+            auto output_rois_shape = infer_output_shape(inputs, attrs.flatten);
             result.output_shape = output_rois_shape.to_shape();
 
             return result;
