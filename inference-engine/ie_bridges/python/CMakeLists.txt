@@ -10,7 +10,7 @@ set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
 set(PYTHON_BRIDGE_CPACK_PATH "python")
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
-option(ENABLE_WHEEL "Create wheel packaging content" OFF)
+option(ENABLE_WHEEL "Create wheel package" OFF)
 
 string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
 if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
@@ -63,7 +63,7 @@ if (ENABLE_TESTS)
 endif()
 
 if(ENABLE_WHEEL)
-    add_subdirectory(install/wheel)
+    add_subdirectory(install)
 endif()
 
 # Check Cython version

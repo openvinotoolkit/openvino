@@ -87,6 +87,12 @@ class PrepareLibs(build_clib):
                     "--prefix", CMAKE_INSTALL_PLUGINS_DIR,
                     "--component", "multi"])
 
+        self.announce("Installing myriad plugin", level=3)
+        self.spawn(["cmake",
+                    "--install", CMAKE_BUILD_DIR,
+                    "--prefix", CMAKE_INSTALL_PLUGINS_DIR,
+                    "--component", "myriad"])
+
         self.announce("Installing ngraph", level=3)
         self.spawn(["cmake",
                     "--install", CMAKE_BUILD_DIR,
@@ -195,6 +201,10 @@ def find_prebuilt_extensions(base_dir, ext_pattern):
 with open("pypi_overview.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+# reading dependencies from requirements.txt
+with open("requirements.txt", "r", encoding="utf-8") as fh:
+    dependencies = fh.read()
+
 python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
 binding_dir = os.path.join(python_version)
 
@@ -232,7 +242,5 @@ setup(
     package_dir={"": BINDINGS_DIR},
     data_files=find_data_files(ALL_LIBS, libs_subdir),
     zip_safe=False,
-    install_requires=[
-        "numpy>=1.16.3"
-    ],
+    install_requires=dependencies,
 )

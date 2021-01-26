@@ -23,41 +23,10 @@ Operating Systems:
    ```sh
    pip install openvino-python
    ```
-3. Add PATH to environment variables.
- - Ubuntu* 18.04 and macOS*:
+
+3. Verify that the package is installed:
    ```sh
-   export LD_LIBRARY_PATH=<library_dir>:${LD_LIBRARY_PATH}
-   ```
- - Windows* 10:
-    ```sh
-   set PATH=<library_dir>;%PATH%
-   ```
-  How to find `library_dir`:
- - Ubuntu\*, macOS\*:
-   - standard user:
-     ```sh
-     echo $(python3 -m site --user-base)/lib
-     ```
-   - root or sudo user:
-     ```sh
-     /usr/local/lib
-     ```
-   - virtual environments or custom Python installations (from sources or tarball):
-     ```sh
-     echo $(which python3)/../../lib
-     ```
- - Windows\*:
-   - standard Python:
-     ```sh
-      python -c "import os, sys; print((os.path.dirname(sys.executable))+'\Library\\bin')"
-     ```
-   - virtual environments or custom Python installations (from sources or tarball):
-     ```sh
-      python -c "import os, sys; print((os.path.dirname(sys.executable))+'\..\Library\\bin')"
-     ```
-4. Verify that the package is installed:
-   ```sh
-   python3 -c "import openvino"
+   python3 -c "from openvino.inference_engine import IECore"
    ```
    
 Now you are ready to develop and run your application.
