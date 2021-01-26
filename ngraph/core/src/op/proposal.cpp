@@ -42,56 +42,47 @@ void op::v0::Proposal::validate_and_infer_types()
     const auto& image_shape_ps = get_input_partial_shape(2);
     auto out_dimension = Dimension::dynamic();
 
-    if (class_probs_ps.is_static())
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            class_probs_ps.rank().get_length() == 4,
-            "Proposal layer shape class_probs input must have rank 4 (class_probs_shape: ",
-            class_probs_ps,
-            ").");
-    }
+    NODE_VALIDATION_CHECK(this,
+                          class_probs_ps.rank().compatible(4),
+                          "Proposal layer shape class_probs should be rank 4 compatible (",
+                          class_probs_ps,
+                          ").");
 
-    if (bbox_deltas_ps.is_static())
+    NODE_VALIDATION_CHECK(this,
+                          bbox_deltas_ps.rank().compatible(4),
+                          "Proposal layer shape bbox_deltas should be rank 4 compatible (",
+                          bbox_deltas_ps,
+                          ").");
+
+    NODE_VALIDATION_CHECK(this,
+                          image_shape_ps.rank().compatible(1),
+                          "Proposal layer shape image_shape should be rank 1 compatible (",
+                          image_shape_ps,
+                          ").");
+
+    if (bbox_deltas_ps.is_static() && class_probs_ps.is_static())
     {
+        // class probs and bbox deltas shapes are static, check anchor count and batch number
+        // consistency
         NODE_VALIDATION_CHECK(this,
-                              bbox_deltas_ps.rank().get_length() == 4,
-                              "Proposal layer shape class_bbox_deltas_shape input must have rank 4 "
-                              "(class_bbox_deltas_shape: ",
-                              bbox_deltas_ps,
+                              class_probs_ps[1].get_length() * 2 == bbox_deltas_ps[1].get_length(),
+                              "Anchor number inconsistent between class_probs (",
+                              class_probs_ps[1].get_length() / 2,
+                              "), and bbox_deltas (",
+                              class_probs_ps[1].get_length() / 4,
                               ").");
-        if (class_probs_ps.is_static())
-        {
-            // class probs shape was also static, check anchor count and batch number
-            // consistency
-            NODE_VALIDATION_CHECK(this,
-                                  class_probs_ps[1].get_length() * 2 ==
-                                      bbox_deltas_ps[1].get_length(),
-                                  "Anchor number inconsistent between class_probs (",
-                                  class_probs_ps[1].get_length() / 2,
-                                  "), and bbox_deltas (",
-                                  class_probs_ps[1].get_length() / 4,
-                                  ").");
 
-            NODE_VALIDATION_CHECK(this,
-                                  class_probs_ps[0] == bbox_deltas_ps[0],
-                                  "Batch size inconsistent between class_probs (",
-                                  class_probs_ps[0],
-                                  ") and bbox deltas (",
-                                  bbox_deltas_ps[0],
-                                  ").");
-        }
+        NODE_VALIDATION_CHECK(this,
+                              class_probs_ps[0] == bbox_deltas_ps[0],
+                              "Batch size inconsistent between class_probs (",
+                              class_probs_ps[0],
+                              ") and bbox deltas (",
+                              bbox_deltas_ps[0],
+                              ").");
     }
 
     if (image_shape_ps.is_static())
     {
-        NODE_VALIDATION_CHECK(
-            this,
-            image_shape_ps.rank().get_length() == 1,
-            "Proposal layer image_shape input must have rank 1 (image_shape_shape: ",
-            image_shape_ps,
-            ").");
-
         NODE_VALIDATION_CHECK(
             this,
             image_shape_ps[0].get_length() >= 3 && image_shape_ps[0].get_length() <= 4,

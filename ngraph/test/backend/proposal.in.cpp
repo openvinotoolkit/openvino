@@ -867,9 +867,6 @@ NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
         0.705388f, 0.636577f, 0.645555f, 0.542629f, 0.649441f, 0.683766f, 0.624971f, // 5782
         0.442319f, 0.441152f, 0.303817f, 0.191780f, 0.216382f, 0.279078f, 0.329642f, // 5789
     };
-
-    constexpr size_t cls_scores_data_size = sizeof(cls_scores_data) / sizeof(cls_scores_data[0]);
-
     constexpr float bbox_pred_data[] = {
         0.006756f,  0.062491f,  0.113831f,  0.063944f,  0.024297f,  0.009997f,  -0.043972f, // 0
         -0.051204f, -0.036587f, -0.048956f, -0.021944f, -0.011054f, -0.023826f, -0.003094f, // 7
@@ -2528,9 +2525,6 @@ NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
         -0.042735f, -0.068470f, -0.075152f, -0.063983f, -0.051570f, -0.028071f, -0.039607f, // 11578
         -0.032304f, -0.061007f, 0.021732f,  0.020398f,  -0.115368f, -0.094854f, -0.119841f, // 11585
     };
-
-    constexpr size_t bbox_pred_data_size = sizeof(bbox_pred_data) / sizeof(bbox_pred_data[0]);
-
     constexpr float proposal_ref[] = {
         0.0000000f, 0.0000000f,   0.0000000f,   345.6495361f, 209.0000000f, // 0
         0.0000000f, 0.0000000f,   73.5089264f,  349.0000000f, 209.0000000f, // 5
@@ -2558,8 +2552,6 @@ NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
         0.0000000f, 43.1367035f,  0.0000000f,   275.3395996f, 188.5202179f, // 115
         0.0000000f, 110.2392731f, 68.0856171f,  164.6310883f, 146.0089111f, // 120
     };
-
-    constexpr size_t proposal_ref_size = sizeof(proposal_ref) / sizeof(proposal_ref[0]);
 
     const float iou_threshold = 0.7f;
     const int min_bbox_size = 16;
