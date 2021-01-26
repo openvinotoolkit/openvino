@@ -136,13 +136,13 @@ def bool_to_str(node: Node, attr: str):
     attribute_name = node.soft_get(attr)
     if attribute_name == '<UNKNOWN>':
         return
-    if isinstance(node[attr], bool):
-        return str(node[attr]).lower()
-    elif node[attr] in [0, 1]:
-        return str(bool(node[attr])).lower()
+    if isinstance(attribute_name, bool):
+        return str(attribute_name).lower()
+    elif attribute_name in [0, 1]:
+        return str(bool(attribute_name)).lower()
     else:
         raise Error('Wrong value {} for boolean attribute {} in node {}'.format(
-            node[attr], attr, node.soft_get('name')))
+            attribute_name, attr, node.soft_get('name')))
 
 
 def kernel_getter(node: Node, dim: int):
