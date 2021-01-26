@@ -244,10 +244,16 @@ if __name__ == "__main__":
     from openvino.inference_engine import IECore
 
     ie = IECore()
-    executable_network = ie.load_network(ie_network, 'CPU')
+    # executable_network = ie.load_network(ie_network, 'CPU')
 
+    net = ie.read_network('/media/data/OpenVINO/openvino/build/PDPD_Resnet50_Function.xml',
+                          '/media/data/OpenVINO/openvino/build/PDPD_Resnet50_Function.bin')
+    executable_network = ie.load_network(net, 'CPU')
+
+    # output = executable_network.infer(
+    #     {'@HUB_resnet_v2_50_imagenet@image': img.astype(np.float32)})
     output = executable_network.infer(
-        {'@HUB_resnet_v2_50_imagenet@image': img.astype(np.float32)})
+        {'Parameter_267': img.astype(np.float32)})
 
     print(np.abs(result[0] - list(output.values())[0]).max())
     print(np.abs(result[1] - list(output.values())[1]).max())

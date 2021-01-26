@@ -28,6 +28,10 @@ using namespace InferenceEngine;
 using namespace google;
 using namespace paddle::framework;
 
+inline void MY_ASSERT(bool ex, const std::string& msg = "Unspecified error.") {
+    if (!ex) throw std::runtime_error(msg + std::endl);
+}
+
 std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP{
     {proto::VarType_Type::VarType_Type_BOOL, ngraph::element::boolean},
     {proto::VarType_Type::VarType_Type_INT16, ngraph::element::i16},
@@ -41,7 +45,7 @@ std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP
     {proto::VarType_Type::VarType_Type_BF16, ngraph::element::bf16}
 };
 
-bool endsWith(std::string str, std::string suffix) {
+bool endsWith(const std::string& str, const std::string& suffix) {
     if (str.length() >= suffix.length()) {
         return (0 == str.compare(str.length() - suffix.length(), suffix.length(), suffix));
     }
@@ -59,10 +63,12 @@ protobuf::RepeatedField<protobuf::int32> get_ints(proto::OpDesc op, std::string 
     std::cout << "Attrs preprocessed" << std::endl;
     if (attrs.size() == 0) {
         return def;
-    } else if (attrs.size() > 1) {
+    }
+    else if (attrs.size() > 1) {
         // TODO: raise exception here
         return def;
-    } else {
+    }
+    else {
         return attrs[0].ints();
     }
 }
@@ -75,10 +81,12 @@ int get_int(proto::OpDesc op, std::string name, int def = 0) {
     }
     if (attrs.size() == 0) {
         return def;
-    } else if (attrs.size() > 1) {
+    }
+    else if (attrs.size() > 1) {
         // TODO: raise exception here
         return def;
-    } else {
+    }
+    else {
         return attrs[0].i();
     }
 }
@@ -91,10 +99,12 @@ float get_float(proto::OpDesc op, std::string name, float def = 0.) {
     }
     if (attrs.size() == 0) {
         return def;
-    } else if (attrs.size() > 1) {
+    }
+    else if (attrs.size() > 1) {
         // TODO: raise exception here
         return def;
-    } else {
+    }
+    else {
         return attrs[0].f();
     }
 }
@@ -107,10 +117,12 @@ std::string get_str(proto::OpDesc op, std::string name, std::string def = "") {
     }
     if (attrs.size() == 0) {
         return def;
-    } else if (attrs.size() > 1) {
+    }
+    else if (attrs.size() > 1) {
         // TODO: raise exception here
         return def;
-    } else {
+    }
+    else {
         return attrs[0].s();
     }
 }
@@ -123,26 +135,26 @@ bool get_bool(proto::OpDesc op, std::string name, bool def = false) {
     }
     if (attrs.size() == 0) {
         return def;
-    } else if (attrs.size() > 1) {
+    }
+    else if (attrs.size() > 1) {
         // TODO: raise exception here
         return def;
-    } else {
+    }
+    else {
         return attrs[0].b();
     }
 }
 
-typedef std::shared_ptr<ngraph::Node>(*CreatorFunction)(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs,
-    proto::OpDesc op, proto::BlockDesc block);
+typedef std::shared_ptr<ngraph::Node>(*CreatorFunction)(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+    const proto::OpDesc& op, const proto::BlockDesc& block);
 
-std::shared_ptr<ngraph::Node> conv2d_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs,
-    proto::OpDesc op, proto::BlockDesc block) {
+std::shared_ptr<ngraph::Node> conv2d_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+    const proto::OpDesc& op, const proto::BlockDesc& block) {
     std::cout << "Running conv2d creator" << std::endl;
-    assert(inputs["Input"].size() == 1);
+    MY_ASSERT(inputs["Input"].size() == 1 && inputs["Filter"].size() == 1, "More then one input for conv2d");
+    MY_ASSERT(inputs["Bias"].size() == 0 && inputs["ResidualData"].size() == 0, "Bias and residual have input for conv2d");
     auto data = inputs["Input"][0];
-    assert(inputs["Filter"].size() == 1);
     auto filter = inputs["Filter"][0];
-    assert(inputs["Bias"].size() == 0);
-    assert(inputs["ResidualData"].size() == 0);
     // TODO: resolve padding according to spec
     auto strides = get_ints(op, "strides");
     auto paddings = get_ints(op, "paddings");
@@ -157,13 +169,14 @@ std::shared_ptr<ngraph::Node> conv2d_creator(std::map<std::string, std::vector<s
 }
 
 
-std::shared_ptr<ngraph::Node> batch_norm_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs,
-    proto::OpDesc op, proto::BlockDesc block) {
-    assert(inputs["X"].size() == 1);
-    assert(inputs["Scale"].size() == 1);
-    assert(inputs["Bias"].size() == 1);
-    assert(inputs["Mean"].size() == 1);
-    assert(inputs["Variance"].size() == 1);
+std::shared_ptr<ngraph::Node> batch_norm_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+    const proto::OpDesc& op, const proto::BlockDesc& block) {
+    MY_ASSERT(inputs["X"].size() == 1 &&
+        inputs["Scale"].size() == 1 &&
+        inputs["Bias"].size() == 1 &&
+        inputs["Mean"].size() == 1 &&
+        inputs["Variance"].size() == 1,
+        "More then one input for batch_norm");
     auto data = inputs["X"][0];
     auto gamma = inputs["Scale"][0];
     auto beta = inputs["Bias"][0];
@@ -173,16 +186,16 @@ std::shared_ptr<ngraph::Node> batch_norm_creator(std::map<std::string, std::vect
 }
 
 
-std::shared_ptr<ngraph::Node> relu_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs,
-    proto::OpDesc op, proto::BlockDesc block) {
-    assert(inputs["X"].size() == 1);
+std::shared_ptr<ngraph::Node> relu_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+    const proto::OpDesc& op, const proto::BlockDesc& block) {
+    MY_ASSERT(inputs["X"].size() == 1, "More then one input for relu");
     auto data = inputs["X"][0];
     return std::make_shared<ngraph::opset6::Relu>(data);
 }
 
-std::shared_ptr<ngraph::Node> pool2d_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs,
-    proto::OpDesc op, proto::BlockDesc block) {
-    assert(inputs["X"].size() == 1);
+std::shared_ptr<ngraph::Node> pool2d_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+    const proto::OpDesc& op, const proto::BlockDesc& block) {
+    MY_ASSERT(inputs["X"].size() == 1, "More then one input for pool2d");
     auto data = inputs["X"][0];
     // TODO : resolve padding according to spec
     auto pooling_type = get_str(op, "pooling_type");
@@ -196,34 +209,34 @@ std::shared_ptr<ngraph::Node> pool2d_creator(std::map<std::string, std::vector<s
             ngraph::Shape(paddings.begin(), paddings.end()),
             ngraph::Shape(paddings.begin(), paddings.end()),
             ngraph::Shape(kernel_shape.begin(), kernel_shape.end()));
-    } else if (pooling_type == "avg" && global_pooling) {
+    }
+    else if (pooling_type == "avg" && global_pooling) {
         // TODO : resolve axes according to rank
         auto axes = ngraph::opset6::Constant::create(ngraph::element::i64, { 2 }, { 2, 3 });
         return std::make_shared<ngraph::opset6::ReduceMean>(data, axes, true);
-    } else {
+    }
+    else {
         throw std::runtime_error("Unsupported pooling type");
     }
 }
 
-std::shared_ptr<ngraph::Node> elementwise_add_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs,
-    proto::OpDesc op, proto::BlockDesc block) {
-    assert(inputs["X"].size() == 1);
-    assert(inputs["Y"].size() == 1);
+std::shared_ptr<ngraph::Node> elementwise_add_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+    const proto::OpDesc& op, const proto::BlockDesc& block) {
+    MY_ASSERT(inputs["X"].size() == 1 && inputs["Y"].size() == 1, "More then one input for elementwise_add");
     auto x = inputs["X"][0];
     auto y = inputs["Y"][0];
     // TODO : resolve broadcast
     return std::make_shared<ngraph::opset6::Add>(x, y);
 }
 
-std::shared_ptr<ngraph::Node> mul_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs,
-    proto::OpDesc op, proto::BlockDesc block) {
-    assert(inputs["X"].size() == 1);
-    assert(inputs["Y"].size() == 1);
+std::shared_ptr<ngraph::Node> mul_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+    const proto::OpDesc& op, const proto::BlockDesc& block) {
+    MY_ASSERT(inputs["X"].size() == 1 && inputs["Y"].size() == 1, "More then one input for mul");
     auto x = inputs["X"][0];
     auto y = inputs["Y"][0];
-    assert(x->output(0).get_partial_shape().rank().is_static());
+    MY_ASSERT(x->output(0).get_partial_shape().rank().is_static());
     int64_t x_rank = x->output(0).get_partial_shape().rank().get_length();
-    assert(y->output(0).get_partial_shape().rank().is_static() && y->output(0).get_partial_shape().rank().get_length() == 2);
+    MY_ASSERT(y->output(0).get_partial_shape().rank().is_static() && y->output(0).get_partial_shape().rank().get_length() == 2);
     if (x_rank > 2) {
         auto shape = std::make_shared<ngraph::opset6::ShapeOf>(x);
         int64_t x_num_col_dims = get_int(op, "x_num_col_dims");
@@ -245,18 +258,18 @@ std::shared_ptr<ngraph::Node> mul_creator(std::map<std::string, std::vector<std:
     return std::make_shared<ngraph::opset6::MatMul>(x, y);
 }
 
-std::shared_ptr<ngraph::Node> scale_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs,
-    proto::OpDesc op, proto::BlockDesc block) {
-    assert(inputs["X"].size() == 1);
+std::shared_ptr<ngraph::Node> scale_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+    const proto::OpDesc& op, const proto::BlockDesc& block) {
+    MY_ASSERT(inputs["X"].size() == 1, "More then one input for scale");
     auto data = inputs["X"][0];
     auto scale = ngraph::opset6::Constant::create(ngraph::element::f32, { 1 }, { get_float(op, "scale") });
     return std::make_shared<ngraph::opset6::Multiply>(data, scale);
 }
 
-std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, google::protobuf::RepeatedPtrField<std::string>> inputs,
-    std::map<std::string, std::shared_ptr<ngraph::Node>> nodes,
-    paddle::framework::proto::OpDesc op,
-    paddle::framework::proto::BlockDesc block) {
+std::shared_ptr<ngraph::Node> make_ng_node(const std::map<std::string, google::protobuf::RepeatedPtrField<std::string>>& inputs,
+    const std::map<std::string, std::shared_ptr<ngraph::Node>>& nodes,
+    const paddle::framework::proto::OpDesc& op,
+    const paddle::framework::proto::BlockDesc& block) {
     std::cout << "Making node: " << op.type() << std::endl;
     std::map<std::string, CreatorFunction> CREATORS_MAP{
         {"conv2d", conv2d_creator},
@@ -267,7 +280,7 @@ std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, google::protobu
         {"mul", mul_creator},
         {"scale", scale_creator}
     };
-    assert(CREATORS_MAP.find(op.type()) != CREATORS_MAP.end());
+    MY_ASSERT(CREATORS_MAP.find(op.type()) != CREATORS_MAP.end(), "No creator found");
     std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>> inputs_preproc;
     for (const auto& item : inputs) {
         inputs_preproc[item.first] = std::vector<std::shared_ptr<ngraph::Node>>();
@@ -279,21 +292,25 @@ std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, google::protobu
     return CREATORS_MAP[op.type()](inputs_preproc, op, block);
 }
 
-std::shared_ptr<ngraph::opset6::Constant> read_tensor(paddle::framework::proto::VarDesc var, std::string model_dir) {
+std::shared_ptr<ngraph::opset6::Constant> read_tensor(const paddle::framework::proto::VarDesc& var, const std::string& model_dir) {
     std::cout << "Reading tensor " << var.name() << std::endl;
-    assert(var.type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
+    MY_ASSERT(var.type().type() == paddle::framework::proto::VarType::LOD_TENSOR);
     auto tensor = var.type().lod_tensor().tensor();
 
-    std::ifstream is;
-    is.open(model_dir + "\\" + var.name(), std::ios::binary);
+    std::ifstream is(model_dir + "/" + var.name(), std::ios::in | std::ifstream::binary);
+    if (!is || !is.is_open()) {
+        std::cout << "File not opened" << std::endl;
+    }
     // get length of file:
     is.seekg(0, std::ios::end);
     auto length = is.tellg();
     auto tensor_length = std::accumulate(tensor.dims().cbegin(), tensor.dims().cend(), 1, std::multiplies<int64_t>());
+    std::cout << "length: " << length << ", ten_len: " << tensor_length << std::endl;
     is.seekg((size_t)length - tensor_length * 4, std::ios::beg);
 
     std::vector<float> tensor_data(tensor_length, 0);
     is.read(reinterpret_cast<char*>(&tensor_data[0]), tensor_length * 4);
+    is.close();
     auto shape = std::vector<size_t>(tensor.dims().cbegin(), tensor.dims().cend());
     return ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape(shape), tensor_data);
 }
@@ -338,29 +355,35 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string& model_dir) {
                 auto layer_name = outputs_dict["Out"][0];
                 std::cout << "Creating parameter: " << layer_name << std::endl;
                 auto var = vars_dict[layer_name];
-                assert(var.type() == paddle::framework::proto::VarType::LOD_TENSOR);
+                MY_ASSERT(var.type() == paddle::framework::proto::VarType::LOD_TENSOR);
                 auto tensor_desc = var.lod_tensor().tensor();
                 auto dtype = tensor_desc.data_type();
                 std::vector<size_t> shape;
+                // set all -1 dims to 1
                 for (auto dim : tensor_desc.dims()) {
                     if (dim >= 0) {
                         shape.push_back(dim);
-                    } else {
+                    }
+                    else {
                         shape.push_back(1);
                     }
                 }
                 auto param = std::make_shared<ngraph::opset6::Parameter>(TYPE_MAP[dtype], ngraph::Shape(shape));
+                param->set_friendly_name(layer_name);
                 nodes_dict[layer_name] = param;
                 parameter_nodes.push_back(param);
                 std::cout << "Parameter created" << std::endl;
-            } else if (op.type() == "fetch") {
+            }
+            else if (op.type() == "fetch") {
                 auto input_node = inputs_dict["X"][0];
-                assert(nodes_dict.find(input_node) != nodes_dict.end());
+                MY_ASSERT(nodes_dict.find(input_node) != nodes_dict.end());
                 result_nodes.push_back(std::make_shared<ngraph::opset6::Result>(nodes_dict[input_node]));
-            } else {
+            }
+            else {
                 auto node = make_ng_node(inputs_dict, nodes_dict, op, block);
+                node->set_friendly_name(outputs_dict["Out"][0]);
                 for (const auto& item : outputs_dict) {
-                    assert(item.second.size() <= 1);
+                    MY_ASSERT(item.second.size() <= 1);
                     if (item.second.size() == 1) {
                         nodes_dict[item.second[0]] = node;
                     }
@@ -376,7 +399,7 @@ int main(int argc, char* argv[]) {
         std::string model_path = "/home/mvafin/.paddlehub/modules/resnet_v2_50_imagenet/model";
         auto func = convert_model(model_path);
         CNNNetwork net(func);
-        net.reshape({ {"@HUB_resnet_v2_50_imagenet@image"}, {1, 3, 224, 224} });
+        //net.reshape({ {"@HUB_resnet_v2_50_imagenet@image"}, {1, 3, 224, 224} });
         net.serialize("PDPD_Resnet50_Function.xml", "PDPD_Resnet50_Function.bin");
     }
     catch (const std::exception& ex) {
