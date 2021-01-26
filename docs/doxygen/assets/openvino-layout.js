@@ -505,6 +505,7 @@ function openVinoContent() {
         searchSlider.on('click', function() {
             $(this).toggleClass('closed open');
             $("#MSearchField").animate({width:'toggle'},200);
+            $('#MSearchField').focus();
         });
        if (['http:', 'https:'].indexOf(window.location.protocol) !== -1) {
            $('#MSearchField').replaceWith('<input type="text" name="query" id="MSearchField" value="Search" accesskey="S" onfocus="searchBox.OnSearchFieldFocus(true)">');
@@ -539,6 +540,30 @@ function openVinoContent() {
             $container.append($(".header, .contents")).insertAfter($("#top"));
             $(".contents").prepend($(".header"));
         }
+
+        // assign clipboard button for each .fragment element
+        $('.fragment').wrap('<div class="code-container"></div>');
+        $('.code-container').prepend($('<div class="content-copy"><span class="material-icons">content_copy</span></div>').click(function(e) {
+            $(e.target).text('check_circle_outline');
+            $(e.target).css('color', '#4CAF50');
+            var fragment = $(e.target.parentElement.parentElement).children('div.fragment')[0];
+            var text = [];
+            $(fragment).children('div.line').each(function(key, val) {
+                text.push(val.innerText);
+            });
+            text = text.join('\n');
+            var $placeholder = $('<textarea>');
+            $placeholder.val(text);
+            $(document.body).append($placeholder);
+            $placeholder.select();
+            document.execCommand('copy');
+            $placeholder.remove();
+            setTimeout(function() {
+                $(e.target).text('content_copy');
+                $(e.target).css('color', 'inherit');
+            }, 3000);
+        }));
+
 
         // Detect any anchor in the content that links to an image and add target="_blank" to it
         // This lets a user see very large images if they appear too narrow on page
