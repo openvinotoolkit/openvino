@@ -69,9 +69,11 @@ public:
      *
      * For single and multiple outputs networks.
      *
-     * This method need to be called to find output names for using them later
+     * This method need to be called to find out OpenVINO output names for using them later
      * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
      *
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor or
+     * InferenceEngine::ICNNNetwork::getOVNameForOperation methods to map framework names to OpenVINO names
      *
      * @param out Reference to the OutputsDataMap object
      */
@@ -82,8 +84,11 @@ public:
      * object.
      *
      * For single and multiple inputs networks.
-     * This method need to be called to find out input names for using them later
+     * This method need to be called to find out OpenVINO input names for using them later
      * when calling InferenceEngine::InferRequest::SetBlob
+     *
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor or
+     * InferenceEngine::ICNNNetwork::getOVNameForOperation methods to map framework names to OpenVINO names
      *
      * @param inputs Reference to InputsDataMap object.
      */
