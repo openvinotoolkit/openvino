@@ -13,17 +13,28 @@
 
 namespace CPUTestUtils {
     typedef enum {
-        nchw,
-        nChw8c,
-        nChw16c,
-        nhwc,
-        ncdhw,
-        nCdhw8c,
-        nCdhw16c,
-        ndhwc,
-        nc,
-        x,
-        undef
+        undef,
+        a,
+        ab,
+        abcd,
+        acdb,
+        aBcd8b,
+        aBcd16b,
+        abcde,
+        acdeb,
+        aBcde8b,
+        aBcde16b,
+
+        x = a,
+        nc = ab,
+        nchw = abcd,
+        nChw8c = aBcd8b,
+        nChw16c = aBcd16b,
+        nhwc = acdb,
+        ncdhw = abcde,
+        nCdhw8c = aBcde8b,
+        nCdhw16c = aBcde16b,
+        ndhwc = acdeb,
     } cpu_memory_format_t;
 
     using CPUSpecificParams =  std::tuple<
