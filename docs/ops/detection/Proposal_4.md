@@ -28,6 +28,7 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 7.  Takes top *post_nms_topn* proposals
 8.  Returns top proposals and optionally their probabilities 
 
+**Attributes**:
 
 * *base_size*
 

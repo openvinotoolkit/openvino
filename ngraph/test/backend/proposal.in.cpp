@@ -37,7 +37,7 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
 {
-    float cls_scores_data[] = {
+    constexpr float cls_scores_data[] = {
         0.999760f, 0.997614f, 0.999854f, 0.996280f, 0.994689f, 0.999543f, 0.999865f, // 0
         0.999969f, 0.999885f, 0.999879f, 0.999758f, 0.999719f, 0.999626f, 0.999386f, // 7
         0.999781f, 0.999807f, 0.999814f, 0.999798f, 0.999974f, 0.999963f, 0.999858f, // 14
@@ -868,9 +868,9 @@ NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
         0.442319f, 0.441152f, 0.303817f, 0.191780f, 0.216382f, 0.279078f, 0.329642f, // 5789
     };
 
-    size_t cls_scores_data_size = sizeof(cls_scores_data) / sizeof(cls_scores_data[0]);
+    constexpr size_t cls_scores_data_size = sizeof(cls_scores_data) / sizeof(cls_scores_data[0]);
 
-    float bbox_pred_data[] = {
+    constexpr float bbox_pred_data[] = {
         0.006756f,  0.062491f,  0.113831f,  0.063944f,  0.024297f,  0.009997f,  -0.043972f, // 0
         -0.051204f, -0.036587f, -0.048956f, -0.021944f, -0.011054f, -0.023826f, -0.003094f, // 7
         -0.025690f, -0.012323f, -0.050170f, -0.043965f, -0.070886f, -0.073030f, -0.052720f, // 14
@@ -2529,9 +2529,9 @@ NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
         -0.032304f, -0.061007f, 0.021732f,  0.020398f,  -0.115368f, -0.094854f, -0.119841f, // 11585
     };
 
-    size_t bbox_pred_data_size = sizeof(bbox_pred_data) / sizeof(bbox_pred_data[0]);
+    constexpr size_t bbox_pred_data_size = sizeof(bbox_pred_data) / sizeof(bbox_pred_data[0]);
 
-    float proposal_ref[] = {
+    constexpr float proposal_ref[] = {
         0.0000000f, 0.0000000f,   0.0000000f,   345.6495361f, 209.0000000f, // 0
         0.0000000f, 0.0000000f,   73.5089264f,  349.0000000f, 209.0000000f, // 5
         0.0000000f, 0.0000000f,   0.0000000f,   157.4814606f, 209.0000000f, // 10
@@ -2559,7 +2559,7 @@ NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
         0.0000000f, 110.2392731f, 68.0856171f,  164.6310883f, 146.0089111f, // 120
     };
 
-    size_t proposal_ref_size = sizeof(proposal_ref) / sizeof(proposal_ref[0]);
+    constexpr size_t proposal_ref_size = sizeof(proposal_ref) / sizeof(proposal_ref[0]);
 
     const float iou_threshold = 0.7f;
     const int min_bbox_size = 16;
@@ -2603,9 +2603,9 @@ NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
         class_probs_param, bbox_deltas_param, image_shape_param, attrs);
     auto f = make_shared<Function>(
         proposal, ParameterVector{class_probs_param, bbox_deltas_param, image_shape_param});
-
-    std::vector<float> c(&cls_scores_data[0], &cls_scores_data[cls_scores_data_size]);
-    std::vector<float> b(&bbox_pred_data[0], &bbox_pred_data[bbox_pred_data_size]);
+    
+    std::vector<float> c{std::begin(cls_scores_data), std::end(cls_scores_data)};
+    std::vector<float> b{std::begin(bbox_pred_data), std::end(bbox_pred_data)};
     std::vector<float> i{image_h, image_w, image_z};
 
     auto test_case = test::TestCase<TestEngine>(f);
@@ -2613,7 +2613,7 @@ NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
     test_case.add_input<float>(bbox_deltas_shape, b);
     test_case.add_input<float>(image_shape_shape, i);
 
-    std::vector<float> o(&proposal_ref[0], &proposal_ref[proposal_ref_size]);
+    std::vector<float> o{std::begin(proposal_ref), std::end(proposal_ref)};
     test_case.add_expected_output<float>(output_shape, o);
     test_case.run();
 }

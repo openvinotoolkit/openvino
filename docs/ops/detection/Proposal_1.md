@@ -21,6 +21,7 @@
 7.  Takes top *post_nms_topn* proposals
 8.  Returns top proposals
 
+**Attributes**:
 
 * *base_size*
 

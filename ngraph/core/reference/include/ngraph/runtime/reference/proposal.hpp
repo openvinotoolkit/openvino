@@ -35,8 +35,10 @@ namespace ngraph
                 };
 
                 static std::vector<float> generate_anchors(const op::ProposalAttrs& attrs,
-                                                           std::vector<float>& anchors)
+                                                           const unsigned int anchor_count)
                 {
+                    std::vector<float> anchors(4 * anchor_count);
+
                     // Framework specific parameters
                     auto coordinates_offset = attrs.framework == "tensorflow" ? 0.0f : 1.0f;
                     auto round_ratios = attrs.framework == "tensorflow" ? false : true;
@@ -260,7 +262,17 @@ namespace ngraph
                             const T y0j = proposals[tail].y0;
                             const T x1j = proposals[tail].x1;
                             const T y1j = proposals[tail].y1;
-
+         
+                            //   +(x0i, y0i)-----------+
+                            //   |                     |
+                            //   |        + (x0j, y0j)-|-----+
+                            //   |        |            |     |
+                            //   +--------|------------+(x1i, y1i)
+                            //            |                  |
+                            //            +------------------+ (x1j, y1j)
+                            // Checking if the boxes are overlapping:
+                            // x0i <= x1j && y0i <= y1j - the first box begins before the second ends
+                            // x0j <= x1i && y0j <= y1i - the second box begins before the first ends
                             if (x0i <= x1j && y0i <= y1j && x0j <= x1i && y0j <= y1i)
                             {
                                 // overlapped region (= box)
@@ -380,8 +392,7 @@ namespace ngraph
                 std::vector<int> is_dead(pre_nms_topn);
                 std::vector<unsigned int> roi_indices(attrs.post_nms_topn);
 
-                std::vector<float> anchors(4 * anchor_count);
-                details::generate_anchors(attrs, anchors);
+                std::vector<float> anchors = details::generate_anchors(attrs, anchor_count);
 
                 unsigned int batch_num = class_probs_shape[0];
                 float coordinates_offset = attrs.framework == "tensorflow" ? 0.0f : 1.0f;
