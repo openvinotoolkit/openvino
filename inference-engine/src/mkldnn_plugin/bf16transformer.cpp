@@ -56,12 +56,6 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
     for (auto iter : sortedLayers) {
-        if (CaselessEq<std::string>()(iter->type, "convolution")) {
-            auto dims = iter->insData[0].lock()->getDims();
-            if ((dims.size() == 4 || dims.size() == 5) && (dims[1] == 1 || dims[1] == 3))
-                continue;
-        }
-
         //  check, if memory output node needs to be transformed
         if (iter->type == "Memory" && iter->outData.size() == 0 &&
             iter->insData[0].lock()->getPrecision() == Precision::FP32) {

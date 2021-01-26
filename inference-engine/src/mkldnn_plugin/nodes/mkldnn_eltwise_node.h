@@ -99,6 +99,8 @@ struct jit_uni_eltwise_kernel {
     explicit jit_uni_eltwise_kernel(jit_eltwise_params jep, MKLDNNEltwiseNode& node) : ker_(nullptr), jep_(jep), eltwiseNode(node) {}
     virtual ~jit_uni_eltwise_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_eltwise_params jep_;
     MKLDNNEltwiseNode& eltwiseNode;
 };
@@ -111,6 +113,7 @@ public:
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
+    void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     void execute(mkldnn::stream strm) override;
     bool created() const override;
@@ -136,7 +139,7 @@ private:
     void init() override;
 
     EltwiseOpType eltwiseOp = Add;
-    mkldnn::algorithm eltwiseAlgorithm = mkldnn::algorithm_undef;
+    mkldnn::algorithm eltwiseAlgorithm = mkldnn::algorithm::undef;
 
     std::shared_ptr<jit_uni_eltwise_kernel> eltwise_kernel = nullptr;
     jit_eltwise_params jep = {};

@@ -3,8 +3,6 @@
 //
 
 #include "mkldnn_scatter_update_node.h"
-#include "desc_iterator.hpp"
-#include "mkldnn_quantize_node.h"
 #include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
@@ -192,13 +190,13 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[AXIS_ID].inPlace = -1;
     }
 
-    auto pushDesc = [&](memory::format inFormat, memory::format idxFormat, memory::format updateFormat, memory::format outFormat) {
+    auto pushDesc = [&](memory::format_tag inFormat, memory::format_tag idxFormat, memory::format_tag updateFormat, memory::format_tag outFormat) {
         config.inConfs[DATA_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(DATA_ID)->getDims(), dataType, inFormat);
         config.inConfs[INDICES_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(INDICES_ID)->getDims(), indicesType, idxFormat);
         config.inConfs[UPDATE_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(UPDATE_ID)->getDims(), dataType, updateFormat);
         if (axisRelaxed)
             config.inConfs[AXIS_ID].desc = MKLDNNMemoryDesc(getParentEdgeAt(AXIS_ID)->getDims(),
-                MKLDNNExtensionUtils::IEPrecisionToDataType(axisPrec), memory::x);
+                MKLDNNExtensionUtils::IEPrecisionToDataType(axisPrec), memory::format_tag::x);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, outFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, outFormat});
     };
@@ -264,14 +262,10 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
     auto &indicesMemPtr = getParentEdgeAt(INDICES_ID)->getMemoryPtr();
     auto &updateMemPtr = getParentEdgeAt(UPDATE_ID)->getMemoryPtr();
 
-    uint8_t *dstPtr = reinterpret_cast<uint8_t*>(dstMemPtr->GetData()) +
-            dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding * dataSize;
-    uint8_t *srcPtr = reinterpret_cast<uint8_t*>(srcMemPtr->GetData()) +
-            srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding * dataSize;
-    uint8_t *indicesPtr = reinterpret_cast<uint8_t*>(indicesMemPtr->GetData()) +
-            indicesMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding * indicesSize;
-    uint8_t *updatePtr = reinterpret_cast<uint8_t*>(updateMemPtr->GetData()) +
-            updateMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding * dataSize;
+    uint8_t *dstPtr = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+    uint8_t *srcPtr = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
+    uint8_t *indicesPtr = reinterpret_cast<uint8_t*>(indicesMemPtr->GetPtr());
+    uint8_t *updatePtr = reinterpret_cast<uint8_t*>(updateMemPtr->GetPtr());
 
     SizeVector srcDataDim = getParentEdgeAt(DATA_ID)->getDesc().getDims();
     SizeVector indicesDim = getParentEdgeAt(INDICES_ID)->getDesc().getDims();
@@ -281,7 +275,7 @@ void MKLDNNScatterUpdateNode::execute(mkldnn::stream strm) {
     if (axisRelaxed) {
         auto &axisMemPtr = getParentEdgeAt(AXIS_ID)->getMemoryPtr();
         uint8_t *axisPtr = reinterpret_cast<uint8_t*>(axisMemPtr->GetData()) +
-            axisMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding * axisSize;
+            axisMemPtr->GetDescriptor().data.offset0 * axisSize;
         if (axisSize == 4) {
             auto *axisPtr32 = reinterpret_cast<int32_t*>(axisPtr);
             axis = *axisPtr32;

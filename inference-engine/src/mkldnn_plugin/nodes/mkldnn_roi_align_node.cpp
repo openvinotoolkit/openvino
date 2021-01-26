@@ -11,7 +11,7 @@
 #include <mkldnn_extension_utils.h>
 #include <mkldnn_types.h>
 #include <utils/bfloat16.hpp>
-#include <cpu_isa_traits.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include "ie_parallel.hpp"
 #include <mkldnn_selective_build.h>
 
@@ -19,6 +19,7 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn;
 using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 
 MKLDNNROIAlignNode::MKLDNNROIAlignNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
                                        MKLDNNWeightsSharing::Ptr &cache)
@@ -100,17 +101,17 @@ void MKLDNNROIAlignNode::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(3);
     config.outConfs.resize(1);
 
-    std::vector<std::pair<memory::format, memory::format> > supportedFormats {
-            {memory::nchw, memory::nchw},
-            {memory::nhwc, memory::nhwc},
-            {memory::nChw16c, memory::nChw16c},
-            {memory::nChw8c, memory::nChw8c}
+    std::vector<std::pair<memory::format_tag, memory::format_tag>> supportedFormats {
+            {memory::format_tag::nchw, memory::format_tag::nchw},
+            {memory::format_tag::nhwc, memory::format_tag::nhwc},
+            {memory::format_tag::nChw16c, memory::format_tag::nChw16c},
+            {memory::format_tag::nChw8c, memory::format_tag::nChw8c}
     };
 
     for (auto fmts : supportedFormats) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmts.first);
-        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::f32, memory::nc);
-        config.inConfs[2].desc = MKLDNNMemoryDesc(getParentEdgeAt(2)->getDims(), memory::s32, memory::x);
+        config.inConfs[1].desc = MKLDNNMemoryDesc(getParentEdgeAt(1)->getDims(), memory::data_type::f32, memory::format_tag::nc);
+        config.inConfs[2].desc = MKLDNNMemoryDesc(getParentEdgeAt(2)->getDims(), memory::data_type::s32, memory::format_tag::x);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmts.second);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmts.second});
     }
@@ -153,16 +154,17 @@ void MKLDNNROIAlignNode::executeSpecified() {
     auto &srcMemory1 = getParentEdgeAt(1)->getMemory();
     auto &dstMemory = getChildEdgeAt(0)->getMemory();
 
-    auto srcBlockDesc = srcMemory0.GetDescriptor().data.layout_desc.blocking;
-    auto dstBlockDesc = dstMemory.GetDescriptor().data.layout_desc.blocking;
+    auto srcBlockDesc = srcMemory0.GetDescriptor().data.format_desc.blocking;
+    auto dstBlockDesc = dstMemory.GetDescriptor().data.format_desc.blocking;
 
-    int blockSize = srcBlockDesc.block_dims[1];
-    auto selectedFmt = srcMemory0.GetDescriptor().data.format;
+    int blockSize = srcBlockDesc.inner_nblks > 0 ? srcBlockDesc.inner_blks[0] : 1;
+    auto isPlainFmt = srcMemory0.GetDesc().isPlainFormat();
+    auto isNhwcFmt = srcMemory0.GetDesc().isTailCFormat();
 
-    const auto *srcData = reinterpret_cast<const inputType *>(getDataPtr(getParentEdgeAt(0)->getMemory()));
-    const auto *srcRoi = reinterpret_cast<const float *>(getDataPtr(getParentEdgeAt(1)->getMemory()));
-    const auto *srcRoiIdx = reinterpret_cast<const int *>(getDataPtr(getParentEdgeAt(2)->getMemory()));
-    auto *dst = reinterpret_cast<outputType *>(getDataPtr(getChildEdgeAt(0)->getMemory()));
+    const auto *srcData = reinterpret_cast<const inputType *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    const auto *srcRoi = reinterpret_cast<const float *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    const auto *srcRoiIdx = reinterpret_cast<const int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
+    auto *dst = reinterpret_cast<outputType *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     auto nominalRoiCount = static_cast<int>(srcMemory1.GetDims()[0]);
     int realRois = 0;
@@ -173,11 +175,11 @@ void MKLDNNROIAlignNode::executeSpecified() {
 
     const int binCount = pooledH * pooledW;
 
-    const int hInputStride = srcBlockDesc.strides[0][2];
-    const int wInputStride = srcBlockDesc.strides[0][3];
-    const int hOutputStride = dstBlockDesc.strides[0][2];
-    const int wOutputStride = dstBlockDesc.strides[0][3];
-    const int chPadding = srcBlockDesc.padding_dims[1];
+    const int hInputStride = srcBlockDesc.strides[2];
+    const int wInputStride = srcBlockDesc.strides[3];
+    const int hOutputStride = dstBlockDesc.strides[2];
+    const int wOutputStride = dstBlockDesc.strides[3];
+    const int chPadding = srcMemory0.GetDescriptor().data.padded_dims[1];
     const int blockCount = chPadding / blockSize;
 
     for (; realRois < nominalRoiCount; realRois++) {
@@ -317,7 +319,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
                               xBinInd_ * wOutputStride + blockResidual_;
             dst[dstIndex] = pooledValue;
         };
-        if (selectedFmt == mkldnn_nhwc) {
+        if (isNhwcFmt) {
             parallel_for2d(pooledH, pooledW, [&](int yBinInd, int xBinInd) {
                 for (int c = 0; c < C; c++) {
                     size_t binOffsetInput = roiBatchInd * C * H * W + c;
@@ -330,7 +332,7 @@ void MKLDNNROIAlignNode::executeSpecified() {
                 int cStart = blkIdx * blockSize;
                 int cEnd = (blkIdx == blockCount - 1 ? C : cStart + blockSize);
                 for (int c = cStart; c < cEnd; c++) {
-                    const int blockResidual = (selectedFmt == mkldnn_nchw ? 0 : c % blockSize);
+                    const int blockResidual = (isPlainFmt ? 0 : c % blockSize);
                     const int blockIdx = (c / blockSize) * blockSize;
                     size_t binOffsetInput = (roiBatchInd * chPadding + blockIdx) * H * W;
                     size_t binOffsetOutput = (n * chPadding + blockIdx) * binCount;
@@ -339,11 +341,6 @@ void MKLDNNROIAlignNode::executeSpecified() {
             });
         }
     }
-}
-
-inline uint8_t* MKLDNNROIAlignNode::getDataPtr(const MKLDNNMemory& memoryPtr) const {
-    return reinterpret_cast<uint8_t*>(memoryPtr.GetData()) + memoryPtr.GetDescriptor().data.layout_desc.blocking.offset_padding *
-        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(memoryPtr.GetDescriptor().data.data_type));
 }
 
 bool MKLDNNROIAlignNode::created() const {

@@ -3,6 +3,7 @@
 //
 
 #include "base.hpp"
+#include "utils/general_utils.h"
 #include "common/defs.h"
 #include "common/softmax.h"
 #include "common/cpu_convert.h"
@@ -13,13 +14,15 @@
 #include <mkldnn_extension_utils.h>
 #include "utils/bfloat16.hpp"
 #include "common/cpu_memcpy.h"
-#include "jit_generator.hpp"
-#include "jit_uni_eltwise.hpp"
+#include "mkldnn.hpp"
+#include <cpu/x64/jit_generator.hpp>
+#include <cpu/x64/jit_uni_eltwise_injector.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 
 namespace InferenceEngine {
@@ -46,6 +49,8 @@ struct jit_uni_logistic_kernel {
 
     void operator()(const jit_args_logistic *args) { assert(ker_); ker_(args); }
 
+    virtual void create_ker() = 0;
+
     jit_uni_logistic_kernel() : ker_(nullptr) {}
     virtual ~jit_uni_logistic_kernel() {}
 };
@@ -54,8 +59,15 @@ template <cpu_isa_t isa>
 struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
 
-    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jit_uni_logistic_kernel(), jit_generator() {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f));
+    jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp) : jcp_(jcp), jit_uni_logistic_kernel(), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
+    void generate() override {
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.f));
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
             emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
@@ -76,12 +88,12 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
             cmp(reg_work_amount, step);
             jl(tail_loop_label, T_NEAR);
 
-            load_vector(vmm_src, ptr[reg_src], jcp.src_dt);
+            load_vector(vmm_src, ptr[reg_src], jcp_.src_dt);
             compute_kernel();
-            store_vector(ptr[reg_dst], vmm_src, jcp.dst_dt);
+            store_vector(ptr[reg_dst], vmm_src, jcp_.dst_dt);
 
-            add(reg_src, step * jcp.src_data_size);
-            add(reg_dst, step * jcp.dst_data_size);
+            add(reg_src, step * jcp_.src_data_size);
+            add(reg_dst, step * jcp_.dst_data_size);
             sub(reg_work_amount, step);
 
             jmp(main_loop_label, T_NEAR);
@@ -92,12 +104,12 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
             cmp(reg_work_amount, step);
             jl(exit_label, T_NEAR);
 
-            load_scalar(xmm_src, ptr[reg_src], jcp.src_dt);
+            load_scalar(xmm_src, ptr[reg_src], jcp_.src_dt);
             compute_kernel();
-            store_scalar(ptr[reg_dst], xmm_src, jcp.dst_dt);
+            store_scalar(ptr[reg_dst], xmm_src, jcp_.dst_dt);
 
-            add(reg_src, step * jcp.src_data_size);
-            add(reg_dst, step * jcp.dst_data_size);
+            add(reg_src, step * jcp_.src_data_size);
+            add(reg_dst, step * jcp_.dst_data_size);
             sub(reg_work_amount, step);
 
             jmp(tail_loop_label, T_NEAR);
@@ -113,12 +125,10 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
         exp_injector->prepare_table();
 
         prepare_table();
-
-        ker_ = (decltype(ker_))this->getCode();
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Address table_val(int index) { return ptr[reg_table + index * vlen]; }
@@ -143,6 +153,8 @@ private:
 
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
 
+    jit_logistic_config_params jcp_;
+
     void compute_kernel() {
         uni_vmovups(vmm_aux0, vmm_src);
         uni_vandps(vmm_aux0, vmm_aux0, table_val(0));
@@ -157,10 +169,10 @@ private:
         uni_vmovups(vmm_aux2, table_val(1));
         uni_vsubps(vmm_aux2, vmm_aux2, vmm_src);
 
-        if (isa == cpu::sse42) {
+        if (isa == x64::sse41) {
             uni_vblendvps(vmm_aux2, vmm_aux2, vmm_src, vmm_aux0);
             uni_vmovups(vmm_src, vmm_aux2);
-        } else if (isa == cpu::avx2) {
+        } else if (isa == x64::avx2) {
             uni_vblendvps(vmm_src, vmm_aux2, vmm_src, vmm_aux0);
         } else {
             vptestmd(k_mask, vmm_aux0, vmm_aux0);
@@ -281,18 +293,21 @@ public:
             jcp.src_data_size = jcp.dst_data_size = output_prec.size();
 
             block_size = 1;
-            if (mayiuse(cpu::avx512_common)) {
-                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<cpu::avx512_common>(jcp));
+            if (mayiuse(x64::avx512_common)) {
+                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx512_common>(jcp));
                 block_size = 16;
-            } else if (mayiuse(cpu::avx2)) {
-                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<cpu::avx2>(jcp));
+            } else if (mayiuse(x64::avx2)) {
+                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::avx2>(jcp));
                 block_size = 8;
-            } else if (mayiuse(cpu::sse42)) {
-                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<cpu::sse42>(jcp));
+            } else if (mayiuse(x64::sse41)) {
+                logistic_kernel.reset(new jit_uni_logistic_kernel_f32<x64::sse41>(jcp));
                 block_size = 4;
             }
 
             softmax_kernel = std::make_shared<SoftmaxGeneric>(input_prec, output_prec);
+
+            if (logistic_kernel)
+                logistic_kernel->create_ker();
 
             addConfig(layer, {DataConfigurator(ConfLayout::PLN, input_prec)}, {DataConfigurator(ConfLayout::PLN, output_prec)});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
@@ -413,7 +428,7 @@ private:
                     float_dst_data[i + start_index] = logistic_scalar(float_dst_data[i + start_index]);
                 }
             } else if (Precision::BF16 == output_prec) {
-                auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
+                auto bf16_dst_data = reinterpret_cast<MKLDNNPlugin::bfloat16_t*>(dst_data);
                 for (int i = 0; i < count; i++) {
                     bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
                 }

@@ -2,18 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
-#include <ie_parallel.hpp>
-#include <mkldnn_extension_utils.h>
-#include "jit_generator.hpp"
-#include "jit_uni_eltwise.hpp"
-#include "utils/bfloat16.hpp"
 #include "softmax.h"
+
+#include <ie_parallel.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <mkldnn.hpp>  // TODO: just to replace mkldnn->dnnl via macros
+#include "utils/bfloat16.hpp"
+
+#include <algorithm>
+#include <cassert>
+#include <vector>
 
 using namespace InferenceEngine;
 using namespace MKLDNNPlugin;
 using namespace mkldnn;
 using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 
 #define GET_OFF(field) offsetof(jit_args_softmax, field)
@@ -39,14 +44,23 @@ struct jit_uni_softmax_kernel {
 
     jit_uni_softmax_kernel() : ker_(nullptr) {}
     virtual ~jit_uni_softmax_kernel() {}
+
+    virtual void create_ker() = 0;
 };
 
 template <cpu_isa_t isa>
 struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_softmax_kernel_f32)
 
-    jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp) : jit_uni_softmax_kernel(), jit_generator() {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f));
+    jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp) : jcp_(jcp), jit_uni_softmax_kernel(), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
+    void generate() override {
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, mkldnn::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f));
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
             emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
@@ -69,23 +83,23 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
 
         mov(aux_reg_work_amount, reg_work_amount);
         mov(aux_reg_src, reg_src);
-        load_vector(vmm_max, ptr[aux_reg_src], jcp.src_dt);
+        load_vector(vmm_max, ptr[aux_reg_src], jcp_.src_dt);
         L(max_loop_label); {
             cmp(aux_reg_work_amount, 0);
             jle(max_loop_end_label, T_NEAR);
 
-            load_vector(vmm_val, ptr[aux_reg_src], jcp.src_dt);
+            load_vector(vmm_val, ptr[aux_reg_src], jcp_.src_dt);
 
-            if (isa == cpu::sse42) {
+            if (isa == x64::sse41) {
                 uni_vmovups(vmm_mask, vmm_val);
                 uni_vcmpgtps(vmm_mask, vmm_mask, vmm_max);
-            } else if (isa == cpu::avx2) {
+            } else if (isa == x64::avx2) {
                 uni_vcmpgtps(vmm_mask, vmm_val, vmm_max);
             } else {
                 vcmpps(k_mask, vmm_val, vmm_max, _cmp_nle_us);
             }
 
-            if (isa == cpu::avx512_common) {
+            if (isa == x64::avx512_common) {
                 vptestmd(k_mask, vmm_mask, vmm_mask);
                 vblendmps(vmm_max | k_mask, vmm_max, vmm_val);
             } else {
@@ -108,13 +122,13 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
             cmp(aux_reg_work_amount, 0);
             jle(exp_loop_end_label, T_NEAR);
 
-            load_vector(vmm_val, ptr[aux_reg_src], jcp.src_dt);
+            load_vector(vmm_val, ptr[aux_reg_src], jcp_.src_dt);
 
             uni_vsubps(vmm_val, vmm_val, vmm_max);
             exp_injector->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
             uni_vaddps(vmm_exp_sum, vmm_exp_sum, vmm_val);
 
-            store_vector(ptr[aux_reg_dst], vmm_val, jcp.dst_dt);
+            store_vector(ptr[aux_reg_dst], vmm_val, jcp_.dst_dt);
 
             add(aux_reg_src, reg_src_stride);
             add(aux_reg_dst, reg_dst_stride);
@@ -131,11 +145,11 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
             cmp(aux_reg_work_amount, 0);
             jle(div_loop_end_label, T_NEAR);
 
-            load_vector(vmm_val, ptr[aux_reg_dst], jcp.dst_dt);
+            load_vector(vmm_val, ptr[aux_reg_dst], jcp_.dst_dt);
 
             uni_vdivps(vmm_val, vmm_val, vmm_exp_sum);
 
-            store_vector(ptr[aux_reg_dst], vmm_val, jcp.dst_dt);
+            store_vector(ptr[aux_reg_dst], vmm_val, jcp_.dst_dt);
 
             add(aux_reg_dst, reg_dst_stride);
             sub(aux_reg_work_amount, 1);
@@ -151,13 +165,10 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
             emu_vcvtneps2bf16->emit_table();
 
         exp_injector->prepare_table();
-
-        ker_ = (decltype(ker_))this->getCode();
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -180,6 +191,8 @@ private:
     std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::shared_ptr<jit_uni_eltwise_injector_f32<isa>> exp_injector;
+
+    jit_softmax_config_params jcp_;
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, Precision src_dt) {
         switch (src_dt) {
@@ -227,16 +240,18 @@ SoftmaxGeneric::SoftmaxGeneric(Precision inpPrc, Precision outPrc)
     jcp.src_dt = inpPrc;
     jcp.dst_dt = outPrc;
 
-    if (mayiuse(cpu::avx512_common)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<cpu::avx512_common>(jcp));
+    if (mayiuse(x64::avx512_common)) {
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::avx512_common>(jcp));
         block_size = 16;
-    } else if (mayiuse(cpu::avx2)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<cpu::avx2>(jcp));
+    } else if (mayiuse(x64::avx2)) {
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::avx2>(jcp));
         block_size = 8;
-    } else if (mayiuse(cpu::sse42)) {
-        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<cpu::sse42>(jcp));
+    } else if (mayiuse(x64::sse41)) {
+        softmax_kernel.reset(new jit_uni_softmax_kernel_f32<x64::sse41>(jcp));
         block_size = 4;
     }
+    if (softmax_kernel)
+        softmax_kernel->create_ker();
 }
 
 template<typename in_data_t, typename out_data_t>

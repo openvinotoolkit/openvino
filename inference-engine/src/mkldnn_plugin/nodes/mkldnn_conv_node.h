@@ -32,6 +32,7 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {

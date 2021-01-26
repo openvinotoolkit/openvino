@@ -87,16 +87,16 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
 
-    auto pushSupportedPrimitiveDescriptor = [&](memory::format memoryFormat) {
+    auto pushSupportedPrimitiveDescriptor = [&](memory::format_tag memoryFormat) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), dataType, memoryFormat);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), dataType, memoryFormat);
         supportedPrimitiveDescriptors.push_back({config, impl_desc_type::ref, memoryFormat});
     };
 
     if (numOfDims == 4)
-        pushSupportedPrimitiveDescriptor(mkldnn::memory::nhwc);
+        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nhwc);
     else if (numOfDims == 5)
-        pushSupportedPrimitiveDescriptor(mkldnn::memory::ndhwc);
+        pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::ndhwc);
 
     pushSupportedPrimitiveDescriptor(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
 
@@ -107,14 +107,14 @@ void MKLDNNPadNode::initSupportedPrimitiveDescriptors() {
 
     if (numOfDims == 4) {
         if (srcDims[1] % 8 == 0 && canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::nChw8c);
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw8c);
         if (srcDims[1] % 16 == 0 && canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::nChw16c);
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nChw16c);
     } else if (numOfDims == 5) {
         if (srcDims[1] % 8 == 0 && canUseBlocked(8))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::nCdhw8c);
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw8c);
         if (srcDims[1] % 16 == 0 && canUseBlocked(16))
-            pushSupportedPrimitiveDescriptor(mkldnn::memory::nCdhw16c);
+            pushSupportedPrimitiveDescriptor(mkldnn::memory::format_tag::nCdhw16c);
     }
 }
 
@@ -136,8 +136,7 @@ void MKLDNNPadNode::createPrimitive() {
     params.srcStrides = getParentEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getStrides();
     params.dstStrides = getChildEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getStrides();
 
-    auto layout = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getLayout();
-    if (layout == BLOCKED) {
+    if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
         padsBegin[1] /= params.srcDims[params.srcDims.size() - 1];
         padsEnd[1] /= params.srcDims[params.srcDims.size() - 1];
         padsBegin.push_back(0);
@@ -259,8 +258,8 @@ void MKLDNNPadNode::padConstant() {
 
 template<typename T>
 void MKLDNNPadNode::padConstantCommon() {
-    T* srcData = reinterpret_cast<T*>(getDataPtr(this->getParentEdgeAt(0)->getMemory()));
-    T* dstData = reinterpret_cast<T*>(getDataPtr(this->getChildEdgeAt(0)->getMemory()));
+    T* srcData = reinterpret_cast<T*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    T* dstData = reinterpret_cast<T*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
     T value = static_cast<T>(padValue);
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
@@ -301,8 +300,8 @@ void MKLDNNPadNode::padConstantCommon() {
 }
 
 void MKLDNNPadNode::padConstantZero() {
-    uint8_t* srcData = getDataPtr(this->getParentEdgeAt(0)->getMemory());
-    uint8_t* dstData = getDataPtr(this->getChildEdgeAt(0)->getMemory());
+    uint8_t* srcData = reinterpret_cast<uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -342,8 +341,8 @@ void MKLDNNPadNode::padConstantZero() {
 }
 
 void MKLDNNPadNode::padEdge() {
-    uint8_t* srcData = getDataPtr(this->getParentEdgeAt(0)->getMemory());
-    uint8_t* dstData = getDataPtr(this->getChildEdgeAt(0)->getMemory());
+    uint8_t* srcData = reinterpret_cast<uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
@@ -379,8 +378,8 @@ void MKLDNNPadNode::padEdge() {
 }
 
 void MKLDNNPadNode::padReflectOrSymmetric(const bool isSymmetric) {
-    uint8_t* srcData = getDataPtr(this->getParentEdgeAt(0)->getMemory());
-    uint8_t* dstData = getDataPtr(this->getChildEdgeAt(0)->getMemory());
+    uint8_t* srcData = reinterpret_cast<uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
+    uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
     size_t shift = isSymmetric ? 1 : 0;
 
@@ -423,11 +422,6 @@ inline void MKLDNNPadNode::getDstIdx(const InferenceEngine::SizeVector& indexes,
     for (size_t i = 0; i < params.nDimsForWork; ++i)
         dstIdx += indexes[i] * params.dstStrides[i];
     dstIdx *= (padMode == CONSTANT && padValue != 0) ? 1 : params.sizeData;
-}
-
-inline uint8_t* MKLDNNPadNode::getDataPtr(const MKLDNNMemory& memoryPtr) const {
-    return reinterpret_cast<uint8_t*>(memoryPtr.GetData()) + memoryPtr.GetDescriptor().data.layout_desc.blocking.offset_padding *
-                                      MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(memoryPtr.GetDescriptor().data.data_type));
 }
 
 bool MKLDNNPadNode::created() const {

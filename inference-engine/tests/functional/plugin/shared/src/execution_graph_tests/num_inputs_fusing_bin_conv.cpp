@@ -79,8 +79,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
             if (layerType == "BinaryConvolution") {
                 auto originalLayersNames = getExecValue("originalLayersNames");
                 ASSERT_TRUE(originalLayersNames.find("BinaryConvolution") != std::string::npos);
-                ASSERT_TRUE(originalLayersNames.find("Add") != std::string::npos);
-                ASSERT_EQ(op->get_input_size(), 1);
+                ASSERT_EQ(op->get_input_size(), 2);
             }
 
             // IR v7 does not have output nodes
@@ -109,8 +108,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
             if (node->type == "BinaryConvolution") {
                 std::string originalLayersNames = node->params["originalLayersNames"];
                 ASSERT_TRUE(originalLayersNames.find("BinaryConvolution") != std::string::npos);
-                ASSERT_TRUE(originalLayersNames.find("Add") != std::string::npos);
-                ASSERT_EQ(node->insData.size(), 1);
+                ASSERT_EQ(node->insData.size(), 2);
             }
         }
         IE_SUPPRESS_DEPRECATED_END

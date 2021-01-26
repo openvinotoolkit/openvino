@@ -120,7 +120,7 @@ class Stat:
 
     def read(self, files):
         for stat in files:
-            with open(stat) as f:
+            with open(str(stat)) as f:
                 reader = csv.reader(f)
                 rows = list(reader)
                 if rows:
@@ -145,7 +145,7 @@ class Stat:
                         self.module(cre[0]).factory(cre[2]).create(cre[3])
 
     def generate(self, out):
-        with open(out, 'w') as f:
+        with open(str(out), 'w') as f:
             f.write(FILE_HEADER)
 
             for _, module in self.modules.items():

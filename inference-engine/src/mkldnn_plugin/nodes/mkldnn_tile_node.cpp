@@ -45,7 +45,7 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     auto& inDims = getParentEdgeAt(0)->getDims();
-    memory::format fmt = MKLDNNMemory::GetPlainFormat(inDims);
+    memory::format_tag fmt = MKLDNNMemory::GetPlainFormat(inDims);
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
@@ -76,10 +76,8 @@ void MKLDNNTileNode::createPrimitive() {
 void MKLDNNTileNode::execute(mkldnn::stream strm) {
     auto& srcMemory = getParentEdgeAt(0)->getMemory();
 
-    const float *src_ptr = reinterpret_cast<const float*>(srcMemory.GetData()) +
-            srcMemory.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    float *dst_ptr = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetData()) +
-            getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const float *src_ptr = reinterpret_cast<const float*>(srcMemory.GetPtr());
+    float *dst_ptr = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetPtr());
 
     int m_inner_dim = 1;
     int m_outer_dim = 1;
@@ -94,16 +92,13 @@ void MKLDNNTileNode::execute(mkldnn::stream strm) {
         m_inner_dim *= batchToProcess();
     }
 
-    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && ((inDims.size() == 4 && srcMemory.GetFormat() == memory::nChw8c) ||
-            (inDims.size() == 5 && srcMemory.GetFormat() == memory::nCdhw8c))) {
+    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.GetDesc().isBlockedCFormat(8)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw8c)
          */
         m_inner_dim *= 8;
         m_outer_dim /= 8;
-    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 &&
-            ((inDims.size() == 4 && srcMemory.GetFormat() == memory::nChw16c) ||
-            (inDims.size() == 5 && srcMemory.GetFormat() == memory::nCdhw16c))) {
+    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.GetDesc().isBlockedCFormat(16)) {
         /*
          * We may enable tile processing directly to appropriate output format (nChw16c)
          */

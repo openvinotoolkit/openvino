@@ -6,8 +6,7 @@
 #include "blob_factory.hpp"
 #include "mkldnn_memory.h"
 
-// It's so bad to include by relative path :-(
-#include "../../thirdparty/mkl-dnn/src/common/memory_desc_wrapper.hpp"
+#include "common/memory_desc_wrapper.hpp"
 
 #include <fstream>
 
