@@ -228,7 +228,7 @@ ngraph::pass::HSwishFusionWithClampDiv::HSwishFusionWithClampDiv() {
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto add = std::make_shared<ngraph::opset4::Add>(input, add_constant);
-    auto clamp = std::make_shared<ngraph::op::v0::Clamp>(add, 0.0f, 6.0f);
+    auto clamp = std::make_shared<ngraph::opset4::Clamp>(add, 0.0f, 6.0f);
     auto div_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto div = std::make_shared<ngraph::opset4::Divide>(clamp, div_constant);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, div);
@@ -249,10 +249,8 @@ ngraph::pass::HSwishFusionWithClampDiv::HSwishFusionWithClampDiv() {
         auto hswish = std::make_shared<ngraph::opset4::HSwish>(x_output);
 
         hswish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(add).get_node_shared_ptr(),
+        ngraph::copy_runtime_info({ pattern_to_output.at(add).get_node_shared_ptr(),
                                     pattern_to_output.at(clamp).get_node_shared_ptr(),
-                                    pattern_to_output.at(div_constant).get_node_shared_ptr(),
                                     pattern_to_output.at(div).get_node_shared_ptr(),
                                     pattern_to_output.at(mul).get_node_shared_ptr()
                                   },
