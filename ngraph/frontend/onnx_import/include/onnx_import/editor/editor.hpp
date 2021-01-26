@@ -71,6 +71,12 @@ namespace ngraph
             ///                     the inputs specified in its parameter.
             void set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes);
 
+            /// \brief Modifies the in-memory representation of the model by setting custom input
+            ///        values for inputs specified in the provided map.
+            ///
+            /// \param input_values A collection of pairs {input_name: new_input_values} used to
+            ///                     update the ONNX model. Initializers already existing are
+            ///                     overwritten.
             void set_input_values(
                 const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
 

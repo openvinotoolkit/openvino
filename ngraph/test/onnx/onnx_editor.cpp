@@ -289,7 +289,7 @@ NGRAPH_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution)
 
 using TestEngine = test::INTERPRETER_Engine;
 
-NGRAPH_TEST(onnx_editor, values__append_one)
+NGRAPH_TEST(onnx_editor, values__append_one_initializer)
 {
     onnx_import::ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_1D.prototxt")};
@@ -300,12 +300,59 @@ NGRAPH_TEST(onnx_editor, values__append_one)
 
     const auto function = onnx_import::import_onnx_model(editor);
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<int64_t>(Shape{2}, {1, 2});
-    test_case.add_expected_output<int64_t>(Shape{2}, {2, 4});
+    test_case.add_input<int64_t>(Shape{2}, {5, 6});
+    test_case.add_expected_output<int64_t>(Shape{2}, {6, 8});
     test_case.run();
 }
 
-NGRAPH_TEST(onnx_editor, values__append_all)
+NGRAPH_TEST(onnx_editor, values__append_two_initializers_to_invalid)
+{
+    onnx_import::ONNXModelEditor editor{
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_1D_invalid.prototxt")};
+    std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
+
+    in_vals.emplace("A", op::Constant::create(element::i64, Shape{2}, {4, 2}));
+    in_vals.emplace("B", op::Constant::create(element::i64, Shape{2}, {1, 3}));
+    editor.set_input_values(in_vals);
+
+    const auto function = onnx_import::import_onnx_model(editor);
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<int64_t>(Shape{2}, {5, 5});
+    test_case.run();
+}
+
+NGRAPH_TEST(onnx_editor, values__modify_one_initializer)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/add_1D_with_initializers.prototxt")};
+    std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
+
+    in_vals.emplace("B", op::Constant::create(element::i64, Shape{2}, {3, 4}));
+    editor.set_input_values(in_vals);
+
+    const auto function = onnx_import::import_onnx_model(editor);
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<int64_t>(Shape{2}, {4, 6});
+    test_case.run();
+}
+
+NGRAPH_TEST(onnx_editor, values__modify_two_initializers)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/add_1D_with_initializers.prototxt")};
+    std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
+
+    in_vals.emplace("A", op::Constant::create(element::i64, Shape{2}, {3, 6}));
+    in_vals.emplace("B", op::Constant::create(element::i64, Shape{2}, {2, 1}));
+    editor.set_input_values(in_vals);
+
+    const auto function = onnx_import::import_onnx_model(editor);
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_expected_output<int64_t>(Shape{2}, {5, 7});
+    test_case.run();
+}
+
+NGRAPH_TEST(onnx_editor, values__no_inputs_modify_two_initializers)
 {
     onnx_import::ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/add_1D_with_initializers_only.prototxt")};
@@ -321,44 +368,19 @@ NGRAPH_TEST(onnx_editor, values__append_all)
     test_case.run();
 }
 
-NGRAPH_TEST(onnx_editor, values__append_all_to_invalid)
+NGRAPH_TEST(onnx_editor, values__append_two_initializers_modify_inputs)
 {
     onnx_import::ONNXModelEditor editor{
-        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_1D_invalid.prototxt")};
+        file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_1D.prototxt")};
     std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
 
-    in_vals.emplace("A", op::Constant::create(element::i64, Shape{2}, {1, 2}));
-    in_vals.emplace("B", op::Constant::create(element::i64, Shape{2}, {11, 22}));
-    EXPECT_THROW(editor.set_input_values(in_vals), ngraph_error);
-}
-
-NGRAPH_TEST(onnx_editor, values__modify_all_existing)
-{
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
-        SERIALIZED_ZOO, "onnx/model_editor/add_1D_with_initializers.prototxt")};
-    std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
-
-    in_vals.emplace("B", op::Constant::create(element::i64, Shape{2}, {2, 1}));
-    in_vals.emplace("A", op::Constant::create(element::i64, Shape{2}, {2, 1}));
+    in_vals.emplace("A", op::Constant::create(element::i64, Shape{2,1}, {-1, 1}));
+    in_vals.emplace("B", op::Constant::create(element::i64, Shape{2,1}, {-2, 2}));
     editor.set_input_values(in_vals);
+    editor.serialize("/home/tj/repo/tj-jobs/cvs-45413/modify_inputs.onnx");
 
     const auto function = onnx_import::import_onnx_model(editor);
     auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<int64_t>(Shape{2}, {4, 2});
-    test_case.run();
-}
-
-NGRAPH_TEST(onnx_editor, values__modify_one_existing)
-{
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
-        SERIALIZED_ZOO, "onnx/model_editor/add_1D_with_initializers.prototxt")};
-    std::map<std::string, std::shared_ptr<ngraph::op::Constant>> in_vals;
-
-    in_vals.emplace("B", op::Constant::create(element::i64, Shape{2}, {3, 4}));
-    editor.set_input_values(in_vals);
-
-    const auto function = onnx_import::import_onnx_model(editor);
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_expected_output<int64_t>(Shape{2}, {4, 6});
+    test_case.add_expected_output<int64_t>(Shape{2,1}, {-3,3});
     test_case.run();
 }

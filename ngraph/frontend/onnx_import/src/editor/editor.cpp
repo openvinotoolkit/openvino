@@ -17,6 +17,7 @@
 #include <fstream>
 #include <onnx/onnx_pb.h>
 
+#include "ngraph/log.hpp"
 #include "onnx_import/editor/editor.hpp"
 #include "utils/parser.hpp"
 
@@ -80,15 +81,11 @@ namespace
 
     TensorProto* find_graph_initializer(GraphProto& graph, const std::string& name)
     {
-        size_t i = 0;
-        for (const auto& initializer_tensor : graph.initializer())
+        for (int i = 0; i < graph.initializer_size(); ++i)
         {
-            if (initializer_tensor.has_name() && initializer_tensor.name() == name)
-            {
-                auto* initializer_desc = graph.mutable_initializer(i);
+            auto* initializer_desc = graph.mutable_initializer(i);
+            if (initializer_desc->has_name() && initializer_desc->name() == name)
                 return initializer_desc;
-            }
-            ++i;
         }
 
         return nullptr;
@@ -180,6 +177,40 @@ namespace
 
             *(tensor_type->mutable_shape()) = std::move(new_onnx_shape);
         }
+    }
+
+    void modify_initializer(TensorProto& initializer,
+                            const std::string& name,
+                            const std::shared_ptr<ngraph::op::Constant> values)
+    {
+        auto elem_type = values->get_element_type();
+        if (NG_2_ONNX_TYPES.count(elem_type) == 0)
+        {
+            throw ngraph_error("Initializer '" + name + "' type cannot be set to: " +
+                               element::Type(elem_type).get_type_name() +
+                               ". This type is not allowed in ONNX.");
+        }
+
+        initializer.Clear();
+
+        *initializer.mutable_name() = name;
+
+        initializer.set_data_type(NG_2_ONNX_TYPES.at(values->get_element_type()));
+
+        for (const auto& dim : values->get_shape())
+        {
+            initializer.add_dims(dim);
+        }
+
+        const auto data_size_in_bytes =
+            shape_size(values->get_shape()) * get_onnx_data_size(initializer.data_type());
+
+        initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
+        /* It's a workaround for problem with multitle instances of fixed_address_empty_string in
+         * protobuf lib caused by dynamic linking.
+         * The problem can be observed as two tensors pointing the same data.
+         */
+        initializer.mutable_raw_data();
     }
 } // namespace
 
@@ -277,39 +308,25 @@ void onnx_import::ONNXModelEditor::set_input_values(
 {
     auto* onnx_graph = m_pimpl->m_model_proto.mutable_graph();
 
-    for (const auto& input_desc : input_values)
+    for (const auto& input : input_values)
     {
-        auto& name = input_desc.first;
-        auto& values = input_desc.second;
+        auto& name = input.first;
+        auto& values = input.second;
 
-        auto initializer = find_graph_initializer(*onnx_graph, name);
+        auto input_desc = find_graph_input(*onnx_graph, input.first);
+        auto initializer_desc = find_graph_initializer(*onnx_graph, name);
 
-        if (!initializer && !find_graph_input(*onnx_graph, input_desc.first))
+        if (!initializer_desc && !input_desc)
         {
-            throw ngraph_error("Could not set custom values for input: '" + name +
-                               "'. Such input was not found in the original ONNX model.");
+            NGRAPH_INFO << "There is no input nor initializer named '" << name
+                        << "' in original model '" << m_model_path << "'.";
         }
 
-        if (initializer)
+        if (!initializer_desc)
         {
-            initializer->Clear();
-        }
-        else
-        {
-            initializer = onnx_graph->add_initializer();
+            initializer_desc = onnx_graph->add_initializer();
         }
 
-        *initializer->mutable_name() = name;
-
-        initializer->set_data_type(NG_2_ONNX_TYPES.at(values->get_element_type()));
-
-        for (const auto& dim : values->get_shape())
-        {
-            initializer->add_dims(dim);
-        }
-
-        const auto data_size = get_onnx_data_size(initializer->data_type());
-        initializer->set_raw_data(values->get_data_ptr(),
-                                  shape_size(values->get_shape()) * data_size);
+        modify_initializer(*initializer_desc, name, values);
     }
 }
