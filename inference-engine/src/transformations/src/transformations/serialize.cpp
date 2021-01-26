@@ -16,7 +16,6 @@
 #include "pugixml.hpp"
 #include "transformations/serialize.hpp"
 
-
 using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Serialize, "Serialize", 0);
