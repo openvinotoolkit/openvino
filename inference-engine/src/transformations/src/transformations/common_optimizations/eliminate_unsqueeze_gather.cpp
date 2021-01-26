@@ -13,8 +13,10 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::EliminateUnsqueezeGather, "EliminateUnsquee
 
 ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
     MATCHER_SCOPE(EliminateUnsqueezeGather);
+    // Remove Unsqueeze + Gather pair, if Gather gathers data by `1` dimension that was previously added by Unsqueeze
     const auto unsqueezeAxis = ngraph::pattern::any_input();
-    const auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset6::Unsqueeze>({ngraph::pattern::any_input(), unsqueezeAxis});
+    const auto unsqueezeInput = ngraph::pattern::any_input();
+    const auto unsqueeze = ngraph::pattern::wrap_type<ngraph::opset6::Unsqueeze>({unsqueezeInput, unsqueezeAxis}, pattern::consumers_count(1));
     const auto gatherIndices = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
     const auto gatherAxis = ngraph::pattern::any_input();
     const auto gather = ngraph::pattern::wrap_type<ngraph::opset6::Gather>({unsqueeze, gatherIndices, gatherAxis});
@@ -45,14 +47,14 @@ ngraph::pass::EliminateUnsqueezeGather::EliminateUnsqueezeGather() {
 
         auto& m_gather = patternValue.at(gather);
         const auto& m_unsqueeze = patternValue.at(unsqueeze);
-        const auto& unsqueezeData = m_unsqueeze.get_node_shared_ptr()->get_input_node_shared_ptr(0);
+        const auto& m_unsqueezeInput = patternValue.at(unsqueezeInput);
 
-        ngraph::copy_runtime_info(m_gather.get_node_shared_ptr(), unsqueezeData);
-        m_gather.replace(unsqueezeData);
+        ngraph::copy_runtime_info(m_gather.get_node_shared_ptr(), m_unsqueeze.get_node_shared_ptr());
+        m_gather.replace(m_unsqueezeInput);
 
         return true;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(gather, "EliminateUnsqueezeGather");
-    ngraph::pass::MatcherPass::register_matcher(m, callback);
+    register_matcher(m, callback);
 }
