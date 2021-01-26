@@ -157,7 +157,7 @@ TEST(TransformationTests, HSwishFusionWithClampMul) {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset4::Add>(input, add_constant);
-        auto clamp = std::make_shared<ngraph::op::v0::Clamp>(add, 0.0f, 6.0f);
+        auto clamp = std::make_shared<ngraph::opset4::Clamp>(add, 0.0f, 6.0f);
         auto mul_constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {1.0 / 6.0});
         auto mul_first = std::make_shared<ngraph::opset4::Multiply>(clamp, mul_constant);
         auto mul_second = std::make_shared<ngraph::opset4::Multiply>(input, mul_first);
@@ -188,7 +188,7 @@ TEST(TransformationTests, HSwishFusionWithClampDiv) {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset4::Add>(input, add_constant);
-        auto clamp = std::make_shared<ngraph::op::v0::Clamp>(add, 0.0f, 6.0f);
+        auto clamp = std::make_shared<ngraph::opset4::Clamp>(add, 0.0f, 6.0f);
         auto div_constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {6.0});
         auto div = std::make_shared<ngraph::opset4::Divide>(clamp, div_constant);
         auto mul = std::make_shared<ngraph::opset4::Multiply>(input, div);
@@ -341,7 +341,7 @@ TEST(TransformationTests, HSwishFusionWithClampWrongConstValue) {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
         auto add = std::make_shared<ngraph::opset4::Add>(input, add_constant);
-        auto clamp = std::make_shared<ngraph::op::v0::Clamp>(add, 0.11f, 6.02f);
+        auto clamp = std::make_shared<ngraph::opset4::Clamp>(add, 0.11f, 6.02f);
         auto mul_constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.98 / 6.15});
         auto mul_first = std::make_shared<ngraph::opset4::Multiply>(clamp, mul_constant);
         auto mul_second = std::make_shared<ngraph::opset4::Multiply>(input, mul_first);
@@ -359,7 +359,7 @@ TEST(TransformationTests, HSwishFusionWithClampWrongConstValue) {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
         auto add = std::make_shared<ngraph::opset4::Add>(input, add_constant);
-        auto clamp = std::make_shared<ngraph::op::v0::Clamp>(add, 0.11f, 6.02f);
+        auto clamp = std::make_shared<ngraph::opset4::Clamp>(add, 0.11f, 6.02f);
         auto mul_constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.98 / 6.15});
         auto mul_first = std::make_shared<ngraph::opset4::Multiply>(clamp, mul_constant);
         auto mul_second = std::make_shared<ngraph::opset4::Multiply>(input, mul_first);
