@@ -35,6 +35,7 @@
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
 #include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
+#include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/gather_elements.hpp>
@@ -698,6 +699,56 @@ namespace
                                                 selected_scores,
                                                 valid_outputs,
                                                 selected_scores_type);
+        return true;
+    }
+
+    namespace experimental_prior_grid
+    {
+        struct InfoForEDPriorGrid
+        {
+            ngraph::element::Type output_type;
+            std::vector<float> priors_data;
+            Shape priors_shape;
+            Shape feature_map_shape;
+            Shape im_data_shape;
+            Shape output_shape;
+            int64_t grid_h;
+            int64_t grid_w;
+            float stride_h;
+            float stride_w;
+        };
+
+        InfoForEDPriorGrid get_info_for_ed_prior_grid_eval(
+            const std::shared_ptr<op::v6::ExperimentalDetectronPriorGridGenerator>& prior_grid,
+            const std::vector<std::shared_ptr<HostTensor>>& inputs)
+        {
+            InfoForEDPriorGrid result;
+            return result;
+        }
+    } // namespace experimental_prior_grid
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronPriorGridGenerator>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        auto info = experimental_prior_grid::get_info_for_ed_prior_grid_eval(op, inputs);
+
+        std::vector<float> output_rois(shape_size(info.output_shape));
+
+        runtime::reference::experimental_detectron_prior_grid_generator(info.priors_data.data(),
+                                                                        info.priors_shape,
+                                                                        info.feature_map_shape,
+                                                                        info.im_data_shape,
+                                                                        output_rois.data(),
+                                                                        info.grid_h,
+                                                                        info.grid_w,
+                                                                        info.stride_h,
+                                                                        info.stride_w);
+
+        runtime::reference::experimental_detectron_prior_grid_generator_postprocessing(
+            outputs, info.output_type, output_rois, info.output_shape);
+
         return true;
     }
 
