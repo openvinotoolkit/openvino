@@ -117,7 +117,6 @@
 #include "ngraph/op/prior_box_clustered.hpp"
 #include "ngraph/op/proposal.hpp"
 #include "ngraph/op/psroi_pooling.hpp"
-#include "ngraph/op/quantize.hpp"
 #include "ngraph/op/range.hpp"
 #include "ngraph/op/read_value.hpp"
 #include "ngraph/op/reduce_l1.hpp"
