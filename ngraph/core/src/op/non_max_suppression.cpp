@@ -695,8 +695,6 @@ std::shared_ptr<Node>
 
 namespace
 {
-    constexpr size_t boxes_port = 0;
-    constexpr size_t scores_port = 1;
     constexpr size_t max_output_boxes_port = 2;
     constexpr size_t iou_threshold_port = 3;
     constexpr size_t score_threshold_port = 4;
@@ -892,6 +890,17 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
     soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
 
     return soft_nms_sigma;
+}
+
+bool op::v5::NonMaxSuppression::is_soft_nms_sigma_constant_and_default() const
+{
+    auto soft_nms_sigma_node = input_value(soft_nms_sigma_port).get_node_shared_ptr();
+    if (inputs().size() < 6 || !ngraph::op::is_constant(soft_nms_sigma_node))
+    {
+        return false;
+    }
+    const auto soft_nms_sigma_input = as_type_ptr<op::Constant>(soft_nms_sigma_node);
+    return soft_nms_sigma_input->cast_vector<float>().at(0) == 0.0f;
 }
 
 bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)

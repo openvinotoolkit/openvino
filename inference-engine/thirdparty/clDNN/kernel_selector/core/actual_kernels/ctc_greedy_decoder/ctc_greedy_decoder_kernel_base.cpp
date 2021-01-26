@@ -42,8 +42,7 @@ CTCGreedyDecoderKernelBase::DispatchData CTCGreedyDecoderKernelBase::SetDefault(
 }
 
 KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& params,
-                                                             const optional_params& options,
-                                                             float estimated_time) const {
+                                                             const optional_params& options) const {
     assert(params.GetType() == KernelType::CTC_GREEDY_DECODER);
 
     if (!Validate(params, options))
@@ -71,8 +70,6 @@ KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& param
                      false,
                      2,  // input and sequence indicatiors
                      GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }

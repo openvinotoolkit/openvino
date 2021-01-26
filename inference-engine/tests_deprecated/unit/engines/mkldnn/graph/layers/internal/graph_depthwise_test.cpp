@@ -16,6 +16,9 @@ using namespace ::testing;
 using std::vector;
 using std::function;
 
+constexpr auto depthwise_scale_shift = mkldnn::algorithm::depthwise_scale_shift;
+constexpr auto depthwise_prelu = mkldnn::algorithm::depthwise_prelu;
+
 struct depthwise_test_params {
     algorithm alg;
 

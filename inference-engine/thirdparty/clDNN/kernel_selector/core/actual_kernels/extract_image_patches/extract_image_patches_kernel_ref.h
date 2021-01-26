@@ -25,5 +25,6 @@ public:
     virtual ~ExtractImagePatchesKernelRef() = default;
 protected:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 };
 }  // namespace kernel_selector

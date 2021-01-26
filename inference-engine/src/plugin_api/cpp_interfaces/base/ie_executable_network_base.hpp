@@ -63,12 +63,15 @@ public:
     }
 
     StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept override {
+        IE_SUPPRESS_DEPRECATED_START
+        // should be refactored together with ExecutableNetwork interface
         TO_STATUS(graphPtr = _impl->GetExecGraphInfo());
+        IE_SUPPRESS_DEPRECATED_END
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
-        IE_SUPPRESS_DEPRECATED_START
         try {
             auto v = _impl->QueryState();
             if (idx >= v.size()) {
@@ -81,8 +84,8 @@ public:
         } catch (...) {
             return InferenceEngine::DescriptionBuffer(UNEXPECTED);
         }
-        IE_SUPPRESS_DEPRECATED_END
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     void Release() noexcept override {
         delete this;
@@ -122,9 +125,12 @@ private:
  */
 template <class T>
 inline typename InferenceEngine::ExecutableNetwork make_executable_network(std::shared_ptr<T> impl) {
+    // to suppress warning about deprecated QueryState
+    IE_SUPPRESS_DEPRECATED_START
     typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {
         p->Release();
     });
+    IE_SUPPRESS_DEPRECATED_END
     return InferenceEngine::ExecutableNetwork(net);
 }
 

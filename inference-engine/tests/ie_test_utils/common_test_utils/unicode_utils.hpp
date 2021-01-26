@@ -16,19 +16,19 @@
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 namespace CommonTestUtils {
 
-static void fixSlashes(std::string &str) {
+inline void fixSlashes(std::string &str) {
     std::replace(str.begin(), str.end(), '/', '\\');
 }
 
-static void fixSlashes(std::wstring &str) {
+inline void fixSlashes(std::wstring &str) {
     std::replace(str.begin(), str.end(), L'/', L'\\');
 }
 
-static std::wstring stringToWString(std::string input) {
+inline std::wstring stringToWString(std::string input) {
     return ::FileUtils::multiByteCharToWString(input.c_str());
 }
 
-static bool copyFile(std::wstring source_path, std::wstring dest_path) {
+inline bool copyFile(std::wstring source_path, std::wstring dest_path) {
 #ifndef _WIN32
     std::ifstream source(FileUtils::wStringtoMBCSstringChar(source_path), std::ios::binary);
     std::ofstream dest(FileUtils::wStringtoMBCSstringChar(dest_path), std::ios::binary);
@@ -49,11 +49,11 @@ static bool copyFile(std::wstring source_path, std::wstring dest_path) {
     return result;
 }
 
-static bool copyFile(std::string source_path, std::wstring dest_path) {
+inline bool copyFile(std::string source_path, std::wstring dest_path) {
     return copyFile(stringToWString(source_path), dest_path);
 }
 
-static std::wstring addUnicodePostfixToPath(std::string source_path, std::wstring postfix) {
+inline std::wstring addUnicodePostfixToPath(std::string source_path, std::wstring postfix) {
     fixSlashes(source_path);
     std::wstring result = stringToWString(source_path);
     std::wstring file_name = result.substr(0, result.size() - 4);
@@ -62,7 +62,7 @@ static std::wstring addUnicodePostfixToPath(std::string source_path, std::wstrin
     return result;
 }
 
-static void removeFile(std::wstring path) {
+inline void removeFile(std::wstring path) {
     int result = 0;
     if (!path.empty()) {
 #ifdef _WIN32
@@ -71,6 +71,7 @@ static void removeFile(std::wstring path) {
         result = remove(FileUtils::wStringtoMBCSstringChar(path).c_str());
 #endif
     }
+    (void)result;
 }
 
 inline bool endsWith(const std::wstring& source, const std::wstring& expectedSuffix) {
@@ -127,7 +128,7 @@ inline int removeFilesWithExt(std::wstring path, std::wstring ext) {
     return ret;
 }
 
-static int removeDir(std::wstring path) {
+inline int removeDir(std::wstring path) {
     int result = 0;
     if (!path.empty()) {
 #ifdef _WIN32
@@ -155,16 +156,7 @@ inline bool directoryExists(const std::wstring &path) {
     return false;
 }
 
-static const std::vector<std::wstring> test_unicode_postfix_vector = {
-        L"unicode_Яㅎあ",
-        L"ひらがな日本語",
-        L"大家有天分",
-        L"עפצקרשתםןףץ",
-        L"ث خ ذ ض ظ غ",
-        L"그것이정당하다",
-        L"АБВГДЕЁЖЗИЙ",
-        L"СТУФХЦЧШЩЬЮЯ"
-};
+extern const std::vector<std::wstring> test_unicode_postfix_vector;
 
 }  // namespace CommonTestUtils
 #endif  // ENABLE_UNICODE_PATH_SUPPORT

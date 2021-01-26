@@ -8,23 +8,31 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
-#include "jit_generator.hpp"
+#include <cpu/x64/jit_generator.hpp>
+
 #include <algorithm>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
 
 #define GET_OFF(field) offsetof(jit_args_permute, field)
 
-template <cpu::cpu_isa_t isa>
+template <cpu::x64::cpu_isa_t isa>
 struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_permute_kernel_f32)
 
-    explicit jit_uni_permute_kernel_f32(jit_permute_conf_t jpp) : jit_uni_permute_kernel(jpp), jit_generator() {
+    explicit jit_uni_permute_kernel_f32(jit_permute_conf_t jpp) : jit_uni_permute_kernel(jpp), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
+    void generate() override {
         this->preamble();
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
@@ -33,8 +41,6 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
         loop(jpp.n);
 
         this->postamble();
-
-        ker_ = (decltype(ker_))this->getCode();
     }
 
     void load(const Xbyak::Xmm &xmm, const Xbyak::Address &addr) {
@@ -115,7 +121,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -174,52 +180,52 @@ void MKLDNNPermuteNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
     if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nchw);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nchw);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nchw});
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nchw);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nchw);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nchw});
 
         auto srcDims = getParentEdgeAt(0)->getDims();
         if (srcDims[1] % 8 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw8c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nChw8c});
+            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nChw8c);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nChw8c});
         }
 
         if (srcDims[1] % 16 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw16c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nChw16c});
+            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nChw16c);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nChw16c});
         }
 
         if (prec == Precision::I8 || prec == Precision::U8) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nhwc);
-            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nhwc);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nhwc});
+            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nhwc);
+            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::nhwc);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nhwc});
         }
     } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::ncdhw);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::ncdhw);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::ncdhw});
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ncdhw);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ncdhw);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::ncdhw});
 
         auto srcDims = getParentEdgeAt(0)->getDims();
         if (srcDims[1] % 8 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw8c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nCdhw8c});
+            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nCdhw8c);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nCdhw8c});
         }
 
         if (srcDims[1] % 16 == 0) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw16c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nCdhw16c});
+            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::nCdhw16c);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::nCdhw16c});
         }
 
         if (prec == Precision::I8 || prec == Precision::U8) {
-            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::ndhwc);
-            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::ndhwc);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::ndhwc});
+            config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::ndhwc);
+            config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::ndhwc);
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::format_tag::ndhwc});
         }
     } else {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::any);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
-                                                   MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims()));
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims())});
+        // general plain case
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     }
 }
 
@@ -332,7 +338,7 @@ void MKLDNNPermuteNode::createPrimitive() {
         }
     }
 
-    int max_threads = mkldnn_get_max_threads();
+    int max_threads = dnnl_get_max_threads();
     const int n_max = 3;    //  max count dims for parallel
     int n = 0;
     int work_amount = sorted_dst_dims[0];
@@ -351,24 +357,27 @@ void MKLDNNPermuteNode::createPrimitive() {
     jpp.ndims = sorted_order.size();
     jpp.data_size = MKLDNNExtensionUtils::sizeOfDataType(data_type);
 
-    if (mayiuse(cpu::avx512_common)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::avx512_common>(jpp));
-    } else if (mayiuse(cpu::avx2)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::avx2>(jpp));
-    } else if (mayiuse(cpu::sse42)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::sse42>(jpp));
+    if (mayiuse(cpu::x64::avx512_common)) {
+        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_common>(jpp));
+    } else if (mayiuse(cpu::x64::avx2)) {
+        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx2>(jpp));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse41>(jpp));
     }
+    if (permute_kernel)
+        permute_kernel->create_ker();
 }
 
 static void permute_to_0231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
     // Supports only NCHW to NHWC
     int block_size = 1;
-    if (!MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat())) {
-        block_size = srcMemPtr->GetDescriptor().data.layout_desc.blocking.block_dims[1];
+    if (!srcMemPtr->GetDesc().isPlainFormat()) {
+        const auto &blk_desc = srcMemPtr->GetDescriptor().data.format_desc.blocking;
+        auto found = std::find(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, 1);
+        auto pos = std::distance(found, blk_desc.inner_idxs);
+        block_size = blk_desc.inner_blks[pos];
     }
 
     const int C = srcMemPtr->GetDims()[1];
@@ -394,13 +403,14 @@ static void permute_to_0231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
 }
 
 static void permute_to_0213(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
     int block_size = 1;
-    if (!MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat())) {
-        block_size = srcMemPtr->GetDescriptor().data.layout_desc.blocking.block_dims[1];
+    if (!srcMemPtr->GetDesc().isPlainFormat()) {
+        const auto &blk_desc = srcMemPtr->GetDescriptor().data.format_desc.blocking;
+        auto found = std::find(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, 1);
+        auto pos = std::distance(found, blk_desc.inner_idxs);
+        block_size = blk_desc.inner_blks[pos];
     }
 
     const int C = srcMemPtr->GetDims()[1];
@@ -419,10 +429,8 @@ static void permute_to_0213(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
 }
 
 static void permute_to_0312(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int C = srcMemPtr->GetDims()[1];
     const int H = srcMemPtr->GetDims()[2];
@@ -439,10 +447,8 @@ static void permute_to_0312(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
 
 template <size_t scale_H = 0, size_t scale_W = 0>
 static void permute_to_014253(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int C  = srcMemPtr->GetDims()[1];
     const int CH  = scale_H > 0 ? static_cast<int>(scale_H) : srcMemPtr->GetDims()[2];
@@ -477,10 +483,8 @@ static void permute_to_014253(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPt
 }
 
 static void permute_to_3012(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int C  = srcMemPtr->GetDims()[1];
     const int H  = srcMemPtr->GetDims()[2];
@@ -507,10 +511,8 @@ static void permute_to_3012(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
 }
 
 static void permute_to_021(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int C  = srcMemPtr->GetDims()[1];
     const int S  = srcMemPtr->GetDims()[2];
@@ -533,10 +535,8 @@ static void permute_to_021(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& 
 }
 
 static void permute_to_034152(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int DIM1 = srcMemPtr->GetDims()[1];
     const int DIM2 = srcMemPtr->GetDims()[2];
@@ -571,13 +571,14 @@ static void permute_to_034152(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPt
 }
 
 static void permute_to_0132(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
     int src_block_size = 1;
-    if (!MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat())) {
-        src_block_size = srcMemPtr->GetDescriptor().data.layout_desc.blocking.block_dims[1];
+    if (!srcMemPtr->GetDesc().isPlainFormat()) {
+        const auto &blk_desc = srcMemPtr->GetDescriptor().data.format_desc.blocking;
+        auto found = std::find(blk_desc.inner_idxs, blk_desc.inner_idxs + blk_desc.inner_nblks, 1);
+        auto pos = std::distance(found, blk_desc.inner_idxs);
+        src_block_size = blk_desc.inner_blks[pos];
     }
 
     const int C = srcMemPtr->GetDims()[1];
@@ -596,10 +597,8 @@ static void permute_to_0132(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
 }
 
 static void permute_to_03142(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int DIM1 = srcMemPtr->GetDims()[1];
     const int DIM2 = srcMemPtr->GetDims()[2];
@@ -630,10 +629,8 @@ static void permute_to_03142(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr
 }
 
 static void permute_to_1203(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int C = srcMemPtr->GetDims()[1];
     const int H = srcMemPtr->GetDims()[2];
@@ -649,10 +646,8 @@ static void permute_to_1203(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr&
 }
 
 static void permute_to_02134(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int DIM1 = srcMemPtr->GetDims()[1];
     const int DIM2 = srcMemPtr->GetDims()[2];
@@ -678,10 +673,8 @@ static void permute_to_02134(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr
 }
 
 static void permute_to_02431(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int DIM1 = srcMemPtr->GetDims()[1];
     const int DIM2 = srcMemPtr->GetDims()[2];
@@ -707,10 +700,8 @@ static void permute_to_02431(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr
 }
 
 static void permute_to_04231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int DIM1 = srcMemPtr->GetDims()[1];
     const int DIM2 = srcMemPtr->GetDims()[2];
@@ -736,10 +727,8 @@ static void permute_to_04231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr
 }
 
 static void permute_to_102(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int C  = srcMemPtr->GetDims()[1];
     const int S  = srcMemPtr->GetDims()[2];
@@ -762,10 +751,8 @@ static void permute_to_102(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& 
 }
 
 static void permute_to_02341(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int DIM1 = srcMemPtr->GetDims()[1];
     const int DIM2 = srcMemPtr->GetDims()[2];
@@ -791,10 +778,8 @@ static void permute_to_02341(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr
 }
 
 static void permute_to_04123(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
-    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
-    src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
-    dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding;
+    auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetPtr());
+    auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetPtr());
 
     const int DIM1 = srcMemPtr->GetDims()[1];
     const int DIM2 = srcMemPtr->GetDims()[2];
@@ -824,52 +809,52 @@ const std::multimap<InferenceEngine::SizeVector, MKLDNNPermuteNode::PermuteImpl>
             return true;
         })},  // NCHW -> NHWC case
         {{0, 1, 4, 2, 5, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_014253<2, 2>, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat()) && srcMemPtr->GetDims()[2] == 2 && srcMemPtr->GetDims()[3] == 2;
+            return srcMemPtr->GetDesc().isPlainFormat() && srcMemPtr->GetDims()[2] == 2 && srcMemPtr->GetDims()[3] == 2;
         })},  // Dense upsample convolution case (scale = 2)
         {{0, 1, 4, 2, 5, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_014253<0, 0>, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},  // Dense upsample convolution case (generic)
         {{3, 0, 1, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_3012, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat()) && MB == srcMemPtr->GetDims()[0];
+            return srcMemPtr->GetDesc().isPlainFormat() && MB == srcMemPtr->GetDims()[0];
         })},  // LPR case
         {{0, 2, 1, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_0213, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},  // shufflenet
         {{0, 2, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_021, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},  // self attention block
         {{0, 3, 4, 1, 5, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_034152, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},  // learning-to-see-in-the-dark-sony
         {{0, 1, 3, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_0132, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
             return true;
         })},
         {{0, 3, 1, 4, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_03142, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},
         {{1, 2, 0, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_1203, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat()) && MB == srcMemPtr->GetDims()[0];
+            return srcMemPtr->GetDesc().isPlainFormat() && MB == srcMemPtr->GetDims()[0];
         })},
         {{0, 2, 1, 3, 4}, MKLDNNPermuteNode::PermuteImpl(permute_to_02134, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},
         {{0, 2, 4, 3, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_02431, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},
         {{0, 4, 2, 3, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_04231, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},
         {{0, 3, 1, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_0312, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},
         {{1, 0, 2}, MKLDNNPermuteNode::PermuteImpl(permute_to_102, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat()) && MB == srcMemPtr->GetDims()[0];
+            return srcMemPtr->GetDesc().isPlainFormat() && MB == srcMemPtr->GetDims()[0];
         })},
         {{0, 2, 3, 4, 1}, MKLDNNPermuteNode::PermuteImpl(permute_to_02341, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},
         {{0, 4, 1, 2, 3}, MKLDNNPermuteNode::PermuteImpl(permute_to_04123, [](int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
-            return MKLDNNMemory::IsPlainFormat(srcMemPtr->GetFormat());
+            return srcMemPtr->GetDesc().isPlainFormat();
         })},
 };
 
@@ -887,13 +872,10 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
     }
 
     if (permute_kernel) {
-        auto src_data = reinterpret_cast<const char *>(srcMemPtr->GetData());
-        auto dst_data = reinterpret_cast<char *>(dstMemPtr->GetData());
+        auto src_data = reinterpret_cast<const char *>(srcMemPtr->GetPtr());
+        auto dst_data = reinterpret_cast<char *>(dstMemPtr->GetPtr());
 
         const auto &jpp = (*permute_kernel).jpp;
-
-        src_data += srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding * jpp.data_size;
-        dst_data += dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding * jpp.data_size;
 
         SizeVector dst_dims = jpp.dst_block_dims;
         SizeVector dst_strides = jpp.dst_strides;

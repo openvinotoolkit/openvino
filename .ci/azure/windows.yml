@@ -33,6 +33,8 @@ jobs:
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     TEST_ENV_PATH: $(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.1\opencv\bin;%PATH%
+    INSTALL_DIR: $(WORK_DIR)\install_pkg
+    SETUPVARS: $(INSTALL_DIR)\bin\setupvars.bat
 
   steps:
   - script: |
@@ -79,15 +81,10 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
-      certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/IBSetupConsole_9_5_0.exe IBSetupConsole_9_5_0.exe
-      call IBSetupConsole_9_5_0.exe /Install /Components=Agent,oneuse /Coordinator=11.1.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF
+      certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
+      call install_ib_console.bat
     workingDirectory: $(WORK_DIR)
     displayName: 'Install IncrediBuild'
-
-  - script: |
-      echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
-      reg add HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Xoreax\IncrediBuild\Builder /f /v LastEnabled /d 0 && echo Start IncrediBuild_Agent && net start IncrediBuild_Agent
-    displayName: 'Start IncrediBuild'
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
@@ -104,8 +101,13 @@ jobs:
   - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
     displayName: Stop IncrediBuild
     continueOnError: true
+
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List files'
+
+  - script: cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P cmake_install.cmake
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install'
 
   - script: |
       set PATH=$(TEST_ENV_PATH)

@@ -136,9 +136,8 @@ endif ()
 
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    reset_deps_cache(TBBROOT)
 
-    if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
+    reset_deps_cache(TBBROOT TBB_DIR)
         ## pre-production package for hybrid support (windows/macos/linux only)
         if (NOT ANDROID AND NOT(LINUX AND AARCH64))
             if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -150,47 +149,42 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
             endif()
             message(STATUS "THIRDPARTY_SERVER_PATH=${IE_PATH_TO_DEPS}")
         endif()
-        if (WIN32 AND X86_64)
+    if (WIN32 AND X86_64)
+        #TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_WIN "oneapi-tbb-2021.2.0-win.zip"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "3f92b99ddabdfdeb512467043f4806ce2bde7086c4dda2f66865830174bc6a83")
-        elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
-        elseif(LINUX AND X86_64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "oneapi-tbb-2021.2.0-lin.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    SHA256 "cae47d9e837da577712586d41accb9a93777aad8d9b29eba466586bb59e30535")
-        elseif(LINUX AND AARCH64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
-                    TARGET_PATH "${TEMP}/tbb_yocto"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "57ad3ceeab119c8a4d5e9fc38e80952fc19d4bf23ae065e9540cde89b25561d5")
-        elseif(APPLE AND X86_64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_MAC "oneapi-tbb-2021.2.0-mac.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "ee09b2ae7217f853db5bd29301af2ba1c3a09a71855ae47a93d344779defbeef")
-        else()
-            message(FATAL_ERROR "TBB is not available on current platform")
-        endif()
+                ARCHIVE_WIN "oneapi-tbb-2021.2.0-win.zip"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "3f92b99ddabdfdeb512467043f4806ce2bde7086c4dda2f66865830174bc6a83")
+    elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
+    elseif(LINUX AND X86_64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "oneapi-tbb-2021.2.0-lin.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                SHA256 "cae47d9e837da577712586d41accb9a93777aad8d9b29eba466586bb59e30535")
+    elseif(LINUX AND AARCH64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
+                TARGET_PATH "${TEMP}/tbb_yocto"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "57ad3ceeab119c8a4d5e9fc38e80952fc19d4bf23ae065e9540cde89b25561d5")
+    elseif(APPLE AND X86_64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_MAC "oneapi-tbb-2021.2.0-mac.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "ee09b2ae7217f853db5bd29301af2ba1c3a09a71855ae47a93d344779defbeef")
     else()
-        if(DEFINED TBB_DIR)
-            get_filename_component(TBB ${TBB_DIR} DIRECTORY)
-        else()
-            get_filename_component(TBB $ENV{TBB_DIR} DIRECTORY)
-        endif()
+        message(FATAL_ERROR "TBB is not available on current platform")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
+    update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
 
     if (WIN32)
         log_rpath_from_dir(TBB "${TBB}/redist/intel64/vc14")

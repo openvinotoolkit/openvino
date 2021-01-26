@@ -21,8 +21,6 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace ngraph;
 using namespace std;
 

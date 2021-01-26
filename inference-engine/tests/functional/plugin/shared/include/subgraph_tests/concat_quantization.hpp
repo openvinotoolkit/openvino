@@ -18,7 +18,7 @@ TEST_P(ConcatQuantization, CompareWithRefImpl) {
         InferenceEngine::CNNNetwork cnnNetwork = InferenceEngine::CNNNetwork{ function };
         executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice);
     }
-    catch (InferenceEngine::details::InferenceEngineException ex) {
+    catch (InferenceEngine::details::InferenceEngineException & ex) {
         FAIL() << ex.what();
     }
 };

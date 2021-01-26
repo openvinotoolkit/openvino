@@ -34,6 +34,7 @@
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_broadcast3.hpp>
 #include <transformations/op_conversions/reduce_l1_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l2_decomposition.hpp>
 #include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
@@ -54,6 +55,7 @@
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_gather_0d.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -155,6 +157,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+            manager.register_pass<ngraph::pass::ConvertGather0D>();
 
             std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
                     {ngraph::element::i64, ngraph::element::i32},
@@ -164,7 +167,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     {ngraph::element::boolean, ngraph::element::u8},
             };
 
-            for (auto & precision : convert_precision_list) {
+            for (auto& precision : convert_precision_list) {
                 manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
             }
 
@@ -263,6 +266,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
             pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
             pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+            pass_config->disable<ngraph::pass::ConvertBroadcast3>();
 
             pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 

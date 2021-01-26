@@ -172,7 +172,7 @@ void printContainer(DotLabel& lbl, const Cont& cont) {
     if (cont.size() > 4) {
         DotLabel subLbl(lbl);
 
-        size_t ind = 0;
+        decltype(cont.size()) ind = 0;
         for (const auto& val : cont) {
             subLbl.addIdent();
             subLbl.appendValue("%s", val);
