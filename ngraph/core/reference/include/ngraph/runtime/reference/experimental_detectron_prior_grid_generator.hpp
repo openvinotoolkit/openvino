@@ -45,6 +45,12 @@ namespace ngraph
                                                              int64_t grid_w,
                                                              float stride_h,
                                                              float stride_w);
+
+            void experimental_detectron_prior_grid_generator_postprocessing(
+                const HostTensorVector& outputs,
+                const ngraph::element::Type output_type,
+                const std::vector<float>& output_rois,
+                const Shape& output_rois_shape);
         }
     }
 }
