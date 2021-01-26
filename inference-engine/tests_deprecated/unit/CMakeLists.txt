@@ -15,10 +15,8 @@ SET (CMAKE_SKIP_RPATH OFF)
 
 file(GLOB
         TEST_SRC
-        cnn_network/*.cpp
         graph_tools/*.cpp
         inference_engine_tests/*.cpp
-        stress_tests/*.cpp
         )
 
 if (ENABLE_GNA)
