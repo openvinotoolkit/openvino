@@ -87,7 +87,7 @@ void op::v0::Proposal::validate_and_infer_types()
                               "Anchor number inconsistent between class_probs (",
                               class_probs_ps[1].get_length() / 2,
                               "), and bbox_deltas (",
-                              class_probs_ps[1].get_length() / 4,
+                              bbox_deltas_ps[1].get_length() / 4,
                               ").");
 
         NODE_VALIDATION_CHECK(this,
