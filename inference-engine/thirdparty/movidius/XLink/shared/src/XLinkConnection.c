@@ -186,6 +186,9 @@ XLinkError_t Connection_Reset(Connection* connection) {
 
     XLINK_RET_IF(packet == NULL);
     XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
+    if (packetSendStatus != X_LINK_SUCCESS) {
+        mvLog(MVLOG_ERROR, "Sending reset request failed with error %d. Just closing the connection...", packetSendStatus);
+    }
     if (Packet_Release(packet) != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Cannot release packet");
     }
@@ -263,6 +266,9 @@ XLinkError_t Connection_CloseStream(Connection* connection, streamId_t streamId)
     packet->header.serviceInfo = (int32_t)streamId;
 
     XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
+    if (packetSendStatus != X_LINK_SUCCESS) {
+        mvLog(MVLOG_ERROR, "Sending close stream request failed with error %d. Just closing stream...", packetSendStatus);
+    }
     if (Packet_Release(packet) != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Cannot release packet");
     }
@@ -284,6 +290,9 @@ XLinkError_t Connection_Write(Connection* connection, streamId_t streamId, const
     XLINK_RET_IF(packet == NULL);
 
     XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
+    if (packetSendStatus != X_LINK_SUCCESS) {
+        mvLog(MVLOG_ERROR, "Writing failed with error %d.", packetSendStatus);
+    }
     if (Packet_Release(packet) != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Cannot release packet");
     }
@@ -383,9 +392,11 @@ static XLinkError_t _connection_SendPacket(Connection* connection, Packet* packe
 
     XLINK_RET_IF(Packet_WaitPacketComplete(packet));
 
-    XLinkError_t isCompleted = packet->privateFields.status == PACKET_COMPLETED
-            ? X_LINK_SUCCESS
-            : X_LINK_ERROR;
+    XLinkError_t isCompleted = X_LINK_SUCCESS;
+    if (packet->privateFields.status != PACKET_COMPLETED) {
+        mvLog(MVLOG_ERROR, "Packet sending failed. Packet status %d.", packet->privateFields.status);
+        isCompleted = X_LINK_ERROR;
+    }
 
     return isCompleted;
 }
@@ -398,6 +409,8 @@ static XLinkError_t _connection_ReceivePacket(Connection *connection, streamId_t
     XLINK_RET_IF(receivedPacket == NULL);
 
     if (receivedPacket->privateFields.status == PACKET_DROPPED) {
+        mvLog(MVLOG_ERROR, "Some error occurred, so packet has been dropped, returning NULL");
+        Packet_Release(receivedPacket);
         *packet = NULL;
         return X_LINK_ERROR;
     }

@@ -75,6 +75,7 @@ XLinkError_t Packet_Release(Packet* packet) {
     packet->privateFields.status = PACKET_FREE;
     mv_strcpy(packet->header.streamName, MAX_STREAM_NAME_LENGTH, packetPool->name);
     packetPool->busyPacketsCount--;
+    ASSERT_XLINK(!pthread_cond_broadcast(&packetPool->packetAccessCond));
 
     mvLog(MVLOG_DEBUG, "%s Released packet. Busy packets count: %u. Packet: id=%d, idx=%d",
           packetPool->name, packetPool->busyPacketsCount, packet->header.id, packet->privateFields.idx);
@@ -240,7 +241,13 @@ XLinkError_t PacketPool_Create(PacketPool* packetPool, streamId_t streamId, cons
     }
 
     if (pthread_mutex_init(&packetPool->packetAccessLock, NULL)) {
-        mvLog(MVLOG_ERROR, "Cannot initialize lock mutex, destroying the packet pool");
+        mvLog(MVLOG_ERROR, "Cannot initialize packetAccessLock, destroying the packet pool");
+        PacketPool_Destroy(packetPool);
+        return X_LINK_ERROR;
+    }
+
+    if (pthread_cond_init(&packetPool->packetAccessCond, NULL)) {
+        mvLog(MVLOG_ERROR, "Cannot initialize packetAccessCond, destroying the packet pool");
         PacketPool_Destroy(packetPool);
         return X_LINK_ERROR;
     }
@@ -251,13 +258,20 @@ XLinkError_t PacketPool_Create(PacketPool* packetPool, streamId_t streamId, cons
 void PacketPool_Destroy(PacketPool* packetPool) {
     ASSERT_XLINK(packetPool);
 
+    ASSERT_XLINK(!pthread_mutex_lock(&packetPool->packetAccessLock));
+    while (packetPool->busyPacketsCount != 0) {
+        ASSERT_XLINK(!pthread_cond_wait(&packetPool->packetAccessCond, &packetPool->packetAccessLock));
+    }
     ASSERT_XLINK(packetPool->busyPacketsCount == 0);
-
     for (int i = 0; i < XLINK_MAX_PACKET_PER_STREAM; ++i) {
         Packet_Destroy(&packetPool->packets[i]);
     }
+    ASSERT_XLINK(!pthread_mutex_unlock(&packetPool->packetAccessLock));
 
     if (pthread_mutex_destroy(&packetPool->packetAccessLock)) {
+        mvLog(MVLOG_ERROR, "Cannot destroy packetAccessLock");
+    }
+    if (pthread_cond_destroy(&packetPool->packetAccessCond)) {
         mvLog(MVLOG_ERROR, "Cannot destroy packetAccessLock");
     }
 }
@@ -280,6 +294,7 @@ Packet* PacketPool_GetPacket(PacketPool* packetPool) {
     ret_packet->header.id = packetPool->nexUniqueId++;
 
     packetPool->busyPacketsCount++;
+    ASSERT_XLINK(!pthread_cond_broadcast(&packetPool->packetAccessCond));
 
     mvLog(MVLOG_DEBUG, "%s Locked packet. Busy packets count: %u. Packet: id=%d, idx=%d",
           packetPool->name, packetPool->busyPacketsCount, ret_packet->header.id, ret_packet->privateFields.idx);

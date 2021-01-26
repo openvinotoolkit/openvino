@@ -237,11 +237,16 @@ static XLinkError_t _dispatcher_HandleReadPacketError(DispatcherNew* dispatcher)
     Packet* errorPacket = NULL;
     for (int i = 0; i < count; ++i) {
         streamId_t streamId = openedStreamIds[i];
-        errorPacket = StreamDispatcher_GetPacket(streamDispatcher, streamId, IN_CHANNEL);
-        XLINK_OUT_IF(errorPacket == NULL);
 
-        errorPacket->privateFields.status = PACKET_DROPPED;
-        XLINK_OUT_IF(BlockingQueue_Push(&dispatcher->receivedPacketsQueue[streamId], errorPacket));
+//        int isAnyPendingPop = 0;
+//        XLINK_OUT_IF(BlockingQueue_IsAnyPendingPop(&dispatcher->receivedPacketsQueue[streamId], &isAnyPendingPop));
+        if (dispatcher->receivedPacketsQueue[streamId].pendingPop) {
+            errorPacket = StreamDispatcher_GetPacket(streamDispatcher, streamId, IN_CHANNEL);
+            XLINK_OUT_IF(errorPacket == NULL);
+
+            errorPacket->privateFields.status = PACKET_DROPPED;
+            XLINK_OUT_IF(BlockingQueue_Push(&dispatcher->receivedPacketsQueue[streamId], errorPacket));
+        }
 
         XLINK_OUT_IF(StreamDispatcher_FreePendingPackets(streamDispatcher, streamId, PACKET_DROPPED));
     }
@@ -473,7 +478,7 @@ static void* _dispatcher_SendPacketsThr(void* arg) {
         }
 
         if (isPacketSent != X_LINK_SUCCESS) {
-            mvLog(MVLOG_ERROR, "Fail to write packet. Packet: %s, id=%d, size=%u, streamId=%u, streamName=%s.",
+            mvLog(MVLOG_ERROR, "Failed to write packet. Packet: %s, id=%d, size=%u, streamId=%u, streamName=%s.",
                   _dispatcher_TypeToStr(packet->header.type), packet->header.id,
                   packet->header.size, packet->header.streamId, packet->header.streamName);
 
@@ -494,7 +499,8 @@ static void* _dispatcher_ReceivePacketsThr(void* arg) {
 
         if (rc != X_LINK_SUCCESS) {
             _dispatcher_HandleReadPacketError(dispatcher);
-            continue;
+//            dispatcher->status = DISPATCHER_NEED_TO_CLOSE;
+            break;
         }
 
         commType = Packet_GetCommType(receivedPacket);

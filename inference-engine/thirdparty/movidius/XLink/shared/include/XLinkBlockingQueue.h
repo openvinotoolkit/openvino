@@ -26,6 +26,7 @@ typedef struct BlockingQueue_t {
     pthread_mutex_t lock;
     sem_t addPacketSem;
     sem_t removePacketSem;
+    int pendingPop;
 } BlockingQueue;
 
 XLinkError_t BlockingQueue_Create(
