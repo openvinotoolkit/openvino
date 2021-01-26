@@ -70,26 +70,8 @@ struct NetworkCompilationContext final {
                 m_runtime_atrributes += op->get_friendly_name() + "#" + primPriority->get();
             }
 
-            // find any constant to compute hash on
-            {
-                if (m_weights)
-                    continue;
-
-                auto getConstant = [] (const std::shared_ptr<ngraph::Node> & node,
-                                       size_t port_index) {
-                    auto inputNode = node->input_value(port_index).get_node_shared_ptr();
-                    return std::dynamic_pointer_cast<ngraph::opset6::Constant>(inputNode);
-                };
-
-                if (std::dynamic_pointer_cast<ngraph::opset6::Convolution>(op) ||
-                    std::dynamic_pointer_cast<ngraph::opset6::GroupConvolution>(op) ||
-                    std::dynamic_pointer_cast<ngraph::opset6::BinaryConvolution>(op) ||
-                    std::dynamic_pointer_cast<ngraph::opset6::DeformableConvolution>(op) ||
-                    std::dynamic_pointer_cast<ngraph::opset6::ConvolutionBackpropData>(op) ||
-                    std::dynamic_pointer_cast<ngraph::opset6::GroupConvolutionBackpropData>(op) ||
-                    std::dynamic_pointer_cast<ngraph::opset6::Add>(op)) {
-                    m_weights = getConstant(op, 1);
-                }
+            if (const auto & c = std::dynamic_pointer_cast<ngraph::opset6::Constant>(op)) {
+                m_weights.push_back(c);
             }
         }
     }
@@ -106,12 +88,13 @@ struct NetworkCompilationContext final {
         seed = hash_combine(seed, m_xmlFile.str());
 
         // compute hash on weights if any
-        if (m_weights) {
+        if (m_weights.empty()) {
             std::cout << "Compute hash on weights" << std::endl;
-            auto data = reinterpret_cast<const std::uint8_t *>(m_weights->get_data_ptr());
-
-            for (size_t i = 0; i < ngraph::shape_size(m_weights->get_shape()); ++i) {
-                seed = hash_combine(seed, data[i]);
+            for (const auto & c : m_weights) {
+                auto data = reinterpret_cast<const std::uint8_t *>(c->get_data_ptr());
+                for (size_t i = 0; i < ngraph::shape_size(c->get_shape()); ++i) {
+                    seed = hash_combine(seed, data[i]);
+                }
             }
         }
 
@@ -169,7 +152,8 @@ private:
     bool m_cachingIsAvailable = true;
 
     // network structure (ngraph::Function description)
-    std::shared_ptr<ngraph::opset6::Constant> m_weights;
+    using Constant = std::shared_ptr<ngraph::opset6::Constant>;
+    std::vector<Constant> m_weights;
     std::stringstream m_xmlFile;
 
     // compile options
