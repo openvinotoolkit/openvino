@@ -181,8 +181,8 @@ endif ()
 if (ENABLE_OPENCV)
     reset_deps_cache(OpenCV_DIR)
 
-    set(OPENCV_VERSION "4.5.0")
-    set(OPENCV_BUILD "36")
+    set(OPENCV_VERSION "4.5.1")
+    set(OPENCV_BUILD "044")
     set(OPENCV_BUILD_YOCTO "337")
 
     if (AARCH64)
