@@ -123,4 +123,7 @@ bool QuantizeKernelScaleShift::Validate(const Params& p, const optional_params&)
     return true;
 }
 
+KernelsPriority QuantizeKernelScaleShift::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
 }  // namespace kernel_selector

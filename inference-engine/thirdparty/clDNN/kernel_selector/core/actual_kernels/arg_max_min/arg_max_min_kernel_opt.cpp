@@ -69,8 +69,10 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optio
         size = (size / 128 + 1) * topK;
     }
 
-    kd.estimatedTime = FORCE_PRIORITY_9;
-
     return {kd};
+}
+
+KernelsPriority ArgMaxMinKernelOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

@@ -258,12 +258,15 @@ KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params, const
                                                     options,
                                                     input.GetLayout(),
                                                     w_layout,
-                                                    FORCE_PRIORITY_7,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }
     }
     return res;
+}
+
+KernelsPriority FullyConnectedKernelMMAD::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

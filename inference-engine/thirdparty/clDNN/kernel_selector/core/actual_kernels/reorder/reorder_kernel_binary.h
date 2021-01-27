@@ -23,6 +23,7 @@ public:
     ReorderKernelBinary() : ReorderKernelBase("reorder_data_binary") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     JitConstants GetJitConstants(const reorder_params& params) const override;
     DispatchData SetDefault(const reorder_params& arg) const override;
 

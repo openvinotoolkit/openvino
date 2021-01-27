@@ -6,13 +6,67 @@
 
 #include <ie_common.h>
 #include <mkldnn_node.h>
+#include <common/primitive_attr.hpp>
+
 #include <string>
 #include <memory>
 #include <vector>
 #include <utility>
-#include <primitive_attr.hpp>
 
 namespace MKLDNNPlugin {
+
+enum QuantizeOpType {
+    FakeQuantization,
+    Quantization,
+    Binarization,
+};
+
+struct jit_quantize_params {
+    int c;
+
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision wei_prc;
+    InferenceEngine::Precision dst_prc;
+
+    InferenceEngine::Layout src_layout;
+
+    QuantizeOpType op_type;
+};
+
+struct jit_quantize_call_args {
+    const uint8_t* from;
+    const uint8_t* to;
+    const float* thresholds;
+    const float* output_mask;
+
+    const float* crop_low;
+    const float* crop_high;
+    const float* input_scale;
+    const float* input_shift;
+    const float* output_scale;
+    const float* output_shift;
+
+    size_t src_step;
+    size_t dst_step;
+    size_t block_size;
+    size_t work_amount;
+};
+
+struct jit_uni_quantize_kernel {
+    void (*ker_)(const jit_quantize_call_args *);
+
+    void operator()(const jit_quantize_call_args *args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    explicit jit_uni_quantize_kernel(jit_quantize_params jqp) : ker_(nullptr), jqp_(jqp) {}
+    virtual ~jit_uni_quantize_kernel() {}
+
+    virtual void create_ker() = 0;
+
+    jit_quantize_params jqp_;
+};
 
 class MKLDNNQuantizeNode : public MKLDNNNode {
 public:
@@ -27,8 +81,8 @@ public:
 
     size_t getAxis() const { return axis; }
 
-    bool isBinarization() const { return quantizeAlgorithm == mkldnn::algorithm::binarization_depthwise; }
-    mkldnn::algorithm getAlgorithm() const { return quantizeAlgorithm; }
+    bool isBinarization() const { return quantizeOpType == QuantizeOpType::Binarization; }
+    QuantizeOpType getOpType() const { return quantizeOpType; }
 
     const float* getBinarizationTresholdsPtr() const { return &binarizationThresholds[0]; }
     const float* getBinarizationOutputMaskPtr() const { return reinterpret_cast<const float*>(&binarizationOutputMask[0]); }
@@ -61,7 +115,10 @@ public:
 
 private:
     void init() override;
-    std::vector<mkldnn::memory::format> getDataFormats() const;
+    std::vector<mkldnn::memory::format_tag> getDataFormats() const;
+    void executeReference();
+    void executeBinarization();
+    void executeQuantization();
 
     int levels = -1;
 
@@ -94,7 +151,11 @@ private:
     InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
     InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32;
 
-    mkldnn::algorithm quantizeAlgorithm = mkldnn::algorithm::algorithm_undef;
+    QuantizeOpType quantizeOpType = FakeQuantization;
+
+    jit_quantize_params jqp = {};
+
+    std::shared_ptr<jit_uni_quantize_kernel> quantize_kernel = nullptr;
 };
 
 }  // namespace MKLDNNPlugin

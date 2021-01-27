@@ -59,11 +59,6 @@ void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngrap
     auto outputIndices = op->get_output_shape(0)[0];
 
     auto boxesShape = op->get_input_shape(0);
-    int32_t num_batches = boxesShape.at(0);
-    int32_t num_boxes = boxesShape.at(1);
-
-    auto scoresShape = op->get_input_shape(1);
-    int32_t num_classes = scoresShape.at(1);
 
     std::size_t num_output = op->get_output_size();
 

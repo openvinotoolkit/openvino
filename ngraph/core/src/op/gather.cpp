@@ -81,7 +81,6 @@ void op::v1::Gather::validate_and_infer_types()
     }
 
     element::Type result_et = get_input_element_type(PARAMS);
-    element::Type indices_et = get_input_element_type(INDICES);
 
     const PartialShape& params_shape = get_input_partial_shape(PARAMS);
     const PartialShape& indices_shape = get_input_partial_shape(INDICES);

@@ -78,6 +78,10 @@ CommonDispatchData DeconvolutionKernelRef::SetDefault(const deconvolution_params
     return dispatchData;
 }
 
+KernelsPriority DeconvolutionKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
+
 JitConstants DeconvolutionKernelRef::GetJitConstants(const deconvolution_params& params) const {
     auto jit = DeconvolutionKernelBase::GetJitConstants(params);
 

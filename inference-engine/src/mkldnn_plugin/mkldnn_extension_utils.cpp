@@ -3,8 +3,10 @@
 //
 
 #include "mkldnn_extension_utils.h"
+#include "utils/general_utils.h"
 #include <limits>
 #include <vector>
+#include <numeric>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -15,8 +17,6 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
         return 4;
     case mkldnn::memory::data_type::s32:
         return 4;
-    case mkldnn::memory::data_type::s16:
-        return 2;
     case mkldnn::memory::data_type::bf16:
         return 2;
     case mkldnn::memory::data_type::s8:
@@ -25,9 +25,8 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
         return 1;
     case mkldnn::memory::data_type::bin:
         return 1;
-    case mkldnn::memory::data_type::data_undef:
+    case mkldnn::memory::data_type::undef:
         return 0;
-
     default:
         THROW_IE_EXCEPTION << "Unsupported data type.";
     }
@@ -36,21 +35,18 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
 memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision prec) {
     switch (prec) {
         case InferenceEngine::Precision::FP32:
-            return memory::f32;
+            return memory::data_type::f32;
         case InferenceEngine::Precision::I32:
-            return memory::s32;
-        case InferenceEngine::Precision::I16:
-            return memory::s16;
+            return memory::data_type::s32;
         case InferenceEngine::Precision::BF16:
-            return memory::bf16;
+            return memory::data_type::bf16;
         case InferenceEngine::Precision::I8:
-            return memory::s8;
+            return memory::data_type::s8;
         case InferenceEngine::Precision::U8:
         case InferenceEngine::Precision::BOOL:
-            return memory::u8;
+            return memory::data_type::u8;
         case InferenceEngine::Precision::BIN:
-            return memory::bin;
-
+            return memory::data_type::bin;
         default: {
             THROW_IE_EXCEPTION << "The plugin does not support " << prec.name();
         }
@@ -59,21 +55,18 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
 
 InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::data_type dataType) {
     switch (dataType) {
-        case memory::f32:
-            return InferenceEngine::Precision(InferenceEngine::Precision::FP32);
-        case memory::s32:
+        case memory::data_type::f32:
+            return InferenceEngine::Precision::FP32;
+        case memory::data_type::s32:
             return InferenceEngine::Precision::I32;
-        case memory::s16:
-            return InferenceEngine::Precision::I16;
-        case memory::bf16:
+        case memory::data_type::bf16:
             return InferenceEngine::Precision::BF16;
-        case memory::s8:
+        case memory::data_type::s8:
             return InferenceEngine::Precision::I8;
-        case memory::u8:
+        case memory::data_type::u8:
             return InferenceEngine::Precision::U8;
-        case memory::bin:
+        case memory::data_type::bin:
             return InferenceEngine::Precision::BIN;
-
         default: {
             THROW_IE_EXCEPTION << "Unsupported data type.";
         }
@@ -125,15 +118,82 @@ bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc
         in1Block.getOffsetPadding() != uninitNum && in2Block.getOffsetPadding() != uninitNum);
 }
 
+PartialBlkDesc PartialBlkDesc::makePlain(const InferenceEngine::SizeVector &dims) {
+    PartialBlkDesc res;
+    res.outer_order.resize(dims.size());
+    std::iota(res.outer_order.begin(), res.outer_order.end(), 0);
+    return res;
+}
+
+PartialBlkDesc PartialBlkDesc::makeCBlocked(const InferenceEngine::SizeVector &dims, size_t block_size) {
+    PartialBlkDesc res;
+    res.outer_order.resize(dims.size());
+    std::iota(res.outer_order.begin(), res.outer_order.end(), 0);
+    res.inner_blk_size = {block_size};
+    res.inner_blk_idxes = {1};
+    return res;
+}
+
+PartialBlkDesc PartialBlkDesc::extractFrom(const InferenceEngine::TensorDesc &desc) {
+    if (desc.getLayout() == InferenceEngine::ANY)
+        THROW_IE_EXCEPTION << "Cannot extract partial blocked descriptor for `ANY` layout";
+
+    const auto &dims = desc.getDims();
+    const auto &blk = desc.getBlockingDesc();
+    const auto &blk_dims = blk.getBlockDims();
+    const auto &blk_order = blk.getOrder();
+
+    PartialBlkDesc res;
+    res.outer_order = {blk_order.begin(), blk_order.begin() + dims.size()};
+    res.inner_blk_idxes = {blk_order.begin() + dims.size(), blk_order.end()};
+    res.inner_blk_size = {blk_dims.begin() + dims.size(), blk_dims.end()};
+
+    return res;
+}
+
+bool PartialBlkDesc::isAutoExtendedWith(const InferenceEngine::SizeVector &dims) const {
+    auto tmp_dims = dims;
+    for (int i = 0; i < inner_blk_size.size(); i++) {
+        auto idx = inner_blk_idxes[i];
+        auto blk = inner_blk_size[i];
+        if (tmp_dims[idx] % blk == 0)
+            tmp_dims[idx] /= blk;
+        else
+            return true;
+    }
+    return false;
+}
+
+bool PartialBlkDesc::operator == (const PartialBlkDesc& it) const {
+    return std::tie(this->inner_blk_idxes,
+                    this->inner_blk_size,
+                    this->outer_order) ==
+           std::tie(it.inner_blk_idxes,
+                    it.inner_blk_size,
+                    it.outer_order);
+}
+
+// Lexicographical compare of content
+bool PartialBlkDesc::operator < (const PartialBlkDesc& it) const {
+    return std::tie(this->inner_blk_idxes,
+                    this->inner_blk_size,
+                    this->outer_order) <
+           std::tie(it.inner_blk_idxes,
+                    it.inner_blk_size,
+                    it.outer_order);
+}
+
 std::string MKLDNNExtensionUtils::getReorderArgs(const InferenceEngine::TensorDesc &parentDesc, const InferenceEngine::TensorDesc &childDesc) {
     std::string inArgs, outArgs;
     if (parentDesc.getPrecision() != childDesc.getPrecision()) {
         inArgs += (inArgs.empty() ? "" : "_") + std::string(parentDesc.getPrecision().name());
         outArgs += (outArgs.empty() ? "" : "_") + std::string(childDesc.getPrecision().name());
     }
-    if (MKLDNNMemoryDesc(parentDesc).getFormat() != MKLDNNMemoryDesc(childDesc).getFormat()) {
-        inArgs += (inArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(parentDesc).getFormat());
-        outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(childDesc).getFormat());
+    auto fmt_tag_src = MKLDNNMemoryDesc(parentDesc).getFormat();
+    auto fmt_tag_dst = MKLDNNMemoryDesc(childDesc).getFormat();
+    if (fmt_tag_src != fmt_tag_dst || one_of(mkldnn::memory::format_tag::undef, fmt_tag_src, fmt_tag_dst)) {
+        inArgs += (inArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(fmt_tag_src);
+        outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(fmt_tag_dst);
     }
     return inArgs + "_" + outArgs;
 }

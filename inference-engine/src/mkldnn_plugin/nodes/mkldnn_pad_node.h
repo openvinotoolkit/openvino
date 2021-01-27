@@ -36,7 +36,6 @@ private:
     void padReflectOrSymmetric(const bool isSymmetric = false);
 
     inline void getDstIdx(const InferenceEngine::SizeVector& indexes, size_t& dstIdx) const;
-    inline uint8_t* getDataPtr(const MKLDNNMemory& memoryPtr) const;
 
     PadMode padMode = CONSTANT;
     float padValue = 0.f;

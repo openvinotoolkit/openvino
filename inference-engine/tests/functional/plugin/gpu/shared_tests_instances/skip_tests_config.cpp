@@ -23,8 +23,6 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
             // TODO: Issue: 41467 -- "unsupported element type f16 op Convert"
             R"(.*(ConvertLayerTest).*targetPRC=FP16.*)",
-            // TODO: Issue: 41466 -- "Unsupported op 'ConvertLike'"
-            R"(.*(ConvertLikeLayerTest).*)",
             // TODO: Issue: 41462
             R"(.*(SoftMaxLayerTest).*axis=0.*)",
             // TODO: Issue: 41461
@@ -51,5 +49,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
             R"(.*(ScatterUpdateLayerTest).*)",
+
+            // INT8 StridedSlice not supported
+            R"(.*(LPT/StridedSliceTransformation).*)",
     };
 }
