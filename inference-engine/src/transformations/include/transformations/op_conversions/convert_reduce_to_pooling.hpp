@@ -35,16 +35,6 @@ public:
     ngraph::matcher_pass_callback convert_reduce_to_pooling();
 };
 
-class ngraph::pass::ConvertReduceToPooling: public ngraph::pass::GraphRewrite {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvertReduceToPooling() {
-        add_matcher<ConvertReduceMeanToPooling>();
-        add_matcher<ConvertReduceMaxToPooling>();
-        add_matcher<ConvertReduceSumToPooling>();
-    }
-};
-
 class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -61,6 +51,16 @@ class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertReduceSumToPooling();
+};
+
+class ngraph::pass::ConvertReduceToPooling: public ngraph::pass::GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertReduceToPooling() {
+        add_matcher<ConvertReduceMeanToPooling>();
+        add_matcher<ConvertReduceMaxToPooling>();
+        add_matcher<ConvertReduceSumToPooling>();
+    }
 };
 
 template <class T>

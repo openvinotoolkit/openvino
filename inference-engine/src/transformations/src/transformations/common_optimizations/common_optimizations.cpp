@@ -64,39 +64,47 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
+
+    // TODO: move to KMB
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
-    manager.register_pass<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
     manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
-    manager.register_pass<ngraph::pass::EliminateUnsqueezeGather>();
-    manager.register_pass<ngraph::pass::NopElimination>(); // may introduce fake dynamism
+
+    auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
+    eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
+    eliminations->add_matcher<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
+    eliminations->add_matcher<ngraph::pass::NopElimination>(); // may introduce fake dynamism
+    eliminations->set_name("ngraph::pass::CommonEliminations");
+
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
-    manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
-    manager.register_pass<ngraph::pass::MishFusion>();
-    manager.register_pass<ngraph::pass::SoftPlusFusion>();
-    manager.register_pass<ngraph::pass::SoftPlusToMishFusion>();
-    manager.register_pass<ngraph::pass::SwishFusion>();
-    manager.register_pass<ngraph::pass::ClampFusion>();
-    manager.register_pass<ngraph::pass::HSwishFusion>();
-    manager.register_pass<ngraph::pass::HSigmoidFusion>();
+
+    auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>();
+    common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
+    //common_fusions->add_matcher<ngraph::pass::MishFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
+    common_fusions->add_matcher<ngraph::pass::SwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
+    common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
+    common_fusions->add_matcher<ngraph::pass::ClampFusion>();
+    common_fusions->add_matcher<ngraph::pass::PadFusion>();
+    common_fusions->set_name("ngraph::pass::CommonFusions");
+
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
-    manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
-    manager.register_pass<ngraph::pass::PadFusion>();
+    manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-    decomp->add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-    decomp->add_matcher<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
-    decomp->add_matcher<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+    decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
     decomp->add_matcher<ngraph::pass::HSwishDecomposition>();
     decomp->add_matcher<ngraph::pass::HSigmoidDecomposition>();
     decomp->add_matcher<ngraph::pass::LogSoftmaxDecomposition>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceSumToPooling>();
+    decomp->add_matcher<ngraph::pass::ConvertReduceToPooling>();
     decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
     decomp->add_matcher<ngraph::pass::ConvertMod>();
     decomp->add_matcher<ngraph::pass::ConvertGELU>();
@@ -116,12 +124,14 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
-    manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
-    manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
-    manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-    manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->set_name("ngraph::pass::ConvFusions");
+
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
@@ -131,5 +141,10 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     manager.run_passes(f);
-    return true;
+
+    // Returning value is false because pass::Manager always apply Validation pass
+    // if function was changed. This helps to avoid excess Validations after applying
+    // this pass. In future when we will return more meaningful status code it will be
+    // replaced with real status reported by manager.run_passes() method call.
+    return false;
 }

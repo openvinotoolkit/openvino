@@ -15,6 +15,8 @@
 namespace ngraph {
 namespace pass {
 
+class TRANSFORMATIONS_API BidirectionalSequenceDecomposition;
+
 class TRANSFORMATIONS_API BidirectionalLSTMSequenceDecomposition;
 class TRANSFORMATIONS_API BidirectionalGRUSequenceDecomposition;
 class TRANSFORMATIONS_API BidirectionalRNNSequenceDecomposition;
@@ -56,4 +58,20 @@ class ngraph::pass::BidirectionalRNNSequenceDecomposition : public ngraph::pass:
 public:
     NGRAPH_RTTI_DECLARATION;
     BidirectionalRNNSequenceDecomposition();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Container for all types of sequences decomposition.
+ *
+ */
+
+class ngraph::pass::BidirectionalSequenceDecomposition : public ngraph::pass::GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    BidirectionalSequenceDecomposition() {
+        add_matcher<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
+        add_matcher<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+        add_matcher<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
+    }
 };
