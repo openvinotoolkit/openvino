@@ -148,7 +148,7 @@ namespace ngraph
             ///     auto anchor = manager.register_pass<GraphRewrite>();
             ///     anchor->add_matcher<MatcherPassA>();
             ///     anchor->add_matcher<MatcherPassB>();
-            ///     anchor->set_name("CommonMathcers");
+            ///     anchor->set_name("CommonMatchers");
             ///     manager.run_passes(f);
             ///
             /// For some purposes transformation can be registered and disabled by default.
@@ -156,7 +156,11 @@ namespace ngraph
             ///     anchor->add_matcher<MatcherPassB, false>();
             ///
             /// \return shared_ptr to the transformation instance
-            template <typename T, bool Enabled = true, class... Args>
+            template <
+                typename T,
+                bool Enabled = true,
+                class... Args,
+                typename std::enable_if<std::is_base_of<pass::MatcherPass, T>{}, bool>::type = true>
             std::shared_ptr<T> add_matcher(Args&&... args)
             {
                 static_assert(std::is_base_of<pass::MatcherPass, T>::value,
@@ -171,6 +175,47 @@ namespace ngraph
                 m_matchers.push_back(pass);
                 return pass;
             }
+
+            /// \brief Register passes from GraphRewrite class that contains sequence of matcher
+            /// passes registered in its ctor.
+            /// For example:
+            ///
+            ///    class ngraph::pass::LinFusions: public ngraph::pass::GraphRewrite {
+            ///    public:
+            ///         NGRAPH_RTTI_DECLARATION;
+            ///         Fusions() {
+            ///             add_matcher<ngraph::pass::AddFusion>();
+            ///             add_matcher<ngraph::pass::MulFusion>();
+            ///         }
+            ///     };
+            ///
+            ///     pass::Manager manager;
+            ///     auto anchor = manager.register_pass<GraphRewrite>();
+            ///     anchor->add_matcher<LinFusions>();
+            ///     anchor->add_matcher<OtherFusions>();
+            ///     anchor->set_name("CommonFusions");
+            ///     manager.run_passes(f);
+            ///
+            /// In this case all matcher passes from LinFusions pass will be united with other
+            /// registered matchers.
+            template <typename T,
+                      class... Args,
+                      typename std::enable_if<std::is_base_of<pass::GraphRewrite, T>{},
+                                              bool>::type = true>
+            void add_matcher(Args&&... args)
+            {
+                static_assert(std::is_base_of<pass::GraphRewrite, T>::value,
+                              "pass not derived from GraphRewrite");
+                auto pass = std::make_shared<T>(std::forward<Args>(args)...);
+                auto pass_config = get_pass_config();
+
+                for (auto& matcher : pass->m_matchers)
+                {
+                    pass->set_pass_config(pass_config);
+                    m_matchers.push_back(matcher);
+                }
+            }
+
             NGRAPH_DEPRECATED("Use MatcherPass instead")
             void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                              const ngraph::graph_rewrite_callback& callback,
