@@ -28,20 +28,30 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
     });
 
     ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
-        auto m_bn = dynamic_pointer_cast<opset1::BatchNormInference>(m.get_match_root());
-        if (!m_bn) {
+        auto m_bn = m.get_match_root();
+        Output<Node> m_input, m_gamma, m_beta, m_mean, m_var;
+        double eps;
+        if (auto m_bn_v1 = dynamic_pointer_cast<opset1::BatchNormInference>(m_bn)) {
+            m_gamma = m_bn_v1->input_value(0);
+            m_beta = m_bn_v1->input_value(1);
+            m_input = m_bn_v1->input_value(2);
+            m_mean = m_bn_v1->input_value(3);
+            m_var = m_bn_v1->input_value(4);
+            eps = m_bn_v1->get_eps_value();
+        } else if (auto m_bn_v5 = dynamic_pointer_cast<opset5::BatchNormInference>(m_bn)){
+            m_input = m_bn_v5->input_value(0);
+            m_gamma = m_bn_v5->input_value(1);
+            m_beta = m_bn_v5->input_value(2);
+            m_mean = m_bn_v5->input_value(3);
+            m_var = m_bn_v5->input_value(4);
+            eps = m_bn_v5->get_eps_value();
+        } else {
             return false;
         }
 
-        auto m_gamma = m_bn->input_value(0);
-        auto m_beta = m_bn->input_value(1);
-        auto m_input = m_bn->input_value(2);
-        auto m_mean = m_bn->input_value(3);
-        auto m_var = m_bn->input_value(4);
-
         const auto& input_type = m_input.get_element_type();
         // scale_add = variance + eps
-        auto scale_add = make_shared<opset5::Add>(m_var, opset5::Constant::create(input_type, Shape{}, {m_bn->get_eps_value()}));
+        auto scale_add = make_shared<opset5::Add>(m_var, opset5::Constant::create(input_type, Shape{}, {eps}));
         // scale = sqrt(variance + eps)
         auto scale = make_shared<opset5::Sqrt>(scale_add);
         // Divide `gamma` by `sqrt(variance + eps)`
