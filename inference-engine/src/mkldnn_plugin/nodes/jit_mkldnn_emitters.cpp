@@ -38,7 +38,7 @@ size_t jit_mkldnn_emitter::get_inputs_num() { return 1; }
 
 void jit_mkldnn_emitter::emit(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
                               const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                              const std::shared_ptr<emitter_context> &emit_context) {
+                              const std::shared_ptr<const emitter_context> &emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         if (out_vec_idxs[0] != in_vec_idxs[0])
             h->uni_vmovups(Xmm(out_vec_idxs[0]), Xmm(in_vec_idxs[0]));

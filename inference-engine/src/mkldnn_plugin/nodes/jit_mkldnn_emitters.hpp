@@ -21,7 +21,7 @@ public:
 
     void emit(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
               const std::vector<int> &pool_vec_idxs = {}, const std::vector<int> &pool_gpr_idxs = {},
-              const std::shared_ptr<emitter_context> &emit_context = nullptr) override;
+              const std::shared_ptr<const emitter_context> &emit_context = nullptr) override;
 
     void emit_table() override;
 

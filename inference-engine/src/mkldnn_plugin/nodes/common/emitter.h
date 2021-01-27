@@ -33,7 +33,7 @@ public:
 
     virtual void emit(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
                       const std::vector<int> &pool_vec_idxs = {}, const std::vector<int> &pool_gpr_idxs = {},
-                      const std::shared_ptr<emitter_context> &emit_context = nullptr);
+                      const std::shared_ptr<const emitter_context> &emit_context = nullptr);
     virtual void emit_table();
     virtual size_t get_inputs_num() = 0;
     virtual size_t aux_vecs_count() const;

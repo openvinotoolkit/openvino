@@ -200,7 +200,7 @@ void jit_emitter::prepare_table() {
 
 void jit_emitter::emit(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
                        const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                       const std::shared_ptr<emitter_context> &emit_context) {
+                       const std::shared_ptr<const emitter_context> &emit_context) {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, emit_context.get());
