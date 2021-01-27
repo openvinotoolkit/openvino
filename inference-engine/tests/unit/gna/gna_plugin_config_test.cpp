@@ -20,6 +20,7 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(NO)},
     {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(PRECISION), Precision(Precision::I16).name()},
+    {GNA_CONFIG_KEY(INPUT_PRECISION), Precision(Precision::I16).name()},
     {GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "1.000000"},
     {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)},

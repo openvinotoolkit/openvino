@@ -13,6 +13,8 @@ constexpr uint32_t convMinFiltersNum = 4;
 constexpr uint32_t convMaxFiltersNum = 65532;
 constexpr uint32_t convFiltersNumDivider = 4;
 constexpr uint32_t convEachKernelByteAlignment = 16;
+constexpr uint32_t inputsSignificance = 8;
+constexpr uint32_t inputsLowPrecSignificance = 16;
 
 }
 } // namespace GNAPluginNS

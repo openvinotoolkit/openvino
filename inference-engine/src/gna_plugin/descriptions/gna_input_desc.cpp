@@ -14,11 +14,15 @@
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
 
-size_t InputDesc::minBytesRequiredForStoreInput(CNNLayerPtr layer) {
+size_t InputDesc::minBytesRequiredForStoreInput(CNNLayerPtr layer, const bool low_precision) {
     auto quantized = getInjectedData<QuantizedLayerParams>(layer);
     size_t precision_bytes;
     if (quantized) {
-        precision_bytes = 2;
+        if (low_precision) {
+            precision_bytes = 1;
+        } else {
+            precision_bytes = 2;
+        }
     } else {
         precision_bytes = 4;
     }

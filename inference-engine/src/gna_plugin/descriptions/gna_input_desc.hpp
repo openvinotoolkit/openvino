@@ -19,7 +19,7 @@ struct InputDesc {
     /// order of scale factors matches inputs order in original topology
     std::vector<float> inputScaleFactors;
     std::map<std::string, int> bytes_allocated_for_input;
-    size_t minBytesRequiredForStoreInput(InferenceEngine::CNNLayerPtr);
+    size_t minBytesRequiredForStoreInput(InferenceEngine::CNNLayerPtr, const bool low_precision);
 
     std::unordered_map<std::string, std::list<std::vector<void *>>::iterator> ptr_inputs_global_id;
     std::list<std::vector<void *>> ptr_inputs_global_storage;
