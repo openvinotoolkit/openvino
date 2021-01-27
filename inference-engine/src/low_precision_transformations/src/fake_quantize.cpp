@@ -190,14 +190,14 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
     const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const {
     const std::shared_ptr<Node> eltwise = fakeQuantize->get_input_node_shared_ptr(0);
 
-    std::shared_ptr<Node> inputLowConst_f32 = fold<opset1::Convert>(fakeQuantize->get_input_node_shared_ptr(1), element::f32);
-    std::shared_ptr<Node> inputHightConst_f32 = fold<opset1::Convert>(fakeQuantize->get_input_node_shared_ptr(2), element::f32);
+    std::shared_ptr<Node> inputLowConst_f32 = fold<opset1::Convert>(fakeQuantize->get_input_node_shared_ptr(1), deqPrecision);
+    std::shared_ptr<Node> inputHightConst_f32 = fold<opset1::Convert>(fakeQuantize->get_input_node_shared_ptr(2), deqPrecision);
 
     std::shared_ptr<opset1::Constant> constant = fq::getConstant(eltwise);
     if (is_type<opset1::Multiply>(eltwise) && checkElementwise(eltwise)) {
-        const auto value = constant->get_output_element_type(0) == element::f32 ?
+        const auto value = constant->get_output_element_type(0) == deqPrecision ?
             constant :
-            fold<opset1::Convert>(constant, element::f32);
+            fold<opset1::Convert>(constant, deqPrecision);
 
         const auto valueVec = as_type_ptr<opset1::Constant>(value)->cast_vector<float>();
         // TODO: temporary fix for GPU Plugin (inverted intervals)
@@ -210,9 +210,9 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         inputLowConst_f32 = fq::updateShape(fold<opset1::Divide>(inputLowConst_f32, value), fakeQuantize->get_output_shape(0));
         inputHightConst_f32 = fq::updateShape(fold<opset1::Divide>(inputHightConst_f32, value), fakeQuantize->get_output_shape(0));
     } else if (is_type<opset1::Divide>(eltwise) && checkElementwise(eltwise)) {
-        const auto value = constant->get_output_element_type(0) == element::f32 ?
+        const auto value = constant->get_output_element_type(0) == deqPrecision ?
             constant :
-            fold<opset1::Convert>(constant, element::f32);
+            fold<opset1::Convert>(constant, deqPrecision);
 
         const auto valueVec = as_type_ptr<opset1::Constant>(value)->cast_vector<float>();
         // TODO: temporary fix for GPU Plugin (inverted intervals)
@@ -225,9 +225,9 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         inputLowConst_f32 = fq::updateShape(fold<opset1::Multiply>(inputLowConst_f32, value), fakeQuantize->get_output_shape(0));
         inputHightConst_f32 = fq::updateShape(fold<opset1::Multiply>(inputHightConst_f32, value), fakeQuantize->get_output_shape(0));
     } else if (is_type<opset1::Subtract>(eltwise) && checkElementwise(eltwise)) {
-        const auto value = constant->get_output_element_type(0) == element::f32 ?
+        const auto value = constant->get_output_element_type(0) == deqPrecision ?
             constant :
-            fold<opset1::Convert>(constant, element::f32);
+            fold<opset1::Convert>(constant, deqPrecision);
 
         inputLowConst_f32 = fq::updateShape(fold<opset1::Add>(inputLowConst_f32, value), fakeQuantize->get_output_shape(0));
         inputHightConst_f32 = fq::updateShape(fold<opset1::Add>(inputHightConst_f32, value), fakeQuantize->get_output_shape(0));
@@ -237,9 +237,9 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
             return nullptr;
         }
 
-        const auto value = constant->get_output_element_type(0) == element::f32 ?
+        const auto value = constant->get_output_element_type(0) == deqPrecision ?
             constant :
-            fold<opset1::Convert>(constant, element::f32);
+            fold<opset1::Convert>(constant, deqPrecision);
 
         inputLowConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputLowConst_f32, value), fakeQuantize->get_output_shape(0));
         inputHightConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputHightConst_f32, value), fakeQuantize->get_output_shape(0));
@@ -256,8 +256,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         fq::getData(eltwise),
         inputLowConst_f32,
         inputHightConst_f32,
-        fold<opset1::Convert>(fakeQuantize->input_value(3), element::f32),
-        fold<opset1::Convert>(fakeQuantize->input_value(4), element::f32) }));
+        fold<opset1::Convert>(fakeQuantize->input_value(3), deqPrecision),
+        fold<opset1::Convert>(fakeQuantize->input_value(4), deqPrecision) }));
 
     replace_node(fakeQuantize, newFakeQuantize);
     ngraph::copy_runtime_info({ fakeQuantize, eltwise }, newFakeQuantize);

@@ -391,9 +391,12 @@ void NetworkHelper::foldDequantization(std::shared_ptr<Node>& node, const size_t
         if (dequantization.data.get_element_type() != dequantization.multiply->input(1).get_element_type()) {
             return;
         }
-        const std::shared_ptr<Node> result = fold<opset1::Multiply>(dequantization.data, dequantization.multiply->get_input_node_shared_ptr(1));
+        std::shared_ptr<Node> result = fold<opset1::Multiply>(dequantization.data, dequantization.multiply->get_input_node_shared_ptr(1));
         if (!is_type<opset1::Constant>(result)) {
             return;
+        }
+        if (dequantization.multiply->get_output_element_type(0) != result->get_element_type()) {
+            result = fold<opset1::Convert>(result, dequantization.multiply->get_output_element_type(0));
         }
         if (inPlace) {
             copyInfo(dequantization.multiply, result);
