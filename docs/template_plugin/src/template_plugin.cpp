@@ -16,6 +16,7 @@
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
 #include "template/template_config.hpp"
+#include "template_itt.hpp"
 #include "template_plugin.hpp"
 #include "template_executable_network.hpp"
 #include "template_infer_request.hpp"
@@ -74,6 +75,8 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
 // ! [plugin:load_exe_network_impl]
 InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork & network,
                                                                            const ConfigMap &config) {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::LoadExeNetworkImpl");
+
     auto cfg = Configuration{ config, _cfg };
     InferenceEngine::InputsDataMap networkInputs = network.getInputsInfo();
     InferenceEngine::OutputsDataMap networkOutputs = network.getOutputsInfo();
@@ -113,15 +116,11 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
 
 // ! [plugin:import_network_impl]
 InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) {
-    // TODO: Import network from stream is not mandatory functionality;
-    // Can just throw an exception and remove the code below
-    Configuration exportedCfg;
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::ImportNetworkImpl");
 
-    // some code below which reads exportedCfg from `model` stream
-    // ..
-
-    auto cfg = Configuration(config, exportedCfg);
-    auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
+    Configuration cfg(config);
+    auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg,
+        std::static_pointer_cast<Plugin>(shared_from_this()));
 
     return make_executable_network(exec_network_impl);
 }
@@ -129,6 +128,8 @@ InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model
 
 // ! [plugin:query_network]
 InferenceEngine::QueryNetworkResult Plugin::QueryNetwork(const InferenceEngine::CNNNetwork &network, const ConfigMap& config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::QueryNetwork");
+
     InferenceEngine::QueryNetworkResult res;
     Configuration cfg{config, _cfg, false};
 
