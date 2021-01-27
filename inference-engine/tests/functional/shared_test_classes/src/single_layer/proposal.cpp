@@ -63,6 +63,54 @@ std::string ProposalLayerTest::getTestCaseName(testing::TestParamInfo<proposalLa
     return proposalPramString + result.str();
 }
 
+void ProposalLayerTest::Compare(
+    const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+    const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
+    num_selected_boxes = 0;
+    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
+        const auto &expected = expectedOutputs[outputIndex];
+        const auto &actual = actualOutputs[outputIndex];
+        ASSERT_EQ(expected.size(), actual->byteSize());
+        const auto &expectedBuffer = expected.data();
+
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
+        IE_ASSERT(memory);
+        const auto lockedMemory = memory->wmap();
+        const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
+
+        const auto &precision = actual->getTensorDesc().getPrecision();
+        auto size = actual->size();
+
+        // verifying the first output if there was less proposals than space
+        // provided,
+        // num_selected_boxes was set, take this into consideration while verifying the 2nd
+        // output
+        if (outputIndex == 1 && num_selected_boxes) {
+            size = num_selected_boxes;
+        }
+
+        switch (precision) {
+        case InferenceEngine::Precision::BF16:
+            Compare(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
+                    reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size,
+                    ngraph::bfloat16(threshold), outputIndex);
+            break;
+        case InferenceEngine::Precision::FP16:
+            Compare(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
+                    reinterpret_cast<const ngraph::float16 *>(actualBuffer), size,
+                    ngraph::float16(threshold), outputIndex);
+            break;
+        case InferenceEngine::Precision::FP32:
+            Compare<float>(reinterpret_cast<const float *>(expectedBuffer),
+                            reinterpret_cast<const float *>(actualBuffer), size,
+                            threshold, outputIndex);
+            break;
+        default:
+        FAIL() << "Comparator for " << precision << " precision isn't supported";
+    }
+  }
+}
+
 void ProposalLayerTest::SetUp() {
     proposalSpecificParams proposalParams;
     std::vector<float> img_info = {225.0f, 225.0f, 1.0f};
