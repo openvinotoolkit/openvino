@@ -151,7 +151,11 @@ else()
         endif()
 
         if(CMAKE_COMPILER_IS_GNUCXX)
-            set_target_properties(${Protobuf_LIBRARIES} libprotoc PROPERTIES
+            set(_proto_libs ${Protobuf_LIBRARIES})
+            if(TARGET libprotoc)
+                list(APPEND _proto_libs libprotoc)
+            endif()
+            set_target_properties(${_proto_libs} PROPERTIES
                                    COMPILE_FLAGS "-Wno-unused-variable")
         endif()
     endif()
