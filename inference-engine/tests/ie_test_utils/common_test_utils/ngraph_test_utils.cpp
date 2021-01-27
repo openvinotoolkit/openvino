@@ -102,12 +102,14 @@ public:
     }
 
     CmpResult& operator+=(const std::string& msg) {
-        m_message.append(1, '\n').append(msg);
+        m_message.append(m_break_line_no, '\n').append(msg);
+        m_break_line_no = 1;
         return *this;
     }
 
 private:
     std::string m_message;
+    int m_break_line_no{0};
 };
 
 using SubGraphOpInputDescription =
@@ -431,9 +433,7 @@ struct Equal<SubGraphOpOutputDescription> {
 template <>
 struct Equal<SpecialBodyPorts> {
     static bool equal_value(const SpecialBodyPorts& lhs, const SpecialBodyPorts& rhs) {
-        return true;
-        // lhs.current_iteration_input_idx == rhs.current_iteration_input_idx &&
-        // lhs.body_condition_output_idx == rhs.body_condition_output_idx;
+        return lhs.current_iteration_input_idx == rhs.current_iteration_input_idx;
     }
 };
 
@@ -775,8 +775,8 @@ std::pair<bool, std::string> compare_functions(
             node2->visit_attributes(compare_nodes.get_cmp_reader());
             if (!compare_nodes.equal()) {
                 return error(
-                    "Comparison of attributes failed for nodes" + name(node1) + ", " + name(node2) +
-                    " [cmp status: " + to_string(compare_nodes) + "]");
+                    "Comparison of attributes failed for nodes " + name(node1) + ", " +
+                    name(node2) + " [cmp status: " + to_string(compare_nodes) + "]");
             }
         }
     }
