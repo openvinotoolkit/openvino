@@ -271,22 +271,6 @@ void int2str(char *str, int num) {
     }
 }
 
-/**
-* @brief Extract filename extention;
-* @param char A constant pointer to the filename string.
-* @return A constant pointer to the filename extention string
-*/
-const char* getFileNameExt(const char* filename) {
-    const char* fileExtention = "";
-
-    const char* dot = strrchr(filename, '.');
-    if (dot && dot != filename) {
-        fileExtention = dot + 1;
-    }
-
-    return fileExtention;
-}
-
 int main(int argc, char **argv) {
     /** This sample covers certain topology and cannot be generalized for any object detection one **/
     ie_version_t version = ie_c_api_version();
