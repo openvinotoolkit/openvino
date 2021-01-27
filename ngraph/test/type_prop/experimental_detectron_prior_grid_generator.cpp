@@ -271,5 +271,4 @@ TEST(type_prop, detectron_grid_generator_dynamic_shapes_intervals_1)
         ASSERT_EQ(grid_gen->get_output_element_type(0), element::f32);
         ASSERT_TRUE(grid_gen->get_output_partial_shape(0).same_scheme(s.ref_out_shape));
     }
-
 }
