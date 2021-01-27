@@ -20,9 +20,9 @@ if(APPLE)
 elseif(UNIX)
     set(WHEEL_PLATFORM manylinux2014_x86_64)
 elseif(WIN32)
-    set(WHEEL_PLATFORM win_amd64)
+    set(WHEEL_PLATFORM win_amd641)
 else()
-    unset(WHEEL_PLATFORM)
+    message(FATAL_ERROR "This platform is not supported")
 endif()
 
 # set version using CI value
@@ -36,7 +36,8 @@ configure_file("${OVERVIEW_IN}" "${CMAKE_CURRENT_BINARY_DIR}/pypi_overview.md" C
 configure_file("${REQUIREMENTS_IN}" "${CMAKE_CURRENT_BINARY_DIR}/requirements.txt" COPYONLY)
 configure_file("${LICENSE_IN}" "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.txt" COPYONLY)
 
-add_custom_target(ie_wheel ALL DEPENDS inference_engine ngraph ie_api)
+add_custom_target(ie_wheel ALL DEPENDS ie_libraries ie_plugins ie_api _pyngraph)
+
 add_custom_command(TARGET ie_wheel
     POST_BUILD
     COMMAND python ${SETUP_PY} clean bdist_wheel
