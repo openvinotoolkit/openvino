@@ -29,8 +29,8 @@ class TRANSFORMATIONS_API AlgebraicSimplification;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::AlgebraicSimplification : public FunctionPass {
+class ngraph::pass::AlgebraicSimplification : public GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    AlgebraicSimplification();
 };
