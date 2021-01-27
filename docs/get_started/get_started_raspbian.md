@@ -43,7 +43,7 @@ The primary tools for deploying your models and applications are installed to th
 The OpenVINO™ workflow on Raspbian* OS is as follows:
 1. **Get a pre-trained model** for your inference task. If you want to use your model for inference, the model must be converted to the `.bin` and `.xml` Intermediate Representation (IR) files, which are used as input by Inference Engine. On Raspberry PI, OpenVINO™ toolkit includes only the Inference Engine module. The Model Optimizer is not supported on this platform. To get the optimized models you can use one of the following options:
    
-   * Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader_README#model_downloader_usage).
+   * Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader_README).
     <br> For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_intel_index)
    
    * Convert a model using the Model Optimizer from a full installation of Intel® Distribution of OpenVINO™ toolkit on one of the supported platforms. Installation instructions are available:
