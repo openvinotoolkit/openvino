@@ -191,10 +191,8 @@ def transpose_nchw_to_nhwc(op_node: Node, port_info: str, input_port: int):
 
 
 class PermuteInputs:
-    common_inv_permutation = lambda node, port_info, input_port: axis(node, port_info, input_port)
-
     input_permutes = {
-        'axis': common_inv_permutation,
+        'axis': lambda node, port_info, input_port: axis(node, port_info, input_port),
         'order': lambda node, port_info, input_port: order(node, port_info, input_port),
         'shape': lambda node, port_info, input_port: shape(node, port_info, input_port),
         'transpose': lambda node, port_info, input_port: transpose(node, port_info, input_port),

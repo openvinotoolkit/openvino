@@ -20,7 +20,7 @@ import numpy as np
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.ops.op import PermuteAttrs
-from mo.ops.strided_slice import extend_mask_according_ellipsis, permute_masks, permute_array, \
+from mo.ops.strided_slice import permute_masks, permute_array, \
     StridedSlice
 from mo.utils.error import Error
 from mo.utils.unittest.graph import build_graph

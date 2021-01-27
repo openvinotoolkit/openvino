@@ -24,6 +24,7 @@ class StridedSlice_extender(Extender):
 
     @staticmethod
     def extend(op: Node):
+        # todo: check this
 
         attrs = ['shrink_axis_mask', 'new_axis_mask', 'ellipsis_mask', 'begin_mask', 'end_mask']
         for attr in attrs:

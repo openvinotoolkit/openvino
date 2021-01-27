@@ -39,7 +39,6 @@ def extend_mask_according_ellipsis(ellipsis_mask, shrink_axis_mask, length_outpu
 
     return attr_mask_extended
 
-
 def permute_array(node: Node, array: np.array):
     """
     This function permutes masks according to permutation parameter. Mask have the same or more length than output
@@ -105,52 +104,18 @@ class StridedSlice(Op):
         out_shape = node.out_port(0).data.get_shape()
         assert out_shape is not None, \
             'Output shape was not calculated for node {}'.format(node.name)
-        # extend inputs according to ellipsis mask and/or input_shape
-        for i_port in node.in_ports().values():
-            if i_port.idx == 0 or i_port.disconnected():
-                continue
-            old_value = i_port.data.get_value()
-            # additional check for non-const input
-            # error will be return in shape inference if non-const will be added
-            # it is paranoid check for case if shape inference will be changed
-            assert old_value is not None, \
-                '{} input of {} node is not constant: \'value\' attribute for edge ' + \
-                'contains None'.format(i_port.idx, node.name)
-            # insert 0 for begin and end and 1 for stride
-            new_value = int64_array(extend_mask_according_ellipsis(node.ellipsis_mask, node.shrink_axis_mask,
-                                                                   len(out_shape), list(old_value),
-                                                                   int(i_port.idx == 3)))
-            # set_value additionally set_shape and propagate value to Const node
-            # if not np.array_equal(new_value, old_value):
-            #     i_port.data.set_value(new_value)
 
         # extend masks before removing ellipsis
-        # for attr in ["new_axis_mask", "shrink_axis_mask", "begin_mask", "end_mask", "ellipsis_mask"]:
-        #     node[attr] = int64_array(extend_mask_according_ellipsis(node.ellipsis_mask, node.shrink_axis_mask,
-        #                                                             len(out_shape), list(node[attr]), 0))
+        for attr in ["new_axis_mask", "shrink_axis_mask", "begin_mask", "end_mask", "ellipsis_mask"]:
+            node[attr] = int64_array(extend_mask_according_ellipsis(node.ellipsis_mask, node.shrink_axis_mask,
+                                                                    len(out_shape), list(node[attr]), 0))
 
-        # we will extend all masks and inputs to simplify future transformations
-        idx = np.nonzero(node.ellipsis_mask)
-        # node.ellipsis_mask[idx] = 0
+        PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0', permute_masks),
+                                                       ('new_axis_mask', 'input:0', permute_masks),
+                                                       ('ellipsis_mask', 'input:0', permute_masks),
+                                                       ('begin_mask', 'input:0', permute_masks),
+                                                       ('end_mask', 'input:0', permute_masks)])
 
-        if node.graph.graph['layout'] == 'NHWC' and node.out_port(0).data.get_value() is None:
-            PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0', permute_masks),
-                                                           ('new_axis_mask', 'input:0', permute_masks),
-                                                           ('ellipsis_mask', 'input:0', permute_masks),
-                                                           ('begin_mask', 'input:0', permute_masks),
-                                                           ('end_mask', 'input:0', permute_masks)])
-            # permute inputs
-            in_shape = node.in_port(0).get_source().data.get_shape()
-            assert in_shape is not None, \
-                'Input shape is unknown for 0 input of node {}'.format(node.name)
-            input_rank = len(in_shape)
-            if input_rank > 3:
-                for i_port in node.in_ports().values():
-                    if i_port.idx == 0 or i_port.disconnected():
-                        continue
-                    new_value = permute_array(node, i_port.data.get_value())
-                    # set_value additionally set_shape and propagate value to Const node
-                    i_port.data.set_value(new_value)
-            # PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:1', 'order')
-            # PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:2', 'order')
-            # PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:3', 'order')
+        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
+        PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
+        PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'shape')
