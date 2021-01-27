@@ -19,7 +19,7 @@ cmake_minimum_required (VERSION 3.13)
 project (pyngraph)
 
 if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
-    find_package(InferenceEngineDeveloperPackage REQUIRED)
+    find_package(InferenceEngineDeveloperPackage QUIET)
     find_package(ngraph REQUIRED)
 endif()
 
@@ -50,22 +50,21 @@ else()
     message(FATAL_ERROR "Python was not found!")
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    add_compile_options(-Wno-unused-value)
-endif()
-
-if (APPLE)
-    add_link_options(-stdlib=libc++)
-endif()
+# compile options
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wno-deprecated-register)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    add_link_options(-stdlib=libc++)
+    add_compile_options(-Wno-unused-value)
 endif()
 
-file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
-
 # create target
+
+file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
 
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
