@@ -31,7 +31,7 @@ class BatchNormalizationExtractor(FrontExtractorOp):
         attrs = {
            'eps': eps
         }
-        pb_model = None if not node.has('pb_model') else node.pb_model
+        pb_model = None if not node.has('model_pb') else node.model_pb
         if pb_model:
 
             blobs = pb_model.blobs
