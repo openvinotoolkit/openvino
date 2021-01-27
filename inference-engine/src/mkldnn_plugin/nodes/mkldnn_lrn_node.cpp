@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_lrn_node.h"
-#include "desc_iterator.hpp"
+
 #include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_extension_utils.h>
@@ -52,8 +52,11 @@ void MKLDNNLrnNode::createPrimitive() {
 
     auto prim_desc = createPrimitiveDescriptor<lrn_forward::primitive_desc, lrn_forward::desc>();
 
-    prim.reset(new lrn_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
-                               getChildEdgeAt(0)->getMemory().GetPrimitive()));
+    prim.reset(new lrn_forward(prim_desc));
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
 bool MKLDNNLrnNode::created() const {
@@ -86,7 +89,7 @@ void MKLDNNLrnNode::initOptimalPrimitiveDescriptor() {
 
 void MKLDNNLrnNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,
                                      const std::vector<InferenceEngine::TensorDesc> &outputDesc) {
-    algorithm alg = (isAcrossMaps) ? lrn_across_channels : lrn_within_channel;
+    algorithm alg = (isAcrossMaps) ? algorithm::lrn_across_channels : algorithm::lrn_within_channel;
     MKLDNNMemoryDesc in_candidate(inputDesc[0]);
     MKLDNNDescriptor desc(std::shared_ptr<lrn_forward::desc>(
             new lrn_forward::desc(prop_kind::forward_scoring, alg, in_candidate, size, alpha, beta, k)));

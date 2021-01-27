@@ -55,12 +55,7 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
         }
 
         for (auto& config : configs) {
-            std::vector<memory::format> outFormats;
-            for (auto& outConfig : config.outConfs) {
-                outFormats.push_back(MKLDNNMemory::Convert(outConfig.desc.getLayout()));
-            }
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormats);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
     }
     if (impls.empty()) {
