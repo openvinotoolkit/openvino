@@ -399,7 +399,8 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     noexcept {
     try {
 #ifdef ENABLE_V7_SERIALIZE
-        Serialization::Serialize(xmlPath, binPath, CNNNetwork(shared_from_this()));
+        Serialization::Serialize(xmlPath, binPath, CNNNetwork(
+            std::const_pointer_cast<ICNNNetwork>(shared_from_this())));
         return OK;
 #endif
     } catch (const InferenceEngineException& e) {
