@@ -40,8 +40,8 @@ namespace ngraph
 
                     // Framework specific parameters
                     auto coordinates_offset = attrs.framework == "tensorflow" ? 0.0f : 1.0f;
-                    auto round_ratios = attrs.framework == "tensorflow" ? false : true;
-                    auto shift_anchors = attrs.framework == "tensorflow" ? true : false;
+                    auto round_ratios = !(attrs.framework == "tensorflow");
+                    auto shift_anchors = attrs.framework == "tensorflow";
 
                     auto base_size = attrs.base_size;
                     auto num_ratios = attrs.ratio.size();
@@ -272,13 +272,15 @@ namespace ngraph
                             // Checking if the boxes are overlapping:
                             // x0i <= x1j && y0i <= y1j first box begins before second ends
                             // x0j <= x1i && y0j <= y1i second box begins before the first ends
-                            if (x0i <= x1j && y0i <= y1j && x0j <= x1i && y0j <= y1i)
+                            const bool box_i_begins_before_j_ends = x0i <= x1j && y0i <= y1j;
+                            const bool box_j_begins_before_i_ends = x0j <= x1i && y0j <= y1i;
+                            if (box_i_begins_before_j_ends && box_j_begins_before_i_ends)
                             {
                                 // overlapped region (= box)
-                                const T x0 = std::max<T>(x0i, x0j);
-                                const T y0 = std::max<T>(y0i, y0j);
-                                const T x1 = std::min<T>(x1i, x1j);
-                                const T y1 = std::min<T>(y1i, y1j);
+                                const T x0 = std::max(x0i, x0j);
+                                const T y0 = std::max(y0i, y0j);
+                                const T x1 = std::min(x1i, x1j);
+                                const T y1 = std::min(y1i, y1j);
                                 // intersection area
                                 const T width = std::max<T>(0.0f, x1 - x0 + coordinates_offset);
                                 const T height = std::max<T>(0.0f, y1 - y0 + coordinates_offset);
@@ -322,10 +324,10 @@ namespace ngraph
 
                         if (clip_after_nms)
                         {
-                            x0 = std::max<T>(0.0f, std::min<T>(x0, static_cast<T>(img_w)));
-                            y0 = std::max<T>(0.0f, std::min<T>(y0, static_cast<T>(img_h)));
-                            x1 = std::max<T>(0.0f, std::min<T>(x1, static_cast<T>(img_w)));
-                            y1 = std::max<T>(0.0f, std::min<T>(y1, static_cast<T>(img_h)));
+                            x0 = std::max<T>(0.0f, std::min(x0, static_cast<T>(img_w)));
+                            y0 = std::max<T>(0.0f, std::min(y0, static_cast<T>(img_h)));
+                            x1 = std::max<T>(0.0f, std::min(x1, static_cast<T>(img_w)));
+                            y1 = std::max<T>(0.0f, std::min(y1, static_cast<T>(img_h)));
                         }
 
                         if (normalize)
@@ -515,8 +517,8 @@ namespace ngraph
 
                 unsigned int batch_num = class_probs_shape[0];
                 float coordinates_offset = attrs.framework == "tensorflow" ? 0.0f : 1.0f;
-                bool initial_clip = attrs.framework == "tensorflow" ? true : false;
-                bool swap_xy = attrs.framework == "tensorflow" ? true : false;
+                bool initial_clip = attrs.framework == "tensorflow";
+                bool swap_xy = attrs.framework == "tensorflow";
 
                 for (unsigned int batch_idx = 0; batch_idx < batch_num; ++batch_idx)
                 {
