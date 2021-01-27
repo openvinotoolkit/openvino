@@ -551,7 +551,7 @@ namespace ngraph
                     priorsBatchSize = priorsShape[0];
                     numLocClasses =
                         _attrs.share_location ? 1 : static_cast<size_t>(_attrs.num_classes);
-                    numResults = outShape[2];
+                    numResults = numImages * outShape[2];
                     outTotalSize = shape_size(outShape);
                 }
 
