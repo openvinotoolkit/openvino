@@ -25,8 +25,9 @@ if (ENABLE_GNA)
             engines/gna/*cpp
             engines/gna/layers/*cpp
             )
-    list(APPEND TEST_SRC ${GNA_TESTS})
     source_group("gna" FILES ${GNA_TESTS})
+    list(APPEND TEST_SRC ${GNA_TESTS})
+    list(APPEND TEST_DEPS GNAPlugin_test_static)
 
     # TODO: fix GNA tests
     if(OFF)
@@ -47,9 +48,8 @@ if (ENABLE_GNA)
         if(UNIX)
             set_target_properties(libGNAStubs PROPERTIES CXX_VISIBILITY_PRESET default)
         endif()
+        list(APPEND TEST_DEPS libGNAStubs)
     endif()
-
-    set (GNA_TEST_ENGINE GNAPlugin_test_static)
 endif()
 
 if (ENABLE_MKL_DNN)
@@ -65,13 +65,14 @@ if (ENABLE_MKL_DNN)
             engines/mkldnn/graph/*.cpp)
     file(GLOB
             MKLDNN_TESTS_INCLUDE engines/mkldnn/graph/*.hpp)
-    include_directories(
-            ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include
-            engines/mkldnn/graph
-            ${CMAKE_BINARY_DIR}/include/)
 
     source_group("mkldnn" FILES ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE})
-    list(APPEND MKLDNN_TESTS $<TARGET_OBJECTS:MKLDNNPlugin_obj>)
+
+    include_directories(engines/mkldnn/graph)
+
+    list(APPEND TEST_SRC ${MKLDNN_TESTS})
+    list(APPEND TEST_INCLUDE ${MKLDNN_TESTS_INCLUDE})
+    list(APPEND TEST_DEPS MKLDNNPlugin_obj)
 endif ()
 
 if (ENABLE_MYRIAD)
@@ -99,22 +100,17 @@ if (ENABLE_MYRIAD)
     source_group("vpu" FILES ${VPU_TESTS})
 endif()
 
-file(GLOB
-        TEST_INCLUDE
-        shape_infer/*.hpp)
-
 source_group("src" FILES ${TEST_SRC})
 source_group("include" FILES ${TEST_INCLUDE})
 
 # create target
 
-add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE} ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE} ${DLIA_TESTS})
+add_executable(${TARGET_NAME} ${TEST_SRC} ${TEST_INCLUDE})
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PRIVATE
-        ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin
         ${IE_MAIN_SOURCE_DIR}/src/gna_plugin
-        "${CMAKE_CURRENT_SOURCE_DIR}")
+        ${CMAKE_CURRENT_SOURCE_DIR})
 
 set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 
@@ -137,19 +133,11 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine_s # need to have this explicitly for USE_STATIC_IE
     unitTestUtils
     ieTestHelpers_s
-    ${GNA_TEST_ENGINE}
+    ${TEST_DEPS}
 
     # dynamic libraries
     inference_engine_transformations
     inference_engine_lp_transformations)
-
-if(TARGET libGNAStubs)
-    target_link_libraries(${TARGET_NAME} PRIVATE libGNAStubs)
-endif()
-
-if (ENABLE_MKL_DNN)
-    target_link_libraries(${TARGET_NAME} PRIVATE mkldnn)
-endif ()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
