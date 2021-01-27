@@ -25,21 +25,6 @@ class TRANSFORMATIONS_API HSwishFusionWithClamp;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief HSwishFusion transformation replaces various sub-graphs with a HSwish op.
- */
-class ngraph::pass::HSwishFusion: public ngraph::pass::GraphRewrite {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    HSwishFusion() {
-        add_matcher<ngraph::pass::HSwishFusionWithReluDiv>();
-        add_matcher<ngraph::pass::HSwishFusionWithReluMul>();
-        add_matcher<ngraph::pass::HSwishFusionWithoutRelu>();
-        add_matcher<ngraph::pass::HSwishFusionWithClamp>();
-    }
-};
-
-/**
- * @ingroup ie_transformation_common_api
  * @brief HSwishFusion transformation replaces a sub-graph (x * (min(Relu(x + 3), 6))) / 6 with a HSwish op.
  */
 class ngraph::pass::HSwishFusionWithReluDiv: public ngraph::pass::MatcherPass {
@@ -76,4 +61,19 @@ class ngraph::pass::HSwishFusionWithClamp: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     HSwishFusionWithClamp();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief HSwishFusion transformation replaces various sub-graphs with a HSwish op.
+ */
+class ngraph::pass::HSwishFusion: public ngraph::pass::GraphRewrite {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    HSwishFusion() {
+        add_matcher<ngraph::pass::HSwishFusionWithReluDiv>();
+        add_matcher<ngraph::pass::HSwishFusionWithReluMul>();
+        add_matcher<ngraph::pass::HSwishFusionWithoutRelu>();
+        add_matcher<ngraph::pass::HSwishFusionWithClamp>();
+    }
 };
