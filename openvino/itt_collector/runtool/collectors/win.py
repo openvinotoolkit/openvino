@@ -13,10 +13,6 @@ from sea_runtool import Collector, is_domain_enabled
 import sea
 
 
-def relog_etl(frm, to):
-    sea.ITT('win').relog(frm, to)
-
-
 def async_exec(cmd, title=None, env=None):
     cmd = 'start "%s" /MIN /LOW %s' % (title if title else cmd, cmd)
     subprocess.Popen(cmd, shell=True, stdin=None, stdout=None, stderr=None, creationflags=0x00000008, env=env)  # DETACHED_PROCESS
@@ -125,10 +121,6 @@ class WPRCollector(Collector):
         if err:
             return []
         assert(file in out)
-        tmp = os.path.join(output, 'tmp.etl')
-        relog_etl(file, tmp)
-        os.remove(file)
-        os.rename(tmp, file)
 
     @classmethod
     def launch(cls, args):
@@ -202,7 +194,6 @@ class GPUViewCollector(Collector):
             (out, err) = Collector.execute(cmd, cwd=started)
             if err and (os.path.basename(file) not in err):
                 print(err)
-            relog_etl(os.path.join(started, os.path.basename(file)), file)
             shutil.rmtree(started)
         else:
             cmd = 'start "GPUView merge" /MIN /LOW "%s" "%s" gpuview "%s" "%s"' % (sys.executable, os.path.realpath(__file__), file, started)

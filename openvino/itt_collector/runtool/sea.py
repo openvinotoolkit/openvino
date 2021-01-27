@@ -188,9 +188,6 @@ class ITT(object):
             self.lib.get_gpa_version.restype = c_char_p
 
         if sys.platform == 'win32':
-            # long relog_etl(const char* szInput, const char* szOutput)
-            self.lib.relog_etl.argtypes = [c_char_p, c_char_p]
-            self.lib.relog_etl.restype = c_long
             # const char* resolve_pointer(const char* szModulePath, uint64_t addr)
             self.lib.resolve_pointer.argtypes = [c_char_p, c_ulonglong]
             self.lib.resolve_pointer.restype = c_char_p
@@ -263,12 +260,6 @@ class ITT(object):
         if not self.lib:
             return 0
         return self.lib.itt_get_timestamp()
-
-    def relog(self, frm, to):
-        if sys.platform == 'win32':
-            if not self.lib:
-                return
-            self.lib.relog_etl(frm, to)
 
     def resolve_pointer(self, module, addr):
         if sys.platform == 'win32':
