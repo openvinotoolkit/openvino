@@ -231,6 +231,7 @@ class Core::Impl : public ICore {
         compileConfig["INFERENCE_ENGINE_VERSION"] = GetInferenceEngineVersion()->buildNumber;
 
         auto deviceSupportsImport = [&] (ICore * core) -> bool {
+            OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::device_supports_import");
             std::stringstream dummyStream;
             bool supports = true;
             try {
