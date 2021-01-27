@@ -27,6 +27,9 @@ if (WIN32)
         MAIN_DEPENDENCY IttNotifyStdSrc.h
         COMMENT "Generating ${PROJECT_BINARY_DIR}/IntelSEAPI.rc ${PROJECT_BINARY_DIR}/IntelSEAPI.h"
     )
+    set(EXTRA_SOURCE
+        ETLRelogger.cpp
+    )
 endif()
 
 add_library(${TARGET_NAME} SHARED
@@ -38,6 +41,7 @@ add_library(${TARGET_NAME} SHARED
     TraceEventFormat.h
     Utils.cpp
     Utils.h
+    ${EXTRA_SOURCE}
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -50,5 +54,5 @@ if(UNIX)
     target_link_libraries(${TARGET_NAME} PRIVATE dl)
     target_compile_options(${TARGET_NAME} PRIVATE -Wno-undef -Wno-deprecated-declarations -Wno-multichar)
 elseif(WIN32)
-    target_link_libraries(${TARGET_NAME} PRIVATE Dbghelp)
+    target_link_libraries(${TARGET_NAME} PRIVATE Dbghelp Shlwapi)
 endif()

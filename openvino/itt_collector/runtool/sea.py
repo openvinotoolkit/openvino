@@ -88,11 +88,11 @@ def prepare_environ(args):
     env_name = 'INTEL_LIBITTNOTIFY' + bitness
     if env_name not in env or 'SEAPI' not in env[env_name]:
         if sys.platform == 'win32':
-            dl_name = 'IntelSEAPI%s.dll' % bitness
+            dl_name = 'IntelSEAPI.dll'
         elif sys.platform == 'darwin':
             dl_name = 'libIntelSEAPI.dylib'
         else:
-            dl_name = 'libIntelSEAPI%s.so' % bitness
+            dl_name = 'libIntelSEAPI.so'
 
         env[env_name] = os.path.join(args.bindir, dl_name)
     if args.bindir not in env['PATH']:

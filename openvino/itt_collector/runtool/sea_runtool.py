@@ -320,7 +320,7 @@ def launch(args, victim):
     win32 = sys.platform == 'win32'
     bits_array = [''] if macosx else ['32', '64']
     for bits in bits_array:
-        search = os.path.sep.join([args.bindir, "*IntelSEAPI" + bits + os_lib_ext()])
+        search = os.path.sep.join([args.bindir, "*IntelSEAPI" + os_lib_ext()])
         files = glob(search)
         if not len(files):
             message('warning', "didn't find any files for: %s" % search)
