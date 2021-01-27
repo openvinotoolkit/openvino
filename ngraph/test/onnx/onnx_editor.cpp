@@ -377,7 +377,6 @@ NGRAPH_TEST(onnx_editor, values__append_two_initializers_modify_inputs)
     in_vals.emplace("A", op::Constant::create(element::i64, Shape{2, 1}, {-1, 1}));
     in_vals.emplace("B", op::Constant::create(element::i64, Shape{2, 1}, {-2, 2}));
     editor.set_input_values(in_vals);
-    editor.serialize("/home/tj/repo/tj-jobs/cvs-45413/modify_inputs.onnx");
 
     const auto function = onnx_import::import_onnx_model(editor);
     auto test_case = test::TestCase<TestEngine>(function);
