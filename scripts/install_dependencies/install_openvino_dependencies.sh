@@ -107,7 +107,7 @@ extra_repos=()
 if [ "$os" == "ubuntu18.04" ] ; then
 
     pkgs_opencv_req=(libgtk-3-0)
-    pkgs_python=(python3 python3-dev python3-venv python3-setuptools)
+    pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
     pkgs_dev=(cmake g++ gcc libc6-dev make curl)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
@@ -146,7 +146,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
 elif [ "$os" == "ubuntu20.04" ] ; then
 
     pkgs_opencv_req=(libgtk-3-0)
-    pkgs_python=(python3 python3-dev python3-venv python3-setuptools)
+    pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
     pkgs_dev=(cmake g++ gcc libc6-dev make curl)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
@@ -192,7 +192,7 @@ elif [ "$os" == "centos7" ] ; then
     # find -name *.so -exec objdump -p {} \; | grep NEEDED | sort -u | cut -c 23- | xargs -t -n1 yum -q whatprovides
 
     pkgs_opencv_req=(gtk2)
-    pkgs_python=(python3 python3-pip)
+    pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl)
     pkgs_myriad=(libusbx)
     pkgs_installer=()
