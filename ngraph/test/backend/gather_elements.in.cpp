@@ -368,15 +368,15 @@ NGRAPH_TEST(${BACKEND_NAME}, evaluate_2D_gather_elements_2x2x1_data_float32)
 
     test_case.add_input<int32_t>(data);
     test_case.add_input<int32_t>(indices);
-    test_case.add_expected_output<float>(vector<float>{5,
-                                                       4,
-                                                       1,
-                                                       4,
+    test_case.add_expected_output<int32_t>({5,
+                                            4,
+                                            1,
+                                            4,
 
-                                                       1,
-                                                       4,
-                                                       5,
-                                                       4});
+                                            1,
+                                            4,
+                                            5,
+                                            4});
     // clang-format on
     test_case.run();
 }
