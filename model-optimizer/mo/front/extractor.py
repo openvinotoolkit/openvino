@@ -133,8 +133,8 @@ def attr_getter(node: Node, name: str):
 
 def bool_to_str(node: Node, attr: str):
     # Function converts 0/1 or bool False/True values to str 'false'/'true' which need to appear in IR
-    attribute_name = node.soft_get(attr)
-    if attribute_name == '<UNKNOWN>':
+    attribute_name = node.soft_get(attr, None)
+    if attribute_name is None:
         return
     if isinstance(attribute_name, bool):
         return str(attribute_name).lower()
