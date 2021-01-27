@@ -108,24 +108,23 @@ def _prepare_data_for_batch_norm_decomposition(node: Node, can_be_fused) -> tupl
         expand_node_shape(beta, broadcast_dims_cnt)
         expand_dims_nodes_preff = node.name + '/expand_dims'
         broad_cast_dims_const = Const(graph, dict(name=expand_dims_nodes_preff + "/broad_cast_dims_const",
-                                                  value=np.int32(broadcast_dims_cnt))).create_node()
+                                                  value=np.int32(broadcast_dims_cnt+1))).create_node()
         one_const = Const(graph, dict(name=expand_dims_nodes_preff + "/one_const",
-                                      value=np.int32(broadcast_dims_cnt))).create_node()
-        one_const.add_output_port(1)
+                                      value=np.int32(1))).create_node()
 
         expand_dims_range = Range(graph, dict(name=expand_dims_nodes_preff + '/range')).create_node()
-        expand_dims_range.add_output_port(1)
-        expand_dims_range.in_port(0).get_connection().set_source(one_const.out_port(0))
-        expand_dims_range.in_port(2).get_connection().set_source(one_const.out_port(1))
+        one_const.out_port(0).get_connection().set_destination(expand_dims_range.in_port(0))
         expand_dims_range.in_port(1).get_connection().set_source(broad_cast_dims_const.out_port(0))
+        one_const.out_port(0).get_connection().add_destination(expand_dims_range.in_port(2))
 
         new_scale = Unsqueeze(graph, dict(name=expand_dims_nodes_preff + '/scale_unsqeeze')).create_node()
-        new_scale.in_port(0).get_connection().set_source(scale.out_port(0))
-        new_scale.in_port(1).get_connection().set_source(expand_dims_range.out_port(0))
+        scale.out_port(0).get_connection().add_destination(new_scale.in_port(0))
+        expand_dims_range.out_port(0).get_connection().add_destination(new_scale.in_port(1))
+        # new_scale.in_port(1).get_connection().set_source(expand_dims_range.out_port(0))
 
         new_shift = Unsqueeze(graph, dict(name=expand_dims_nodes_preff + '/shift_unsqeeze')).create_node()
         new_shift.in_port(0).get_connection().set_source(shift.out_port(0))
-        new_shift.in_port(0).get_connection().set_source(expand_dims_range.out_port(1))
+        expand_dims_range.out_port(0).get_connection().add_destination(new_shift.in_port(1))
         scale = new_scale
         shift = new_shift
 
