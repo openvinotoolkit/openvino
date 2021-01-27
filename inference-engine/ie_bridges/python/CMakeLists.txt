@@ -66,10 +66,6 @@ if(ENABLE_WHEEL)
     add_subdirectory(install)
 endif()
 
-if(ENABLE_WHEEL)
-    add_subdirectory(install)
-endif()
-
 # Check Cython version
 if(CYTHON_VERSION VERSION_LESS "0.29")
     message(FATAL_ERROR "OpenVINO Python API needs at least Cython version 0.29, found version ${CYTHON_VERSION}")
