@@ -112,7 +112,7 @@ def common_onnx_pool_extractor(node):
     # exclude_pad = True only when count_include_pad == 0
     exclude_pad = onnx_attr(node, 'count_include_pad', 'i', default=0) == 0
 
-    global_pooling = 0
+    global_pooling = False
     if node.op in ['MaxPool', 'GlobalMaxPool']:
         method = 'max'
     elif node.op in ['AveragePool', 'GlobalAveragePool']:
