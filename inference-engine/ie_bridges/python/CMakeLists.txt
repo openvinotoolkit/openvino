@@ -6,8 +6,6 @@ cmake_minimum_required (VERSION 3.13)
 
 # Set the project name
 project (ie_python_api)
-set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
-set(PYTHON_BRIDGE_CPACK_PATH "python")
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
 option(ENABLE_WHEEL "Create wheel package" OFF)
