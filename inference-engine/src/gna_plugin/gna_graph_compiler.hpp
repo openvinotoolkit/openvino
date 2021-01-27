@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,7 @@ private:
 
     static void printTensorDesc(const std::string& name, const InferenceEngine::TensorDesc& desc);
     static void printConvolutionLayer(const InferenceEngine::ConvolutionLayer& layer);
+    static void printPoolingLayer(const InferenceEngine::PoolingLayer& layer);
     static void assertConvolutionLayoutProper(const InferenceEngine::DataPtr&);
     std::vector<uint8_t> static transposeMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols);
     std::vector<std::size_t> static getFromIRDimsOrderNCHW(InferenceEngine::Layout layout);
