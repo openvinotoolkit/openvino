@@ -220,7 +220,7 @@ public:
      * @return Precision created from string representation
      */
     static Precision FromStr(const std::string& str) {
-        static std::unordered_map<std::string, ePrecision> names = {
+        static const std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
             PRECISION_NAME(Q78),  PRECISION_NAME(BOOL),  PRECISION_NAME(BF16),
             PRECISION_NAME(I8),   PRECISION_NAME(I16),   PRECISION_NAME(I32),  PRECISION_NAME(I64),

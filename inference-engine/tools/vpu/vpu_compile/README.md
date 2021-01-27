@@ -76,7 +76,7 @@ Example:
 ```sh
 std::string modelFilename ("model_name.blob");
 InferenceEngine::Core core;
-InferenceEngine::IExecutableNetwork importedNetworkPtr = core.ImportNetwork(modelFilename);
+InferenceEngine::ExecutableNetwork importedNetwork = core.ImportNetwork(modelFilename);
 ```
 
 > **NOTE**: Models should be first converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer).

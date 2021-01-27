@@ -63,8 +63,6 @@ protected:
         const int indicesNDims = indicesShape.size();
         const int   inputNDims =   inputShape.size();
 
-        const int axis = 0;
-
         IE_ASSERT(inputNDims > 0);
         IE_ASSERT(indicesNDims > 0);
 
@@ -77,7 +75,6 @@ protected:
         const int outputNDims = inputNDims;
 
         SizeVector axisShape = {};
-        const int axisNDims = 0;
 
         // E.g.:
         //    {N, C, H, W} could be shape of `input` and `output`
@@ -87,7 +84,6 @@ protected:
         for (int i = 0; i < outputNDims - 1; i++) {
             updatesShape.push_back(outputShape[i + 1]);
         }
-        const int updatesNDims = updatesShape.size();
 
         //
         // Initialize input tensors, and compute reference output
