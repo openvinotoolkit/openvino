@@ -87,10 +87,10 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
     common_fusions->add_matcher<ngraph::pass::SwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::ClampFusion>();
     common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
     common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
     common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
-    common_fusions->add_matcher<ngraph::pass::ClampFusion>();
     common_fusions->add_matcher<ngraph::pass::PadFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
