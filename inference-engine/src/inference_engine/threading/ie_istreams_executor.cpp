@@ -149,7 +149,7 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) {
 IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial, const bool fp_intesive) {
     const auto envThreads = parallel_get_env_threads();
     const auto& numaNodes = getAvailableNUMANodes();
-    const auto numaNodesNum = numaNodes.size();
+    const int numaNodesNum = numaNodes.size();
     auto streamExecutorConfig = initial;
     const bool bLatencyCase = streamExecutorConfig._streams <= numaNodesNum;
 
@@ -172,11 +172,12 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
                     ? IStreamsExecutor::Config::PreferredCoreType::BIG
                     : IStreamsExecutor::Config::PreferredCoreType::NONE)
                 : IStreamsExecutor::Config::PreferredCoreType::ROUND_ROBIN;
-        const auto num_big_cores_phys = getNumberOfCPUCores(true);
-        const int hyper_threading_threshold = 2; // min #cores, for which the hyper-threading becomes useful for the latency case
         // additionally selecting the #cores to use in the "Big-only" case
-        if (bLatencyCaseBigOnly)
+        if (bLatencyCaseBigOnly) {
+            const auto num_big_cores_phys = getNumberOfCPUCores(true);
+            const int hyper_threading_threshold = 2; // min #cores, for which the hyper-threading becomes useful for the latency case
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
+        }
     }
     #endif
 

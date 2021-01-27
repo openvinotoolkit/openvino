@@ -86,13 +86,13 @@ public:
         ThreadBindingType  _threadBindingType       = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type. No binding by default
         int                _threadBindingStep       = 1;  //!< In case of @ref CORES binding offset type thread binded to cores with defined step
         int                _threadBindingOffset     = 0;  //!< In case of @ref CORES binding offset type thread binded to cores starting from offset
+        int                _threads                 = 0;  //!< Number of threads distributed between streams. Reserved. Should not be used.
         enum PreferredCoreType {
             NONE,
             LITTLE,
             BIG,
             ROUND_ROBIN // for multiple streams
         }                  _threadPreferredCoreType = PreferredCoreType::NONE; //!< In case of @ref HYBRID_AWARE give the TBB a hint to affitize the execution
-        int                _threads                 = 0;  //!< Number of threads distributed between streams. Reserved. Should not be used.
 
         /**
          * @brief      A constructor with arguments
