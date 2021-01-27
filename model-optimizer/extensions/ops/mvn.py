@@ -43,9 +43,9 @@ class MVN(Op):
 
     def backend_attrs(self):
         version = self.get_opset()
-        if version is 'opset2':
+        if version == 'opset2':
             return ['eps', 'across_channels', 'normalize_variance']
-        elif version is 'opset6':
+        elif version == 'opset6':
             return ['eps', 'eps_mode', 'normalize_variance']
         else:
             raise Error('Unsupported MVN opset version "{}"'.format(version))
