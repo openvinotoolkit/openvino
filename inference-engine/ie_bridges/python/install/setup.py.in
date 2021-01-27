@@ -164,7 +164,7 @@ def set_rpath(rpath, executable):
     if sys.platform == "linux":
         cmd = ["patchelf", "--set-rpath", rpath,  executable]
     elif sys.platform == "darwin":
-        cmd = ["install_name_tool ", "-add_rpath", rpath,  executable]
+        cmd = ["install_name_tool", "-add_rpath", rpath,  executable]
     ret_info = subprocess.run(cmd)
     if ret_info.returncode != 0:
         print(f"The exit code: {ret_info.returncode}")
