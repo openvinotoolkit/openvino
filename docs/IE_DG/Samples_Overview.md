@@ -127,7 +127,7 @@ You can also build a generated solution manually. For example, if you want to bu
 Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\Samples.sln`
 directory.
 
-### <a name="build_samples_linux"></a>Build the Sample Applications on macOS*
+### <a name="build_samples_macos"></a>Build the Sample Applications on macOS*
 
 The officially supported macOS* build environment is the following:
 
