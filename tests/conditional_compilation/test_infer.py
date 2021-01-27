@@ -8,10 +8,10 @@
 from proc_utils import cmd_exec  # pylint: disable=import-error
 
 
-def test_infer(model, models_root, benchmark_app):
+def test_infer(model, benchmark_app):
     """ Test inference with conditional compiled binaries
     """
     returncode, _ = cmd_exec(
-        [str(benchmark_app), "-d=CPU", f"-m={models_root / model}", "-niter=1", "-nireq=1"]
+        [str(benchmark_app), "-d=CPU", f"-m={model}", "-niter=1", "-nireq=1"]
     )
     assert returncode == 0, f"Command exited with non-zero status {returncode}"
