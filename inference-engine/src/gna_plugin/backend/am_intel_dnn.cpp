@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -201,7 +201,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional1DComponentPrivate(intel
     }
 
     if (comp.num_rows_in * comp.num_columns_in % 8 != 0) {
-        THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent is not multiply by 8";
+        THROW_GNA_EXCEPTION << "Number of inputs to Convolutional1DComponent (" << comp.num_rows_in * comp.num_columns_in <<
+                               ") is not a multiply by 8";
     }
     if (comp.op.conv1D.num_filters < GNALimitations::convMinFiltersNum ||
         comp.op.conv1D.num_filters > GNALimitations::convMaxFiltersNum ||
