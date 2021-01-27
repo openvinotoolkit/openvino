@@ -16,10 +16,16 @@
 
 import logging as log
 
-from extensions.ops.elementwise import Mul, Add
+import numpy as np
+
+from extensions.ops.elementwise import Mul, Add, Sub
 from extensions.ops.mvn import MVN
+from extensions.ops.range import Range
+from extensions.ops.rank import Rank
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
+from mo.ops.const import Const
+from mo.ops.unsqueeze import Unsqueeze
 
 
 class MVNReplacer(FrontReplacementSubgraph):
@@ -50,6 +56,7 @@ class MVNReplacer(FrontReplacementSubgraph):
     def replace_sub_graph(self, graph: Graph, match: dict):
         fbn = match['fbn']
         input = fbn.in_node(0)
+        output = fbn.out_node(0)
         log.debug('Found potential MVN pattern after {} with name {}'.format(input.op, input.name))
         if input.id != match['mean'].in_node(0).id or input.id != match['sqdiff'].in_node(0).id:
             return
@@ -63,24 +70,56 @@ class MVNReplacer(FrontReplacementSubgraph):
         ))
         mvn.attrs['old_infer'] = mvn.attrs['infer']
         mvn.attrs['infer'] = __class__.infer
-
-        mul = Mul(graph, dict(operation='mul', name=fbn.name + '/Mul_'))
-        add = Add(graph, dict(operation='sum', name=fbn.name + '/Add_'))
+        mvn = mvn.create_node()
+        mul = Mul(graph, dict(operation='mul', name=fbn.name + '/Mul_')).create_node()
+        add = Add(graph, dict(operation='sum', name=fbn.name + '/Add_')).create_node()
 
         input_gamma = fbn.in_node(1)
         input_beta = fbn.in_node(2)
 
         mean_reduction = match['mean'].in_node(1)
         variance_reduction = match['variance'].in_node(1)
+        # input.out_port(0).get_connection().add_destination(mvn.in_port(0))
+        mvn.add_input_port(1)
+        mvn.add_input_port(2)
+        mean_reduction.out_port(0).get_connection().add_destination(mvn.in_port(1))
+        variance_reduction.out_port(0).get_connection().add_destination(mvn.in_port(2))
 
-        new_subgraph = add.create_node([
-            mul.create_node([
-                mvn.create_node([input, mean_reduction, variance_reduction]),
-                input_gamma
-            ]),
-            input_beta
-        ])
+        fbn.in_port(0).get_connection().set_destination(mvn.in_port(0))
+
+        if fbn.data_format == b'NCHW':
+            rank = Rank(graph, dict(name=fbn.name + '/rank_')).create_node()
+            rank_out_id = len(input.out_ports().values())
+            input.add_output_port(rank_out_id)
+            input.out_port(rank_out_id).get_connection().set_destination(rank.in_port(0))
+            const_1 = Const(graph, dict(name=fbn.name+'/const_val_1_', value=np.int32(1))).create_node()
+
+            limit = Sub(graph, dict(name=fbn.name+'/limit_')).create_node()
+            limit.in_port(0).get_connection().set_source(rank.out_port(0))
+            limit.in_port(1).get_connection().set_source(const_1.out_port(0))
+            expand_dims_range = Range(graph, dict(name=fbn.name+'/expand_dims_range_')).create_node()
+            const_1.out_port(0).get_connection().add_destination(expand_dims_range.in_port(0))
+            const_1.out_port(0).get_connection().add_destination(expand_dims_range.in_port(2))
+            limit.out_port(0).get_connection().set_destination(expand_dims_range.in_port(1))
+
+            new_gamma = Unsqueeze(graph, dict(name=fbn.name+'/new_gamma')).create_node()
+            new_gamma.in_port(0).get_connection().set_source(input_gamma.out_port(0))
+            expand_dims_range.out_port(0).get_connection().add_destination(new_gamma.in_port(1))
+            new_beta = Unsqueeze(graph, dict(name=fbn.name+'/new_beta')).create_node()
+            new_beta.in_port(0).get_connection().set_source(input_beta.out_port(0))
+            expand_dims_range.out_port(0).get_connection().add_destination(new_beta.in_port(1))
+
+            input_gamma = new_gamma
+            input_beta = new_beta
+        mul.in_port(0).get_connection().set_source(mvn.out_port(0))
+        input_gamma.out_port(0).get_connection().add_destination(mul.in_port(1))
+
+        new_subgraph = add
+        new_subgraph.in_port(0).get_connection().set_source(mul.out_port(0))
+        input_beta.out_port(0).get_connection().add_destination(new_subgraph.in_port(1))
+
         fbn.replace_node(new_subgraph)
+
 
     @staticmethod
     def infer(node: Node):
@@ -89,7 +128,7 @@ class MVNReplacer(FrontReplacementSubgraph):
             return
 
         if not (all(node.in_node(1).value == node.required_reduction_indices) and
-                    all(node.in_node(2).value == node.required_reduction_indices)):
+                all(node.in_node(2).value == node.required_reduction_indices)):
             log.warning('Reduction indices for mean {} and variance {} do not match required ones {}'.format(
                 node.in_node(1).value,
                 node.in_node(2).value,
