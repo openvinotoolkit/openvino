@@ -127,6 +127,7 @@ public:
      * @brief Default constructor
      */
     CNNNetworkIterator() = default;
+
     /**
      * @brief Constructor. Creates an iterator for specified CNNNetwork instance.
      * @param network Network to iterate. Make sure the network object is not destroyed before iterator goes out of
@@ -198,7 +199,6 @@ public:
     }
 
 private:
-
     /**
      * @brief implementation based on BFS
      */

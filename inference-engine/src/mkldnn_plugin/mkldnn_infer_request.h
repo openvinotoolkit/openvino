@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,8 @@ public:
 
     void InferImpl() override;
 
+    InferenceEngine::StatusCode Cancel() override;
+
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
 
     /**
@@ -47,6 +49,8 @@ public:
 
 private:
     void PushInputData();
+    void PushStates();
+    void PullStates();
 
     void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
 

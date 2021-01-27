@@ -41,8 +41,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
-        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
+        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
@@ -71,8 +70,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
-        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
+        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         FAIL();
     }
@@ -82,7 +80,6 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
     ngraph::NodeVector should_converted_to_ie = {
             std::make_shared<ngraph::opset4::Broadcast>(),
             std::make_shared<ngraph::opset4::Convolution>(),
-            std::make_shared<ngraph::opset4::Gather>(),
             std::make_shared<ngraph::opset4::GatherTree>(),
             std::make_shared<ngraph::opset4::GroupConvolution>(),
             std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(),

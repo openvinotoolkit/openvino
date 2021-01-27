@@ -4,15 +4,10 @@
 
 cmake_minimum_required (VERSION 3.10)
 
+# Enable CMAKE_<LANG>_COMPILER_ID AppleClang
+cmake_policy(SET CMP0025 NEW)
+
 project(Samples)
-
-if(POLICY CMP0054)
-    cmake_policy(SET CMP0054 NEW)
-endif()
-
-if(POLICY CMP0063)
-    cmake_policy(SET CMP0063 NEW)
-endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
@@ -21,7 +16,7 @@ endif()
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-if (NOT(BIN_FOLDER))
+if (NOT BIN_FOLDER)
     string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
     if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
         set(ARCH intel64)
@@ -30,6 +25,10 @@ if (NOT(BIN_FOLDER))
     endif()
 
     set (BIN_FOLDER ${ARCH})
+
+    if(UNIX)
+        set(BIN_FOLDER "${BIN_FOLDER}/${CMAKE_BUILD_TYPE}")
+    endif()
 endif()
 
 if(IE_MAIN_SOURCE_DIR)
@@ -47,16 +46,13 @@ endif()
 if(NOT(UNIX))
     set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
     set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-    set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-    set (CMAKE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
-    set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 else ()
-    set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
-    set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
-    set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
-    set (CMAKE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
-    set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
+    set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/lib)
+    set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER}/lib)
 endif()
+set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
+set (CMAKE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
 if (WIN32)
     set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
@@ -80,6 +76,8 @@ else()
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror") #treating warnings as errors
     endif()
 
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
     if (APPLE)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-command-line-argument")
     elseif(UNIX)
@@ -120,8 +118,12 @@ set (BUILD_TESTING OFF)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
     function(add_gflags)
+        if(NOT WIN32)
+            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-all")
+            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-all")
+        endif()
         set(BUILD_SHARED_LIBS OFF)
-        add_subdirectory(thirdparty/gflags)
+        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
         set_target_properties(gflags_nothreads_static PROPERTIES FOLDER thirdparty)
     endfunction()
     add_gflags()
@@ -198,7 +200,7 @@ macro(ie_add_sample)
     if(IE_SAMPLE_OPENCV_DEPENDENCIES)
         find_package(OpenCV COMPONENTS ${IE_SAMPLE_OPENCV_DEPENDENCIES} QUIET)
         if(NOT OpenCV_FOUND)
-            message(WARNING "OPENCV is disabled or not found, " ${IE_SAMPLE_NAME} " skipped")
+            message(WARNING "OPENCV is disabled or not found, ${IE_SAMPLE_NAME} skipped")
             return()
         endif()
     endif()

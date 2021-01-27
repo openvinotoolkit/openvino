@@ -15,8 +15,8 @@
 #include <low_precision/reshape.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
-#include "ngraph_functions/low_precision_transformations/reshape_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/reshape_function.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -532,6 +532,38 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             {{}, {}, {}},
             ngraph::element::u8,
             {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {1, 1}}}
+        }
+    },
+    // U8: no subtract 4D -> 4D: channels are affected
+    {
+        ngraph::Shape({ 1, 64, 320, 1 }),
+        { 0, 2, 3, 1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f}, ngraph::element::f32, {}}}
+        }
+    },
+    // U8: with subtract 4D -> 4D: channels are affected
+    {
+        ngraph::Shape({ 1, 64, 320, 1 }),
+        { 0, 2, 3, 1},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}}, {{0.1f}, ngraph::element::f32, {}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{128.f}, ngraph::element::f32, {}}, {{0.1f}, ngraph::element::f32, {}}}
         }
     }
 };

@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <atomic>
 
 namespace MKLDNNPlugin {
 
@@ -29,7 +30,7 @@ public:
         Ready = 1,
     };
 
-    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)) {}
+    MKLDNNGraph(mkldnn::engine eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0)) : status(NotReady), eng(eng), cancelation_requested(false) {}
 
     Status GetStatus() {
         return status;
@@ -37,6 +38,10 @@ public:
 
     bool IsReady() {
         return (GetStatus() == Ready);
+    }
+
+    void Cancel() {
+        cancelation_requested.store(true);
     }
 
     void setConfig(const Config &cfg);
@@ -124,6 +129,14 @@ public:
     void SortTopologically();
 
 protected:
+    bool IsCancellationRequested() const {
+        return cancelation_requested.load();
+    }
+
+    void ResetCancellationRequest() {
+        cancelation_requested.store(false);
+    }
+
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
 
     void ForgetGraphData() {
@@ -157,7 +170,7 @@ protected:
 
     mkldnn::engine eng;
 
-    void Replicate(const InferenceEngine::ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
     void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
@@ -185,6 +198,8 @@ private:
         InferenceEngine::CNNLayerPtr cnnLayer;
         size_t outIdx;
     };
+
+    std::atomic<bool> cancelation_requested;
 };
 
 }  // namespace MKLDNNPlugin

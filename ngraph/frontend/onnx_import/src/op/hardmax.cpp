@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,14 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "hardmax.hpp"
+#include "op/hardmax.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/one_hot.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "utils/common.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {

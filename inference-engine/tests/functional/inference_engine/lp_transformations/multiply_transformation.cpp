@@ -14,11 +14,11 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include "low_precision/multiply.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/multiply_function.hpp"
+#include "lpt_ngraph_functions/multiply_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -50,9 +50,7 @@ typedef std::tuple<
 class MultiplyTransformation : public LayerTransformation, public testing::WithParamInterface<MultiplyTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::Shape shape = std::get<1>(GetParam());
-        const bool broadcast = std::get<2>(GetParam());
         const MultiplyTransformationTestValues testParams = std::get<3>(GetParam());
 
         actualFunction = MultiplyFunction::get(shape, testParams.actual);

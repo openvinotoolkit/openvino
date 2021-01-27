@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,8 +54,6 @@ namespace ngraph
             class NGRAPH_API BinaryElementwiseArithmetic : public Op
             {
             protected:
-                NGRAPH_RTTI_DECLARATION;
-
                 BinaryElementwiseArithmetic(const AutoBroadcastSpec& autob);
 
                 /// \brief Constructs a binary elementwise arithmetic operation.
@@ -67,6 +65,8 @@ namespace ngraph
                                             const AutoBroadcastSpec& autob);
 
             public:
+                NGRAPH_RTTI_DECLARATION;
+
                 void validate_and_infer_types() override;
 
                 const AutoBroadcastSpec& get_autob() const override { return m_autob; }

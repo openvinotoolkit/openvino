@@ -26,6 +26,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
@@ -52,6 +53,7 @@
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
+#include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -92,8 +94,8 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
-static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
-    auto nGraphFunc = clonedNetwork->getFunction();
+static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
+    auto nGraphFunc = clonedNetwork.getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
@@ -118,6 +120,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
             {ngraph::element::i64,     ngraph::element::i32},
             {ngraph::element::u64,     ngraph::element::i32},
+            {ngraph::element::i16,     ngraph::element::i32},
             {ngraph::element::u16,     ngraph::element::i32},
             {ngraph::element::u32,     ngraph::element::i32},
             {ngraph::element::f16,     ngraph::element::f32},
@@ -200,8 +203,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMod>();
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+    pass_config->disable<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
 
-    pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
+    pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
     manager.run_passes(nGraphFunc);
 
@@ -252,24 +256,25 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
 
-    clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+    clonedNetwork = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork));
 
     OV_ITT_TASK_NEXT(taskChain, "ConvertIOPrecision");
 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs
     for (auto & precision : convert_precision_list) {
-        NetPass::ConvertIOPrecision(*clonedNetwork, convertPrecision(precision.first), convertPrecision(precision.second));
+        NetPass::ConvertIOPrecision(clonedNetwork,
+            InferenceEngine::details::convertPrecision(precision.first),
+            InferenceEngine::details::convertPrecision(precision.second));
     }
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
-Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
+Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
     // verification of supported input
-    InferenceEngine::InputsDataMap _networkInputs;
-    network.getInputsInfo(_networkInputs);
+    InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     for (const auto &ii : _networkInputs) {
         auto input_precision = ii.second->getPrecision();
         if (input_precision != InferenceEngine::Precision::FP32 &&
@@ -278,6 +283,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
             input_precision != InferenceEngine::Precision::I16 &&
             input_precision != InferenceEngine::Precision::I8 &&
             input_precision != InferenceEngine::Precision::U8 &&
+            input_precision != InferenceEngine::Precision::BF16 &&
             input_precision != InferenceEngine::Precision::BOOL &&
             input_precision != InferenceEngine::Precision::I64 &&
             input_precision != InferenceEngine::Precision::U64) {
@@ -296,30 +302,35 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(network);
 
     bool is_transformed = false;
-    if (clonedNetwork->getFunction()) {
+    if (clonedNetwork.getFunction()) {
         Transformation(clonedNetwork, conf);
         is_transformed = true;
     }
-    auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
+    IE_SUPPRESS_DEPRECATED_START
+    auto icnnnet = static_cast<ICNNNetwork::Ptr>(clonedNetwork);
+    IE_SUPPRESS_DEPRECATED_END
+    auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(icnnnet);
     if (implNetwork) {
         OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "CNNNet_based_ConstFolding");
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
         if (!is_transformed) {
-            NetPass::ConvertPrecision(*implNetwork, Precision::I64, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U64, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U32, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::FP16, Precision::FP32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::BOOL, Precision::U8);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
+            InferenceEngine::CNNNetwork implNetworkWrapper(implNetwork);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::I64, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U64, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U32, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::FP16, Precision::FP32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::BOOL, Precision::U8);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U16, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::I16, Precision::I32);
         }
     }
 
-    return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager, weightsSharing);
+    return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -417,7 +428,7 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
     extensionManager->AddExtension(extension);
 }
 
-QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) const {
+QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
     QueryNetworkResult res;
     MKLDNNWeightsSharing::Ptr fake_w_cache;
     auto function = network.getFunction();
@@ -435,11 +446,11 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::m
             conf.batchLimit = static_cast<int>(network.getBatchSize());
         }
 
-        auto clonedNetwork = cloneNetwork(network);
+        auto clonedNetwork = InferenceEngine::cloneNetwork(network);
         Transformation(clonedNetwork, conf);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
-        for (details::CNNNetworkIterator itLayer{clonedNetwork.get()}; itLayer != details::CNNNetworkIterator(); itLayer++) {
+        for (details::CNNNetworkIterator itLayer{clonedNetwork}; itLayer != details::CNNNetworkIterator(); itLayer++) {
             auto layerIsSupported = [&] {
                 std::unique_ptr<MKLDNNNode> ptr;
                 try {
@@ -450,7 +461,7 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::m
                 return true;
             } ();
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector((*itLayer)->getNode())) {
-                if (contains(originalOps, fusedLayerName)) {
+                if (InferenceEngine::details::contains(originalOps, fusedLayerName)) {
                     if (layerIsSupported) {
                         supported.emplace(fusedLayerName);
                     } else {
@@ -459,11 +470,13 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::m
                 }
             }
         }
-
+        for (auto&& unsupportedNode : unsupported) {
+            supported.erase(unsupportedNode);
+        }
         for (auto&& node : function->get_ops()) {
-            if (!contains(unsupported, node->get_friendly_name())) {
+            if (InferenceEngine::details::contains(supported, node->get_friendly_name())) {
                 for (auto&& inputNodeOutput : node->input_values()) {
-                    if (ngraph::op::is_constant(inputNodeOutput.get_node())) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
                         supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
                     }
                 }
@@ -475,15 +488,23 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::m
                     }
                 }
             }
+
+            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
+                if (!InferenceEngine::details::contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
+                    supported.erase(node->get_friendly_name());
+                }
+            } else if (ngraph::op::is_output(node)) {
+                if (!InferenceEngine::details::contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
+                    supported.erase(node->get_friendly_name());
+                }
+            }
         }
 
         for (auto&& layerName : supported) {
-            if (!contains(unsupported, layerName)) {
-                res.supportedLayersMap.emplace(layerName, GetName());
-            }
+            res.supportedLayersMap.emplace(layerName, GetName());
         }
     } else {
-        details::CNNNetworkIterator i(&network);
+        details::CNNNetworkIterator i(network);
         while (i != details::CNNNetworkIterator()) {
             try {
                 mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));

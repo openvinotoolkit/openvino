@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,8 @@
 #include <cstring>
 #include <memory>
 
-#include "host_tensor.hpp"
-#include "ngraph/chrome_trace.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/util.hpp"
 
 using namespace ngraph;
@@ -140,7 +139,6 @@ const void* runtime::HostTensor::get_data_ptr() const
 
 void runtime::HostTensor::write(const void* source, size_t n)
 {
-    event::Duration d1("write", "HostTensor");
     void* target = get_data_ptr();
     if (n != m_buffer_size)
     {
@@ -158,7 +156,6 @@ void runtime::HostTensor::write(const void* source, size_t n)
 
 void runtime::HostTensor::read(void* target, size_t n) const
 {
-    event::Duration d1("read", "HostTensor");
     const void* source = get_data_ptr();
     if (n != m_buffer_size)
     {

@@ -123,6 +123,7 @@ Standard TensorFlow\* operations:
 | :----------| :----------|
 | Acosh | No |
 | Add | No |
+| AddV2 | No |
 | AddN | No |
 | ArgMax | No |
 | Asinh | No |
@@ -158,6 +159,8 @@ Standard TensorFlow\* operations:
 | Floor | No |
 | FloorDiv | No |
 | FusedBatchNorm | No |
+| FusedBatchNormV2 | No |
+| FusedBatchNormV3 | No |
 | Gather | No |
 | GatherNd | No |
 | GatherV2 | No |
@@ -338,6 +341,7 @@ Standard ONNX\* operators:
 | Floor | No |
 | GRU | No |
 | Gather | No |
+| GatherElements | Doesn't work with negative indices |
 | GatherND | No |
 | GatherTree | No |
 | Gemm | No |

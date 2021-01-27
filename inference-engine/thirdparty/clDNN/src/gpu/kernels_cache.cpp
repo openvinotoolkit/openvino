@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (c) 2016-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -405,8 +405,11 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
             }
         }
 
-        if (!err_log.empty())
-            throw std::runtime_error("Program build failed:\n" + std::move(err_log));
+        if (!err_log.empty()) {
+            static const size_t max_msg_length = 128;
+            std::string short_err_log = err_log.length() > max_msg_length ? err_log.erase(max_msg_length) : err_log;
+            throw std::runtime_error("Program build failed:\n" + std::move(short_err_log));
+        }
 
         return kmap;
     } catch (const cl::Error& err) {

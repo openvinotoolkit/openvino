@@ -2,27 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_VERSION VERSION_GREATER 3.9.6)
-    include_guard(GLOBAL)
-else()
-    if(__CURRENT_FILE_VAR__)
-      return()
-    endif()
-    set(__CURRENT_FILE_VAR__ TRUE)
-endif()
+include_guard(GLOBAL)
 
-include(dependency_solver)
-
-set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma248x)
+set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma2x8x)
 set(VPU_SUPPORTED_FIRMWARES_HASH
-    "67f91ad33170ac6304772f8f7bbb9ea92bf41a86c080980644a12f66a5ef956c"
-    "bfb1b2e465e4b3c7d003a54f2d910c872a042c5b09e77a0fb12913fe253d53ae")
+    "39a35758b76463f633f377616057c7d2a24562c7c1cfc36744f28949619e57c9"
+    "798df21b5b3a8c4a6faab61f9220b2b216ba6c4a5acf75aaa17a8520bc639bfe")
 
 #
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1508)
+set(FIRMWARE_PACKAGE_VERSION 1579)
 set(VPU_CLC_MA2X8X_VERSION "movi-cltools-20.09.2")
 
 #
@@ -37,7 +28,7 @@ foreach(idx RANGE 0 ${num_firmwares})
 
     set(firmware_name_full ${firmware_name}.mvcmd)
     # Handle PCIe elf firmware for Windows
-    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma248x")
+    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma2x8x")
         set(firmware_name_full ${firmware_name}.elf)
     endif ()
 
@@ -76,7 +67,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
     set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/${firmware_name}.mvcmd")
 
     # Handle PCIe elf firmware for Windows
-    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma248x")
+    if (WIN32 AND "${firmware_name}" STREQUAL "pcie-ma2x8x")
         set(firmware_out_file "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}/${firmware_name}.elf")
     endif ()
 

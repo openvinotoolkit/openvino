@@ -54,24 +54,6 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     return specialized_function;
 }
 
-CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph,
-                       const std::vector<IExtensionPtr>& exts) {
-    OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetwork::CNNNetwork");
-
-    if (graph == nullptr) {
-        THROW_IE_EXCEPTION << "CNNNetwork was not initialized: 'graph' object is empty";
-    }
-
-    // Create CNNNetworkNGraphImpl
-    network = std::make_shared<CNNNetworkNGraphImpl>(graph, exts);
-    actual = network.get();
-    if (actual == nullptr) {
-        THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-    }
-}
-
-ICNNNetwork::~ICNNNetwork() {}
-
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName,
                                                DataPtr& ptr) {
     const auto isCompatible = [](size_t size, const Layout& l) -> bool {
@@ -156,16 +138,14 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
     }
 }
 
-CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     if (network.getFunction() == nullptr) {
         THROW_IE_EXCEPTION << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
     _ngraph_function = copyFunction(network.getFunction(), false);
-    InputsDataMap inputs;
-    OutputsDataMap outputs;
-    network.getInputsInfo(inputs);
-    network.getOutputsInfo(outputs);
+    InputsDataMap inputs = network.getInputsInfo();
+    OutputsDataMap outputs = network.getOutputsInfo();
 
     for (const auto& outputInfo : outputs) {
         const auto& name = outputInfo.second->getName();
@@ -225,6 +205,11 @@ StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t 
     try {
         for (const auto & layer : _ngraph_function->get_ops()) {
             if (layer->get_friendly_name() == layerName) {
+                // Check that we don't have a result for the output port
+                for (const auto& port : layer->output(outputIndex).get_target_inputs()) {
+                    if (dynamic_cast<ngraph::op::Result*>(port.get_node()))
+                        return OK;
+                }
                 auto result = make_shared<::ngraph::op::Result>(layer->output(outputIndex));
                 _ngraph_function->add_results({result});
 
@@ -278,8 +263,6 @@ std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool const
 }
 
 void CNNNetworkNGraphImpl::reshape() {
-    ResponseDesc desc;
-
     // Disable reshape for generic nodes
     ::ngraph::op::GenericIE::DisableReshape noReshape(_ngraph_function);
     reshape({});
@@ -340,7 +323,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
             ::ngraph::pass::Manager manager;
             // resolves dynamism by replacing dynamic operation with static version
-            manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>();
+            manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
             manager.register_pass<::ngraph::pass::ConstantFolding>();
             // OneHotToLegacy changes output precision
             manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(

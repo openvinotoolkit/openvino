@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ TEST(build_graph, tensor)
     auto float0 = make_shared<op::Constant>(element::f32, shape, float_t);
     ASSERT_EQ(float0->get_element_type(), element::f32);
     ASSERT_EQ(float0->get_shape(), shape);
-    auto d = make_shared<op::Add>(float0, float0);
+    auto d = make_shared<op::v1::Add>(float0, float0);
     ASSERT_EQ(d->input_values().at(0).get_node_shared_ptr(), float0);
     ASSERT_EQ(d->input_values().at(1).get_node_shared_ptr(), float0);
 
@@ -125,10 +125,10 @@ TEST(build_graph, no_arg_construction)
     auto arg1 = make_shared<op::Parameter>(element::f32, Shape{7});
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{7});
     auto arg3 = make_shared<op::Parameter>(element::f32, Shape{7});
-    auto add0 = make_shared<op::Add>();
+    auto add0 = make_shared<op::v1::Add>();
     auto abs0 = make_shared<op::Abs>();
     auto acos0 = make_shared<op::Acos>();
-    auto add1 = make_shared<op::Add>();
+    auto add1 = make_shared<op::v1::Add>();
     add0->set_argument(1, arg0);
     add0->set_argument(0, arg1);
     abs0->set_argument(0, add0);

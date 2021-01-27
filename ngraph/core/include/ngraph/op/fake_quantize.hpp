@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,12 +41,12 @@ namespace ngraph
             ///                 (levels-1) * (output_high - output_low) + output_low
             ///
             ///
-            class NGRAPH_API FakeQuantize : public ngraph::op::util::FusedOp
+            class NGRAPH_API FakeQuantize : public ngraph::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                FakeQuantize() = default;
+                FakeQuantize();
                 ///
                 /// \brief      Constructs a FakeQuantize operation node.
                 ///
@@ -69,7 +69,6 @@ namespace ngraph
                                  AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual OutputVector decompose_op() const override;
                 virtual void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
@@ -85,7 +84,7 @@ namespace ngraph
 
             private:
                 std::size_t m_levels;
-                AutoBroadcastSpec m_auto_broadcast;
+                AutoBroadcastSpec m_auto_broadcast = op::AutoBroadcastType::NUMPY;
             };
         }
         using v0::FakeQuantize;

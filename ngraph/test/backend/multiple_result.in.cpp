@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,8 +37,8 @@ NGRAPH_TEST(${BACKEND_NAME}, multiple_result)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
     auto C = make_shared<op::Parameter>(element::f32, shape);
-    auto A_add_B = make_shared<op::Add>(A, B);
-    auto A_add_B_mul_C = make_shared<op::Multiply>(A_add_B, C);
+    auto A_add_B = make_shared<op::v1::Add>(A, B);
+    auto A_add_B_mul_C = make_shared<op::v1::Multiply>(A_add_B, C);
 
     auto f = make_shared<Function>(NodeVector{A_add_B, A_add_B_mul_C}, ParameterVector{A, B, C});
 

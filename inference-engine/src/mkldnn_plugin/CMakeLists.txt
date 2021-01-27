@@ -1,13 +1,18 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME "MKLDNNPlugin")
 
+if(CMAKE_COMPILER_IS_GNUCC)
+    ie_add_compiler_flags(-Wno-all)
+endif()
+
 if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
 
+## TODO
 set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_batchnorm_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_bin_conv_node.cpp
@@ -30,13 +35,13 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reshape_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_rnn.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_align_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_pooling_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_softmax_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tensoriterator_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tile_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_mvn_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_resample_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_scatter_update_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_interpolate_node.cpp
@@ -58,6 +63,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/extract_image_patches.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/fill.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_elements.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_nd.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/gather_tree.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/grn.cpp
@@ -93,7 +99,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/emitter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/interp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_eltwise_emitters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_mkldnn_emitters.cpp
 
@@ -115,6 +120,7 @@ file(GLOB SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/rt_info/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.cpp
         ${LAYERS}
         ${OS_SPECIFIC_SRC}
@@ -126,6 +132,7 @@ file(GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/rt_info/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/*.h
@@ -138,25 +145,11 @@ include_directories(
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_BINARY_DIR}/include)
-
-include_directories(SYSTEM
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include)
+        ${CMAKE_BINARY_DIR}/include
+)
 
 if (GEMM STREQUAL "MKL")
     log_rpath_from_dir(MKL "${MKL}/lib")
-endif()
-
-if (THREADING STREQUAL "TBB")
-    set(MKLDNN_THR MKLDNN_THR_TBB)
-elseif (THREADING STREQUAL "TBB_AUTO")
-    set(MKLDNN_THR MKLDNN_THR_TBB_AUTO)
-elseif (THREADING STREQUAL "OMP")
-    set(MKLDNN_THR MKLDNN_THR_OMP)
-else()
-    set(MKLDNN_THR MKLDNN_THR_SEQ)
 endif()
 
 # create plugin
@@ -168,10 +161,11 @@ ie_add_plugin(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
-
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
-                                             inference_engine_transformations inference_engine_lp_transformations)
+                                             inference_engine_transformations inference_engine_lp_transformations openvino::conditional_compilation)
+
+target_include_directories(${TARGET_NAME} PRIVATE
+        $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -195,17 +189,22 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 #  add test object library
 
 add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
+target_link_libraries(${TARGET_NAME}_obj PUBLIC mkldnn)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+                                                      $<TARGET_PROPERTY:openvino::conditional_compilation,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+                                              PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}
+                                                      $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
-target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
-                                              PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+target_compile_definitions(${TARGET_NAME}_obj
+        PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+)
 
 set_target_properties(${TARGET_NAME}_obj PROPERTIES EXCLUDE_FROM_ALL ON)
 

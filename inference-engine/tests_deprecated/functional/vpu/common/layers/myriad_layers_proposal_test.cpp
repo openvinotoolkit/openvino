@@ -37,8 +37,6 @@ protected:
     void InferProposalLayer() {
         SetSeed(DEFAULT_SEED_VALUE + 13);
 
-        StatusCode st;
-
         REPLACE_WITH_STR(model, "__PRECISION__", precision.name());
 
         REPLACE_WITH_STR(model, "__CLIP_BEFORE_NMS__", clip_before_nms);
@@ -60,25 +58,18 @@ protected:
         _outputsInfo["proposal"]->setPrecision(precision);
         _outputsInfo["proposal"]->setLayout(NC);
 
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, {}));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+        
         Blob::Ptr rpn_cls_prob_reshape;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("rpn_cls_prob_reshape", rpn_cls_prob_reshape, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(rpn_cls_prob_reshape = _inferRequest.GetBlob("rpn_cls_prob_reshape"));
+        
         Blob::Ptr rpn_bbox_pred;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("rpn_bbox_pred", rpn_bbox_pred, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(rpn_bbox_pred = _inferRequest.GetBlob("rpn_bbox_pred"));
+        
         Blob::Ptr img_info;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("im_info", img_info, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(img_info = _inferRequest.GetBlob("im_info"));
+        
         // for rpn_cls_prob_reshape
         std::string inputTensor1Binary = TestDataHelpers::get_data_path() + cls_prob_file;
         ASSERT_TRUE(fromBinaryFile(inputTensor1Binary, rpn_cls_prob_reshape));
@@ -101,11 +92,8 @@ protected:
         }
 
 
-        ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(_inferRequest->GetBlob("proposal", outputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(_inferRequest.Infer());
+        ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob("proposal"));
     }
 
     void compareOutputSampleToRef(std::vector<float> & gt_values, const float error_threshold) {

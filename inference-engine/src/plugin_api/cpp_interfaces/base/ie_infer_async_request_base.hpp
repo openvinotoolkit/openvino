@@ -38,6 +38,11 @@ public:
         TO_STATUS(_impl->Infer());
     }
 
+    StatusCode Cancel(ResponseDesc* resp) noexcept override {
+        OV_ITT_SCOPED_TASK(itt::domains::Plugin, "Cancel");
+        NO_EXCEPT_CALL_RETURN_STATUS(_impl->Cancel());
+    }
+
     StatusCode GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& perfMap,
                                     ResponseDesc* resp) const noexcept override {
         TO_STATUS(_impl->GetPerformanceCounts(perfMap));
@@ -89,6 +94,7 @@ public:
         TO_STATUS(_impl->SetBatch(batch_size));
     }
 
+    IE_SUPPRESS_DEPRECATED_START
     StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
         try {
             auto v = _impl->QueryState();
@@ -103,6 +109,7 @@ public:
             return InferenceEngine::DescriptionBuffer(UNEXPECTED);
         }
     }
+    IE_SUPPRESS_DEPRECATED_END
 
 private:
     ~InferRequestBase() = default;

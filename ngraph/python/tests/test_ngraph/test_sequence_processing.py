@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,8 @@ import numpy as np
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_36478, skip_issue_38084
+from tests import (xfail_issue_47337,
+                   xfail_issue_44848)
 
 
 def test_onehot():
@@ -33,7 +34,7 @@ def test_onehot():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_36478
+@xfail_issue_47337
 def test_one_hot():
     data = np.array([0, 1, 2], dtype=np.int32)
     depth = 2
@@ -46,7 +47,7 @@ def test_one_hot():
     assert np.allclose(result, excepted)
 
 
-@skip_issue_38084
+@xfail_issue_44848
 def test_range():
     start = 5
     stop = 35
