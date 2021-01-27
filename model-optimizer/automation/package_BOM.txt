@@ -71,6 +71,7 @@ extensions/front/caffe/accum_ext.py
 extensions/front/caffe/argmax_ext.py
 extensions/front/caffe/ArgMaxFlatten.py
 extensions/front/caffe/axpy.py
+extensions/front/caffe/batchnorm_ext.py
 extensions/front/caffe/binarization.py
 extensions/front/caffe/binary_conv_ext.py
 extensions/front/caffe/bn.py
@@ -623,6 +624,7 @@ extensions/ops/axpy.py
 extensions/ops/BatchNormInference.py
 extensions/ops/binarization.py
 extensions/ops/BlockLSTM.py
+extensions/ops/BN.py
 extensions/ops/box_nms.py
 extensions/ops/bucketize.py
 extensions/ops/Cast.py
