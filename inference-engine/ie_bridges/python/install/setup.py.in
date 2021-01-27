@@ -174,11 +174,14 @@ def set_rpath(rpath, executable):
 
 def find_data_files(src_dirs, install_subdir):
     data_files = []
+    # excluding unneeded libs for wheel distribution
+    data_blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.so', '_debug.dylib']
     for dir in src_dirs:
         local_base_dir = Path(dir)
         for root, directories, filenames in os.walk(local_base_dir):
             for filename in filenames:
-                data_files.append([os.path.join(install_subdir, os.path.relpath(root, local_base_dir)), [os.path.join(root, filename)]])
+                if not any(filename.endswith(ext) for ext in data_blacklist):
+                    data_files.append([os.path.join(install_subdir, os.path.relpath(root, local_base_dir)), [os.path.join(root, filename)]])
 
     return list(data_files)
 
