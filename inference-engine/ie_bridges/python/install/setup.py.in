@@ -175,7 +175,7 @@ def set_rpath(rpath, executable):
 def find_data_files(src_dirs, install_subdir):
     data_files = []
     # excluding unneeded libs for wheel distribution
-    data_blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.so', '_debug.dylib']
+    data_blacklist = ['.lib', '.pdb', '_debug.dll']
     for dir in src_dirs:
         local_base_dir = Path(dir)
         for root, directories, filenames in os.walk(local_base_dir):
