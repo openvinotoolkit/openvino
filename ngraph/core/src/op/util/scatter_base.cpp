@@ -81,13 +81,19 @@ void op::util::ScatterBase::validate_and_infer_types()
                                       data_shape.rank().get_length() - 1,
                           "Updates rank is expected to be indices rank + data rank - 1.");
 
-    bool is_axis_constant = has_and_set_equal_bounds(input_value(AXIS));
+    if (data_shape.is_dynamic())
+    {
+        set_input_is_relevant_to_shape(0);
+    }
+    set_output_type(0, data_et, data_shape);
+
+    if (data_shape.rank().is_dynamic())
+        return;
 
     // Get axis value if possible.
-    if (is_axis_constant && data_shape.rank().is_static())
+    if (const auto axis_const_input = get_constant_from_source(input_value(AXIS)))
     {
         bool compatible = true;
-        const auto axis_const_input = get_constant_from_source(input_value(AXIS));
         int64_t axis = axis_const_input->cast_vector<int64_t>().at(0);
         axis = normalize_axis(this, axis, data_shape.rank().get_length());
 
@@ -124,12 +130,6 @@ void op::util::ScatterBase::validate_and_infer_types()
                               axis,
                               ".");
     }
-
-    if (data_shape.is_dynamic())
-    {
-        set_input_is_relevant_to_shape(0);
-    }
-    set_output_type(0, data_et, data_shape);
 }
 
 bool op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor)

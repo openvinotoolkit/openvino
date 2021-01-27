@@ -34,7 +34,7 @@ ngraph::pass::ConvertPowerToPowerIEMatcher::ConvertPowerToPowerIEMatcher() {
             }
 
             //check broadcast influence
-            if (power->input(0).get_partial_shape().is_dynamic() || ngraph::op::util::check_for_broadcast(power->input(0).get_shape(), node->get_shape())) {
+            if (ngraph::op::util::check_for_broadcast(power->input(0).get_shape(), node->get_shape())) {
                 return false;
             }
 

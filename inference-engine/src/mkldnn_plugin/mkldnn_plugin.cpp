@@ -104,7 +104,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::ConvertPriorBox>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();

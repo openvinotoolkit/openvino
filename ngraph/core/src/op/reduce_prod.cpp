@@ -91,10 +91,10 @@ bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs,
 
 bool op::v1::ReduceProd::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (!has_and_set_equal_bounds(input_value(1)))
+    if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
-    HostTensorPtr lb, ub;
-    std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(0));
+    HostTensorPtr lb = input_value(0).get_tensor().get_lower_value(),
+                  ub = input_value(0).get_tensor().get_upper_value();
     if (!lb || !ub || !host_tensor_is_positive(lb) || !host_tensor_is_positive(ub))
         return false;
     return default_lower_bound_evaluator(this, output_values);
@@ -102,10 +102,10 @@ bool op::v1::ReduceProd::evaluate_lower(const HostTensorVector& output_values) c
 
 bool op::v1::ReduceProd::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (!has_and_set_equal_bounds(input_value(1)))
+    if (!input_value(1).get_tensor().has_and_set_bound())
         return false;
-    HostTensorPtr lb, ub;
-    std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(0));
+    HostTensorPtr lb = input_value(0).get_tensor().get_lower_value(),
+                  ub = input_value(0).get_tensor().get_upper_value();
     if (!lb || !ub || !host_tensor_is_positive(lb) || !host_tensor_is_positive(ub))
         return false;
     return default_upper_bound_evaluator(this, output_values);

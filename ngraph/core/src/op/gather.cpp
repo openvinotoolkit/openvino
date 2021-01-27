@@ -321,16 +321,16 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
 
 bool op::v1::Gather::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (!has_and_set_equal_bounds(input_value(INDICES)) ||
-        !has_and_set_equal_bounds(input_value(AXIS)))
+    if (!input_value(INDICES).get_tensor().has_and_set_bound() ||
+        !input_value(AXIS).get_tensor().has_and_set_bound())
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Gather::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (!has_and_set_equal_bounds(get_input_node_shared_ptr(INDICES)) ||
-        !has_and_set_equal_bounds(get_input_node_shared_ptr(AXIS)))
+    if (!input_value(INDICES).get_tensor().has_and_set_bound() ||
+        !input_value(AXIS).get_tensor().has_and_set_bound())
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

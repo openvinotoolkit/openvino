@@ -340,7 +340,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     const auto& results = _ngraph_function->get_results();
     bool outputs_are_static = all_of(
             begin(results), end(results),
-            [](const ngraph::Output<ngraph::Node>& out){ return out.get_partial_shape().is_static(); });
+            [](const std::shared_ptr<ngraph::Node>& n){ return n->get_output_partial_shape(0).is_static(); });
 
     {
         shared_ptr<Function> specialized_ngraph_function = nullptr;

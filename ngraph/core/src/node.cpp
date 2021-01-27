@@ -961,7 +961,7 @@ bool Node::evaluate_lower(const HostTensorVector& output_values) const
 {
     const auto& inputs = input_values();
     bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
-        return !has_and_set_equal_bounds(output);
+        return output.get_tensor().has_and_set_bound();
     });
     if (dyn_inputs)
         return false;
@@ -972,11 +972,11 @@ bool Node::evaluate_upper(const HostTensorVector& output_values) const
 {
     const auto& inputs = input_values();
     bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
-        return !has_and_set_equal_bounds(output);
+        return output.get_tensor().has_and_set_bound();
     });
     if (dyn_inputs)
         return false;
-    return default_lower_bound_evaluator(this, output_values);
+    return default_upper_bound_evaluator(this, output_values);
 }
 
 bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_values)

@@ -160,8 +160,7 @@ void op::v1::Pad::validate_and_infer_types()
     const auto& pads_begin_coord = get_pads_begin();
     const auto& pads_end_coord = get_pads_end();
 
-    if (arg_shape_rank.is_static() && has_and_set_equal_bounds(input_value(1)) &&
-        has_and_set_equal_bounds(input_value(2)))
+    if (arg_shape_rank.is_static() && !pads_begin_coord.empty() && !pads_end_coord.empty())
     {
         const auto implied_rank = pads_begin_coord.size();
         std::vector<Dimension> result_dims(implied_rank, Dimension::dynamic());

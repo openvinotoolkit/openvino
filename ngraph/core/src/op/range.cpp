@@ -303,11 +303,12 @@ namespace rangeop
 
     bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper)
     {
-        if (!has_and_set_equal_bounds(node->input_value(0)) ||
-            !has_and_set_equal_bounds(node->input_value(1)) ||
-            !has_and_set_equal_bounds(node->input_value(2)))
+        if (!node->input_value(0).get_tensor().has_and_set_bound() ||
+            !node->input_value(1).get_tensor().has_and_set_bound() ||
+            !node->input_value(2).get_tensor().has_and_set_bound())
             return false;
-        return default_bound_evaluator(node, output_values, is_upper);
+        return is_upper ? default_upper_bound_evaluator(node, output_values)
+                        : default_lower_bound_evaluator(node, output_values);
     }
 }
 

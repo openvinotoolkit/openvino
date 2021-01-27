@@ -71,10 +71,21 @@ void op::util::LogicalReduction::validate_and_infer_types()
 
     PartialShape result_shape{PartialShape::dynamic()};
 
-    if (input_rank.is_static() && reduction_axes_constant())
+    set_input_is_relevant_to_shape(1);
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).compatible(element::boolean),
+                          "Input element type must be boolean.");
+
+    set_output_type(0, element::boolean, result_shape);
+
+    if (input_rank.is_dynamic())
+        return;
+
+    if (const auto axes_const = get_constant_from_source(input_value(1)))
     {
         AxisSet reduction_axes;
-        auto reduction_axes_val = get_constant_from_source(input_value(1))->cast_vector<int64_t>();
+        auto reduction_axes_val = axes_const->cast_vector<int64_t>();
         for (auto axis : reduction_axes_val)
         {
             try
@@ -108,12 +119,6 @@ void op::util::LogicalReduction::validate_and_infer_types()
 
         result_shape = PartialShape(dims);
     }
-
-    set_input_is_relevant_to_shape(1);
-
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).compatible(element::boolean),
-                          "Input element type must be boolean.");
 
     set_output_type(0, element::boolean, result_shape);
 }

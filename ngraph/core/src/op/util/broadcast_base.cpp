@@ -571,16 +571,16 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
 
 bool op::util::BroadcastBase::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (!has_and_set_equal_bounds(input_value(1)) ||
-        (get_input_size() > 2 && !has_and_set_equal_bounds(input_value(2))))
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::util::BroadcastBase::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (!has_and_set_equal_bounds(input_value(1)) ||
-        (get_input_size() > 2 && !has_and_set_equal_bounds(input_value(2))))
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

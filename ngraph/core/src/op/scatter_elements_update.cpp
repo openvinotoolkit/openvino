@@ -95,9 +95,16 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types()
                           " and: ",
                           updates_shape);
 
-    if (has_and_set_equal_bounds(input_value(3)) && data_shape.rank().is_static())
+    set_output_size(1);
+    set_output_type(0, data_et, data_shape);
+
+    if (data_shape.is_dynamic())
+        set_input_is_relevant_to_shape(0);
+    if (data_shape.rank().is_dynamic())
+        return;
+
+    if (const auto axis_input = get_constant_from_source(input_value(3)))
     {
-        const auto axis_input = get_constant_from_source(input_value(3));
         auto axis = axis_input->cast_vector<int64_t>().at(0);
 
         int64_t data_rank_length = data_shape.rank().get_length();
@@ -114,14 +121,6 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types()
             "]. Got axis value: ",
             axis);
     }
-
-    if (data_shape.is_dynamic())
-    {
-        set_input_is_relevant_to_shape(0);
-    }
-
-    set_output_size(1);
-    set_output_type(0, data_et, data_shape);
 }
 
 shared_ptr<Node>

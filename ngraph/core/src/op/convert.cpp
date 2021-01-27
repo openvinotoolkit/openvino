@@ -123,7 +123,8 @@ namespace convert
     bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper)
     {
         const auto& input = node->input_value(0);
-        if (is_upper ? evaluate_upper_bound(input) : evaluate_lower_bound(input))
+        if (const auto& value = is_upper ? input.get_tensor().get_upper_value()
+                                         : input.get_tensor().get_lower_value())
         {
             // constants for dynamic values translation
             auto input_maximum_value = get_constant_max_of_type(input.get_element_type());
@@ -132,20 +133,23 @@ namespace convert
             if (input_maximum_value == nullptr || output_maximum_value == nullptr)
                 return false;
 
-            const auto& value = is_upper ? input.get_tensor().get_upper_value()
-                                         : input.get_tensor().get_lower_value();
-            node->evaluate(output_values, {value});
+            bool status = node->evaluate(output_values, {value});
+
+            if (!status)
+                return status;
 
             // dynamic values translation
             auto input_dynamic_mask =
                 std::make_shared<HostTensor>(element::boolean, input.get_shape());
-            op::v1::Equal().evaluate({input_dynamic_mask},
-                                     {value, std::make_shared<HostTensor>(input_maximum_value)});
-            op::v1::Select().evaluate(output_values,
-                                      {input_dynamic_mask,
-                                       std::make_shared<HostTensor>(output_maximum_value),
-                                       output_values[0]});
-            return true;
+            status = op::v1::Equal().evaluate(
+                {input_dynamic_mask}, {value, std::make_shared<HostTensor>(input_maximum_value)});
+            if (!status)
+                return status;
+            status = op::v1::Select().evaluate(output_values,
+                                               {input_dynamic_mask,
+                                                std::make_shared<HostTensor>(output_maximum_value),
+                                                output_values[0]});
+            return status;
         }
         else
             return false;

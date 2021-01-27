@@ -63,9 +63,9 @@ void op::v1::Split::validate_and_infer_types()
         this, axis_et.is_integral(), "The 'axis' input only accepts integral types");
 
     PartialShape each_output_shape{data_ps};
-    if (has_and_set_equal_bounds(input_value(1)) && data_ps.rank().is_static())
+    const auto axis_input = get_constant_from_source(input_value(1));
+    if (axis_input && data_ps.rank().is_static())
     {
-        const auto axis_input = get_constant_from_source(input_value(1));
         auto axis = axis_input->cast_vector<int64_t>()[0];
 
         const auto data_rank = get_input_partial_shape(0).rank();

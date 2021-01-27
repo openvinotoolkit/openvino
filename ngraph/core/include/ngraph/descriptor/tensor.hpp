@@ -54,8 +54,12 @@ namespace ngraph
             void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
             void set_element_type(const element::Type& elemenet_type);
             void set_partial_shape(const PartialShape& partial_shape);
+
+            /// \brief sets lower bound value description
             void set_lower_value(const HostTensorPtr& value);
+            /// \brief sets upper bound value description
             void set_upper_value(const HostTensorPtr& value);
+            /// \brief unsets bound value descriptions
             void invalidate_values();
 
             const element::Type& get_element_type() const { return m_element_type; }

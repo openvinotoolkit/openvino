@@ -90,7 +90,7 @@ void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
 }
 
 bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(
-    std::shared_ptr<ngraph::Function> f)
+    const std::shared_ptr<ngraph::Function>& f)
 {
     deque<shared_ptr<Node>> nodes;
     set<shared_ptr<Node>> visited;
@@ -110,14 +110,11 @@ bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(
 
         for (auto& input_value : curr_node->input_values())
         {
-            const auto lb = input_value.get_tensor().get_lower_value(),
-                       ub = input_value.get_tensor().get_upper_value();
-
-            if (lb != nullptr && lb == ub)
+            if (input_value.get_tensor().has_and_set_bound())
             {
-                // folding!!!
                 auto input_node = input_value.get_node_shared_ptr();
-                auto replacement = std::make_shared<op::Constant>(lb);
+                auto replacement =
+                    std::make_shared<op::Constant>(input_value.get_tensor().get_lower_value());
                 if (replacement && !is_type<op::Constant>(input_node))
                 {
                     if (input_node->get_output_size() == 1)

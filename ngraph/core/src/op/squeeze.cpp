@@ -186,14 +186,14 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
 
 bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (inputs().size() > 1 && !has_and_set_equal_bounds(input_value(1)))
+    if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (inputs().size() > 1 && !has_and_set_equal_bounds(input_value(1)))
+    if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

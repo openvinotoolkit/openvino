@@ -299,16 +299,18 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
 
 bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const
 {
-    if (!get_constant_from_source(input_value(1)) || !get_constant_from_source(input_value(2)) ||
-        !get_constant_from_source(input_value(3)))
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        !input_value(2).get_tensor().has_and_set_bound() ||
+        !input_value(3).get_tensor().has_and_set_bound())
         return false;
     return default_lower_bound_evaluator(this, output_values);
 }
 
 bool op::v1::StridedSlice::evaluate_upper(const HostTensorVector& output_values) const
 {
-    if (!get_constant_from_source(input_value(1)) || !get_constant_from_source(input_value(2)) ||
-        !get_constant_from_source(input_value(3)))
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        !input_value(2).get_tensor().has_and_set_bound() ||
+        !input_value(3).get_tensor().has_and_set_bound())
         return false;
     return default_upper_bound_evaluator(this, output_values);
 }

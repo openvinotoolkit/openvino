@@ -654,7 +654,7 @@ bool op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const
 }
 bool op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const
 {
-    return evaluate_lower(outputs);
+    return evaluate(outputs, {});
 }
 
 //
