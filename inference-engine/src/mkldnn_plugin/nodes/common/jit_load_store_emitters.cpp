@@ -5,13 +5,14 @@
 #include "emitter.h"
 #include "jit_load_store_emitters.h"
 #include "legacy/ie_layers.h"
-#include "jit_generator.hpp"
+#include <cpu/x64/jit_generator.hpp>
 #include "utils/bfloat16.hpp"
 
 using namespace InferenceEngine;
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::utils;
 using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
@@ -40,21 +41,21 @@ void jit_load_emitter::emit_impl(const std::vector<int> &in_idxs, const std::vec
         THROW_IE_EXCEPTION << "Load emitter in " << n->getName() << " does not get load emmiter context.";
     }
 
-    if (host_isa_ == cpu::sse42) {
-        emit_isa<cpu::sse42>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, out_idxs[0],
+    if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, out_idxs[0],
             load_emitter_context->dst_prc_, load_emitter_context->load_num_, load_emitter_context->is_fill_, load_emitter_context->fill_value_);
-    } else if (host_isa_ == cpu::avx2) {
-        emit_isa<cpu::avx2>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, out_idxs[0],
+    } else if (host_isa_ == cpu::x64::avx2) {
+        emit_isa<cpu::x64::avx2>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, out_idxs[0],
             load_emitter_context->dst_prc_, load_emitter_context->load_num_, load_emitter_context->is_fill_, load_emitter_context->fill_value_);
-    } else if (host_isa_ == cpu::avx512_common) {
-        emit_isa<cpu::avx512_common>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, out_idxs[0],
+    } else if (host_isa_ == cpu::x64::avx512_common) {
+        emit_isa<cpu::x64::avx512_common>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, out_idxs[0],
             load_emitter_context->dst_prc_, load_emitter_context->load_num_, load_emitter_context->is_fill_, load_emitter_context->fill_value_);
     } else {
-        THROW_IE_EXCEPTION << "Load emitter in " << n->getName() << " is performed on unsupported isa(at least sse42).";
+        THROW_IE_EXCEPTION << "Load emitter in " << n->getName() << " is performed on unsupported isa(at least x64::sse41).";
     }
 }
 
-template <mkldnn::impl::cpu::cpu_isa_t isa>
+template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
 void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, int offset_byte, InferenceEngine::Precision src_prc,
     const int out_vec_idx, InferenceEngine::Precision dst_prc, int load_num, bool is_fill, std::string fill_value) const {
     bool matched_prc = (dst_prc == src_prc) || (dst_prc == Precision::FP32) || (dst_prc == Precision::I32);
@@ -65,7 +66,7 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, int offset_byte, In
         THROW_IE_EXCEPTION << "Load emitter in " << n->getName() << " have unexpected number of elements to load.";
     }
 
-    using Vmm = typename conditional3<isa == cpu::sse42, Xmm, isa == cpu::avx2, Ymm, Zmm>::type;
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
 
     // pure load
     if (src_prc == dst_prc) {
@@ -155,7 +156,7 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
         return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
     };
 
-    if (is_zmm && (load_size != 64) && mayiuse(cpu::avx512_core)) {
+    if (is_zmm && (load_size != 64) && mayiuse(cpu::x64::avx512_core)) {
         uint64_t mask = 1;
         mask = (mask << load_size) - mask;
         h->mov(Reg64(aux_gpr_idxs[0]), mask);
@@ -492,7 +493,7 @@ jit_store_emitter::jit_store_emitter(jit_generator *host, cpu_isa_t host_isa, co
     Precision exec_prc, emitter_in_out_map in_out_type)
 : jit_emitter(host, host_isa, node, exec_prc, in_out_type) {
     v_len_elt = get_vec_length() / exec_prc.size();
-    if (!mayiuse(cpu::avx512_core_bf16) && mayiuse(cpu::avx512_core)) {
+    if (!mayiuse(cpu::x64::avx512_core_bf16) && mayiuse(cpu::x64::avx512_core)) {
         emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(host, host_isa, nullptr));
     }
 }
@@ -516,21 +517,21 @@ void jit_store_emitter::emit_impl(const std::vector<int> &in_idxs, const std::ve
     if (store_emitter_context == nullptr) {
         THROW_IE_EXCEPTION << "Store emitter in " << n->getName() << " does not get store emmiter context.";
     }
-    if (host_isa_ == cpu::sse42) {
-        emit_isa<cpu::sse42>(in_idxs[0], store_emitter_context->src_prc_, Reg64(out_idxs[0]),
+    if (host_isa_ == cpu::x64::sse41) {
+        emit_isa<cpu::x64::sse41>(in_idxs[0], store_emitter_context->src_prc_, Reg64(out_idxs[0]),
             store_emitter_context->offset_byte_, store_emitter_context->dst_prc_, store_emitter_context->store_num_);
-    } else if (host_isa_ == cpu::avx2) {
-        emit_isa<cpu::avx2>(in_idxs[0], store_emitter_context->src_prc_, Reg64(out_idxs[0]),
+    } else if (host_isa_ == cpu::x64::avx2) {
+        emit_isa<cpu::x64::avx2>(in_idxs[0], store_emitter_context->src_prc_, Reg64(out_idxs[0]),
             store_emitter_context->offset_byte_, store_emitter_context->dst_prc_, store_emitter_context->store_num_);
-    } else if (host_isa_ == cpu::avx512_common) {
-        emit_isa<cpu::avx512_common>(in_idxs[0], store_emitter_context->src_prc_, Reg64(out_idxs[0]),
+    } else if (host_isa_ == cpu::x64::avx512_common) {
+        emit_isa<cpu::x64::avx512_common>(in_idxs[0], store_emitter_context->src_prc_, Reg64(out_idxs[0]),
             store_emitter_context->offset_byte_, store_emitter_context->dst_prc_, store_emitter_context->store_num_);
     } else {
-        THROW_IE_EXCEPTION << "Store emitter in " << n->getName() << " is performed on unsupported isa(at least sse42).";
+        THROW_IE_EXCEPTION << "Store emitter in " << n->getName() << " is performed on unsupported isa(at least x64::sse41).";
     }
 }
 
-template <mkldnn::impl::cpu::cpu_isa_t isa>
+template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
     void jit_store_emitter::emit_isa(const int in_vec_idx, InferenceEngine::Precision src_prc,
         const Xbyak::Reg64 &reg_dst, int offset_byte, InferenceEngine::Precision dst_prc, int store_num) const {
         bool matched_prc = (src_prc == dst_prc) || (src_prc == Precision::FP32) || (src_prc == Precision::I32);
@@ -538,13 +539,13 @@ template <mkldnn::impl::cpu::cpu_isa_t isa>
             THROW_IE_EXCEPTION << "Store emitter in " << n->getName() << " only support input precision of FP32 or I32 or the same precision as output.";
         }
         if ((src_prc == Precision::FP32) || (src_prc == Precision::I32)) {
-            if ((isa == cpu::sse42 && store_num > 4) || (isa == cpu::avx2 && store_num > 8) ||
-                (isa == cpu::avx512_common && store_num > 16) || store_num < 0) {
+            if ((isa == cpu::x64::sse41 && store_num > 4) || (isa == cpu::x64::avx2 && store_num > 8) ||
+                (isa == cpu::x64::avx512_common && store_num > 16) || store_num < 0) {
                 THROW_IE_EXCEPTION << "Store emitter in " << n->getName() << " has unexpected number of values to store.";
             }
         }
 
-        using Vmm = typename conditional3<isa == cpu::sse42, Xmm, isa == cpu::avx2, Ymm, Zmm>::type;
+        using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
 
         if (src_prc != dst_prc) {
             switch (src_prc) {
@@ -631,7 +632,7 @@ template <typename Vmm>
             return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
         };
 
-        if (is_zmm && (store_size != 64) && mayiuse(cpu::avx512_core)) {
+        if (is_zmm && (store_size != 64) && mayiuse(cpu::x64::avx512_core)) {
             uint64_t mask = 1;
             mask = (mask << store_size) - mask;
             h->mov(Reg64(aux_gpr_idxs[0]), mask);
@@ -825,7 +826,7 @@ template <typename Vmm>
         auto zmm = Xbyak::Zmm(vmm.getIdx());
 
         if (is_bf16) {
-            if (mayiuse(cpu::avx512_core_bf16)) {
+            if (mayiuse(cpu::x64::avx512_core_bf16)) {
                 h->vcvtneps2bf16(ymm, zmm);
             } else {
                 emu_vcvtneps2bf16->emit({vmm.getIdx()}, {ymm.getIdx()});

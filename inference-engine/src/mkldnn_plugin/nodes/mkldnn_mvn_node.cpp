@@ -1178,25 +1178,20 @@ void MKLDNNMVNNode::createPrimitive() {
 }
 
 void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
-    int blob_idx = 0;
     mkldnn::post_ops ops;
-
     for (auto &node : fusedWith) {
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
         if (quantizeNode) {
             quantizeNode->appendPostOps(ops);
             continue;
         }
-
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
             eltwiseNode->appendPostOps(ops);
             continue;
         }
-
         THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
-
     attr.set_post_ops(ops);
 }
 
@@ -1204,10 +1199,8 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
-    uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetData()) +
-            dstMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding * dst_data_size;
-    uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetData()) +
-            srcMemPtr->GetDescriptor().data.layout_desc.blocking.offset_padding * src_data_size;
+    uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
+    uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
 
     (this->*mvn_executor)(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
 }

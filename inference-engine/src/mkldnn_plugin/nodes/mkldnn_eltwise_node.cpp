@@ -655,7 +655,7 @@ private:
                     vpmovsdw(op, vmm_dst);
                 } else {
                     uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::sse42) {
+                    if (isa != x64::sse41) {
                         vpermq(ymm_dst, ymm_dst, 0x08);
                         uni_vmovdqu(op, xmm_dst);
                     } else {
@@ -669,7 +669,7 @@ private:
                     vpmovusdw(op, vmm_dst);
                 } else {
                     uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
-                    if (isa != cpu::sse42) {
+                    if (isa != x64::sse41) {
                         vpermq(ymm_dst, ymm_dst, 0x08);
                         uni_vmovdqu(op, xmm_dst);
                     } else {
