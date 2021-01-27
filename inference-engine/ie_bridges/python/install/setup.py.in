@@ -127,7 +127,7 @@ class PrepareLibs(build_clib):
                 lib_pattern = "*.so"
             elif sys.platform == "darwin":
                 rpath = "@loader_path"
-                lib_pattern = "*.so"
+                lib_pattern = "*.dylib"
             for lib in RELOCATABLE_LIBS:
                 for path in Path(lib).glob(lib_pattern):
                     set_rpath(rpath, path)
