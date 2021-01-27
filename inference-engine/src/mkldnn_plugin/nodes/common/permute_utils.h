@@ -4,11 +4,9 @@
 
 #pragma once
 
+#include <ie_common.h>
+#include <mkldnn_node.h>
 #include <memory>
-#include <cmath>
-#include <mkldnn_extension_utils.h>
-#include <ie_precision.hpp>
-#include "ie_parallel.hpp"
 
 namespace MKLDNNPlugin {
 
@@ -31,23 +29,23 @@ struct jit_args_permute {
 struct jit_uni_permute_kernel {
     void (*ker_)(const jit_args_permute *);
 
-    void operator()(const jit_args_permute *args) { assert(ker_); ker_(args); }
-
-    jit_permute_config_params jcp;
+    void operator()(const jit_args_permute *args) {
+        assert(ker_);
+        ker_(args);
+    }
 
     explicit jit_uni_permute_kernel(jit_permute_config_params jcp_) : ker_(nullptr), jcp(jcp_) {}
     virtual ~jit_uni_permute_kernel() {}
+
+    virtual void create_ker() = 0;
+
+    jit_permute_config_params jcp;
 };
 
 class PermuteUtils {
 protected:
     void prepareConfigParams();
     void optimizedExecute(const uint8_t* src_data, uint8_t* dst_data);
-
-    inline uint8_t* getDataPtr(const MKLDNNPlugin::MKLDNNMemory& memoryPtr) const {
-        return reinterpret_cast<uint8_t*>(memoryPtr.GetData()) + memoryPtr.GetDescriptor().data.layout_desc.blocking.offset_padding *
-               MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(memoryPtr.GetDescriptor().data.data_type));
-    }
 
     InferenceEngine::SizeVector order;
     std::shared_ptr<jit_uni_permute_kernel> permute_kernel;

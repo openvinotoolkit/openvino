@@ -2,37 +2,46 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "permute_utils.h"
+
 #include <vector>
+#include <mkldnn_types.h>
 #include <ie_parallel.hpp>
 #include <mkldnn_extension_utils.h>
-#include "jit_generator.hpp"
-#include "jit_uni_eltwise.hpp"
 #include "utils/bfloat16.hpp"
-#include "permute_utils.h"
+
+#include "cpu/x64/jit_generator.hpp"
 
 using namespace InferenceEngine;
 using namespace MKLDNNPlugin;
 using namespace mkldnn;
-using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
+using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_args_permute, field)
 
-template <cpu::cpu_isa_t isa>
+template <cpu_isa_t isa>
 struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_permute_kernel_f32)
 
-    explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_) : jit_uni_permute_kernel(jcp_), jit_generator() {
+    explicit jit_uni_permute_kernel_f32(jit_permute_config_params jcp_) : jit_uni_permute_kernel(jcp_), jit_generator() {}
+
+    void create_ker() override {
+        jit_generator::create_kernel();
+        ker_ = (decltype(ker_))jit_ker();
+    }
+
+    void generate() override {
         this->preamble();
 
         mov(reg_src, ptr[reg_params + GET_OFF(src)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
 
-        loop(jcp_.n);
+        loop(jcp.n);
 
         this->postamble();
-
-        ker_ = (decltype(ker_))this->getCode();
     }
 
     void load(const Xbyak::Xmm &xmm, const Xbyak::Address &addr) {
@@ -113,7 +122,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
     }
 
 private:
-    using Vmm = typename conditional3<isa == cpu::sse42, Xbyak::Xmm, isa == cpu::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     uint32_t vlen = cpu_isa_traits<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -218,7 +227,7 @@ void PermuteUtils::prepareConfigParams() {
         }
     }
 
-    int max_threads = mkldnn_get_max_threads();
+    int max_threads = dnnl_get_max_threads();
     const int n_max = 3;    //  max count dims for parallel
     int n = 0;
     int work_amount = sorted_dst_dims[0];
@@ -237,13 +246,16 @@ void PermuteUtils::prepareConfigParams() {
     jcp.ndims = sorted_order.size();
     jcp.data_size = optimizedParams.data_size;
 
-    if (mayiuse(cpu::avx512_common)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::avx512_common>(jcp));
-    } else if (mayiuse(cpu::avx2)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::avx2>(jcp));
-    } else if (mayiuse(cpu::sse42)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::sse42>(jcp));
+    if (mayiuse(cpu::x64::avx512_common)) {
+        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_common>(jcp));
+    } else if (mayiuse(cpu::x64::avx2)) {
+        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx2>(jcp));
+    } else if (mayiuse(cpu::x64::sse41)) {
+        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse41>(jcp));
     }
+
+    if (permute_kernel)
+        permute_kernel->create_ker();
 }
 
 void PermuteUtils::optimizedExecute(const uint8_t* src_data, uint8_t* dst_data) {

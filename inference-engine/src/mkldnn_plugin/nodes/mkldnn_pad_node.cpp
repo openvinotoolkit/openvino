@@ -130,11 +130,11 @@ void MKLDNNPadNode::createPrimitive() {
 
     params.sizeData = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision().size();
 
-    params.srcDims = getParentEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getBlockDims();
-    params.dstDims = getChildEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getBlockDims();
+    params.srcDims = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
+    params.dstDims = getChildEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
 
-    params.srcStrides = getParentEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getStrides();
-    params.dstStrides = getChildEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getStrides();
+    params.srcStrides = getParentEdgeAt(0)->getDesc().getBlockingDesc().getStrides();
+    params.dstStrides = getChildEdgeAt(0)->getDesc().getBlockingDesc().getStrides();
 
     if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
         padsBegin[1] /= params.srcDims[params.srcDims.size() - 1];
@@ -142,7 +142,7 @@ void MKLDNNPadNode::createPrimitive() {
         padsBegin.push_back(0);
         padsEnd.push_back(0);
     } else {
-        auto order = getParentEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getOrder();
+        auto order = getParentEdgeAt(0)->getDesc().getBlockingDesc().getOrder();
         std::vector<unsigned int> newPadsBegin(padsBegin.size(), 0), newPadsEnd(padsEnd.size(), 0);
         for (size_t i = 0; i < padsBegin.size(); ++i) {
             newPadsBegin[i] = padsBegin[order[i]];

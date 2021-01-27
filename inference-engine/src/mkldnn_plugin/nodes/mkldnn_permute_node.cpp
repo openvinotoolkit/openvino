@@ -122,72 +122,19 @@ void MKLDNNPermuteNode::createPrimitive() {
     Precision precision = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getPrecision();
     optimizedParams.data_size = precision.size();
 
-    auto srcDesc = getParentEdgeAt(0)->getBlob()->getTensorDesc();
+    auto srcDesc = getParentEdgeAt(0)->getDesc();
     optimizedParams.src_dims = srcDesc.getDims();
     optimizedParams.src_block_dims = srcDesc.getBlockingDesc().getBlockDims();
     optimizedParams.src_block_order = srcDesc.getBlockingDesc().getOrder();
     optimizedParams.src_block_strides = srcDesc.getBlockingDesc().getStrides();
 
-    auto dstDesc = getChildEdgeAt(0)->getBlob()->getTensorDesc();
+    auto dstDesc = getChildEdgeAt(0)->getDesc();
     optimizedParams.dst_dims = dstDesc.getDims();
     optimizedParams.dst_block_dims = dstDesc.getBlockingDesc().getBlockDims();
     optimizedParams.dst_block_order = dstDesc.getBlockingDesc().getOrder();
     optimizedParams.dst_block_strides = dstDesc.getBlockingDesc().getStrides();
 
-<<<<<<< HEAD
-    int n2 = 0;
-    for (int i = 0; i < mask.size(); i++) {
-        if (mask[i] == 0) {
-            n2++;
-            if (batch_count == 1 && new_dst_block_order[i] == batch_ord) {
-                continue;
-            }
-            sorted_src_strides.push_back(new_src_block_strides[i]);
-            sorted_dst_strides.push_back(new_dst_block_strides[i]);
-            sorted_order.push_back(new_dst_block_order[i]);
-            sorted_dst_dims.push_back(new_dst_block_dims[i]);
-        }
-    }
-    for (int i = 0; i < mask.size(); i++) {
-        if (mask[i] == 1) {
-            sorted_src_strides.push_back(new_src_block_strides[i]);
-            sorted_dst_strides.push_back(new_dst_block_strides[i]);
-            sorted_order.push_back(new_dst_block_order[i]);
-            sorted_dst_dims.push_back(new_dst_block_dims[i]);
-        }
-    }
-
-    int max_threads = dnnl_get_max_threads();
-    const int n_max = 3;    //  max count dims for parallel
-    int n = 0;
-    int work_amount = sorted_dst_dims[0];
-    for (int i = 1; i < sorted_dst_dims.size() && n < n_max; i++) {
-        n++;
-        if (work_amount >= 4 * max_threads) {   //  4 * max_threads is a specially selected value for best performance
-            break;
-        }
-        work_amount *= sorted_dst_dims[i];
-    }
-
-    jpp.src_strides = sorted_src_strides;
-    jpp.dst_strides = sorted_dst_strides;
-    jpp.dst_block_dims = sorted_dst_dims;
-    jpp.n = std::min(n, n2);
-    jpp.ndims = sorted_order.size();
-    jpp.data_size = MKLDNNExtensionUtils::sizeOfDataType(data_type);
-
-    if (mayiuse(cpu::x64::avx512_common)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx512_common>(jpp));
-    } else if (mayiuse(cpu::x64::avx2)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::avx2>(jpp));
-    } else if (mayiuse(cpu::x64::sse41)) {
-        permute_kernel.reset(new jit_uni_permute_kernel_f32<cpu::x64::sse41>(jpp));
-    }
-    if (permute_kernel)
-        permute_kernel->create_ker();
-=======
     prepareConfigParams();
->>>>>>> [CPU][IE TESTS] Added improvements for DepthToSpace and SpaceToDepth
 }
 
 static void permute_to_0231(int MB, MKLDNNMemoryPtr& srcMemPtr, MKLDNNMemoryPtr& dstMemPtr) {
@@ -699,8 +646,8 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
         if (jcp.supported_dynamic_batch)
             jcp.dst_block_dims[0] = batchToProcess();
 
-        auto srcData = getDataPtr(*srcMemPtr);
-        auto dstData = getDataPtr(*dstMemPtr);
+        auto srcData = reinterpret_cast<const uint8_t*>(srcMemPtr->GetPtr());
+        auto dstData = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
         optimizedExecute(srcData, dstData);
     }
 }
