@@ -364,7 +364,7 @@ namespace ngraph
                         }
                         // TODO: decision has to be made regarding alignment to plugins
                         // in the matter of how this should be terminated
-                        // rois[num_rois * 5] = static_cast<T>(-1);
+                        rois[num_rois * 5] = static_cast<T>(-1);
                     }
                 }
             } // namespace details
