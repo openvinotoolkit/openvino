@@ -298,7 +298,7 @@ elif [ "$os" == "centos7" ] ; then
     fi
 
 else
-    echo "Internal script error: invalid OS after check" >&2
+    echo "Internal script error: invalid OS after check (package selection)" >&2
     exit 3
 fi
 
@@ -355,7 +355,7 @@ elif [ "$os" == "centos7" ] ; then
     yum install $iopt ${pkgs[@]}
 
 else
-    echo "Internal script error: invalid OS after check" >&2
+    echo "Internal script error: invalid OS after check (package installation)" >&2
     exit 3
 fi
 
