@@ -301,6 +301,18 @@ namespace ngraph
 
                 InfoForLinearONNXMode5D get_info_for_linear_onnx_mode5D();
 
+                struct InfoForGenericLinearONNXMode
+                {
+                    int64_t input_data_ptr_increment;
+                    int64_t output_data_ptr_increment;
+                    int64_t batch_size;
+                    int64_t num_channels;
+                    std::vector<int64_t> spatial_dims;
+                    std::vector<int64_t> index_multipliers;
+                };
+
+                InfoForGenericLinearONNXMode get_info_for_generic_linear_onnx();
+
                 struct InfoForLinearMode
                 {
                     bool antialias;
