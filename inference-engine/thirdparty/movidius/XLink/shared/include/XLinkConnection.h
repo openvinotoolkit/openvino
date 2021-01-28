@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,4 +86,4 @@ xLinkConnectionStatus_t Connection_GetStatus(
 linkId_t Connection_GetId(
         Connection* connection);
 
-#endif //OPENVINO_XLINK_CONNECTION_H
+#endif  // OPENVINO_XLINK_CONNECTION_H

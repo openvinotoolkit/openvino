@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ typedef struct BlockingQueue_t {
     pthread_mutex_t lock;
     sem_t addPacketSem;
     sem_t removePacketSem;
-    int pendingPop;
+    int pendingToPop;
 } BlockingQueue;
 
 XLinkError_t BlockingQueue_Create(
@@ -51,4 +51,4 @@ XLinkError_t BlockingQueue_TimedPop(
         void** packet,
         unsigned long ms);
 
-#endif // OPENVINO_XLINK_BLOCKINGQUEUE_H
+#endif  // OPENVINO_XLINK_BLOCKINGQUEUE_H

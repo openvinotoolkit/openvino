@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef _XLINKPRIVATEFIELDS_H
-#define _XLINKPRIVATEFIELDS_H
+#ifndef OPENVINO_XLINK_PRIVATEFIELDS_H
+#define OPENVINO_XLINK_PRIVATEFIELDS_H
 
 #include "XLinkConnection.h"
 #include "XLinkPrivateDefines.h"
@@ -44,4 +44,4 @@ int XLink_isOnDeviceSide();
 // Helpers declaration. End.
 // ------------------------------------
 
-#endif //PROJECT_XLINKPRIVATEFIELDS_H
+#endif  // OPENVINO_XLINK_PRIVATEFIELDS_H

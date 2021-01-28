@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef OPENVINO_XLINKSTREAM_H
-#define OPENVINO_XLINKSTREAM_H
+#ifndef OPENVINO_XLINK_STREAM_H
+#define OPENVINO_XLINK_STREAM_H
 
 #include "XLinkPublicDefines.h"
 #include "XLinkPacket.h"
@@ -124,4 +124,4 @@ XLinkError_t StreamDispatcher_GetOpenedStreamIds(
 
 //Metrics
 
-#endif //OPENVINO_XLINKSTREAM_H
+#endif  // OPENVINO_XLINK_STREAM_H

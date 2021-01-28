@@ -15,7 +15,7 @@ extern "C"
     #ifndef ASSERT_XLINK_PLATFORM_R
     #define ASSERT_XLINK_PLATFORM_R(condition, err) do { \
             if(!(condition)) { \
-                mvLog(MVLOG_ERROR, "Assertion Failed: %s \n", #condition); \
+                mvLog(MVLOG_ERROR, "Assertion Failed: %s", #condition); \
                 return (err); \
             } \
         } while(0)
@@ -34,7 +34,7 @@ extern "C"
     #ifndef ASSERT_XLINK_PLATFORM_R
     #define ASSERT_XLINK_PLATFORM_R(condition, err) do { \
                 if(!(condition)) { \
-                    mvLog(MVLOG_ERROR, "Assertion Failed: %s \n", #condition); \
+                    mvLog(MVLOG_ERROR, "Assertion Failed: %s", #condition); \
                     exit(EXIT_FAILURE); \
                 } \
             } while(0)

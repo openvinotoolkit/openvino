@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "XLinkLog.h"
 
 #if (defined(_WIN32) || defined(_WIN64))
+# include "win_time.h"
 # include "win_pthread.h"
 # include "win_semaphore.h"
 #else
@@ -70,7 +71,7 @@ XLinkError_t BlockingQueue_Create(BlockingQueue* blockingQueue, const char* name
     blockingQueue->back = 0;
     blockingQueue->count = 0;
 
-    blockingQueue->pendingPop = 0;
+    blockingQueue->pendingToPop = 0;
 
     if (sem_init(&blockingQueue->addPacketSem, 0, 0) ||
         sem_init(&blockingQueue->removePacketSem, 0, QUEUE_SIZE) ||
@@ -107,7 +108,7 @@ XLinkError_t BlockingQueue_Push(BlockingQueue* queue, void* packet) {
     XLINK_RET_IF(queue == NULL);
     XLINK_RET_IF(packet == NULL);
 
-//    mvLog(MVLOG_DEBUG, "BlockingQueue_Push: %s is waiting to perform operation", queue->name);
+    mvLog(MVLOG_DEBUG, "BlockingQueue_Push: %s is waiting to perform operation", queue->name);
 
     XLINK_RET_IF(sem_wait(&queue->removePacketSem));
 
@@ -118,8 +119,8 @@ XLinkError_t BlockingQueue_TimedPush(BlockingQueue* queue, void* packet, unsigne
     XLINK_RET_IF(queue == NULL);
     XLINK_RET_IF(packet == NULL);
 
-//    mvLog(MVLOG_DEBUG, "BlockingQueue_TimedPush: %s is waiting to perform operation. count=%u",
-//          queue->name, queue->count);
+    mvLog(MVLOG_DEBUG, "BlockingQueue_TimedPush: %s is waiting to perform operation. count=%u",
+          queue->name, queue->count);
 
     struct timespec ts;
     msToTimespec(&ts, ms);
@@ -224,14 +225,14 @@ XLinkError_t _blockingQueue_Pop(BlockingQueue* queue, void** packet) {
 
 XLinkError_t _blockingQueue_IncrementPendingCounter(BlockingQueue* queue) {
     XLINK_RET_IF(pthread_mutex_lock(&queue->lock));
-    queue->pendingPop++;
+    queue->pendingToPop++;
     XLINK_RET_IF(pthread_mutex_unlock(&queue->lock));
     return X_LINK_SUCCESS;
 }
 
 static XLinkError_t _blockingQueue_DecrementPendingCounter(BlockingQueue* queue) {
     XLINK_RET_IF(pthread_mutex_lock(&queue->lock));
-    queue->pendingPop--;
+    queue->pendingToPop--;
     XLINK_RET_IF(pthread_mutex_unlock(&queue->lock));
     return X_LINK_SUCCESS;
 }

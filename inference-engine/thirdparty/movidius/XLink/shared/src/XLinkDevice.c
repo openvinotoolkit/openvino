@@ -117,7 +117,7 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
 
     if (XLink_isOnDeviceSide()) {
         if (sem_init(&pingSem, 0, 0)) {
-            mvLog(MVLOG_ERROR, "Can't create semaphore\n");
+            mvLog(MVLOG_ERROR, "Can't create semaphore");
         }
 
         Connection *connection = getNextAvailableConnection();
@@ -187,7 +187,7 @@ XLinkError_t XLinkConnect(XLinkHandler_t* handler)
     mvLog(MVLOG_DEBUG,"device name=%s glHandler=%p protocol=%d\n", handler->devicePath, glHandler, handler->protocol);
 
     if (Connection_Connect(connection, handler) != X_LINK_SUCCESS) {
-        Connection_Clean(connection);
+        releaseConnection(connection);
         return X_LINK_ERROR;
     }
     handler->linkId = Connection_GetId(connection);
@@ -219,15 +219,23 @@ XLinkError_t XLinkResetRemote(linkId_t id)
     ASSERT_XLINK(connection != NULL);
     xLinkConnectionStatus_t connectionStatus = Connection_GetStatus(connection);
 
+    XLinkError_t rc;
     if (connectionStatus == XLINK_CONNECTION_UP) {
-        ASSERT_XLINK(Connection_Reset(connection) == X_LINK_SUCCESS);
+        rc = Connection_Reset(connection);
+        if (rc != X_LINK_SUCCESS) {
+            mvLog(MVLOG_ERROR, "Failed to reset remote");
+        }
     } else {
         mvLog(MVLOG_WARN, "Link is down, close connection to device without reset");
         XLinkPlatformCloseRemote(&connection->deviceHandle);
         return X_LINK_COMMUNICATION_NOT_OPEN;
     }
 
-    return releaseConnection(connection);
+    if (releaseConnection(connection) != X_LINK_SUCCESS) {
+        mvLog(MVLOG_ERROR, "Failed to release connection");
+    }
+
+    return rc;
 }
 
 XLinkError_t XLinkResetAll()
@@ -235,11 +243,13 @@ XLinkError_t XLinkResetAll()
 #if defined(NO_BOOT)
     mvLog(MVLOG_INFO, "Devices will not be restarted for this configuration (NO_BOOT)");
 #else
+    mvLog(MVLOG_ERROR, "XLinkResetAll");
     for (int i = 0; i < MAX_LINKS; ++i) {
         if (availableConnections[i].id != INVALID_LINK_ID) {
             XLinkResetRemote(Connection_GetId(&availableConnections[i]));
         }
     }
+    mvLog(MVLOG_ERROR, "XLinkResetAll end");
 #endif
     return X_LINK_SUCCESS;
 }
@@ -320,7 +330,7 @@ linkId_t getNextAvailableLinkUniqueId()
             nextUniqueLinkId = 0;
         }
     } while (start != nextUniqueLinkId);
-    mvLog(MVLOG_ERROR, "%s():- no next available link!\n", __func__);
+    mvLog(MVLOG_ERROR, "%s():- no next available link!", __func__);
     return INVALID_LINK_ID;
 }
 

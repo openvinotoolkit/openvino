@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -302,6 +302,7 @@ XLinkError_t Connection_Write(Connection* connection, streamId_t streamId, const
 
 XLinkError_t Connection_Read(Connection* connection, streamId_t streamId, streamPacketDesc_t** packet) {
     XLINK_RET_IF(connection == NULL);
+    XLINK_RET_IF(connection->status != XLINK_CONNECTION_UP);
     XLINK_RET_IF(streamId > XLINK_MAX_STREAMS);
     XLINK_RET_IF(packet == NULL);
 
@@ -386,7 +387,6 @@ static XLinkError_t _connection_SendPacket(Connection* connection, Packet* packe
     if (packetPushedToQueueStatus != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "_connection_SendPacket: cannot push packet to queue, id=%d, idx=%d",
               packet->header.id, packet->privateFields.idx);
-        Packet_Release(packet);
         return packetPushedToQueueStatus;
     }
 

@@ -7,8 +7,8 @@
 ///
 /// @brief     Application configuration Leon header
 ///
-#ifndef _XLINKPUBLICDEFINES_H
-#define _XLINKPUBLICDEFINES_H
+#ifndef OPENVINO_XLINK_PUBLICDEFINES_H
+#define OPENVINO_XLINK_PUBLICDEFINES_H
 #include <stdint.h>
 #ifdef __cplusplus
 extern "C"
@@ -125,6 +125,6 @@ typedef enum {
 }
 #endif
 
-#endif
+#endif  // OPENVINO_XLINK_PUBLICDEFINES_H
 
 /* end of include file */

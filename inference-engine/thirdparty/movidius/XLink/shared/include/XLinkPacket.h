@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef OPENVINO_XLINKPACKET_H
-#define OPENVINO_XLINKPACKET_H
+#ifndef OPENVINO_XLINK_PACKET_H
+#define OPENVINO_XLINK_PACKET_H
 
 #include "XLinkSemaphore.h"
 #include "XLinkPublicDefines.h"
@@ -142,4 +142,4 @@ XLinkError_t PacketPool_SetStreamName(
 // Packet pool API. End.
 // ------------------------------------
 
-#endif // OPENVINO_XLINKDISPATCHERNEW_H
+#endif  // OPENVINO_XLINK_PACKET_H

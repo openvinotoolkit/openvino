@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef OPENVINO_XLINKDISPATCHERNEW_H
-#define OPENVINO_XLINKDISPATCHERNEW_H
+#ifndef OPENVINO_XLINK_DISPATCHERNEW_H
+#define OPENVINO_XLINK_DISPATCHERNEW_H
 
 #include "XLinkPublicDefines.h"
 #include "XLinkPrivateDefines.h"
@@ -50,4 +50,4 @@ DispatcherStatus_t Dispatcher_GetStatus(
 void Dispatcher_SetStatus(
         DispatcherNew* dispatcher, DispatcherStatus_t status);
 
-#endif //OPENVINO_XLINKDISPATCHERNEW_H
+#endif  // OPENVINO_XLINK_DISPATCHERNEW_H

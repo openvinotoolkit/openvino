@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ XLinkError_t Dispatcher_Create(DispatcherNew* dispatcher,
     XLINK_RET_IF(receivedPacketsQueue == NULL);
 
     if (dispatcher == NULL) {
-        mvLog(MVLOG_ERROR, "Cannot allocate Dispatcher\n");
+        mvLog(MVLOG_ERROR, "Cannot allocate Dispatcher");
         return X_LINK_ERROR;
     }
 
@@ -238,9 +238,8 @@ static XLinkError_t _dispatcher_HandleReadPacketError(DispatcherNew* dispatcher)
     for (int i = 0; i < count; ++i) {
         streamId_t streamId = openedStreamIds[i];
 
-//        int isAnyPendingPop = 0;
-//        XLINK_OUT_IF(BlockingQueue_IsAnyPendingPop(&dispatcher->receivedPacketsQueue[streamId], &isAnyPendingPop));
-        if (dispatcher->receivedPacketsQueue[streamId].pendingPop) {
+        int pendingToPop = dispatcher->receivedPacketsQueue[streamId].pendingToPop;
+        for (int pendingToPopIdx = 0; pendingToPopIdx < pendingToPop; ++pendingToPopIdx) {
             errorPacket = StreamDispatcher_GetPacket(streamDispatcher, streamId, IN_CHANNEL);
             XLINK_OUT_IF(errorPacket == NULL);
 
@@ -447,7 +446,7 @@ static void* _dispatcher_SendPacketsThr(void* arg) {
 
     while (dispatcher->status == DISPATCHER_UP) {
         Packet* packet = NULL;
-        XLinkError_t rc = BlockingQueue_TimedPop(packetsToSendQueue, (void**)&packet, 500);
+        XLinkError_t rc = BlockingQueue_TimedPop(packetsToSendQueue, (void**)&packet, 100);
         if (rc) {
             if (rc == X_LINK_TIMEOUT) {
                 continue;
@@ -499,8 +498,7 @@ static void* _dispatcher_ReceivePacketsThr(void* arg) {
 
         if (rc != X_LINK_SUCCESS) {
             _dispatcher_HandleReadPacketError(dispatcher);
-//            dispatcher->status = DISPATCHER_NEED_TO_CLOSE;
-            break;
+            continue;
         }
 
         commType = Packet_GetCommType(receivedPacket);

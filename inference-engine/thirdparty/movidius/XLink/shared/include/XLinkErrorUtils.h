@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifndef _XLINK_TOOL_H
-#define _XLINK_TOOL_H
+#ifndef OPENVINO_XLINK_TOOL_H
+#define OPENVINO_XLINK_TOOL_H
 
 #ifdef __cplusplus
 extern "C"
@@ -15,7 +15,7 @@ extern "C"
     #ifndef ASSERT_XLINK
     #define ASSERT_XLINK(condition) do { \
             if(!(condition)) { \
-                mvLog(MVLOG_ERROR, "Assertion Failed: %s \n", #condition); \
+                mvLog(MVLOG_ERROR, "Assertion Failed: %s", #condition); \
                 return X_LINK_ERROR; \
             } \
         } while(0)
@@ -26,7 +26,7 @@ extern "C"
     #ifndef ASSERT_XLINK
     #define ASSERT_XLINK(condition) do { \
             if(!(condition)) { \
-                mvLog(MVLOG_ERROR, "Assertion Failed: %s \n", #condition); \
+                mvLog(MVLOG_ERROR, "Assertion Failed: %s", #condition); \
                 exit(EXIT_FAILURE); \
             } \
         } while(0)
@@ -88,7 +88,7 @@ extern "C"
 #define XLINK_OUT_IF(condition) do { \
         \
         XLINK_OUT_WITH_LOG_IF((condition), \
-            mvLog(MVLOG_ERROR, "Condition failed: %s \n", #condition));\
+            mvLog(MVLOG_ERROR, "Condition failed: %s", #condition));\
         \
     } while(0)
 #endif  // XLINK_OUT_IF
@@ -97,4 +97,4 @@ extern "C"
 }
 #endif
 
-#endif //_XLINK_TOOL_H
+#endif  // OPENVINO_XLINK_TOOL_H
