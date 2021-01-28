@@ -13,6 +13,7 @@
 
 #include <common_test_utils/test_common.hpp>
 #include <gtest/gtest.h>
+#include <ngraph/pass/manager.hpp>
 
 
 namespace {
@@ -46,8 +47,9 @@ protected:
                 ngraph::NodeVector{shapeOf},
                 ngraph::ParameterVector{data, shape},
                 "Actual");
-
-        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
+        ngraph::pass::Manager manager;
+        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+        manager.run_passes(function);
         return function;
     }
 
@@ -108,8 +110,9 @@ protected:
                 ngraph::NodeVector{shapeOfOutputRelu},
                 ngraph::ParameterVector{data, shape},
                 "Actual");
-
-        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
+        ngraph::pass::Manager manager;
+        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+        manager.run_passes(function);
         return function;
     }
 
@@ -174,7 +177,9 @@ protected:
                 ngraph::ParameterVector{data, shape},
                 "Actual");
 
-        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
+        ngraph::pass::Manager manager;
+        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+        manager.run_passes(function);
         return function;
     }
 

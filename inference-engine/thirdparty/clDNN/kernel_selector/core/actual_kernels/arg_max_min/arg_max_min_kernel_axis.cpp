@@ -106,9 +106,11 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
-    kd.estimatedTime = FORCE_PRIORITY_3;
-
     return {kd};
+}
+
+KernelsPriority ArgMaxMinKernelAxis::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& params) const {

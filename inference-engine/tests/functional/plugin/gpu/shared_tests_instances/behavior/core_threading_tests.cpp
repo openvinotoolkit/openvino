@@ -35,7 +35,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     runParallel([&] () {
         auto value = counter++;
         auto remote_context = make_shared_context(ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_context.get());
-        (void)ie.LoadNetwork(networks[(counter++) % networks.size()], remote_context);
+        (void)ie.LoadNetwork(networks[value % networks.size()], remote_context);
     }, numIterations, numThreads);
 }
 
