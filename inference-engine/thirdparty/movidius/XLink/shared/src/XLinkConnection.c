@@ -115,6 +115,8 @@ XLinkError_t Connection_Clean(Connection* connection) {
 
     mvLog(MVLOG_DEBUG, "start cleaning connection");
 
+    StreamDispatcher_CloseStream(&connection->streamDispatcher, XLINK_CONTROL_STREAM_ID);
+
     StreamDispatcher_Destroy(&connection->streamDispatcher);
     BlockingQueue_Destroy(&connection->packetsToSendQueue);
 
@@ -140,9 +142,15 @@ XLinkError_t Connection_Connect(Connection* connection, XLinkHandler_t* handler)
     }
 
     connection->deviceHandle.protocol = handler->protocol;
-    XLINK_RET_IF(XLinkPlatformConnect(
-            handler->devicePath2, handler->devicePath,
-            connection->deviceHandle.protocol, &connection->deviceHandle.xLinkFD));
+    int connectStatus = XLinkPlatformConnect(handler->devicePath2, handler->devicePath,
+                                             connection->deviceHandle.protocol, &connection->deviceHandle.xLinkFD);
+    if (connectStatus < 0) {
+        /**
+         * Connection may be unsuccessful at some amount of first tries.
+         * In this case, asserting the status provides enormous amount of logs in tests.
+         */
+        return X_LINK_COMMUNICATION_NOT_OPEN;
+    }
 
     XLINK_RET_IF(Dispatcher_Start(
             &connection->dispatcher, &connection->deviceHandle, connection->id));
@@ -152,6 +160,7 @@ XLinkError_t Connection_Connect(Connection* connection, XLinkHandler_t* handler)
             XLINK_PING_REQ, NULL, 0);
     XLINK_RET_IF(packet == NULL);
 
+    Packet_SetPacketStatus(packet, PACKET_PENDING_RESPONSE);
     XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
     if (Packet_Release(packet) != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Cannot release packet");
@@ -185,6 +194,7 @@ XLinkError_t Connection_Reset(Connection* connection) {
             type, NULL, 0);
 
     XLINK_RET_IF(packet == NULL);
+    Packet_SetPacketStatus(packet, PACKET_PENDING_RESPONSE);
     XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
     if (packetSendStatus != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Sending reset request failed with error %d. Just closing the connection...", packetSendStatus);
@@ -226,6 +236,7 @@ streamId_t Connection_OpenStream(Connection* connection, const char* name, int s
         packet->header.serviceInfo = (int32_t)Stream_GetId(stream);
     }
 
+    Packet_SetPacketStatus(packet, PACKET_PENDING_RESPONSE);
     XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
     XLINK_RET_ERR_IF(packetSendStatus != X_LINK_SUCCESS, INVALID_STREAM_ID);
 
@@ -265,6 +276,7 @@ XLinkError_t Connection_CloseStream(Connection* connection, streamId_t streamId)
     XLINK_RET_IF(packet == NULL);
     packet->header.serviceInfo = (int32_t)streamId;
 
+    Packet_SetPacketStatus(packet, PACKET_PENDING_TO_SEND);
     XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
     if (packetSendStatus != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Sending close stream request failed with error %d. Just closing stream...", packetSendStatus);
@@ -289,6 +301,7 @@ XLinkError_t Connection_Write(Connection* connection, streamId_t streamId, const
             XLINK_WRITE_REQ, buffer, size);
     XLINK_RET_IF(packet == NULL);
 
+    Packet_SetPacketStatus(packet, PACKET_PENDING_TO_SEND);
     XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
     if (packetSendStatus != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Writing failed with error %d.", packetSendStatus);
@@ -361,7 +374,6 @@ static Packet* _connection_GetPacket(Connection* connection, streamId_t streamId
             OUT_CHANNEL);
     if (packet == NULL) {
         mvLog(MVLOG_ERROR, "cannot get packet");
-        Packet_Release(packet);
         return NULL;
     }
 
@@ -382,7 +394,6 @@ static XLinkError_t _connection_SendPacket(Connection* connection, Packet* packe
     mvLog(MVLOG_DEBUG, "Push packet to packetsToSendQueue: id=%d, idx=%d",
           packet->header.id, packet->privateFields.idx);
 
-    Packet_SetPacketBlockingType(packet, PACKET_BLOCKING);
     XLinkError_t packetPushedToQueueStatus = BlockingQueue_Push(&connection->packetsToSendQueue, packet);
     if (packetPushedToQueueStatus != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "_connection_SendPacket: cannot push packet to queue, id=%d, idx=%d",
@@ -393,8 +404,10 @@ static XLinkError_t _connection_SendPacket(Connection* connection, Packet* packe
     XLINK_RET_IF(Packet_WaitPacketComplete(packet));
 
     XLinkError_t isCompleted = X_LINK_SUCCESS;
-    if (packet->privateFields.status != PACKET_COMPLETED) {
-        mvLog(MVLOG_ERROR, "Packet sending failed. Packet status %d.", packet->privateFields.status);
+    packetStatus_t status;
+    Packet_GetPacketStatus(packet, &status);
+    if (status != PACKET_COMPLETED) {
+        mvLog(MVLOG_ERROR, "Packet sending failed. Packet status %d.", status);
         isCompleted = X_LINK_ERROR;
     }
 
@@ -408,7 +421,9 @@ static XLinkError_t _connection_ReceivePacket(Connection *connection, streamId_t
     XLINK_RET_IF(BlockingQueue_Pop(&connection->receivedPacketsQueue[streamId], (void**)&receivedPacket));
     XLINK_RET_IF(receivedPacket == NULL);
 
-    if (receivedPacket->privateFields.status == PACKET_DROPPED) {
+    packetStatus_t status;
+    Packet_GetPacketStatus(receivedPacket, &status);
+    if (status == PACKET_DROPPED) {
         mvLog(MVLOG_ERROR, "Some error occurred, so packet has been dropped, returning NULL");
         Packet_Release(receivedPacket);
         *packet = NULL;

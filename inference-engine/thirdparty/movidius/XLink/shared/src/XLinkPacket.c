@@ -32,7 +32,6 @@ XLinkError_t Packet_Create(Packet* packet, PacketPool* packetPool, packetIdx_t i
     packet->privateFields.idx = idx;
     packet->privateFields.status = PACKET_FREE;
     packet->privateFields.isUserData = 0;
-    packet->privateFields.blockingType = PACKET_NON_BLOCKING;
     packet->privateFields.packetPool = packetPool;
 
     if (sem_init(&packet->privateFields.completedSem, 0, 0)) {
@@ -89,12 +88,6 @@ XLinkError_t Packet_Release(Packet* packet) {
 XLinkError_t Packet_WaitPacketComplete(Packet* packet) {
     XLINK_RET_IF(packet == NULL);
 
-    ASSERT_XLINK(!pthread_mutex_lock(&packet->privateFields.packetLock));
-    if (packet->privateFields.status == PACKET_PROCESSING) {
-        packet->privateFields.status = PACKET_PENDING;
-    }
-    ASSERT_XLINK(!pthread_mutex_unlock(&packet->privateFields.packetLock));
-
     if (sem_wait(&packet->privateFields.completedSem)) {
         mvLog(MVLOG_ERROR, "can't wait completedSem semaphore");
         return X_LINK_ERROR;
@@ -107,9 +100,9 @@ XLinkError_t Packet_FreePending(Packet* packet, packetStatus_t status) {
     XLINK_RET_IF(packet == NULL);
 
     ASSERT_XLINK(!pthread_mutex_lock(&packet->privateFields.packetLock));
-    mvLog(MVLOG_DEBUG, "Post complete semaphore id %u, streamId %u", packet->header.id, packet->header.streamId);
     packet->privateFields.status = status;
-    packet->privateFields.blockingType = PACKET_NON_BLOCKING;
+
+    mvLog(MVLOG_DEBUG, "Post complete semaphore id %u, streamId %u", packet->header.id, packet->header.streamId);
 
     XLinkError_t rc = sem_post(&packet->privateFields.completedSem) == 0 ? X_LINK_SUCCESS : X_LINK_ERROR;
     if (rc) {
@@ -199,20 +192,24 @@ packetCommType_t Packet_GetCommType(Packet* packet) {
     return type;
 }
 
-packetBlockingType_t Packet_GetPacketBlockingType(Packet* packet) {
+XLinkError_t Packet_GetPacketStatus(Packet* packet, packetStatus_t* status) {
     ASSERT_XLINK(packet);
 
-    return packet->privateFields.blockingType;
+    ASSERT_XLINK(!pthread_mutex_lock(&packet->privateFields.packetPool->packetAccessLock));
+    *status = packet->privateFields.status;
+    ASSERT_XLINK(!pthread_mutex_unlock(&packet->privateFields.packetPool->packetAccessLock));
+
+    return X_LINK_SUCCESS;
 }
 
-void Packet_SetPacketBlockingType(Packet* packet, packetBlockingType_t blockingStatus) {
+XLinkError_t Packet_SetPacketStatus(Packet* packet, packetStatus_t status) {
     ASSERT_XLINK(packet);
 
-    ASSERT_XLINK(!pthread_mutex_lock(&packet->privateFields.packetLock));
+    ASSERT_XLINK(!pthread_mutex_lock(&packet->privateFields.packetPool->packetAccessLock));
+    packet->privateFields.status = status;
+    ASSERT_XLINK(!pthread_mutex_unlock(&packet->privateFields.packetPool->packetAccessLock));
 
-    packet->privateFields.blockingType = blockingStatus;
-
-    ASSERT_XLINK(!pthread_mutex_unlock(&packet->privateFields.packetLock));
+    return X_LINK_SUCCESS;
 }
 
 // ------------------------------------
@@ -311,7 +308,7 @@ Packet* PacketPool_FindPendingPacket(PacketPool* packetPool, packetId_t id) {
 
     for (int i = 0; i < XLINK_MAX_PACKET_PER_STREAM; ++i) {
         if (packetPool->packets[i].header.id == id
-           && packetPool->packets[i].privateFields.status == PACKET_PENDING) {
+           && packetPool->packets[i].privateFields.status == PACKET_PENDING_RESPONSE) {
             ASSERT_XLINK(!pthread_mutex_unlock(&packetPool->packetAccessLock));
             return &packetPool->packets[i];
         }
@@ -319,7 +316,7 @@ Packet* PacketPool_FindPendingPacket(PacketPool* packetPool, packetId_t id) {
 
     ASSERT_XLINK(!pthread_mutex_unlock(&packetPool->packetAccessLock));
 
-    mvLog(MVLOG_ERROR, "%s Cannot find pending packet. id=%d", packetPool->name, id);
+    mvLog(MVLOG_DEBUG, "%s Cannot find pending packet. id=%d", packetPool->name, id);
     return NULL;
 }
 
@@ -329,7 +326,7 @@ XLinkError_t PacketPool_FreePendingPackets(PacketPool* packetPool, packetStatus_
     ASSERT_XLINK(!pthread_mutex_lock(&packetPool->packetAccessLock));
 
     for (int i = 0; i < XLINK_MAX_PACKET_PER_STREAM; ++i) {
-        if (packetPool->packets[i].privateFields.status == PACKET_PENDING) {
+        if (packetPool->packets[i].privateFields.status == PACKET_PENDING_RESPONSE) {
             if (Packet_FreePending(&packetPool->packets[i], status) != X_LINK_SUCCESS) {
                 ASSERT_XLINK(!pthread_mutex_unlock(&packetPool->packetAccessLock));
                 return X_LINK_ERROR;
