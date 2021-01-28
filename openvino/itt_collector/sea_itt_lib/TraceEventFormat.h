@@ -43,8 +43,6 @@
 // http://git.chromium.org/gitweb/?p=chromium/src.git;a=commitdiff;h=41fabf8e2dd3a847cbdad05da9b43fd9a99d741a
 // (content/browser/tracing/etw_system_event_consumer_win.cc)
 // parser source: https://github.com/google/trace-viewer/blob/49d0dd94c3925c3721d059ad3ee2db51d176248c/trace_viewer/extras/importer/trace_event_importer.html
-// parser source:
-// https://android.googlesource.com/platform/external/chromium-trace/+/6833e18b1d4077bf3a727b4422cc2acdbeee35a7/trace-viewer/src/tracing/importer/trace_event_importer.js
 class CTraceEventFormat {
 public:
     struct SRegularFields {
@@ -84,7 +82,7 @@ public:
     static uint64_t GetTimeNS() {
 #ifdef _WIN32
         return SHiResClock::now64(); //in nanoseconds
-#elif defined(__ANDROID__) || defined(__linux__)
+#elif defined(__linux__)
         static struct timespec res = {};
         if (!res.tv_nsec && !res.tv_sec) {
             clock_getres(CLOCK_MONOTONIC_RAW, &res);
@@ -106,8 +104,6 @@ public:
         return SRegularFields{
     #if defined(_WIN32)
             g_PID, (int64_t)GetCurrentThreadId(),
-    #elif defined(__ANDROID__)
-            g_PID, (int64_t)gettid(),
     #elif defined(__linux__)
             g_PID, (int64_t)syscall(SYS_gettid),
     #elif defined(__APPLE__)
@@ -153,63 +149,5 @@ public:
         }
         const TMap& GetMap() const {return m_args;}
     };
-#ifdef __ANDROID__
-    static void WriteEvent(
-        EventPhase ph,
-        const std::string& name,
-        const CArgs& args = CArgs(),
-        const SRegularFields* pRegularFields = nullptr, //generated if omit
-        const char* categories = nullptr,
-        const uint64_t* pID = nullptr, //see EventPhase to understand when demanded
-        const uint64_t* pDur = nullptr //for Complete events, same timestamp as in SRegularFields
-    ) {
-        int pFile = GetTraceFile();
-        if (!pFile) return;
-        char phase[2] = {(char)ph, 0};  // NOLINT
-        SRegularFields rf = pRegularFields ? *pRegularFields : GetRegularFields();
-        std::ostringstream ss;
-        switch (ph) {
-            case Begin:
-            case End:
-                ss << phase << "|" << rf.tid << "|" << name;
-                ss << "|";
-                if (args)
-                    ss << args.Str(); // (arg1=val1;arg2=val2;...) << category
-                ss << "|";
-                if (categories)
-                    ss << categories;
-                break;
-            case Counter:
-                for (const auto& pair : args.GetMap()) {
-                    ss << phase << "|" << rf.tid << "|" << pair.first << "|" << pair.second << "|" << name;
-                    break; //currently only one counter at a time is supported
-                }
-                break;
-            //case AsyncBegin:
-            case FlowStart:
-                ss << "S|" << rf.tid << "|" << name << "|0x" << std::hex << (pID ? *pID : ~0x0);
-                break;
-            //case AsyncEnd:
-            case FlowFinish:
-                ss << "F|" << rf.tid << "|" << name << "|0x" << std::hex << (pID ? *pID : ~0x0);
-                break;
-            default:
-                ss << phase;
-                break;
-        }
-        ss << std::endl;
-        std::string text = ss.str();
-        int res = write(pFile, text.c_str(), text.size());
-        if (res < text.size()) {
-            VerbosePrint("Failed to write: %s", text.c_str());
-        }
-    }
-
-protected:
-    static int GetTraceFile() {
-        static thread_local int trace_marker = open("/sys/kernel/debug/tracing/trace_marker", O_WRONLY);
-        return (trace_marker > 0) ? trace_marker : 0;
-    }
-#endif
 };
 

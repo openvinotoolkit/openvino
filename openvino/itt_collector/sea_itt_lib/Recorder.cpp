@@ -401,10 +401,6 @@ void WriteMeta(const CTraceEventFormat::SRegularFields& main, __itt_string_handl
 
 
 class CSEARecorder: public IHandler {
-#ifdef __ANDROID__
-    CTraceEventFormat m_oTraceEventFormat;
-#endif
-
     void Init(const CTraceEventFormat::SRegularFields& main) override {
         //write process name into trace
         __itt_string_handle* pKey = UNICODE_AGNOSTIC(string_handle_create)("__process__");
@@ -451,10 +447,6 @@ class CSEARecorder: public IHandler {
         WriteRecord(ERecordType::Metadata, SRecord{oTask.rf, *oTask.pDomain, oTask.id, __itt_null, pKey, nullptr, data, length});
 #ifdef TURBO_MODE
         oTask.pDur = nullptr; //for now we don't support turbo tasks with arguments. But if count of arguments was saved it could work.
-#endif
-
-#ifdef __ANDROID__
-        Cookie<CTraceEventFormat::CArgs>(oTask).Add(pKey->strA, length ? std::string(data, length).c_str() : data);
 #endif
     }
 

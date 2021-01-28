@@ -28,10 +28,7 @@
     #include <cxxabi.h>
     #include <dlfcn.h>
 
-    #ifndef __ANDROID__
-        #include <execinfo.h>
-    #endif
-
+    #include <execinfo.h>
 #endif
 
 #ifdef __APPLE__
@@ -42,61 +39,13 @@
     #define NO_DL_ITERATE_PHDR
 #endif
 
-#if !defined(NO_DL_ITERATE_PHDR) && (defined(__linux__) || defined(__ANDROID__))
+#if !defined(NO_DL_ITERATE_PHDR) && defined(__linux__)
     #ifndef _GNU_SOURCE
         #define _GNU_SOURCE
     #endif
     #include <link.h>
 #endif
 
-
-#ifdef __ANDROID__
-
-#include <unwind.h>
-
-struct BacktraceState {
-    void** current;
-    void** end;
-};
-
-_Unwind_Reason_Code Unwind(struct _Unwind_Context* ctx, void* arg) {
-    BacktraceState* state = static_cast<BacktraceState*>(arg);
-    uintptr_t frame = _Unwind_GetIP(ctx);
-    if (frame) {
-        if (state->current == state->end) {
-            return _URC_END_OF_STACK;
-        } else {
-            *state->current = reinterpret_cast<void*>(frame);
-            ++state->current;
-        }
-    }
-    return _URC_NO_REASON;
-}
-
-size_t GetStack(TStack& stack) {
-    BacktraceState state = {stack, stack + StackSize};
-    _Unwind_Backtrace(Unwind, &state);
-    return state.current - stack;
-}
-
-std::string GetStackString() {
-    std::string res;
-    TStack stack;
-    size_t size = GetStack(stack);
-    for (size_t i = 2; i < size; ++i) {
-        if (res.size())
-            res += "<-";
-        Dl_info dl_info = {};
-        dladdr(stack[i], &dl_info);
-        if (dl_info.dli_sname)
-            res += dl_info.dli_sname;
-        else
-            res += std::to_string(stack[i]);
-    }
-    return res;
-}
-
-#else
 
 size_t GetStack(TStack& stack) {
 #ifdef _WIN32
@@ -129,8 +78,6 @@ std::string GetStackString() {
     return res;
 #endif
 }
-
-#endif
 
 namespace sea {
 

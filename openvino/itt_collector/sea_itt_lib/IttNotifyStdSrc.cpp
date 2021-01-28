@@ -208,25 +208,7 @@ std::string GetDir(std::string path, const std::string& append) {
 }
 
 std::string GetSavePath() {
-#ifdef __ANDROID__
-    static std::string save_to;
-
-    int MAX_BYTES = 512;
-    char path[MAX_BYTES] = {0};
-    int path_file = open("/data/local/tmp/com.intel.sea.save_to", O_RDONLY);
-    if (path_file == -1) {
-        VerbosePrint("%s: Can't open file /data/local/tmp/com.intel.sea.save_to! %d %d", __FUNCTION__, path_file, errno);
-        save_to = "";
-    } else {
-        read(path_file,  path, MAX_BYTES - 1);
-        close(path_file);
-
-        char* str_end = strchr(path, '\n');
-        save_to = std::string(path, (int)(str_end - path));  // NOLINT
-    }
-#else
     static std::string save_to = get_environ_value("INTEL_SEA_SAVE_TO");
-#endif
     VerbosePrint("Got save path: %s\n", save_to.c_str());
     if (save_to.empty()) {
         return save_to;
@@ -236,12 +218,8 @@ std::string GetSavePath() {
 }
 
 bool IsVerboseMode() {
-#if defined(_DEBUG) && defined(__ANDROID__)
-    return true;
-#else
     static bool bVerboseMode = !get_environ_value("INTEL_SEA_VERBOSE").empty();
     return bVerboseMode;
-#endif
 }
 
 std::string g_savepath = GetSavePath();  // NOLINT
@@ -299,11 +277,9 @@ void UNICODE_AGNOSTIC(thread_set_name)(const char* name) {
         g_handlers[i]->SetThreadName(GetRegularFields(), name);
     }
 
-#if defined(__ANDROID__) && !defined(ARM32)
-    pthread_setname_np(pthread_self(), name);
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
     pthread_setname_np(name);
-#elif defined(__linux__) && !defined(__ANDROID__)
+#elif defined(__linux__)
     pthread_setname_np(pthread_self(), name);
 #endif
 }
@@ -1573,10 +1549,6 @@ uint64_t GetFeatureSet() {
         (std::string::npos != env.find("mfc") ? sfMetricsFrameworkConsumer : 0)
     |
         (save.size() ? sfSEA : 0)
-#ifdef __ANDROID__
-    |
-        sfSystrace
-#endif
     |
         (std::string::npos != env.find("stack") ? sfStack : 0)
     |

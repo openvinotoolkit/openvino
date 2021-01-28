@@ -41,17 +41,6 @@
     #include <fcntl.h>
 #endif
 
-#if defined(__ANDROID__)
-namespace std { //android NDK is missing this functionality
-    template <typename T>
-    std::string to_string(T value) {
-        std::ostringstream os;
-        os << value;
-        return os.str();
-    }
-}
-#endif
-
 static std::string get_environ_value(const std::string& name) {
 #ifdef _WIN32
     size_t sz;

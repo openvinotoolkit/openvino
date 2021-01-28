@@ -23,10 +23,6 @@
 #include "ittnotify.h"
 #include "ittnotify_config.h"
 
-#ifdef __ANDROID__
-#include <android/log.h>
-#endif
-
 #ifdef _WIN32
     #define SEA_EXPORT __declspec(dllexport)
     #define _sprintf sprintf_s
@@ -39,12 +35,7 @@ namespace sea {
     bool IsVerboseMode();
 }
 
-#ifdef __ANDROID__
-    #define VerbosePrint(...) {                                                                     \
-        if (sea::IsVerboseMode())                                                                   \
-            __android_log_print(ANDROID_LOG_VERBOSE, "SEA", __VA_ARGS__);                           \
-    }
-#elif defined(_WIN32)
+#if defined(_WIN32)
     #define VerbosePrint(...) {                                                                     \
         if (sea::IsVerboseMode()) {                                                                 \
             std::vector<char> buff(1024);                                                           \
@@ -107,16 +98,12 @@ struct SDomainName {
 struct ___itt_counter : public __itt_counter_info_t{};
 
 #include <string>
-#if defined(__ANDROID__)
-    #define STDSRC_DISABLE
-#else
-    #define USE_PROBES
-#endif
+#define USE_PROBES
 
 #ifdef _WIN32
     #include "windows.h"
     #include "IntelSEAPI.h"
-#elif defined(__linux__) && !defined(__ANDROID__)
+#elif defined(__linux__)
     #ifndef USE_PROBES
         __thread FILE* stdsrc_trace_info_t::pFile = nullptr;
     #endif
