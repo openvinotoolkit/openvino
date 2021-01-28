@@ -49,5 +49,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
             R"(.*(ScatterUpdateLayerTest).*)",
+            // TODO: Issue: 47773
+            R"(.*(ProposalLayerTest).*)",
     };
 }
