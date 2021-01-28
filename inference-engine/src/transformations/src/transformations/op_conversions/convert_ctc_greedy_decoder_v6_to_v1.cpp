@@ -6,7 +6,6 @@
 
 #include "transformations/op_conversions/convert_ctc_greedy_decoder_v6_to_v1.hpp"
 
-#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/rt_info.hpp>
 
@@ -54,12 +53,12 @@ ngraph::pass::ConvertCTCGreedyDecoderV6ToV1::ConvertCTCGreedyDecoderV6ToV1() {
         auto const_1f = ngraph::opset6::Constant::create(element::f64, Shape{}, {1.0});
         auto seq_mask = std::make_shared<ngraph::opset6::Select>(bool_seq_mask, const_1f, const_0f);
 
-        auto decoder_v1 = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(decoder_v6->input_value(0),
+        auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(decoder_v6->input_value(0),
                                                                              seq_mask->output(0),
                                                                              decoder_v6->get_merge_repeated());
-        decoder_v1->set_friendly_name(decoder_v6->get_friendly_name());
-        ngraph::copy_runtime_info(decoder_v6, {decoder_v1, data_shape, T, N, range1T, tT, tN, mask_shape, upper_bounds, bool_seq_mask, seq_mask});
-        decoder_v6->output(0).replace(decoder_v1->output(0));
+        simplified_decoder->set_friendly_name(decoder_v6->get_friendly_name());
+        ngraph::copy_runtime_info(decoder_v6, {simplified_decoder, data_shape, T, N, range1T, tT, tN, mask_shape, upper_bounds, bool_seq_mask, seq_mask});
+        decoder_v6->output(0).replace(simplified_decoder->output(0));
 
         return true;
     };
