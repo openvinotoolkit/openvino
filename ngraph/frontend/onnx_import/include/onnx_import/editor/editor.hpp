@@ -74,6 +74,11 @@ namespace ngraph
             /// \brief Modifies the in-memory representation of the model by setting custom input
             ///        values for inputs specified in the provided map.
             ///
+            /// \note This method modifies existing initializer tensor if its name matches one of
+            ///       input_name. Otherwise it adds initializer tensor into the model.
+            ///       If input tensor of matching name is present in the model, its type and shape
+            ///       are modified accordingly.
+            ///
             /// \param input_values A collection of pairs {input_name: new_input_values} used to
             ///                     update the ONNX model. Initializers already existing are
             ///                     overwritten.

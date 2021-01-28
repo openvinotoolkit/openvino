@@ -181,9 +181,10 @@ namespace
 
     void modify_initializer(TensorProto& initializer,
                             const std::string& name,
-                            const std::shared_ptr<ngraph::op::Constant> values)
+                            const std::shared_ptr<ngraph::op::Constant> values,
+                            ValueInfoProto* input)
     {
-        auto elem_type = values->get_element_type();
+        const auto elem_type = values->get_element_type();
         if (NG_2_ONNX_TYPES.count(elem_type) == 0)
         {
             throw ngraph_error("Initializer '" + name + "' type cannot be set to: " +
@@ -211,6 +212,25 @@ namespace
          * The problem can be observed as two tensors pointing the same data.
          */
         initializer.mutable_raw_data();
+
+        // update input with type and shape of initializer
+        if (input && input->has_type())
+        {
+            auto type_proto = input->mutable_type();
+            if (type_proto->has_tensor_type())
+            {
+                auto tensor_type = type_proto->mutable_tensor_type();
+
+                auto shape = tensor_type->mutable_shape();
+                shape->clear_dim();
+                for (size_t i = 0; i < initializer.dims_size(); ++i)
+                {
+                    shape->add_dim()->set_dim_value(initializer.dims(i));
+                }
+
+                tensor_type->set_elem_type(initializer.data_type());
+            }
+        }
     }
 } // namespace
 
@@ -313,7 +333,7 @@ void onnx_import::ONNXModelEditor::set_input_values(
         auto& name = input.first;
         auto& values = input.second;
 
-        auto input_desc = find_graph_input(*onnx_graph, input.first);
+        auto input_desc = find_graph_input(*onnx_graph, name);
         auto initializer_desc = find_graph_initializer(*onnx_graph, name);
 
         if (!initializer_desc && !input_desc)
@@ -327,6 +347,6 @@ void onnx_import::ONNXModelEditor::set_input_values(
             initializer_desc = onnx_graph->add_initializer();
         }
 
-        modify_initializer(*initializer_desc, name, values);
+        modify_initializer(*initializer_desc, name, values, input_desc);
     }
 }

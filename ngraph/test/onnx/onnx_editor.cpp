@@ -384,7 +384,7 @@ NGRAPH_TEST(onnx_editor, values__append_two_initializers_change_shape_type)
     test_case.run();
 }
 
-NGRAPH_TEST(onnx_editor, values__append_two_initializers_change_types)
+NGRAPH_TEST(onnx_editor, values__append_two_initializers_mixed_types)
 {
     onnx_import::ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/gather_elements_float_3D_axis_2.prototxt")};
