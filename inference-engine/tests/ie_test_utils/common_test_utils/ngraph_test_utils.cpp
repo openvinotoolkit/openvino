@@ -89,9 +89,9 @@ namespace attr_comparison {
 
 using AttrName = std::string;
 
-class CmpResult {
+class Result {
 public:
-    explicit CmpResult(std::string m = {}) : m_message(std::move(m)) {}
+    explicit Result(std::string m = {}) : m_message(std::move(m)) {}
 
     const std::string& message() const {
         return m_message;
@@ -101,7 +101,7 @@ public:
         return !m_message.empty();
     }
 
-    CmpResult& operator+=(const std::string& msg) {
+    Result& operator+=(const std::string& msg) {
         m_message.append(m_break_line_no, '\n').append(msg);
         m_break_line_no = 1;
         return *this;
@@ -246,8 +246,9 @@ public:
             auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
             insert(name, ports->get());
         } else {
-            std::cout << "store   attr [ ERR ]: " << name << " [drop `void` comparison which is '"
-                      << adapter.get_type_info().name << "']" << std::endl;
+            m_read_result += "store   attr [ ERR ]: " + name +
+                             " [drop `void` comparison which is '" + adapter.get_type_info().name +
+                             "']";
         }
     }
 
@@ -306,6 +307,13 @@ public:
     size_t attributes_number() const {
         return stored_attributes_number();
     }
+
+    const Result read_result() const {
+        return m_read_result;
+    }
+
+private:
+    Result m_read_result;
 };
 
 namespace equal {
@@ -441,9 +449,14 @@ struct Equal<SpecialBodyPorts> {
 
 class ReadAndCompareAttributes : public ngraph::AttributeVisitor {
 public:
-    ReadAndCompareAttributes(const ReadAndStoreAttributes& ref) : m_attr_ref(ref) {}
+    ReadAndCompareAttributes(const ReadAndStoreAttributes& ref)
+        : m_attr_ref(ref), m_cmp_result{ref.read_result()} {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
+        if (should_return()) {
+            return;
+        }
+        m_visited_attributes.insert(name);
         if (auto inputs =
                 ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
             verify(name, inputs->get());
@@ -455,8 +468,9 @@ public:
             auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
             verify(name, ports->get());
         } else {
-            std::cout << "compare attr [ ERR ]: " << name << " [drop `void` comparison which is '"
-                      << adapter.get_type_info().name << "']" << std::endl;
+            m_cmp_result += "compare attr [ ERR ]: " + name +
+                            " [drop `void` comparison which is '" + adapter.get_type_info().name +
+                            "']";
         }
     }
 
@@ -522,7 +536,7 @@ public:
         return m_visited_attributes.size();
     }
 
-    const CmpResult& cmp_result() const {
+    const Result& cmp_result() const {
         return m_cmp_result;
     }
 
@@ -549,7 +563,7 @@ private:
     }
 
     const ReadAndStoreAttributes& m_attr_ref;
-    CmpResult m_cmp_result;
+    Result m_cmp_result;
     std::set<AttrName> m_visited_attributes;
     bool m_fast_exit{true};
 };
