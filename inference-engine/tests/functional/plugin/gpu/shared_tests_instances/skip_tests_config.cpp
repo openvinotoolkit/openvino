@@ -49,5 +49,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
             R"(.*(ScatterUpdateLayerTest).*)",
+
+            // INT8 StridedSlice not supported
+            R"(.*(LPT/StridedSliceTransformation).*)",
     };
 }
