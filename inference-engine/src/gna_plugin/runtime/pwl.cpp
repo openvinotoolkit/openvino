@@ -978,8 +978,7 @@ void PwlApply32(intel_dnn_component_t *component,
                 }
             }
             break;
-        case kActKaldiLstmClipping:
-        {
+        case kActKaldiLstmClipping: {
             float upper_limit = component->op.pwl.func_id.args.clamp.high;
             float lowwer_limit = component->op.pwl.func_id.args.clamp.low;
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
@@ -988,11 +987,9 @@ void PwlApply32(intel_dnn_component_t *component,
 
                     if (val > upper_limit) {
                         ptr_out[i * num_columns + j] = upper_limit;
-                    }
-                    else if (val < lowwer_limit) {
+                    } else if (val < lowwer_limit) {
                         ptr_out[i * num_columns + j] = lowwer_limit;
-                    }
-                    else {
+                    } else {
                         ptr_out[i * num_columns + j] = val;
                     }
                 }
