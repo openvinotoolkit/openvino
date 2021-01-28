@@ -733,8 +733,7 @@ void InsertIdentityLayerPass::run() {
             // check if prev layer have id layer already connected to output
             // if so reuse it instead of create new one
             bool reconnected = false;
-            for (auto prev_layer_output : prev->outData)
-            {
+            for (auto prev_layer_output : prev->outData) {
                 // prev ---------+--> identity --> layer XYZ
                 //               |
                 //               |  <= here we want to inject identity

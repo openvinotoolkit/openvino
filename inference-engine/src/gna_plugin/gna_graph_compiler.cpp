@@ -1042,8 +1042,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t cropOffset = offset.front() * cropLayer->precision.size();
     size_t cropOutputSize = dim.front() * cropLayer->precision.size();
     // fix for crop on tensor dim > 2D
-    for (int n = axis[0]+1; n < cropLayer->dim.size(); n++)
-    {
+    for (int n = axis[0]+1; n < cropLayer->dim.size(); n++) {
         cropOffset *= cropLayer->dim[n];
         cropOutputSize *= cropLayer->dim[n];
     }
