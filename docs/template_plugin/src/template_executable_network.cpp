@@ -10,6 +10,7 @@
 #include "template/template_config.hpp"
 #include "template_plugin.hpp"
 #include "template_executable_network.hpp"
+#include "template_itt.hpp"
 
 using namespace TemplatePlugin;
 
@@ -61,7 +62,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
         model.read(dataBlob->buffer(), dataSize);
     }
 
-    // TODO: implement Import / Export of configuration options
+    // TODO: implement Import / Export of configuration options and merge with `cfg`
     // TODO: implement Import / Export of network precisions, layouts, preprocessing info
 
     auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
@@ -188,6 +189,8 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
 
 // ! [executable_network:export_impl]
 void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::ExportImpl");
+
     // Note: custom ngraph extensions are not supported
     std::map<std::string, ngraph::OpSet> custom_opsets;
     std::stringstream xmlFile, binFile;
