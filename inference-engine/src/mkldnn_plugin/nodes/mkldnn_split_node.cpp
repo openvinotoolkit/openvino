@@ -6,6 +6,7 @@
 #include "common/cpu_memcpy.h"
 #include <legacy/ie_layers.h>
 #include <vector>
+#include <queue>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <climits>
@@ -56,6 +57,11 @@ static TensorDesc makeChannelBlockedTensorDesc(const Precision& precision, const
     blkDims.push_back(blockSize);
 
     return TensorDesc(precision, srcDims, {blkDims, order});
+}
+
+static inline uint8_t* getDataPtr(const MKLDNNMemory& memoryPtr) {
+    return reinterpret_cast<uint8_t*>(memoryPtr.GetData()) + memoryPtr.GetDescriptor().data.layout_desc.blocking.offset_padding *
+        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(memoryPtr.GetDescriptor().data.data_type));
 }
 
 MKLDNNSplitNode::MKLDNNSplitNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
@@ -134,7 +140,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].desc = getTensorDesc(precision, srcDims.ToSizeVector());
         config.outConfs.resize(outDims.size());
 
-        std::vector<memory::format_tag> outFormats;
+        std::vector<memory::format> outFormats;
 
         for (size_t i = 0; i < outDims.size(); i++) {
             auto o_Dims = outDims[i];
@@ -192,7 +198,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         const auto& blkDims = refConfig.inConfs[0].desc.getBlockingDesc().getBlockDims();
         auto numOfDim = blkDims.size();
 
-        std::vector<memory::format_tag> outFormats;
+        std::vector<memory::format> outFormats;
         SizeVector offsets(numOfDim, 0lu);
         SizeVector strides(numOfDim);
         strides.back() = 1lu;
@@ -276,7 +282,7 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
     if (batch != MB)
         optimizedParams.countStrides = optimizedParams.countStrides / batch * MB;
 
-    parallel_for2d(this->getChildEdges().size(), optimizedParams.countStrides, [&](size_t i, size_t j) {
+    parallel_for2d(optimizedParams.dstMemPtrs.size(), optimizedParams.countStrides, [&](size_t i, size_t j) {
         uint8_t* dstData = optimizedParams.dstMemPtrs[i];
 
         cpu_memcpy(&dstData[j * optimizedParams.dataSize[i]],
@@ -454,49 +460,71 @@ void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
 
 void MKLDNNSplitNode::prepareOptimizedParams() {
     const auto& inpTensorDesc = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+    const auto outputPortsCount = outDims.size();
 
     //find axis order position
     const auto& order = inpTensorDesc.getBlockingDesc().getOrder();
-    unsigned axisOrderPos = UINT_MAX;
+    unsigned axisOrderPos = std::numeric_limits<unsigned>::max();
     for (size_t i = 0; i < order.size(); ++i) {
         if (order[i] == axis) {
             axisOrderPos = i;
             break;
         }
     }
-    if (UINT_MAX == axisOrderPos) {
+    if (std::numeric_limits<unsigned>::max() == axisOrderPos) {
         THROW_ERROR << "Can't find the axis in the input tensor order list";
     }
 
     uint8_t srcDataSize = inpTensorDesc.getPrecision().size();
     const auto& srcDims = inpTensorDesc.getBlockingDesc().getBlockDims();
-    int nDims = srcDims.size();
+    const auto nDims = srcDims.size();
 
     optimizedParams.countStrides = 1;
     for (int i = 0; i < axisOrderPos; i++)
         optimizedParams.countStrides *= srcDims[i];
 
     optimizedParams.srcDataStride = 0;
-    optimizedParams.dataSize.resize(this->getChildEdges().size());
+    optimizedParams.dataSize.resize(outputPortsCount);
     optimizedParams.dstMemPtrs.clear();
-    for (int i = 0; i < this->getChildEdges().size(); i++) {
-        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(i)->getMemoryPtr()->GetPtr())) {
-            optimizedParams.dstMemPtrs.push_back(dstData);
+
+    //Here we have to place the output data pointers in the order that reflects the output edges order.
+    //It's important in case when several edges are connected to one port.
+    //This is a naive implementation, the Fibonacci tree would be a more elegant solutions here.
+    std::unordered_map<uint8_t*, size_t> mapDstPtrs;
+    using pair_t = std::pair<uint8_t*, size_t>;
+    for (size_t i = 0; i < getChildEdges().size(); ++i) {
+        auto outputEdge = this->getChildEdgeAt(i);
+        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outputEdge->getMemoryPtr()->GetPtr())) {
+            mapDstPtrs[dstData] = i;
         } else {
             THROW_ERROR << "can't get child edge indx " << i << "data.";
         }
+    }
 
+    auto comparator = [](const pair_t& left, const pair_t& right){
+        return left.second > right.second; //for reverse priorities
+    };
+
+    std::priority_queue<pair_t, std::vector<pair_t>, decltype(comparator)> pointersQueue(mapDstPtrs.begin(), mapDstPtrs.end(), comparator);
+
+    while (!pointersQueue.empty()) {
+        optimizedParams.dstMemPtrs.push_back(pointersQueue.top().first);
+        pointersQueue.pop();
+    }
+
+    for (size_t i = 0; i < outputPortsCount; i++) {
+        auto outputEdge = this->getChildEdgesAtPort(i).front();
         optimizedParams.dataSize[i] = srcDataSize;
 
-        for (int j = axisOrderPos; j < nDims; j++)
-            optimizedParams.dataSize[i] *= this->getChildEdgeAt(i)->getDesc().getBlockingDesc().getBlockDims()[j];
+        for (size_t j = axisOrderPos; j < nDims; j++)
+            optimizedParams.dataSize[i] *= outputEdge->getDesc().getBlockingDesc().getBlockDims()[j];
 
         optimizedParams.srcDataStride += optimizedParams.dataSize[i];
     }
 
-    optimizedParams.srcDataOffsets.resize(this->getChildEdges().size());
+    optimizedParams.srcDataOffsets.resize(outputPortsCount);
     optimizedParams.srcDataOffsets[0] = 0;
-    for (int i = 1; i < this->getChildEdges().size(); i++) {
+    for (size_t i = 1; i < outputPortsCount; i++) {
         optimizedParams.srcDataOffsets[i] = optimizedParams.srcDataOffsets[i - 1] + optimizedParams.dataSize[i - 1];
     }
 }
