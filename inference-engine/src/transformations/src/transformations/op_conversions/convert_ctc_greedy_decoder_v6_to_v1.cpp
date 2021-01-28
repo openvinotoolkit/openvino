@@ -18,16 +18,13 @@ ngraph::pass::ConvertCTCGreedyDecoderV6ToV1::ConvertCTCGreedyDecoderV6ToV1() {
     MATCHER_SCOPE(ConvertCTCGreedyDecoderV6ToV1);
     auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>();
 
-    //ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto & pattern_value = m.get_pattern_value_map();
         const auto & m_decoder = pattern_value.at(decoder);
         auto decoder_v6 = std::dynamic_pointer_cast<ngraph::opset6::CTCGreedyDecoderSeqLen> (m_decoder.get_node_shared_ptr());
-
-        //auto decoder = std::dynamic_pointer_cast<ngraph::opset6::CTCGreedyDecoderSeqLen> (m.get_match_root());
-//        if (!decoder) {
-//            return false;
-//        }
+        if (!decoder_v6) {
+            return false;
+        }
 
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(decoder_v6->input_value(0));
         auto constT_0 = ngraph::opset6::Constant::create(element::i64, Shape{}, {-1});
@@ -63,7 +60,6 @@ ngraph::pass::ConvertCTCGreedyDecoderV6ToV1::ConvertCTCGreedyDecoderV6ToV1() {
         decoder_v1->set_friendly_name(decoder_v6->get_friendly_name());
         ngraph::copy_runtime_info(decoder_v6, {decoder_v1, data_shape, T, N, range1T, tT, tN, mask_shape, upper_bounds, bool_seq_mask, seq_mask});
         decoder_v6->output(0).replace(decoder_v1->output(0));
-        //ngraph::replace_node(decoder_v6, decoder_v1);
 
         return true;
     };
