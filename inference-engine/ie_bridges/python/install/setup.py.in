@@ -1,18 +1,32 @@
+"""
+ Copyright (C) 2018-2021 Intel Corporation
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ http://www.apache.org/licenses/LICENSE-2.0
+ This conversation was marked as resolved by dkurt
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+
 import os.path
 import sys
-import fnmatch
-import re
+import errno
 import subprocess
 from pathlib import Path
-from setuptools import setup, find_packages, Extension
-from setuptools.command.build_ext import build_ext
-from setuptools.command.build_clib import build_clib
 from distutils.command.install import install
 from distutils.command.build import build
 from distutils.errors import DistutilsSetupError
 from distutils.file_util import copy_file
+from setuptools import setup, find_packages, Extension
+from setuptools.command.build_ext import build_ext
+from setuptools.command.build_clib import build_clib
 
 WHEEL_LIBS_INSTALL_DIR = "openvino.libs"
+PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
 CMAKE_INSTALL_CORE_DIR = "libs.core"
 CMAKE_INSTALL_PLUGINS_DIR = "libs.plugins"
@@ -24,7 +38,50 @@ CMAKE_INSTALL_CORE_SUBDIR = os.path.normpath("${IE_CPACK_RUNTIME_PATH}")
 CMAKE_INSTALL_PLUGINS_SUBDIR = os.path.normpath("${IE_CPACK_RUNTIME_PATH}")
 CMAKE_INSTALL_NGRAPH_SUBDIR = os.path.normpath("${IE_CPACK_IE_DIR}/../ngraph/lib")
 CMAKE_INSTALL_BIND_SUBDIR = os.path.normpath("${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}")
-CMAKE_INSTALL_TBB_SUBDIR = os.path.normpath(f"${IE_CPACK_IE_DIR}/external/tbb/{'bin' if sys.platform == 'win32' else 'lib'}")
+CMAKE_INSTALL_TBB_SUBDIR = os.path.normpath(f"deployment_tools/inference_engine/external/tbb/"
+                                            f"{'bin' if sys.platform == 'win32' else 'lib'}")
+CMAKE_INSTALL_CFG = {
+    "ie_libs": {
+        'name': 'core',
+        'prefix': CMAKE_INSTALL_CORE_DIR
+    },
+    "hetero_plugin": {
+        'name': 'hetero',
+        'prefix': CMAKE_INSTALL_PLUGINS_DIR
+    },
+    "gpu_plugin": {
+        'name': 'cldnn',
+        'prefix': CMAKE_INSTALL_CORE_DIR
+    },
+    "cpu_plugin": {
+        'name': 'mkldnn',
+        'prefix': CMAKE_INSTALL_CORE_DIR
+    },
+    "multi_plugin": {
+        'name': 'multi',
+        'prefix': CMAKE_INSTALL_CORE_DIR,
+    },
+    "myriad_plugin": {
+        'name': 'myriad',
+        'prefix': CMAKE_INSTALL_CORE_DIR,
+    },
+    "ngraph_libs": {
+        'name': 'ngraph',
+        'prefix': CMAKE_INSTALL_NGRAPH_DIR,
+    },
+    "ie_py": {
+        'name': PYTHON_VERSION,
+        'prefix': CMAKE_INSTALL_BIND_DIR,
+    },
+    "ngraph_py": {
+        'name': f"pyngraph_{PYTHON_VERSION}",
+        'prefix': CMAKE_INSTALL_BIND_DIR,
+    },
+    "tbb_libs": {
+        'name': 'tbb',
+        'prefix': CMAKE_INSTALL_TBB_DIR,
+    },
+}
 
 CORE_LIBS_DIR = os.path.join(CMAKE_INSTALL_CORE_DIR, CMAKE_INSTALL_CORE_SUBDIR)
 PLUGINS_LIBS_DIR = os.path.join(CMAKE_INSTALL_PLUGINS_DIR, CMAKE_INSTALL_CORE_SUBDIR)
@@ -36,87 +93,38 @@ ALL_LIBS = {CORE_LIBS_DIR, PLUGINS_LIBS_DIR, NGRAPH_LIBS_DIR, TBB_LIBS_DIR}
 
 
 class PrebuiltExtension(Extension):
-    def __init__(self, name, sources, *args, **kw):
+    def __init__(self, name, sources, *args, **kwargs):
         if len(sources) != 1:
+            nln = '\n'
             raise DistutilsSetupError(
-                "PrebuiltExtension can accept only one source.")
-        super(PrebuiltExtension, self).__init__(name, sources, *args, **kw)
+                f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}"
+            )
+        super(PrebuiltExtension, self).__init__(name, sources, *args, **kwargs)
 
 
 class CustomBuild(build):
+    """Custom implementation of build_clib"""
     def run(self):
         self.run_command('build_clib')
         build.run(self)
 
 
 class CustomInstall(install):
+    """Enable build_clib during the installation"""
     def run(self):
         self.run_command('build_clib')
         install.run(self)
 
 
 class PrepareLibs(build_clib):
+    """Collect prebuilt libraries. Install them to the temp directories, set rpath."""
     def run(self):
-        self.announce("Installing core libraries", level=3)
-        self.spawn(["cmake",
-                    "--install", CMAKE_BUILD_DIR,
-                    "--prefix", CMAKE_INSTALL_CORE_DIR,
-                    "--component", "core"])
-
-        self.announce("Installing hetero plugin", level=3)
-        self.spawn(["cmake",
-                    "--install", CMAKE_BUILD_DIR,
-                    "--prefix", CMAKE_INSTALL_PLUGINS_DIR,
-                    "--component", "hetero"])
-
-        self.announce("Installing clDNN plugin", level=3)
-        self.spawn(["cmake",
-                    "--install", CMAKE_BUILD_DIR,
-                    "--prefix", CMAKE_INSTALL_PLUGINS_DIR,
-                    "--component", "gpu"])
-
-        self.announce("Installing mklDNN plugin", level=3)
-        self.spawn(["cmake",
-                    "--install", CMAKE_BUILD_DIR,
-                    "--prefix", CMAKE_INSTALL_PLUGINS_DIR,
-                    "--component", "cpu"])
-
-        self.announce("Installing multi plugin", level=3)
-        self.spawn(["cmake",
-                    "--install", CMAKE_BUILD_DIR,
-                    "--prefix", CMAKE_INSTALL_PLUGINS_DIR,
-                    "--component", "multi"])
-
-        self.announce("Installing myriad plugin", level=3)
-        self.spawn(["cmake",
-                    "--install", CMAKE_BUILD_DIR,
-                    "--prefix", CMAKE_INSTALL_PLUGINS_DIR,
-                    "--component", "myriad"])
-
-        self.announce("Installing ngraph", level=3)
-        self.spawn(["cmake",
-                    "--install", CMAKE_BUILD_DIR,
-                    "--prefix", CMAKE_INSTALL_NGRAPH_DIR,
-                    "--component", "ngraph"])
-
-        self.announce("Installing ie python api", level=3)
-        self.spawn(["cmake",
-                    "--install", CMAKE_BUILD_DIR,
-                    "--prefix", CMAKE_INSTALL_BIND_DIR,
-                    "--component", python_version])
-
-        self.announce("Installing ngraph python api", level=3)
-        self.spawn(["cmake",
-                    "--install", CMAKE_BUILD_DIR,
-                    "--prefix", CMAKE_INSTALL_BIND_DIR,
-                    "--component", f"pyngraph_{python_version}"])
-
-        self.announce("Installing tbb", level=3)
-        self.spawn(["cmake",
-                    "--install", CMAKE_BUILD_DIR,
-                    "--prefix", CMAKE_INSTALL_TBB_DIR,
-                    "--component", "tbb"])
-        self.announce("Configuring libraries", level=3)
+        for comp, comp_data in CMAKE_INSTALL_CFG.items():
+            self.announce(f"Installing {comp}", level=3)
+            self.spawn(["cmake",
+                        "--install", CMAKE_BUILD_DIR,
+                        "--prefix", comp_data.get("prefix"),
+                        "--component", comp_data.get("name")])
 
         self.announce("Configuring libraries", level=3)
         if sys.platform != "win32":
@@ -134,6 +142,7 @@ class PrepareLibs(build_clib):
 
 
 class CopyExt(build_ext):
+    """Copy extension files to the build directory"""
     def run(self):
         for extension in self.extensions:
             if not isinstance(extension, PrebuiltExtension):
@@ -158,36 +167,79 @@ class CopyExt(build_ext):
 
             copy_file(src, dst, verbose=self.verbose, dry_run=self.dry_run)
 
+
+def is_tool(name):
+    """Check if the command-line tool is available"""
+    try:
+        devnull = subprocess.DEVNULL
+        subprocess.Popen([name], stdout=devnull, stderr=devnull).communicate()
+    except OSError as error:
+        if error.errno == errno.ENOENT:
+            return False
+    return True
+
+
 def set_rpath(rpath, executable):
+    """Setting rpath for linux and macOS libraries"""
     print(f"Setting rpath {rpath} for {executable}")
     cmd = ""
+    rpath_tool = ""
     if sys.platform == "linux":
-        cmd = ["patchelf", "--set-rpath", rpath,  executable]
+        rpath_tool = "patchelf"
+        cmd = [rpath_tool, "--set-rpath", rpath,  executable]
     elif sys.platform == "darwin":
-        cmd = ["install_name_tool", "-add_rpath", rpath,  executable]
-    ret_info = subprocess.run(cmd)
-    if ret_info.returncode != 0:
-        print(f"The exit code: {ret_info.returncode}")
-        print(f"Could not set rpath: {rpath} for {executable}")
-        exit(2)
+        rpath_tool = "install_name_tool"
+        cmd = [rpath_tool, "-add_rpath", rpath,  executable]
+    else:
+        print(f"Unsupported platform: {sys.platform}")
+        sys.exit(2)
+
+    if is_tool(rpath_tool):
+        ret_info = subprocess.run(cmd, check=True)
+        if ret_info.returncode != 0:
+            print(f"Could not set rpath: {rpath} for {executable}")
+            sys.exit(2)
+    else:
+        print(f"Could not found {rpath_tool} on the system, "
+              f"please make sure that this tool is installed")
+        sys.exit(2)
 
 
-def find_data_files(src_dirs, install_subdir):
+def find_data_files(src_dirs):
+    """Collect package data files from src_dirs"""
+    # The install directory for data_files should be a relative path.
+    # It is interpreted relative to the installation prefix
+    # (Python’s sys.prefix for system installations; site.USER_BASE for user installations).
+    if sys.platform == "win32":
+        install_subdir = f"Lib/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
+    else:
+        install_subdir = f"lib/{PYTHON_VERSION}/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
+    # additional blacklist filter, just to fix cmake install issues
+    data_blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.dylib']
     data_files = []
-    # excluding unneeded libs for wheel distribution
-    data_blacklist = ['.lib', '.pdb', '_debug.dll']
-    for dir in src_dirs:
-        local_base_dir = Path(dir)
+    for dir_name in src_dirs:
+        local_base_dir = Path(dir_name)
         for root, directories, filenames in os.walk(local_base_dir):
             for filename in filenames:
                 if not any(filename.endswith(ext) for ext in data_blacklist):
-                    data_files.append([os.path.join(install_subdir, os.path.relpath(root, local_base_dir)), [os.path.join(root, filename)]])
+                    data_files.append([
+                        os.path.join(install_subdir, os.path.relpath(root, local_base_dir)),
+                        [os.path.join(root, filename)]
+                    ])
+    return data_files
 
-    return list(data_files)
 
-
-def find_prebuilt_extensions(base_dir, ext_pattern):
+def find_prebuilt_extensions(base_dir):
+    """collect prebuilt python extensions"""
     extensions = []
+    ext_pattern = ""
+    if sys.platform == "linux":
+        ext_pattern = "**/*.so"
+    elif sys.platform == "win32":
+        ext_pattern = "**/*.pyd"
+    elif sys.platform == "darwin":
+        ext_pattern = "**/*.so"
+
     for path in Path(base_dir).glob(ext_pattern):
         relpath = path.relative_to(base_dir)
         if relpath.parent != ".":
@@ -200,29 +252,24 @@ def find_prebuilt_extensions(base_dir, ext_pattern):
     return extensions
 
 
-# reading description from README.md
-with open("pypi_overview.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
+def get_description(desc_file_path):
+    """read description from README.md"""
+    with open(desc_file_path, "r", encoding="utf-8") as fstream:
+        description = fstream.read()
+    return description
 
-# reading dependencies from requirements.txt
-with open("requirements.txt", "r", encoding="utf-8") as fh:
-    dependencies = fh.read()
 
-python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-binding_dir = os.path.join(python_version)
+def get_dependencies(requirements_file_path):
+    """read dependencies from requirements.txt"""
+    with open(requirements_file_path, "r", encoding="utf-8") as fstream:
+        dependencies = fstream.read()
+    return dependencies
 
-if sys.platform == "linux":
-    content_pattern = "**/*.so"
-    libs_subdir = f"lib/{python_version}/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
-elif sys.platform == "win32":
-    content_pattern = "**/*.pyd"
-    libs_subdir = f"Lib/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
-elif sys.platform == "darwin":
-    content_pattern = "**/*.so"
-    libs_subdir = f"lib/{python_version}/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
-else:
-    print("Unsupported OS: {}, expected: {}".format(sys.platform, "linux, win32, darwin"))
-    exit(2)
+
+platforms = ["linux", "win32", "darwin"]
+if not any(pl in sys.platform for pl in platforms):
+    print("Unsupported platform: {}, expected: {}".format(sys.platform, "linux, win32, darwin"))
+    sys.exit(2)
 
 
 setup(
@@ -232,7 +279,7 @@ setup(
     license="${WHEEL_LICENCE_TYPE}",
     author="${WHEEL_AUTHOR}",
     description="${WHEEL_DESC}",
-    long_description=long_description,
+    long_description=get_description("pypi_overview.md"),
     long_description_content_type="text/markdown",
         cmdclass={
         "build": CustomBuild,
@@ -240,10 +287,10 @@ setup(
         "build_ext": CopyExt,
         "build_clib": PrepareLibs,
     },
-    ext_modules=find_prebuilt_extensions(BINDINGS_DIR, content_pattern),
+    ext_modules=find_prebuilt_extensions(BINDINGS_DIR),
     packages=find_packages(BINDINGS_DIR),
     package_dir={"": BINDINGS_DIR},
-    data_files=find_data_files(ALL_LIBS, libs_subdir),
+    data_files=find_data_files(ALL_LIBS),
     zip_safe=False,
-    install_requires=dependencies,
+    install_requires=get_dependencies("requirements.txt"),
 )

@@ -11,7 +11,7 @@ set(WHEEL_BUILD "000" CACHE STRING "Build number of this release")
 set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
 set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
 set(OVERVIEW_IN "${CMAKE_CURRENT_SOURCE_DIR}/meta/pypi_overview.md")
-set(LICENSE_IN "${CMAKE_CURRENT_SOURCE_DIR}/meta/Apache_license.txt")
+set(LICENSE_IN "${CMAKE_SOURCE_DIR}/LICENSE")
 set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/meta/openvino.requirements.txt")
 
 
