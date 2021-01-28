@@ -8,7 +8,6 @@ import shutil
 import subprocess
 import threading
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
-import sea
 from sea_runtool import Collector, is_domain_enabled, message, get_original_env
 
 """
