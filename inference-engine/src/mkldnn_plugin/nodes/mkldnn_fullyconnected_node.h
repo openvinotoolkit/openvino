@@ -17,9 +17,12 @@ public:
     MKLDNNFullyConnectedNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNFullyConnectedNode() override = default;
 
+    std::vector<mkldnn::memory::format_tag> getAvailableFormatsForDims(const MKLDNNDims &dims) const override;
     void getSupportedDescriptors() override;
     void createPrimitive() override;
+    void execute(mkldnn::stream strm) override;
     bool created() const override;
+
     bool canBeInPlace() const override {
         return false;
     }
@@ -33,6 +36,7 @@ public:
     }
 
     MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+    MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
     const mkldnn::memory& getWeights() const;
     const mkldnn::memory& getBias() const;
@@ -45,12 +49,9 @@ protected:
 private:
     InferenceEngine::SizeVector weightsDims;
     InferenceEngine::SizeVector biasesDims;
-    mkldnn::memory::format weightsFormatForSrcFormat(mkldnn::memory::format sourceFormat);
 
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
-
-    InferenceEngine::Blob::Ptr wScale, oScale;
 
     bool withBiases;
     int baseInputsNumber;

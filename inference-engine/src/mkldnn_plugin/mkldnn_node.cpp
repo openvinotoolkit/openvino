@@ -27,17 +27,12 @@
 #include <nodes/mkldnn_pooling_node.h>
 #include <nodes/mkldnn_reorder_node.h>
 #include <nodes/mkldnn_reshape_node.h>
-#include <nodes/mkldnn_roi_pooling_node.h>
 #include <nodes/mkldnn_softmax_node.h>
 #include <nodes/mkldnn_tile_node.h>
 #include <nodes/mkldnn_split_node.h>
 #include <nodes/mkldnn_pad_node.h>
 #include <nodes/mkldnn_permute_node.h>
 #include <nodes/mkldnn_memory_node.hpp>
-#include <nodes/mkldnn_rnn.h>
-#include <nodes/mkldnn_quantize_node.h>
-#include <nodes/mkldnn_bin_conv_node.h>
-#include <nodes/mkldnn_def_conv_node.h>
 #include <nodes/mkldnn_mvn_node.h>
 #include <nodes/mkldnn_normalize_node.h>
 #include <nodes/mkldnn_reduce_node.h>
@@ -45,6 +40,7 @@
 #include <nodes/mkldnn_scatter_update_node.h>
 #include <nodes/mkldnn_interpolate_node.h>
 #include <mkldnn_types.h>
+#include <dnnl_types.h>
 #include "mkldnn_extension_utils.h"
 
 #include "nodes/common/cpu_memcpy.h"
@@ -202,7 +198,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
             while (getline(stream, str, ',')) {
                 if (str.substr(0, 4) != "cpu:")
                     continue;
-                inputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+                inputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
             }
         }
 
@@ -213,7 +209,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
             while (getline(stream, str, ',')) {
                 if (str.substr(0, 4) != "cpu:")
                     continue;
-                outputMemoryFormatsFilter.push_back(mkldnn_str2fmt(str.substr(4, str.size()).c_str()));
+                outputMemoryFormatsFilter.push_back(mkldnn::utils::str2fmt(str.substr(4, str.size()).c_str()));
             }
         }
     }
@@ -488,25 +484,25 @@ const std::vector<MKLDNNEdgePtr> MKLDNNNode::getChildEdgesAtPort(size_t idx) con
 }
 
 
-std::vector<memory::format> MKLDNNNode::getAvailableFormatsForDims(const MKLDNNDims &dims) const {
+std::vector<memory::format_tag> MKLDNNNode::getAvailableFormatsForDims(const MKLDNNDims &dims) const {
     if (dims.ndims() == 0)
-        return {memory::format::x};
+        return {memory::format_tag::x};
     else if (dims.ndims() == 1)
-        return {memory::format::x};
+        return {memory::format_tag::x};
     else if (dims.ndims() == 2)
-        return {memory::format::nc};
+        return {memory::format_tag::nc};
     else if (dims.ndims() == 3)
-        return {memory::format::tnc, memory::format::ntc};
+        return {memory::format_tag::tnc, memory::format_tag::ntc};
     else if (dims.ndims() == 4)
-        return {memory::format::nchw, memory::format::nChw8c, memory::format::nChw16c};
+        return {memory::format_tag::nchw, memory::format_tag::nChw8c, memory::format_tag::nChw16c};
     else if (dims.ndims() == 5)
-        return {memory::format::ncdhw, memory::format::nCdhw8c, memory::format::nCdhw16c};
-    return {memory::format::any};
+        return {memory::format_tag::ncdhw, memory::format_tag::nCdhw8c, memory::format_tag::nCdhw16c};
+    return {memory::format_tag::any};
 }
 
 void MKLDNNNode::execute(mkldnn::stream strm) {
     if (prim) {
-        strm.submit({*prim});
+        (*prim).execute(strm, primArgs);
     }
 }
 
@@ -516,7 +512,8 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
 
     for (auto& desc : descs) {
         auto itpd = desc.createPrimitiveDescriptorIterator(engine);
-        while (itpd.is_not_end()) {
+
+        while (static_cast<bool>(itpd)) {
             InferenceEngine::LayerConfig config;
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
@@ -527,35 +524,35 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(dataConfig);
             }
 
-            std::vector<mkldnn::memory::format> outFormats;
             for (size_t i = 0; i < descOutputNumbers(desc); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
                 dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getDstMemDesc(itpd, i));
                 config.outConfs.push_back(dataConfig);
-
-                auto primDesc = itpd.fetch();
-                auto dstPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(dst_pd), 0);
-                if (dstPrimDesc) {
-                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
-                } else {
-                    // This path is needed to correctly handle Deconvolution node
-                    auto diffSrcPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(diff_src_pd), 0);
-                    if (diffSrcPrimDesc) {
-                        outFormats.emplace_back(static_cast<memory::format>(itpd.diff_src_primitive_desc().desc().data.format));
-                    }
-                }
             }
-            impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
-            itpd++;
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
+            if (!itpd.next_impl())
+                break;
         }
     }
 }
 
 void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
+    // Compare by partial layout descriptor (without particular strides values)
+    auto areCompatible = [](const TensorDesc& tdesc, mkldnn::memory::format_tag fmt) {
+        TensorDesc fmt_tdesc = MKLDNNMemoryDesc{
+            MKLDNNDims(tdesc.getDims()),
+            MKLDNNExtensionUtils::IEPrecisionToDataType(tdesc.getPrecision()),
+            fmt};
+
+        auto tmp_partial_tdesc = PartialBlkDesc::extractFrom(fmt_tdesc);
+        auto actual_partial_tdesc = PartialBlkDesc::extractFrom(tdesc);
+        return tmp_partial_tdesc == actual_partial_tdesc;
+    };
+
     if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
         auto itpd = supportedPrimitiveDescriptors.begin();
         while (itpd != supportedPrimitiveDescriptors.end()) {
@@ -565,12 +562,12 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
 
             bool isSuitableDesc = true;
             for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-                if (inputMemoryFormatsFilter[i] != MKLDNNMemoryDesc(config.inConfs[i].desc).getFormat())
-                    isSuitableDesc = false;
+                const bool matched = areCompatible(config.inConfs[i].desc, inputMemoryFormatsFilter[i]);
+                isSuitableDesc &= matched;
             }
             for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-                if (outputMemoryFormatsFilter[i] != MKLDNNMemoryDesc(config.outConfs[i].desc).getFormat())
-                    isSuitableDesc = false;
+                const bool matched = areCompatible(config.outConfs[i].desc, outputMemoryFormatsFilter[i]);
+                isSuitableDesc &= matched;
             }
             if (!isSuitableDesc) {
                 itpd = supportedPrimitiveDescriptors.erase(itpd);
@@ -600,20 +597,20 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
     size_t selected_count = 0;
     for (size_t j = 0; j < descs.size(); j++) {
         const auto &desc = descs[j];
-        std::shared_ptr<primitive_desc_iterator> itpd;
+        primitive_desc_iterator itpd;
         if (attr == nullptr) {
-            itpd = std::make_shared<primitive_desc_iterator>(desc.createPrimitiveDescriptorIterator(engine));
+            itpd = desc.createPrimitiveDescriptorIterator(engine);
         } else {
-            itpd = std::make_shared<primitive_desc_iterator>(desc.createPrimitiveDescriptorIterator(engine, *(attr.get())));
+            itpd = desc.createPrimitiveDescriptorIterator(engine, *(attr.get()));
         }
-        while (itpd->is_not_end()) {
+        while (static_cast<bool>(itpd)) {
             InferenceEngine::LayerConfig cfg;
             cfg.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(desc); i++) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = canBeInPlace() ? 0 : -1;
                 dataConfig.constant = false;
-                dataConfig.desc = getSrcMemDesc(*itpd, i);
+                dataConfig.desc = getSrcMemDesc(itpd, i);
                 cfg.inConfs.push_back(dataConfig);
             }
 
@@ -621,10 +618,10 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                dataConfig.desc = getDstMemDesc(*itpd, i);
+                dataConfig.desc = getDstMemDesc(itpd, i);
                 cfg.outConfs.push_back(dataConfig);
             }
-            impl_desc_type impl_type = parse_impl_name(itpd->get_impl_info_str().c_str());
+            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (selected_count == selectedPrimitiveDescriptorIndex) {
                 if (impl_type != selectedPD->getImplementationType()) {
                     THROW_IE_EXCEPTION << "Cannot get the original layer configuration!";
@@ -637,7 +634,8 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
                 }
             }
             selected_count++;
-            (*itpd)++;
+            if (!itpd.next_impl())
+                break;
         }
     }
 
@@ -747,16 +745,9 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
 
         auto create = [&] () {
             auto newDesc = MKLDNNMemoryDesc(internalBlob->getTensorDesc());
-            auto newFormat = newDesc.getFormat();
-            if (newFormat == mkldnn::memory::ncdhw) {
-                newFormat = mkldnn::memory::goihw;
-            }
-            if (newFormat == mkldnn::memory::nchw) {
-                newFormat = mkldnn::memory::oihw;
-            }
 
             MKLDNNMemory memory{ engine };
-            memory.Create(MKLDNNMemoryDesc(newDesc.getDims(), newDesc.getDataType(), newFormat), internalBlob->buffer());
+            memory.Create(newDesc, internalBlob->buffer());
 
             MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(engine));
             _ptr->Create(intDescs[i]);
@@ -1045,7 +1036,7 @@ bool MKLDNNNode::isInitConfig(const InferenceEngine::LayerConfig& config) const 
 }
 
 MKLDNNMemoryDesc MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.src_primitive_desc(idx).desc());
+    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
         return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
                                                             getParentEdgeAt(idx)->getDims().ToSizeVector(),
@@ -1057,7 +1048,7 @@ MKLDNNMemoryDesc MKLDNNNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &prim
 }
 
 MKLDNNMemoryDesc MKLDNNNode::getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.dst_primitive_desc(idx).desc());
+    InferenceEngine::TensorDesc desc = MKLDNNMemoryDesc(primitive_desc_it.dst_desc(idx));
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
         return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),
                                                             getChildEdgeAt(idx)->getDims().ToSizeVector(),
@@ -1091,8 +1082,25 @@ int MKLDNNNode::getMaxBatch() {
 
 void MKLDNNNode::setDynamicBatchLim(int lim) {
     dynBatchLim = lim;
-    if (prim) {
-        prim.setBatchLimit(batchToProcess(), getParentEdges().size(), getChildEdges().size());
+
+    auto setDynamicBatch = [this](int argType, int newBatch) {
+        auto param = primArgs.find(argType);
+        if (param != primArgs.end()) {
+            auto oldMem = param->second;
+            mkldnn::memory::desc newMemDesc(oldMem.get_desc());
+            newMemDesc.data.dims[0] = newBatch;
+            newMemDesc.data.padded_dims[0] = newBatch;
+            mkldnn::memory newMem(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+            primArgs.at(argType) = newMem;
+        }
+    };
+
+    if (!primArgs.empty()) {
+        int newBatch = batchToProcess();
+        setDynamicBatch(DNNL_ARG_SRC, newBatch);
+        setDynamicBatch(DNNL_ARG_DST, newBatch);
+        setDynamicBatch(DNNL_ARG_DIFF_SRC, newBatch);
+        setDynamicBatch(DNNL_ARG_DIFF_DST, newBatch);
     }
 }
 

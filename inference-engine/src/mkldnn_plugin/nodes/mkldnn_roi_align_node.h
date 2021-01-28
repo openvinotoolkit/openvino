@@ -39,7 +39,6 @@ private:
     void executeSpecified();
     template<typename T>
     struct ROIAlignExecute;
-    inline uint8_t* getDataPtr(const MKLDNNMemory& memoryPtr) const;
 };
 }  // namespace MKLDNNPlugin
 

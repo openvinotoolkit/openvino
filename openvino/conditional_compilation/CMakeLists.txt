@@ -26,6 +26,21 @@ target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/
 
 if(SELECTIVE_BUILD STREQUAL "COLLECT")
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD_ANALYZER)
+    include(FetchContent)
+    FetchContent_Declare(
+        ext_seapi
+        GIT_REPOSITORY  https://github.com/intel/IntelSEAPI.git
+        GIT_TAG         7997a782fd3fa5621e275bd31060f9795564e6ca
+        )
+
+    FetchContent_GetProperties(ext_seapi)
+    if(NOT ext_seapi_POPULATED)
+        FetchContent_Populate(ext_seapi)
+        add_custom_target(build-seapi
+            COMMAND pushd ${ext_seapi_SOURCE_DIR} && python ${ext_seapi_SOURCE_DIR}/buildall.py -i && popd
+            )
+    endif()
+    add_dependencies(${TARGET_NAME} build-seapi)
 elseif(SELECTIVE_BUILD STREQUAL "ON")
     if(NOT DEFINED SELECTIVE_BUILD_STAT)
         message(FATAL_ERROR "In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics.\

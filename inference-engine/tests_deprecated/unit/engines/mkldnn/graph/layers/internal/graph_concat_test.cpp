@@ -135,6 +135,9 @@ protected:
                 case 5:
                     layout = InferenceEngine::NCDHW;
                     break;
+                case 6:
+                    layout = InferenceEngine::BLOCKED;
+                    break;
             }
 
             InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32, dims_src1, layout});
@@ -337,6 +340,9 @@ protected:
                     break;
                 case 5:
                     layout = InferenceEngine::NCDHW;
+                    break;
+                case 6:
+                    layout = InferenceEngine::BLOCKED;
                     break;
             }
 

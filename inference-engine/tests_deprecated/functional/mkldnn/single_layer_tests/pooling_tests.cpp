@@ -205,7 +205,7 @@ pooling_test_params pooling_only_test_cases[] = {
         pooling_test_params("CPU", case_7),
         pooling_test_params("CPU", case_8),
         pooling_test_params("CPU", case_9),
-        pooling_test_params("CPU", case_10),
+//        pooling_test_params("CPU", case_10),
         pooling_test_params("CPU", case_11),
 };
 
