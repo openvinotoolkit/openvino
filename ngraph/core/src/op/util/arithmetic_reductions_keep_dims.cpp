@@ -51,8 +51,8 @@ void op::util::ArithmeticReductionKeepDims::validate_and_infer_types()
         if (input_rank.is_static())
             result_shape = PartialShape::dynamic(input_rank);
 
-        auto axes = get_constant_from_source(input_value(1));
-        if (input_rank.is_static() && axes != nullptr)
+        const auto& axes = get_constant_from_source(input_value(1));
+        if (input_rank.is_static() && axes)
         {
             AxisSet reduction_axes;
             auto reduction_axes_val = axes->cast_vector<int64_t>();

@@ -51,7 +51,7 @@ AxisSet op::LRN::get_reduction_axes() const
 {
     AxisSet axes{1}; // channel axis as default
     auto axes_input_node = input_value(1).get_node_shared_ptr();
-    if (auto const_op = get_constant_from_source(axes_input_node))
+    if (const auto& const_op = get_constant_from_source(axes_input_node))
         axes = const_op->get_axis_set_val();
     return axes;
 }

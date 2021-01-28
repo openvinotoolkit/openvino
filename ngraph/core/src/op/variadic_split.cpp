@@ -69,17 +69,15 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
         const auto& data_type = data.get_element_type();
 
         set_output_size(num_outputs);
-        if (data_shape.rank().is_static() && has_and_set_equal_bounds(axis_source) &&
-            has_and_set_equal_bounds(split_lengths_source))
+        const auto& axis_input_constant = get_constant_from_source(axis_source);
+        const auto& split_lengths_constant = get_constant_from_source(split_lengths_source);
+        if (data_shape.rank().is_static() && axis_input_constant && split_lengths_constant)
         {
-            const auto axis_input_constant = get_constant_from_source(axis_source);
             auto axis_val = axis_input_constant->cast_vector<int64_t>()[0];
-
             // Adjust split axis in case of negatives
             int64_t axis = ngraph::normalize_axis(this, axis_val, data_shape.rank());
 
-            auto split_lengths =
-                get_constant_from_source(split_lengths_source)->cast_vector<int64_t>();
+            auto split_lengths = split_lengths_constant->cast_vector<int64_t>();
             // Adjust split lengths in case of negatives
             size_t sum_of_splits = 0;
             int64_t negative_one = -1;

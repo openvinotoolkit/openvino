@@ -300,16 +300,6 @@ namespace rangeop
         }
         return rc;
     }
-
-    bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper)
-    {
-        if (!node->input_value(0).get_tensor().has_and_set_bound() ||
-            !node->input_value(1).get_tensor().has_and_set_bound() ||
-            !node->input_value(2).get_tensor().has_and_set_bound())
-            return false;
-        return is_upper ? default_upper_bound_evaluator(node, output_values)
-                        : default_lower_bound_evaluator(node, output_values);
-    }
 }
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
@@ -320,16 +310,6 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     HostTensorPtr stop = inputs[1];
     HostTensorPtr step = inputs[2];
     return rangeop::evaluate_power(out, start, stop, step, m_output_type, 4);
-}
-
-bool op::v4::Range::evaluate_lower(const HostTensorVector& output_values) const
-{
-    return rangeop::evaluate_bound(this, output_values, false);
-}
-
-bool op::v4::Range::evaluate_upper(const HostTensorVector& output_values) const
-{
-    return rangeop::evaluate_bound(this, output_values, true);
 }
 
 constexpr NodeTypeInfo op::v0::Range::type_info;
@@ -529,14 +509,4 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
     HostTensorPtr stop = inputs[1];
     HostTensorPtr step = inputs[2];
     return rangeop::evaluate_power(out, start, stop, step, start->get_element_type(), 0);
-}
-
-bool op::v0::Range::evaluate_lower(const HostTensorVector& output_values) const
-{
-    return rangeop::evaluate_bound(this, output_values, false);
-}
-
-bool op::v0::Range::evaluate_upper(const HostTensorVector& output_values) const
-{
-    return rangeop::evaluate_bound(this, output_values, true);
 }

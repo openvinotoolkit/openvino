@@ -118,7 +118,7 @@ void op::v1::Gather::validate_and_infer_types()
 int64_t op::v1::Gather::get_axis() const
 {
     int64_t axis = AXIS_NOT_SET_VALUE;
-    if (auto const_op = get_constant_from_source(input_value(AXIS)))
+    if (const auto& const_op = get_constant_from_source(input_value(AXIS)))
     {
         axis = const_op->cast_vector<int64_t>()[0];
     }

@@ -91,7 +91,7 @@ void op::util::ScatterBase::validate_and_infer_types()
         return;
 
     // Get axis value if possible.
-    if (const auto axis_const_input = get_constant_from_source(input_value(AXIS)))
+    if (const auto& axis_const_input = get_constant_from_source(input_value(AXIS)))
     {
         bool compatible = true;
         int64_t axis = axis_const_input->cast_vector<int64_t>().at(0);

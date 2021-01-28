@@ -58,7 +58,7 @@ void op::v1::Transpose::validate_and_infer_types()
 
     set_input_is_relevant_to_shape(1);
 
-    if (auto input_const = get_constant_from_source(input_value(1)))
+    if (const auto& input_const = get_constant_from_source(input_value(1)))
     {
         auto permutation = input_const->get_axis_vector_val();
         if (permutation.empty())

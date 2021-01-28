@@ -78,8 +78,11 @@ void op::v1::BatchToSpace::validate_and_infer_types()
     auto crops_begin = input_value(2);
     auto crops_end = input_value(3);
 
-    if (has_and_set_equal_bounds(block) && has_and_set_equal_bounds(crops_begin) &&
-        has_and_set_equal_bounds(crops_end) && data_pshape.is_static())
+    auto block_const = get_constant_from_source(block);
+    auto crops_begin_const = get_constant_from_source(crops_begin);
+    auto crops_end_const = get_constant_from_source(crops_end);
+
+    if (block_const && crops_begin_const && crops_end_const && data_pshape.is_static())
     {
         const auto& data_shape = data.get_shape();
 
@@ -90,9 +93,9 @@ void op::v1::BatchToSpace::validate_and_infer_types()
             data_shape.size(),
             ")");
 
-        auto block_val = get_constant_from_source(block)->cast_vector<int64_t>();
-        auto crops_begin_val = get_constant_from_source(crops_begin)->cast_vector<int64_t>();
-        auto crops_end_val = get_constant_from_source(crops_end)->cast_vector<int64_t>();
+        auto block_val = block_const->cast_vector<int64_t>();
+        auto crops_begin_val = crops_begin_const->cast_vector<int64_t>();
+        auto crops_end_val = crops_end_const->cast_vector<int64_t>();
 
         int64_t block_prod = 1;
         for (long val : block_val)

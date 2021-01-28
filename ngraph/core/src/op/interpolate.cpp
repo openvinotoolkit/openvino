@@ -68,7 +68,7 @@ void op::v0::Interpolate::validate_and_infer_types()
         }
     }
 
-    if (auto const_shape = get_constant_from_source(input_value(1)))
+    if (const auto& const_shape = get_constant_from_source(input_value(1)))
     {
         auto out_shape = const_shape->cast_vector<int64_t>();
         size_t i = 0;
@@ -260,7 +260,7 @@ void op::v4::Interpolate::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), output_shape);
     if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
     {
-        if (auto const_scales = get_constant_from_source(input_value(2)))
+        if (const auto& const_scales = get_constant_from_source(input_value(2)))
         {
             auto scales = const_scales->cast_vector<float>();
             infer_using_scales(output_shape, axes, scales, padded_input_shape);
@@ -268,7 +268,7 @@ void op::v4::Interpolate::validate_and_infer_types()
     }
     else
     {
-        if (auto const_shape = get_constant_from_source(input_value(1)))
+        if (const auto& const_shape = get_constant_from_source(input_value(1)))
         {
             auto sizes = const_shape->cast_vector<int64_t>();
             infer_using_shapes(output_shape, axes, sizes);

@@ -103,7 +103,7 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types()
     if (data_shape.rank().is_dynamic())
         return;
 
-    if (const auto axis_input = get_constant_from_source(input_value(3)))
+    if (const auto& axis_input = get_constant_from_source(input_value(3)))
     {
         auto axis = axis_input->cast_vector<int64_t>().at(0);
 

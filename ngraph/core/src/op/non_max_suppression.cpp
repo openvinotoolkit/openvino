@@ -179,11 +179,12 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                           "The last dimension of the 'boxes' input must be equal to 4. Got:",
                           boxes_ps[2]);
 
-    if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
-        has_and_set_equal_bounds(input_value(2)))
+    const auto& max_output_boxes_input = get_constant_from_source(input_value(2));
+    if (num_boxes_boxes.is_static() && scores_ps[1].is_static() && max_output_boxes_input)
     {
         const auto num_boxes = num_boxes_boxes.get_length();
-        const auto max_output_boxes_per_class = max_boxes_output_from_input();
+        const auto max_output_boxes_per_class =
+            max_output_boxes_input->cast_vector<int64_t>().at(0);
         const auto num_classes = scores_ps[1].get_length();
 
         out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
@@ -394,12 +395,13 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
     {
         const auto num_boxes_boxes = boxes_ps[1];
-        if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
-            has_and_set_equal_bounds(input_value(2)))
+        const auto max_output_boxes_input = get_constant_from_source(input_value(2));
+        if (num_boxes_boxes.is_static() && scores_ps[1].is_static() && max_output_boxes_input)
         {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
-            const auto max_output_boxes_per_class = max_boxes_output_from_input();
+            const auto max_output_boxes_per_class =
+                max_output_boxes_input->cast_vector<int64_t>().at(0);
 
             out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
         }
@@ -527,12 +529,14 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
     {
         const auto num_boxes_boxes = boxes_ps[1];
+        const auto max_output_boxes_input = get_constant_from_source(input_value(2));
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
-            has_and_set_equal_bounds(input_value(2)))
+            max_output_boxes_input)
         {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
-            const auto max_output_boxes_per_class = max_boxes_output_from_input();
+            const auto max_output_boxes_per_class =
+                max_output_boxes_input->cast_vector<int64_t>().at(0);
 
             out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
                            scores_ps[0].get_length();

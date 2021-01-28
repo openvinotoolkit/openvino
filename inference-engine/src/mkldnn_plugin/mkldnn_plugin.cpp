@@ -63,7 +63,6 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
