@@ -13,10 +13,9 @@
 #include "transformations/serialize.hpp"
 #include <ngraph/opsets/opset6.hpp>
 
-class TensorNameSerializationTest : public ::testing::Test {
+class TensorNameSerializationTest : public CommonTestUtils::TestsCommon {
 protected:
-    std::string test_name =
-        ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::string test_name = GetTestName() + "_" + GetTimestamp();
     std::string m_out_xml_path = test_name + ".xml";
     std::string m_out_bin_path = test_name + ".bin";
 
