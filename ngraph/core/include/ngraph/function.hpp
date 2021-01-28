@@ -183,7 +183,8 @@ namespace ngraph
         void add_parameters(const ParameterVector& params);
 
         /// \brief Delete Parameter node from the list of parameters. Method will not delete node
-        /// from graph. Attention: Indexing of parameters can be changed.
+        /// from graph. You need to replace Parameter with other operation manually.
+        /// Attention: Indexing of parameters can be changed.
         ///
         /// Possible use of method is to replace input by variable. For it the following steps
         /// should be done:
