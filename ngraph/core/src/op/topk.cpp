@@ -259,6 +259,7 @@ bool ngraph::op::v1::TopK::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("mode", m_mode);
     visitor.on_attribute("sort", m_sort);
+    visitor.on_attribute("index_element_type", m_index_element_type);
     return true;
 }
 
@@ -275,6 +276,12 @@ void op::v1::TopK::validate_and_infer_types()
     const auto& k_partial_shape = get_input_partial_shape(1);
     NODE_VALIDATION_CHECK(
         this, k_partial_shape.rank().compatible(0), "The 'K' input must be a scalar.");
+
+    NODE_VALIDATION_CHECK(this,
+                          m_index_element_type == element::i32 ||
+                              m_index_element_type == element::i64,
+                          "Index element type attribute should be either \'i32\' or \'i64\'. Got: ",
+                          m_index_element_type);
 
     size_t k = 0;
     if (op::is_constant(input_value(1).get_node()))

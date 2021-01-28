@@ -84,7 +84,6 @@ void vpuLayersTests::dumpPerformance() {
                   return pair1.second.execution_index < pair2.second.execution_index;
               });
 
-    unsigned currentIndex = 0;
     for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
         std::string layerName = it->first;
         InferenceEngine::InferenceEngineProfileInfo info = it->second;

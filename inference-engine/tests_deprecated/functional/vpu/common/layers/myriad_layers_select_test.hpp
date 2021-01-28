@@ -28,7 +28,6 @@ protected:
     void RefSelect()
     {
         auto itr = _inputMap.begin();
-        int coeff_num = 0;
         const uint16_t *srcData = itr->second->buffer().as<const uint16_t*>();
         uint16_t *dstData = _refBlob->buffer().as<uint16_t*>();
         uint32_t src_coords[4];
