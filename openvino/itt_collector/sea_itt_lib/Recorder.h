@@ -34,8 +34,7 @@
 #include "IttNotifyStdSrc.h"
 #include "ittnotify.h"
 
-inline size_t GetMemPageSize()
-{
+inline size_t GetMemPageSize() {
 #ifdef _WIN32
     SYSTEM_INFO si = {};
     GetSystemInfo(&si);
@@ -45,27 +44,28 @@ inline size_t GetMemPageSize()
 #endif
 }
 
-class CMemMap
-{
+class CMemMap {
     CMemMap(const CMemMap&) = delete;
     CMemMap& operator = (const CMemMap&) = delete;
-public:
 
+public:
     CMemMap(const std::string& path, size_t size, size_t offset = 0);
 
     void* Remap(size_t size, size_t offset = 0);
 
-    void* GetPtr()
-    {
+    void* GetPtr() {
         return m_pView;
     }
-    size_t GetSize(){return m_size;}
+    size_t GetSize() {
+        return m_size;
+    }
 
     void Unmap();
 
     bool Resize(size_t size);
 
     ~CMemMap();
+
 protected:
 #ifdef _WIN32
     HANDLE m_hFile = nullptr;
@@ -77,20 +77,21 @@ protected:
     void* m_pView = nullptr;
 };
 
-class CRecorder
-{
+class CRecorder {
     CRecorder(const CRecorder&) = delete;
     CRecorder& operator = (const CRecorder&) = delete;
+
 public:
     CRecorder();
     bool Init(const std::string& path, uint64_t time, void* pCut);
     size_t CheckCapacity(size_t size);
     void* Allocate(size_t size);
-    uint64_t GetCount(){return m_counter;}
-    uint64_t GetCreationTime(){return m_time;}
+    uint64_t GetCount() { return m_counter; }
+    uint64_t GetCreationTime() { return m_time; }
     void Close(bool bSave);
-    inline bool SameCut(void* pCut){return pCut == m_pCut;}
+    inline bool SameCut(void* pCut) { return pCut == m_pCut; }
     ~CRecorder();
+
 protected:
 #ifdef IN_MEMORY_RING
     size_t m_nBufferSize = 1024 * 1024;
@@ -109,8 +110,7 @@ protected:
 };
 
 
-enum class ERecordType: uint8_t
-{
+enum class ERecordType: uint8_t {
     BeginTask,
     EndTask,
     BeginOverlappedTask,
@@ -126,8 +126,7 @@ enum class ERecordType: uint8_t
     Relation
 };
 
-struct SRecord
-{
+struct SRecord {
     const CTraceEventFormat::SRegularFields& rf;
     const __itt_domain& domain;
     const __itt_id& taskid;
@@ -139,7 +138,7 @@ struct SRecord
     void* function;
 };
 double* WriteRecord(ERecordType type, const SRecord& record);
-void WriteMeta(const CTraceEventFormat::SRegularFields& main, __itt_string_handle* pKey, const char* name, double* pDelta=nullptr);
+void WriteMeta(const CTraceEventFormat::SRegularFields& main, __itt_string_handle* pKey, const char* name, double* pDelta = nullptr);
 
 namespace sea {
     struct IHandler;
@@ -151,9 +150,6 @@ namespace sea {
     bool WriteJit(const void* buff, size_t size);
     bool InitMemStat();
     bool WriteMemStat(const void* buff, size_t size);
-}
+}  // namespace sea
+
 sea::IHandler& GetSEARecorder();
-
-
-
-

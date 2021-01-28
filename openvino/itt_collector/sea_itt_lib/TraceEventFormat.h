@@ -30,29 +30,28 @@
 #else
     static const int64_t g_PID = (int64_t)getpid();
     #if defined(__APPLE__)
-    inline int64_t GetTidFromPThread()
-    {
+    inline int64_t GetTidFromPThread() {
         uint64_t tid64 = 0;
-        pthread_threadid_np(NULL, &tid64); 
+        pthread_threadid_np(NULL, &tid64);
         return (int64_t)tid64;
     }
     #endif
 #endif
 
-//https://github.com/google/trace-viewer
-//For ETW see here: http://git.chromium.org/gitweb/?p=chromium/src.git;a=commitdiff;h=41fabf8e2dd3a847cbdad05da9b43fd9a99d741a (content/browser/tracing/etw_system_event_consumer_win.cc)
-//parser source: https://github.com/google/trace-viewer/blob/49d0dd94c3925c3721d059ad3ee2db51d176248c/trace_viewer/extras/importer/trace_event_importer.html
-//parser source: https://android.googlesource.com/platform/external/chromium-trace/+/6833e18b1d4077bf3a727b4422cc2acdbeee35a7/trace-viewer/src/tracing/importer/trace_event_importer.js
-class CTraceEventFormat
-{
+// https://github.com/google/trace-viewer
+// For ETW see here:
+// http://git.chromium.org/gitweb/?p=chromium/src.git;a=commitdiff;h=41fabf8e2dd3a847cbdad05da9b43fd9a99d741a
+// (content/browser/tracing/etw_system_event_consumer_win.cc)
+// parser source: https://github.com/google/trace-viewer/blob/49d0dd94c3925c3721d059ad3ee2db51d176248c/trace_viewer/extras/importer/trace_event_importer.html
+// parser source:
+// https://android.googlesource.com/platform/external/chromium-trace/+/6833e18b1d4077bf3a727b4422cc2acdbeee35a7/trace-viewer/src/tracing/importer/trace_event_importer.js
+class CTraceEventFormat {
 public:
-    struct SRegularFields
-    {
+    struct SRegularFields {
         int64_t pid;
         int64_t tid;
         uint64_t nanoseconds;
-        enum EChanged
-        {
+        enum EChanged {
             ecNothing = 0x0,
             ecPid = 0x1,
             ecTid = 0x2,
@@ -61,8 +60,7 @@ public:
         uint64_t changed;
     };
 
-    enum EventPhase
-    {
+    enum EventPhase {
         Begin = 'B', //name, pid, tid, ts
         End = 'E', //name, pid, tid, ts
         Complete = 'X', //name, pid, tid, ts, dur
@@ -83,17 +81,14 @@ public:
         ObjectSnapshot = 'O', //name, pid, tid, ts, id, can have args! See snapshot.basetype for deeper.
     };
 
-    static uint64_t GetTimeNS()
-    {
+    static uint64_t GetTimeNS() {
 #ifdef _WIN32
         return SHiResClock::now64(); //in nanoseconds
 #elif defined(__ANDROID__) || defined(__linux__)
         static struct timespec res = {};
-        if (!res.tv_nsec && !res.tv_sec)
-        {
+        if (!res.tv_nsec && !res.tv_sec) {
             clock_getres(CLOCK_MONOTONIC_RAW, &res);
-            if (!res.tv_nsec && !res.tv_sec)
-            {
+            if (!res.tv_nsec && !res.tv_sec) {
                 VerbosePrint("Can't get CLOCK_MONOTONIC_RAW\n");
                 return 0;
             }
@@ -107,8 +102,7 @@ public:
 #endif
     }
 
-    static SRegularFields GetRegularFields()
-    {
+    static SRegularFields GetRegularFields() {
         return SRegularFields{
     #if defined(_WIN32)
             g_PID, (int64_t)GetCurrentThreadId(),
@@ -125,38 +119,34 @@ public:
         };
     }
 
-    class CArgs
-    {
+    class CArgs {
     protected:
         typedef std::map<std::string, std::string> TMap;
         TMap m_args;
+
     public:
-        CArgs(){}
+        CArgs() {}
         template<class T>
-        CArgs(const std::string& name, const T& value)
-        {
+        CArgs(const std::string& name, const T& value) {
             Add(name, value);
         }
-        CArgs& Add(const std::string& name, const char* value)
-        {
+        CArgs& Add(const std::string& name, const char* value) {
             m_args[name] = value ? value : "";
             return *this;
         }
         template<class T>
-        CArgs& Add(const std::string& name, const T& value)
-        {
+        CArgs& Add(const std::string& name, const T& value) {
             m_args[name] = std::to_string(value);
             return *this;
         }
-        operator bool() const {return !m_args.empty();}
+        operator bool() const { return !m_args.empty(); }
 
 
-        std::string Str() const
-        {
+        std::string Str() const {
             std::string res;
-            for (const auto& pair: m_args)
-            {
-                if (!res.empty()) res += ";";
+            for (const auto& pair : m_args) {
+                if (!res.empty())
+                    res += ";";
                 res += pair.first + "=" + pair.second;
             }
             return res;
@@ -175,20 +165,22 @@ public:
     ) {
         int pFile = GetTraceFile();
         if (!pFile) return;
-        char phase[2] = {(char)ph, 0};
+        char phase[2] = {(char)ph, 0};  // NOLINT
         SRegularFields rf = pRegularFields ? *pRegularFields : GetRegularFields();
         std::ostringstream ss;
-        switch(ph)
-        {
+        switch (ph) {
             case Begin:
             case End:
                 ss << phase << "|" << rf.tid << "|" << name;
-                ss << "|"; if (args) ss << args.Str(); // (arg1=val1;arg2=val2;...) << category
-                ss << "|"; if (categories) ss << categories;
+                ss << "|";
+                if (args)
+                    ss << args.Str(); // (arg1=val1;arg2=val2;...) << category
+                ss << "|";
+                if (categories)
+                    ss << categories;
                 break;
             case Counter:
-                for (const auto& pair: args.GetMap())
-                {
+                for (const auto& pair : args.GetMap()) {
                     ss << phase << "|" << rf.tid << "|" << pair.first << "|" << pair.second << "|" << name;
                     break; //currently only one counter at a time is supported
                 }
@@ -208,14 +200,13 @@ public:
         ss << std::endl;
         std::string text = ss.str();
         int res = write(pFile, text.c_str(), text.size());
-        if (res < text.size())
-        {
+        if (res < text.size()) {
             VerbosePrint("Failed to write: %s", text.c_str());
         }
     }
+
 protected:
-    static int GetTraceFile()
-    {
+    static int GetTraceFile() {
         static thread_local int trace_marker = open("/sys/kernel/debug/tracing/trace_marker", O_WRONLY);
         return (trace_marker > 0) ? trace_marker : 0;
     }

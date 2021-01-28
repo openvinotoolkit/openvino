@@ -54,22 +54,18 @@
 
 #include <unwind.h>
 
-struct BacktraceState
-{
+struct BacktraceState {
     void** current;
     void** end;
 };
 
-_Unwind_Reason_Code Unwind(struct _Unwind_Context* ctx, void* arg)
-{
+_Unwind_Reason_Code Unwind(struct _Unwind_Context* ctx, void* arg) {
     BacktraceState* state = static_cast<BacktraceState*>(arg);
     uintptr_t frame = _Unwind_GetIP(ctx);
-    if (frame)
-    {
-        if (state->current == state->end)
+    if (frame) {
+        if (state->current == state->end) {
             return _URC_END_OF_STACK;
-        else
-        {
+        } else {
             *state->current = reinterpret_cast<void*>(frame);
             ++state->current;
         }
@@ -77,20 +73,17 @@ _Unwind_Reason_Code Unwind(struct _Unwind_Context* ctx, void* arg)
     return _URC_NO_REASON;
 }
 
-size_t GetStack(TStack& stack)
-{
+size_t GetStack(TStack& stack) {
     BacktraceState state = {stack, stack + StackSize};
     _Unwind_Backtrace(Unwind, &state);
     return state.current - stack;
 }
 
-std::string GetStackString()
-{
+std::string GetStackString() {
     std::string res;
     TStack stack;
     size_t size = GetStack(stack);
-    for (size_t i = 2; i < size; ++i)
-    {
+    for (size_t i = 2; i < size; ++i) {
         if (res.size())
             res += "<-";
         Dl_info dl_info = {};
@@ -105,8 +98,7 @@ std::string GetStackString()
 
 #else
 
-size_t GetStack(TStack& stack)
-{
+size_t GetStack(TStack& stack) {
 #ifdef _WIN32
     typedef USHORT (WINAPI *FCaptureStackBackTrace)(__in ULONG, __in ULONG, __out PVOID*, __out_opt PULONG);
     static FCaptureStackBackTrace CaptureStackBackTrace = (FCaptureStackBackTrace)(GetProcAddress(LoadLibraryA("kernel32.dll"), "RtlCaptureStackBackTrace"));
@@ -116,8 +108,7 @@ size_t GetStack(TStack& stack)
 #endif
 }
 
-std::string GetStackString()
-{
+std::string GetStackString() {
 #ifdef _WIN32
     return std::string();
 #else
@@ -144,8 +135,7 @@ std::string GetStackString()
 namespace sea {
 
 #ifdef _WIN32
-const char* GetProcessName(bool bFullPath)
-{
+const char* GetProcessName(bool bFullPath) {
     assert(bFullPath);
     static char process_name[1024] = {};
     if (!process_name[0])
@@ -153,8 +143,7 @@ const char* GetProcessName(bool bFullPath)
     return process_name;
 }
 
-SModuleInfo Fn2Mdl(void* fn)
-{
+SModuleInfo Fn2Mdl(void* fn) {
     HMODULE hModule = NULL;
     GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCTSTR)fn, &hModule);
     char filename[1024] = {};
@@ -164,8 +153,7 @@ SModuleInfo Fn2Mdl(void* fn)
     return SModuleInfo{hModule, mi.SizeOfImage, filename};
 }
 
-LONG WINAPI CreateMiniDump(EXCEPTION_POINTERS* pep)
-{
+LONG WINAPI CreateMiniDump(EXCEPTION_POINTERS* pep) {
     typedef BOOL(WINAPI *PDUMPFN)(
         HANDLE hProcess,
         DWORD ProcessId,
@@ -173,8 +161,7 @@ LONG WINAPI CreateMiniDump(EXCEPTION_POINTERS* pep)
         MINIDUMP_TYPE DumpType,
         PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
         PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
-        PMINIDUMP_CALLBACK_INFORMATION CallbackParam
-    );
+        PMINIDUMP_CALLBACK_INFORMATION CallbackParam);
 
     PDUMPFN fnMiniDumpWriteDump = (PDUMPFN)GetProcAddress(::LoadLibraryA("DbgHelp.dll"), "MiniDumpWriteDump");
     if (!fnMiniDumpWriteDump) return EXCEPTION_EXECUTE_HANDLER;
@@ -193,19 +180,15 @@ LONG WINAPI CreateMiniDump(EXCEPTION_POINTERS* pep)
     CloseHandle(hFile);
 
     return EXCEPTION_EXECUTE_HANDLER;
-
 }
 
-
-void SetGlobalCrashHandler()
-{
+void SetGlobalCrashHandler() {
     ::SetUnhandledExceptionFilter(CreateMiniDump);
 }
 
 #else
 
-void SetGlobalCrashHandler()
-{
+void SetGlobalCrashHandler() {
     //FIXME: implement
 }
 
@@ -223,28 +206,24 @@ size_t GetFileSize(const char *path) {
 #ifndef __APPLE__
 
 #if !defined(NO_DL_ITERATE_PHDR)
-int iterate_callback(struct dl_phdr_info *info, size_t size, void *data)
-{
-    Dl_info* pInfo = (Dl_info*)data;
+int iterate_callback(struct dl_phdr_info *info, size_t size, void *data) {
+    Dl_info* pInfo = reinterpret_cast<Dl_info*>(data);
     VerbosePrint("iterate_callback: %lx, %s\n", (long int)info->dlpi_addr, info->dlpi_name);
-    if ((void*)info->dlpi_addr == pInfo->dli_fbase)
+    if (reinterpret_cast<void*>(info->dlpi_addr) == pInfo->dli_fbase)
         pInfo->dli_fname = strdup(info->dlpi_name);
     return 0;
 }
 #endif
 
-bool proc_self_map(Dl_info& info)
-{
+bool proc_self_map(Dl_info& info) {
     char base[100] = {};
-    sprintf(base, "%lx", (long int)info.dli_fbase);
+    snprintf(base, sizeof(base), "%lx", (long int)info.dli_fbase);
     VerbosePrint("Base: %s\n", base);
     std::ifstream input("/proc/self/maps");
     std::string line;
-    while (std::getline(input, line))
-    {
+    while (std::getline(input, line)) {
         VerbosePrint("/proc/self/maps: %s\n", line.c_str());
-        if (0 == line.find(base))
-        {
+        if (0 == line.find(base)) {
             size_t pos = line.rfind(' ');
             info.dli_fname = strdup(line.substr(pos + 1).c_str());
             return true;
@@ -254,13 +233,11 @@ bool proc_self_map(Dl_info& info)
 }
 #endif
 
-sea::SModuleInfo Fn2Mdl(void* fn)
-{
+sea::SModuleInfo Fn2Mdl(void* fn) {
     Dl_info dl_info = {};
     dladdr(fn, &dl_info);
     VerbosePrint("Fn2Mdl: %p, %s\n", dl_info.dli_fbase, dl_info.dli_fname);
-    if (!dl_info.dli_fname || !strstr(dl_info.dli_fname, ".so"))
-    {
+    if (!dl_info.dli_fname || !strstr(dl_info.dli_fname, ".so")) {
 #ifndef __APPLE__
     #if !defined(NO_DL_ITERATE_PHDR)
         dl_iterate_phdr(iterate_callback, &dl_info);
@@ -271,27 +248,21 @@ sea::SModuleInfo Fn2Mdl(void* fn)
         return SModuleInfo{dl_info.dli_fbase, 0, dl_info.dli_fname};
     }
 
-    if (dl_info.dli_fname[0] == '/')
-    { //path is absolute
+    if (dl_info.dli_fname[0] == '/') {
+        // path is absolute
         return SModuleInfo{dl_info.dli_fbase, GetFileSize(dl_info.dli_fname), dl_info.dli_fname};
-    }
-    else
-    {
-        if (const char * absolute = realpath(dl_info.dli_fname, nullptr))
-        {
+    } else {
+        if (const char * absolute = realpath(dl_info.dli_fname, nullptr)) {
             SModuleInfo mdlInfo{dl_info.dli_fbase, GetFileSize(absolute), absolute};
-            free((void*) absolute);
+            free((void*) absolute); // NOLINT
             return mdlInfo;
-        }
-        else
-        {
+        } else {
             return SModuleInfo{dl_info.dli_fbase, GetFileSize(dl_info.dli_fname), dl_info.dli_fname};
         }
     }
 }
 
-const char* GetProcessName(bool bFullPath)
-{
+const char* GetProcessName(bool bFullPath) {
     static char process_name[1024] = {};
 #ifdef __APPLE__
     uint32_t size = 1023;

@@ -44,8 +44,7 @@
 #if defined(__ANDROID__)
 namespace std { //android NDK is missing this functionality
     template <typename T>
-    std::string to_string(T value)
-    {
+    std::string to_string(T value) {
         std::ostringstream os;
         os << value;
         return os.str();
@@ -53,8 +52,7 @@ namespace std { //android NDK is missing this functionality
 }
 #endif
 
-static std::string get_environ_value(const std::string& name)
-{
+static std::string get_environ_value(const std::string& name) {
 #ifdef _WIN32
     size_t sz;
     char *v = NULL;
@@ -73,60 +71,51 @@ static std::string get_environ_value(const std::string& name)
 #ifdef _WIN32
 
     //there is bug in VS2012 implementation: high_resolution_clock is in fact not high res...
-    struct SHiResClock
-    {
+    struct SHiResClock {
         typedef uint64_t                                rep;
         typedef std::nano                               period;
         typedef std::chrono::duration<rep, period>      duration;
         typedef std::chrono::time_point<SHiResClock>    time_point;
         static const bool is_steady = true;
-        static uint64_t now64() //in nanoseconds
-        {
+        static uint64_t now64() {
             static long long frequency = 0;
-            if (!frequency)
-            {
-                QueryPerformanceFrequency((LARGE_INTEGER*)&frequency);
+            if (!frequency) {
+                QueryPerformanceFrequency(reinterpret_cast<LARGE_INTEGER*>(&frequency));
             }
 
             LARGE_INTEGER count = {};
             QueryPerformanceCounter(&count);
-            return uint64_t(double(count.QuadPart) / frequency * static_cast<rep>(period::den));
+            return static_cast<uint64_t>(static_cast<double>(count.QuadPart) / frequency * static_cast<rep>(period::den));
         }
-        static time_point now()
-        {
+        static time_point now() {
             return time_point(duration(now64()));
         }
     };
 
-    namespace sea{
-        inline uint64_t GetTime()
-        {
+    namespace sea {
+        inline uint64_t GetTime() {
             LARGE_INTEGER count = {};
             QueryPerformanceCounter(&count);
             return count.QuadPart;
         }
-        inline uint64_t GetTimeFreq()
-        {
+        inline uint64_t GetTimeFreq() {
             static LARGE_INTEGER frequency = {};
-            if (!frequency.QuadPart)
-            {
+            if (!frequency.QuadPart) {
                 QueryPerformanceFrequency(&frequency);
             }
             return frequency.QuadPart;
         }
-    }
+    }  // namespace sea
 
 #else
 
     typedef std::chrono::high_resolution_clock SHiResClock;
-    namespace sea{
+    namespace sea {
         using namespace std::chrono;
-        inline uint64_t GetTime()
-        {
+        inline uint64_t GetTime() {
             return (uint64_t)duration_cast<nanoseconds>(SHiResClock::now().time_since_epoch()).count();
         }
-        inline uint64_t GetTimeFreq()
-        {
+        inline uint64_t GetTimeFreq() {
             /*
                 TODO:
                 struct timespec res = {};
@@ -136,28 +125,23 @@ static std::string get_environ_value(const std::string& name)
             static uint64_t freq = SHiResClock::period::num / SHiResClock::period::den;
             return freq;
         }
-    }
+    }  // namespace sea
 #endif
 
 #ifdef _MSC_VER //std::mutex won't work in static constructors due to MS bug
-    class CCriticalSection
-    {
+    class CCriticalSection {
         CRITICAL_SECTION m_cs;
     public:
-        CCriticalSection()
-        {
+        CCriticalSection() {
             InitializeCriticalSection(&m_cs);
         }
-        void lock()
-        {
+        void lock() {
             EnterCriticalSection(&m_cs);
         }
-        void unlock()
-        {
+        void unlock() {
             LeaveCriticalSection(&m_cs);
         }
-        ~CCriticalSection()
-        {
+        ~CCriticalSection() {
             DeleteCriticalSection(&m_cs);
         }
     };
@@ -173,20 +157,16 @@ static std::string get_environ_value(const std::string& name)
 #endif
 
 template<size_t size>
-class CPlacementPool
-{
-    static CPlacementPool& GetPool()
-    {
+class CPlacementPool {
+    static CPlacementPool& GetPool() {
         static thread_local CPlacementPool* pPool = nullptr;
         if (!pPool)
             pPool = new CPlacementPool;
         return *pPool;
     }
 
-    void* AllocMem()
-    {
-        if (m_free.size())
-        {
+    void* AllocMem() {
+        if (m_free.size()) {
             void* ptr = m_free.back();
             m_free.pop_back();
             return ptr;
@@ -194,30 +174,25 @@ class CPlacementPool
         return malloc(size);
     }
 
-    void FreeMem(void* ptr)
-    {
+    void FreeMem(void* ptr) {
         m_free.push_back(ptr);
     }
 
     std::vector<void*> m_free;
 
 public:
-    static void* Alloc()
-    {
+    static void* Alloc() {
         return GetPool().AllocMem();
     }
 
     template<class T>
-    static void Free(T* ptr)
-    {
+    static void Free(T* ptr) {
         if (!ptr) return;
         ptr->~T();
         return GetPool().FreeMem(ptr);
     }
-    ~CPlacementPool()
-    {
-        for (void* ptr : m_free)
-        {
+    ~CPlacementPool() {
+        for (void* ptr : m_free) {
             free(ptr);
         }
     }
@@ -225,21 +200,18 @@ public:
 
 #define placement_new(T) new (CPlacementPool<sizeof(T)>::Alloc()) T
 template<class T>
-inline void placement_free(T* ptr)
-{
+inline void placement_free(T* ptr) {
     CPlacementPool<sizeof(T)>::Free(ptr);
 }
 
-class CScope
-{
+class CScope {
 protected:
     std::function<void(void)> m_fn;
 public:
     CScope(const std::function<void(void)>& fn)
         : m_fn(fn)
     {}
-    ~CScope()
-    {
+    ~CScope() {
         m_fn();
     }
 };

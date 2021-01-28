@@ -40,11 +40,24 @@ namespace sea {
 }
 
 #ifdef __ANDROID__
-    #define VerbosePrint(...) {if (sea::IsVerboseMode()) __android_log_print(ANDROID_LOG_VERBOSE, "SEA", __VA_ARGS__);}
+    #define VerbosePrint(...) {                                                                     \
+        if (sea::IsVerboseMode())                                                                   \
+            __android_log_print(ANDROID_LOG_VERBOSE, "SEA", __VA_ARGS__);                           \
+    }
 #elif defined(_WIN32)
-    #define VerbosePrint(...) {if (sea::IsVerboseMode()) {std::vector<char> buff(1024); sprintf_s(buff.data(), 1024, __VA_ARGS__); OutputDebugStringA(buff.data()); printf(buff.data());}}
+    #define VerbosePrint(...) {                                                                     \
+        if (sea::IsVerboseMode()) {                                                                 \
+            std::vector<char> buff(1024);                                                           \
+            sprintf_s(buff.data(), 1024, __VA_ARGS__);                                              \
+            OutputDebugStringA(buff.data());                                                        \
+            printf("%s", buff.data());                                                              \
+        }                                                                                           \
+    }
 #else
-    #define VerbosePrint(...) {if (sea::IsVerboseMode()) printf(__VA_ARGS__);}
+    #define VerbosePrint(...) {                                                                     \
+        if (sea::IsVerboseMode())                                                                   \
+            printf(__VA_ARGS__);                                                                    \
+    }
 #endif
 
 #include "Utils.h"
@@ -58,33 +71,35 @@ extern __itt_domain* g_pIntelSEAPIDomain;
 
 
 namespace sea {
-    extern std::string g_savepath;
-    extern uint64_t g_nAutoCut;
+extern std::string g_savepath;
+extern uint64_t g_nAutoCut;
 #ifdef __linux
-    bool WriteFTraceTimeSyncMarkers(); //For Driver instrumentation see: http://lwn.net/Articles/379903/
+bool WriteFTraceTimeSyncMarkers(); //For Driver instrumentation see: http://lwn.net/Articles/379903/
 #endif
-    void InitSEA();
-    void FillApiList(__itt_api_info* pApiInfo);
-    void FinitaLaComedia();
-    void Counter(const __itt_domain *pDomain, __itt_string_handle *pName, double value, __itt_clock_domain* clock_domain = nullptr, unsigned long long timestamp = 0);
-    __itt_clock_domain* clock_domain_create(__itt_get_clock_info_fn fn, void* fn_data);
-    void SetCutName(const std::string& path);
-    void SetFolder(const std::string& path);
-    void SetRing(uint64_t nanoseconds);
-    const char* GetProcessName(bool bFullPath);
-    void FixCounter(__itt_counter_info_t* pCounter);
-    struct SModuleInfo
-    {
-        void* base;
-        size_t size;
-        std::string path;
-    };
-    SModuleInfo Fn2Mdl(void* fn);
-    std::string GetDir(std::string path, const std::string& append = "");
-}
+void InitSEA();
+void FillApiList(__itt_api_info* pApiInfo);
+void FinitaLaComedia();
+void Counter(const __itt_domain *pDomain,
+             __itt_string_handle *pName,
+             double value,
+             __itt_clock_domain* clock_domain = nullptr,
+             unsigned long long timestamp = 0);
+__itt_clock_domain* clock_domain_create(__itt_get_clock_info_fn fn, void* fn_data);
+void SetCutName(const std::string& path);
+void SetFolder(const std::string& path);
+void SetRing(uint64_t nanoseconds);
+const char* GetProcessName(bool bFullPath);
+void FixCounter(__itt_counter_info_t* pCounter);
+struct SModuleInfo {
+    void* base;
+    size_t size;
+    std::string path;
+};
+SModuleInfo Fn2Mdl(void* fn);
+std::string GetDir(std::string path, const std::string& append = "");
+}  // namespace sea
 
-struct SDomainName
-{
+struct SDomainName {
     __itt_domain *pDomain;
     __itt_string_handle *pName;
 };
@@ -101,7 +116,7 @@ struct ___itt_counter : public __itt_counter_info_t{};
 #ifdef _WIN32
     #include "windows.h"
     #include "IntelSEAPI.h"
-#elif defined (__linux__) && !defined(__ANDROID__)
+#elif defined(__linux__) && !defined(__ANDROID__)
     #ifndef USE_PROBES
         __thread FILE* stdsrc_trace_info_t::pFile = nullptr;
     #endif
@@ -109,10 +124,9 @@ struct ___itt_counter : public __itt_counter_info_t{};
 
 #ifdef _WIN32
     #define UNICODE_AGNOSTIC(name) name##A
-    inline std::string W2L(const wchar_t* wstr)
-    {
+    inline std::string W2L(const wchar_t* wstr) {
         size_t len = lstrlenW(wstr);
-        char* dest = (char*)alloca(len + 2);
+        char* dest = (char*)alloca(len + 2);    // NOLINT
         errno_t err = wcstombs_s(&len, dest, len + 1, wstr, len + 1);
         return std::string(dest, dest + len);
     }
@@ -120,8 +134,7 @@ struct ___itt_counter : public __itt_counter_info_t{};
     static_assert(sizeof(__itt_id) == 24, "sizeof(__itt_id) == 24");
     static_assert(sizeof(GUID) == 16, "sizeof(GUID) == 16");
 
-    union IdCaster
-    {
+    union IdCaster {
         __itt_id from; //d3 is not used, so we fit d1 and d2 into 16 bytes
         GUID to;
     };
@@ -141,8 +154,7 @@ __itt_counter UNICODE_AGNOSTIC(counter_create)(const char *name, const char *dom
 __itt_domain* UNICODE_AGNOSTIC(domain_create)(const char* name);
 __itt_string_handle* ITTAPI UNICODE_AGNOSTIC(string_handle_create)(const char* name);
 
-enum SEAFeature
-{
+enum SEAFeature {
     sfSEA = 0x1,
     sfSystrace = 0x2,
     sfMetricsFrameworkPublisher = 0x4,
@@ -163,8 +175,7 @@ struct SThreadRecord;
 
 static const size_t MAX_HANDLERS = 10;
 
-struct STaskDescriptor
-{
+struct STaskDescriptor {
     STaskDescriptor* prev;
     CTraceEventFormat::SRegularFields rf;
     const __itt_domain *pDomain;
@@ -172,8 +183,7 @@ struct STaskDescriptor
     __itt_id id;
     __itt_id parent;
     void* fn;
-    struct SCookie
-    {
+    struct SCookie {
         void* pCookie;
         void (*Deleter)(void*);
     };
@@ -184,10 +194,8 @@ struct STaskDescriptor
     double *pDur;
 #endif
 
-    ~STaskDescriptor()
-    {
-        for (size_t i = 0; i < MAX_HANDLERS; ++i)
-        {
+    ~STaskDescriptor() {
+        for (size_t i = 0; i < MAX_HANDLERS; ++i) {
             if (!cookies[i].pCookie)
                 continue;
             cookies[i].Deleter(cookies[i].pCookie);
@@ -197,25 +205,19 @@ struct STaskDescriptor
 };
 
 
-struct IHandler
-{
+struct IHandler {
 protected:
     static bool RegisterHandler(IHandler* pHandler);
     size_t m_cookie = ~0x0;
-    void SetCookieIndex(size_t cookie)
-    {
+    void SetCookieIndex(size_t cookie) {
         m_cookie = cookie;
     }
 
     template<class T, class ...TArgs>
-    T& Cookie(STaskDescriptor& oTask, TArgs&... args)
-    {
-        if (!oTask.cookies[m_cookie].pCookie)
-        {
-            struct SDeleter
-            {
-                static void Deleter(void* ptr)
-                {
+    T& Cookie(STaskDescriptor& oTask, TArgs&... args) {
+        if (!oTask.cookies[m_cookie].pCookie) {
+            struct SDeleter {
+                static void Deleter(void* ptr) {
                     placement_free(reinterpret_cast<T*>(ptr));
                 }
             };
@@ -224,9 +226,8 @@ protected:
         return *reinterpret_cast<T*>(oTask.cookies[m_cookie].pCookie);
     }
 
-    const char* GetScope(__itt_scope theScope)
-    {
-        static const char * scopes []= {
+    const char* GetScope(__itt_scope theScope) {
+        static const char * scopes[] = {
             "unknown",
             "global",
             "track_group",
@@ -237,9 +238,9 @@ protected:
 
         return scopes[theScope];
     }
+
 public:
-    struct SData
-    {
+    struct SData {
         CTraceEventFormat::SRegularFields rf;
         SThreadRecord* pThreadRecord;
         const __itt_domain *pDomain;
@@ -249,16 +250,14 @@ public:
     };
 
     template<class T>
-    static T* Register(bool bRegister)
-    {
+    static T* Register(bool bRegister) {
         T* pObject = nullptr;
 #ifndef _DEBUG //register all in debug to discover all problems sooner
-        if (bRegister)
+        if (bRegister)  //NOLINT
 #endif
         {
             pObject = new T();
-            if (!RegisterHandler(pObject))
-            {
+            if (!RegisterHandler(pObject)) {
                 assert(false);
                 delete pObject;
                 return nullptr;
@@ -271,22 +270,25 @@ public:
     virtual void TaskBegin(STaskDescriptor& oTask, bool bOverlapped) {}
     virtual void AddArg(STaskDescriptor& oTask, const __itt_string_handle *pKey, const char *data, size_t length) {}
     virtual void AddArg(STaskDescriptor& oTask, const __itt_string_handle *pKey, double value) {}
-    virtual void AddRelation(const CTraceEventFormat::SRegularFields& rf, const __itt_domain *pDomain, __itt_id head, __itt_string_handle* relation, __itt_id tail) {}
+    virtual void AddRelation(const CTraceEventFormat::SRegularFields& rf,
+                             const __itt_domain *pDomain,
+                             __itt_id head,
+                             __itt_string_handle* relation,
+                             __itt_id tail) {}
     virtual void TaskEnd(STaskDescriptor& oTask, const CTraceEventFormat::SRegularFields& rf, bool bOverlapped) {}
     virtual void Marker(const CTraceEventFormat::SRegularFields& rf, const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pName, __itt_scope scope) {}
     virtual void CreateCounter(const __itt_counter& id) {}
     virtual void Counter(const CTraceEventFormat::SRegularFields& rf, const __itt_domain *pDomain, const __itt_string_handle *pName, double value) {}
     virtual void SetThreadName(const CTraceEventFormat::SRegularFields& rf, const char* name) {}
-    virtual void Alloc(const CTraceEventFormat::SRegularFields& rf, const void* addr, size_t size, const char* domain, const char* name) {};
-    virtual void Free(const CTraceEventFormat::SRegularFields& rf, const void* addr, size_t size, const char* domain, const char* name) {};
+    virtual void Alloc(const CTraceEventFormat::SRegularFields& rf, const void* addr, size_t size, const char* domain, const char* name) {}
+    virtual void Free(const CTraceEventFormat::SRegularFields& rf, const void* addr, size_t size, const char* domain, const char* name) {}
 
     virtual ~IHandler(){}
 };
 
 class COverlapped;
 
-struct SThreadRecord
-{
+struct SThreadRecord {
     std::map<std::string/*domain*/, CRecorder> files;
     bool bRemoveFiles = false;
     __itt_track* pTrack = nullptr;
@@ -308,8 +310,7 @@ void TraverseThreadRecords(const std::function<void(SThreadRecord&)>& callback);
 
 void InitDomain(__itt_domain* pDomain);
 
-struct DomainExtra
-{
+struct DomainExtra {
     std::string strDomainPath; //always changed and accessed under lock
     bool bHasDomainPath = false; //for light check of strDomainPath.empty() without lock
     SThreadRecord* pThreadRecords = nullptr; //keeping track of thread records for later freeing
@@ -322,8 +323,7 @@ SThreadRecord* GetThreadRecord();
 #define CHECKRET(cond, res) {if (!(cond)) {VerbosePrint("Error: !(%s) at %s, %s:(%d)\n", #cond, __FUNCTION__, __FILE__, __LINE__); return res;}}
 
 
-class CIttLocker
-{
+class CIttLocker {
     __itt_global* m_pGlobal = nullptr;
 public:
     CIttLocker();

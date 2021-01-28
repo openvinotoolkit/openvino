@@ -28,17 +28,9 @@ if (WIN32)
         COMMENT "Generating ${PROJECT_BINARY_DIR}/IntelSEAPI.rc ${PROJECT_BINARY_DIR}/IntelSEAPI.h"
     )
 endif()
+file(GLOB_RECURSE SOURCES "*.cpp" "*.h")
 
-add_library(${TARGET_NAME} SHARED
-    sea_itt_lib.cpp
-    IttNotifyStdSrc.cpp
-    IttNotifyStdSrc.h
-    Recorder.cpp
-    Recorder.h
-    TraceEventFormat.h
-    Utils.cpp
-    Utils.h
-)
+add_library(${TARGET_NAME} SHARED ${SOURCES})
 
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                                   ${PROJECT_BINARY_DIR})
@@ -52,3 +44,5 @@ if(UNIX)
 elseif(WIN32)
     target_link_libraries(${TARGET_NAME} PRIVATE Dbghelp)
 endif()
+
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

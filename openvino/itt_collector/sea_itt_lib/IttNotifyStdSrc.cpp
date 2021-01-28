@@ -46,39 +46,33 @@
 namespace sea {
 IHandler* g_handlers[MAX_HANDLERS] = {}; //10 is more than enough for now
 
-CIttLocker::CIttLocker()
-{
+CIttLocker::CIttLocker() {
     m_pGlobal = GetITTGlobal();
     __itt_mutex_lock(&m_pGlobal->mutex);
 }
 
 
-CIttLocker::~CIttLocker()
-{
-    if (m_pGlobal)
-    {
+CIttLocker::~CIttLocker() {
+    if (m_pGlobal) {
         __itt_mutex_unlock(&m_pGlobal->mutex);
     }
 }
 
-}
+}  // namespace sea
 
 //FIXME: in general add much more comments
 
 std::map<std::string, size_t> g_stats; //can't be static function variable due to lifetime limits
 
-class CIttFnStat
-{
+class CIttFnStat {
 public:
-    CIttFnStat(const char* name)
-    {
+    CIttFnStat(const char* name) {
         if (!sea::IsVerboseMode()) return;
         sea::CIttLocker locker;
         ++GetStats()[name];
     }
 
-    static std::map<std::string, size_t>& GetStats()
-    {
+    static std::map<std::string, size_t>& GetStats() {
         return g_stats;
     }
 };
@@ -90,19 +84,16 @@ public:
 #endif
 
 
-struct __itt_frame_t
-{
+struct __itt_frame_t {
     __itt_domain* pDomain;
     __itt_id id;
 };
 
-inline bool operator < (const __itt_id& left, const __itt_id& right)
-{
+inline bool operator < (const __itt_id& left, const __itt_id& right) {
     return memcmp(&left, &right, sizeof(__itt_id)) < 0;
 }
 
-inline bool operator == (const __itt_id& left, const __itt_id& right)
-{
+inline bool operator == (const __itt_id& left, const __itt_id& right) {
     return (left.d1 == right.d1) && (left.d2 == right.d2);
 }
 
@@ -112,44 +103,38 @@ int64_t g_nRingBuffer = 1000000000ll * atoi(get_environ_value("INTEL_SEA_RING").
 uint64_t g_nAutoCut = 1024ull * 1024 * atoi(get_environ_value("INTEL_SEA_AUTOCUT").c_str()); //in MB
 uint64_t g_features = sea::GetFeatureSet();
 
-class DomainFilter
-{
+class DomainFilter {
 protected:
     std::string m_path;
     typedef std::map<std::string/*domain*/, bool/*disabled*/> TDomains;
     TDomains m_domains;
 
-    void ReadFilters(TDomains& domains)
-    {
+    void ReadFilters(TDomains& domains) {
         std::ifstream ifs(m_path);
-        for (std::string domain; std::getline(ifs, domain);)
-        {
+        for (std::string domain; std::getline(ifs, domain);) {
             if (domain[0] == '#')
                 m_domains[domain.c_str() + 1] = true;
             else
                 m_domains[domain] = false;
         }
     }
+
 public:
-    DomainFilter()
-    {
+    DomainFilter() {
         m_path = get_environ_value("INTEL_SEA_FILTER");
         if (m_path.empty()) return;
         ReadFilters(m_domains);
     }
 
-    operator bool() const
-    {
+    operator bool() const {
         return !m_path.empty();
     }
 
-    bool IsEnabled(const char* szDomain)
-    {
+    bool IsEnabled(const char* szDomain) {
         return !m_domains[szDomain]; //new domain gets initialized with bool() which is false, so we invert it
     }
 
-    void Finish()
-    {
+    void Finish() {
         if (m_path.empty()) return;
         TDomains domains;
         ReadFilters(domains);
@@ -157,8 +142,7 @@ public:
         m_domains.swap(domains);
 
         std::ofstream ifs(m_path);
-        for (const auto& pair : m_domains)
-        {
+        for (const auto& pair : m_domains) {
             if (pair.second)
                 ifs << '#';
             ifs << pair.first << std::endl;
@@ -166,8 +150,7 @@ public:
     }
 } g_oDomainFilter;
 
-bool PathExists(const std::string& path)
-{
+bool PathExists(const std::string& path) {
 #ifdef _WIN32
     return -1 != _access(path.c_str(), 0);
 #else
@@ -175,8 +158,7 @@ bool PathExists(const std::string& path)
 #endif
 }
 
-int mkpath(const char *path, uint32_t mode)
-{
+int mkpath(const char *path, uint32_t mode) {
     struct stat sb = {};
 
     if (!stat(path, &sb))
@@ -186,7 +168,7 @@ int mkpath(const char *path, uint32_t mode)
 #ifdef _WIN32
     strcpy_s(parent, path);
 #else
-    strcpy(parent, path);
+    strcpy(parent, path);  // NOLINT
 #endif
     char* last_slash = strrchr(parent, '//');
     if (!last_slash) {
@@ -196,13 +178,10 @@ int mkpath(const char *path, uint32_t mode)
     *last_slash = 0;
 
     int res = mkpath(parent, mode);
-    if (res == -1)
-    {
+    if (res == -1) {
         VerbosePrint("Failed to create dir: %s err=%d\n", parent, errno);
         return res;
-    }
-    else
-    {
+    } else {
         VerbosePrint("Created dir: %s\n", parent);
     }
 
@@ -213,8 +192,7 @@ int mkpath(const char *path, uint32_t mode)
 #endif
 }
 
-std::string GetDir(std::string path, const std::string& append)
-{
+std::string GetDir(std::string path, const std::string& append) {
     if (path.empty()) return path;
     path += append;
     VerbosePrint("GetDir: %s\n", path.c_str());
@@ -229,43 +207,35 @@ std::string GetDir(std::string path, const std::string& append)
     return path;
 }
 
-std::string GetSavePath()
-{
+std::string GetSavePath() {
 #ifdef __ANDROID__
     static std::string save_to;
 
     int MAX_BYTES = 512;
     char path[MAX_BYTES] = {0};
     int path_file = open("/data/local/tmp/com.intel.sea.save_to", O_RDONLY);
-    if (path_file == -1)
-    {
+    if (path_file == -1) {
         VerbosePrint("%s: Can't open file /data/local/tmp/com.intel.sea.save_to! %d %d", __FUNCTION__, path_file, errno);
         save_to = "";
-    }
-    else
-    {
+    } else {
         read(path_file,  path, MAX_BYTES - 1);
         close(path_file);
 
         char* str_end = strchr(path, '\n');
-        save_to = std::string(path, (int)(str_end - path));
+        save_to = std::string(path, (int)(str_end - path));  // NOLINT
     }
 #else
     static std::string save_to = get_environ_value("INTEL_SEA_SAVE_TO");
 #endif
     VerbosePrint("Got save path: %s\n", save_to.c_str());
-    if (save_to.empty())
-    {
+    if (save_to.empty()) {
         return save_to;
     }
-    return GetDir(
-        save_to,
-        ("-" + std::to_string(CTraceEventFormat::GetRegularFields().pid))
-    );
+    return GetDir(save_to,
+                  ("-" + std::to_string(CTraceEventFormat::GetRegularFields().pid)));
 }
 
-bool IsVerboseMode()
-{
+bool IsVerboseMode() {
 #if defined(_DEBUG) && defined(__ANDROID__)
     return true;
 #else
@@ -274,24 +244,20 @@ bool IsVerboseMode()
 #endif
 }
 
-std::string g_savepath = GetSavePath();
+std::string g_savepath = GetSavePath();  // NOLINT
 std::shared_ptr<std::string> g_spCutName;
 
-std::string Escape4Path(std::string str)
-{
+std::string Escape4Path(std::string str) {
     std::replace_if(str.begin(), str.end(),
         [](char sym){return strchr("/\\:*?\"<>|", sym);},
-        '_'
-    );
+        '_');
     return str;
 }
 
-void InitDomain(__itt_domain* pDomain)
-{
+void InitDomain(__itt_domain* pDomain) {
     CIttLocker locker;
     pDomain->extra2 = new DomainExtra{};
-    if (g_savepath.size())
-    {
+    if (g_savepath.size()) {
         DomainExtra* pDomainExtra = reinterpret_cast<DomainExtra*>(pDomain->extra2);
         pDomainExtra->strDomainPath = GetDir(g_savepath, Escape4Path(pDomain->nameA));
         pDomainExtra->bHasDomainPath = !pDomainExtra->strDomainPath.empty();
@@ -302,8 +268,7 @@ void InitDomain(__itt_domain* pDomain)
     pDomain->flags = g_oDomainFilter.IsEnabled(pDomain->nameA) ? 1 : 0;
 }
 
-SThreadRecord* GetThreadRecord()
-{
+SThreadRecord* GetThreadRecord() {
     static thread_local SThreadRecord* pThreadRecord = nullptr;
     if (pThreadRecord)
         return pThreadRecord;
@@ -316,23 +281,21 @@ SThreadRecord* GetThreadRecord()
     __itt_domain* pDomain = pGlobal->domain_list;
     DomainExtra* pDomainExtra = reinterpret_cast<DomainExtra*>(pDomain->extra2);
     SThreadRecord* pRecord = pDomainExtra->pThreadRecords;
-    if (pRecord)
-    {
-        while(pRecord->pNext) pRecord = pRecord->pNext;
+    if (pRecord) {
+        while (pRecord->pNext)
+            pRecord = pRecord->pNext;
         pRecord->pNext = pThreadRecord;
-    }
-    else
+    } else {
         pDomainExtra->pThreadRecords = pThreadRecord;
+    }
 
     return pThreadRecord;
 }
 
-void UNICODE_AGNOSTIC(thread_set_name)(const char* name)
-{
+void UNICODE_AGNOSTIC(thread_set_name)(const char* name) {
     ITT_FUNCTION_STAT();
 
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->SetThreadName(GetRegularFields(), name);
     }
 
@@ -345,37 +308,32 @@ void UNICODE_AGNOSTIC(thread_set_name)(const char* name)
 #endif
 }
 #ifdef _WIN32
-void thread_set_nameW(const wchar_t* name)
-{
+void thread_set_nameW(const wchar_t* name) {
     UNICODE_AGNOSTIC(thread_set_name)(W2L(name).c_str());
 }
 #endif
 
 
 
-inline uint64_t ConvertClockDomains(unsigned long long timestamp, __itt_clock_domain* pClock)
-{
+inline uint64_t ConvertClockDomains(unsigned long long timestamp, __itt_clock_domain* pClock) {
     if (!pClock) return timestamp;
-    uint64_t start = *(uint64_t*)pClock->extra2;
+    uint64_t start = *(uint64_t*)pClock->extra2;  // NOLINT
     return start + (timestamp - pClock->info.clock_base) * SHiResClock::period::den / pClock->info.clock_freq;
 }
 
-CTraceEventFormat::SRegularFields GetRegularFields(__itt_clock_domain* clock_domain, unsigned long long timestamp)
-{
+CTraceEventFormat::SRegularFields GetRegularFields(__itt_clock_domain* clock_domain, unsigned long long timestamp) {
     CTraceEventFormat::SRegularFields rf = CTraceEventFormat::GetRegularFields();
 
     __itt_track* pTrack = GetThreadRecord()->pTrack;
 
-    if (pTrack)
-    {
+    if (pTrack) {
         CTraceEventFormat::SRegularFields& trackRF = *(CTraceEventFormat::SRegularFields*)pTrack->extra2;
         rf.changed |= (rf.pid != trackRF.pid) ? CTraceEventFormat::SRegularFields::ecPid : CTraceEventFormat::SRegularFields::ecNothing;
         rf.pid = trackRF.pid;
         rf.changed |= (rf.tid != trackRF.tid) ? CTraceEventFormat::SRegularFields::ecTid : CTraceEventFormat::SRegularFields::ecNothing;
         rf.tid = trackRF.tid;
     }
-    if (clock_domain || timestamp)
-    {
+    if (clock_domain || timestamp) {
         rf.nanoseconds = ConvertClockDomains(timestamp, clock_domain);
         rf.changed |= CTraceEventFormat::SRegularFields::ecTime;
     }
@@ -383,25 +341,21 @@ CTraceEventFormat::SRegularFields GetRegularFields(__itt_clock_domain* clock_dom
 }
 
 
-__itt_domain* UNICODE_AGNOSTIC(domain_create)(const char* name)
-{
+__itt_domain* UNICODE_AGNOSTIC(domain_create)(const char* name) {
     ITT_FUNCTION_STAT();
     __itt_domain *h_tail = NULL, *h = NULL;
 
-    if (name == NULL)
-    {
+    if (name == NULL) {
         return NULL;
     }
     {
         CIttLocker locker;
         static __itt_global* pGlobal = GetITTGlobal();
-        for (h_tail = NULL, h = pGlobal->domain_list; h != NULL; h_tail = h, h = h->next)
-        {
+        for (h_tail = NULL, h = pGlobal->domain_list; h != NULL; h_tail = h, h = h->next) {
             if (h->nameA != NULL && !__itt_fstrcmp(h->nameA, name)) break;
         }
-        if (h == NULL)
-        {
-            NEW_DOMAIN_A(pGlobal,h,h_tail,name);
+        if (h == NULL) {
+            NEW_DOMAIN_A(pGlobal, h, h_tail, name);
         }
     }
     InitDomain(h);
@@ -409,14 +363,12 @@ __itt_domain* UNICODE_AGNOSTIC(domain_create)(const char* name)
 }
 
 #ifdef _WIN32
-__itt_domain* domain_createW(const wchar_t* name)
-{
+__itt_domain* domain_createW(const wchar_t* name) {
     return UNICODE_AGNOSTIC(domain_create)(W2L(name).c_str());
 }
 #endif
 
-inline __itt_string_handle* get_tail_of_global_string_list(const __itt_global* const pGlobal)
-{
+inline __itt_string_handle* get_tail_of_global_string_list(const __itt_global* const pGlobal) {
     if (!pGlobal->string_list) return nullptr;
 
     __itt_string_handle* result = pGlobal->string_list;
@@ -428,8 +380,7 @@ inline __itt_string_handle* get_tail_of_global_string_list(const __itt_global* c
     return result;
 }
 
-inline __itt_string_handle* create_and_add_string_handle_to_list(const char* name)
-{
+inline __itt_string_handle* create_and_add_string_handle_to_list(const char* name) {
     static __itt_global* pGlobal = GetITTGlobal();
     static __itt_string_handle *string_handle_list_tail = get_tail_of_global_string_list(pGlobal);
 
@@ -440,18 +391,15 @@ inline __itt_string_handle* create_and_add_string_handle_to_list(const char* nam
     return result;
 }
 
-__itt_string_handle* ITTAPI UNICODE_AGNOSTIC(string_handle_create)(const char* name)
-{
+__itt_string_handle* ITTAPI UNICODE_AGNOSTIC(string_handle_create)(const char* name) {
     ITT_FUNCTION_STAT();
-    if (name == NULL)
-    {
+    if (name == NULL) {
         return NULL;
     }
     CIttLocker locker;
     static std::unordered_map<std::string, __itt_string_handle*> handle_map;
     auto found_handle = handle_map.find(name);
-    if (found_handle != handle_map.end())
-    {
+    if (found_handle != handle_map.end()) {
         return found_handle->second;
     }
 
@@ -462,36 +410,34 @@ __itt_string_handle* ITTAPI UNICODE_AGNOSTIC(string_handle_create)(const char* n
 }
 
 #ifdef _WIN32
-__itt_string_handle* string_handle_createW(const wchar_t* name)
-{
+__itt_string_handle* string_handle_createW(const wchar_t* name) {
     return UNICODE_AGNOSTIC(string_handle_create)(W2L(name).c_str());
 }
 #endif
 
-void marker_ex(const __itt_domain *pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id id, __itt_string_handle *pName, __itt_scope scope)
-{
+void marker_ex(const __itt_domain *pDomain,
+               __itt_clock_domain* clock_domain,
+               unsigned long long timestamp,
+               __itt_id id,
+               __itt_string_handle *pName,
+               __itt_scope scope) {
     ITT_FUNCTION_STAT();
     CTraceEventFormat::SRegularFields rf = GetRegularFields(clock_domain, timestamp);
 
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->Marker(rf, pDomain, id, pName, scope);
     }
 }
 
-void marker(const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pName, __itt_scope scope)
-{
+void marker(const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pName, __itt_scope scope) {
     ITT_FUNCTION_STAT();
     marker_ex(pDomain, nullptr, 0, id, pName, scope);
 }
 
 
-bool IHandler::RegisterHandler(IHandler* pHandler)
-{
-    for (size_t i = 0; i < MAX_HANDLERS; ++i)
-    {
-        if (!g_handlers[i])
-        {
+bool IHandler::RegisterHandler(IHandler* pHandler) {
+    for (size_t i = 0; i < MAX_HANDLERS; ++i) {
+        if (!g_handlers[i]) {
             g_handlers[i] = pHandler;
             pHandler->SetCookieIndex(i);
             return true;
@@ -501,65 +447,55 @@ bool IHandler::RegisterHandler(IHandler* pHandler)
 }
 
 //FIXME: Use one coding style, since itt functions are mapped, there's no problem with that
-void task_begin(const __itt_domain *pDomain, __itt_id taskid, __itt_id parentid, __itt_string_handle *pName)
-{
+void task_begin(const __itt_domain *pDomain, __itt_id taskid, __itt_id parentid, __itt_string_handle *pName) {
     ITT_FUNCTION_STAT();
     SThreadRecord* pThreadRecord = GetThreadRecord();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
-    pThreadRecord->pTask = placement_new(STaskDescriptor)
-    {
+    pThreadRecord->pTask = placement_new(STaskDescriptor) {
         pThreadRecord->pTask, //chaining the previous task inside
         rf,
         pDomain, pName,
         taskid, parentid
-    };
+    };  // NOLINT
 
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->TaskBegin(*pThreadRecord->pTask, false);
     }
 }
 
-void task_begin_fn(const __itt_domain *pDomain, __itt_id taskid, __itt_id parentid, void* fn)
-{
+void task_begin_fn(const __itt_domain *pDomain, __itt_id taskid, __itt_id parentid, void* fn) {
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
     SThreadRecord* pThreadRecord = GetThreadRecord();
 
-    pThreadRecord->pTask = placement_new(STaskDescriptor)
-    {
+    pThreadRecord->pTask = placement_new(STaskDescriptor) {
         pThreadRecord->pTask, //chaining the previous task inside
         rf,
         pDomain, nullptr,
         taskid, parentid,
         fn
-    };
+    };  // NOLINT
 
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->TaskBegin(*pThreadRecord->pTask, false);
     }
-
 }
 
-void task_end(const __itt_domain *pDomain)
-{
+void task_end(const __itt_domain *pDomain) {
     ITT_FUNCTION_STAT();
 
     SThreadRecord* pThreadRecord = GetThreadRecord();
     const char* domain = pDomain->nameA;
-    if (!pThreadRecord->pTask)
-    {
+    if (!pThreadRecord->pTask) {
         VerbosePrint("Uneven begin/end count for domain: %s\n", domain);
         return;
     }
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields(); //FIXME: get from begin except for time
 
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->TaskEnd(*pThreadRecord->pTask, rf, false);
     }
 
@@ -568,55 +504,47 @@ void task_end(const __itt_domain *pDomain)
     pThreadRecord->pTask = prev;
 }
 
-void Counter(const __itt_domain *pDomain, __itt_string_handle *pName, double value, __itt_clock_domain* clock_domain, unsigned long long timestamp)
-{
+void Counter(const __itt_domain *pDomain, __itt_string_handle *pName, double value, __itt_clock_domain* clock_domain, unsigned long long timestamp) {
     CTraceEventFormat::SRegularFields rf = GetRegularFields(clock_domain, timestamp);
 
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->Counter(rf, pDomain, pName, value);
     }
 }
 
-void counter_inc_delta_v3(const __itt_domain *pDomain, __itt_string_handle *pName, unsigned long long delta)
-{
+void counter_inc_delta_v3(const __itt_domain *pDomain, __itt_string_handle *pName, unsigned long long delta) {
     ITT_FUNCTION_STAT();
-    Counter(pDomain, pName, double(delta));//FIXME: add value tracking!
+    Counter(pDomain, pName, double(delta));  // NOLINT
 }
 
-void FixCounter(__itt_counter_info_t* pCounter)
-{
+void FixCounter(__itt_counter_info_t* pCounter) {
     pCounter->extra2 = new SDomainName{
         UNICODE_AGNOSTIC(domain_create)(pCounter->domainA),
         UNICODE_AGNOSTIC(string_handle_create)(pCounter->nameA)
     };
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->CreateCounter(reinterpret_cast<__itt_counter>(pCounter));
     }
 }
 
-__itt_counter ITTAPI UNICODE_AGNOSTIC(counter_create_typed)(const char *name, const char *domain, __itt_metadata_type type)
-{
+__itt_counter ITTAPI UNICODE_AGNOSTIC(counter_create_typed)(const char *name, const char *domain, __itt_metadata_type type) {
     ITT_FUNCTION_STAT();
 
     if (!name || !domain)
         return nullptr;
 
-    VerbosePrint("%s: name=%s domain=%s type=%d\n", __FUNCTION__, name, domain, (int)type);
+    VerbosePrint("%s: name=%s domain=%s type=%d\n", __FUNCTION__, name, domain, (int)type);  // NOLINT
 
     __itt_counter_info_t *h_tail = NULL, *h = NULL;
 
     CIttLocker locker;
     __itt_global* pGlobal = GetITTGlobal();
-    for (h_tail = NULL, h = pGlobal->counter_list; h != NULL; h_tail = h, h = h->next)
-    {
+    for (h_tail = NULL, h = pGlobal->counter_list; h != NULL; h_tail = h, h = h->next) {
         if (h->nameA != NULL && h->type == type && !__itt_fstrcmp(h->nameA, name) && ((h->domainA == NULL && domain == NULL) ||
             (h->domainA != NULL && domain != NULL && !__itt_fstrcmp(h->domainA, domain))))
                 break;
     }
-    if (!h)
-    {
+    if (!h) {
         NEW_COUNTER_A(pGlobal, h, h_tail, name, domain, type);
         FixCounter(h);
     }
@@ -625,29 +553,25 @@ __itt_counter ITTAPI UNICODE_AGNOSTIC(counter_create_typed)(const char *name, co
 }
 
 #ifdef _WIN32
-__itt_counter counter_create_typedW(const wchar_t *name, const wchar_t *domain, __itt_metadata_type type)
-{
+__itt_counter counter_create_typedW(const wchar_t *name, const wchar_t *domain, __itt_metadata_type type) {
     return UNICODE_AGNOSTIC(counter_create_typed)(W2L(name).c_str(), W2L(domain).c_str(), type);
 }
 #endif
 
-__itt_counter UNICODE_AGNOSTIC(counter_create)(const char *name, const char *domain)
-{
+__itt_counter UNICODE_AGNOSTIC(counter_create)(const char *name, const char *domain) {
     ITT_FUNCTION_STAT();
     return UNICODE_AGNOSTIC(counter_create_typed)(name, domain, __itt_metadata_double);
 }
 
 #ifdef _WIN32
-__itt_counter counter_createW(const wchar_t *name, const wchar_t *domain)
-{
+__itt_counter counter_createW(const wchar_t *name, const wchar_t *domain) {
     return UNICODE_AGNOSTIC(counter_create)(W2L(name).c_str(), W2L(domain).c_str());
 }
 #endif
 
 template<class T>
-double Convert(void* ptr)
-{
-    return double(*reinterpret_cast<T*>(ptr));
+double Convert(void* ptr) {
+    return static_cast<double>(*reinterpret_cast<T*>(ptr));
 }
 typedef double(*FConvert)(void* ptr);
 
@@ -663,12 +587,10 @@ FConvert g_MetatypeFormatConverter[] = {
     Convert<double>,
 };
 
-void counter_set_value_ex(__itt_counter id, __itt_clock_domain *clock_domain, unsigned long long timestamp, void *value_ptr)
-{
+void counter_set_value_ex(__itt_counter id, __itt_clock_domain *clock_domain, unsigned long long timestamp, void *value_ptr) {
     ITT_FUNCTION_STAT();
-    if (id->type < __itt_metadata_u64 || id->type > __itt_metadata_double)
-    {
-        VerbosePrint("%s: weird type: %d stack: %s\n", __FUNCTION__, (int)id->type, GetStackString().c_str());
+    if (id->type < __itt_metadata_u64 || id->type > __itt_metadata_double) {
+        VerbosePrint("%s: weird type: %d stack: %s\n", __FUNCTION__, (int)id->type, GetStackString().c_str());  // NOLINT
         return;
     }
     double val = g_MetatypeFormatConverter[id->type](value_ptr);
@@ -676,14 +598,12 @@ void counter_set_value_ex(__itt_counter id, __itt_clock_domain *clock_domain, un
     Counter(pDomainName->pDomain, pDomainName->pName, val, clock_domain, timestamp);
 }
 
-void counter_set_value(__itt_counter id, void *value_ptr)
-{
+void counter_set_value(__itt_counter id, void *value_ptr) {
     ITT_FUNCTION_STAT();
     counter_set_value_ex(id, nullptr, 0, value_ptr);
 }
 
-void UNICODE_AGNOSTIC(sync_create)(void *addr, const char *objtype, const char *objname, int attribute)
-{
+void UNICODE_AGNOSTIC(sync_create)(void *addr, const char *objtype, const char *objname, int attribute) {
     ITT_FUNCTION_STAT();
 
     std::string name((attribute == __itt_attr_mutex) ? "mutex:" : "barrier:");
@@ -698,14 +618,12 @@ void UNICODE_AGNOSTIC(sync_create)(void *addr, const char *objtype, const char *
 }
 
 #ifdef _WIN32
-void sync_createW(void *addr, const wchar_t *objtype, const wchar_t *objname, int attribute)
-{
+void sync_createW(void *addr, const wchar_t *objtype, const wchar_t *objname, int attribute) {
     UNICODE_AGNOSTIC(sync_create)(addr, W2L(objtype).c_str(), W2L(objname).c_str(), attribute);
 }
 #endif
 
-void sync_destroy(void *addr)
-{
+void sync_destroy(void *addr) {
     ITT_FUNCTION_STAT();
 
     __itt_id id = __itt_id_make(addr, 0);
@@ -713,8 +631,7 @@ void sync_destroy(void *addr)
     WriteRecord(ERecordType::ObjectDelete, SRecord{rf, *g_pIntelSEAPIDomain, id, __itt_null});
 }
 
-inline void SyncState(void * addr, const char * state)
-{
+inline void SyncState(void * addr, const char * state) {
     ITT_FUNCTION_STAT();
 
     __itt_id id = __itt_id_make(addr, 0);
@@ -723,71 +640,61 @@ inline void SyncState(void * addr, const char * state)
     WriteRecord(ERecordType::ObjectSnapshot, SRecord{rf, *g_pIntelSEAPIDomain, id, __itt_null, nullptr, nullptr, state, strlen(state)});
 }
 
-void UNICODE_AGNOSTIC(sync_rename)(void * addr, const char * name)
-{
+void UNICODE_AGNOSTIC(sync_rename)(void * addr, const char * name) {
     ITT_FUNCTION_STAT();
 
     SyncState(addr, (std::string("name=") + name).c_str());
 }
 #ifdef _WIN32
-void sync_renameW(void * addr, const wchar_t * name)
-{
+void sync_renameW(void * addr, const wchar_t * name) {
     UNICODE_AGNOSTIC(sync_rename)(addr, W2L(name).c_str());
 }
 #endif
 
-void sync_prepare(void *addr)
-{
+void sync_prepare(void *addr) {
     ITT_FUNCTION_STAT();
 
     SyncState(addr, "state=prepare");
 }
 
-void sync_cancel(void *addr)
-{
+void sync_cancel(void *addr) {
     ITT_FUNCTION_STAT();
 
     SyncState(addr, "state=cancel");
 }
 
-void sync_acquired(void *addr)
-{
+void sync_acquired(void *addr) {
     ITT_FUNCTION_STAT();
     SyncState(addr, "state=acquired");
 }
 
-void sync_releasing(void *addr)
-{
+void sync_releasing(void *addr) {
     ITT_FUNCTION_STAT();
     SyncState(addr, "state=releasing");
 }
 
 //region is the same as frame only explicitly named
-void region_begin(const __itt_domain *pDomain, __itt_id id, __itt_id parentid, const __itt_string_handle *pName)
-{
+void region_begin(const __itt_domain *pDomain, __itt_id id, __itt_id parentid, const __itt_string_handle *pName) {
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
     WriteRecord(ERecordType::BeginFrame, SRecord{rf, *pDomain, id, parentid, pName});
 }
 
-void region_end(const __itt_domain *pDomain, __itt_id id)
-{
+void region_end(const __itt_domain *pDomain, __itt_id id) {
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
     WriteRecord(ERecordType::EndFrame, SRecord{rf, *pDomain, id, __itt_null});
 }
 
-__itt_clock_domain* clock_domain_create(__itt_get_clock_info_fn fn, void* fn_data)
-{
+__itt_clock_domain* clock_domain_create(__itt_get_clock_info_fn fn, void* fn_data) {
     ITT_FUNCTION_STAT();
     CIttLocker lock;
     __itt_domain* pDomain = g_pIntelSEAPIDomain;
-    DomainExtra* pDomainExtra = (DomainExtra*)pDomain->extra2;
+    DomainExtra* pDomainExtra = (DomainExtra*)pDomain->extra2;  // NOLINT
     __itt_clock_domain** ppClockDomain = &pDomainExtra->pClockDomain;
-    while (*ppClockDomain && (*ppClockDomain)->next)
-    {
+    while (*ppClockDomain && (*ppClockDomain)->next) {
         ppClockDomain = &(*ppClockDomain)->next;
     }
 
@@ -804,61 +711,58 @@ __itt_clock_domain* clock_domain_create(__itt_get_clock_info_fn fn, void* fn_dat
     return *ppClockDomain;
 }
 
-void clock_domain_reset()
-{
+void clock_domain_reset() {
     ITT_FUNCTION_STAT();
 
     TraverseDomains([](__itt_domain& domain){
-        DomainExtra* pDomainExtra = (DomainExtra*)domain.extra2;
+        DomainExtra* pDomainExtra = (DomainExtra*)domain.extra2;  // NOLINT
         if (!pDomainExtra) return;
         __itt_clock_domain* pClockDomain = pDomainExtra->pClockDomain;
-        while(pClockDomain)
-        {
+        while (pClockDomain) {
             uint64_t now1 = CTraceEventFormat::GetRegularFields().nanoseconds;
             pClockDomain->fn(&pClockDomain->info, pClockDomain->fn_data);
             uint64_t now2 = CTraceEventFormat::GetRegularFields().nanoseconds;
-            *(uint64_t*)pClockDomain->extra2 = (now1 + now2) / 2;
+            *(uint64_t*)pClockDomain->extra2 = (now1 + now2) / 2;  // NOLINT
             pClockDomain = pClockDomain->next;
         }
     });
 }
 
-void task_begin_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id taskid, __itt_id parentid, __itt_string_handle* pName)
-{
+void task_begin_ex(const __itt_domain* pDomain,
+                   __itt_clock_domain* clock_domain,
+                   unsigned long long timestamp,
+                   __itt_id taskid,
+                   __itt_id parentid,
+                   __itt_string_handle* pName) {
     ITT_FUNCTION_STAT();
 
     SThreadRecord* pThreadRecord = GetThreadRecord();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields(clock_domain, timestamp);
 
-    pThreadRecord->pTask = placement_new(STaskDescriptor)
-    {
+    pThreadRecord->pTask = placement_new(STaskDescriptor) {
         pThreadRecord->pTask, //chaining the previous task inside
         rf,
         pDomain, pName,
         taskid, parentid
-    };
+    };  // NOLINT
 
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->TaskBegin(*pThreadRecord->pTask, false);
     }
 }
 
-void task_end_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp)
-{
+void task_end_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp) {
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields(clock_domain, timestamp);
 
     SThreadRecord* pThreadRecord = GetThreadRecord();
-    if (!pThreadRecord->pTask)
-    {
+    if (!pThreadRecord->pTask) {
         VerbosePrint("Uneven begin/end count for domain: %s\n", pDomain->nameA);
         return;
     }
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->TaskEnd(*pThreadRecord->pTask, rf, false);
     }
     STaskDescriptor* prev = pThreadRecord->pTask->prev;
@@ -866,21 +770,17 @@ void task_end_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, 
     pThreadRecord->pTask = prev;
 }
 
-void id_create(const __itt_domain *pDomain, __itt_id id)
-{
-    ITT_FUNCTION_STAT();
-    //noting to do here yet
-
-}
-
-void id_destroy(const __itt_domain *pDomain, __itt_id id)
-{
+void id_create(const __itt_domain *pDomain, __itt_id id) {
     ITT_FUNCTION_STAT();
     //noting to do here yet
 }
 
-void set_track(__itt_track* track)
-{
+void id_destroy(const __itt_domain *pDomain, __itt_id id) {
+    ITT_FUNCTION_STAT();
+    //noting to do here yet
+}
+
+void set_track(__itt_track* track) {
     ITT_FUNCTION_STAT();
     GetThreadRecord()->pTrack = track;
 }
@@ -889,40 +789,34 @@ int64_t g_lastPseudoThread = -1;
 int64_t g_lastPseudoProcess = -1;
 
 
-__itt_track_group* track_group_create(__itt_string_handle* pName, __itt_track_group_type track_group_type)
-{
+__itt_track_group* track_group_create(__itt_string_handle* pName, __itt_track_group_type track_group_type) {
     ITT_FUNCTION_STAT();
     CIttLocker lock;
     __itt_domain* pDomain = g_pIntelSEAPIDomain;
-    DomainExtra* pDomainExtra = (DomainExtra*)pDomain->extra2;
+    DomainExtra* pDomainExtra = (DomainExtra*)pDomain->extra2;  // NOLINT
     __itt_track_group** ppTrackGroup = &pDomainExtra->pTrackGroup;
-    while (*ppTrackGroup && (*ppTrackGroup)->next)
-    {
+    while (*ppTrackGroup && (*ppTrackGroup)->next) {
         if ((*ppTrackGroup)->name == pName)
             return *ppTrackGroup;
         ppTrackGroup = &(*ppTrackGroup)->next;
     }
-    if (pName)
-    {
+    if (pName) {
         WriteGroupName(g_lastPseudoProcess, pName->strA);
     }
     //zero name means current process
-    return *ppTrackGroup = new __itt_track_group{ pName, nullptr, track_group_type, int(pName ? g_lastPseudoProcess-- : g_PID) };
+    return *ppTrackGroup = new __itt_track_group{ pName, nullptr, track_group_type, int(pName ? g_lastPseudoProcess-- : g_PID) };  // NOLINT
 }
 
-__itt_track* track_create(__itt_track_group* track_group, __itt_string_handle* name, __itt_track_type track_type)
-{
+__itt_track* track_create(__itt_track_group* track_group, __itt_string_handle* name, __itt_track_type track_type) {
     ITT_FUNCTION_STAT();
     CIttLocker locker;
 
-    if (!track_group)
-    {
+    if (!track_group) {
         track_group = track_group_create(nullptr, __itt_track_group_type_normal);
     }
 
     __itt_track** ppTrack = &track_group->track;
-    while (*ppTrack && (*ppTrack)->next)
-    {
+    while (*ppTrack && (*ppTrack)->next) {
         if ((*ppTrack)->name == name)
             return *ppTrack;
         ppTrack = &(*ppTrack)->next;
@@ -930,27 +824,23 @@ __itt_track* track_create(__itt_track_group* track_group, __itt_string_handle* n
 
     CTraceEventFormat::SRegularFields* pRF = new CTraceEventFormat::SRegularFields{int64_t(track_group->extra1), g_lastPseudoThread--};
 
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->SetThreadName(*pRF, name->strA);
     }
 
     return *ppTrack = new __itt_track{name, track_group, track_type, 0, pRF};
 }
 
-class COverlapped //FIXME: use pool for std::map as well
-{
+class COverlapped {
 public:
-    static COverlapped& Get()
-    {
+    static COverlapped& Get() {
         SThreadRecord* pThreadRecord = GetThreadRecord();
         if (pThreadRecord->pOverlapped)
             return *pThreadRecord->pOverlapped;
         return *(pThreadRecord->pOverlapped = new COverlapped);
     }
 
-    void Begin(__itt_id taskid, const CTraceEventFormat::SRegularFields& rf, const __itt_domain* domain, __itt_string_handle* name, __itt_id parentid)
-    {
+    void Begin(__itt_id taskid, const CTraceEventFormat::SRegularFields& rf, const __itt_domain* domain, __itt_string_handle* name, __itt_id parentid) {
         m_map[taskid].reset(placement_new(STaskDescriptor){
             nullptr, //chaining the previous task inside
             rf,
@@ -958,49 +848,41 @@ public:
             taskid, parentid
         }, placement_free<STaskDescriptor>);
 
-        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-        {
+        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
             g_handlers[i]->TaskBegin(*m_map[taskid], true);
         }
     }
 
-    bool AddArg(const __itt_domain *domain, __itt_id id, __itt_string_handle *key, const char *data, size_t length)
-    {
+    bool AddArg(const __itt_domain *domain, __itt_id id, __itt_string_handle *key, const char *data, size_t length) {
         TTaskMap::iterator it = m_map.find(id);
         if (m_map.end() == it)
             return false;
-        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-        {
+        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
             g_handlers[i]->AddArg(*m_map[id], key, data, length);
         }
         return true;
     }
 
-    bool AddArg(const __itt_domain *domain, __itt_id id, __itt_string_handle *key, double value)
-    {
+    bool AddArg(const __itt_domain *domain, __itt_id id, __itt_string_handle *key, double value) {
         TTaskMap::iterator it = m_map.find(id);
         if (m_map.end() == it)
             return false;
-        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-        {
+        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
             g_handlers[i]->AddArg(*m_map[id], key, value);
         }
         return true;
     }
 
-    void End(__itt_id taskid, const CTraceEventFormat::SRegularFields& rf, const __itt_domain* domain)
-    {
+    void End(__itt_id taskid, const CTraceEventFormat::SRegularFields& rf, const __itt_domain* domain) {
         TTaskMap::iterator it = m_map.find(taskid);
         if (m_map.end() == it) return;
-        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-        {
+        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
             g_handlers[i]->TaskEnd(*m_map[taskid], rf, true);
         }
         m_map.erase(it);
     }
 
-    static void FinishAll() //close the open tasks on exit
-    {
+    static void FinishAll() {
         TraverseThreadRecords([](SThreadRecord& record){
             if (record.pOverlapped)
                 record.pOverlapped->Finish();
@@ -1008,13 +890,10 @@ public:
     }
 
 protected:
-    void Finish()
-    {
+    void Finish() {
         CTraceEventFormat::SRegularFields rf = CTraceEventFormat::GetRegularFields();
-        for (const auto& pair: m_map)
-        {
-            for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-            {
+        for (const auto& pair : m_map) {
+            for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
                 g_handlers[i]->TaskEnd(*pair.second, rf, true);
             }
         }
@@ -1025,29 +904,30 @@ protected:
     TTaskMap m_map;
 };
 
-void task_begin_overlapped_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id taskid, __itt_id parentid, __itt_string_handle* pName)
-{
+void task_begin_overlapped_ex(const __itt_domain* pDomain,
+                              __itt_clock_domain* clock_domain,
+                              unsigned long long timestamp,
+                              __itt_id taskid,
+                              __itt_id parentid,
+                              __itt_string_handle* pName) {
     ITT_FUNCTION_STAT();
 
     COverlapped::Get().Begin(taskid, GetRegularFields(clock_domain, timestamp), pDomain, pName, parentid);
 }
 
-void task_begin_overlapped(const __itt_domain* pDomain, __itt_id taskid, __itt_id parentid, __itt_string_handle* pName)
-{
+void task_begin_overlapped(const __itt_domain* pDomain, __itt_id taskid, __itt_id parentid, __itt_string_handle* pName) {
     ITT_FUNCTION_STAT();
 
     task_begin_overlapped_ex(pDomain, nullptr, 0, taskid, parentid, pName);
 }
 
-void task_end_overlapped_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id taskid)
-{
+void task_end_overlapped_ex(const __itt_domain* pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id taskid) {
     ITT_FUNCTION_STAT();
 
     COverlapped::Get().End(taskid, GetRegularFields(clock_domain, timestamp), pDomain);
 }
 
-void task_end_overlapped(const __itt_domain *pDomain, __itt_id taskid)
-{
+void task_end_overlapped(const __itt_domain *pDomain, __itt_id taskid) {
     ITT_FUNCTION_STAT();
 
     task_end_overlapped_ex(pDomain, nullptr, 0, taskid);
@@ -1055,52 +935,41 @@ void task_end_overlapped(const __itt_domain *pDomain, __itt_id taskid)
 
 std::map<__itt_id, __itt_string_handle*> g_namedIds;
 
-void SetIdName(const __itt_id& id, const char *data)
-{
+void SetIdName(const __itt_id& id, const char *data) {
     CIttLocker lock;
     g_namedIds[id] = UNICODE_AGNOSTIC(string_handle_create)(data);
 }
 
 template<class ... Args>
-void MetadataAdd(const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pKey, Args ... args)
-{
-    if (id.d1 || id.d2) //task can have id and not be overlapped, it would be stored in pThreadRecord->pTask then
-    {
+void MetadataAdd(const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pKey, Args ... args) {
+    if (id.d1 || id.d2) {
         SThreadRecord* pThreadRecord = GetThreadRecord();
-        if (!COverlapped::Get().AddArg(pDomain, id, pKey, args...) && pThreadRecord->pTask && pThreadRecord->pTask->id == id)
-        {
-            for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-            {
+        if (!COverlapped::Get().AddArg(pDomain, id, pKey, args...) && pThreadRecord->pTask && pThreadRecord->pTask->id == id) {
+            for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
                 g_handlers[i]->AddArg(*pThreadRecord->pTask, pKey, args...);
             }
         }
     }
 }
 
-void UNICODE_AGNOSTIC(metadata_str_add)(const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pKey, const char *data, size_t length)
-{
+void UNICODE_AGNOSTIC(metadata_str_add)(const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pKey, const char *data, size_t length) {
     ITT_FUNCTION_STAT();
 
-    if (id == __itt_null) //special codes
-    {
-        if (0 == strcmp(pKey->strA, "__sea_cut"))
-        {
+    if (id == __itt_null) {
+        if (0 == strcmp(pKey->strA, "__sea_cut")) {
             marker(pDomain, id, pKey, __itt_marker_scope_process);
             SetCutName(data);
             return;
         }
-        if (0 == strcmp(pKey->strA, "__sea_set_folder"))
-        {
+        if (0 == strcmp(pKey->strA, "__sea_set_folder")) {
             SetFolder(data);
             return;
         }
-        if (0 == strcmp(pKey->strA, "__sea_set_ring"))
-        {
+        if (0 == strcmp(pKey->strA, "__sea_set_ring")) {
             SetRing(1000000000ull * atoi(data));
             return;
         }
-        if (0 == strcmp(pKey->strA, "__sea_ftrace_sync"))
-        {
+        if (0 == strcmp(pKey->strA, "__sea_ftrace_sync")) {
 #ifdef __linux__
             WriteFTraceTimeSyncMarkers();
 #endif
@@ -1116,66 +985,53 @@ void UNICODE_AGNOSTIC(metadata_str_add)(const __itt_domain *pDomain, __itt_id id
 }
 
 #ifdef _WIN32
-void metadata_str_addW(const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pKey, const wchar_t *data, size_t length)
-{
+void metadata_str_addW(const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pKey, const wchar_t *data, size_t length) {
     UNICODE_AGNOSTIC(metadata_str_add)(pDomain, id, pKey, W2L(data).c_str(), length);
 }
 #endif
 
-void metadata_add(const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pKey, __itt_metadata_type type, size_t count, void *data)
-{
+void metadata_add(const __itt_domain *pDomain, __itt_id id, __itt_string_handle *pKey, __itt_metadata_type type, size_t count, void *data) {
     ITT_FUNCTION_STAT();
 
-    if (id.d1 || id.d2)
-    {
-        if (data)
-        {
-            if (__itt_metadata_unknown != type)
-            {
+    if (id.d1 || id.d2) {
+        if (data) {
+            if (__itt_metadata_unknown != type) {
                 double res = g_MetatypeFormatConverter[type](data);
                 MetadataAdd(pDomain, id, pKey, res);
-            }
-            else
-            {
+            } else {
                 if (count)
-                    MetadataAdd(pDomain, id, pKey, (const char*)data, count); //raw data with size
+                    MetadataAdd(pDomain, id, pKey, (const char*)data, count); //raw data with size  // NOLINT
                 else
-                    MetadataAdd(pDomain, id, pKey, (double)(uint64_t)data); //just pointer, convert it to number
+                    MetadataAdd(pDomain, id, pKey, (double)(uint64_t)data); //just pointer, convert it to number  // NOLINT
             }
         }
-    }
-    else //it's a counter
-    {
+    } else {
         if (__itt_metadata_unknown == type)
             return;
         Counter(pDomain, pKey, g_MetatypeFormatConverter[type](data));
     }
 }
 
-const char* api_version(void)
-{
+const char* api_version(void) {
     ITT_FUNCTION_STAT();
     return "IntelSEAPI";
 }
 
-void frame_begin_v3(const __itt_domain *pDomain, __itt_id *id)
-{
+void frame_begin_v3(const __itt_domain *pDomain, __itt_id *id) {
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
     WriteRecord(ERecordType::BeginFrame, SRecord{rf, *pDomain, id ? *id : __itt_null, __itt_null});
 }
 
-void frame_end_v3(const __itt_domain *pDomain, __itt_id *id)
-{
+void frame_end_v3(const __itt_domain *pDomain, __itt_id *id) {
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
     WriteRecord(ERecordType::EndFrame, SRecord{rf, *pDomain, id ? *id : __itt_null, __itt_null});
 }
 
-__itt_frame_t* UNICODE_AGNOSTIC(frame_create)(const char *domain)
-{
+__itt_frame_t* UNICODE_AGNOSTIC(frame_create)(const char *domain) {
     ITT_FUNCTION_STAT();
     return new __itt_frame_t{
         UNICODE_AGNOSTIC(domain_create)(domain),
@@ -1184,44 +1040,35 @@ __itt_frame_t* UNICODE_AGNOSTIC(frame_create)(const char *domain)
 }
 
 #ifdef _WIN32
-__itt_frame_t* frame_createW(const wchar_t* domain)
-{
+__itt_frame_t* frame_createW(const wchar_t* domain) {
     return UNICODE_AGNOSTIC(frame_create)(W2L(domain).c_str());
 }
 #endif
 
-void frame_begin(__itt_frame_t* frame)
-{
+void frame_begin(__itt_frame_t* frame) {
     ITT_FUNCTION_STAT();
     frame_begin_v3(frame->pDomain, &frame->id);
 }
 
-void frame_end(__itt_frame_t* frame)
-{
+void frame_end(__itt_frame_t* frame) {
     ITT_FUNCTION_STAT();
     frame_end_v3(frame->pDomain, &frame->id);
 }
 
-void frame_submit_v3(const __itt_domain *pDomain, __itt_id *pId, __itt_timestamp begin, __itt_timestamp end)
-{
+void frame_submit_v3(const __itt_domain *pDomain, __itt_id *pId, __itt_timestamp begin, __itt_timestamp end) {
     ITT_FUNCTION_STAT();
 
     CTraceEventFormat::SRegularFields rf = GetRegularFields();
     if (__itt_timestamp_none == end)
         end = rf.nanoseconds;
     const __itt_string_handle *pName = nullptr;
-    if (pId)
-    {
-        if (pId->d3)
-        {
+    if (pId) {
+        if (pId->d3) {
             pName = reinterpret_cast<__itt_string_handle *>(pId->d3);
-        }
-        else
-        {
+        } else {
             CIttLocker lock;
             auto it = g_namedIds.find(*pId);
-            if (g_namedIds.end() != it)
-            {
+            if (g_namedIds.end() != it) {
                 pName = it->second;
                 pId->d3 = (unsigned long long)pName;
             }
@@ -1233,21 +1080,17 @@ void frame_submit_v3(const __itt_domain *pDomain, __itt_id *pId, __itt_timestamp
     WriteRecord(ERecordType::EndFrame, SRecord{rf, *pDomain, pId ? *pId : __itt_null, __itt_null});
 }
 
-__itt_timestamp get_timestamp()
-{
+__itt_timestamp get_timestamp() {
     ITT_FUNCTION_STAT();
     return GetRegularFields().nanoseconds;
 }
 
-void Pause()
-{
+void Pause() {
     static __itt_global* pGlobal = GetITTGlobal();
-    while (pGlobal)
-    {
+    while (pGlobal) {
         pGlobal->state = __itt_collection_paused;
         ___itt_domain* pDomain = pGlobal->domain_list;
-        while(pDomain)
-        {
+        while (pDomain) {
             pDomain->flags = 0; //this flag is analyzed by static part of ITT to decide where to call dynamic part or not
             pDomain = pDomain->next;
         }
@@ -1255,8 +1098,7 @@ void Pause()
     }
 }
 
-void pause()
-{
+void pause() {
     ITT_FUNCTION_STAT();
     static __itt_string_handle* pPause = UNICODE_AGNOSTIC(string_handle_create)("PAUSE");
     static __itt_global* pGlobal = GetITTGlobal();
@@ -1265,15 +1107,12 @@ void pause()
     Pause();
 }
 
-void Resume()
-{
+void Resume() {
     static __itt_global* pGlobal = GetITTGlobal();
 
-    while (pGlobal)
-    {
+    while (pGlobal) {
         ___itt_domain* pDomain = pGlobal->domain_list;
-        while(pDomain)
-        {
+        while (pDomain) {
             pDomain->flags = 1; //this flag is analyzed by static part of ITT to decide where to call dynamic part or not
             pDomain = pDomain->next;
         }
@@ -1282,8 +1121,7 @@ void Resume()
     }
 }
 
-void resume()
-{
+void resume() {
     ITT_FUNCTION_STAT();
     static __itt_global* pGlobal = GetITTGlobal();
     static __itt_id id = __itt_id_make(pGlobal, 0);
@@ -1295,48 +1133,49 @@ using TRelations = __itt_string_handle* [__itt_relation_is_predecessor_to + 1];
 //it's not static member of function to avoid racing
 TRelations g_relations = {}; //will be filled in InitSEA
 
-void relation_add_ex(const __itt_domain *pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_id head, __itt_relation relation, __itt_id tail)
-{
+void relation_add_ex(const __itt_domain *pDomain,
+                     __itt_clock_domain* clock_domain,
+                     unsigned long long timestamp,
+                     __itt_id head,
+                     __itt_relation relation,
+                     __itt_id tail) {
     ITT_FUNCTION_STAT();
     CTraceEventFormat::SRegularFields rf = GetRegularFields(clock_domain, timestamp);
 
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->AddRelation(rf, pDomain, head, g_relations[relation], tail);
     }
 }
 
-void relation_add_to_current(const __itt_domain *pDomain, __itt_relation relation, __itt_id tail)
-{
+void relation_add_to_current(const __itt_domain *pDomain, __itt_relation relation, __itt_id tail) {
     ITT_FUNCTION_STAT();
     relation_add_ex(pDomain, nullptr, 0, __itt_null, relation, tail);
 }
 
-void relation_add(const __itt_domain *pDomain, __itt_id head, __itt_relation relation, __itt_id tail)
-{
+void relation_add(const __itt_domain *pDomain, __itt_id head, __itt_relation relation, __itt_id tail) {
     ITT_FUNCTION_STAT();
     relation_add_ex(pDomain, nullptr, 0, head, relation, tail);
 }
 
-void relation_add_to_current_ex(const __itt_domain *pDomain, __itt_clock_domain* clock_domain, unsigned long long timestamp, __itt_relation relation, __itt_id tail)
-{
+void relation_add_to_current_ex(const __itt_domain *pDomain,
+                                __itt_clock_domain* clock_domain,
+                                unsigned long long timestamp,
+                                __itt_relation relation,
+                                __itt_id tail) {
     ITT_FUNCTION_STAT();
     relation_add_ex(pDomain, clock_domain, timestamp, __itt_null, relation, tail);
 }
 
-struct SHeapFunction
-{
+struct SHeapFunction {
     __itt_domain* pDomain;
     std::string name;
     ___itt_string_handle* pName;
 };
 
-__itt_heap_function ITTAPI UNICODE_AGNOSTIC(heap_function_create)(const char* name, const char* domain)
-{
+__itt_heap_function ITTAPI UNICODE_AGNOSTIC(heap_function_create)(const char* name, const char* domain) {
     ITT_FUNCTION_STAT();
     std::string counter_name = std::string(name) + ":ALL(bytes)";
-    return new SHeapFunction
-    {
+    return new SHeapFunction {
         UNICODE_AGNOSTIC(domain_create)(domain),
         name,
         UNICODE_AGNOSTIC(string_handle_create)(counter_name.c_str())
@@ -1344,23 +1183,19 @@ __itt_heap_function ITTAPI UNICODE_AGNOSTIC(heap_function_create)(const char* na
 }
 
 #ifdef _WIN32
-__itt_heap_function ITTAPI heap_function_createW(const wchar_t* name, const wchar_t* domain)
-{
+__itt_heap_function ITTAPI heap_function_createW(const wchar_t* name, const wchar_t* domain) {
     return UNICODE_AGNOSTIC(heap_function_create)(W2L(name).c_str(), W2L(domain).c_str());
 }
 #endif
 
-class CMemoryTracker
-{
+class CMemoryTracker {
 protected:
     TCritSec m_cs;
 
     typedef std::pair<const __itt_domain *, const void * /*task name or function pointer*/> TDomainString;
 
-    struct SNode
-    {
-        struct SMemory
-        {
+    struct SNode {
+        struct SMemory {
             int32_t current_amount = 0;
             int32_t max_amount = 0;
         };
@@ -1373,18 +1208,16 @@ protected:
     typedef std::pair<__itt_string_handle*, size_t/*count*/> TBlockData;
     std::map<size_t/*block size*/, TBlockData> m_counter_map;
     bool m_bInitialized = false;
+
 public:
     CMemoryTracker()
-        : m_bInitialized(true)
-    {}
-    void Alloc(SHeapFunction* pHeapFunction, const void* addr, size_t size)
-    {
+        : m_bInitialized(true) {}
+    void Alloc(SHeapFunction* pHeapFunction, const void* addr, size_t size) {
         static bool bMemCount = !!(GetFeatureSet() & sfMemCounters);
 
         if (!m_bInitialized) return;
 
-        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-        {
+        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
             g_handlers[i]->Alloc(GetRegularFields(), addr, size, pHeapFunction->pDomain->nameA, pHeapFunction->name.c_str());
         }
 
@@ -1393,49 +1226,39 @@ public:
         {
             std::lock_guard<TCritSec> lock(m_cs);
             m_size_map[addr] = std::make_pair(size, pNode);
-            if (bMemCount)
-            {
+            if (bMemCount) {
                 auto it = m_counter_map.find(size);
-                if (m_counter_map.end() == it)
-                {
+                if (m_counter_map.end() == it) {
                     std::string name = pHeapFunction->name + std::string(":size<") + std::to_string(size) + ">(count)";
                     __itt_string_handle* pName = UNICODE_AGNOSTIC(string_handle_create)(name.c_str());
                     it = m_counter_map.insert(m_counter_map.end(), std::make_pair(size, std::make_pair(pName, size_t(1))));
-                }
-                else
-                {
+                } else {
                     ++it->second.second;
                 }
                 block = it->second;
             }
         }
-        if (bMemCount)
-        {
-            Counter(pHeapFunction->pDomain, block.first, double(block.second)); //report current count for this size
+        if (bMemCount) {
+            Counter(pHeapFunction->pDomain, block.first, double(block.second)); //report current count for this size  // NOLINT
         }
     }
 
-    SNode* UpdateAllocation(size_t size, int32_t delta, SNode* pNode)
-    {
+    SNode* UpdateAllocation(size_t size, int32_t delta, SNode* pNode) {
         static bool bMemStat = (GetFeatureSet() & sfMemStat) && InitMemStat();
         if (!bMemStat)
             return nullptr;
         SThreadRecord* pThreadRecord = GetThreadRecord();
         STaskDescriptor* pTask = pThreadRecord->pTask;
         std::stack<TDomainString> stack;
-        if (!pNode)
-        {
-            for (; pTask; pTask = pTask->prev)
-            {
+        if (!pNode) {
+            for (; pTask; pTask = pTask->prev) {
                 stack.push(TDomainString(pTask->pDomain, pTask->pName ? pTask->pName : pTask->fn));
             }
         }
         std::lock_guard<TCritSec> lock(m_cs);
-        if (!pNode)
-        {
+        if (!pNode) {
             pNode = &m_tree;
-            while (!stack.empty())
-            {
+            while (!stack.empty()) {
                 pNode = &m_tree.chilren[stack.top()];
                 stack.pop();
             }
@@ -1447,38 +1270,33 @@ public:
         return pNode;
     }
 
-    void Free(SHeapFunction* pHeapFunction, const void* addr)
-    {
+    void Free(SHeapFunction* pHeapFunction, const void* addr) {
         static bool bMemCount = !!(GetFeatureSet() & sfMemCounters);
         size_t size = 0;
-        if (m_bInitialized)
-        {
+        if (m_bInitialized) {
             std::lock_guard<TCritSec> lock(m_cs);
 
             const auto& pair = m_size_map[addr];
             size = pair.first;
             SNode* pNode = pair.second;
             m_size_map.erase(addr);
-            if (bMemCount)
-            {
+            if (bMemCount) {
                 auto it = m_counter_map.find(size);
                 if (m_counter_map.end() == it)
                     return; //how come?
                 else
                     --it->second.second;
-                Counter(pHeapFunction->pDomain, it->second.first, double(it->second.second));
+                Counter(pHeapFunction->pDomain, it->second.first, double(it->second.second));  // NOLINT
             }
             if (pNode) //if we missed allocation, we don't care about freeing
                 UpdateAllocation(size, -1, pNode);
         }
-        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-        {
+        for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
             g_handlers[i]->Free(GetRegularFields(), addr, size, pHeapFunction->pDomain->nameA, pHeapFunction->name.c_str());
         }
     }
 
-    void SaveMemoryStatistics()
-    {
+    void SaveMemoryStatistics() {
         if (!(GetFeatureSet() & sfMemStat))
             return;
         std::lock_guard<TCritSec> lock(m_cs);
@@ -1486,23 +1304,19 @@ public:
     }
 
     template<class T>
-    void WriteMem(T value)
-    {
+    void WriteMem(T value) {
         WriteMemStat(&value, sizeof(T));
     }
 
-    void WriteNode(const SNode& node)
-    {
+    void WriteNode(const SNode& node) {
         WriteMem((uint32_t)node.memory.size());
-        for (const auto& pair : node.memory)
-        {
+        for (const auto& pair : node.memory) {
             WriteMem((uint32_t)pair.first); //size
             WriteMem(pair.second.current_amount); //SNode::SMemory
             WriteMem((uint32_t)pair.second.max_amount); //SNode::SMemory
         }
         WriteMem((uint32_t)node.chilren.size());
-        for (const auto& pair: node.chilren)
-        {
+        for (const auto& pair : node.chilren) {
             const TDomainString& domain_string = pair.first;
             WriteMem((const void*)domain_string.first); //domain
             WriteMem((const void*)domain_string.second); //string
@@ -1510,51 +1324,43 @@ public:
         }
     }
 
-    ~CMemoryTracker()
-    {
+    ~CMemoryTracker() {
         m_bInitialized = false;
         SaveMemoryStatistics();
     }
 } g_oMemoryTracker;
 
-void heap_allocate_begin(__itt_heap_function h, size_t size, int initialized)
-{
+void heap_allocate_begin(__itt_heap_function h, size_t size, int initialized) {
     ITT_FUNCTION_STAT();
 }
 
-void heap_allocate_end(__itt_heap_function h, void** addr, size_t size, int)
-{
+void heap_allocate_end(__itt_heap_function h, void** addr, size_t size, int) {
     ITT_FUNCTION_STAT();
     g_oMemoryTracker.Alloc(reinterpret_cast<SHeapFunction*>(h), *addr, size);
 }
 
-void heap_free_begin(__itt_heap_function h, void* addr)
-{
+void heap_free_begin(__itt_heap_function h, void* addr) {
     ITT_FUNCTION_STAT();
     g_oMemoryTracker.Free(reinterpret_cast<SHeapFunction*>(h), addr);
 }
 
-void heap_free_end(__itt_heap_function h, void* addr)
-{
+void heap_free_end(__itt_heap_function h, void* addr) {
     ITT_FUNCTION_STAT();
 }
 
-__itt_domain* get_events_domain()
-{
+__itt_domain* get_events_domain() {
     static __itt_domain* s_pEvents = UNICODE_AGNOSTIC(domain_create)("sea_events");
     return s_pEvents;
 }
 
-__itt_event UNICODE_AGNOSTIC(event_create)(const char *name, int namelen)
-{
+__itt_event UNICODE_AGNOSTIC(event_create)(const char *name, int namelen) {
     ITT_FUNCTION_STAT();
     __itt_domain* pEvents = get_events_domain();
     __itt_string_handle* pStr = UNICODE_AGNOSTIC(string_handle_create)(name);
     return intptr_t(pStr) - intptr_t(pEvents);
 }
 
-int event_start(__itt_event event)
-{
+int event_start(__itt_event event) {
     ITT_FUNCTION_STAT();
     __itt_domain* pEvents = get_events_domain();
     __itt_string_handle* pStr = reinterpret_cast<__itt_string_handle*>(intptr_t(pEvents) + event);
@@ -1562,8 +1368,7 @@ int event_start(__itt_event event)
     return event;
 }
 
-int event_end(__itt_event event)
-{
+int event_end(__itt_event event) {
     ITT_FUNCTION_STAT();
     __itt_domain* pEvents = get_events_domain();
     __itt_string_handle* pStr = reinterpret_cast<__itt_string_handle*>(intptr_t(pEvents) + event);
@@ -1572,8 +1377,7 @@ int event_end(__itt_event event)
 }
 
 #ifdef _WIN32
-__itt_event ITTAPI event_createW(const wchar_t *name, int namelen)
-{
+__itt_event ITTAPI event_createW(const wchar_t *name, int namelen) {
     return UNICODE_AGNOSTIC(event_create)(W2L(name).c_str(), namelen);
 }
 #endif
@@ -1584,7 +1388,7 @@ __itt_event ITTAPI event_createW(const wchar_t *name, int namelen)
     #define WIN(nothing)
 #endif
 
-#define _AW(macro, name) macro(UNICODE_AGNOSTIC(name)) WIN(macro(ITT_JOIN(name,W)))
+#define _AW(macro, name) macro(UNICODE_AGNOSTIC(name)) WIN(macro(ITT_JOIN(name, W)))
 
 #define ORIGINAL_FUNCTIONS()\
     ITT_STUB_IMPL_ORIG(UNICODE_AGNOSTIC(domain_create))\
@@ -1593,16 +1397,16 @@ WIN(ITT_STUB_IMPL_ORIG(domain_createW))\
 WIN(ITT_STUB_IMPL_ORIG(string_handle_createW))
 
 #define API_MAP()\
-_AW(ITT_STUB_IMPL,thread_set_name)\
+_AW(ITT_STUB_IMPL, thread_set_name)\
     ITT_STUB_IMPL(task_begin)\
     ITT_STUB_IMPL(task_begin_fn)\
     ITT_STUB_IMPL(task_end)\
-_AW(ITT_STUB_IMPL,metadata_str_add)\
+_AW(ITT_STUB_IMPL, metadata_str_add)\
     ITT_STUB_IMPL(marker)\
     ITT_STUB_IMPL(marker_ex)\
     ITT_STUB_IMPL(counter_inc_delta_v3)\
-_AW(ITT_STUB_IMPL,counter_create)\
-_AW(ITT_STUB_IMPL,counter_create_typed)\
+_AW(ITT_STUB_IMPL, counter_create)\
+_AW(ITT_STUB_IMPL, counter_create_typed)\
     ITT_STUB_IMPL(counter_set_value)\
     ITT_STUB_IMPL(counter_set_value_ex)\
     ITT_STUB_IMPL(clock_domain_create)\
@@ -1622,7 +1426,7 @@ _AW(ITT_STUB_IMPL,counter_create_typed)\
     ITT_STUB_IMPL(frame_begin_v3)\
     ITT_STUB_IMPL(frame_end_v3)\
     ITT_STUB_IMPL(frame_submit_v3)\
-_AW(ITT_STUB_IMPL,frame_create)\
+_AW(ITT_STUB_IMPL, frame_create)\
     ITT_STUB_IMPL(frame_begin)\
     ITT_STUB_IMPL(frame_end)\
     ITT_STUB_IMPL(region_begin)\
@@ -1631,29 +1435,29 @@ _AW(ITT_STUB_IMPL,frame_create)\
     ITT_STUB_IMPL(resume)\
     ITT_STUB_IMPL(get_timestamp)\
     ITT_STUB_IMPL(metadata_add)\
-_AW(ITT_STUB_IMPL,sync_create)\
+_AW(ITT_STUB_IMPL, sync_create)\
     ITT_STUB_IMPL(sync_destroy)\
     ITT_STUB_IMPL(sync_acquired)\
     ITT_STUB_IMPL(sync_releasing)\
-_AW(ITT_STUB_IMPL,sync_rename)\
+_AW(ITT_STUB_IMPL, sync_rename)\
     ITT_STUB_IMPL(sync_prepare)\
     ITT_STUB_IMPL(sync_cancel)\
     ITT_STUB_IMPL(relation_add_to_current)\
     ITT_STUB_IMPL(relation_add)\
     ITT_STUB_IMPL(relation_add_to_current_ex)\
     ITT_STUB_IMPL(relation_add_ex)\
-_AW(ITT_STUB_IMPL,heap_function_create)\
+_AW(ITT_STUB_IMPL, heap_function_create)\
     ITT_STUB_IMPL(heap_allocate_begin)\
     ITT_STUB_IMPL(heap_allocate_end)\
     ITT_STUB_IMPL(heap_free_begin)\
     ITT_STUB_IMPL(heap_free_end)\
-_AW(ITT_STUB_IMPL,event_create)\
-WIN(_AW(ITT_STUB_IMPL,event_create))\
+_AW(ITT_STUB_IMPL, event_create)\
+WIN(_AW(ITT_STUB_IMPL, event_create))\
     ITT_STUB_IMPL(event_start)\
     ITT_STUB_IMPL(event_end)\
     ORIGINAL_FUNCTIONS()\
     ITT_STUB_NO_IMPL(thread_ignore)\
-_AW(ITT_STUB_NO_IMPL,thr_name_set)\
+_AW(ITT_STUB_NO_IMPL, thr_name_set)\
     ITT_STUB_NO_IMPL(thr_ignore)\
     ITT_STUB_NO_IMPL(counter_inc_delta)\
     ITT_STUB_NO_IMPL(enable_attach)\
@@ -1665,7 +1469,7 @@ _AW(ITT_STUB_NO_IMPL,thr_name_set)\
 WIN(ITT_STUB_NO_IMPL(model_site_beginW))\
     ITT_STUB_NO_IMPL(model_site_beginAL)\
     ITT_STUB_NO_IMPL(model_site_end)\
-_AW(ITT_STUB_NO_IMPL,model_task_begin)\
+_AW(ITT_STUB_NO_IMPL, model_task_begin)\
     ITT_STUB_NO_IMPL(model_task_end)\
     ITT_STUB_NO_IMPL(model_lock_acquire)\
     ITT_STUB_NO_IMPL(model_lock_release)\
@@ -1703,8 +1507,8 @@ WIN(ITT_STUB_NO_IMPL(model_iteration_taskW))\
     ITT_STUB_NO_IMPL(heap_record)\
     ITT_STUB_NO_IMPL(task_group)\
     ITT_STUB_NO_IMPL(counter_inc_v3)\
-_AW(ITT_STUB_NO_IMPL,sync_set_name)\
-_AW(ITT_STUB_NO_IMPL,notify_sync_name)\
+_AW(ITT_STUB_NO_IMPL, sync_set_name)\
+_AW(ITT_STUB_NO_IMPL, notify_sync_name)\
     ITT_STUB_NO_IMPL(notify_sync_prepare)\
     ITT_STUB_NO_IMPL(notify_sync_cancel)\
     ITT_STUB_NO_IMPL(notify_sync_acquired)\
@@ -1719,10 +1523,10 @@ _AW(ITT_STUB_NO_IMPL,notify_sync_name)\
     ITT_STUB_NO_IMPL(counter_destroy)\
     ITT_STUB_NO_IMPL(counter_inc)\
     ITT_STUB_NO_IMPL(counter_inc_v3)\
-_AW(ITT_STUB_NO_IMPL,mark_create)\
-_AW(ITT_STUB_NO_IMPL,mark)\
+_AW(ITT_STUB_NO_IMPL, mark_create)\
+_AW(ITT_STUB_NO_IMPL, mark)\
     ITT_STUB_NO_IMPL(mark_off)\
-_AW(ITT_STUB_NO_IMPL,mark_global)\
+_AW(ITT_STUB_NO_IMPL, mark_global)\
     ITT_STUB_NO_IMPL(mark_global_off)\
     ITT_STUB_NO_IMPL(stack_caller_create)\
     ITT_STUB_NO_IMPL(stack_caller_destroy)\
@@ -1732,27 +1536,25 @@ _AW(ITT_STUB_NO_IMPL,mark_global)\
     ITT_STUB_NO_IMPL(id_destroy_ex)\
     ITT_STUB_NO_IMPL(task_begin_fn_ex)\
     ITT_STUB_NO_IMPL(metadata_add_with_scope)\
-_AW(ITT_STUB_NO_IMPL,metadata_str_add_with_scope)\
-_AW(ITT_STUB_NO_IMPL,av_save)
+_AW(ITT_STUB_NO_IMPL, metadata_str_add_with_scope)\
+_AW(ITT_STUB_NO_IMPL, av_save)
 
-void FillApiList(__itt_api_info* api_list_ptr)
-{
-#define ITT_STUB_IMPL(fn) if (0 == strcmp("__itt_" ITT_TO_STR(fn), api_list_ptr[i].name)) {*api_list_ptr[i].func_ptr = (void*)sea::fn; continue;}
+void FillApiList(__itt_api_info* api_list_ptr) {
+#define ITT_STUB_IMPL(fn) if (0 == strcmp("__itt_" ITT_TO_STR(fn), api_list_ptr[i].name)) {*api_list_ptr[i].func_ptr = (void*)sea::fn; continue;}  // NOLINT
 #define ITT_STUB_IMPL_ORIG(name) ITT_STUB_IMPL(name)
 #ifdef _DEBUG //dangerous stub that doesn't return anything (even when expected) but records the function call for statistics sake
     #define ITT_STUB_NO_IMPL(fn) if (0 == strcmp("__itt_" ITT_TO_STR(fn), api_list_ptr[i].name)) {\
         struct local{\
-            static void stub(...){CIttFnStat oIttFnStat("NO IMPL:\t" ITT_TO_STR(fn));}\
+            static void stub(...) { CIttFnStat oIttFnStat("NO IMPL:\t" ITT_TO_STR(fn)); }\
         };\
-        *api_list_ptr[i].func_ptr = (void*)local::stub;\
+        *api_list_ptr[i].func_ptr = (void*)local::stub;\  // NOLINT
         continue;\
     }
 #else
     #define ITT_STUB_NO_IMPL(fn)
 #endif
 
-    for (int i = 0; (api_list_ptr[i].name != NULL) && (*api_list_ptr[i].name != 0); ++i)
-    {
+    for (int i = 0; (api_list_ptr[i].name != NULL) && (*api_list_ptr[i].name != 0); ++i) {
         API_MAP(); //continue is called inside when function is found
         VerbosePrint("Not bound: %s\n", api_list_ptr[i].name);
     }
@@ -1761,8 +1563,7 @@ void FillApiList(__itt_api_info* api_list_ptr)
 #undef ITT_STUB_NO_IMPL
 }
 
-uint64_t GetFeatureSet()
-{
+uint64_t GetFeatureSet() {
     static std::string env = get_environ_value("INTEL_SEA_FEATURES");
     static std::string save = GetSavePath();
 
@@ -1793,28 +1594,24 @@ uint64_t GetFeatureSet()
     return features;
 }
 
-void TraverseDomains(const std::function<void(___itt_domain&)>& callback)
-{
+void TraverseDomains(const std::function<void(___itt_domain&)>& callback) {
     __itt_global* pGlobal = GetITTGlobal();
-    for(___itt_domain* pDomain = pGlobal->domain_list; pDomain; pDomain = pDomain->next)
-    {
+    for (___itt_domain* pDomain = pGlobal->domain_list; pDomain; pDomain = pDomain->next) {
         callback(*pDomain);
     }
 }
 
-void TraverseThreadRecords(const std::function<void(SThreadRecord&)>& callback)
-{
+void TraverseThreadRecords(const std::function<void(SThreadRecord&)>& callback) {
     TraverseDomains(
         [&](___itt_domain& domain){
-            if (DomainExtra* pDomainExtra = reinterpret_cast<DomainExtra*>(domain.extra2))
-                for(SThreadRecord* pThreadRecord = pDomainExtra->pThreadRecords; pThreadRecord; pThreadRecord = pThreadRecord->pNext)
+            if (DomainExtra* pDomainExtra = reinterpret_cast<DomainExtra*>(domain.extra2)) {
+                for (SThreadRecord* pThreadRecord = pDomainExtra->pThreadRecords; pThreadRecord; pThreadRecord = pThreadRecord->pNext)
                     callback(*pThreadRecord);
-        }
-    );
+            }
+        });
 }
 
-void SetCutName(const std::string& name)
-{
+void SetCutName(const std::string& name) {
     CIttLocker lock;
     g_spCutName = std::make_shared<std::string>(Escape4Path(name));
     TraverseThreadRecords([](SThreadRecord& record){
@@ -1826,8 +1623,7 @@ void SetCutName(const std::string& name)
 //that's the simplest way to get tid of Main Thread
 CTraceEventFormat::SRegularFields g_rfMainThread = CTraceEventFormat::GetRegularFields();
 
-void SetFolder(const std::string& path)
-{
+void SetFolder(const std::string& path) {
     CIttLocker lock;
 
     std::string new_path = path.size() ? (path + "-" + std::to_string(CTraceEventFormat::GetRegularFields().pid) + "/") : "";
@@ -1844,34 +1640,28 @@ void SetFolder(const std::string& path)
 
     g_savepath = new_path;
 
-    for (__itt_global* pGlobal = GetITTGlobal(); pGlobal; pGlobal = pGlobal->next)
-    {
+    for (__itt_global* pGlobal = GetITTGlobal(); pGlobal; pGlobal = pGlobal->next) {
         ReportModule(pGlobal); //4. we move to new folder and need to notify modules there
 
-        for (___itt_domain* pDomain = pGlobal->domain_list; pDomain; pDomain = pDomain->next)
-        {
+        for (___itt_domain* pDomain = pGlobal->domain_list; pDomain; pDomain = pDomain->next) {
             DomainExtra* pDomainExtra = reinterpret_cast<DomainExtra*>(pDomain->extra2);
-            if (pDomainExtra)
-            {
+            if (pDomainExtra) {
                 pDomainExtra->strDomainPath = g_savepath.size() ? GetDir(g_savepath, Escape4Path(pDomain->nameA)) : ""; //3.
                 pDomainExtra->bHasDomainPath = !pDomainExtra->strDomainPath.empty();
-                for (SThreadRecord* pThreadRecord = pDomainExtra->pThreadRecords; pThreadRecord; pThreadRecord = pThreadRecord->pNext)
-                {
-                    if (g_savepath.size()) //thread safe
-                    {
+                for (SThreadRecord* pThreadRecord = pDomainExtra->pThreadRecords; pThreadRecord; pThreadRecord = pThreadRecord->pNext) {
+                    if (g_savepath.size()) {
                         pThreadRecord->bRemoveFiles = true; //1. on next attempt to get a file it will recreate all files with new paths
-                    }
-                    else //not thread safe!!! Caller must make sure no one writes at this time
-                    {
+                    } else {
                         pThreadRecord->files.clear();
                     }
                 }
             }
         }
 
-        if (g_savepath.size())
+        if (g_savepath.size()) {
             for (___itt_string_handle* pString = pGlobal->string_list; pString; pString = pString->next)
                 sea::ReportString(const_cast<__itt_string_handle *>(pString)); //2. making string to be reported again - into the new folder
+        }
     }
 
     if (g_savepath.size())
@@ -1880,11 +1670,10 @@ void SetFolder(const std::string& path)
     if (g_savepath.size())
         g_features |= sfSEA;
     else
-        g_features &=~ sfSEA;
+        g_features &=~sfSEA;
 }
 
-void SetRing(uint64_t nanoseconds)
-{
+void SetRing(uint64_t nanoseconds) {
     if (g_nRingBuffer == nanoseconds)
         return;
     g_nRingBuffer = nanoseconds;
@@ -1894,18 +1683,15 @@ void SetRing(uint64_t nanoseconds)
 }
 
 #ifdef __linux__
-    bool WriteFTraceTimeSyncMarkers()
-    {
+    bool WriteFTraceTimeSyncMarkers() {
         int fd = open("/sys/kernel/debug/tracing/trace_marker", O_WRONLY);
-        if (-1 == fd)
-        {
+        if (-1 == fd) {
             VerbosePrint("Warning: failed to access /sys/kernel/debug/tracing/trace_marker\n");
             return false;
         }
-        for (size_t i = 0; i < 5; ++i)
-        {
+        for (size_t i = 0; i < 5; ++i) {
             char buff[100] = {};
-            int size = sprintf(buff, "IntelSEAPI_Time_Sync: %llu\n", (long long unsigned int)CTraceEventFormat::GetTimeNS());
+            int size = snprintf(buff, sizeof(buff), "IntelSEAPI_Time_Sync: %llu\n", (long long unsigned int)CTraceEventFormat::GetTimeNS());
             int res = write(fd, buff, (unsigned int)size);
             if (-1 == res) return false;
         }
@@ -1915,10 +1701,8 @@ void SetRing(uint64_t nanoseconds)
 #endif
 
 #ifdef __APPLE__
-    bool WriteKTraceTimeSyncMarkers()
-    {
-        for (size_t i = 0; i < 5; ++i)
-        {
+    bool WriteKTraceTimeSyncMarkers() {
+        for (size_t i = 0; i < 5; ++i) {
             kdebug_signpost(APPSDBG_CODE(DBG_MACH_CHUD, 0x15EA), CTraceEventFormat::GetTimeNS(), 0x15EA15EA, 0x15EA15EA, 0x15EA15EA);
             syscall(SYS_kdebug_trace, APPSDBG_CODE(DBG_MACH_CHUD, 0x15EA) | DBG_FUNC_NONE, CTraceEventFormat::GetTimeNS(), 0x15EA15EA, 0x15EA15EA, 0x15EA15EA);
         }
@@ -1942,8 +1726,7 @@ TEtwNotificationRegister g_fnOrigEtwNotificationRegister = nullptr;
     ULONG Type,
     PVOID Callback,
     PVOID Context,
-    REGHANDLE* RegHandle)
-{
+    REGHANDLE* RegHandle) {
      WCHAR strGuid[100] = {};
      StringFromGUID2(*Guid, strGuid, sizeof(strGuid) - 1);
      char str[100] = {};
@@ -1955,18 +1738,15 @@ TEtwNotificationRegister g_fnOrigEtwNotificationRegister = nullptr;
 }
 #endif
 
-void InitSEA()
-{
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+void InitSEA() {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         g_handlers[i]->Init(g_rfMainThread);
     }
 #ifdef __linux__
     WriteFTraceTimeSyncMarkers();
 #endif
 
-    const char* relations[] =
-    {
+    const char* relations[] = {
         nullptr,
         ("dependent_on"),         /**< "A is dependent on B" means that A cannot start until B completes */
         ("sibling_of"),           /**< "A is sibling of B" means that A and B were created as a group */
@@ -1978,7 +1758,7 @@ void InitSEA()
     };
 
     size_t i = 0;
-    for (auto ptr: relations)
+    for (auto ptr : relations)
         g_relations[i++] = ptr ? UNICODE_AGNOSTIC(string_handle_create)(ptr) : nullptr;
 
 
@@ -1995,25 +1775,21 @@ void InitSEA()
 #endif
 }
 
-void FinitaLaComedia()
-{
+void FinitaLaComedia() {
     COverlapped::FinishAll();
 
-    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i)
-    {
+    for (size_t i = 0; (i < MAX_HANDLERS) && g_handlers[i]; ++i) {
         delete g_handlers[i];
         g_handlers[i] = nullptr;
     }
 
     {
         CIttLocker locker;
-        if (sea::IsVerboseMode())
-        {
+        if (sea::IsVerboseMode()) {
             VerbosePrint("Call statistics:\n");
             const auto& map = CIttFnStat::GetStats();
-            for (const auto& pair: map)
-            {
-                VerbosePrint("%d\t%s\n", (int)pair.second, pair.first.c_str());
+            for (const auto& pair : map) {
+                VerbosePrint("%d\t%s\n", (int)pair.second, pair.first.c_str());  // NOLINT
             }
         }
 
@@ -2025,143 +1801,115 @@ void FinitaLaComedia()
 
     g_oDomainFilter.Finish();
 }
-
 } //namespace sea
 
-extern "C" //plain C interface for languages like python
-{
-    SEA_EXPORT void* itt_create_domain(const char* str)
-    {
+extern "C" {
+    SEA_EXPORT void* itt_create_domain(const char* str) {
         return UNICODE_AGNOSTIC(__itt_domain_create)(str);
     }
-    SEA_EXPORT void* itt_create_string(const char* str)
-    {
+    SEA_EXPORT void* itt_create_string(const char* str) {
         return UNICODE_AGNOSTIC(__itt_string_handle_create)(str);
     }
-    SEA_EXPORT void itt_marker(void* domain, uint64_t id, void* name, int scope, uint64_t timestamp)
-    {
+    SEA_EXPORT void itt_marker(void* domain, uint64_t id, void* name, int scope, uint64_t timestamp) {
         __itt_marker_ex(
             reinterpret_cast<__itt_domain*>(domain),
             nullptr, //zero clock domain means that given time is already a correct timestamp
             timestamp,
             id ? __itt_id_make(domain, id) : __itt_null,
             reinterpret_cast<__itt_string_handle*>(name),
-            (__itt_scope)scope
-        );
+            (__itt_scope)scope);
     }
 
-    SEA_EXPORT void itt_task_begin(void* domain, uint64_t id, uint64_t parent, void* name, uint64_t timestamp)
-    {
+    SEA_EXPORT void itt_task_begin(void* domain, uint64_t id, uint64_t parent, void* name, uint64_t timestamp) {
         __itt_task_begin_ex(
             reinterpret_cast<__itt_domain*>(domain),
             nullptr,
             timestamp,
             id ? __itt_id_make(domain, id) : __itt_null,
             parent ? __itt_id_make(domain, parent) : __itt_null,
-            reinterpret_cast<__itt_string_handle*>(name)
-        );
+            reinterpret_cast<__itt_string_handle*>(name));
     }
 
-    SEA_EXPORT void itt_task_begin_overlapped(void* domain, uint64_t id, uint64_t parent, void* name, uint64_t timestamp)
-    {
+    SEA_EXPORT void itt_task_begin_overlapped(void* domain, uint64_t id, uint64_t parent, void* name, uint64_t timestamp) {
         __itt_task_begin_overlapped_ex(
             reinterpret_cast<__itt_domain*>(domain),
             nullptr,
             timestamp,
             __itt_id_make(domain, id),
             parent ? __itt_id_make(domain, parent) : __itt_null,
-            reinterpret_cast<__itt_string_handle*>(name)
-        );
+            reinterpret_cast<__itt_string_handle*>(name));
     }
 
 
-    SEA_EXPORT void itt_metadata_add(void* domain, uint64_t id, void* name, double value)
-    {
+    SEA_EXPORT void itt_metadata_add(void* domain, uint64_t id, void* name, double value) {
         __itt_metadata_add(
             reinterpret_cast<__itt_domain*>(domain),
             id ? __itt_id_make(domain, id) : __itt_null,
             reinterpret_cast<__itt_string_handle*>(name),
             __itt_metadata_double, 1,
-            &value
-        );
+            &value);
     }
 
-    SEA_EXPORT void itt_metadata_add_str(void* domain, uint64_t id, void* name, const char* value)
-    {
+    SEA_EXPORT void itt_metadata_add_str(void* domain, uint64_t id, void* name, const char* value) {
         __itt_metadata_str_add(
             reinterpret_cast<__itt_domain*>(domain),
             id ? __itt_id_make(domain, id) : __itt_null,
             reinterpret_cast<__itt_string_handle*>(name),
             value,
-            0
-        );
+            0);
     }
 
-    SEA_EXPORT void itt_metadata_add_blob(void* domain, uint64_t id, void* name, const void* value, uint32_t size)
-    {
+    SEA_EXPORT void itt_metadata_add_blob(void* domain, uint64_t id, void* name, const void* value, uint32_t size) {
         __itt_metadata_add(
             reinterpret_cast<__itt_domain*>(domain),
             id ? __itt_id_make(domain, id) : __itt_null,
             reinterpret_cast<__itt_string_handle*>(name),
             __itt_metadata_unknown, size,
-            const_cast<void*>(value)
-        );
+            const_cast<void*>(value));
     }
 
-    SEA_EXPORT void itt_task_end(void* domain, uint64_t timestamp)
-    {
+    SEA_EXPORT void itt_task_end(void* domain, uint64_t timestamp) {
         __itt_task_end_ex(
             reinterpret_cast<__itt_domain*>(domain),
             nullptr,
-            timestamp
-        );
+            timestamp);
     }
 
-    SEA_EXPORT void itt_task_end_overlapped(void* domain, uint64_t timestamp, uint64_t taskid)
-    {
+    SEA_EXPORT void itt_task_end_overlapped(void* domain, uint64_t timestamp, uint64_t taskid) {
         __itt_task_end_overlapped_ex(
             reinterpret_cast<__itt_domain*>(domain),
             nullptr,
             timestamp,
-            __itt_id_make(domain, taskid)
-       );
+            __itt_id_make(domain, taskid));
     }
 
-    SEA_EXPORT void* itt_counter_create(void* domain, void* name)
-    {
+    SEA_EXPORT void* itt_counter_create(void* domain, void* name) {
         return __itt_counter_create_typed(
             reinterpret_cast<__itt_string_handle*>(name)->strA,
             reinterpret_cast<__itt_domain*>(domain)->nameA,
-            __itt_metadata_u64
-        );
+            __itt_metadata_u64);
     }
 
-    SEA_EXPORT void itt_set_counter(void* id, double value, uint64_t timestamp)
-    {
+    SEA_EXPORT void itt_set_counter(void* id, double value, uint64_t timestamp) {
         __itt_counter_set_value_ex(reinterpret_cast<__itt_counter>(id), nullptr, timestamp, &value);
     }
 
-    SEA_EXPORT void* itt_create_track(const char* group, const char* track)
-    {
+    SEA_EXPORT void* itt_create_track(const char* group, const char* track) {
         return __itt_track_create(
             __itt_track_group_create(((group) ? __itt_string_handle_create(group) : nullptr), __itt_track_group_type_normal),
             __itt_string_handle_create(track),
-            __itt_track_type_normal
-        );
+            __itt_track_type_normal);
     }
 
-    SEA_EXPORT void itt_set_track(void* track)
-    {
+    SEA_EXPORT void itt_set_track(void* track) {
         __itt_set_track(reinterpret_cast<__itt_track*>(track));
     }
 
-    SEA_EXPORT uint64_t itt_get_timestamp()
-    {
+    SEA_EXPORT uint64_t itt_get_timestamp() {
         return (uint64_t)__itt_get_timestamp();
     }
 
-    SEA_EXPORT void itt_write_time_sync_markers()
-    {
+    SEA_EXPORT void itt_write_time_sync_markers() {
 #ifdef __linux__
         sea::WriteFTraceTimeSyncMarkers();
 #endif
