@@ -51,5 +51,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(ScatterUpdateLayerTest).*)",
             // TODO: Issue: 47773
             R"(.*(ProposalLayerTest).*)",
+            // INT8 StridedSlice not supported
+            R"(.*(LPT/StridedSliceTransformation).*)",
     };
 }

@@ -97,9 +97,11 @@ inline std::ostream& operator<<(std::ostream& out, const DequantizationOperation
         data.subtract.values << "_" <<
         data.subtract.constantShape << "_" <<
         data.subtract.outPrecision << "_" <<
+        data.subtract.constantIndex << "_" <<
         data.multiply.values << "_" <<
         data.multiply.constantShape << "_" <<
-        data.multiply.outPrecision;
+        data.multiply.outPrecision << "_" <<
+        data.multiply.constantIndex;
 }
 
 }  // namespace subgraph

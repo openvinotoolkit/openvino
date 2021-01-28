@@ -20,7 +20,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
 
-#include <ie_icnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 #include "description_buffer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
@@ -39,7 +39,7 @@ class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl): public ICNNNetwork {
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph,
                          const std::vector<IExtensionPtr>& exts = {});
-    CNNNetworkNGraphImpl(const ICNNNetwork& nGraph);
+    CNNNetworkNGraphImpl(const CNNNetwork& nGraph);
     ~CNNNetworkNGraphImpl() override = default;
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
