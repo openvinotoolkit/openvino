@@ -136,7 +136,6 @@ endif ()
 
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-
     reset_deps_cache(TBBROOT TBB_DIR)
         ## pre-production package for hybrid support (windows/macos/linux only)
         if (NOT ANDROID AND NOT(LINUX AND AARCH64))
@@ -152,10 +151,10 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     if (WIN32 AND X86_64)
         #TODO: add target_path to be platform specific as well, to avoid following if
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.2.0-win.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.2.0-win_strip.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "3f92b99ddabdfdeb512467043f4806ce2bde7086c4dda2f66865830174bc6a83")
+                SHA256 "dad5a2407d581509796e37ef5f69b1041d872760dbb6291ef86d744fbf25602a")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -164,9 +163,9 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.0-lin.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.2.0-lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
-                SHA256 "cae47d9e837da577712586d41accb9a93777aad8d9b29eba466586bb59e30535")
+                SHA256 "5e5728078ae12cf885d7cafc142cb5ca857d169daf2025e960ce95af9d4bd730")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
@@ -175,10 +174,10 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 SHA256 "57ad3ceeab119c8a4d5e9fc38e80952fc19d4bf23ae065e9540cde89b25561d5")
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "oneapi-tbb-2021.2.0-mac.tgz"
+                ARCHIVE_MAC "oneapi-tbb-2021.2.0-mac_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "ee09b2ae7217f853db5bd29301af2ba1c3a09a71855ae47a93d344779defbeef")
+                SHA256 "02f1438c7b0f8c83b08a762d23307cd7b6177d044fcda3efd6f0c2f0694b1d20")
     else()
         message(FATAL_ERROR "TBB is not available on current platform")
     endif()
