@@ -1031,15 +1031,22 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         offset.push_back(cropLayer->offset[n]);
     }
 
-    if (axis.size() > 1) {
+    if (axis.size() != 1) {
         THROW_GNA_EXCEPTION <<
             "Crop layer does not support the number of (non-trivial) cropped dimensions more than 1, provided: "
             << axis.size() << ".";
     }
 
+
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
     size_t cropOffset = offset.front() * cropLayer->precision.size();
     size_t cropOutputSize = dim.front() * cropLayer->precision.size();
+    // fix for crop on tensor dim > 2D
+    for (int n = axis[0]+1; n < cropLayer->dim.size(); n++)
+    {
+        cropOffset *= cropLayer->dim[n];
+        cropOutputSize *= cropLayer->dim[n];
+    }
 
     if (!LayerInfo(cropLayer).isCropAffined()) {
         // leave crop as it is
@@ -1778,6 +1785,11 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         activation_type = GNAFakeQuantizeLayer(layer).parseAsActivation();
     }
 
+    if (it->second == kActKaldiLstmClipping) {
+        auto& clamp_layer = dynamic_cast<ClampLayer&>(*layer.get());
+        activation_type.args.clamp.low = clamp_layer.min_value;
+        activation_type.args.clamp.high = clamp_layer.max_value;
+    }
     string actName = "unknown";
 
 #ifdef PLOT
