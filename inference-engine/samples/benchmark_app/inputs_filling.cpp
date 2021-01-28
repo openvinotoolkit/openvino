@@ -310,6 +310,8 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                 fillBlobRandom<short>(inputBlob);
             } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
                 fillBlobRandom<int32_t>(inputBlob);
+            } else if (item.second->getPrecision() == InferenceEngine::Precision::I64) {
+                fillBlobRandom<int64_t>(inputBlob);
             } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
                 fillBlobRandom<uint8_t>(inputBlob);
             } else if (item.second->getPrecision() == InferenceEngine::Precision::I8) {
