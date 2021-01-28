@@ -4,17 +4,16 @@
 
 **Category**: Convolution
 
-**Short description**: Splits input into multiple groups, convolves them with group filters and concatenates results. 
+**Short description**: Computes 1D, 2D or 3D GroupConvolution of input and kernel tensors. 
 
-**Detailed description**: [ImageNet Classification with Deep Convolutional
+**Detailed description**: Splits input into multiple groups, convolves them with group filters as in regular convolution and concatenates the results. More thorough explanation can be found in [ImageNet Classification with Deep Convolutional
 Neural Networks](https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf)
 
-**Attributes**
-The operation has the same attributes as a regular _Convolution_. Number of groups is derived from the kernel shape. 
+**Attributes**: The operation has the same attributes as a regular _Convolution_. Number of groups is derived from the kernel shape. 
 
 * *strides*
 
-  * **Description**: *strides* is a distance (in pixels) to slide the filter on the feature map over the (z, y, x) axes for 3D convolutions and (y, x) axes for 2D convolutions. For example, *strides* equal *4,2,1* means sliding the filter 4 pixel at a time over depth dimension, 2 over height dimension and 1 over width dimension.
+  * **Description**: *strides* is a distance (in pixels) to slide the filter on the feature map over the `(z, y, x)` axes for 3D convolutions and `(y, x)` axes for 2D convolutions. For example, *strides* equal `4,2,1` means sliding the filter 4 pixel at a time over depth dimension, 2 over height dimension and 1 over width dimension.
   * **Range of values**: positive integer numbers
   * **Type**: int[]
   * **Default value**: None
@@ -22,7 +21,7 @@ The operation has the same attributes as a regular _Convolution_. Number of grou
 
 * *pads_begin*
 
-  * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal *1,2* means adding 1 pixel to the top of the input and 2 to the left of the input.
+  * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal `1,2` means adding 1 pixel to the top of the input and 2 to the left of the input.
   * **Range of values**: positive integer numbers
   * **Type**: int[]
   * **Default value**: None
@@ -31,7 +30,7 @@ The operation has the same attributes as a regular _Convolution_. Number of grou
 
 * *pads_end*
 
-  * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal *1,2* means adding 1 pixel to the bottom of the input and 2 to the right of the input.
+  * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal `1,2` means adding 1 pixel to the bottom of the input and 2 to the right of the input.
   * **Range of values**: positive integer numbers
   * **Type**: int[]
   * **Default value**: None
@@ -40,7 +39,7 @@ The operation has the same attributes as a regular _Convolution_. Number of grou
 
 * *dilations*
 
-  * **Description**: *dilations* denotes the distance in width and height between elements (weights) in the filter. For example, *dilation* equal *1,1* means that all the elements in the filter are neighbors, so it is the same as for the usual convolution. *dilation* equal *2,2* means that all the elements in the filter are matched not to adjacent elements in the input matrix, but to those that are adjacent with distance 1.
+  * **Description**: *dilations* denotes the distance in width and height between elements (weights) in the filter. For example, *dilation* equal `1,1` means that all the elements in the filter are neighbors, so it is the same as for the usual convolution. *dilation* equal `2,2` means that all the elements in the filter are matched not to adjacent elements in the input matrix, but to those that are adjacent with distance 1.
   * **Range of values**: positive integer numbers
   * **Type**: int[]
   * **Default value**: None
@@ -49,7 +48,7 @@ The operation has the same attributes as a regular _Convolution_. Number of grou
 * *auto_pad*
 
   * **Description**: *auto_pad* how the padding is calculated. Possible values:
-    * *explicit* - use explicit padding values from `pads_begin` and `pads_end`.
+    * *explicit* - use explicit padding values from *pads_begin* and *pads_end*.
     * *same_upper* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
     * *same_lower* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
     * *valid* - do not use padding.
@@ -68,12 +67,38 @@ The operation has the same attributes as a regular _Convolution_. Number of grou
       * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X
       * 3D convolution (input tensors rank 5) means that there are three spatial axes Z, Y, X
 
-**Types**
+**Types**:
 
-* *T*: any numeric type.
+* *T*: any floating point type.
 
-**Example**
+**Example**:  
+1D GroupConvolution
+```xml
+<layer type="GroupConvolution" ...>
+    <data dilations="1" pads_begin="2" pads_end="2" strides="1" auto_pad="explicit"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>12</dim>
+            <dim>224</dim>
+        </port>
+        <port id="1">
+            <dim>4</dim>
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>5</dim>
+        </port>
+    </input>
+    <output>
+        <port id="2" precision="FP32">
+            <dim>1</dim>
+            <dim>4</dim>
+            <dim>224</dim>
+        </port>
+    </output>
+```
 
+2D GroupConvolution
 ```xml
 <layer type="GroupConvolution" ...>
     <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" auto_pad="explicit"/>
@@ -96,6 +121,38 @@ The operation has the same attributes as a regular _Convolution_. Number of grou
         <port id="2" precision="FP32">
             <dim>1</dim>
             <dim>4</dim>
+            <dim>224</dim>
+            <dim>224</dim>
+        </port>
+    </output>
+```
+
+3D GroupConvolution
+```xml
+<layer type="GroupConvolution" ...>
+    <data dilations="1,1,1" pads_begin="2,2,2" pads_end="2,2,2" strides="1,1,1" auto_pad="explicit"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>12</dim>
+            <dim>224</dim>
+            <dim>224</dim>
+            <dim>224</dim>
+        </port>
+        <port id="1">
+            <dim>4</dim>
+            <dim>1</dim>
+            <dim>3</dim>
+            <dim>5</dim>
+            <dim>5</dim>
+            <dim>5</dim>
+        </port>
+    </input>
+    <output>
+        <port id="2" precision="FP32">
+            <dim>1</dim>
+            <dim>4</dim>
+            <dim>224</dim>
             <dim>224</dim>
             <dim>224</dim>
         </port>
