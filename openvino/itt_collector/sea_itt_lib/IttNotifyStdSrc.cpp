@@ -1174,7 +1174,7 @@ void frame_end_v3(const __itt_domain *pDomain, __itt_id *id)
     WriteRecord(ERecordType::EndFrame, SRecord{rf, *pDomain, id ? *id : __itt_null, __itt_null});
 }
 
-__itt_frame UNICODE_AGNOSTIC(frame_create)(const char *domain)
+__itt_frame_t* UNICODE_AGNOSTIC(frame_create)(const char *domain)
 {
     ITT_FUNCTION_STAT();
     return new __itt_frame_t{
@@ -1184,19 +1184,19 @@ __itt_frame UNICODE_AGNOSTIC(frame_create)(const char *domain)
 }
 
 #ifdef _WIN32
-__itt_frame frame_createW(const wchar_t* domain)
+__itt_frame_t* frame_createW(const wchar_t* domain)
 {
     return UNICODE_AGNOSTIC(frame_create)(W2L(domain).c_str());
 }
 #endif
 
-void frame_begin(__itt_frame frame)
+void frame_begin(__itt_frame_t* frame)
 {
     ITT_FUNCTION_STAT();
     frame_begin_v3(frame->pDomain, &frame->id);
 }
 
-void frame_end(__itt_frame frame)
+void frame_end(__itt_frame_t* frame)
 {
     ITT_FUNCTION_STAT();
     frame_end_v3(frame->pDomain, &frame->id);

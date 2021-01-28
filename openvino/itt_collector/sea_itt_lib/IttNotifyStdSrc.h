@@ -18,20 +18,7 @@
 
 #pragma once
 
-//to collect Linux ftrace probes: sudo trace-cmd record -e IntelSEAPI/* /home/aaraud/Perforce/aaraud_ubuntu_parallels/gpa/users/aaraud/IntelSEAPI-build/IntelSEAPI
-
 #define INTEL_ITTNOTIFY_API_PRIVATE
-#define INTEL_ITTNOTIFY_ENABLE_LEGACY
-
-#ifdef _WIN32
-    #define message(ignore) //suffocates #pragma message("WARNING!!!... about using "INTEL_ITTNOTIFY_ENABLE_LEGACY"
-#elif defined(__APPLE__)
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-W#warnings"
-#else
-    #pragma GCC diagnostic push
-    #pragma GCC diagnostic ignored "-Wcpp"
-#endif
 
 #include "ittnotify.h"
 #include "ittnotify_config.h"
@@ -116,10 +103,6 @@ struct ___itt_counter : public __itt_counter_info_t{};
 #else
     #define USE_PROBES
 #endif
-
-//to collect probes: sudo trace-cmd record -e IntelSEAPI/* /home/aaraud/Perforce/aaraud_ubuntu_parallels/gpa/users/aaraud/IntelSEAPI-build/IntelSEAPI
-
-
 
 #ifdef _WIN32
     #include "windows.h"
