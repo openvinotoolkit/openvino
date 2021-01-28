@@ -30,6 +30,9 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         return false;
     }
 
+    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, 0));
+    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, 1));
+
     multiply = separateInStandaloneBranch(multiply);
     auto newMultiply = multiply;
 
