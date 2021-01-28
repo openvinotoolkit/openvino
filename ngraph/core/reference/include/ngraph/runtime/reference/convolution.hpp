@@ -160,16 +160,15 @@ namespace ngraph
                     {
                         int missing_dims = 3 - spatial_rank;
                         p.dilation.insert(
-                            std::next(p.dilation.end(), -spatial_rank), missing_dims, 1);
-                        p.strides.insert(
-                            std::next(p.strides.end(), -spatial_rank), missing_dims, 1);
+                            std::prev(p.dilation.end(), spatial_rank), missing_dims, 1);
+                        p.strides.insert(std::prev(p.strides.end(), spatial_rank), missing_dims, 1);
                         p.pads_begin.insert(
-                            std::next(p.pads_begin.end(), -spatial_rank), missing_dims, 0);
+                            std::prev(p.pads_begin.end(), spatial_rank), missing_dims, 0);
                         p.pads_end.insert(
-                            std::next(p.pads_end.end(), -spatial_rank), missing_dims, 0);
+                            std::prev(p.pads_end.end(), spatial_rank), missing_dims, 0);
                         in_shape.insert(std::next(in_shape.end(), -spatial_rank), missing_dims, 1);
                         filter_shape.insert(
-                            std::next(filter_shape.end(), -spatial_rank), missing_dims, 1);
+                            std::prev(filter_shape.end(), spatial_rank), missing_dims, 1);
                     }
                 }
             }
