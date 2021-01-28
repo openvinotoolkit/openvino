@@ -111,8 +111,10 @@ void op::v0::Proposal::validate_and_infer_types()
 
     // intersect the batch size
     Dimension batch_dim = class_probs_ps[0] & bbox_deltas_ps[0];
-    out_dimension = batch_dim * Dimension(m_attrs.post_nms_topn);
-
+    if (batch_dim.is_static())
+    {
+        out_dimension = batch_dim * Dimension(m_attrs.post_nms_topn);
+    }
     set_output_type(0, get_input_element_type(0), PartialShape{out_dimension, 5});
 }
 
