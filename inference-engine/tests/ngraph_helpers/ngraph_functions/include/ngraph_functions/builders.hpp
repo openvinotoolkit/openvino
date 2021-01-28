@@ -472,5 +472,11 @@ std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
                                       const bool &sortResDescend,
                                       const ngraph::element::Type& outType);
 
+std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
+                                         int64_t depth,
+                                         float on_value,
+                                         float off_value,
+                                         int64_t axis);
+
 }  // namespace builder
 }  // namespace ngraph
