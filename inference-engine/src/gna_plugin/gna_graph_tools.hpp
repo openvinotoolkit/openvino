@@ -756,6 +756,7 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
     for (auto layer_input_port : CNNLayerFindInsDataIdxes(old_prev_layer_out_port_0, layer)) {
         layer->insData[layer_input_port] = new_prev_layer_out_port_0;
     }
+
     // remove old_prev->layer connection
     for (auto i = getInputTo(old_prev_layer_out_port_0).begin(); i != getInputTo(old_prev_layer_out_port_0).end(); i++) {
         if (i->second.get() == layer.get()) {

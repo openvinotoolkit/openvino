@@ -2357,7 +2357,6 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
     }
 
-
     THROW_GNA_EXCEPTION << "Cannot connect input for: " << layer->name;
 }
 
