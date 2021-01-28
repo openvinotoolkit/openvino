@@ -459,12 +459,13 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
 }
 
 static bool isReorderAvailable(const TensorDesc& parentDesc, const TensorDesc& childDesc, const mkldnn::engine& eng) {
-    memory::primitive_desc dstPrimitiveDesc(MKLDNNMemoryDesc(childDesc), eng);
-    memory::primitive_desc srcPrimitiveDesc(MKLDNNMemoryDesc(parentDesc), eng);
+    memory::desc dstMemDesc = MKLDNNMemoryDesc(childDesc);
+    memory::desc srcMemDesc = MKLDNNMemoryDesc(parentDesc);
     mkldnn::primitive_attr attr;
 
-    mkldnn_primitive_desc_t result = nullptr;
-    auto status = mkldnn_reorder_primitive_desc_create_v2(&result, srcPrimitiveDesc.get(), dstPrimitiveDesc.get(), attr.get());
+    dnnl_primitive_desc_t result = nullptr;
+    auto status = dnnl_reorder_primitive_desc_create(&result, &srcMemDesc.data, eng.get(), &dstMemDesc.data, eng.get(),
+                                                     attr.get());
     if (result) {
         mkldnn_primitive_desc_destroy(result);
     }

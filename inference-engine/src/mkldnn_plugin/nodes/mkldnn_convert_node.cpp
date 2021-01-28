@@ -93,19 +93,14 @@ void MKLDNNConvertNode::createPrimitive() {
         THROW_ERROR << "Preferable primitive descriptor is not set.";
 }
 
-static inline uint8_t* getDataPtr(const MKLDNNMemory& memoryPtr) {
-    return reinterpret_cast<uint8_t*>(memoryPtr.GetData()) + memoryPtr.GetDescriptor().data.layout_desc.blocking.offset_padding *
-        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(memoryPtr.GetDescriptor().data.data_type));
-}
-
 void MKLDNNConvertNode::execute(mkldnn::stream strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
     auto& childMem = getChildEdgeAt(0)->getMemory();
     if (parentMem.GetElementsCount() != childMem.GetElementsCount())
         THROW_ERROR << "Input and output buffers have different elements count";
 
-    void* srcPtr = getDataPtr(parentMem);
-    void* dstPtr = getDataPtr(childMem);
+    void* srcPtr = parentMem.GetPtr();
+    void* dstPtr = childMem.GetPtr();
     cpu_convert(srcPtr, dstPtr, getParentEdgeAt(0)->getDesc().getPrecision(), getChildEdgeAt(0)->getDesc().getPrecision(), parentMem.GetElementsCount());
 }
 

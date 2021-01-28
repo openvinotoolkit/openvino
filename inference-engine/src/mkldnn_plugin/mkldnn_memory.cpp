@@ -101,6 +101,7 @@ void MKLDNNMemory::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &ou
     } else {
         std::unique_ptr<mkldnn::reorder> pReorder;
         std::shared_ptr<memory> srcMemoryPtr;
+        std::vector<uint8_t> tmpBuff;
 
         try {
             pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(input.GetPrimitive(), output.GetPrimitive()));
@@ -110,14 +111,14 @@ void MKLDNNMemory::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &ou
             if (mkldnn_unimplemented == err.status && output.GetDataType() != input.GetDataType()) {
                 //we probably could not make the reorder because there is no one supporting this precision conversion
                 //lets try to convert data first using cpu_convert
-                std::vector<uint8_t> tmpBuff(input.GetSize());
                 auto data = static_cast<const uint8_t *>(input.GetPtr());
+                tmpBuff.resize(input.GetSize());
 
                 cpu_convert(data, tmpBuff.data(), MKLDNNExtensionUtils::DataTypeToIEPrecision(input.GetDataType()),
                             MKLDNNExtensionUtils::DataTypeToIEPrecision(output.GetDataType()), input.GetElementsCount());
 
                 MKLDNNMemory tmpMem(output.eng);
-                tmpMem.Create(input.GetDims(), input.GetDataType(), input.GetFormat(), data);
+                tmpMem.Create(input.GetDims(), output.GetDataType(), input.GetDesc().getFormat(), tmpBuff.data());
 
                 pReorder = std::unique_ptr<mkldnn::reorder>(new mkldnn::reorder(tmpMem.GetPrimitive(), output.GetPrimitive()));
                 srcMemoryPtr = tmpMem.prim;
@@ -126,8 +127,8 @@ void MKLDNNMemory::reorderData(const MKLDNNMemory &input, const MKLDNNMemory &ou
             }
         }
         if (pReorder) {
-            mkldnn::stream loc_stream(this->eng, stream::flags::default_order);
-            pReorder->execute(loc_stream, *srcMemoryPtr, *this->prim);
+            mkldnn::stream loc_stream(output.eng, stream::flags::default_order);
+            pReorder->execute(loc_stream, *srcMemoryPtr, *output.prim);
         } else {
             THROW_IE_EXCEPTION << "Could not make mkldnn reorder.";
         }
