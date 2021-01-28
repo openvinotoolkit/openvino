@@ -256,13 +256,19 @@ void MKLDNNSplitNode::createPrimitive() {
             canUseOptimizedNspc2Ncsp = false;
     }
 
-    if (!canUseOptimizedNspc2Ncsp && !isOptimized())
-        prepareOptimizedParams();
+    if (!isOptimized()) {
+        initializeDstMemPtrs();
+        if (!canUseOptimizedNspc2Ncsp)
+            prepareOptimizedParams();
+    }
 }
 
 void MKLDNNSplitNode::execute(mkldnn::stream strm) {
     if (isOptimized())
         return;
+
+    if (dstMemPtrs.empty())
+        THROW_ERROR << "Output data pointers have not been initialized.";
 
     int MB = batchToProcess();
 
@@ -277,8 +283,8 @@ void MKLDNNSplitNode::execute(mkldnn::stream strm) {
     if (batch != MB)
         optimizedParams.countStrides = optimizedParams.countStrides / batch * MB;
 
-    parallel_for2d(optimizedParams.dstMemPtrs.size(), optimizedParams.countStrides, [&](size_t i, size_t j) {
-        uint8_t* dstData = optimizedParams.dstMemPtrs[i];
+    parallel_for2d(dstMemPtrs.size(), optimizedParams.countStrides, [&](size_t i, size_t j) {
+        uint8_t* dstData = dstMemPtrs[i];
 
         cpu_memcpy(&dstData[j * optimizedParams.dataSize[i]],
                    &srcData[optimizedParams.srcDataOffsets[i] + j * optimizedParams.srcDataStride],
@@ -480,32 +486,6 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
 
     optimizedParams.srcDataStride = 0;
     optimizedParams.dataSize.resize(outputPortsCount);
-    optimizedParams.dstMemPtrs.clear();
-
-    //Here we have to place the output data pointers in the order that reflects the output edges order.
-    //It's important in case when several edges are connected to one port.
-    //This is a naive implementation, the Fibonacci tree would be a more elegant solutions here.
-    std::unordered_map<uint8_t*, size_t> mapDstPtrs;
-    using pair_t = std::pair<uint8_t*, size_t>;
-    for (size_t i = 0; i < getChildEdges().size(); ++i) {
-        auto outputEdge = this->getChildEdgeAt(i);
-        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outputEdge->getMemoryPtr()->GetPtr())) {
-            mapDstPtrs[dstData] = i;
-        } else {
-            THROW_ERROR << "can't get child edge indx " << i << "data.";
-        }
-    }
-
-    auto comparator = [](const pair_t& left, const pair_t& right){
-        return left.second > right.second; //for reverse priorities
-    };
-
-    std::priority_queue<pair_t, std::vector<pair_t>, decltype(comparator)> pointersQueue(mapDstPtrs.begin(), mapDstPtrs.end(), comparator);
-
-    while (!pointersQueue.empty()) {
-        optimizedParams.dstMemPtrs.push_back(pointersQueue.top().first);
-        pointersQueue.pop();
-    }
 
     for (size_t i = 0; i < outputPortsCount; i++) {
         auto outputEdge = this->getChildEdgesAtPort(i).front();
@@ -540,20 +520,18 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     const size_t strideIW = IC*dataSize;
     const size_t strideOC = DHW * dataSize;
 
-    for (size_t i = 0, sIdx = 0; i < getChildEdges().size(); i++) {
-        auto childEdge = getChildEdgeAt(i);
-        auto dstBlob = childEdge->getBlob();
-        auto dstData = dstBlob->buffer().as<uint8_t*>();
-
-        const size_t OC = childEdge->getDims()[1];
+    for (size_t i = 0, sIdx = 0; i < outDims.size(); i++) {
+        auto dstData = dstMemPtrs[i];
 
         size_t innerSize = 1;
-        for (size_t j = axis; j < dstBlob->getTensorDesc().getDims().size(); j++) {
-            innerSize *= dstBlob->getTensorDesc().getDims()[j];
-        }
+        auto dims = outDims[i].ToSizeVector();
 
+        for (size_t j = axis; j < dims.size(); j++) {
+            innerSize *= dims[j];
+        }
         auto srcPtr = srcData + srcBlob->getTensorDesc().offset(sIdx) * dataSize;
 
+        const size_t OC = dims[1];
         const size_t strideOB = OC * strideOC;
 
         parallel_for2d(MB, DHW, [&](size_t b, size_t j) {
@@ -570,5 +548,32 @@ void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     }
 }
 
+void MKLDNNSplitNode::initializeDstMemPtrs() {
+    dstMemPtrs.clear();
+
+    //Here we have to place the output data pointers in the order that reflects the output edges order.
+    //It's important in case when several edges are connected to one port.
+    //This is a naive implementation, an indexed priority queue or modified treap would be a more elegant solution.
+    std::unordered_map<uint8_t*, size_t> mapDstPtrs;
+    using pair_t = std::pair<uint8_t*, size_t>;
+    for (size_t i = 0; i < getChildEdges().size(); ++i) {
+        auto outputEdge = this->getChildEdgeAt(i);
+        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outputEdge->getMemoryPtr()->GetPtr())) {
+            mapDstPtrs[dstData] = i;
+        } else {
+            THROW_ERROR << "can't get child edge indx " << i << "data.";
+        }
+    }
+
+    std::vector<uint8_t*> vecCountingSort(getChildEdges().size(), nullptr);
+    for (auto& item : mapDstPtrs) {
+        vecCountingSort[item.second] = item.first;
+    }
+
+    dstMemPtrs.reserve(vecCountingSort.size());
+    auto backInserter = std::back_inserter(dstMemPtrs);
+    std::copy_if(vecCountingSort.begin(), vecCountingSort.end(), backInserter, [](const uint8_t* x) {return x;});
+    dstMemPtrs.shrink_to_fit();
+}
 
 REG_MKLDNN_PRIM_FOR(MKLDNNSplitNode, Split);
