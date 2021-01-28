@@ -38,7 +38,7 @@
 
 static char* m_exename = nullptr;
 
-#if defined(WIN32) || defined(__APPLE__) || defined(ANDROID)
+#if defined(_WIN32) || defined(__APPLE__) || defined(ANDROID)
 typedef std::chrono::time_point<std::chrono::steady_clock> time_point;
 #else
 typedef std::chrono::time_point<std::chrono::system_clock> time_point;
