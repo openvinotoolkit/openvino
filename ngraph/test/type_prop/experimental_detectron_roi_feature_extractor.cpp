@@ -170,7 +170,8 @@ TEST(type_prop, detectron_roi_feature_extractor_intervals)
     }
 }
 
-struct ROIFeatureIntervalsTestParams{
+struct ROIFeatureIntervalsTestParams
+{
     PartialShape input_shape;
     Dimension channels[4];
     Dimension first_dims[4];
