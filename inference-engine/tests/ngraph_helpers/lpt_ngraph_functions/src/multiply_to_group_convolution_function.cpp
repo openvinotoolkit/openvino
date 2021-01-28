@@ -15,16 +15,28 @@ namespace subgraph {
 std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOriginal(
     const ngraph::Shape& inputShape,
     const ngraph::element::Type& precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const bool haveMultiplyWithNoConstBeforeDequantization) {
+    std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         ngraph::Shape(inputShape));
-
-    const auto dequantizationOp = makeDequantization(input, dequantization);
+    std::shared_ptr<ngraph::op::Op> parent = input;
+    std::shared_ptr<ngraph::op::Parameter> secondInput;
+    if (haveMultiplyWithNoConstBeforeDequantization) {
+        secondInput = std::make_shared<ngraph::opset1::Parameter>(
+        precisionBeforeDequantization,
+        ngraph::Shape(inputShape));
+        parent = std::make_shared<ngraph::opset1::Multiply>(input, secondInput);
+    }
+    const auto dequantizationOp = makeDequantization(parent, dequantization);
     dequantizationOp->set_friendly_name("output");
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOp) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MultiplyToGroupConvolutionFunction");
+    ngraph::ParameterVector params{input};
+    if (haveMultiplyWithNoConstBeforeDequantization) {
+        params.push_back(secondInput);
+    }
+    return std::make_shared<ngraph::Function>(results, params, "MultiplyToGroupConvolutionFunction");
 }
 
 std::shared_ptr<ngraph::Function> MultiplyToGroupConvolutionFunction::getOriginal(
