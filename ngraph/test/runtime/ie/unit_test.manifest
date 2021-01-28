@@ -1176,9 +1176,6 @@ IE_CPU.onnx_model_nonmaxsuppression_center_point_box_format
 IE_CPU.onnx_model_nonmaxsuppression_single_box
 IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores_without_constants
 
-# Bug in CPU plugin for ROIPooling when pooled size is 1x1 and method is bilinear
-IE_CPU.roi_pooling_1x1_bilinear
-
 # Unsupported dynamic op
 IE_CPU.range_v4_trunc_inputs
 IE_CPU.onnx_model_reduce_sum_13_axes_as_input
