@@ -132,12 +132,12 @@ constexpr float probs_ref[] = {
     0.1555300f,
     0.1549760f,
     0.1466370f,
-    0.0260620f, // 0
+    0.0260620f,
     0.0177700f,
     0.0019870f,
     0.0008570f,
     0.0002190f,
-    0.0000000f, // 5
+    0.0000000f,
 };
 
 NGRAPH_TEST(${BACKEND_NAME}, proposal_v0_basic)
