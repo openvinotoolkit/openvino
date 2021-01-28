@@ -94,6 +94,9 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         return false;
     }
 
+    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, 0));
+    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, 1));
+
     std::shared_ptr<Node> addNode = separateInStandaloneBranch(op);
     std::shared_ptr<opset1::Add> add = as_type_ptr<opset1::Add>(addNode);
 
