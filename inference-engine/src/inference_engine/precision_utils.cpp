@@ -111,8 +111,7 @@ float f16tof32(ie_fp16 x) {
 }
 
 ie_bf16 f32tobf16(float x) {
-    union
-    {
+    union {
         uint32_t i;
         float f;
     };
@@ -122,8 +121,7 @@ ie_bf16 f32tobf16(float x) {
 }
 
 float bf16tof32(ie_bf16 x) {
-    union
-    {
+    union {
         uint32_t i;
         float f;
     };
