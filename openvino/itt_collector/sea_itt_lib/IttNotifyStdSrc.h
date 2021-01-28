@@ -28,12 +28,6 @@
 #endif
 
 #ifdef _WIN32
-    #undef message
-#else
-    #pragma GCC diagnostic pop
-#endif
-
-#ifdef _WIN32
     #define SEA_EXPORT __declspec(dllexport)
     #define _sprintf sprintf_s
 #else
