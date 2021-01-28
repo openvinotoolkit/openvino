@@ -38,7 +38,7 @@ namespace ngraph
     {
         namespace reference
         {
-            namespace convolution_details
+            namespace
             {
                 constexpr size_t in_batch_axis = 0;
                 constexpr size_t in_channel_axis = 1;
@@ -190,8 +190,6 @@ namespace ngraph
                              const Strides&)
 
             {
-                using namespace convolution_details;
-
                 // this implementation supports 1D, 2D and 3D convolutions
                 NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
                              "Unsupported input rank: ",
