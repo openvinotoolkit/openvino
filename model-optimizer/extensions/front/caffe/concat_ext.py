@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
-from mo.front.onnx.extractors.utils import onnx_attr
 from mo.front.extractor import FrontExtractorOp
+from mo.front.onnx.extractors.utils import onnx_attr
 from mo.ops.concat import Concat
 
 

@@ -14,11 +14,11 @@
  limitations under the License.
 """
 import logging as log
+import numpy as np
 
 from extensions.ops.BatchNormInference import BatchNormInference
-from mo.front.extractor import FrontExtractorOp
 from mo.front.caffe.extractors.utils import embed_input
-import numpy as np
+from mo.front.extractor import FrontExtractorOp
 
 
 class BatchNormalizationExtractor(FrontExtractorOp):
@@ -31,9 +31,8 @@ class BatchNormalizationExtractor(FrontExtractorOp):
         attrs = {
            'eps': eps
         }
-        pb_model = None if not node.has('model_pb') else node.model_pb
+        pb_model = None if not node.soft_get('model_pb', None) else node.model_pb
         if pb_model:
-
             blobs = pb_model.blobs
             assert len(blobs) >= 2, 'BatchNorm accepts not less then two input blobs'
             mean = np.array(blobs[0].data)

@@ -14,11 +14,11 @@
  limitations under the License.
 """
 import logging as log
+import numpy as np
 
 from extensions.ops.BN import BN
-from mo.front.extractor import FrontExtractorOp
 from mo.front.caffe.extractors.utils import embed_input
-import numpy as np
+from mo.front.extractor import FrontExtractorOp
 
 
 class BNExtractor(FrontExtractorOp):

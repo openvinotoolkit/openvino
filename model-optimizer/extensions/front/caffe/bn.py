@@ -31,7 +31,6 @@ class BNToScaleShift(FrontReplacementOp):
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
-        # This transformation does not work!!!
         attrs = {'name': node.id + "/ScaleShift_"}
 
         param = graph.node[node.id]['pb'].bn_param

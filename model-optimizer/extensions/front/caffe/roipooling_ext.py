@@ -14,11 +14,10 @@
  limitations under the License.
 """
 
+from mo.front.extractor import FrontExtractorOp
 from mo.ops.roipooling import ROIPooling
 
-from mo.front.extractor import FrontExtractorOp
-  
-  
+
 class ROIPoolingFrontExtractor(FrontExtractorOp):
     op = 'roipooling'
     enabled = True

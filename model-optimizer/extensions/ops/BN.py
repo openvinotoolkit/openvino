@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ from mo.ops.op import Op
 
 class BN(Op):
     """
-    BN operation will be replaced by BNToScaleShift FrontReplacer.
+    BN operation comes from caffe and will be replaced by BNToScaleShift FrontReplacer.
     """
     op = 'BN'
     enabled = False
@@ -31,8 +31,5 @@ class BN(Op):
             'op': self.op,
             'in_ports_count': 5,
             'out_ports_count': 1,
-            'infer': self.infer
+            'infer': None
         }, attrs)
-    @staticmethod
-    def infer(node):
-        node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())
