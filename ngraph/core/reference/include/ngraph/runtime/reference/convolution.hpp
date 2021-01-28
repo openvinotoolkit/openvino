@@ -186,8 +186,7 @@ namespace ngraph
                              const Strides& strides,
                              const Strides& dilation,
                              const CoordinateDiff& pads_begin,
-                             const CoordinateDiff& pads_end,
-                             const Strides&)
+                             const CoordinateDiff& pads_end)
 
             {
                 // this implementation supports 1D, 2D and 3D convolutions
@@ -238,6 +237,29 @@ namespace ngraph
 
                 std::fesetround(old_mode);
             }
+
+            // DEPRECATED, can't be removed currently due to kmb-plugin dependency (#47799)
+            template <typename INPUT,
+                      typename FILTER,
+                      typename OUTPUT,
+                      typename ACCU = typename widen<OUTPUT>::type>
+            void convolution(const INPUT* in,
+                             const FILTER* f,
+                             OUTPUT* out,
+                             const Shape& in_shape,
+                             const Shape& f_shape,
+                             const Shape& out_shape,
+                             const Strides& strides,
+                             const Strides& dilation,
+                             const CoordinateDiff& pads_begin,
+                             const CoordinateDiff& pads_end,
+                             const Strides&)
+
+            {
+                convolution(
+                    in, f, out, in_shape, f_shape, out_shape, strides, dilation, pads_begin);
+            }
+
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
