@@ -25,11 +25,14 @@
 #include <ngraph/util.hpp>
 #include <ngraph/log.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace std;
 using namespace ngraph;
 
 #define TI(x) x::type_info
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
 
 static bool eliminate_nop(const std::shared_ptr<Node>& node) {
     // skip if shapes are dynamic
@@ -327,33 +330,38 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
     return false;
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
+#define ECHO(NAME) #NAME
+#define STR(NAME) ECHO(NAME)
+#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, OP, FUNC) \
+class NAME : public ngraph::pass::MatcherPass { \
+public: \
+NGRAPH_RTTI_DECLARATION; \
+NAME() { \
+    MATCHER_SCOPE(NAME); \
+    auto match_node = ngraph::pattern::wrap_type<OP>(); \
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) { \
+        return FUNC(m.get_match_root()); \
+    }; \
+    auto m = std::make_shared<ngraph::pattern::Matcher>(match_node, matcher_name); \
+    register_matcher(m, callback); \
+}  \
+}; \
+NGRAPH_RTTI_DEFINITION(NAME, STR(NAME), 0);
 
-bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
-    RUN_ON_FUNCTION_SCOPE(NopElimination);
-    static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
-        dispatcher{{TI(opset3::Pad), &eliminate_nop},
-                   {TI(opset3::Convert), &eliminate_convert},
-                   {TI(opset3::Reshape), &eliminate_reshape_v1},
-                   {TI(opset3::Concat), &eliminate_concat},
-                   {TI(opset3::Squeeze), &eliminate_squeeze},
-                   {TI(op::v1::Broadcast), &eliminate_nop},
-                   {TI(opset3::Unsqueeze), &eliminate_unsqueeze}};
+SIMPLE_MATCHER_PASS_DEFINITION(EliminatePad, opset3::Pad, eliminate_nop);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateConvert, opset3::Convert, eliminate_convert);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, opset3::Reshape, eliminate_reshape_v1);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateConcat, opset3::Concat, eliminate_concat);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateSqueeze, opset3::Squeeze, eliminate_squeeze);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, opset3::Unsqueeze, eliminate_unsqueeze);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, op::v1::Broadcast, eliminate_nop);
 
-    bool clobbered = false;
-
-    for (const auto& node : function->get_ops()) {
-        // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                clobbered |= run_on_function(sub_graph);
-            }
-        }
-        auto handler = dispatcher.find(node->get_type_info());
-        if (handler != dispatcher.end()) {
-            clobbered |= handler->second(node);
-        }
-    }
-
-    return clobbered;
+ngraph::pass::NopElimination::NopElimination() {
+    add_matcher<EliminatePad>();
+    add_matcher<EliminateConvert>();
+    add_matcher<EliminateReshape>();
+    add_matcher<EliminateConcat>();
+    add_matcher<EliminateSqueeze>();
+    add_matcher<EliminateUnsqueeze>();
+    add_matcher<EliminateBroadcast>();
 }
