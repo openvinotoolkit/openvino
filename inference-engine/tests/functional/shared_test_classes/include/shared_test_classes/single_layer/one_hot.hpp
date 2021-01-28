@@ -5,7 +5,6 @@
 #pragma once
 
 #include <tuple>
-#include <utility>
 #include <vector>
 #include <string>
 #include <memory>
@@ -14,14 +13,13 @@
 #include "ngraph_functions/builders.hpp"
 namespace LayerTestsDefinitions {
 typedef std::tuple<
-        std::pair<ngraph::element::Type, int64_t>,   // <any_int_type, depth>
-        std::pair<ngraph::element::Type, float>,    // <any_type, on_value>
-        std::pair<ngraph::element::Type, float>,    // <any_type, off_value>
+        ngraph::element::Type,          // depth type (any integer type)
+        int64_t,                        // depth value
+        ngraph::element::Type,          // On & Off values type (any supported type)
+        float,                          // OnValue
+        float,                          // OffValue
         int64_t,                       // axis
         InferenceEngine::Precision,    // Net precision
-        InferenceEngine::Precision,    // Input precision
-        InferenceEngine::Precision,    // Output precision
-        InferenceEngine::Layout,       // Input layout
         InferenceEngine::SizeVector,   // Input shapes
         LayerTestsUtils::TargetDevice  // Target device name
 > oneHotLayerTestParamsSet;
