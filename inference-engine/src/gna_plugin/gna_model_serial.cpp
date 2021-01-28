@@ -16,6 +16,8 @@
 #include <malloc.h>
 #else
 #include <mm_malloc.h>
+#include <serial/headers/2dot2/gna_model_header.hpp>
+
 #endif
 
 #include "gna_plugin.hpp"
@@ -110,9 +112,12 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                     header = HeaderLatest::ModelHeader(tempHeader2dot1);
                     break;
                 case 2:
-                case 3:
-                    readNBytes(&header, sizeof(Header2dot3::ModelHeader), is);
+                case 3: {
+                    Header2dot3::ModelHeader tempHeader2dot3;
+                    readBits(tempHeader2dot3, is);
+                    header = HeaderLatest::ModelHeader(tempHeader2dot3);
                     break;
+                }
                 case 4:
                     readNBytes(&header, sizeof(Header2dot4::ModelHeader), is);
                     break;
@@ -760,7 +765,7 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
 
     for (auto outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
         const std::string& name = (modelHeader.version.major == 2 && modelHeader.version.minor >= 3)
-                                  ? outputNames.at(outputIndex) : std::string("input" + std::to_string(outputIndex));
+                                  ? outputNames.at(outputIndex) : std::string("output" + std::to_string(outputIndex));
         HeaderLatest::RuntimeEndPoint output;
         is.read(reinterpret_cast<char *>(&output), sizeof(output));
         OutputDesc description;

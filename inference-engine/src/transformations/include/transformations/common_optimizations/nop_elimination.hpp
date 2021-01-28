@@ -20,8 +20,8 @@ class TRANSFORMATIONS_API NopElimination;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::NopElimination: public ngraph::pass::FunctionPass {
+class ngraph::pass::NopElimination: public GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<Function>) override;
+    NopElimination();
 };

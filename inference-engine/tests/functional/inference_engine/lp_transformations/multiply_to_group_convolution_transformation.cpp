@@ -42,6 +42,7 @@ public:
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool transformed;
+    bool haveMultiplyWithNoConstBeforeDequantization;
     Actual actual;
     Expected expected;
 };
@@ -69,8 +70,8 @@ public:
         actualFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
             testValues.inputShape,
             testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization);
-
+            testValues.actual.dequantization,
+            testValues.haveMultiplyWithNoConstBeforeDequantization);
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
@@ -86,7 +87,8 @@ public:
             referenceFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
                 testValues.inputShape,
                 testValues.actual.precisionBeforeDequantization,
-                testValues.actual.dequantization);
+                testValues.actual.dequantization,
+                testValues.haveMultiplyWithNoConstBeforeDequantization);
         }
     }
 
@@ -97,6 +99,8 @@ public:
         result <<
             testValues.inputShape << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
+            testValues.transformed << "_" <<
+            testValues.haveMultiplyWithNoConstBeforeDequantization << "_" <<
             testValues.actual.dequantization;
         return result.str();
     }
@@ -108,6 +112,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         true,
+        false,
         {
             ngraph::element::u8,
             {
@@ -132,6 +137,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         true,
+        false,
         {
             ngraph::element::u8,
             {
@@ -156,6 +162,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         true,
+        false,
         {
             ngraph::element::u8,
             {
@@ -180,6 +187,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         true,
+        false,
         {
             ngraph::element::u8,
             {
@@ -204,6 +212,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         false,
+        false,
         {
             ngraph::element::i8,
             {
@@ -218,6 +227,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
     {
         ngraph::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
+        false,
         false,
         {
             ngraph::element::u8,
@@ -234,6 +244,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1 },
         LayerTransformation::createParamsU8I8(),
         false,
+        false,
         {
             ngraph::element::u8,
             {
@@ -243,6 +254,30 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             }
         },
         {}
+    },
+    {
+        ngraph::Shape{ 1, 4, 1, 1 },
+        LayerTransformation::createParamsU8I8(),
+        false,
+        true,
+        {
+            ngraph::element::u8,
+            {
+                {},
+                {},
+                {{0.45f, 0.82f, 0.71f, 0.37f}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, ngraph::Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            nullptr,
+            {
+                {},
+                {},
+                {{0.45f, 0.82f, 0.71f, 0.37f}}
+            }
+        }
     },
 };
 
