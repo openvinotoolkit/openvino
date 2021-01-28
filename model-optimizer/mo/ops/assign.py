@@ -24,7 +24,7 @@ class Assign(Op):
         super().__init__(graph, {
             'type': self.op,
             'op': self.op,
-            'version': 'opset3',
+            'version': 'opset6',
             'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,

@@ -153,8 +153,6 @@ public:
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
-        (void)name;
-
         if (m_xml_node.parent().child("body")) {
             // parameters and results from body are required for port_map attributes serialization
             std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
@@ -229,6 +227,10 @@ public:
                         }
                     }
                 }
+            }
+        } else {
+            if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+                m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
             }
         }
     }

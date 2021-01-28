@@ -23,6 +23,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
+#include <ngraph/op/util/variable.hpp>
 
 #include <cpp/ie_cnn_network.h>
 #include "ie_blob_stream.hpp"
@@ -281,6 +282,14 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
         if (!getParameters<size_t>(node.child("data"), name, shape)) return;
         std::vector<std::ptrdiff_t> coord_diff(shape.begin(), shape.end());
         static_cast<ngraph::CoordinateDiff&>(*a) = ngraph::CoordinateDiff(coord_diff);
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        std::string variable_id;
+        if (!getStrAttribute(node.child("data"), name, variable_id)) return;
+        if (!variables.count(variable_id)) {
+            variables[variable_id] = std::make_shared<ngraph::Variable>
+                    (ngraph::VariableInfo{ngraph::PartialShape(), ngraph::element::dynamic, variable_id});
+        }
+        a->set(variables[variable_id]);
     } else {
         THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
                             << " parameter";
@@ -360,7 +369,7 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
     ngraph::ParameterVector parameter_nodes;
     ngraph::ResultVector result_nodes;
     ngraph::NodeVector allNodes;
-    ngraph::SinkVector assign_nodes;
+    ngraph::SinkVector sink_nodes;
     std::map<std::string, std::shared_ptr<ngraph::Node>> variable_id_to_read_value;
 
     //  Following topological order create nGraph operations
@@ -404,12 +413,14 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
             result_nodes.emplace_back(result_node);
         }
 
-        if (auto assign_node = std::dynamic_pointer_cast<ngraph::op::Assign>(node)) {
-            assign_nodes.emplace_back(assign_node);
+        if (auto sink = std::dynamic_pointer_cast<ngraph::op::Sink>(node)) {
+            sink_nodes.emplace_back(sink);
         }
 
-        if (auto read_value_node = std::dynamic_pointer_cast<ngraph::op::ReadValue>(node)) {
-            variable_id_to_read_value[read_value_node->get_variable_id()] = read_value_node;
+        if (auto read_value_v5 = std::dynamic_pointer_cast<ngraph::opset5::ReadValue>(node)) {
+            variable_id_to_read_value[read_value_v5->get_variable_id()] = read_value_v5;
+        } else if (auto read_value_v6 = std::dynamic_pointer_cast<ngraph::opset6::ReadValue>(node)) {
+            variable_id_to_read_value[read_value_v6->get_variable_id()] = read_value_v6;
         }
         allNodes.emplace_back(node);
     }
@@ -417,10 +428,15 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
     OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphFunction");
 
     ::ngraph::op::GenericIE::DisableReshape noReshape(allNodes);
-    auto function = std::make_shared<ngraph::Function>(result_nodes, assign_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
-    for (const auto& assign : assign_nodes) {
-        assign->add_control_dependency(
-            variable_id_to_read_value.at(std::dynamic_pointer_cast<ngraph::op::Assign>(assign)->get_variable_id()));
+    auto function = std::make_shared<ngraph::Function>(result_nodes, sink_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
+    for (const auto& assign : sink_nodes) {
+        if (const auto& assign_v5 = std::dynamic_pointer_cast<ngraph::opset5::Assign>(assign)) {
+            assign_v5->add_control_dependency(
+                    variable_id_to_read_value.at(assign_v5->get_variable_id()));
+        } else if (const auto& assign_v6 = std::dynamic_pointer_cast<ngraph::opset6::Assign>(assign)) {
+            assign_v6->add_control_dependency(
+                    variable_id_to_read_value.at(assign_v6->get_variable_id()));
+        }
     }
 
     return function;

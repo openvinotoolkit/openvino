@@ -61,6 +61,43 @@ namespace ngraph
                 std::shared_ptr<ngraph::Variable> m_variable;
             };
         }
-        using v3::Assign;
+        namespace v6
+        {
+            /// \brief Assign operation sets an input value to the variable with `variable_id`
+            class NGRAPH_API Assign : public Sink
+            {
+            public:
+                NGRAPH_RTTI_DECLARATION;
+                Assign() = default;
+
+                /// \brief Constructs an Assign operation.
+                ///
+                /// \param new_value   Node that produces the input tensor.
+                /// \param variable identificator of the variable to be updated.
+                Assign(const Output<Node>& new_value, const std::shared_ptr<Variable>& variable);
+
+                void validate_and_infer_types() override;
+
+                std::shared_ptr<Node>
+                clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                bool visit_attributes(AttributeVisitor& visitor) override;
+
+                std::string get_variable_id() {
+                    NGRAPH_CHECK(m_variable, "Variable is not initialized. Variable_id is unavailable");
+                    return m_variable->get_info().variable_id;
+                }
+
+                std::shared_ptr<ngraph::Variable> get_variable() { return m_variable; }
+
+                void set_variable(const std::shared_ptr<ngraph::Variable>& variable)
+                {
+                    m_variable = variable;
+                }
+
+            private:
+                std::shared_ptr<ngraph::Variable> m_variable;
+            };
+        }
     }
 }

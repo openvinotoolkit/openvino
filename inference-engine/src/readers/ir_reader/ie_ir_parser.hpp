@@ -7,6 +7,7 @@
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
 # include <ngraph/op/util/sub_graph_base.hpp>
+# include <ngraph/op/util/variable.hpp>
 # include <ngraph/opsets/opset.hpp>
 # include <ie_ngraph_utils.hpp>
 # include <ngraph/opsets/opset5.hpp>
@@ -287,6 +288,7 @@ private:
         const pugi::xml_node node;
         const Blob::CPtr& weights;
         const std::unordered_map<std::string, ngraph::OpSet>& opsets;
+        std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
         /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
         /// Shall be used only for ops which have port_map attribute.
         /// \param node xml op representation
