@@ -473,10 +473,10 @@ std::shared_ptr<ngraph::Node> makeNms(const ngraph::Output<Node> &boxes,
                                       const ngraph::element::Type& outType);
 
 std::shared_ptr<ngraph::Node> makeOneHot(const ngraph::Output<Node>& indices,
-                                         int64_t depth,
-                                         float on_value,
-                                         float off_value,
-                                         int64_t axis);
+                                         const std::pair<ngraph::element::Type, int64_t>& depth_type_val,
+                                         const std::pair<ngraph::element::Type, float>& on_type_val,
+                                         const std::pair<ngraph::element::Type, float>& off_type_val,
+                                         const int64_t& axis);
 
 }  // namespace builder
 }  // namespace ngraph

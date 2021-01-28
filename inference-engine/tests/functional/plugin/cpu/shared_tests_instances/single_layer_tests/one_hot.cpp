@@ -12,7 +12,7 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::I32,
         // Not implemented:
-        InferenceEngine::Precision::I16,
+        //InferenceEngine::Precision::I16,
         //InferenceEngine::Precision::U16,
         //InferenceEngine::Precision::I8,
         //InferenceEngine::Precision::U8,
@@ -30,9 +30,13 @@ const std::vector<InferenceEngine::Precision> outputPrecisions = {
 //        InferenceEngine::Precision::I8
 };
 
-const std::vector<int64_t> argDepthConst = {1, 5, 1017};
-const std::vector<float> argOnValueConst = {0, 1, -29, 7019};
-const std::vector<float> argOffValueConst = {0, 1, -722, 4825};
+typedef std::pair<ngraph::element::Type, int64_t> depth_pair;
+typedef std::pair<ngraph::element::Type, float> set_pair;
+using ngraph::element::Type_t;
+
+const std::vector<depth_pair> argDepthConst = { {Type_t::i64, 1}, {Type_t::i64, 5}, {Type_t::i64, 1017} };
+const std::vector<set_pair> argOnValueConst = { {Type_t::i64, 0}, {Type_t::i64, 1}, {Type_t::i64, -29}, {Type_t::i64, 7019}};
+const std::vector<set_pair> argOffValueConst = { {Type_t::i64, 0}, {Type_t::i64, 1}, {Type_t::i64, -722}, {Type_t::i64, 4825}};
 const std::vector<int64_t> argAxisConst = {0};
 const std::vector<std::vector<size_t>> input_shapesConst = {{13, 5}, {3, 28}};
 
@@ -55,8 +59,7 @@ INSTANTIATE_TEST_CASE_P(
         oneHotConstParams,
         OneHotLayerTest::getTestCaseName
 );
---gtest-filter=*smoke*
-
+/*
 const std::vector<int64_t> argDepthAx = {13};
 const std::vector<float> argOnValueAx = {17};
 const std::vector<float> argOffValueAx = {-3};
@@ -82,4 +85,5 @@ INSTANTIATE_TEST_CASE_P(
         oneHotAxParams,
         OneHotLayerTest::getTestCaseName
 );
+ */
 }  // namespace

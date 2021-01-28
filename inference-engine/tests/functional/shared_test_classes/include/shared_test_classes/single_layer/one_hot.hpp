@@ -5,6 +5,7 @@
 #pragma once
 
 #include <tuple>
+#include <utility>
 #include <vector>
 #include <string>
 #include <memory>
@@ -13,9 +14,9 @@
 #include "ngraph_functions/builders.hpp"
 namespace LayerTestsDefinitions {
 typedef std::tuple<
-        int64_t,                       // depth
-        float,                         // on_value
-        float,                         // off_value
+        std::pair<ngraph::element::Type, int64_t>,   // <any_int_type, depth>
+        std::pair<ngraph::element::Type, float>,    // <any_type, on_value>
+        std::pair<ngraph::element::Type, float>,    // <any_type, off_value>
         int64_t,                       // axis
         InferenceEngine::Precision,    // Net precision
         InferenceEngine::Precision,    // Input precision
