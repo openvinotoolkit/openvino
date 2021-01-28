@@ -62,7 +62,7 @@ compile_tool [OPTIONS]
 
  VPUX-specific options:
       -VPUX_PLATFORM             <value>     Optional. Specify platform name used to compile network for VPUX device.
-                                             Possible values: MA2490-A0, MA2490-B0, MA3100-A0, MA3720
+                                             Possible values: 2490-A0, 2490-B0, 3100-A0, 3710-A0, 3720-A0
 
 ```
 
@@ -85,12 +85,12 @@ To compile a network using VPUX plugin, you need to pass `-d VPUX` parameter to 
 If you have a VPU device connected, `compile_tool` will compile a network for it.
 
 If several VPU devices connected, the tool will choose the first enumerated device in a system.
-For example, if there are `VPUX.0-MA2490-A0` and `VPUX.1-MA2490-B0`, `compile_tool` will compile a network for `VPUX.0-MA2490-A0`.
-If you need to compile a network for `VPUX.1-MA2490-B0`, you can to do it explicitly by passing `-d VPUX.1-MA2490-B0`
+For example, if there are `VPUX.0-2490-A0` and `VPUX.1-2490-B0`, `compile_tool` will compile a network for `VPUX.0-2490-A0`.
+If you need to compile a network for `VPUX.1-2490-B0`, you can to do it explicitly by passing `-d VPUX.1-2490-B0`
 A list of VPUX devices available can be obtained by `hello_query_sample`. [TBD Link]
 
 You can compile network without a connected VPU device. To do that, specify the platform name of the device
-using the parameter `-VPUX_PLATFORM`. Possible values: `MA2490-A0, MA2490-B0, MA3100-A0, MA3720`
+using the parameter `-VPUX_PLATFORM`. Possible values: `2490-A0, 2490-B0, 3100-A0, 3710-A0, 3720-A0`
 
 
 ## Import and Export Functionality
