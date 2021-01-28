@@ -376,6 +376,45 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
     }
 }
 
+void FrontEnd::processTrivialCases(const Model& model) {
+    DataVector trivialInputs, trivialOutputs;
+
+    for (const auto& data : model->datas()) {
+        if (data->usage() == DataUsage::Input || data->usage() == DataUsage::Intermediate || data->usage() == DataUsage::Const) {
+            if (data->numConsumers() == 0 && data->childDataToShapeEdges().size() == 0) {
+                trivialInputs.push_back(data);
+            }
+        }
+        if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Intermediate) {
+            if (data->producer() == nullptr && data->childDataToShapeEdges().size() == 0) {
+                trivialOutputs.push_back(data);
+            }
+        }
+    }
+
+    VPU_THROW_UNLESS(trivialOutputs.size() <= trivialInputs.size(),
+                     "Number of trivial outputs should not be more than number of trivial input/const data objects,"
+                     "but got {} and {} respectively", trivialOutputs.size(), trivialInputs.size());
+
+    for (size_t i = 0; i < trivialOutputs.size(); i++) {
+        const auto trivialInputIt = std::find_if(trivialInputs.cbegin(), trivialInputs.cend(), [&trivialOutputs, i](const Data& trivialInput) {
+            return trivialInput->origData() == trivialOutputs[i]->origData();
+        });
+
+        VPU_THROW_UNLESS(trivialInputIt != trivialInputs.end(), "For trivial output {} hasn't been found any trivial input", trivialOutputs[i]->name());
+
+        const auto& trivialInput = *trivialInputIt;
+
+        _stageBuilder->addCopyStage(
+            model,
+            trivialInput->name() + "@copy",
+            nullptr,
+            {trivialInput},
+            {trivialOutputs[i]},
+            "processTrivialCase");
+    }
+}
+
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
@@ -503,6 +542,12 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         parseLayer(model, layer, inputs, outputs, unsupportedLayer, supportedLayer);
     }
+
+    //
+    // Process trivial cases like `input->output`, `const->output`
+    //
+
+    processTrivialCases(model);
 
     //
     // Clean up internal VPU Model

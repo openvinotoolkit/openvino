@@ -206,14 +206,14 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
     //
 
     if (enableShapeAllocation == EnableShapeAllocation::YES) {
-        for (const auto& stage : model->getStages()) {
-            const auto& allocateShape = [&allocator](const Data& data) {
-                if (!data->isShapeAllocated()) {
-                    const auto shapeLocation = allocator.allocateShape(data);
-                    data->setShapeAllocationInfo(shapeLocation);
-                }
-            };
+        const auto& allocateShape = [&allocator](const Data& data) {
+            if (!data->isShapeAllocated()) {
+                const auto shapeLocation = allocator.allocateShape(data);
+                data->setShapeAllocationInfo(shapeLocation);
+            }
+        };
 
+        for (const auto& stage : model->getStages()) {
             for (const auto& input : stage->inputs()) {
                 allocateShape(input);
             }
@@ -223,6 +223,23 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
             for (const auto& tempBuffer : stage->tempBuffers()) {
                 allocateShape(tempBuffer);
             }
+        }
+
+        // Allocate shape for unused inputs
+        for (const auto& input : model->datas()) {
+            if (input->usage() != DataUsage::Input) {
+                continue;
+            }
+            if (input->numConsumers() != 0 || input->childDataToShapeEdges().size() != 0) {
+                continue;
+            }
+
+            allocateShape(input);
+        }
+
+        for (const auto& data : model->datas()) {
+            VPU_THROW_UNLESS(data->isShapeAllocated(), "Shape for data {} with usage {} is not allocated",
+                data->name(), data->usage());
         }
     }
 

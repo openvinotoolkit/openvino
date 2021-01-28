@@ -29,6 +29,13 @@ void PassImpl::runForStage(const Model& model, const Stage& convert) {
     const auto input = convert->input(0);
     const auto output = convert->output(0);
 
+    // Remove converts added to unused inputs
+    if (output->usage() == DataUsage::Intermediate && output->numConsumers() == 0) {
+        model->removeStage(convert);
+        model->removeUnusedData(output);
+        return;
+    }
+
     //
     // We remove Convert stage if input and output data types are equal.
     // It could happen if there was a non-IO FP16 <-> FP32 conversion in
