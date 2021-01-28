@@ -25,12 +25,12 @@ the inputs.
 #include <sstream>
 #include <string>
 #include <vector>
-#ifdef WIN32
-#include <windows.h>
+#ifdef _WIN32
+# include <windows.h>
 #else  // WIN32
-#include <dirent.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+# include <dirent.h>
+# include <sys/stat.h>
+# include <sys/types.h>
 #endif  // WIN32
 
 /// Fuzzing target
@@ -45,7 +45,7 @@ std::string basename(std::string const& path) {
 /// Get directory content
 std::vector<std::string> list_dir(std::string const& path) {
     std::vector<std::string> res;
-#ifdef WIN32
+#ifdef _WIN32
     WIN32_FIND_DATA find_data;
     HANDLE find_handle;
     find_handle = FindFirstFile((path + "\\*").c_str(), &find_data);
@@ -73,7 +73,7 @@ std::vector<std::string> list_dir(std::string const& path) {
 
 // Check if file by given path is a directory.
 bool is_dir(std::string const& path) {
-#ifdef WIN32
+#ifdef _WIN32
     return 0 != (FILE_ATTRIBUTE_DIRECTORY & GetFileAttributes(path.c_str()));
 #else   // WIN32
     struct stat stat_res = {0};

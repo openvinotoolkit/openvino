@@ -72,7 +72,7 @@ void gpu_buffer::fill(unsigned char pattern, event_impl::ptr ev) {
 shared_mem_params gpu_buffer::get_internal_params() const {
     return {shared_mem_type::shared_mem_buffer, static_cast<shared_handle>(_context->context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
-#ifdef WIN32
+#ifdef _WIN32
         nullptr,
 #else
         0,
@@ -185,7 +185,7 @@ void gpu_image2d::fill(unsigned char pattern, event_impl::ptr ev) {
 shared_mem_params gpu_image2d::get_internal_params() const {
     return {shared_mem_type::shared_mem_image, static_cast<shared_handle>(_context->context().get()), nullptr,
             static_cast<shared_handle>(_buffer.get()),
-#ifdef WIN32
+#ifdef _WIN32
         nullptr,
 #else
         0,
@@ -211,7 +211,7 @@ shared_mem_params gpu_media_buffer::get_internal_params() const {
             static_cast<shared_handle>(_buffer.get()), surface, plane };
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 gpu_dx_buffer::gpu_dx_buffer(const refcounted_obj_ptr<engine_impl>& engine,
     const layout& new_layout,
     const shared_mem_params* params,
@@ -309,7 +309,7 @@ shared_mem_params gpu_usm::get_internal_params() const {
         static_cast<shared_handle>(_engine->get_context()->context().get()),  // context handle
         nullptr,  // user_device handle
         nullptr,  // mem handle
-#ifdef WIN32
+#ifdef _WIN32
         nullptr,  // surface handle
 #else
         0,  // surface handle

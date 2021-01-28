@@ -84,7 +84,7 @@ struct simple_attached_memory : memory_impl {
     void unlock() override {}
     void fill(unsigned char, event_impl::ptr) override {}
     shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
-#ifdef WIN32
+#ifdef _WIN32
         nullptr,
 #else
         0,

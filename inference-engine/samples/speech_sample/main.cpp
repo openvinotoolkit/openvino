@@ -269,7 +269,7 @@ float StdDevRelError(score_error_t error) {
 }
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
 #include <intrin.h>
 #include <windows.h>
 #else
@@ -281,7 +281,7 @@ float StdDevRelError(score_error_t error) {
 inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
                          unsigned int *ecx, unsigned int *edx) {
     size_t level = *eax;
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
     int regs[4] = {static_cast<int>(*eax), static_cast<int>(*ebx), static_cast<int>(*ecx), static_cast<int>(*edx)};
     __cpuid(regs, level);
     *eax = static_cast<uint32_t>(regs[0]);

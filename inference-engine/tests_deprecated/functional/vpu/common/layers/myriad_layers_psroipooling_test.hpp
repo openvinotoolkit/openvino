@@ -191,7 +191,7 @@ static std::vector<uint32_t> s_PSROIPoolingNumROIs = {
 };
 
 TEST_P(myriadLayersTestsPSROIPooling_smoke, PSROIPooling) {
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
     SKIP() << "Disabled for Windows. Issue-13239";
 #endif
     tensor_test_params dims_layer_in = std::get<0>(GetParam());

@@ -139,7 +139,7 @@ struct gpu_media_buffer : public gpu_image2d {
     shared_mem_params get_internal_params() const override;
 private:
     void* device;
-#ifdef WIN32
+#ifdef _WIN32
     void* surface;
 #else
     uint32_t surface;
@@ -147,7 +147,7 @@ private:
     uint32_t plane;
 };
 
-#ifdef WIN32
+#ifdef _WIN32
 struct gpu_dx_buffer : public gpu_buffer {
     friend cldnn::memory_pool;
 
