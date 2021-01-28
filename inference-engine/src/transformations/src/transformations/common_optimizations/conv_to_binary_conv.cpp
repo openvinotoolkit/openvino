@@ -16,10 +16,11 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvToBinaryConv, "ConvToBinaryConv", 0);
 
 static std::vector<uint8_t> binarize_weights(const std::vector<float>& weights) {
     std::vector<uint8_t> out;
+    size_t bits_per_byte = 8;
 
     for (size_t i = 0; i < weights.size(); i += 8) {
         uint8_t val = 0;
-        for (size_t j = 0; j < std::min(8UL, weights.size() - i); j++) {
+        for (size_t j = 0; j < std::min(bits_per_byte, weights.size() - i); j++) {
             if (weights[i + j] == 1.0f)
                 val |= 1 << j;
         }
