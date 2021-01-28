@@ -16,547 +16,109 @@
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.ops.op import PermuteAttrs
-from mo.ops.strided_slice import permute_masks, permute_array, \
-    StridedSlice
-from mo.utils.error import Error
+from mo.ops.strided_slice import StridedSlice
 from mo.utils.unittest.graph import build_graph
-
-nodes_attributes = {
-    'input': {
-        'kind': 'op',
-        'op': None
-    },
-    'data_1': {
-        'kind': 'data',
-        'shape': None,
-        'value': None,
-    },
-    'begin': {
-        'kind': 'op',
-        'op': 'Const',
-        'type': 'Const',
-        'value': None,
-        'shape': None
-    },
-    'begin_data': {
-        'kind': 'data',
-        'shape': None,
-        'value': np.array([]),
-    },
-    'end': {
-        'kind': 'op',
-        'op': 'Const',
-        'type': 'Const',
-        'value': None,
-        'shape': None
-    },
-    'end_data': {
-        'kind': 'data',
-        'shape': None,
-        'value': np.array([]),
-    },
-    'stride': {
-        'kind': 'op',
-        'op': 'Const',
-        'type': 'Const',
-        'value': None,
-        'shape': None
-    },
-    'stride_data': {
-        'kind': 'data',
-        'shape': None,
-        'value': np.array([]),
-    },
-    'strided_slice': {
-        'op': 'StridedSlice',
-        'begin_mask': None,
-        'end_mask': None,
-        'new_axis_mask': None,
-        'shrink_axis_mask': None,
-        'ellipsis_mask': None,
-        'kind': 'op',
-    },
-    'data_2': {
-        'kind': 'data',
-        'shape': None,
-        'value': None,
-    }
-}
+from mo.utils.unittest.graph import valued_const_with_data, result, regular_op_with_empty_data, shaped_const_with_data, \
+    connect
 
 
-class TestPermutationStridedSlice(unittest.TestCase):
-    def test_permute_begin_end(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('data_1', 'strided_slice'),
-                             ('begin', 'strided_slice'),
-                             ('end', 'strided_slice'),
-                             ('stride', 'strided_slice'),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'strided_slice': {'begin_mask': np.array([1, 1, 0, 0]), 'end_mask': np.array([0, 1, 0, 0]),
-                                               'new_axis_mask': np.array([0, 0, 0]), 'shrink_axis_mask': [0, 0, 0],
-                                               'ellipsis_mask': np.array([0, 0, 0])},
-                             'data_2': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             })
+@generator
+class TestStridedSliceInfer(unittest.TestCase):
+    edges = [
+        *connect('input', '0:sslice'),
+        *connect('begin', '1:sslice'),
+        *connect('end', '2:sslice'),
+        *connect('strides', '3:sslice'),
+        *connect('sslice', 'res')
+    ]
 
-        slice_node = Node(graph, 'strided_slice')
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'begin_mask')
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([1, 0, 1, 0])))
+    def build_test_graph(self, input, begin, begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask=[0], end=[1, 34, 30, 2]):
+        nodes = {
+            **shaped_const_with_data('input', int64_array(input)),
+            **regular_op_with_empty_data('sslice', {'op': 'StridedSlice', 'begin_mask': begin_mask, 'end_mask': end_mask,
+                                                    'shrink_axis_mask': shrink_axis_mask,'ellipsis_mask': ellipsis_mask,
+                                                    'new_axis_mask': new_axis_mask}),
+            **valued_const_with_data('begin', int64_array(begin)),
+            **valued_const_with_data('end', int64_array(end)),
+            **valued_const_with_data('strides', int64_array([1])),
+            **result('res'),
+        }
+        return build_graph(nodes, self.edges)
 
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'end_mask')
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([0, 0, 1, 0])))
+    @generate(*[
+        # input           begin           begin_mask   end_mask      shrink_axis_mask  new_axis_mask  ref
+        # inp[0:1, :, : :] res should be [0:1, ...]
+        # ([1, 35, 35, 3], [0, 0, 0, 0],   [1],          [1],          [0],              [0, 0, 0, 0], [1, 34, 30, 2]),  # error
+        ([1, 35, 35, 3], [0, 0, 0, 0],   [1],          [1],          [0],              [0, 0, 0, 0], [1, 35, 35, 3]),
 
-    def test_permute_begin_end_short(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('data_1', 'strided_slice'),
-                             ('begin', 'strided_slice'),
-                             ('end', 'strided_slice'),
-                             ('stride', 'strided_slice'),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'strided_slice': {'begin_mask': np.array([1, 0, 0]), 'end_mask': np.array([0, 1, 0]),
-                                               'new_axis_mask': np.array([0, 0, 0]), 'shrink_axis_mask': [0, 0, 0],
-                                               'ellipsis_mask': np.array([0, 0, 0])},
-                             'data_2': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             })
+        # inp[0:1, :, :, :2] = inp[0:1, ..., :2] out_shape = (1, 35, 35, 2)
+        # ([1, 35, 35, 3], [0, 10, 10, 0], [1],          [1, 0, 0, 1], [0],              [0, 0, 0, 0], [1, 25, 25, 2]),  # error
+        ([1, 35, 35, 3], [0, 10, 10, 0], [1],          [1, 0, 0, 1], [0],              [0, 0, 0, 0], [1, 35, 35, 2]),  # error
 
-        slice_node = Node(graph, 'strided_slice')
-        slice_node['begin_mask'] = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                              slice_node['shrink_axis_mask'], 4,
-                                                                              list(slice_node['begin_mask']), 0))
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'begin_mask')
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([1, 0, 0, 0])))
+        # inp[0:1, :, :, 0:] = inp[0:1, ...] res_shape = (1, 35, 35, 3)
+        # ([1, 35, 35, 3], [0, 10, 10, 0], [1, 0, 0, 1], [1],          [0],            [0, 0, 0, 0], [1, 34, 30, 2]),  # error
+        ([1, 35, 35, 3], [0, 10, 10, 0], [1, 0, 0, 1], [1],          [0],              [0, 0, 0, 0], [1, 35, 35, 3]),
 
-        slice_node['end_mask'] = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                            slice_node['shrink_axis_mask'], 4,
-                                                                            list(slice_node['end_mask']), 0))
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'end_mask')
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([0, 0, 1, 0])))
+        ([1, 35, 35, 3], [0, 0, 0, 0],   [1],          [1, 0, 0, 1], [0],              [0, 0, 0, 0], [1, 35, 35, 2]),
+        ([1, 35, 35, 3], [0, 10, 10, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0],              [0, 0, 0, 0], [1, 35, 35, 3]),
+        ([1, 35, 35, 3], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1],                [0, 0, 0, 0], [35, 35, 3]),
+        ([1, 35, 35, 3], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0],       [0, 0, 0, 1], [35, 35, 1, 3]),
+        ([1, 35, 35, 3], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 1, 0],       [0],          [35, 3]),
+        ([1, 35, 35, 3], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 1, 1, 0],       [0],          [3]),
+    ])
+    def test_slice_infer_1(self, input, begin, begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ref_res):
+        graph = self.build_test_graph(input, begin, begin_mask, end_mask, shrink_axis_mask, new_axis_mask)
+        node = Node(graph, 'sslice')
+        StridedSlice.infer(node)
+        shape = node.out_port(0).data.get_shape()
 
-    def test_permute_begin_end_long(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('data_1', 'strided_slice'),
-                             ('begin', 'strided_slice'),
-                             ('end', 'strided_slice'),
-                             ('stride', 'strided_slice'),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'strided_slice': {'begin_mask': np.array([1, 0, 0, 1, 0]),
-                                               'end_mask': np.array([0, 1, 0, 1, 1]),
-                                               'new_axis_mask': np.array([0, 0, 0]),
-                                               'shrink_axis_mask': [0, 0, 0],
-                                               'ellipsis_mask': np.array([0, 0, 0])},
-                             'data_2': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             })
+        self.assertTrue(np.array_equal(shape, int64_array(ref_res)), 'Wrong output shape detected')
 
-        slice_node = Node(graph, 'strided_slice')
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'begin_mask')
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([1, 1, 0, 0, 0])))
+    def build_test_graph2(self, input, begin, end, strides, begin_mask, end_mask, shrink_axis_mask,
+                          new_axis_mask, ellipsis_mask):
+        nodes = {
+            **valued_const_with_data('input', int64_array(input)),
+            **regular_op_with_empty_data('sslice', {'op': 'StridedSlice', 'begin_mask': begin_mask, 'end_mask': end_mask,
+                                                    'shrink_axis_mask': shrink_axis_mask,'ellipsis_mask': ellipsis_mask,
+                                                    'new_axis_mask': new_axis_mask}),
+            **valued_const_with_data('begin', int64_array(begin)),
+            **valued_const_with_data('end', int64_array(end)),
+            **valued_const_with_data('strides', int64_array(strides)),
+            **result('res'),
+        }
+        return build_graph(nodes, self.edges)
 
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'end_mask')
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([0, 1, 1, 0, 1])))
+    @generate(*[
+        # input           begin    end    strides begin_mask   end_mask  shrink_axis_mask  new_axis_mask  ellipsis ref
+        ([1, 34, 34, 62],   [0],     [4],   [1],    [0],          [1],      [0],              [0],           [0],     [1, 34, 34, 62]),
+        ([1, 34, 34, 62],   [1],     [3],   [1],    [1],          [1],      [0],              [0],           [0],     [34, 34]),
+        ([1, 34, 34, 62],   [0],     [4],   [1],    [0],          [1],      [0],              [1],           [0],     [[1, 34, 34, 62]]),
+        ([1, 34, 34, 62],   [1],     [4],   [1],    [1],          [1],      [1],              [0],           [0],     34),
+        ([1, 34, 34, 62],   [0],     [4],   [-1],   [0],          [0],      [0],              [0],           [0],     [62, 34, 34, 1]),
+        ([[1, 34, 34, 62]], [0],     [4],   [1],    [1],          [1],      [1],              [0],           [0],     [1, 34, 34, 62 ]),
+        ([1, 34, 34, 62],   [0],     [-1],  [1],    [1],          [1],      [0],              [0],           [0],     [1, 34, 34]),
 
-    def test_permute_begin_end_new(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('data_1', 'strided_slice'),
-                             ('begin', 'strided_slice'),
-                             ('end', 'strided_slice'),
-                             ('stride', 'strided_slice'),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'strided_slice': {'begin_mask': np.array([1, 0, 0, 1, 0]),
-                                               'end_mask': np.array([0, 1, 0, 1, 1]),
-                                               'new_axis_mask': np.array([1, 0, 0]),
-                                               'shrink_axis_mask': [0, 0, 0],
-                                               'ellipsis_mask': np.array([0, 0, 0])},
-                             'data_2': {'shape': np.array([1, 1, 2, 3, 4]), 'value': None},
-                             })
 
-        slice_node = Node(graph, 'strided_slice')
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 4, 1, 2, 3], inv=[0, 2, 3, 4, 1]), 'begin_mask')
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([1, 0, 0, 0, 1])))
+    ])
+    def test_slice_infer_2(self, input, begin, end, strides, begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis, ref_res):
+        graph = self.build_test_graph2(input, begin, end, strides, begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis)
+        node = Node(graph, 'sslice')
+        StridedSlice.infer(node)
+        self.assertTrue(np.array_equal(node.out_port(0).data.get_value(), int64_array(ref_res)), 'Wrong output value detected')
 
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 4, 1, 2, 3], inv=[0, 2, 3, 4, 1]), 'end_mask')
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([0, 1, 1, 0, 1])))
-
-    def test_permute_begin_end_new_short(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('data_1', 'strided_slice'),
-                             ('begin', 'strided_slice'),
-                             ('end', 'strided_slice'),
-                             ('stride', 'strided_slice'),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'strided_slice': {'begin_mask': np.array([1, 0, 0]), 'end_mask': np.array([0, 1, 0]),
-                                               'new_axis_mask': np.array([1, 0, 0]), 'shrink_axis_mask': [0, 0, 0],
-                                               'ellipsis_mask': np.array([0, 0, 0])},
-                             'data_2': {'shape': np.array([1, 1, 2, 3, 4]), 'value': None},
-                             })
-
-        slice_node = Node(graph, 'strided_slice')
-        slice_node['begin_mask'] = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                              slice_node['shrink_axis_mask'], 5,
-                                                                              list(slice_node['begin_mask']), 0))
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 4, 1, 2, 3], inv=[0, 2, 3, 4, 1]), 'begin_mask')
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([1, 0, 0, 0, 0])))
-
-        slice_node['end_mask'] = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                            slice_node['shrink_axis_mask'], 5,
-                                                                            list(slice_node['end_mask']), 0))
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 4, 1, 2, 3], inv=[0, 2, 3, 4, 1]), 'end_mask')
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([0, 0, 1, 0, 0])))
-
-    def test_permute_begin_end_shrink(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('data_1', 'strided_slice'),
-                             ('begin', 'strided_slice'),
-                             ('end', 'strided_slice'),
-                             ('stride', 'strided_slice'),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'strided_slice': {'begin_mask': np.array([1, 0, 0, 1]), 'end_mask': np.array([0, 1, 0, 1]),
-                                               'new_axis_mask': np.array([0, 0, 0]), 'shrink_axis_mask': [1, 0, 0],
-                                               'ellipsis_mask': np.array([0, 0, 0])},
-                             'data_2': {'shape': np.array([2, 3, 4]), 'value': None},
-                             })
-
-        slice_node = Node(graph, 'strided_slice')
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'begin_mask')
-
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([1, 1, 0, 0])))
-
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'end_mask')
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([0, 1, 1, 0])))
-
-    def test_permute_begin_end_shrink_short(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('data_1', 'strided_slice'),
-                             ('begin', 'strided_slice'),
-                             ('end', 'strided_slice'),
-                             ('stride', 'strided_slice'),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'strided_slice': {'begin_mask': np.array([1, 0, 0]), 'end_mask': np.array([0, 1, 0]),
-                                               'new_axis_mask': np.array([0, 0, 0]), 'shrink_axis_mask': [1, 0, 0],
-                                               'ellipsis_mask': np.array([0, 0, 0])},
-                             'data_2': {'shape': np.array([2, 3, 4]), 'value': None},
-                             })
-
-        slice_node = Node(graph, 'strided_slice')
-        slice_node['begin_mask'] = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                              slice_node['shrink_axis_mask'], 3,
-                                                                              list(slice_node['begin_mask']), 0))
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'begin_mask')
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([1, 0, 0, 0])))
-
-        slice_node['end_mask'] = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                            slice_node['shrink_axis_mask'], 3,
-                                                                            list(slice_node['end_mask']), 0))
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'end_mask')
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([0, 0, 1, 0])))
-
-    def test_permute_begin_end_ellipsis(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('input', 'data_1'),
-                             ('data_1', 'strided_slice'),
-                             ('begin', 'begin_data'),
-                             ('begin_data', 'strided_slice'),
-                             ('end', 'end_data'),
-                             ('end_data', 'strided_slice'),
-                             ('stride', 'stride_data'),
-                             ('stride_data', 'strided_slice'),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'begin': {'value': [0, 1], 'shape': [2]},
-                             'end': {'value': [1, 0], 'shape': [2]},
-                             'stride': {'value': [1, 2], 'shape': [2]},
-                             'strided_slice': {'begin_mask': np.array([0, 0]), 'end_mask': np.array([1, 0]),
-                                               'new_axis_mask': np.array([0]), 'shrink_axis_mask': [0],
-                                               'ellipsis_mask': np.array([1, 0])},
-                             'data_2': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             })
-
-        slice_node = Node(graph, 'strided_slice')
-        slice_node['begin_mask'] = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                              slice_node['shrink_axis_mask'], 4,
-                                                                              list(slice_node['begin_mask']), 0))
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'begin_mask')
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([0, 0, 0, 0])))
-
-        slice_node['end_mask'] = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                            slice_node['shrink_axis_mask'], 4,
-                                                                            list(slice_node['end_mask']), 0))
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 3, 1, 2], inv=[0, 2, 3, 1]), 'end_mask')
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([1, 0, 0, 0])))
-
-    def test_permute_begin_end_ellipsis_infer(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('input', 'data_1'),
-                             ('data_1', 'strided_slice', {'in': 0}),
-                             ('begin', 'begin_data'),
-                             ('begin_data', 'strided_slice', {'in': 1}),
-                             ('end', 'end_data'),
-                             ('end_data', 'strided_slice', {'in': 2}),
-                             ('stride', 'stride_data'),
-                             ('stride_data', 'strided_slice', {'in': 3}),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'begin': {'value': [0, 1], 'shape': [2]},
-                             'end': {'value': [1, 0], 'shape': [2]},
-                             'stride': {'value': [1, 2], 'shape': [2]},
-                             'begin_data': {'value': [0, 1], 'shape': [2]},
-                             'end_data': {'value': [1, 0], 'shape': [2]},
-                             'stride_data': {'value': [1, 2], 'shape': [2]},
-                             'strided_slice': {'begin_mask': np.array([0, 0]), 'end_mask': np.array([1, 0]),
-                                               'new_axis_mask': np.array([0]), 'shrink_axis_mask': [0],
-                                               'ellipsis_mask': np.array([1, 0])},
-                             'data_2': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             })
-        graph.graph['layout'] = "NHWC"
-
-        slice_node = Node(graph, 'strided_slice')
-        begin_node = Node(graph, 'begin')
-        end_node = Node(graph, 'end')
-        stride_node = Node(graph, 'stride')
-        StridedSlice.infer(slice_node)
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([1, 0, 0, 0])))
-        self.assertTrue(np.array_equal(slice_node.shrink_axis_mask, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(slice_node.new_axis_mask, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(begin_node.value, np.array([0, 1, 0, 0])))
-        self.assertTrue(np.array_equal(end_node.value, np.array([1, 0, 0, 0])))
-        self.assertTrue(np.array_equal(stride_node.value, np.array([1, 2, 1, 1])))
-
-    def test_ss_shrink_only_short_ellipsis(self):
-        graph = build_graph(nodes_attributes,
-                            [('input', 'data_1'),
-                             ('data_1', 'strided_slice', {'in': 0}),
-                             ('begin', 'begin_data'),
-                             ('begin_data', 'strided_slice', {'in': 1}),
-                             ('end', 'end_data'),
-                             ('end_data', 'strided_slice', {'in': 2}),
-                             ('stride', 'stride_data'),
-                             ('stride_data', 'strided_slice', {'in': 3}),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 127, 1, 54]), 'value': None},
-                             'begin': {'value': [0, 0, 0], 'shape': [3]},
-                             'end': {'value': [0, 0, 24], 'shape': [3]},
-                             'stride': {'value': [1, 1, 1], 'shape': [3]},
-                             'begin_data': {'value': [0, 0, 0], 'shape': [3]},
-                             'end_data': {'value': [0, 0, 24], 'shape': [3]},
-                             'stride_data': {'value': [1, 1, 1], 'shape': [3]},
-                             'strided_slice': {'begin_mask': np.array([0, 0, 1]), 'end_mask': np.array([0, 0, 1]),
-                                               'new_axis_mask': np.array([0, 0, 0]), 'shrink_axis_mask': [0, 1, 0],
-                                               'ellipsis_mask': np.array([1, 0, 0])},
-                             'data_2': {'shape': None}
-                             }, nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
-
-        slice_node = Node(graph, 'strided_slice')
-        begin_node = Node(graph, 'begin')
-        end_node = Node(graph, 'end')
-        stride_node = Node(graph, 'stride')
-        out_node = Node(graph, 'data_2')
-        StridedSlice.infer(slice_node)
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([0, 0, 0, 1])))
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([0, 0, 0, 1])))
-        self.assertTrue(np.array_equal(slice_node.shrink_axis_mask, np.array([0, 0, 1, 0])))
-        self.assertTrue(np.array_equal(slice_node.new_axis_mask, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(slice_node.ellipsis_mask, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(begin_node.value, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(end_node.value, np.array([0, 0, 0, 24])))
-        self.assertTrue(np.array_equal(stride_node.value, np.array([1, 1, 1, 1])))
-        self.assertTrue(np.array_equal(out_node.shape, np.array([1, 127, 24])))
-
-    def test_ss_shrink_only_short(self):
-        graph = build_graph(nodes_attributes,
-                            [('input', 'data_1'),
-                             ('data_1', 'strided_slice', {'in': 0}),
-                             ('begin', 'begin_data'),
-                             ('begin_data', 'strided_slice', {'in': 1}),
-                             ('end', 'end_data'),
-                             ('end_data', 'strided_slice', {'in': 2}),
-                             ('stride', 'stride_data'),
-                             ('stride_data', 'strided_slice', {'in': 3}),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 1, 127, 54]), 'value': None},
-                             'begin': {'value': [0, 0, 0], 'shape': [3]},
-                             'end': {'value': [0, 0, 0], 'shape': [3]},
-                             'stride': {'value': [1, 1, 1], 'shape': [3]},
-                             'begin_data': {'value': [0, 0, 0], 'shape': [3]},
-                             'end_data': {'value': [0, 0, 0], 'shape': [3]},
-                             'stride_data': {'value': [1, 1, 1], 'shape': [3]},
-                             'strided_slice': {'begin_mask': np.array([0, 0, 0]), 'end_mask': np.array([0, 0, 0]),
-                                               'new_axis_mask': np.array([0, 0, 0]), 'shrink_axis_mask': [0, 1, 0],
-                                               'ellipsis_mask': np.array([0, 0, 0])},
-                             'data_2': {'shape': None}
-                             }, nodes_with_edges_only=True)
-        graph.graph['layout'] = 'NCHW'
-
-        slice_node = Node(graph, 'strided_slice')
-        begin_node = Node(graph, 'begin')
-        end_node = Node(graph, 'end')
-        stride_node = Node(graph, 'stride')
-        out_node = Node(graph, 'data_2')
-        StridedSlice.infer(slice_node)
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(slice_node.shrink_axis_mask, np.array([0, 1, 0, 0])))
-        self.assertTrue(np.array_equal(slice_node.new_axis_mask, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(slice_node.ellipsis_mask, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(begin_node.value, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(end_node.value, np.array([0, 0, 0, 0])))
-        self.assertTrue(np.array_equal(stride_node.value, np.array([1, 1, 1, 1])))
-        self.assertTrue(np.array_equal(out_node.shape, np.array([1, 127, 54])))
-
-    def test_permute_begin_end_ellipsis_new(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('input', 'data_1'),
-                             ('data_1', 'strided_slice', {'in': 0}),
-                             ('begin', 'begin_data'),
-                             ('begin_data', 'strided_slice', {'in': 1}),
-                             ('end', 'end_data'),
-                             ('end_data', 'strided_slice', {'in': 2}),
-                             ('stride', 'stride_data'),
-                             ('stride_data', 'strided_slice', {'in': 3}),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'begin': {'value': [0, 1, 0], 'shape': [3]},
-                             'begin_data': {'value': [0, 1, 0], 'shape': [3]},
-                             'end': {'value': [1, 0, 1], 'shape': [3]},
-                             'end_data': {'value': [1, 0, 1], 'shape': [3]},
-                             'stride': {'value': [1, 2, 3], 'shape': [3]},
-                             'stride_data': {'value': [1, 2, 3], 'shape': [3]},
-                             'strided_slice': {'begin_mask': np.array([1, 2, 3]), 'end_mask': np.array([1, 2, 3]),
-                                               'new_axis_mask': np.array([1, 0, 0]), 'shrink_axis_mask': [0],
-                                               'ellipsis_mask': np.array([0, 1, 0])},
-                             'data_2': {'shape': np.array([1, 1, 2, 3, 4]), 'value': None},
-                             })
-
-        slice_node = Node(graph, 'strided_slice')
-        slice_node['begin_mask'] = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                              slice_node['shrink_axis_mask'], 5,
-                                                                              list(slice_node['begin_mask']), 0))
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 4, 1, 2, 3], inv=[0, 2, 3, 4, 1]), 'begin_mask')
-        self.assertTrue(np.array_equal(slice_node.begin_mask, np.array([1, 3, 2, 0, 0])))
-
-        slice_node['end_mask'] = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                            slice_node['shrink_axis_mask'], 5,
-                                                                            list(slice_node['end_mask']), 0))
-        permute_masks(slice_node, PermuteAttrs.Permutation(perm=[0, 4, 1, 2, 3], inv=[0, 2, 3, 4, 1]), 'end_mask')
-        self.assertTrue(np.array_equal(slice_node.end_mask, np.array([1, 3, 2, 0, 0])))
-
-    def test_permute_begin_end_ellipsis_new_inputs(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('input', 'data_1'),
-                             ('data_1', 'strided_slice', {'in': 0}),
-                             ('begin', 'begin_data'),
-                             ('begin_data', 'strided_slice', {'in': 1}),
-                             ('end', 'end_data'),
-                             ('end_data', 'strided_slice', {'in': 2}),
-                             ('stride', 'stride_data'),
-                             ('stride_data', 'strided_slice', {'in': 3}),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'strided_slice': {'begin_mask': np.array([0, 0, 0]), 'end_mask': np.array([1, 0, 0]),
-                                               'new_axis_mask': np.array([1, 0, 0]), 'shrink_axis_mask': [0],
-                                               'ellipsis_mask': np.array([0, 1, 0])},
-                             'begin': {'value': np.array([0, 1, 2])},
-                             'end': {'value': np.array([1, 2, 3])},
-                             'stride': {'value': np.array([1, 1, 1])},
-                             'begin_data': {'value': np.array([0, 1, 2])},
-                             'end_data': {'value': np.array([1, 2, 3])},
-                             'stride_data': {'value': np.array([1, 1, 1])},
-                             'data_2': {'shape': np.array([1, 1, 2, 3, 4]), 'value': None},
-                             })
-
-        slice_node = Node(graph, 'strided_slice')
-        slice_node.in_node(1).value = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                                 slice_node['shrink_axis_mask'], 5,
-                                                                                 list(slice_node.in_node(1).value), 0))
-        slice_node.in_node(1).value = permute_array(slice_node, slice_node.in_node(1).value)
-        self.assertTrue(np.array_equal(slice_node.in_node(1).value, np.array([0, 2, 1, 0, 0])))
-
-        slice_node.in_node(2).value = int64_array(extend_mask_according_ellipsis(slice_node['ellipsis_mask'],
-                                                                                 slice_node['shrink_axis_mask'], 5,
-                                                                                 list(slice_node.in_node(2).value), 0))
-        slice_node.in_node(2).value = permute_array(slice_node, slice_node.in_node(2).value)
-        self.assertTrue(np.array_equal(slice_node.in_node(2).value, np.array([1, 3, 2, 0, 0])))
-
-    def test_extend_mask(self):
-        ellipsis_mask = int64_array([1, 0])
-        shrink_mask = int64_array([0, 0])
-        length_shape = 4
-        mask = int64_array([0, 1])
-        ins_value = 0
-        mask = extend_mask_according_ellipsis(ellipsis_mask, shrink_mask, length_shape, list(mask), ins_value)
-        self.assertEquals(mask, [0, 0, 0, 1])
-
-    def test_extend_mask_twice(self):
-        ellipsis_mask = int64_array([1, 0])
-        shrink_mask = int64_array([0, 0])
-        length_shape = 4
-        mask = int64_array([0, 1])
-        ins_value = 0
-        mask = extend_mask_according_ellipsis(ellipsis_mask, shrink_mask, length_shape, list(mask), ins_value)
-        mask = extend_mask_according_ellipsis(ellipsis_mask, shrink_mask, length_shape, list(mask), ins_value)
-        self.assertEquals(mask, [0, 0, 0, 1])
-
-    def test_extend_mask_shrinked(self):
-        ellipsis_mask = int64_array([1, 0])
-        shrink_mask = int64_array([0, 1])
-        length_shape = 4
-        mask = int64_array([0, 1])
-        ins_value = 2
-        mask = extend_mask_according_ellipsis(ellipsis_mask, shrink_mask, length_shape, list(mask), ins_value)
-        self.assertEquals(mask, [0, 2, 2, 2, 1])
-
-    def test_extend_mask_shrinked_shrink_mask(self):
-        ellipsis_mask = int64_array([0, 1, 0])
-        shrink_mask = int64_array([0, 0, 1])
-        length_shape = 4
-        ins_value = 2
-        shrink_mask = extend_mask_according_ellipsis(ellipsis_mask, shrink_mask, length_shape, list(shrink_mask),
-                                                     ins_value)
-        self.assertEquals(shrink_mask, [0, 0, 2, 2, 1])
-
-    def test_non_const_infer(self):
-        # Testing constant path case
-        graph = build_graph(nodes_attributes,
-                            [('input', 'data_1'),
-                             ('data_1', 'strided_slice', {'in': 0}),
-                             ('data_1', 'strided_slice', {'in': 1}),
-                             ('end', 'end_data'),
-                             ('end_data', 'strided_slice', {'in': 2}),
-                             ('stride', 'stride_data'),
-                             ('stride_data', 'strided_slice', {'in': 3}),
-                             ('strided_slice', 'data_2')],
-                            {'data_1': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             'end': {'value': [1, 0], 'shape': [2]},
-                             'stride': {'value': [1, 2], 'shape': [2]},
-                             'strided_slice': {'begin_mask': np.array([0, 0]), 'end_mask': np.array([1, 0]),
-                                               'new_axis_mask': np.array([0]), 'shrink_axis_mask': [0],
-                                               'ellipsis_mask': np.array([1, 0])},
-                             'data_2': {'shape': np.array([1, 2, 3, 4]), 'value': None},
-                             })
-        graph.graph['layout'] = "NHWC"
-
-        slice_node = Node(graph, 'strided_slice')
-        with self.assertRaises(Error) as error:
-            StridedSlice.infer(slice_node)
-        self.assertTrue('Strided slice layer supports only constant begin and end inputs' in str(error.exception))
+    @generate(*[
+        ((10, 10, 10, 10),
+                        [0,0,0], [3,0,5], [1,1,1], [1,1,1], [1,1,1],  [0], [0],   [0],   [3, 0, 5, 10]),
+        ((10, 10, 10, 10),
+                         [0, 0, 0, 0], [3, 0, 5, 0], [1, 1, 1, 1], [1, 1, 1, 0], [1, 1, 1, 0], [0], [0], [0], [3, 0, 5, 10]),
+    ])
+    def test_slice_infer_3(self, input, begin, end, strides, begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis, ref_res):
+        graph = self.build_test_graph(input, begin, begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis, end)
+        node = Node(graph, 'sslice')
+        StridedSlice.infer(node)
+        shape = node.out_port(0).data.get_shape()
+        self.assertTrue(np.array_equal(shape, int64_array(ref_res)), 'Wrong output shape detected')
