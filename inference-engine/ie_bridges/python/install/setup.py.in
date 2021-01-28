@@ -151,7 +151,7 @@ class CopyExt(build_ext):
                     f"copy_ext can accept PrebuiltExtension only, but got {extension.name}")
             src = extension.sources[0]
             dst = self.get_ext_fullpath(extension.name)
-            os.mkdir(os.path.dirname(dst), parents=True, exist_ok=True)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
             #setting relative path to find dlls
             if sys.platform != "win32":
                 rpath = os.path.relpath(BINDINGS_DIR, os.path.dirname(src))

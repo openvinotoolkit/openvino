@@ -10,6 +10,8 @@ project (ie_python_api)
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
 option(ENABLE_WHEEL "Create wheel package" OFF)
 
+set(PYTHON_BRIDGE_CPACK_PATH "python")
+
 string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
 if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
     set(ARCH intel64)
@@ -76,11 +78,11 @@ endif()
 ie_cpack_add_component(${PYTHON_VERSION} REQUIRED)
 
 install(FILES requirements.txt
-        DESTINATION python/${PYTHON_VERSION}
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
         COMPONENT ${PYTHON_VERSION})
 
 install(PROGRAMS src/openvino/__init__.py
-        DESTINATION python/${PYTHON_VERSION}/openvino
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_VERSION})
 
 ie_cpack(${PYTHON_VERSION})
