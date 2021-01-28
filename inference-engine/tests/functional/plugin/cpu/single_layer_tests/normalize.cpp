@@ -22,7 +22,6 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerCPUTestParamSet> obj) {
         LayerTestsDefinitions::NormalizeL2LayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        Precision inputPrecision, outputPrecision;
         std::tie(basicParamsSet, cpuParams) = obj.param;
 
         std::ostringstream result;
@@ -73,7 +72,7 @@ TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Normalize");
+    CheckPluginRelatedResults(executableNetwork, "Normalize");
 }
 
 namespace {

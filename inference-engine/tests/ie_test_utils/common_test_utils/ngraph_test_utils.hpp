@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,9 @@
 #include <memory>
 #include <queue>
 
+#include <ngraph/dimension.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/dimension.hpp>
 #include <ngraph/pass/pass.hpp>
 
 #include "test_common.hpp"
@@ -26,10 +26,9 @@ std::pair<bool, std::string> compare_functions(
     const bool compareRuntimeKeys = false,
     const bool comparePrecisions = true);
 
-void check_rt_info(const std::shared_ptr<ngraph::Function> & f);
+void check_rt_info(const std::shared_ptr<ngraph::Function>& f);
 
-
-template<typename T>
+template <typename T>
 std::vector<std::shared_ptr<T>> get(const std::shared_ptr<ngraph::Function>& f) {
     std::vector<std::shared_ptr<T>> nodes;
 
@@ -57,17 +56,17 @@ std::vector<std::shared_ptr<T>> get(const std::shared_ptr<ngraph::Function>& f) 
 
 namespace ngraph {
 namespace pass {
-
 class InjectionPass;
 
-} // namespace pass
-} // namespace ngraph
+}  // namespace pass
+}  // namespace ngraph
 
 class ngraph::pass::InjectionPass : public ngraph::pass::FunctionPass {
 public:
     using injection_callback = std::function<void(std::shared_ptr<ngraph::Function>)>;
 
-    explicit InjectionPass(injection_callback callback) : FunctionPass(), m_callback(std::move(callback)) {}
+    explicit InjectionPass(injection_callback callback)
+        : FunctionPass(), m_callback(std::move(callback)) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
         m_callback(f);
@@ -105,8 +104,8 @@ public:
         set_output_type(1, get_input_element_type(1), get_input_partial_shape(1));
     }
 
-    std::shared_ptr<Node>
-        clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
+    std::shared_ptr<Node> clone_with_new_inputs(
+        const ngraph::OutputVector& new_args) const override {
         return std::make_shared<TestOpMultiOut>(new_args.at(0), new_args.at(1));
     }
 };

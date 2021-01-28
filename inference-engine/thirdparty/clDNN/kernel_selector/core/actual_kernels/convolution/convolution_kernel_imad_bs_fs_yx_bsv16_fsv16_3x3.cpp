@@ -86,10 +86,12 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16
     dispatchData.cldnnStyle = {0, 0, 0, 0, 0};
     dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
-
     return dispatchData;
 }  // SetDefault
+
+KernelsPriority Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
+}
 
 bool Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options)) {

@@ -177,7 +177,6 @@ float InterpolateEvalHelper::get_in_coord(float coord, int64_t axis_idx)
 
 InterpolateEvalHelper::InfoForLinearMode InterpolateEvalHelper::get_info_for_linear_mode()
 {
-    std::size_t input_rank = m_input_data_shape.size();
     std::size_t num_of_axes = m_axes.size();
     bool is_downsample = false;
     for (std::size_t scale : m_scales)

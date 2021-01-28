@@ -11,11 +11,13 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include "itt.hpp"
 
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ClampFusion, "ClampFusion", 0);
 
 ngraph::pass::ClampFusion::ClampFusion() {
+    MATCHER_SCOPE(ClampFusion);
     auto data_pattern = ngraph::pattern::any_input();
     auto min_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto max_const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
@@ -39,7 +41,7 @@ ngraph::pass::ClampFusion::ClampFusion() {
         double min_value = min_const->cast_vector<double>()[0];
         double max_value = max_const->cast_vector<double>()[0];
 
-        auto clamp = std::make_shared<ngraph::opset5::Clamp>(data, min_value, max_value);
+        auto clamp = register_new_node<ngraph::opset5::Clamp>(data, min_value, max_value);
         auto minimum = pattern_map.at(min_pattern);
         clamp->set_friendly_name(minimum.get_node()->get_friendly_name());
 
@@ -53,6 +55,6 @@ ngraph::pass::ClampFusion::ClampFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(min_pattern, "ClampFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(min_pattern, matcher_name);
     this->register_matcher(m, callback);
 }

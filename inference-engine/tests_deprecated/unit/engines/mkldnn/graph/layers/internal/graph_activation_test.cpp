@@ -12,6 +12,12 @@ using namespace ::testing;
 using namespace std;
 using namespace mkldnn;
 
+constexpr auto eltwise_relu = mkldnn::algorithm::eltwise_relu;
+constexpr auto eltwise_elu = mkldnn::algorithm::eltwise_elu;
+constexpr auto eltwise_logistic = mkldnn::algorithm::eltwise_logistic;
+constexpr auto eltwise_bounded_relu = mkldnn::algorithm::eltwise_bounded_relu;
+constexpr auto eltwise_tanh = mkldnn::algorithm::eltwise_tanh;
+
 struct activation_test_params {
     mkldnn::algorithm alg;
     float alpha;

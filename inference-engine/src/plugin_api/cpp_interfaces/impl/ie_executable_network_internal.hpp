@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "cpp_interfaces/impl/ie_infer_async_request_internal.hpp"
 #include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
@@ -63,8 +64,11 @@ public:
     }
 
     void Export(const std::string& modelFileName) override {
-        (void)modelFileName;
-        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
+        // we need to write to stringstream first
+        // because in case of exception in ExportImpl the file is not created
+        std::stringstream strm;
+        ExportImpl(strm);
+        std::ofstream(modelFileName.c_str()) << strm.rdbuf();
     }
 
     void Export(std::ostream& networkModel) override {

@@ -81,7 +81,7 @@ TEST_P(SplitLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Split");
+    CheckPluginRelatedResults(executableNetwork, "Split");
 }
 
 namespace {
@@ -109,7 +109,6 @@ const auto blocked16_5D_ref = CPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {}, "ref
 // List of precisions natively supported by mkldnn.
 const std::vector<Precision> netPrecisions = {
         Precision::I8,
-        Precision::I16,
         Precision::I32,
         Precision::FP32,
         Precision::BF16

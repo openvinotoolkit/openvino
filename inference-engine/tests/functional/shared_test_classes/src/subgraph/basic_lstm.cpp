@@ -30,7 +30,6 @@ void Basic_LSTM_S::SetUp() {
 
     InferenceEngine::Precision netPrecision;
     std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     hidden_size = 118;
     outPrc = InferenceEngine::Precision::FP32;
 

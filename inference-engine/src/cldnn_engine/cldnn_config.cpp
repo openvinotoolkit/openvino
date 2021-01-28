@@ -191,6 +191,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             // Validate if passed value is postivie number.
             try {
                 int val_i = std::stoi(val);
+                (void)val_i;
             } catch (const std::exception&) {
                 THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_DEVICE_ID
                     << ". DeviceIDs are only represented by positive numbers";
