@@ -63,13 +63,11 @@ add_custom_command(TARGET ${TARGET_NAME}
 
 # creates a folder in openvino directory and a symlink to benchmark
 # inside bin directory for developers for running python benchmark_app
-if(UNIX)
-    add_custom_command(TARGET ${TARGET_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../tools
+add_custom_command(TARGET ${TARGET_NAME}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../tools
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${OpenVINO_MAIN_SOURCE_DIR}/tools/benchmark  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../tools/benchmark
 )
-    file(COPY ${OpenVINO_MAIN_SOURCE_DIR}/tools/benchmark DESTINATION ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../tools/)
-endif()
 
 # install
 
