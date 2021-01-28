@@ -28,7 +28,7 @@
 
 XLinkError_t Stream_Create(Stream* stream, streamId_t streamId) {
     if (stream == NULL) {
-        mvLog(MVLOG_ERROR, "Cannot allocate PacketPool\n");
+        mvLog(MVLOG_ERROR, "Cannot allocate PacketPool");
         return X_LINK_ERROR;
     }
 
@@ -212,7 +212,7 @@ int StreamDispatcher_GetFirstFreeStream(StreamDispatcher* streamDispatcher) {
 
 XLinkError_t StreamDispatcher_Create(StreamDispatcher* streamDispatcher) {
     if (streamDispatcher == NULL) {
-        mvLog(MVLOG_ERROR, "Cannot allocate StreamDispatcher\n");
+        mvLog(MVLOG_ERROR, "Cannot allocate StreamDispatcher");
         return X_LINK_ERROR;
     }
 
