@@ -45,6 +45,6 @@ add_custom_command(TARGET ie_wheel
         --dist-dir ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}/wheels
         --plat-name=${WHEEL_PLATFORM}
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMENT "Building wheel distribution package ${WHEEL_PACKAGE_NAME}"
+    COMMENT "Building Python wheel ${WHEEL_PACKAGE_NAME}"
     VERBATIM
 )

@@ -147,15 +147,10 @@ class CopyExt(build_ext):
         for extension in self.extensions:
             if not isinstance(extension, PrebuiltExtension):
                 raise DistutilsSetupError(
-                    "copy_ext can accept PrebuiltExtension only")
+                    f"copy_ext can accept PrebuiltExtension only, but got {extension.name}")
             src = extension.sources[0]
             dst = self.get_ext_fullpath(extension.name)
-            try:
-                os.makedirs(os.path.dirname(dst), exist_ok=True)
-            except OSError as exc:
-                if exc.errno != errno.EEXIST:
-                    raise
-
+            os.mkdir(os.path.dirname(dst), parents=True, exist_ok=True)
             #setting relative path to find dlls
             if sys.platform != "win32":
                 rpath = os.path.relpath(BINDINGS_DIR, os.path.dirname(src))
@@ -191,18 +186,15 @@ def set_rpath(rpath, executable):
         rpath_tool = "install_name_tool"
         cmd = [rpath_tool, "-add_rpath", rpath,  executable]
     else:
-        print(f"Unsupported platform: {sys.platform}")
-        sys.exit(2)
+        sys.exit(f"Unsupported platform: {sys.platform}")
 
     if is_tool(rpath_tool):
         ret_info = subprocess.run(cmd, check=True)
         if ret_info.returncode != 0:
-            print(f"Could not set rpath: {rpath} for {executable}")
-            sys.exit(2)
+            sys.exit(f"Could not set rpath: {rpath} for {executable}")
     else:
-        print(f"Could not found {rpath_tool} on the system, "
+        sys.exit(f"Could not found {rpath_tool} on the system, "
               f"please make sure that this tool is installed")
-        sys.exit(2)
 
 
 def find_data_files(src_dirs):
@@ -268,9 +260,7 @@ def get_dependencies(requirements_file_path):
 
 platforms = ["linux", "win32", "darwin"]
 if not any(pl in sys.platform for pl in platforms):
-    print("Unsupported platform: {}, expected: {}".format(sys.platform, "linux, win32, darwin"))
-    sys.exit(2)
-
+    sys.exit("Unsupported platform: {}, expected: {}".format(sys.platform, "linux, win32, darwin"))
 
 setup(
     version='${WHEEL_VERSION}',
