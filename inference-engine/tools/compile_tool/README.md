@@ -59,6 +59,11 @@ compile_tool [OPTIONS]
 
  FPGA-specific options:
       -DLA_ARCH_NAME             <value>     Optional. Specify architecture name used to compile executable network for FPGA device.
+
+ VPUX-specific options:
+      -VPUX_PLATFORM             <value>     Optional. Specify platform name used to compile network for VPUX device.
+                                             Possible values: MA2490-A0, MA2490-B0, MA3100-A0, MA3720
+
 ```
 
 Running the application with the empty list of options yields an error message.
@@ -73,6 +78,20 @@ To dump a blob using a trained network, use the command below:
 
 You can compile executable network without a connected FPGA device with a loaded DLA bitstream.
 To do that, specify the architecture name of the DLA bitstream using the parameter `-DLA_ARCH_NAME`.
+
+## VPUX Plugin
+
+To compile a network using VPUX plugin, you need to pass `-d VPUX` parameter to `compile_tool`.
+If you have a VPU device connected, `compile_tool` will compile a network for it.
+
+If several VPU devices connected, the tool will choose the first enumerated device in a system.
+For example, if there are `VPUX.0-MA2490-A0` and `VPUX.1-MA2490-B0`, `compile_tool` will compile a network for `VPUX.0-MA2490-A0`.
+If you need to compile a network for `VPUX.1-MA2490-B0`, you can to do it explicitly by passing `-d VPUX.1-MA2490-B0`
+A list of VPUX devices available can be obtained by `hello_query_sample`. [TBD Link]
+
+You can compile network without a connected VPU device. To do that, specify the platform name of the device
+using the parameter `-VPUX_PLATFORM`. Possible values: `MA2490-A0, MA2490-B0, MA3100-A0, MA3720`
+
 
 ## Import and Export Functionality
 
