@@ -93,13 +93,14 @@ ALL_LIBS = {CORE_LIBS_DIR, PLUGINS_LIBS_DIR, NGRAPH_LIBS_DIR, TBB_LIBS_DIR}
 
 
 class PrebuiltExtension(Extension):
+    """Initialize Extension"""
     def __init__(self, name, sources, *args, **kwargs):
         if len(sources) != 1:
             nln = '\n'
             raise DistutilsSetupError(
                 f"PrebuiltExtension can accept only one source, but got: {nln}{nln.join(sources)}"
             )
-        super(PrebuiltExtension, self).__init__(name, sources, *args, **kwargs)
+        super().__init__(name, sources, *args, **kwargs)
 
 
 class CustomBuild(build):
