@@ -96,7 +96,6 @@ void ProposalBehTest::SetUp() {
 void ProposalBehTest::Run() {
     LoadNetwork();
     Infer();
-    Validate();
 }
 
 TEST_P(ProposalBehTest, CompareWithRefs) {
