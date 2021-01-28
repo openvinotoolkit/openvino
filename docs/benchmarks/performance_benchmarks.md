@@ -26,65 +26,65 @@ Measuring inference performance involves many variables and is extremely use-cas
 
 
 \htmlonly
-<script src="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-2-170.js" id="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-2-170"></script>
+<script src="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-2-185.js" id="bert-large-uncased-whole-word-masking-squad-int8-0001-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="deeplabv3-tf-ov-2021-2-170.js" id="deeplabv3-tf-ov-2021-2-170"></script>
+<script src="deeplabv3-tf-ov-2021-2-185.js" id="deeplabv3-tf-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="densenet-121-tf-ov-2021-2-170.js" id="densenet-121-tf-ov-2021-2-170"></script>
+<script src="densenet-121-tf-ov-2021-2-185.js" id="densenet-121-tf-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="faster-rcnn-resnet50-coco-tf-ov-2021-2-170.js" id="faster-rcnn-resnet50-coco-tf-ov-2021-2-170"></script>
+<script src="faster-rcnn-resnet50-coco-tf-ov-2021-2-185.js" id="faster-rcnn-resnet50-coco-tf-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="googlenet-v1-tf-ov-2021-2-170.js" id="googlenet-v1-tf-ov-2021-2-170"></script>
+<script src="googlenet-v1-tf-ov-2021-2-185.js" id="googlenet-v1-tf-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="inception-v3-tf-ov-2021-2-170.js" id="inception-v3-tf-ov-2021-2-170"></script>
+<script src="inception-v3-tf-ov-2021-2-185.js" id="inception-v3-tf-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="mobilenet-ssd-cf-ov-2021-2-170.js" id="mobilenet-ssd-cf-ov-2021-2-170"></script>
+<script src="mobilenet-ssd-cf-ov-2021-2-185.js" id="mobilenet-ssd-cf-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="mobilenet-v1-1-0-224-tf-ov-2021-2-170.js" id="mobilenet-v1-1-0-224-tf-ov-2021-2-170"></script>
+<script src="mobilenet-v1-1-0-224-tf-ov-2021-2-185.js" id="mobilenet-v1-1-0-224-tf-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="mobilenet-v2-pytorch-ov-2021-2-170.js" id="mobilenet-v2-pytorch-ov-2021-2-170"></script>
+<script src="mobilenet-v2-pytorch-ov-2021-2-185.js" id="mobilenet-v2-pytorch-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="resnet-18-pytorch-ov-2021-2-170.js" id="resnet-18-pytorch-ov-2021-2-170"></script>
+<script src="resnet-18-pytorch-ov-2021-2-185.js" id="resnet-18-pytorch-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="resnet-50-tf-ov-2021-2-170.js" id="resnet-50-tf-ov-2021-2-170"></script>
-\endhtmlonly
-
-
-\htmlonly
-<script src="se-resnext-50-cf-ov-2021-2-170.js" id="se-resnext-50-cf-ov-2021-2-170"></script>
-\endhtmlonly
-
-\htmlonly
-<script src="squeezenet1-1-cf-ov-2021-2-170.js" id="squeezenet1-1-cf-ov-2021-2-170"></script>
+<script src="resnet-50-tf-ov-2021-2-185.js" id="resnet-50-tf-ov-2021-2-185"></script>
 \endhtmlonly
 
 
 \htmlonly
-<script src="ssd300-cf-ov-2021-2-170.js" id="ssd300-cf-ov-2021-2-170"></script>
+<script src="se-resnext-50-cf-ov-2021-2-185.js" id="se-resnext-50-cf-ov-2021-2-185"></script>
 \endhtmlonly
 
 \htmlonly
-<script src="yolo-v3-tf-ov-2021-2-170.js" id="yolo-v3-tf-ov-2021-2-170"></script>
+<script src="squeezenet1-1-cf-ov-2021-2-185.js" id="squeezenet1-1-cf-ov-2021-2-185"></script>
+\endhtmlonly
+
+
+\htmlonly
+<script src="ssd300-cf-ov-2021-2-185.js" id="ssd300-cf-ov-2021-2-185"></script>
+\endhtmlonly
+
+\htmlonly
+<script src="yolo-v3-tf-ov-2021-2-185.js" id="yolo-v3-tf-ov-2021-2-185"></script>
 \endhtmlonly
 
 
