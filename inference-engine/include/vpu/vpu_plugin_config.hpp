@@ -68,8 +68,8 @@ INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR
 DECLARE_VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME);
 
 /**
- * @deprecated Use InputInfo::setLayout on input data from ICNNNetwork::getInputsInfo() or
- * Data::setLayout on output data from ICNNNetwork::getOutputsInfo()
+ * @deprecated Use InputInfo::setLayout on input data from CNNNetwork::getInputsInfo() or
+ * Data::setLayout on output data from CNNNetwork::getOutputsInfo()
  * @brief This option allows to to specify input output layouts for network layers.
  * By default, this value set to VPU_CONFIG_VALUE(AUTO) value.
  * Supported values:
@@ -77,8 +77,8 @@ DECLARE_VPU_CONFIG_KEY(PRINT_RECEIVE_TENSOR_TIME);
  *   VPU_CONFIG_VALUE(NCHW) executable network forced to use NCHW input/output layouts
  *   VPU_CONFIG_VALUE(NHWC) executable network forced to use NHWC input/output layouts
  */
-INFERENCE_ENGINE_DEPRECATED("Use InputInfo::setLayout on input data from ICNNNetwork::getInputsInfo() or" \
-    "Data::setLayout on output data from ICNNNetwork::getOutputsInfo()")
+INFERENCE_ENGINE_DEPRECATED("Use InputInfo::setLayout on input data from CNNNetwork::getInputsInfo() or" \
+    "Data::setLayout on output data from CNNNetwork::getOutputsInfo()")
 DECLARE_VPU_CONFIG_KEY(COMPUTE_LAYOUT);
 
 /**

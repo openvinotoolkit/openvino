@@ -10,6 +10,7 @@
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "common/cpu_memcpy.h"
+#include "utils/general_utils.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -32,7 +33,7 @@ void MKLDNNCropNode::getSupportedDescriptors() {
     MKLDNNDims childDims = getChildEdgeAt(0)->getDims();
 
     offsets.resize(static_cast<size_t>(childDims.ndims()));  // plus one dim for batch
-    dims.resize(static_cast<size_t>(childDims.ndims()));  // plus one dim for batch
+    dims.resize(static_cast<size_t>(childDims.ndims()));     // plus one dim for batch
     for (int i = 0; i < childDims.ndims(); i++)
         dims[i] = childDims[i];
 
@@ -70,11 +71,11 @@ void MKLDNNCropNode::initSupportedPrimitiveDescriptors() {
         THROW_IE_EXCEPTION << "Crop supports only 2d, 4d and 5d blobs.";
     }
 
-    memory::format fmt = memory::format::format_undef;
+    memory::format_tag fmt = memory::format_tag::undef;
     switch (inDims.ndims()) {
-        case 2: fmt = memory::format::nc; break;
-        case 4: fmt = memory::format::nchw; break;
-        case 5: fmt = memory::format::ncdhw; break;
+        case 2: fmt = memory::format_tag::nc; break;
+        case 4: fmt = memory::format_tag::nchw; break;
+        case 5: fmt = memory::format_tag::ncdhw; break;
     }
 
     InferenceEngine::LayerConfig config;
@@ -93,12 +94,12 @@ void MKLDNNCropNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, fmt);
 
     if ((inDims.ndims() == 4 || inDims.ndims() == 5) && channelAxis >= 0 && dims[channelAxis] % 8 == 0) {
-        fmt = inDims.ndims() == 5 ? memory::format::nCdhw8c : memory::format::nChw8c;
+        fmt = inDims.ndims() == 5 ? memory::format_tag::nCdhw8c : memory::format_tag::nChw8c;
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, fmt);
         if (dims[channelAxis] % 16 == 0) {
-            fmt = inDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c;
+            fmt = inDims.ndims() == 5 ? memory::format_tag::nCdhw16c : memory::format_tag::nChw16c;
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
             config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, fmt);
@@ -121,14 +122,19 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
 
     int m_block_size = 1;
-    if (!MKLDNNMemory::IsPlainFormat(parentMem.GetFormat())) {
-        m_block_size = parentMem.GetDescriptor().data.layout_desc.blocking.block_dims[1];
+    if (!parentMem.GetDesc().isPlainFormat()) {
+        const auto &desc = parentMem.GetDescriptor().data;
+        const auto &blk = desc.format_desc.blocking;
+        IE_ASSERT(desc.format_kind == dnnl_blocked &&
+                  blk.inner_nblks == 1 &&
+                  blk.inner_idxs[0] == 1);
+        m_block_size = blk.inner_blks[0];
     }
     const int m_inner_dim = dims[dims.size() - 1] * m_block_size;
 
-    const memory &dst_d = getChildEdgeAt(0)->getMemory().GetPrimitive();
+    const auto &dst_mem = getChildEdgeAt(0)->getMemory();
 
-    const int dst_ndims = dst_d.get_primitive_desc().desc().data.ndims;
+    const int dst_ndims = dst_mem.GetDesc().getDims().ndims();
 
     // TODO: Rewrite it in general case. For every tensor
     // and rank, without using letter N,C,D,H,W
@@ -154,12 +160,10 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
     const int IH = (src_ndims  > 2) ? src_dims[src_dims.size() - 2] : 1;
     const int IW = (src_ndims  > 3) ? src_dims[src_dims.size() - 1] : 1;
 
-    const uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(parentMem.GetDataType()));
+    const size_t itemSize = parentMem.GetDesc().GetElementSize();
 
-    const auto *src_data = reinterpret_cast<const uint8_t *>(parentMem.GetData()) +
-            itemSize * parentMem.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    auto *dst_data = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetData()) +
-            itemSize * getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const auto *src_data = reinterpret_cast<const uint8_t*>(parentMem.GetPtr());
+    auto *dst_data = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetPtr());
 
     if (OD == 1 && OH == 1 && OW == 1 && ID == 1 && IH == 1 && IW == 1) {
         parallel_for(ON, [&](int n) {

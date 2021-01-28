@@ -47,10 +47,10 @@ inline std::string set2str(const std::set<vecElementType> &set) {
     return std::string("()");
 }
 
-inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::ICNNNetwork * icnnnetwork,
+inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNetwork & network,
                                                    const std::string & layerName) {
     IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::details::CNNNetworkIterator i(icnnnetwork), end;
+    InferenceEngine::details::CNNNetworkIterator i(network), end;
     while (i != end) {
         auto layer = *i;
         if (layer->name == layerName)
@@ -61,13 +61,6 @@ inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::ICNNNe
     std::stringstream stream;
     stream << "Layer " << layerName << " not found in network";
     throw InferenceEngine::NotFound(stream.str());
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNetwork & network,
-                                                   const std::string & layerName) {
-    const InferenceEngine::ICNNNetwork & icnnnetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
-    return getLayerByName(&icnnnetwork, layerName);
 }
 
 template <typename master, typename slave>

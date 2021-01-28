@@ -30,7 +30,7 @@ public:
         Ready = 1,
     };
 
-    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)), cancelation_requested(false) {}
+    MKLDNNGraph(mkldnn::engine eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0)) : status(NotReady), eng(eng), cancelation_requested(false) {}
 
     Status GetStatus() {
         return status;
@@ -170,7 +170,7 @@ protected:
 
     mkldnn::engine eng;
 
-    void Replicate(const InferenceEngine::ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
     void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();

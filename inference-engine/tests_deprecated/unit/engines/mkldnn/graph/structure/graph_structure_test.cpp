@@ -300,7 +300,7 @@ TEST_F(MKLDNNGraphStructureTests, TestRedundantReorderBeforeConvWithC_3) {
             }
         }
     }
-    size_t expected = InferenceEngine::with_cpu_x86_avx2() ? 3 : 1;
+    size_t expected = 1;
     ASSERT_EQ(reorders_num, expected);
 }
 
@@ -6490,8 +6490,8 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataToConcat) {
     auto cnn = InferenceEngine::CNNNetwork(function);
 
     // Load the network
-    std::vector<size_t> inpSize = {5, 4, 1, 1};
-    std::vector<size_t> outSize = {5, 4, 3, 1};
+    std::vector<size_t> inpSize = {1, 1, 4, 5};
+    std::vector<size_t> outSize = {1, 3, 4, 5};
 
     InferenceEngine::BlobMap inputBlobs;
     InferenceEngine::BlobMap outputBlobs;
@@ -6538,8 +6538,8 @@ TEST_F(MKLDNNGraphStructureTests, TestCreateGraphAllDataFromInputToConcat) {
     auto cnn = InferenceEngine::CNNNetwork(function);
 
     // Load the network
-    std::vector<size_t> inpSize = {5, 4, 1, 1};
-    std::vector<size_t> outSize = {5, 4, 3, 1};
+    std::vector<size_t> inpSize = {1, 1, 4, 5};
+    std::vector<size_t> outSize = {1, 3, 4, 5};
 
     InferenceEngine::BlobMap inputBlobs;
     InferenceEngine::BlobMap outputBlobs;
@@ -6660,8 +6660,8 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatWithFourInputs) {
     auto cnn = InferenceEngine::CNNNetwork(function);
 
     // Load the network
-    std::vector<size_t> inpSize = {5, 4, 1, 1};
-    std::vector<size_t> outSize = {5, 4, 4, 1};
+    std::vector<size_t> inpSize = {1, 1, 4, 5};
+    std::vector<size_t> outSize = {1, 4, 4, 5};
 
     InferenceEngine::BlobMap inputBlobs;
     InferenceEngine::BlobMap outputBlobs;
