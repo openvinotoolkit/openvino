@@ -45,7 +45,7 @@ int g_IsInitialized = 0;
 #define BUSY_CONNECTION_FLAG 1
 
 Connection availableConnections[MAX_LINKS];
-int freeConnectionsIds[XLINK_MAX_PACKET_PER_STREAM];
+int freeConnectionsIds[MAX_LINKS];
 linkId_t nextUniqueLinkId = 0;  // incremental number, doesn't get decremented.
 sem_t pingSem;  // to be used by myriad
 
@@ -243,13 +243,17 @@ XLinkError_t XLinkResetAll()
 #if defined(NO_BOOT)
     mvLog(MVLOG_INFO, "Devices will not be restarted for this configuration (NO_BOOT)");
 #else
-    mvLog(MVLOG_ERROR, "XLinkResetAll");
     for (int i = 0; i < MAX_LINKS; ++i) {
         if (availableConnections[i].id != INVALID_LINK_ID) {
-            XLinkResetRemote(Connection_GetId(&availableConnections[i]));
+            Connection* connection = &availableConnections[i];
+            for (int streamId = 0; streamId < XLINK_CONTROL_STREAM_ID; streamId++) {
+                Connection_CloseStream(connection, streamId);
+            }
+            if (XLinkResetRemote(Connection_GetId(&availableConnections[i])) != X_LINK_SUCCESS) {
+                mvLog(MVLOG_WARN,"Failed to reset");
+            }
         }
     }
-    mvLog(MVLOG_ERROR, "XLinkResetAll end");
 #endif
     return X_LINK_SUCCESS;
 }

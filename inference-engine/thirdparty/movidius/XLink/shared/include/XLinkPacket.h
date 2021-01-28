@@ -17,7 +17,8 @@ typedef struct PacketPool_t PacketPool;
 typedef enum {
     PACKET_FREE,
     PACKET_PROCESSING,
-    PACKET_PENDING,
+    PACKET_PENDING_TO_SEND,
+    PACKET_PENDING_RESPONSE,
     PACKET_COMPLETED,
     PACKET_DROPPED
 } packetStatus_t;
@@ -26,11 +27,6 @@ typedef enum {
     PACKET_REQUEST,
     PACKET_RESPONSE,
 } packetCommType_t;
-
-typedef enum {
-    PACKET_NON_BLOCKING,
-    PACKET_BLOCKING,
-} packetBlockingType_t;
 
 typedef struct PacketHeader_t {
     packetId_t       id;
@@ -46,7 +42,6 @@ typedef struct PacketPrivate_t{
     packetStatus_t       status;
     sem_t                completedSem;
     pthread_mutex_t      packetLock;
-    packetBlockingType_t blockingType;
     int                  isUserData;
     PacketPool*          packetPool;
 } PacketPrivate;
@@ -91,11 +86,12 @@ XLinkError_t Packet_ReleaseData(
 packetCommType_t Packet_GetCommType(
         Packet* packet);
 
-packetBlockingType_t Packet_GetPacketBlockingType(
-        Packet* packet);
-void Packet_SetPacketBlockingType(
+XLinkError_t Packet_GetPacketStatus(
         Packet* packet,
-        packetBlockingType_t blockingStatus);
+        packetStatus_t* status);
+XLinkError_t Packet_SetPacketStatus(
+        Packet* packet,
+        packetStatus_t status);
 
 // ------------------------------------
 // Packet API. End.

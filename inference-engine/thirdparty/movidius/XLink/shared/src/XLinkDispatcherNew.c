@@ -46,7 +46,7 @@ static XLinkError_t _dispatcher_HandleRequest(DispatcherNew* dispatcher, Packet*
 static XLinkError_t _dispatcher_HandleResponse(DispatcherNew* dispatcher, Packet* receivedPacket);
 static XLinkError_t _dispatcher_SendResponse(DispatcherNew* dispatcher, Packet* receivedPacket,
                                              Packet** respPacket, XLinkError_t serviceInfo,
-                                             packetBlockingType_t packetBlockingType);
+                                             packetStatus_t respPacketStatus);
 
 static XLinkError_t _dispatcher_StartThread(DispatcherNew* dispatcher, void* (*start_routine) (void*),
                                      pthread_t* newThread, const char* threadName);
@@ -180,6 +180,7 @@ static XLinkError_t _dispatcher_ReadPacketData(DispatcherNew* dispatcher, Packet
     if ((*receivedPacket)->header.type == XLINK_WRITE_REQ) {
         if (Packet_AllocateData(*receivedPacket) != X_LINK_SUCCESS) {
             mvLog(MVLOG_ERROR, "Cannot allocate packet data");
+            Packet_Release((*receivedPacket));
             return X_LINK_ERROR;
         }
 
@@ -187,7 +188,7 @@ static XLinkError_t _dispatcher_ReadPacketData(DispatcherNew* dispatcher, Packet
             dispatcher->deviceHandle, (*receivedPacket)->data, (*receivedPacket)->header.size);
         if (platformRc < 0) {
             mvLog(MVLOG_ERROR,"Read packet data failed %d", platformRc);
-            Packet_ReleaseData(*receivedPacket);
+            Packet_Release((*receivedPacket));
             return X_LINK_COMMUNICATION_FAIL;
         }
     }
@@ -243,7 +244,7 @@ static XLinkError_t _dispatcher_HandleReadPacketError(DispatcherNew* dispatcher)
             errorPacket = StreamDispatcher_GetPacket(streamDispatcher, streamId, IN_CHANNEL);
             XLINK_OUT_IF(errorPacket == NULL);
 
-            errorPacket->privateFields.status = PACKET_DROPPED;
+            Packet_SetPacketStatus(errorPacket, PACKET_DROPPED);
             XLINK_OUT_IF(BlockingQueue_Push(&dispatcher->receivedPacketsQueue[streamId], errorPacket));
         }
 
@@ -262,7 +263,7 @@ static XLinkError_t _dispatcher_HandleRequest(DispatcherNew* dispatcher, Packet*
 
     xLinkEventType_t reqType = receivedPacket->header.type;
     streamId_t streamId = receivedPacket->header.streamId;
-    packetBlockingType_t packetBlockingType = PACKET_NON_BLOCKING;
+    packetStatus_t respPacketStatus = PACKET_PROCESSING;
     int32_t serviceInfo = 0;
     Packet* respPacket = NULL;
 
@@ -275,7 +276,7 @@ static XLinkError_t _dispatcher_HandleRequest(DispatcherNew* dispatcher, Packet*
                 &dispatcher->receivedPacketsQueue[streamId];
             BlockingQueue_Push(streamReceivedPacketsQueue, receivedPacket);
 
-            return _dispatcher_SendResponse(dispatcher, receivedPacket, &respPacket, serviceInfo, packetBlockingType);
+            break;
         }
         case XLINK_PING_REQ: {
             sem_post(&pingSem);
@@ -306,7 +307,7 @@ static XLinkError_t _dispatcher_HandleRequest(DispatcherNew* dispatcher, Packet*
         }
         case XLINK_CLOSE_STREAM_REQ:
         case XLINK_RESET_REQ: {
-            packetBlockingType = PACKET_BLOCKING;
+            respPacketStatus = PACKET_PENDING_TO_SEND;
             break;
         }
         case XLINK_READ_REQ:
@@ -318,23 +319,25 @@ static XLinkError_t _dispatcher_HandleRequest(DispatcherNew* dispatcher, Packet*
             return X_LINK_ERROR;
     }
 
-    if (_dispatcher_SendResponse(dispatcher, receivedPacket, &respPacket, serviceInfo, packetBlockingType)) {
+    if (_dispatcher_SendResponse(dispatcher, receivedPacket, &respPacket, serviceInfo, respPacketStatus)) {
         mvLog(MVLOG_ERROR, "Failed to send response for request: %s", _dispatcher_TypeToStr(receivedPacket->header.type));
     }
 
-    if (packetBlockingType == PACKET_BLOCKING) {
+    if (respPacketStatus == PACKET_PENDING_TO_SEND) {
         Packet_WaitPacketComplete(respPacket);
         ASSERT_XLINK(!Packet_Release(respPacket));
     }
 
     // Postamble
     switch (reqType) {
-        case XLINK_WRITE_REQ:
         case XLINK_PING_REQ:
         case XLINK_CREATE_STREAM_REQ:
         case XLINK_READ_REQ:
         case XLINK_READ_REL_REQ:
             break;
+        case XLINK_WRITE_REQ: {
+            return X_LINK_SUCCESS;
+        }
         case XLINK_RESET_REQ: {
             dispatcher->status = DISPATCHER_NEED_TO_CLOSE;
             XLinkPlatformCloseRemote(dispatcher->deviceHandle);
@@ -377,7 +380,7 @@ static XLinkError_t _dispatcher_HandleResponse(DispatcherNew* dispatcher, Packet
         pendingPacket->header.serviceInfo = receivedPacket->header.serviceInfo;
         ASSERT_XLINK(!Packet_FreePending(pendingPacket, PACKET_COMPLETED));
     } else {
-        mvLog(MVLOG_ERROR, "Just release packet: streamId=%u, packet type %s",
+        mvLog(MVLOG_DEBUG, "Just release packet: streamId=%u, packet type %s",
               receivedPacket->header.streamId, _dispatcher_TypeToStr(reqType));
     }
 
@@ -386,7 +389,7 @@ static XLinkError_t _dispatcher_HandleResponse(DispatcherNew* dispatcher, Packet
 
 static XLinkError_t _dispatcher_SendResponse(DispatcherNew* dispatcher, Packet* receivedPacket,
                                              Packet** respPacket, XLinkError_t serviceInfo,
-                                             packetBlockingType_t packetBlockingType) {
+                                             packetStatus_t respPacketStatus) {
     ASSERT_XLINK(dispatcher);
     ASSERT_XLINK(receivedPacket);
 
@@ -401,7 +404,7 @@ static XLinkError_t _dispatcher_SendResponse(DispatcherNew* dispatcher, Packet* 
     (*respPacket)->header.size = receivedPacket->header.size;
     (*respPacket)->header.serviceInfo = serviceInfo;
     (*respPacket)->header.type = _dispatcher_GetResponseType(receivedPacket->header.type);
-    (*respPacket)->privateFields.blockingType = packetBlockingType;
+    (*respPacket)->privateFields.status = respPacketStatus;
     mvLog(MVLOG_DEBUG, "Push packet to packetsToSendQueue: id=%d, idx=%d %s",
           receivedPacket->header.id, receivedPacket->privateFields.idx, _dispatcher_TypeToStr((*respPacket)->header.type));
     return BlockingQueue_Push(packetsToSendQueue, (*respPacket));
@@ -460,28 +463,29 @@ static void* _dispatcher_SendPacketsThr(void* arg) {
         mvLog(MVLOG_DEBUG, "Pop packet from packetsToSendQueue: id=%d, idx=%d, streamName=%s",
               packet->header.id, packet->privateFields.idx, packet->header.streamName);
 
-        packetCommType_t commType = Packet_GetCommType(packet);
-        if (Packet_GetPacketBlockingType(packet) == PACKET_BLOCKING) {
-            packet->privateFields.status = PACKET_PENDING;
-        }
-
         XLinkError_t isPacketSent = _dispatcher_WritePacketData(dispatcher, packet);
 
-        if (commType == PACKET_RESPONSE) {
-            if (Packet_GetPacketBlockingType(packet) == PACKET_BLOCKING) {
-                ASSERT_XLINK(!Packet_FreePending(packet, PACKET_COMPLETED));
-            } else {
-                ASSERT_XLINK(!Packet_Release(packet));
-            }
-            continue;
-        }
+        packetStatus_t status;
+        Packet_GetPacketStatus(packet, &status);
 
         if (isPacketSent != X_LINK_SUCCESS) {
             mvLog(MVLOG_ERROR, "Failed to write packet. Packet: %s, id=%d, size=%u, streamId=%u, streamName=%s.",
                   _dispatcher_TypeToStr(packet->header.type), packet->header.id,
                   packet->header.size, packet->header.streamId, packet->header.streamName);
 
-            ASSERT_XLINK(!Packet_FreePending(packet, PACKET_DROPPED));
+
+            if (status == PACKET_PENDING_TO_SEND || status == PACKET_PENDING_RESPONSE) {
+                ASSERT_XLINK(!Packet_FreePending(packet, PACKET_DROPPED));
+            } else if (status == PACKET_PROCESSING) {
+                ASSERT_XLINK(!Packet_Release(packet));
+            }
+            continue;
+        }
+
+        if (status == PACKET_PENDING_TO_SEND) {
+            ASSERT_XLINK(!Packet_FreePending(packet, PACKET_COMPLETED));
+        } else if (status == PACKET_PROCESSING) {
+            ASSERT_XLINK(!Packet_Release(packet));
         }
     }
 
