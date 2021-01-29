@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class PoolingExtractorTest(BaseExtractorsTestingClass):
             'pad': None,  # will be inferred when input shape is known
             'pad_spatial_shape': None,
             'type': 'Pooling',
-            'exclude_pad': 'true',
+            'exclude_pad': True,
         }
         node = PB({'pb': pb})
         AvgPoolFrontExtractor.extract(node)

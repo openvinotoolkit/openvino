@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
@@ -106,7 +107,7 @@ class ReduceOp(Op):
 
     def supported_attrs(self):
         return [
-            ('keep_dims', lambda node: str(node.keep_dims)),
+            ('keep_dims', lambda node: bool_to_str(node, 'keep_dims')),
         ]
 
 

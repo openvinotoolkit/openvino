@@ -17,6 +17,7 @@
 #pragma once
 
 #include <cstring>
+#include <unordered_set>
 
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/partial_shape.hpp"

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1876,7 +1876,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 cnnLayer->outData.clear();
                 continue;
             }
+            NGRAPH_SUPPRESS_DEPRECATED_START
             auto outName = layer->output(i).get_tensor().get_name();
+            NGRAPH_SUPPRESS_DEPRECATED_END
             if (outName.empty()) {
                 outName = ngraph::op::util::create_ie_output_name(layer->output(i));
             }
@@ -1930,7 +1932,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
+            NGRAPH_SUPPRESS_DEPRECATED_START
             auto name = input.get_tensor().get_name();
+            NGRAPH_SUPPRESS_DEPRECATED_END
             if (!name.empty())
                 cnnNetworkImpl->addOutput(name);
             else

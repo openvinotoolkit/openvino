@@ -90,7 +90,7 @@ The box coordinates are specified as five element tuples: *[batch_id, x_1, y_1, 
 
 ```xml
 <layer ... type="DeformablePSROIPooling" ... >
-    <data group_size="7" mode="bilinear_deformable" no_trans="False" output_dim="8" part_size="7" pooled_height="7" pooled_width="7" spatial_bins_x="4" spatial_bins_y="4" spatial_scale="0.0625" trans_std="0.1"/>
+    <data group_size="7" mode="bilinear_deformable" output_dim="8" part_size="7" spatial_bins_x="4" spatial_bins_y="4" spatial_scale="0.0625" trans_std="0.1"/>
     <input>
         <port id="0">
             <dim>1</dim>

@@ -160,7 +160,7 @@
 
 ```xml
 <layer type="PriorBox" ...>
-    <data aspect_ratio="2.0" clip="0" density="" fixed_ratio="" fixed_size="" flip="1" max_size="38.46" min_size="16.0" offset="0.5" step="16.0" variance="0.1,0.1,0.2,0.2"/>
+    <data aspect_ratio="2.0" clip="false" density="" fixed_ratio="" fixed_size="" flip="true" max_size="38.46" min_size="16.0" offset="0.5" step="16.0" variance="0.1,0.1,0.2,0.2"/>
     <input>
         <port id="0">
             <dim>2</dim>        <!-- values: [24, 42] -->

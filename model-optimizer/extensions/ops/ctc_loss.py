@@ -1,5 +1,5 @@
 """
- Copyright (C) 2020 Intel Corporation
+ Copyright (C) 2020-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -35,11 +36,17 @@ class CTCLoss(Op):
 
             'in_ports_count': 5,
             'out_ports_count': 1,
+
+            'preprocess_collapse_repeated': False,
+            'ctc_merge_repeated': True,
+            'unique': False
         }
         super().__init__(graph, mandatory_props, attrs)
 
     def backend_attrs(self):
-        return ['preprocess_collapse_repeated', 'ctc_merge_repeated', 'unique']
+        return [('preprocess_collapse_repeated', lambda node: bool_to_str(node, 'preprocess_collapse_repeated')),
+                ('ctc_merge_repeated', lambda node: bool_to_str(node, 'ctc_merge_repeated')),
+                ('unique', lambda node: bool_to_str(node, 'unique'))]
 
     @staticmethod
     def type_infer(node):
