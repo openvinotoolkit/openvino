@@ -224,6 +224,7 @@ extensions/front/mxnet/ssd_pattern_remove_transpose.py
 extensions/front/mxnet/ssd_reorder_detection_out_inputs.py
 extensions/front/mxnet/stack_ext.py
 extensions/front/mxnet/swapaxis_ext.py
+extensions/front/mxnet/take_ext.py
 extensions/front/mxnet/tile_ext.py
 extensions/front/mxnet/tile_replacer.py
 extensions/front/mxnet/transpose_ext.py

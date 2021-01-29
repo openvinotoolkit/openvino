@@ -48,9 +48,9 @@
   * **Default value**: None
   * **Required**: *yes*
   
-* *exclude_pad*
+* *exclude-pad*
 
-  * **Description**: *exclude_pad* is a type of pooling strategy for values in the padding area. For example, if *exclude_pad* is "true", then zero-values that came from padding are not included in averaging calculation.
+  * **Description**: *exclude-pad* is a type of pooling strategy for values in the padding area. For example, if *exclude-pad* is "true", then zero-values that came from padding are not included in averaging calculation.
   * **Range of values**: true or false 
   * **Type**: boolean
   * **Default value**: None
@@ -94,7 +94,7 @@ output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
 
 ```xml
 <layer ... type="AvgPool" ... >
-    <data auto_pad="same_upper" exclude_pad="true" kernel="2,2" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
+    <data auto_pad="same_upper" exclude-pad="true" kernel="2,2" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
     <input> 
         <port id="0">
             <dim>1</dim>
@@ -114,7 +114,7 @@ output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
 </layer>
 
 <layer ... type="AvgPool" ... >
-    <data auto_pad="same_upper" exclude_pad="false" kernel="5,5" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
+    <data auto_pad="same_upper" exclude-pad="false" kernel="5,5" pads_begin="0,0" pads_end="1,1" strides="2,2"/>
     <input> 
         <port id="0">
             <dim>1</dim>
@@ -134,7 +134,7 @@ output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
 </layer>
 
 <layer ... type="AvgPool" ... >
-    <data auto_pad="explicit" exclude_pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="3,3"/>
+    <data auto_pad="explicit" exclude-pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="3,3"/>
     <input> 
         <port id="0">
             <dim>1</dim>
@@ -154,7 +154,7 @@ output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
 </layer>
 
 <layer ... type="AvgPool" ... >
-    <data auto_pad="explicit" exclude_pad="false" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+    <data auto_pad="explicit" exclude-pad="false" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
     <input> 
         <port id="0">
             <dim>1</dim>
@@ -174,7 +174,7 @@ output_{j} = \frac{\sum_{i = 0}^{n}x_{i}}{n}
 </layer>
 
 <layer ... type="AvgPool" ... >
-    <data auto_pad="valid" exclude_pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+    <data auto_pad="valid" exclude-pad="true" kernel="5,5" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
     <input> 
         <port id="0">
             <dim>1</dim>
