@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -379,7 +379,7 @@ def get_args_for_specifier(string):
     args = []
     prev_arg_pos = 1
     pos_close = string.rfind(b')')
-    string = string[:pos_close+1]
+    string = string[:pos_close + 1]
     while pos < len(string):
         pos_open = string.find(b'(', pos)
         pos_close = string.find(b')', pos)
@@ -392,13 +392,13 @@ def get_args_for_specifier(string):
             else:
                 open_bracket = open_bracket - 1
                 while open_bracket > 1:
-                    pos_close = string.find(b')', pos_close+1)
+                    pos_close = string.find(b')', pos_close + 1)
                     if pos_close != -1:
                         open_bracket = open_bracket - 1
                     else:
                         raise Error("Syntax error in model: incorrect number of brackets")
-                args.append(string[prev_arg_pos:pos_close+1].strip())
-                prev_arg_pos = string.find(b',', pos_close+1) + 1
+                args.append(string[prev_arg_pos:pos_close + 1].strip())
+                prev_arg_pos = string.find(b',', pos_close + 1) + 1
                 if prev_arg_pos != 0 and string[prev_arg_pos:-2].replace(b' ', b'').split(b',') != [b'']:
                     args = args + string[prev_arg_pos:-1].replace(b' ', b'').split(b',')
                 pos = len(string)
@@ -415,7 +415,7 @@ def get_args_for_specifier(string):
                 open_bracket = open_bracket - 1
                 if open_bracket == 1:
                     args.append(string[prev_arg_pos:pos_close + 1].strip())
-                    prev_arg_pos = string.find(b',', pos_close+1) + 1
+                    prev_arg_pos = string.find(b',', pos_close + 1) + 1
                     pos = prev_arg_pos
                 else:
                     pos = pos_close + 1

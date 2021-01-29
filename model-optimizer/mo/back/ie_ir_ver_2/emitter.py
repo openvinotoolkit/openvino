@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 
 
-def serialize_constants(graph: Graph, bin_file_name:str, data_type=np.float32):
+def serialize_constants(graph: Graph, bin_file_name: str, data_type=np.float32):
     """
     Found all data constants that has output edges with 'bin' attribute.
     Serialize content for such constants to a binary file with name bin_file_name in
@@ -60,7 +60,8 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
     for node in nodes:
         node = Node(graph, node)
 
-        if node.kind == 'data' and node.value is not None and any('bin' in d for u, v, d in graph.out_edges(node.node, data=True)):
+        if node.kind == 'data' and node.value is not None and any(
+                'bin' in d for u, v, d in graph.out_edges(node.node, data=True)):
             # avoid array copying while taking hash
             blob = node.value if node.value.ndim > 0 else node.value.reshape((1))
             blob_hash = hashlib.sha512(np.ascontiguousarray(blob).view(np.uint8)).hexdigest()
@@ -83,7 +84,8 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
                                          'size': graph.node[node.node]['size'], 'blob': blob}
                 update_offset_size_in_const_node(node)
 
-                assert (blob.dtype.itemsize * np.prod(node.shape) == end - start) or node.has_valid('force_shape'), node.attrs()
+                assert (blob.dtype.itemsize * np.prod(node.shape) == end - start) or node.has_valid(
+                    'force_shape'), node.attrs()
 
             log.debug(
                 "Detected binary for graph: '{}', node: '{}', id: {}, shape: '{}', offset: '{}', size: '{}'".format(
@@ -205,7 +207,6 @@ def serialize_element(
         parent_element: Element,
         edges: Element,
         unsupported):
-
     name, attrs, subelements = schema
     element = SubElement(parent_element, name)
     for attr in attrs:
@@ -252,12 +253,11 @@ def serialize_meta_list(graph, node, schema, element, edges, unsupported):
 
 def serialize_node_attributes(
         graph: Graph,  # the current network graph
-        node,   # dictionary-like object that should be serialized
+        node,  # dictionary-like object that should be serialized
         schema: list,
         parent_element: Element,
         edges: Element,
         unsupported):
-
     # the Result op may be marked so it should not appear in the IR. For example, refer to transformation
     # model-optimizer/extensions/back/TopKNormalizer.py
     if isinstance(node, Node) and node.soft_get('result' == 'Result') and node.has_and_set('remove_from_xml'):

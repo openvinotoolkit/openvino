@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ class SetPortsPattern(FrontReplacementSubgraph):
                 # need to keep this attribute in edge for correct .mapping file generation and
                 # for generation of "names" field in IR
                 in_node.out_edge(edge_attrs['out'])['fw_tensor_debug_info'] = edge_attrs['fw_tensor_debug_info']
-                if idx < in_ports_count-1:
+                if idx < in_ports_count - 1:
                     idx = idx + 1
 
             idx = 0
@@ -71,5 +71,5 @@ class SetPortsPattern(FrontReplacementSubgraph):
                 # need to keep this attribute in edge for correct .mapping file generation and
                 # for generation of "names" field in IR
                 node.out_edge(idx)['fw_tensor_debug_info'] = edge_attrs['fw_tensor_debug_info']
-                if idx < out_ports_count-1:
+                if idx < out_ports_count - 1:
                     idx = idx + 1
