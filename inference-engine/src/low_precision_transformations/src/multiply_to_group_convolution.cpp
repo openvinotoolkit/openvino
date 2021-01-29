@@ -123,6 +123,12 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
         return false;
     }
 
+    const auto dequantization = NetworkHelper::getDequantization(operation, inputIndex);
+
+    if (dequantization.empty()) {
+        return false;
+    }
+
     const Shape outShape = operation->get_output_shape(0);
     if (outShape[1] % groupSize != 0) {
         return false;
@@ -135,14 +141,11 @@ bool MultiplyToGroupConvolutionTransformation::canBeTransformed(const Transforma
     }
 
     if (updatePrecisions) {
-        auto dequantization = NetworkHelper::getDequantization(operation, inputIndex);
         const element::Type parentPrecision = dequantization.data.get_element_type();
         if (std::find(precisionsOnActivations.begin(), precisionsOnActivations.end(), parentPrecision) == precisionsOnActivations.end()) {
             return false;
         }
     }
-
-
 
     return true;
 }
