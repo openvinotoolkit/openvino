@@ -193,7 +193,7 @@ def permute_array(node: Node, array: np.array):
     return int64_array(attr_mask_extended)[int64_array(perm_list)]
 
 
-def permute_masks(node: Node, attr: str):
+def permute_masks(node: Node, permutation: PermuteAttrs.Permutation, attr: str):
     if not node.has_valid(attr):
         return None
 
