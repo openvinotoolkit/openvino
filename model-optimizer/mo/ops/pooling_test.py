@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ class TestPoolingPartialInfer(unittest.TestCase):
                              'pool': {'window': np.array([1, 1, 1, 1]), 'stride': np.array([1, 1, 2, 2]),
                                       'pad': np.array([[0, 0], [0, 0], [3, 3], [3, 3]]),
                                       'pad_spatial_shape': np.array([[3, 3], [3, 3]]),
-                                      'pool_method': 'avg', 'exclude_pad': 'false', 'global_pool': 0,
+                                      'pool_method': 'avg', 'exclude_pad': False, 'global_pool': False,
                                       'output_spatial_shape': None, 'output_shape': None,
                                       'kernel_spatial': np.array([3, 3]), 'spatial_dims': np.array([2, 3]),
                                       'channel_dims': np.array([1]), 'batch_dims': np.array([0]),
@@ -68,7 +68,7 @@ class TestPoolingPartialInfer(unittest.TestCase):
                              'pool': {'window': np.array([1, 1, 1, 1]), 'stride': np.array([1, 1, 3, 3]),
                                       'pad': np.array([[0, 0], [0, 0], [3, 3], [3, 3]]),
                                       'pad_spatial_shape': np.array([[1, 1], [1, 1]]),
-                                      'pool_method': 'avg', 'exclude_pad': 'false', 'global_pool': 0,
+                                      'pool_method': 'avg', 'exclude_pad': False, 'global_pool': False,
                                       'output_spatial_shape': None, 'output_shape': None,
                                       'kernel_spatial': np.array([3, 3]), 'spatial_dims': np.array([2, 3]),
                                       'channel_dims': np.array([1]), 'batch_dims': np.array([0]),
@@ -94,7 +94,7 @@ class TestPoolingPartialInfer(unittest.TestCase):
                              'pool': {'window': np.array([1, 1, 1, 1]), 'stride': np.array([1, 1, 2, 2]),
                                       'pad': np.array([[0, 0], [0, 0], [3, 3], [3, 3]]),
                                       'pad_spatial_shape': np.array([[3, 3], [3, 3]]),
-                                      'pool_method': 'avg', 'exclude_pad': 'false', 'global_pool': 0,
+                                      'pool_method': 'avg', 'exclude_pad': False, 'global_pool': False,
                                       'output_spatial_shape': None, 'output_shape': None,
                                       'kernel_spatial': np.array([3, 3]), 'spatial_dims': np.array([2, 3]),
                                       'channel_dims': np.array([1]), 'batch_dims': np.array([0])}
@@ -119,7 +119,7 @@ class TestPoolingPartialInfer(unittest.TestCase):
                              'pool': {'window': np.array([1, 1, 1, 1]), 'stride': np.array([1, 1, 2, 2]),
                                       'pad': np.array([[0, 0], [0, 0], [3, 3], [3, 3]]),
                                       'pad_spatial_shape': np.array([[3, 3], [3, 3]]),
-                                      'pool_method': 'avg', 'exclude_pad': 'false',
+                                      'pool_method': 'avg', 'exclude_pad': False,
                                       'output_spatial_shape': None, 'output_shape': None,
                                       'kernel_spatial': np.array([3, 3]), 'spatial_dims': np.array([2, 3]),
                                       'channel_dims': np.array([1]), 'batch_dims': np.array([0]),
@@ -142,7 +142,7 @@ class TestPoolingPartialInfer(unittest.TestCase):
                              'pool': {'window': np.array([1, 1, 5, 5]), 'stride': np.array([1, 1, 2, 2]),
                                       'pad': np.array([[0, 0], [0, 0], [1, 1], [1, 1]]),
                                       'pad_spatial_shape': np.array([[1, 1], [1, 1]]),
-                                      'pool_method': 'avg', 'exclude_pad': 'false', 'global_pool': 0,
+                                      'pool_method': 'avg', 'exclude_pad': False, 'global_pool': False,
                                       'output_spatial_shape': None, 'output_shape': None,
                                       'kernel_spatial': np.array([3, 3]), 'spatial_dims': np.array([2, 3]),
                                       'channel_dims': np.array([1]), 'batch_dims': np.array([0]),

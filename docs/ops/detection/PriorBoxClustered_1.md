@@ -110,7 +110,7 @@ If *clip* is defined, the coordinates of prior boxes are recalculated with the f
 
 ```xml
 <layer type="PriorBoxClustered" ... >
-    <data clip="0" flip="1" height="44.0,10.0,30.0,19.0,94.0,32.0,61.0,53.0,17.0" offset="0.5" step="16.0" variance="0.1,0.1,0.2,0.2" width="86.0,13.0,57.0,39.0,68.0,34.0,142.0,50.0,23.0"/>
+    <data clip="false" height="44.0,10.0,30.0,19.0,94.0,32.0,61.0,53.0,17.0" offset="0.5" step="16.0" variance="0.1,0.1,0.2,0.2" width="86.0,13.0,57.0,39.0,68.0,34.0,142.0,50.0,23.0"/>
     <input>
         <port id="0">
             <dim>2</dim>        <!-- [10, 19] -->

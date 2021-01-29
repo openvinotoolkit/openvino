@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 """
 import numpy as np
 
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -48,7 +49,8 @@ class CumSum(Op):
         }, attrs)
 
     def supported_attrs(self):
-        return ["exclusive", "reverse"]
+        return [('exclusive', lambda node: bool_to_str(node, 'exclusive')),
+                ('reverse', lambda node: bool_to_str(node, 'reverse'))]
 
     @staticmethod
     def infer(node: Node):

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,9 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.layout import get_features_dim
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -44,7 +45,9 @@ class MVN(Op):
         return ['eps', 'across_channels', 'normalize_variance', 'axes']
 
     def backend_attrs(self):
-        return ['eps', 'across_channels', 'normalize_variance']
+        return ['eps',
+                ('across_channels', lambda node: bool_to_str(node, 'across_channels')),
+                ('normalize_variance', lambda node: bool_to_str(node, 'normalize_variance'))]
 
     @staticmethod
     def infer(node: None):
