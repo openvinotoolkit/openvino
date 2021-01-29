@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import numpy as np
 
 from mo.front.common.layout import get_width_dim, get_height_dim
-from mo.front.extractor import attr_getter
+from mo.front.extractor import attr_getter, bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -34,6 +34,7 @@ class PriorBoxClusteredOp(Op):
             'out_ports_count': 1,
             'infer': self.priorbox_clustered_infer,
             'type_infer': self.type_infer,
+            'clip': True,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -55,9 +56,7 @@ class PriorBoxClusteredOp(Op):
 
     def backend_attrs(self):
         return [
-            'flip',
-            'clip',
-            'img_size',
+            ('clip', lambda node: bool_to_str(node, 'clip')),
             'img_h',
             'img_w',
             'step',

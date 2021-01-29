@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ class PoolingFrontExtractor(FrontExtractorOp):
             'pad': np.array([[0, 0], [0, 0], *[[pad, pad] for pad in padding]], dtype=np.int64),
             'pad_spatial_shape': np.array([[pad, pad] for pad in padding], dtype=np.int64),
             'pool_method': method,
-            'exclude_pad': 'false',
+            'exclude_pad': False,
             'output_spatial_shape': None,
             'spatial_dims': None,
             'channel_dims': np.array([1], dtype=np.int64),

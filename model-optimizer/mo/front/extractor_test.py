@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ from generator import generator, generate
 from mo.front.extractor import input_user_data_repack, output_user_data_repack, update_ie_fields, add_input_op, \
     get_node_id_with_ports
 from mo.front.extractor import spatial_attr_getter, add_input_ops, attr_getter, CaffePythonFrontExtractorOp, \
-    add_output_ops
+    add_output_ops, bool_to_str
 from mo.graph.graph import Node
 from mo.utils.error import Error
 from mo.utils.ir_engine.compare_graphs import compare_graphs
@@ -672,3 +672,18 @@ class TestCaffePythonFrontExtractorOp(unittest.TestCase):
         param_str = "'test_attr_1': 12, 'test_attr_2': 'sdf sdf'"
         attrs = CaffePythonFrontExtractorOp.get_attrs(FakePythonParam(FakeMultiParam({'param_str': param_str})))
         self.assertEqual(exp_attrs, attrs)
+
+class TestBoolToSrtFunction(unittest.TestCase):
+    def test_bool_to_str(self):
+        graph = build_graph(nodes_attributes,
+                            [('input', 'pool_1'),
+                             ('pool_1', 'output'),
+                             ('output', 'op_output')
+                             ],
+                            {'pool_1': {'bool_attr': None}
+                             })
+        pool_1_node = Node(graph, 'pool_1')
+        attrs = [(True, 'true'), (False, 'false'), (1, 'true'), (0, 'false')]
+        for attr in attrs:
+            pool_1_node.bool_attr = attr[0]
+            self.assertEqual(attr[1], bool_to_str(pool_1_node, 'bool_attr'))

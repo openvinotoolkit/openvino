@@ -19,9 +19,9 @@ Sequences in the batch can have different length. The lengths of sequences are c
 
 **Attributes**
 
-* *merge_repeated*
+* *ctc_merge_repeated*
 
-  * **Description**: *merge_repeated* is a flag for merging repeated labels during the CTC calculation.
+  * **Description**: *ctc_merge_repeated* is a flag for merging repeated labels during the CTC calculation.
   * **Range of values**: true or false 
   * **Type**: `boolean`
   * **Default value**: true 
@@ -41,6 +41,7 @@ Sequences in the batch can have different length. The lengths of sequences are c
 
 ```xml
 <layer ... type="CTCGreedyDecoder" ...>
+    <data ctc_merge_repeated="true" />
     <input>
         <port id="0">
             <dim>20</dim>
