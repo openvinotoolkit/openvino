@@ -103,7 +103,7 @@ CNNNetworkIterator {
         const auto* networkImpl = dynamic_cast<const CNNNetworkImpl*>(network);
         if (networkImpl) {
             for (const auto & node : networkImpl->allLayers()) {
-                if (get_consumers(node.second).empty() && node.second->type != "Const")
+                if (get_consumers(node.second).empty())
                     outputLayers.emplace_back(node.second);
             }
         } else {
