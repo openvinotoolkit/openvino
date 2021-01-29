@@ -116,8 +116,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_node_names_check)
         [](std::shared_ptr<Node> op) { return std::string(op->get_type_name()) == "Add"; });
 
     EXPECT_EQ(additions.size(), 2);
-    EXPECT_EQ(additions.at(0)->get_friendly_name(), "X");
-    EXPECT_EQ(additions.at(1)->get_friendly_name(), "Y");
+    EXPECT_EQ(additions.at(0)->get_friendly_name(), "add_node1");
+    EXPECT_EQ(additions.at(1)->get_friendly_name(), "add_node2");
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_abc)
