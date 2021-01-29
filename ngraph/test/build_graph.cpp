@@ -419,7 +419,7 @@ TEST(build_graph, build_graph_with_remove_parameter)
     params = f->get_parameters();
     EXPECT_EQ(params.size(), 1);
     nodes = f->get_ops();
-    EXPECT_EQ(nodes.size(), 9);
+    EXPECT_EQ(nodes.size(), 8);
 }
 
 TEST(build_graph, build_graph_with_remove_parameter_indexing)
@@ -447,7 +447,7 @@ TEST(build_graph, build_graph_with_remove_parameter_indexing)
     params = f->get_parameters();
     EXPECT_EQ(params.size(), 1);
     nodes = f->get_ops();
-    EXPECT_EQ(nodes.size(), 9);
+    EXPECT_EQ(nodes.size(), 8);
 
     f->validate_nodes_and_infer_types();
 }
