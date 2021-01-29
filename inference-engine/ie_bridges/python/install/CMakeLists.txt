@@ -40,7 +40,7 @@ add_custom_target(ie_wheel ALL DEPENDS ie_libraries ie_plugins ie_api _pyngraph)
 
 add_custom_command(TARGET ie_wheel
     POST_BUILD
-    COMMAND python ${SETUP_PY} clean bdist_wheel
+    COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} clean bdist_wheel
         --build=${WHEEL_BUILD}
         --dist-dir ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${CMAKE_BUILD_TYPE}/wheels
         --plat-name=${WHEEL_PLATFORM}
