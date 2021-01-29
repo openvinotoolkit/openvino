@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,6 @@ TEST_P(DeconvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-//    CheckPluginRelatedResults(executableNetwork, "Deconvolution");
 }
 
 namespace {
