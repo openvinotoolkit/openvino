@@ -15,6 +15,7 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
 namespace {
@@ -118,7 +119,7 @@ using SubGraphOpInputDescription =
 using SubGraphOpOutputDescription =
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>;
 
-using SpecialBodyPorts = ngraph::op::v5::Loop::SpecialBodyPorts;
+using SpecialBodyPorts = ngraph::opset6::Loop::SpecialBodyPorts;
 
 namespace storage {
 
