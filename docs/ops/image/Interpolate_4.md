@@ -80,7 +80,7 @@
 
 * *cube_coeff*
 
-* **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g.  [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is used only when `mode == cubic`.
+  * **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g.  [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is used only when `mode == cubic`.
   * **Range of values**: floating point number
   * **Type**: any of supported floating point type
   * **Default value**: `-0.75`

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 import numpy as np
 
 from mo.front.common.partial_infer.multi_box_detection import multi_box_detection_infer
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Graph, Node
 from mo.ops.op import Op
 
@@ -34,48 +35,32 @@ class DetectionOutput(Op):
             'infer': multi_box_detection_infer,
             'input_width': 1,
             'input_height': 1,
-            'normalized': 1,
-            'share_location': 1,
-            'variance_encoded_in_target': 0,
+            'normalized': True,
+            'share_location': True,
+            'clip_after_nms': False,
+            'clip_before_nms': False,
+            'decrease_label_id': False,
+            'variance_encoded_in_target': False,
             'type_infer': self.type_infer,
         }, attrs)
 
     def supported_attrs(self):
         return [
             'background_label_id',
-            'clip_after_nms',
-            'clip_before_nms',
+            ('clip_after_nms', lambda node: bool_to_str(node, 'clip_after_nms')),
+            ('clip_before_nms', lambda node: bool_to_str(node, 'clip_before_nms')),
             'code_type',
             'confidence_threshold',
-            'decrease_label_id',
-            'eta',
-            'height',
-            'height_scale',
+            ('decrease_label_id', lambda node: bool_to_str(node, 'decrease_label_id')),
             'input_height',
             'input_width',
-            'interp_mode',
             'keep_top_k',
-            'label_map_file',
-            'name_size_file',
             'nms_threshold',
-            'normalized',
+            ('normalized', lambda node: bool_to_str(node, 'normalized')),
             'num_classes',
-            'num_test_image',
-            'output_directory',
-            'output_format',
-            'output_name_prefix',
-            'pad_mode',
-            'pad_value',
-            'prob',
-            'resize_mode',
-            'save_file',
-            'share_location',
+            ('share_location', lambda node: bool_to_str(node, 'share_location')),
             'top_k',
-            'variance_encoded_in_target',
-            'visualize',
-            'visualize_threshold',
-            'width',
-            'width_scale',
+            ('variance_encoded_in_target', lambda node: bool_to_str(node, 'variance_encoded_in_target')),
             'objectness_score',
         ]
 
