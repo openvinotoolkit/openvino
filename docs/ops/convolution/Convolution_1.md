@@ -88,6 +88,10 @@ The receptive field in each layer is calculated using the formulas:
       * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X
       * 3D convolution (input tensors rank 5) means that there are three spatial axes Z, Y, X
 
+**Outputs**:
+
+*   **1**: Output tensor of type *T* and rank 3, 4 or 5. Layout is NOZYX (number of batches, number of kernel output channels, spatial axes Z, Y, X).
+
 **Types**:
 
 * *T*: any floating point type.
