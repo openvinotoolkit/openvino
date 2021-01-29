@@ -256,8 +256,16 @@ namespace ngraph
                              const Strides&)
 
             {
-                convolution(
-                    in, f, out, in_shape, f_shape, out_shape, strides, dilation, pads_begin);
+                convolution<INPUT, FILTER, OUTPUT, ACCU>(in,
+                                                         f,
+                                                         out,
+                                                         in_shape,
+                                                         f_shape,
+                                                         out_shape,
+                                                         strides,
+                                                         dilation,
+                                                         pads_begin,
+                                                         pads_end);
             }
 
         } // namespace reference
