@@ -69,7 +69,7 @@ TEST(TransformationTests, ConvertCTCGreedyDecoderV6ToV1Test) {
         auto const_1f = ngraph::opset6::Constant::create(ngraph::element::f64, ngraph::Shape{}, {1.0});
         auto seq_mask = std::make_shared<ngraph::opset6::Select>(bool_seq_mask, const_1f, const_0f);
 
-        auto decoder_v1 = std::make_shared<ngraph::op::v0::CTCGreedyDecoder>(data1, seq_mask, true);
+        auto decoder_v1 = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(data1, seq_mask, true);
 
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ decoder_v1 }, ngraph::ParameterVector{ data1, seq_len1 });
