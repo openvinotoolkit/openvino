@@ -19,6 +19,7 @@
 
 #include "ngraph/log.hpp"
 #include "onnx_import/editor/editor.hpp"
+#include "utils/common.hpp"
 #include "utils/parser.hpp"
 
 using namespace ngraph;
@@ -41,29 +42,6 @@ namespace
         {element::Type_t::u32, TensorProto_DataType::TensorProto_DataType_UINT32},
         {element::Type_t::u64, TensorProto_DataType::TensorProto_DataType_UINT64},
     };
-
-    inline size_t get_onnx_data_size(int32_t data_type)
-    {
-        switch (data_type)
-        {
-        case TensorProto_DataType_FLOAT: return sizeof(float);
-        case TensorProto_DataType_UINT8: return sizeof(uint8_t);
-        case TensorProto_DataType_INT8: return sizeof(int8_t);
-        case TensorProto_DataType_UINT16: return sizeof(uint16_t);
-        case TensorProto_DataType_INT16: return sizeof(int16_t);
-        case TensorProto_DataType_INT32: return sizeof(int32_t);
-        case TensorProto_DataType_INT64: return sizeof(int64_t);
-        case TensorProto_DataType_BOOL: return sizeof(char);
-        case TensorProto_DataType_FLOAT16: return 2;
-        case TensorProto_DataType_DOUBLE: return sizeof(double);
-        case TensorProto_DataType_UINT32: return sizeof(uint32_t);
-        case TensorProto_DataType_UINT64: return sizeof(uint64_t);
-        case TensorProto_DataType_COMPLEX64: return 2 * sizeof(float);
-        case TensorProto_DataType_COMPLEX128: return 2 * sizeof(double);
-
-        default: throw ngraph_error("Unhandled data type: " + data_type);
-        }
-    }
 
     ValueInfoProto* find_graph_input(GraphProto& graph, const std::string& name)
     {
@@ -204,7 +182,8 @@ namespace
         }
 
         const auto data_size_in_bytes =
-            shape_size(values->get_shape()) * get_onnx_data_size(initializer.data_type());
+            shape_size(values->get_shape()) *
+            onnx_import::common::get_onnx_data_size(initializer.data_type());
 
         initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
         /* It's a workaround for problem with multitle instances of fixed_address_empty_string in
@@ -347,6 +326,6 @@ void onnx_import::ONNXModelEditor::set_input_values(
             initializer_desc = onnx_graph->add_initializer();
         }
 
-        modify_initializer(*initializer_desc, name, values, input_desc);
+        modify_initializer(*initializer_desc, name, values, nullptr);
     }
 }
