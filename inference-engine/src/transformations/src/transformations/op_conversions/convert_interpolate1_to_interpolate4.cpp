@@ -72,6 +72,6 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate1, ConvertInterpolate1ToInterpolate4);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(interpolate1, "ConvertInterpolate1ToInterpolate4");
     this->register_matcher(m, callback);
 }
