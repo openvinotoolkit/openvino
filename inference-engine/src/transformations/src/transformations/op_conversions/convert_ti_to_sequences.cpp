@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,7 +180,9 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
                     input.replace_source_output(outputs[i]->output(0));
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 outputs[i]->get_output_tensor(0).set_name(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         }
 
@@ -334,7 +336,9 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
                     input.replace_source_output(outputs[i]->output(0));
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 outputs[i]->get_output_tensor(0).set_name(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         }
 
@@ -489,7 +493,9 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
                     input.replace_source_output(outputs[i]->output(0));
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 outputs[i]->get_output_tensor(0).set_name(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         }
 

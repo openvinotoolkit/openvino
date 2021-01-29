@@ -601,7 +601,7 @@ void V10Parser::parsePreProcess(CNNNetwork& network, const pugi::xml_node& root,
 }
 
 V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(const pugi::xml_node& node) {
-    const auto parsePort = [](const pugi::xml_node& parentNode,
+    const auto parsePort = [this](const pugi::xml_node& parentNode,
                               const GenericLayerParams& params,
                               bool input) -> GenericLayerParams::LayerPortData {
         GenericLayerParams::LayerPortData port;
@@ -626,6 +626,12 @@ V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(con
             type = InferenceEngine::details::convertPrecision(preStr);
         }
         port.precision = type;
+        std::vector<std::string> names;
+        if (getParameters<std::string>(parentNode, "names", names)) {
+            for (const auto& name : names) {
+                port.names.emplace(name);
+            }
+        }
         return port;
     };
     GenericLayerParams params;
@@ -823,6 +829,10 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     }
 
     ngraphNode->set_friendly_name(params.name);
+    for (size_t i = 0; i < params.outputPorts.size() && i < ngraphNode->get_output_size(); ++i) {
+        if (!params.outputPorts[i].names.empty())
+            ngraphNode->get_output_tensor(i).set_names(params.outputPorts[i].names);
+    }
 
     return ngraphNode;
 }

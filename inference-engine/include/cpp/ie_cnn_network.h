@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -188,6 +188,32 @@ public:
      * of executable graph info serialization.
      */
     void serialize(const std::string& xmlPath, const std::string& binPath = {}) const;
+
+    /**
+     * @brief Method maps framework tensor name to OpenVINO name
+     *
+     * @param orig_name Framework tensor name
+     *
+     * @return OpenVINO name
+     */
+    std::string getOVNameForTensor(const std::string& orig_name) const {
+        std::string ov_name;
+        CALL_STATUS_FNC(getOVNameForTensor, ov_name, orig_name);
+        return ov_name;
+    }
+
+    /**
+     * @brief Method maps framework operator name to OpenVINO name
+     *
+     * @param orig_name Framework operation name
+     *
+     * @return OpenVINO name
+     */
+    std::string getOVNameForOperation(const std::string& orig_name) const {
+        std::string ov_name;
+        CALL_STATUS_FNC(getOVNameForOperation, ov_name, orig_name);
+        return ov_name;
+    }
 
 protected:
     IE_SUPPRESS_DEPRECATED_START

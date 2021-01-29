@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/shape.hpp"
@@ -44,8 +45,13 @@ namespace ngraph
                    Node* node,
                    size_t node_output_number);
 
+            NGRAPH_DEPRECATED("get_name() is deprecated! Please use get_names() instead.")
             const std::string& get_name() const;
+            NGRAPH_DEPRECATED("set_name() is deprecated! Please use set_names() instead.")
             void set_name(const std::string& name);
+
+            const std::unordered_set<std::string>& get_names() const;
+            void set_names(const std::unordered_set<std::string>& names);
             void set_tensor_type(const element::Type& element_type, const PartialShape& pshape);
             void set_element_type(const element::Type& elemenet_type);
             void set_partial_shape(const PartialShape& partial_shape);
@@ -68,6 +74,7 @@ namespace ngraph
             size_t m_node_output_number{0};
 
             std::string m_name;
+            std::unordered_set<std::string> m_names;
         };
 
         NGRAPH_API
