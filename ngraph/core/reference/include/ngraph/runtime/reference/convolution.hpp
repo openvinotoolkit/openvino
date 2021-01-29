@@ -71,13 +71,13 @@ namespace ngraph
                     return val >= range.first && val < range.second;
                 }
 
-                template <typename INPUT, typename FILTER, typename OUTPUT, typename ACCU>
+                template <typename T>
                 void convolve_3D_channels(const ConvolutionParams& p,
-                                          const INPUT* batch,
+                                          const T* batch,
                                           const Shape& batch_shape,
-                                          const FILTER* filter,
+                                          const T* filter,
                                           const Shape& filter_shape,
-                                          OUTPUT*& out)
+                                          T*& out)
                 {
                     const int input_size_z = batch_shape[1];
                     const int input_size_y = batch_shape[2];
@@ -111,7 +111,7 @@ namespace ngraph
                             {
                                 auto input_channel = batch;
                                 auto filter_channel = filter;
-                                ACCU sum = 0;
+                                T sum = 0;
                                 size_t filter_channels_count = filter_shape[0];
                                 while (filter_channels_count--)
                                 {
@@ -138,8 +138,8 @@ namespace ngraph
                                                 int i_buf_idx =
                                                     (rel_i_z * input_size_y * input_size_x) +
                                                     (rel_i_y * input_size_x) + rel_i_x;
-                                                sum += static_cast<ACCU>(input_channel[i_buf_idx]) *
-                                                       static_cast<ACCU>(filter_channel[f_buf_idx]);
+                                                sum += static_cast<T>(input_channel[i_buf_idx]) *
+                                                       static_cast<T>(filter_channel[f_buf_idx]);
                                             }
                                         }
                                     }
@@ -173,13 +173,10 @@ namespace ngraph
                 }
             }
 
-            template <typename INPUT,
-                      typename FILTER,
-                      typename OUTPUT,
-                      typename ACCU = typename widen<OUTPUT>::type>
-            void convolution(const INPUT* in,
-                             const FILTER* f,
-                             OUTPUT* out,
+            template <typename T>
+            void convolution(const T* in,
+                             const T* f,
+                             T* out,
                              const Shape& in_shape,
                              const Shape& f_shape,
                              const Shape& out_shape,
@@ -228,8 +225,7 @@ namespace ngraph
                     auto filter = f;
                     for (size_t f_idx = 0; f_idx < filters_count; ++f_idx)
                     {
-                        convolve_3D_channels<INPUT, FILTER, OUTPUT, ACCU>(
-                            params, batch, batch_shape, filter, filter_shape, out);
+                        convolve_3D_channels(params, batch, batch_shape, filter, filter_shape, out);
                         filter += filter_size;
                     }
                     batch += batch_size;
@@ -256,16 +252,21 @@ namespace ngraph
                              const Strides&)
 
             {
-                convolution<INPUT, FILTER, OUTPUT, ACCU>(in,
-                                                         f,
-                                                         out,
-                                                         in_shape,
-                                                         f_shape,
-                                                         out_shape,
-                                                         strides,
-                                                         dilation,
-                                                         pads_begin,
-                                                         pads_end);
+                static_assert(std::is_same<INPUT, FILTER>::value,
+                              "input and filter types must be the same");
+                static_assert(std::is_same<INPUT, OUTPUT>::value,
+                              "input and output types must be the same");
+
+                convolution(in,
+                            f,
+                            out,
+                            in_shape,
+                            f_shape,
+                            out_shape,
+                            strides,
+                            dilation,
+                            pads_begin,
+                            pads_end);
             }
 
         } // namespace reference
