@@ -13,11 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import logging as log
-import numpy as np
 
 from extensions.ops.BN import BN
-from mo.front.caffe.extractors.utils import embed_input
 from mo.front.extractor import FrontExtractorOp
 
 
