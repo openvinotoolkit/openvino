@@ -159,10 +159,10 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
+                ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
                 TARGET_PATH "${TEMP}/tbb_yocto"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "57ad3ceeab119c8a4d5e9fc38e80952fc19d4bf23ae065e9540cde89b25561d5")
+                SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b")
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_MAC "tbb2020_20200404_mac.tgz"

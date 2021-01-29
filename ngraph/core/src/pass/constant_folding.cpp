@@ -29,7 +29,10 @@ bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Func
 
     for (const auto& node : f->get_ordered_ops())
     {
-        node->revalidate_and_infer_types();
+        if (rewritten)
+        {
+            node->revalidate_and_infer_types();
+        }
 
         OutputVector replacements(node->get_output_size());
         if (node->constant_fold(replacements, node->input_values()))
