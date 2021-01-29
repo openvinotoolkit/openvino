@@ -54,7 +54,11 @@ class SetPortsPattern(FrontReplacementSubgraph):
                 graph.remove_edge(in_node_id, node_id)
                 if len(Node(graph, in_node_id).out_ports()) == 0:
                     Node(graph, in_node_id).add_output_port(0)
-                Node(graph, in_node_id).out_port(edge_attrs['out']).connect(node.in_port(idx))
+                in_node = Node(graph, in_node_id)
+                in_node.out_port(edge_attrs['out']).connect(node.in_port(idx))
+                # need to keep this attribute in edge for correct .mapping file generation and
+                # for generation of "names" field in IR
+                in_node.out_edge(edge_attrs['out'])['fw_tensor_debug_info'] = edge_attrs['fw_tensor_debug_info']
                 if idx < in_ports_count-1:
                     idx = idx + 1
 
@@ -64,5 +68,8 @@ class SetPortsPattern(FrontReplacementSubgraph):
                 if len(Node(graph, out_node_id).in_ports()) == 0:
                     Node(graph, out_node_id).add_input_port(0)
                 node.out_port(idx).connect(Node(graph, out_node_id).in_port(edge_attrs['in']))
+                # need to keep this attribute in edge for correct .mapping file generation and
+                # for generation of "names" field in IR
+                node.out_edge(idx)['fw_tensor_debug_info'] = edge_attrs['fw_tensor_debug_info']
                 if idx < out_ports_count-1:
                     idx = idx + 1

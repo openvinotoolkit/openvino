@@ -301,7 +301,8 @@ def caffe_pb_to_nx(graph, proto, model):
                 'out': src_port,
                 'in': dst_port,
                 'name': bottom,
-                'fw_tensor_debug_info': [(src_layer, bottom)],  # debug anchor for a framework tensor name and port
+                # debug anchor for a framework name, out port and tensor name
+                'fw_tensor_debug_info': [(src_layer, src_port, bottom)],
                 'in_attrs': ['in', 'name'],
                 'out_attrs': ['out', 'name'],
                 'data_attrs': ['fw_tensor_debug_info']

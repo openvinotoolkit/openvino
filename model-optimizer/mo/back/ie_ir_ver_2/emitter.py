@@ -171,6 +171,9 @@ def xml_ports(node: Node, element: Element, edges: Element):
             port.set('precision', node.soft_get('force_type', np_data_type_to_precision(data_type)))
             assert node.graph.node[v]['shape'] is not None, 'Output shape is not calculated properly for node {}' \
                                                             ''.format(node.id)
+            tensor_names = node.get_tensor_names(d['out'])
+            if tensor_names is not None:
+                port.set('names', tensor_names)
             xml_shape(node.graph.node[v]['shape'], port)
 
 

@@ -324,7 +324,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         Node(graph, node_name).add_input_port(in_port)
         Node(graph, in_node_id).add_output_port(out_port)
 
-        graph.add_edge(in_node_id, node_name, **create_edge_attrs(in_node_id, node_name, in_port, out_port))
+        graph.add_edge(in_node_id, node_name, **create_edge_attrs(in_node_id, node_name, in_node_id, in_port, out_port))
     elif tokens[0] == b'output-node':
         layer_name = s[s.find(b'name=') + len(b'name='):].split(b' ')[0]
         layer_name = str(layer_name).strip('b').replace('\'', "")
@@ -341,7 +341,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         Node(graph, node_name).add_input_port(0)
         Node(graph, node_name).add_output_port(0)
         Node(graph, out_name).add_input_port(0)
-        graph.add_edge(node_name, out_name, **create_edge_attrs(node_name, out_name))
+        graph.add_edge(node_name, out_name, **create_edge_attrs(node_name, out_name, node_name))
 
         # parse input
         in_node_id = parse_input_for_node(s[s.find(b'input=') + len(b'input='):], graph, layer_node_map)
@@ -486,7 +486,7 @@ def parse_specifier(string, graph, layer_node_map):
             out_port = len(Node(graph, node).out_nodes())
             Node(graph, node).add_output_port(out_port, skip_if_exist=True)
             Node(graph, sum_name).add_input_port(i)
-            graph.add_edge(node, sum_name, **create_edge_attrs(node, sum_name, i))
+            graph.add_edge(node, sum_name, **create_edge_attrs(node, sum_name, node, i))
 
         return sum_name
     elif spec == b'IfDefined':

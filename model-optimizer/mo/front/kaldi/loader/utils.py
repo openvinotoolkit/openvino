@@ -331,11 +331,12 @@ def collect_until_token_and_read(file_desc: io.BufferedReader, token, value_type
     return getters[value_type](file_desc)
 
 
-def create_edge_attrs(prev_layer_id: str, next_layer_id: str, in_port=0, out_port=0) -> dict:
+def create_edge_attrs(prev_layer_id: str, next_layer_id: str, tensor_name: str, in_port=0, out_port=0) -> dict:
     """
     Create common edge's attributes
     :param prev_layer_id: id of previous layer
     :param next_layer_id: id of next layer
+    :param tensor_name: framework tensor name
     :param in_port: 'in' port
     :param out_port: 'out' port
     :return: dictionary contains common attributes for edge
@@ -344,7 +345,7 @@ def create_edge_attrs(prev_layer_id: str, next_layer_id: str, in_port=0, out_por
         'out': out_port,
         'in': in_port,
         'name': next_layer_id,
-        'fw_tensor_debug_info': [(prev_layer_id, next_layer_id)],
+        'fw_tensor_debug_info': [(prev_layer_id, out_port, tensor_name)],
         'in_attrs': ['in', 'permutation'],
         'out_attrs': ['out', 'permutation'],
         'data_attrs': ['fw_tensor_debug_info']

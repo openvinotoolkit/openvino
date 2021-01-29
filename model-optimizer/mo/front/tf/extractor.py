@@ -34,6 +34,7 @@ def get_tf_edges(node: Node):
     edge_list = []
     for in_port, src_node_id in enumerate(node.pb.input):
         src_node, src_port = get_tf_node_port(src_node_id)
+        tensor_name = str(src_port) + ":" + src_node
         cf_flag = False
         if src_node[0] == '^':
             src_node = src_node[1:]
@@ -41,7 +42,7 @@ def get_tf_edges(node: Node):
         edge = (src_node, node.id, {
             'in': in_port,
             'out': src_port,
-            'fw_tensor_debug_info': [(src_node_id, src_port)],  # debug anchor for a framework tensor name and port
+            'fw_tensor_debug_info': [(src_node_id, src_port, tensor_name)],  # debug anchor for a framework tensor name and port
             'in_attrs': ['in', 'control_flow_edge', 'permutation'],
             'out_attrs': ['out', 'permutation'],
             'data_attrs': ['fw_tensor_debug_info'],
