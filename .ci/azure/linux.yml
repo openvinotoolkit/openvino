@@ -16,7 +16,7 @@ jobs:
   timeoutInMinutes: 90
 
   pool:
-    name: LIN_VMSS_VENV_F8S_WE
+    name: LIN_VMSS_VENV_F8S_WU2
 
   variables:
     system.debug: true
