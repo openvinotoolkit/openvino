@@ -11,7 +11,7 @@ import os
 from proc_utils import cmd_exec  # pylint: disable=import-error
 
 
-def test_cc_collect(model, sea_runtool, benchmark_app, models_root, artifacts):
+def test_cc_collect(model, sea_runtool, benchmark_app, artifacts):
     """ Test conditional compilation statistics collection
     """
     out = artifacts / model.parent / model.stem
@@ -29,7 +29,7 @@ def test_cc_collect(model, sea_runtool, benchmark_app, models_root, artifacts):
             "!",
             str(benchmark_app),
             "-d=CPU",
-            f"-m={models_root / model}",
+            f"-m={model}",
             "-niter=1",
             "-nireq=1",
         ]
