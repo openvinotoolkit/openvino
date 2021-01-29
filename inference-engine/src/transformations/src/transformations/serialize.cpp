@@ -662,6 +662,15 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
                     .set_value(get_output_precision_name(o).c_str());
+                std::string names;
+                for (const auto& name : o.get_tensor().get_names()) {
+                    if (!names.empty())
+                        names += ", ";
+                    names += name;
+                }
+                if (!names.empty()) {
+                    port.append_attribute("names").set_value(names.c_str());
+                }
                 for (auto d : o.get_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)
