@@ -63,7 +63,7 @@ protected:
         IE_SUPPRESS_DEPRECATED_START
         auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
         ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer(
-                InferenceEngine::details::CNNNetSortTopologically(*convertedNetwork),
+                InferenceEngine::details::CNNNetSortTopologically(InferenceEngine::CNNNetwork(convertedNetwork)),
                 refLayersVec, false));
         IE_SUPPRESS_DEPRECATED_END
     }
@@ -100,12 +100,16 @@ TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
     InferenceEngine::CNNNetwork network2;
     read(_modelPath, _weightsPath, ie, network2);
 
+    IE_SUPPRESS_DEPRECATED_START
+
     auto& icnn = static_cast<InferenceEngine::ICNNNetwork &>(network);
     auto& icnn2 = static_cast<InferenceEngine::ICNNNetwork &>(network2);
 
     ASSERT_NE(&icnn,
               &icnn2);
     ASSERT_NO_THROW(FuncTestUtils::compareCNNNetworks(network, network2));
+
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
