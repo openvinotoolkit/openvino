@@ -68,6 +68,11 @@ struct CPUStreamsExecutor::Impl {
             }
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             const auto concurrency = (0 == _impl->_config._threadsPerStream) ? tbb::task_arena::automatic : _impl->_config._threadsPerStream;
+            _numaNodeId = _impl->_config._streams
+                ? _impl->_usedNumaNodes.at(
+                    (_streamId % _impl->_config._streams) /
+                    ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1) / _impl->_usedNumaNodes.size()))
+                : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
             #if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
             if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
                if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
@@ -100,11 +105,6 @@ struct CPUStreamsExecutor::Impl {
                 }
             } else {
             #endif
-                _numaNodeId = _impl->_config._streams
-                    ? _impl->_usedNumaNodes.at(
-                        (_streamId % _impl->_config._streams)/
-                        ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1)/_impl->_usedNumaNodes.size()))
-                    : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
                 if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                     // TODO: REMOVE THE DEBUG PRINTF
                     printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
