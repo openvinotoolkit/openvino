@@ -628,7 +628,13 @@ V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(con
         port.precision = type;
         std::vector<std::string> names;
         if (getParameters<std::string>(parentNode, "names", names)) {
-            for (const auto& name : names) {
+            for (size_t i = 0; i < names.size(); i++) {
+                std::string name = names[i];
+                // Restore original name if it contains delimiter
+                while (names[i].at(names[i].length() - 1) == '\\' && i < names.size()) {
+                    name.replace(names[i].length() - 1, 1, ",");
+                    name += names[++i];
+                }
                 port.names.emplace(name);
             }
         }
