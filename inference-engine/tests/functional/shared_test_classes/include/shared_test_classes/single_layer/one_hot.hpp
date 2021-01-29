@@ -18,10 +18,10 @@ typedef std::tuple<
         ngraph::element::Type,          // On & Off values type (any supported type)
         float,                          // OnValue
         float,                          // OffValue
-        int64_t,                       // axis
-        InferenceEngine::Precision,    // Net precision
-        InferenceEngine::SizeVector,   // Input shapes
-        LayerTestsUtils::TargetDevice  // Target device name
+        int64_t,                        // axis
+        InferenceEngine::Precision,     // Net precision
+        InferenceEngine::SizeVector,    // Input shapes
+        LayerTestsUtils::TargetDevice   // Target device name
 > oneHotLayerTestParamsSet;
 
 class OneHotLayerTest : public testing::WithParamInterface<oneHotLayerTestParamsSet>,
