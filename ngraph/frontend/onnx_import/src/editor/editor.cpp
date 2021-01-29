@@ -326,6 +326,6 @@ void onnx_import::ONNXModelEditor::set_input_values(
             initializer_desc = onnx_graph->add_initializer();
         }
 
-        modify_initializer(*initializer_desc, name, values, nullptr);
+        modify_initializer(*initializer_desc, name, values, input_desc);
     }
 }
