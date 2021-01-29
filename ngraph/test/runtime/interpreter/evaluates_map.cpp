@@ -1351,7 +1351,7 @@ namespace
         {
         case element::Type_t::u8:
             runtime::reference::
-            one_hot<typename element_type_traits<element::Type_t::u8>::value_type, T>(
+                one_hot<typename element_type_traits<element::Type_t::u8>::value_type, T>(
                     inputs[0]->get_data_ptr<element::Type_t::u8>(),
                     outputs[0]->get_data_ptr<T>(),
                     inputs[0]->get_shape(),
@@ -1362,7 +1362,7 @@ namespace
             break;
         case element::Type_t::u16:
             runtime::reference::
-            one_hot<typename element_type_traits<element::Type_t::u16>::value_type, T>(
+                one_hot<typename element_type_traits<element::Type_t::u16>::value_type, T>(
                     inputs[0]->get_data_ptr<element::Type_t::u16>(),
                     outputs[0]->get_data_ptr<T>(),
                     inputs[0]->get_shape(),
@@ -1373,7 +1373,7 @@ namespace
             break;
         case element::Type_t::u32:
             runtime::reference::
-            one_hot<typename element_type_traits<element::Type_t::u32>::value_type, T>(
+                one_hot<typename element_type_traits<element::Type_t::u32>::value_type, T>(
                     inputs[0]->get_data_ptr<element::Type_t::u32>(),
                     outputs[0]->get_data_ptr<T>(),
                     inputs[0]->get_shape(),
@@ -1384,7 +1384,7 @@ namespace
             break;
         case element::Type_t::u64:
             runtime::reference::
-            one_hot<typename element_type_traits<element::Type_t::u64>::value_type, T>(
+                one_hot<typename element_type_traits<element::Type_t::u64>::value_type, T>(
                     inputs[0]->get_data_ptr<element::Type_t::u64>(),
                     outputs[0]->get_data_ptr<T>(),
                     inputs[0]->get_shape(),
@@ -1395,7 +1395,7 @@ namespace
             break;
         case element::Type_t::i8:
             runtime::reference::
-            one_hot<typename element_type_traits<element::Type_t::i8>::value_type, T>(
+                one_hot<typename element_type_traits<element::Type_t::i8>::value_type, T>(
                     inputs[0]->get_data_ptr<element::Type_t::i8>(),
                     outputs[0]->get_data_ptr<T>(),
                     inputs[0]->get_shape(),
@@ -1404,9 +1404,9 @@ namespace
                     inputs[2]->get_data_ptr<T>()[0],
                     inputs[3]->get_data_ptr<T>()[0]);
             break;
-            case element::Type_t::i16:
+        case element::Type_t::i16:
             runtime::reference::
-            one_hot<typename element_type_traits<element::Type_t::i16>::value_type, T>(
+                one_hot<typename element_type_traits<element::Type_t::i16>::value_type, T>(
                     inputs[0]->get_data_ptr<element::Type_t::i16>(),
                     outputs[0]->get_data_ptr<T>(),
                     inputs[0]->get_shape(),
