@@ -442,6 +442,51 @@ struct Equal<SpecialBodyPorts> {
 
 }  // namespace equal
 
+namespace str {
+template <typename...>
+using void_t = void;
+
+template <typename T, typename = void>
+struct Get {
+    static std::string value(const T&) {
+        return std::string("[Ups can't convert this to value: ") + typeid(T).name() + "]";
+    }
+};
+
+template <typename T>
+struct Get<T, void_t<decltype(std::to_string(std::declval<T>()))>> {
+    static std::string value(const T& v) {
+        return "[" + std::to_string(v) + "]";
+    }
+};
+
+template <>
+struct Get<std::string, void> {
+    static std::string value(const std::string& v) {
+        return "[" + v + "]";
+    }
+};
+
+template <typename T>
+struct Get<T, void_t<decltype(begin(std::declval<T>())), decltype(end(std::declval<T>()))>> {
+    template <typename Container>
+    static std::string join(const Container& c, const char* glue = ", ") {
+        std::stringstream oss;
+        const char* s = "";
+        for (const auto& v : c) {
+            oss << s << v;
+            s = glue;
+        }
+        return oss.str();
+    }
+
+    static std::string value(const T& v) {
+        return "[" + join(v) + "]";
+    }
+};
+
+}  // namespace str
+
 class ReadAndCompareAttributes : public ngraph::AttributeVisitor {
 public:
     ReadAndCompareAttributes(const ReadAndStoreAttributes& ref)
@@ -482,7 +527,7 @@ public:
 
         if (adapter.size() != ref_value->size() ||
             std::memcmp(ref_value->data(), adapter.get_ptr(), ref_value->size()) != 0) {
-            m_cmp_result += "mismatch in value: " + name;
+            m_cmp_result += "mismatch in value: " + name + " : look in to the mem buffer";
             return;
         }
     }
@@ -552,8 +597,9 @@ private:
         }
 
         if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
-            m_cmp_result += "mismatch in value: " + name;
-            return;
+            m_cmp_result += "mismatch in value: " + name + " : " +
+                            str::Get<AttrValue>::value(*ref_value) + " vs " +
+                            str::Get<AttrValue>::value(attr_value);
         }
     }
 
@@ -599,6 +645,7 @@ private:
     attr_comparison::ReadAndStoreAttributes m_store_attr;
     attr_comparison::ReadAndCompareAttributes m_compare_attr;
 };
+
 }  // namespace
 
 std::pair<bool, std::string> compare_functions(
@@ -773,7 +820,8 @@ std::pair<bool, std::string> compare_functions(
 
             if (tensor1.get_names() != tensor2.get_names()) {
                 err_log << "Output tensors names are different for nodes: "
-                    << node1->get_friendly_name() << " and " << node2->get_friendly_name() << std::endl;
+                        << node1->get_friendly_name() << " and " << node2->get_friendly_name()
+                        << std::endl;
             }
             if (!node1->output(i).get_partial_shape().same_scheme(
                     node2->output(i).get_partial_shape())) {
