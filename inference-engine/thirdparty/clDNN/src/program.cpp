@@ -421,12 +421,10 @@ void program_impl::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<pre_replace_deconv>(lo);
 
         apply_opt_pass<prepare_primitive_fusing>(lo);
-#if 0
         apply_opt_pass<reorder_inputs>(lo, rf);
         // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
         // but after format selection to select correct alignment.
         // Unfortunately those passes currently happen in reverse order.
-#endif
         apply_opt_pass<concat_input_order>();
 
         // TODO this code should be moved to post compilation after kernel selector will support handling reorder bias
