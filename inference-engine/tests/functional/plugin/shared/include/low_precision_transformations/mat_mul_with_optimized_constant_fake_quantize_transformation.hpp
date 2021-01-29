@@ -19,8 +19,8 @@ public:
 };
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>,
+    ngraph::element::Type,
+    std::pair<ngraph::Shape, ngraph::Shape>,
     std::string,
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues
 > MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams;
@@ -33,6 +33,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

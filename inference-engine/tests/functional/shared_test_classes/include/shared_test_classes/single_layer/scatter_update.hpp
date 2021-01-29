@@ -16,11 +16,11 @@ using axisUpdateShapeInShape = std::tuple<
         std::vector<size_t>,    // input shape
         std::vector<size_t>,    // indices shape
         std::vector<size_t>,    // update shape
-        int>;                   // axis
+        int64_t>;               // axis
 
 using scatterUpdateParamsTuple = typename std::tuple<
-        axisUpdateShapeInShape,                  // shape description
-        std::vector<size_t>,               // indices value
+        axisUpdateShapeInShape,            // shape description
+        std::vector<int64_t>,              // indices value
         InferenceEngine::Precision,        // input precision
         InferenceEngine::Precision,        // indices precision
         std::string>;                      // Device name

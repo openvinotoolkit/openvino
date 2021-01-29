@@ -2,7 +2,7 @@
 set -e
 
 # provide ONNX Model Zoo commit hash ID to update:
-ONNX_SHA=00d95ba9e5758fd0bc5e6978033fabc4f2a95e61
+ONNX_SHA=d58213534f2a4d1c4b19ba62b3bb5f544353256e
 
 MODELS_DIR="$HOME/.onnx/model_zoo"
 ENABLE_MSFT=false
@@ -71,6 +71,8 @@ function pull_and_postprocess_onnx_model_zoo() {
     mkdir -p test_data_set_0
     mv *.pb test_data_set_0/
 
+    # Save SHA of successfully post processed repository
+    git rev-parse HEAD > "$MODEL_ZOO_DIR/onnx_sha"
 }
 
 function update_onnx_models() {
@@ -81,7 +83,7 @@ function update_onnx_models() {
         pull_and_postprocess_onnx_model_zoo
     else
         # Check if ONNX Model Zoo directory consists of proper git repo
-        git_remote_url=`git -C $ONNX_MODELS_DIR config --local remote.origin.url 2> /dev/null 2>&1`
+        export git_remote_url=`git -C $ONNX_MODELS_DIR config --local remote.origin.url 2> /dev/null 2>&1`
         printf "ONNX Model Zoo repository exists: %s\n" "$ONNX_MODELS_DIR"
         if [[ $git_remote_url = "https://github.com/onnx/models.git" ]]; then
             printf "The proper github repository detected: %s\n" "$git_remote_url"
@@ -92,7 +94,7 @@ function update_onnx_models() {
     fi
 
     cd "$ONNX_MODELS_DIR"
-    CURRENT_ONNX_MODELS_SHA=`git rev-parse HEAD`
+    export CURRENT_ONNX_MODELS_SHA=`head -n1 "$MODEL_ZOO_DIR/onnx_sha"  2> /dev/null 2>&1`
     if [[ $ONNX_SHA = $CURRENT_ONNX_MODELS_SHA ]] ; then
         echo "ONNX Model Zoo repository is in the right state"
     else

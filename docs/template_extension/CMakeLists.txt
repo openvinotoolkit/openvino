@@ -9,13 +9,24 @@ set(TARGET_NAME "template_extension")
 
 find_package(ngraph REQUIRED OPTIONAL_COMPONENTS onnx_importer)
 find_package(InferenceEngine REQUIRED)
+find_package(OpenCV QUIET COMPONENTS core)
 
-file(GLOB_RECURSE SRC *.cpp)
+set(SRC cpu_kernel.cpp extension.cpp op.cpp)
+
+if (OpenCV_FOUND)
+    set(SRC ${SRC} fft_kernel.cpp fft_op.cpp)
+endif()
 
 add_library(${TARGET_NAME} MODULE ${SRC})
 
+if (OpenCV_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OPENCV_IMPORT_ENABLED)
+    target_link_libraries(${TARGET_NAME} PRIVATE opencv_core)
+endif()
+
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
-target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine ${NGRAPH_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine
+                                             ${NGRAPH_LIBRARIES})
 
 if (ngraph_onnx_importer_FOUND)
     target_link_libraries(${TARGET_NAME} PRIVATE ${ONNX_IMPORTER_LIBRARIES})

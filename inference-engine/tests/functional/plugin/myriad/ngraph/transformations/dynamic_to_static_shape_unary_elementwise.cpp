@@ -24,9 +24,9 @@ class DynamicToStaticShapeUnaryElementwise : public CommonTestUtils::TestsCommon
 public:
     void SetUp() override {
         const auto& parameters = GetParam();
-        const auto& dataType = std::get<0>(GetParam());
-        const auto& dataDims = std::get<1>(GetParam());
-        const auto& type_info = std::get<2>(GetParam());
+        const auto& dataType = std::get<0>(parameters);
+        const auto& dataDims = std::get<1>(parameters);
+        const auto& type_info = std::get<2>(parameters);
 
         ngraph::helpers::CompareFunctions(*transform(dataType, dataDims, type_info), *reference(dataType, dataDims, type_info));
     }
@@ -92,6 +92,7 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeUnaryElementwise, test
         ngraph::opset3::Exp::type_info,
         ngraph::opset3::Floor::type_info,
         ngraph::opset5::Ceiling::type_info,
+        ngraph::opset5::Round::type_info,
         ngraph::opset3::Log::type_info,
         ngraph::opset3::Relu::type_info,
         ngraph::opset3::Sigmoid::type_info,

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,11 +47,13 @@ op::v1::Gather::Gather(const Output<Node>& params,
 
 bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Gather_visit_attributes);
     return true;
 }
 
 void op::v1::Gather::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Gather_validate_and_infer_types);
     const auto& input_rank = get_input_partial_shape(PARAMS).rank();
     const auto& axis_shape = get_input_partial_shape(AXIS);
     const auto& axis_rank = axis_shape.rank();
@@ -79,7 +81,6 @@ void op::v1::Gather::validate_and_infer_types()
     }
 
     element::Type result_et = get_input_element_type(PARAMS);
-    element::Type indices_et = get_input_element_type(INDICES);
 
     const PartialShape& params_shape = get_input_partial_shape(PARAMS);
     const PartialShape& indices_shape = get_input_partial_shape(INDICES);
@@ -135,6 +136,7 @@ int64_t op::v1::Gather::get_axis() const
 
 shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Gather_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Gather>(new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
 }
@@ -313,8 +315,8 @@ bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v1_Gather_evaluate) { return evaluate_gather(outputs, inputs); }
-    return false;
+    NGRAPH_OP_SCOPE(v1_Gather_evaluate);
+    return evaluate_gather(outputs, inputs);
 }
 
 bool op::v1::Gather::constant_fold(OutputVector& output_values, const OutputVector& input_values)

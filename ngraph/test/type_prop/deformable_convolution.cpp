@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -150,8 +150,8 @@ TEST(type_prop, deformable_conv_v1_partial_auto_padding_same_spatial_dims_dynami
                                                                       group,
                                                                       deformable_group);
 
-    ASSERT_TRUE(deformable_conv->get_output_partial_shape(0).same_scheme(
-        {1, 4, Dimension::dynamic(), Dimension::dynamic()}));
-    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{}));
-    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{}));
+    ASSERT_TRUE(
+        deformable_conv->get_output_partial_shape(0).same_scheme({1, 4, Dimension::dynamic(), 5}));
+    ASSERT_EQ(deformable_conv->get_pads_begin(), (CoordinateDiff{0, 1}));
+    ASSERT_EQ(deformable_conv->get_pads_end(), (CoordinateDiff{0, 1}));
 }

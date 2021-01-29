@@ -270,7 +270,7 @@ bool MKLDNNEdge::nodeCanChangeDesc(const MKLDNNNodePtr &node) const {
 /// In we have {any, any, any} -> {any} or {any} -> {any, any, any} or {any} -> {any} it means that
 /// layer doesn't change memory format
 /// We don't support {any, any, nchw} -> {any}
-InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::memory::format, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
+InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<memory::format_tag, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
     InferenceEngine::TensorDesc inDesc;
 
     if (inputDesc.getLayout() != InferenceEngine::Layout::ANY) {
@@ -312,8 +312,8 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
         }
         if (child->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size() <= childIdx)
             childIdx = 0;
-        memory::format childInDesc = MKLDNNMemoryDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[childIdx].desc).getFormat();
-        if (childInDesc != memory::any && childInDesc != memory::format_undef) {
+        memory::format_tag childInDesc = MKLDNNMemoryDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[childIdx].desc).getFormat();
+        if (childInDesc != memory::format_tag::any && childInDesc != memory::format_tag::undef) {
             if (formats.find(childInDesc) == formats.end())
                 formats[childInDesc] = 1;
             else
@@ -325,7 +325,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
 
         if (enterCountUp < 2) {
             childInDesc = MKLDNNMemoryDesc(childEdge->getSpecifiedOutputDesc(formats, enterCountUp, ++enterCountDown)).getFormat();
-            if (childInDesc != memory::any && childInDesc != memory::format_undef) {
+            if (childInDesc != memory::format_tag::any && childInDesc != memory::format_tag::undef) {
                 if (formats.find(childInDesc) == formats.end())
                     formats[childInDesc] = 1;
                 else
@@ -346,8 +346,8 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
             if (parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size() <= parentIdx) {
                 parentIdx = 0;
             }
-            memory::format parentOutDesc = MKLDNNMemoryDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[parentIdx].desc).getFormat();
-            if (parentOutDesc != memory::any && parentOutDesc != memory::format_undef) {
+            memory::format_tag parentOutDesc = MKLDNNMemoryDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[parentIdx].desc).getFormat();
+            if (parentOutDesc != memory::format_tag::any && parentOutDesc != memory::format_tag::undef) {
                 if (formats.find(parentOutDesc) == formats.end())
                     formats[parentOutDesc] = 1;
                 else
@@ -359,7 +359,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
 
             if (enterCountUp < 2) {
                 parentOutDesc = MKLDNNMemoryDesc(parentEdge->getSpecifiedInputDesc(formats, ++enterCountUp, enterCountDown)).getFormat();
-                if (parentOutDesc != memory::any && parentOutDesc != memory::format_undef) {
+                if (parentOutDesc != memory::format_tag::any && parentOutDesc != memory::format_tag::undef) {
                     if (formats.find(parentOutDesc) == formats.end())
                         formats[parentOutDesc] = 1;
                     else
@@ -370,7 +370,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
     }
 
     size_t maxFormatCount = 0;
-    memory::format desc =  MKLDNNMemory::GetPlainFormat(getDims());
+    memory::format_tag desc =  MKLDNNMemory::GetPlainFormat(getDims());
     for (auto &it : formats) {
         if (maxFormatCount < it.second && MKLDNNMemory::isConsistant(getDims(), it.first)) {
             maxFormatCount = it.second;
@@ -389,7 +389,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
     return MKLDNNMemoryDesc(getDims(), inDataType, desc);
 }
 
-InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::memory::format, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
+InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<memory::format_tag, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
     InferenceEngine::TensorDesc outDesc;
 
     if (outputDesc.getLayout() != InferenceEngine::Layout::ANY) {
@@ -446,8 +446,8 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
         if (parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size() <= parentIdx) {
             parentIdx = 0;
         }
-        memory::format parentOutDesc = MKLDNNMemoryDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[parentIdx].desc).getFormat();
-        if (parentOutDesc != memory::any && parentOutDesc != memory::format_undef) {
+        memory::format_tag parentOutDesc = MKLDNNMemoryDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[parentIdx].desc).getFormat();
+        if (parentOutDesc != memory::format_tag::any && parentOutDesc != memory::format_tag::undef) {
             if (formats.find(parentOutDesc) == formats.end())
                 formats[parentOutDesc] = 1;
             else
@@ -459,7 +459,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
 
         if (enterCountDown < 2) {
             parentOutDesc = MKLDNNMemoryDesc(parentEdge->getSpecifiedInputDesc(formats, ++enterCountUp, enterCountDown)).getFormat();
-            if (parentOutDesc != memory::any && parentOutDesc != memory::format_undef) {
+            if (parentOutDesc != memory::format_tag::any && parentOutDesc != memory::format_tag::undef) {
                 if (formats.find(parentOutDesc) == formats.end())
                     formats[parentOutDesc] = 1;
                 else
@@ -480,8 +480,8 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
             if (child->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size() <= childIdx) {
                 childIdx = 0;
             }
-            memory::format childInDesc = MKLDNNMemoryDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[childIdx].desc).getFormat();
-            if (childInDesc != memory::any && childInDesc != memory::format_undef) {
+            memory::format_tag childInDesc = MKLDNNMemoryDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[childIdx].desc).getFormat();
+            if (childInDesc != memory::format_tag::any && childInDesc != memory::format_tag::undef) {
                 if (formats.find(childInDesc) == formats.end())
                     formats[childInDesc] = 1;
                 else
@@ -493,7 +493,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
 
             if (enterCountDown < 2) {
                 childInDesc = MKLDNNMemoryDesc(childEdge->getSpecifiedOutputDesc(formats, enterCountUp, ++enterCountDown)).getFormat();
-                if (childInDesc != memory::any && childInDesc != memory::format_undef) {
+                if (childInDesc != memory::format_tag::any && childInDesc != memory::format_tag::undef) {
                     if (formats.find(childInDesc) == formats.end())
                         formats[childInDesc] = 1;
                     else
@@ -504,7 +504,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
     }
 
     size_t maxFormatCount = 0;
-    memory::format format =  MKLDNNMemory::GetPlainFormat(getDims());
+    memory::format_tag format =  MKLDNNMemory::GetPlainFormat(getDims());
     for (auto &it : formats) {
         if (maxFormatCount < it.second && MKLDNNMemory::isConsistant(getDims(), it.first)) {
             maxFormatCount = it.second;

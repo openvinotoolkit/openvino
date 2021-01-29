@@ -118,7 +118,8 @@ def run(args):
                     logger.warning("-nstreams default value is determined automatically for {} device. ".format(device) +
                                    "Although the automatic selection usually provides a reasonable performance,"
                                    "but it still may be non-optimal for some cases, for more information look at README.")
-                    config[device][key] = device + "_THROUGHPUT_AUTO"
+                    if device != MYRIAD_DEVICE_NAME:  ## MYRIAD sets the default number of streams implicitly
+                        config[device][key] = device + "_THROUGHPUT_AUTO"
                 if key in config[device].keys():
                     device_number_streams[device] = config[device][key]
 
@@ -153,6 +154,7 @@ def run(args):
                                    "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
                     config[device]['CLDNN_PLUGIN_THROTTLE'] = '1'
             elif device == MYRIAD_DEVICE_NAME:
+                set_throughput_streams()
                 config[device]['LOG_LEVEL'] = 'LOG_INFO'
             elif device == GNA_DEVICE_NAME:
                 if is_flag_set_in_command_line('qb'):

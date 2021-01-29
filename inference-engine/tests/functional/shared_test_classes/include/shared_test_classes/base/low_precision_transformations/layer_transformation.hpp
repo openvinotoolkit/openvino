@@ -44,7 +44,7 @@ protected:
 
     std::shared_ptr<ngraph::Function> transformNGraph(
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations = {});
+        const ngraph::pass::low_precision::LowPrecisionTransformations& transformations);
 
     static std::pair<float, float> getQuantizationInterval(const ngraph::element::Type precision);
 

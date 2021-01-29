@@ -3,6 +3,10 @@
 
 set(TARGET_NAME "GNAPlugin")
 
+if(CMAKE_COMPILER_IS_GNUCC)
+    ie_add_compiler_flags(-Wno-all)
+endif()
+
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 

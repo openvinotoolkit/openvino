@@ -31,7 +31,7 @@ gpu_buffer::gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine,
                        bool reset)
     : lockable_gpu_mem(engine), memory_impl(engine, layout, net_id, allocation_type::cl_mem, false),
       _buffer(_context->context(), CL_MEM_READ_WRITE, size()) {
-    if (reset && is_memory_reset_needed(_layout)) zero_buffer();
+    if (reset || is_memory_reset_needed(_layout)) zero_buffer();
 }
 
 gpu_buffer::gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine,
@@ -256,7 +256,7 @@ gpu_usm::gpu_usm(const refcounted_obj_ptr<engine_impl>& engine, const layout& la
             "Unknown unified shared memory type!");
     }
 
-    if (reset && is_memory_reset_needed(_layout)) zero_buffer();
+    if (reset || is_memory_reset_needed(_layout)) zero_buffer();
 }
 
 void* gpu_usm::lock() {

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/tensor_iterator.hpp"
+#include "itt.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/specialize_function.hpp"
@@ -31,11 +32,20 @@ op::v0::TensorIterator::TensorIterator(const OutputVector& values)
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_TensorIterator_visit_attributes);
     visitor.on_attribute("body", m_body);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
 
-    return false;
+    for (const auto& output_description : m_output_descriptions)
+    {
+        if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description))
+        {
+            m_num_iterations = ((std::abs(concat->m_end - concat->m_start)) / concat->m_part_size);
+        }
+    }
+
+    return true;
 }
 
 void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
@@ -84,13 +94,10 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
 
 void op::v0::TensorIterator::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_TensorIterator_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == m_input_descriptions.size(),
                           "Number of inputs must be the same as number of input descriptions");
-
-    NODE_VALIDATION_CHECK(this,
-                          get_output_size() == m_output_descriptions.size(),
-                          "Number of outputs must be the same as number of output descriptions");
 
     std::vector<std::shared_ptr<Node>> ends;
 
@@ -197,12 +204,12 @@ void op::v0::TensorIterator::validate_and_infer_types()
 
                 if (body_value_shape.empty())
                 {
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        axis == 0,
-                        "Axis must be equal to 0 if concatenated output tensor slices are scalars. "
-                        "TensorIterator output index: ",
-                        index);
+                    NODE_VALIDATION_CHECK(this,
+                                          axis == 0,
+                                          "Axis must be equal to 0 if concatenated output "
+                                          "tensor slices are scalars. "
+                                          "TensorIterator output index: ",
+                                          index);
                     out_shape = Shape(1);
                 }
 
@@ -226,6 +233,10 @@ void op::v0::TensorIterator::validate_and_infer_types()
             set_output_type(index, body_value.get_element_type(), body_value.get_partial_shape());
         }
     }
+
+    NODE_VALIDATION_CHECK(this,
+                          get_output_size() == m_output_descriptions.size(),
+                          "Number of outputs must be the same as number of output descriptions");
 }
 
 std::shared_ptr<Function> op::v0::TensorIterator::get_function()
@@ -236,6 +247,7 @@ std::shared_ptr<Function> op::v0::TensorIterator::get_function()
 std::shared_ptr<Node>
     op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_TensorIterator_clone_with_new_inputs);
     auto op = make_shared<op::v0::TensorIterator>(new_args);
     NGRAPH_CHECK(op.get(),
                  op != nullptr,
@@ -289,5 +301,5 @@ std::shared_ptr<Node>
     {
         op->m_output_descriptions.push_back(output_description->copy());
     }
-    return move(op);
+    return op;
 }

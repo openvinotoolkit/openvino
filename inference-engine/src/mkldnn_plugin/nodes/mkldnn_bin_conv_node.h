@@ -12,48 +12,106 @@
 
 namespace MKLDNNPlugin {
 
+struct jit_bin_conv_params {
+    int mb;
+    int ngroups;
+    int ic, oc, ic_padded;
+    int ih, iw, oh, ow;
+    int l_pad, t_pad, b_pad;
+    int kh, kw;
+    int stride_h, stride_w;
+    int dilate_h, dilate_w;
+    bool with_sum;
+    bool with_dw_conv;
+    bool with_binarization;
+
+    float pad_value;
+    bool exclude_pad;
+
+    int nb_ic, ic_block;
+    int nb_oc, oc_block;
+    int nb_oc_blocking;
+    int ur_w, ur_w_tail;
+    int typesize_in, typesize_out;
+    mkldnn::memory::data_type dst_dt;
+};
+
+struct jit_dw_conv_params {
+    int kh;
+};
+
+struct jit_bin_conv_call_args {
+    const void *src;
+    const void *dst;
+    const void *filt;
+    size_t kh_padding;
+    size_t kw_padding;
+    size_t oc_work;
+    size_t t_overflow;
+    size_t b_overflow;
+    size_t oc_off;
+};
+
+struct jit_uni_bin_conv_kernel {
+    void (*ker_)(const jit_bin_conv_call_args *);
+
+    void operator()(const jit_bin_conv_call_args *args) {
+        assert(ker_);
+        ker_(args);
+    }
+
+    explicit jit_uni_bin_conv_kernel(jit_bin_conv_params jcp, jit_dw_conv_params jcp_dw_conv, const mkldnn_primitive_attr &attr) :
+        ker_(nullptr), jcp_(jcp), jcp_dw_conv_(jcp_dw_conv), attr_(attr) {}
+    virtual ~jit_uni_bin_conv_kernel() {}
+
+    virtual void create_ker() = 0;
+
+    jit_bin_conv_params jcp_;
+    jit_dw_conv_params jcp_dw_conv_;
+
+    const mkldnn_primitive_attr &attr_;
+};
+
 class MKLDNNBinaryConvolutionNode : public MKLDNNNode {
 public:
     MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNBinaryConvolutionNode() override = default;
 
     void getSupportedDescriptors() override;
-    void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
-    void initDescriptor(const InferenceEngine::LayerConfig& config) override;
     void createPrimitive() override;
     void initSupportedPrimitiveDescriptors() override;
+    void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
+    void setPostOps(mkldnn::primitive_attr &attr);
+    bool canFuse(const MKLDNNNodePtr& node) const;
 
 private:
     bool withSum = false;
     bool withBinarization = false;
-    bool withDWConv = false;
-    bool isDW = false;
-    bool isMerged = false;
-    bool isGrouped = false;
+
+    size_t group = 1;
+    float pad_value = 0.f;
+
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
     std::vector<ptrdiff_t> paddingL;
     std::vector<ptrdiff_t> paddingR;
-    InferenceEngine::SizeVector weightDims;
-    InferenceEngine::SizeVector biasesDims;
 
-    ptrdiff_t dw_conv_oc = 0;
-    ptrdiff_t dw_conv_ih = 0;
-    ptrdiff_t dw_conv_iw = 0;
-    std::vector<ptrdiff_t> dw_conv_kernel;
-    std::vector<ptrdiff_t> dw_conv_strides;
-    mkldnn::memory::data_type dw_conv_in_dt = mkldnn::memory::data_type::data_undef;
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
+    jit_bin_conv_params jcp = {};
+    jit_dw_conv_params jcp_dw_conv = {};
+    std::shared_ptr<jit_uni_bin_conv_kernel> bin_conv_kernel = nullptr;
 
-    int baseInputsNumber;
+    mkldnn::primitive_attr attr;
 
-    float pad_value = 0.f;
+    impl_desc_type implType = impl_desc_type::ref;
+
+    void executeOptimized(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
+                          const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str);
+    void executeReference(const uint8_t* src, const uint8_t* weights, uint8_t* dst,
+                          const std::vector<size_t>& s_str, const std::vector<size_t>& w_str, const std::vector<size_t>& d_str);
 };
 
 }  // namespace MKLDNNPlugin

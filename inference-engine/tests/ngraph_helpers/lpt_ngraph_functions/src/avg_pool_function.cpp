@@ -6,6 +6,7 @@
 #include <ngraph_ops/type_relaxed.hpp>
 
 #include "low_precision/network_helper.hpp"
+#include "lpt_ngraph_functions/common/builders.hpp"
 
 #include "lpt_ngraph_functions/avg_pool_function.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -15,31 +16,18 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
-    const ngraph::element::Type originalFunctionPrecision,
+    const ngraph::element::Type inputPrecision,
     const ngraph::Shape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
-    const ActualValues& values) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(values.lowPrecision, ngraph::Shape(inputShape));
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
 
-    const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
-    parent = convert;
-
-    if (!values.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::opset1::Subtract>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.subtractValues.size() }), values.subtractValues));
-        parent = subtract;
-    }
-
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
-        parent,
-        std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
-    parent = multiply;
+    const auto dequantization = makeDequantization(input, dequantizationBefore);
 
     const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::opset1::AvgPool>(
-        parent,
+        dequantization,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
         Shape{ 0, 0 },
@@ -48,7 +36,6 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
         op::RoundingType::FLOOR);
 
     std::shared_ptr<Node> lastLayer = avgPool;
-
     if (additionalLayer == "maxpool") {
         lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
             lastLayer,
@@ -61,7 +48,7 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
 
     if (addFQ) {
         lastLayer = ngraph::builder::makeFakeQuantize(
-            lastLayer, originalFunctionPrecision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+            lastLayer, ngraph::element::f32, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     }
 
     lastLayer->set_friendly_name("output");
@@ -94,30 +81,30 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
-    const ngraph::element::Type originalFunctionPrecision,
+    const ngraph::element::Type inputPrecision,
     const ngraph::Shape& inputShape,
     const bool addFQ,
     const std::string additionalLayer,
-    const ExpectedValues& values) {
-    auto input = std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape));
-    std::shared_ptr<ngraph::Node> parent = input;
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ngraph::element::Type precisionAfterOperation,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, ngraph::Shape(inputShape));
+    const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
     const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
-        parent,
+        deqBefore,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
         Shape{ 0, 0 },
         Shape{ 2, 2 },
         true,
         op::RoundingType::FLOOR);
-    const auto avgPoolPrecision = addFQ ? originalFunctionPrecision : values.activationPrecision;
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(avgPool, avgPoolPrecision);
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(avgPool, precisionAfterOperation);
 
-    parent = avgPool;
-
+    std::shared_ptr<Node> lastLayer = avgPool;
     if (additionalLayer == "maxpool") {
-        parent = std::make_shared<ngraph::opset1::MaxPool>(
-            parent,
+        lastLayer = std::make_shared<ngraph::opset1::MaxPool>(
+            lastLayer,
             Strides{ 1, 1 },
             Shape{ 1, 1 },
             Shape{ 0, 0 },
@@ -125,28 +112,11 @@ std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
             op::RoundingType::FLOOR);
     }
 
-    if (avgPoolPrecision != originalFunctionPrecision) {
-        const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
-        parent = convert;
-    }
-
-    if (!values.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.subtractValues.size() }), values.subtractValues));
-
-        parent = subtract;
-    }
-
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
-        parent,
-        std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
-
-    std::shared_ptr<Node> lastLayer = multiply;
+    lastLayer = makeDequantization(lastLayer, dequantizationAfter);
 
     if (addFQ) {
         lastLayer = ngraph::builder::makeFakeQuantize(
-            lastLayer, originalFunctionPrecision, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
+            lastLayer, ngraph::element::f32, 256, {}, { 0 }, { 255 }, { 0 }, { 255 });
     }
 
     lastLayer->set_friendly_name("output");

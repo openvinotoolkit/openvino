@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ op::Atan::Atan(const Output<Node>& arg)
 
 shared_ptr<Node> op::Atan::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Atan_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Atan>(new_args.at(0));
 }
@@ -81,10 +82,6 @@ namespace atanop
 
 bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    bool rc = false;
-    NGRAPH_OP_SCOPE(v0_Atan_evaluate)
-    {
-        rc = atanop::evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-    }
-    return rc;
+    NGRAPH_OP_SCOPE(v0_Atan_evaluate);
+    return atanop::evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

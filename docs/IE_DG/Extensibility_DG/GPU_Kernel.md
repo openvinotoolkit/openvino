@@ -1,16 +1,16 @@
-# How to Implement Custom GPU Layers {#openvino_docs_IE_DG_Extensibility_DG_GPU_Kernel}
+# How to Implement Custom GPU Operations {#openvino_docs_IE_DG_Extensibility_DG_GPU_Kernel}
 
-The GPU codepath abstracts many details about OpenCL&trade;. You need to provide the kernel code in OpenCL C and the configuration file that connects the kernel and its parameters to the parameters of the layer.
+The GPU codepath abstracts many details about OpenCL&trade;. You need to provide the kernel code in OpenCL C and the configuration file that connects the kernel and its parameters to the parameters of the operation.
 
-There are two options of using custom layer configuration file:
+There are two options of using custom operation configuration file:
 
 * Include a section with your kernels into the global automatically-loaded `cldnn_global_custom_kernels/cldnn_global_custom_kernels.xml` file, which is hosted in the `<INSTALL_DIR>/deployment_tools/inference_engine/bin/intel64/{Debug/Release}` folder
-* Call the `InferenceEngine::Core::SetConfig()` method from your application with the `InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE` key and the configuration file name as a value before loading the network that uses custom layers to the plugin:
+* Call the `InferenceEngine::Core::SetConfig()` method from your application with the `InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE` key and the configuration file name as a value before loading the network that uses custom operations to the plugin:
 
 @snippet snippets/GPU_Kernel.cpp part0
 
 All Inference Engine samples, except trivial `hello_classification`,
-feature a dedicated command-line option `-c` to load custom kernels. For example, to load custom layers for the classification sample, run the command below:
+feature a dedicated command-line option `-c` to load custom kernels. For example, to load custom operations for the classification sample, run the command below:
 ```sh
 $ ./classification_sample -m <path_to_model>/bvlc_alexnet_fp16.xml -i ./validation_set/daily/227x227/apron.bmp -d GPU
  -c <absolute_path_to_config>/custom_layer_example.xml
@@ -19,7 +19,7 @@ $ ./classification_sample -m <path_to_model>/bvlc_alexnet_fp16.xml -i ./validati
 ## Configuration File Format <a name="config-file-format"></a>
 
 The configuration file is expected to follow the `.xml` file structure
-with a node of the type `CustomLayer` for every custom layer you provide.
+with a node of the type `CustomLayer` for every custom operation you provide.
 
 The definitions described in the sections below use the following notations:
 
@@ -32,14 +32,13 @@ Notation | Description
 
 ### CustomLayer Node and Sub-node Structure
 
-`CustomLayer` node contains the entire configuration for a single custom
-layer.
+`CustomLayer` node contains the entire configuration for a single custom operation.
 
 | Attribute Name   |\#    |  Description |
 |-----|-----|-----|
-| `name`           | (1)  | The name of the layer type to be used. This name should be identical to the type used in the IR.|
-| `type`           | (1)  | Must be `SimpleGPU`.                                                                             |
-| `version`        | (1)  | Must be `1`.                                                                                   |
+| `name`           | (1)  | The name of the operation type to be used. This name should be identical to the type used in the IR.|
+| `type`           | (1)  | Must be `SimpleGPU`.                                                                                |
+| `version`        | (1)  | Must be `1`.                                                                                        |
 
 **Sub-nodes**: `Kernel` (1), `Buffers` (1), `CompilerOptions` (0+),
 `WorkSizes` (0/1)
@@ -69,9 +68,9 @@ the sources during compilation (JIT).
 | Attribute Name | \#    | Description |
 |------|-------|------|
 | `name`         | (1)   | The name of the defined JIT. For static constants, this can include the value as well (taken as a string). |
-| `param`        | (0/1) | This parameter value is used as the value of this JIT definition.                                     |
+| `param`        | (0/1) | This parameter value is used as the value of this JIT definition.                                          |
 | `type`         | (0/1) | The parameter type. Accepted values: `int`, `float`, and `int[]`, `float[]` for arrays.                    |
-| `default`      | (0/1) | The default value to be used if the specified parameters is missing from the layer in the IR.              |
+| `default`      | (0/1) | The default value to be used if the specified parameters is missing from the operation in the IR.          |
 
 **Sub-nodes:** None
 
@@ -92,7 +91,7 @@ weights or biases).
 
 | Attribute Name | \#  | Description |
 |----|-----|------|
-| `name`         | (1) | Name of a blob attached to a layer in the IR             |
+| `name`         | (1) | Name of a blob attached to a operation in the IR             |
 | `arg-index`    | (1) | 0-based index in the entry function arguments to be bound to |
 
 **Sub-nodes**: None
@@ -105,7 +104,7 @@ weights or biases).
 |------|-------|-------|
 | `arg-index`    | (1)   | 0-based index in the entry function arguments to be bound to.                                                                          |
 | `type`         | (1)   | `input` or `output`                                                                                                                    |
-| `port-index`   | (1)   | 0-based index in the layer’s input/output ports in the IR                                                                              |
+| `port-index`   | (1)   | 0-based index in the operation input/output ports in the IR                                                                            |
 | `format`       | (0/1) | Data layout declaration for the tensor. Accepted values: `BFYX`, `BYXF`, `YXFB`, `FYXB` (also in all lowercase). Default value: `BFYX` |
 
 ### CompilerOptions Node and Sub-node Structure
@@ -178,7 +177,7 @@ For an example, see [Example Kernel](#example-kernel).
 | `<TENSOR>_PITCHES_SIZE`| The size of the `<TENSOR>_PITCHES` array   |
 | `<TENSOR>_OFFSET`| The number of elements from the start of the tensor to the first valid element (bypassing the lower padding)   |
 All `<TENSOR>` values are automatically defined for every tensor
-bound to this layer (`INPUT0`, `INPUT1`, `OUTPUT0`, and so on), as shown
+bound to this operation (`INPUT0`, `INPUT1`, `OUTPUT0`, and so on), as shown
 in the following for example:
 
 ```sh

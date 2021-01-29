@@ -11,11 +11,17 @@
 
 namespace LayerTestsDefinitions {
 
+class PReluTestValues {
+public:
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    bool isSubtract;
+};
+
 typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
     std::string,
-    ngraph::builder::subgraph::FakeQuantizeOnData> PReluTransformationParams;
+    PReluTestValues> PReluTransformationParams;
 
 class PReluTransformation :
     public testing::WithParamInterface<PReluTransformationParams>,
@@ -26,6 +32,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

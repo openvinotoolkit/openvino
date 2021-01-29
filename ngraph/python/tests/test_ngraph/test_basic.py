@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,9 +26,7 @@ from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import (xfail_issue_36476,
-                   xfail_issue_36480,
-                   xfail_issue_40319)
+from tests import (xfail_issue_36480)
 
 
 def test_ngraph_function_api():
@@ -59,14 +57,14 @@ def test_ngraph_function_api():
     "dtype",
     [
         np.float32,
-        pytest.param(np.float64, marks=xfail_issue_40319),
+        np.float64,
         np.int8,
         np.int16,
         np.int32,
         np.int64,
         np.uint8,
         np.uint16,
-        pytest.param(np.uint32, marks=xfail_issue_36476),
+        np.uint32,
         np.uint64,
     ],
 )

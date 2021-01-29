@@ -187,7 +187,7 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 
 }  // namespace internal
 
-#define OV_SCOPE(Module, region)                                                         \
+#define OV_SCOPE(Module, region)                                                            \
     OV_ITT_SCOPED_TASK(OV_CC_CAT(SIMPLE_, Module), OV_CC_TOSTRING(region));
 
 #define OV_SWITCH(Module, fn, ctx, val, ...)                                                \

@@ -49,8 +49,8 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizePrecisionSe
 }
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     FakeQuantizePrecisionSelectionTransformationTestValues> FakeQuantizeTransformationParams;
@@ -63,6 +63,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

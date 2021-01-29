@@ -17,6 +17,7 @@ public:
     ngraph::Shape inputShape;
     std::vector<int> reshapeConstValues;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    bool isTransformed;
 };
 
 typedef std::tuple<
@@ -34,6 +35,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

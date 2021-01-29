@@ -46,13 +46,7 @@ endif()
 function(set_temp_directory temp_variable source_tree_dir)
     if (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
         message(STATUS "DL_SDK_TEMP environment is set : $ENV{DL_SDK_TEMP}")
-
-        if (WIN32)
-            string(REPLACE "\\" "\\\\" temp $ENV{DL_SDK_TEMP})
-        else()
-            set(temp $ENV{DL_SDK_TEMP})
-        endif()
-
+        file(TO_CMAKE_PATH $ENV{DL_SDK_TEMP} temp)
         if (ENABLE_ALTERNATIVE_TEMP)
             set(ALTERNATIVE_PATH ${source_tree_dir}/temp)
         endif()
@@ -106,9 +100,20 @@ else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
 
-if(NOT DEFINED CMAKE_BUILD_TYPE)
+if(NOT DEFINED CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
+else()
+    set(RELEASE_TYPES "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+    list(FIND RELEASE_TYPES ${CMAKE_BUILD_TYPE} INDEX_FOUND)
+    if (INDEX_FOUND EQUAL -1)
+        message(FATAL_ERROR "CMAKE_BUILD_TYPE must be one of Debug, Release, RelWithDebInfo, or MinSizeRel")
+    endif()
+endif()
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+
+if(USE_BUILD_TYPE_SUBFOLDER)
+    set(BIN_FOLDER "${BIN_FOLDER}/${CMAKE_BUILD_TYPE}")
 endif()
 
 # allow to override default OUTPUT_ROOT root
@@ -145,30 +150,25 @@ if (MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
     # Support CMake multiconfiguration for Visual Studio or Xcode build
     set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
 else ()
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug" )
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(IE_BUILD_POSTFIX ${IE_DEBUG_POSTFIX})
     else()
         set(IE_BUILD_POSTFIX ${IE_RELEASE_POSTFIX})
     endif()
 endif()
 
-message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
-
 add_definitions(-DIE_BUILD_POSTFIX=\"${IE_BUILD_POSTFIX}\")
 
 if(NOT UNIX)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 else()
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
-    set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
-    set(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE})
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER}/lib)
 endif()
+set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+set(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
 if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
@@ -181,7 +181,8 @@ endif()
 # Use solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-set(CMAKE_POLICY_DEFAULT_CMP0054 NEW)
+# Enable CMAKE_<LANG>_COMPILER_ID AppleClang
+set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
 
 # LTO
 
@@ -204,6 +205,7 @@ endif()
 include(compile_flags/sdl)
 include(compile_flags/os_flags)
 include(compile_flags/sanitizer)
+include(compile_flags/fuzzing)
 include(download/dependency_solver)
 include(cross_compile/cross_compiled_func)
 include(faster_build)
@@ -215,6 +217,10 @@ include(api_validator/api_validator)
 include(vs_version/vs_version)
 include(plugins/plugins)
 include(add_ie_target)
+
+if(ENABLE_FUZZING)
+    enable_fuzzing()
+endif()
 
 # Code style utils
 

@@ -16,6 +16,7 @@ namespace LayerTestsDefinitions {
     std::tie(specialZero, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, outFormShapes, targetDevice, config) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "OS=" << CommonTestUtils::vec2str(outFormShapes) << "_";
     result << "specialZero=" << specialZero << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";

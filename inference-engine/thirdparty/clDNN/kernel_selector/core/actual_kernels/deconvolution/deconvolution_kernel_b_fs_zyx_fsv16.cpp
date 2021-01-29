@@ -119,9 +119,11 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_b_fs_zyx_fsv16::SetDef
         }
     }
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
-
     return dispatchData;
+}
+
+KernelsPriority DeconvolutionKernel_b_fs_zyx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 bool DeconvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_params& o) const {

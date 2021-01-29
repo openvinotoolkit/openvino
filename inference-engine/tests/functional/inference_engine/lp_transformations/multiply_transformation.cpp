@@ -50,9 +50,7 @@ typedef std::tuple<
 class MultiplyTransformation : public LayerTransformation, public testing::WithParamInterface<MultiplyTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::Shape shape = std::get<1>(GetParam());
-        const bool broadcast = std::get<2>(GetParam());
         const MultiplyTransformationTestValues testParams = std::get<3>(GetParam());
 
         actualFunction = MultiplyFunction::get(shape, testParams.actual);

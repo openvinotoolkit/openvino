@@ -233,7 +233,8 @@ int main(int argc, char *argv[]) {
                     slog::warn << "-nstreams default value is determined automatically for " << device << " device. "
                           "Although the automatic selection usually provides a reasonable performance,"
                           "but it still may be non-optimal for some cases, for more information look at README." << slog::endl;
-                    device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
+                    if (std::string::npos == device.find("MYRIAD")) // MYRIAD sets the default number of streams implicitly (without _AUTO)
+                        device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
                 }
                 if (device_config.count(key))
                     device_nstreams[device] = device_config.at(key);
@@ -276,6 +277,7 @@ int main(int argc, char *argv[]) {
                 }
             } else if (device == "MYRIAD") {
                 device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
+                setThroughputStreams();
             } else if (device == "GNA") {
                 if (FLAGS_qb == 8)
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";

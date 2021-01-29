@@ -33,6 +33,6 @@ protected:
     void SetUp() override;
 
 private:
-    void validateNGraph();
+    void validate();
 };
 }  // namespace LayerTestsDefinitions

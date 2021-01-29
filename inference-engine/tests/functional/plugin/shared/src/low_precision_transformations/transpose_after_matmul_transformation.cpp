@@ -15,15 +15,15 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/builders.hpp"
+
+#include "lpt_ngraph_functions/transpose_after_mat_mul_function.hpp"
 
 
 namespace LayerTestsDefinitions {
 
 std::string TransposeAfterMatMulTransformation::getTestCaseName(testing::TestParamInfo<TransposeAfterMatMulTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
@@ -31,42 +31,40 @@ std::string TransposeAfterMatMulTransformation::getTestCaseName(testing::TestPar
     std::tie(netPrecision, inputShapes, targetDevice, params, perTensor, transposeChannelDim) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params) <<
+    result << netPrecision << "_" << targetDevice << "_" << toString(params) <<
         (perTensor ? "_perTensor" : "_perChannel") <<
         (transposeChannelDim ? "_transposeChannelDim" : "_notTransposeChannelDim");
     return result.str();
 }
 
 void TransposeAfterMatMulTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
     bool transposeChannelDim;
-    std::tie(netPrecision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
+    std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
 
-    const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    function = ngraph::builder::subgraph::TransposeAfterMatMulFunction::getOriginal(precision, inputShape);
 
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
-    input1->set_friendly_name("input1");
+    validate();
+}
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
-    input2->set_friendly_name("input2");
+void TransposeAfterMatMulTransformation::validate() {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
+    std::string targetDevice;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    bool perTensor;
+    bool transposeChannelDim;
+    std::tie(precision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
 
-    const float k = 50.f;
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(input1, precision, 256ul, { 1ul }, { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
-    input2->set_friendly_name("fakeQuantize1");
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(input2, precision, 256ul, { 1ul }, { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
-    input2->set_friendly_name("fakeQuantize2");
-    const auto matMul = std::make_shared<ngraph::opset1::MatMul>(fakeQuantize1, fakeQuantize2, false, false);
-    input2->set_friendly_name("matMul");
-    const auto transpose = std::make_shared<ngraph::opset1::Transpose>(
-        matMul,
-        ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 4ul }, { 0, 2, 1, 3 }));
-    transpose->set_friendly_name("transpose");
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(transpose) };
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "TransposeAfterMatMulTransformation");
+    const auto output = transformed->get_output_op(0);
+    const auto layer = output->get_input_node_shared_ptr(0);
+    const std::string typeName = layer->get_type_name();
+    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(TransposeAfterMatMulTransformation, CompareWithRefImpl) {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include <memory>
 #include <vector>
 
@@ -17,6 +18,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMSToNMSIEInternal, "ConvertNMSToNMSIEInternal", 0);
 
 ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
+    MATCHER_SCOPE(ConvertNMSToNMSIEInternal);
     auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
@@ -71,7 +73,7 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
 
         std::shared_ptr<op::internal::NonMaxSuppressionIEInternal> nms_legacy{nullptr};
 
-        if (num_of_inputs > 5 && nms_5->soft_nms_sigma_from_input() != 0.0f) {
+        if (num_of_inputs > 5 && !nms_5->is_soft_nms_sigma_constant_and_default()) {
             new_soft_nms_sigma = std::make_shared<opset1::Reshape>(new_args.at(5), new_shape_for_soft_nms_sigma, true);
             new_ops.emplace_back(new_soft_nms_sigma.get_node_shared_ptr());
             nms_legacy = std::make_shared<op::internal::NonMaxSuppressionIEInternal>(
@@ -118,6 +120,6 @@ ngraph::pass::ConvertNMSToNMSIEInternal::ConvertNMSToNMSIEInternal() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMSToNMSIEInternal");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, matcher_name);
     this->register_matcher(m, callback);
 }

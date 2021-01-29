@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -172,8 +172,6 @@ namespace ngraph
                     reinterpret_cast<SelectedScore*>(selected_scores);
 
                 size_t boxes_per_class = static_cast<size_t>(max_output_boxes_per_class);
-
-                int64_t num_of_valid_boxes = 0;
 
                 std::vector<BoxInfo> filteredBoxes;
 

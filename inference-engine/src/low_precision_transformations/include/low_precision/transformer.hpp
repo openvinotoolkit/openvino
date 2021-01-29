@@ -39,10 +39,98 @@ public:
     void setUpdatePrecisions(const bool updatePrecisions);
     void setQuantizedTensorAlignmentOnActivations(const LayerTransformation::QuantizedTensorAlignment quantizedTensorAlignmentOnActivations);
     void setQuantizedTensorAlignmentOnWeights(const LayerTransformation::QuantizedTensorAlignment quantizedTensorAlignmentOnWeights);
-    LowPrecisionTransformations& remove(const std::string& operationType);
-    LowPrecisionTransformations& removeBranchSpecificTransformations(const std::string& operationType);
-    LowPrecisionTransformations& removeTransformations(const std::string& operationType);
-    LowPrecisionTransformations& removeCleanupTransformations(const std::string& operationType);
+
+    /**
+     * Remove branch specific transformation. Transformation type and operation type are required.
+     * Operation type is used to find transformation by operation during precision definition.
+     */
+    template <class Transformation, class Operation>
+    LowPrecisionTransformations& removeBranchSpecific() {
+        const std::string operationType = getType<Operation>();
+        const std::string transformationType = typeid(Transformation).name();
+
+        for (auto it = branchSpecificTransformations.begin(); it != branchSpecificTransformations.end(); ++it) {
+            const auto& tranformationPtr = *it->second;
+            if ((it->first == operationType) && (typeid(tranformationPtr).name() == transformationType)) {
+                branchSpecificTransformations.erase(it);
+                break;
+            }
+        }
+        return *this;
+    }
+
+    /**
+     * Remove transformation. Transformation type and operation type are required.
+     * Operation type is used to find transformation by operation during precision definition.
+     */
+    template <class Transformation, class Operation>
+    LowPrecisionTransformations& remove() {
+        const std::string operationType = getType<Operation>();
+        const std::string transformationType = typeid(Transformation).name();
+
+        for (auto it = transformations.begin(); it != transformations.end(); ++it) {
+            const auto& tranformationPtr = *it->second;
+            if ((it->first == operationType) && (typeid(tranformationPtr).name() == transformationType)) {
+                transformations.erase(it);
+                break;
+            }
+        }
+        return *this;
+    }
+
+    /**
+     * Remove cleanup transformation. Transformation type and operation type are required.
+     * Operation type is used to find transformation by operation during precision definition.
+     */
+    template <class Transformation, class Operation>
+    LowPrecisionTransformations& removeCleanup() {
+        const std::string operationType = getType<Operation>();
+        const std::string transformationType = typeid(Transformation).name();
+
+        const auto it = cleanupTransformations.find(operationType);
+        if (it != cleanupTransformations.end()) {
+            const auto it1 = std::find_if(it->second.begin(), it->second.end(),
+                [&](const std::pair<std::string, LayerTransformationPtr>& transformation) {
+                    return transformation.first == transformationType;
+                });
+            if (it1 != it->second.end()) {
+                it->second.erase(it1);
+                if (it->second.empty()) {
+                    cleanupTransformations.erase(it);
+                }
+            }
+        }
+        return *this;
+    }
+
+    /**
+     * Remove standalone cleanup transformation. Transformation type and operation type are required.
+     * Operation type is used to find transformation by operation during precision definition.
+     */
+    template <class Transformation, class Operation>
+    LowPrecisionTransformations& removeStandaloneCleanup() {
+        const std::string operationType = getType<Operation>();
+        const std::string transformationType = typeid(Transformation).name();
+
+        for (auto it = standaloneCleanupTransformations.begin(); it != standaloneCleanupTransformations.end(); ++it) {
+            const auto& standaloneCleanup = *it;
+            if ((operationType == standaloneCleanup.typeName) && (transformationType == standaloneCleanup.typeId)) {
+                standaloneCleanupTransformations.erase(it);
+                break;
+            }
+        }
+        return *this;
+    }
+
+    template <class Transformation, class Operation>
+    LowPrecisionTransformations& removeAll() {
+        removeBranchSpecific<Transformation, Operation>();
+        remove<Transformation, Operation>();
+        removeCleanup<Transformation, Operation>();
+        removeStandaloneCleanup<Transformation, Operation>();
+
+        return *this;
+    }
 
     /**
      * Add branch specific transformation. Transformation type and operation type are required.

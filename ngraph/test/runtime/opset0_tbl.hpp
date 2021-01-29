@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -91,7 +91,6 @@ NGRAPH_OP(NormalizeL2, ngraph::op)
 NGRAPH_OP(Parameter, ngraph::op)
 NGRAPH_OP(PRelu, ngraph::op)
 NGRAPH_OP(PriorBox, ngraph::op)
-NGRAPH_OP(Quantize, ngraph::op)
 NGRAPH_OP(Range, ngraph::op)
 NGRAPH_OP(Relu, ngraph::op)
 NGRAPH_OP(Result, ngraph::op)

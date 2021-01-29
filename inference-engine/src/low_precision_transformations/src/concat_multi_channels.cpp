@@ -194,7 +194,7 @@ void ConcatMultiChannelsTransformation::updateDequantizationShapesIfNecessary(
     std::shared_ptr<ngraph::Node> layer,
     std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>>& fakeQuantizes,
     std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize) {
-    for (int i = 0; i < fakeQuantizes.size(); ++i) {
+    for (size_t i = 0; i < fakeQuantizes.size(); ++i) {
         ngraph::Shape inputShape = layer->get_input_shape(i);
         ngraph::Shape dequantizationShape = fakeQuantizes[i]->get_shape();
         if (inputShape[1] != dequantizationShape[1]) {
@@ -216,7 +216,7 @@ void ConcatMultiChannelsTransformation::updateDequantizationShapesIfNecessary(
 void ConcatMultiChannelsTransformation::fillQuantization(
     const std::shared_ptr<ngraph::Node> layer,
     std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>>& fakeQuantizes) {
-    for (int i = 0; i < layer->get_input_size(); ++i) {
+    for (size_t i = 0; i < layer->get_input_size(); ++i) {
         std::shared_ptr<ngraph::Node> parent = layer->get_input_node_shared_ptr(i);
         std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
         if (fakeQuantize != nullptr) {

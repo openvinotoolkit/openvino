@@ -23,6 +23,7 @@ const char cannot_set_compound[] = "cannot set compound blob: supported only for
 const char wrong_nv12_blob[] = "NV12 input blob is expected for input with NV12 color format";
 
 Blob::Ptr CLDNNInferRequest::createInputBlob(const TensorDesc& desc, uint8_t* mem_ptr) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::createInputBlob");
     const Precision p = desc.getPrecision();
 
     switch (p) {
@@ -77,6 +78,7 @@ Blob::Ptr CLDNNInferRequest::createInputBlob(const TensorDesc& desc, uint8_t* me
 }
 
 Blob::Ptr CLDNNInferRequest::createOutputBlob(const TensorDesc& desc, uint8_t* mem_ptr) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::createOutputBlob");
     const Precision p = desc.getPrecision();
 
     switch (p) {
@@ -106,6 +108,7 @@ Blob::Ptr CLDNNInferRequest::createOutputBlob(const TensorDesc& desc, uint8_t* m
 }
 
 void CLDNNInferRequest::input_attach(cldnn::primitive_id name, cldnn::memory& inputMem) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::input_attach");
     auto impl = getContextImpl(m_graph->GetContext());
     impl->acquire_lock();
 
@@ -120,6 +123,7 @@ void CLDNNInferRequest::input_attach(cldnn::primitive_id name, cldnn::memory& in
 }
 
 void CLDNNInferRequest::input_alloc(cldnn::primitive_id name, const cldnn::layout& layout) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::input_alloc");
     cldnn::memory input_mem = cldnn::memory::allocate(*(m_graph->GetEngine()), layout);
     input_attach(name, input_mem);
 }
@@ -127,6 +131,7 @@ void CLDNNInferRequest::input_alloc(cldnn::primitive_id name, const cldnn::layou
 void CLDNNInferRequest::copyOutputData(const cldnn::memory& outputMemory,
                                         Blob::Ptr bptr,
                                         buf_info* bi) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::copyOutputData");
     size_t n = (bi == nullptr) ? bptr->size() : bi->buf_size;
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
@@ -270,6 +275,7 @@ void CLDNNInferRequest::copyInputData(std::shared_ptr<cldnn::network> network,
                                     const cldnn::primitive_id &inputName,
                                     const cldnn::layout& inputLayout,
                                     const Blob &inputBlob, buf_info* bi) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::copyInputData");
     size_t n = (bi == nullptr) ? inputBlob.size() : bi->buf_size;
     size_t offset = (bi == nullptr) ? 0 : bi->buf_offset;
 
@@ -386,6 +392,7 @@ void checkOutputBlob(const Blob::Ptr &blob,
 }
 
 void CLDNNInferRequest::checkBlobs() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::checkBlobs");
     for (auto const &input : _inputs) {
         InputInfo::Ptr foundInput = nullptr;
         auto foundInputPair = std::find_if(std::begin(_networkInputs), std::end(_networkInputs),
@@ -415,7 +422,7 @@ void CLDNNInferRequest::checkBlobs() {
 }
 
 void CLDNNInferRequest::GetBlob(const char *name, Blob::Ptr &data) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "GetBlob");
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::GetBlob");
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
     bool is_input = findInputAndOutputBlobByName(name, foundInput, foundOutput);
@@ -436,7 +443,7 @@ void CLDNNInferRequest::GetBlob(const char *name, Blob::Ptr &data) {
 }
 
 void CLDNNInferRequest::SetBlob(const char *name, const Blob::Ptr &data) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "SetBlob");
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::SetBlob");
 
     // perform all common checks first
     if (name == nullptr) {
@@ -562,6 +569,7 @@ void CLDNNInferRequest::SetBlob(const char *name, const Blob::Ptr &data) {
 }
 
 void CLDNNInferRequest::AllocateInputs() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::AllocateInputs");
     auto inputLayouts = m_graph->GetInputLayouts();
     // allocate inputs
     for (auto& ni : _networkInputs) {
@@ -611,6 +619,7 @@ void CLDNNInferRequest::AllocateInputs() {
 }
 
 void CLDNNInferRequest::AllocateInputsDyn() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::AllocateInputsDyn");
     // allocate inputs
     for (auto &input : m_graph->GetInputLayouts()) {
         InputInfo::Ptr ni = _networkInputs.at(input.first);
@@ -636,6 +645,7 @@ void CLDNNInferRequest::AllocateInputsDyn() {
 }
 
 void CLDNNInferRequest::AllocateOutputs() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::AllocateOutputs");
     // allocate outputs
     bool can_reuse_internal_mem = !m_useStreams;
     for (auto& no : _networkOutputs) {
@@ -661,6 +671,7 @@ void CLDNNInferRequest::AllocateOutputs() {
 }
 
 void CLDNNInferRequest::AllocateOutputsDyn() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::AllocateOutputsDyn");
     // allocate outputs
     for (auto& no : _networkOutputs) {
         DataPtr oi = no.second;
@@ -680,6 +691,7 @@ void CLDNNInferRequest::AllocateOutputsDyn() {
 }
 
 void CLDNNInferRequest::SetGraph(std::shared_ptr<CLDNNPlugin::CLDNNGraph> graph) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::SetGraph");
     m_graph = graph;
 
     if (m_graph == nullptr) {
@@ -697,6 +709,7 @@ void CLDNNInferRequest::SetGraph(std::shared_ptr<CLDNNPlugin::CLDNNGraph> graph)
 }
 
 void CLDNNInferRequest::SetBatch(int new_batch) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::SetBatch");
     if (m_graph->GetMaxDynamicBatchSize() < 0)
         THROW_IE_EXCEPTION << "Dynamic batch is not enabled.";
 
@@ -774,6 +787,7 @@ CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap
 }
 
 void CLDNNInferRequest::execAndParse() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::execAndParse");
     auto networkOutputs = m_graph->GetNetwork()->execute();
 
     // Collect outputs as requested by the model
@@ -804,6 +818,7 @@ void CLDNNInferRequest::execAndParse() {
 }
 
 void CLDNNInferRequest::execAndParseDyn() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::execAndParseDyn");
     std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> networkOutputs(m_graph->GetNetworksCount());
 
     // set up exection and put all graphs into driver queue
@@ -832,7 +847,7 @@ void CLDNNInferRequest::execAndParseDyn() {
 }
 
 void CLDNNInferRequest::InferImpl() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNN_INFER");
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::InferImpl");
     int streamID = 0;
     if (nullptr != streamExecutor) {
         streamID = streamExecutor->GetStreamId();
@@ -871,6 +886,7 @@ void CLDNNInferRequest::InferImpl() {
 
 void CLDNNInferRequest::GetPerformanceCounts(
         std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::GetPerformanceCounts");
     if (!m_useProfiling) {
         THROW_IE_EXCEPTION << "Performance counters were not enabled";
     } else {
@@ -882,6 +898,7 @@ namespace {
 
 template <typename T>
 void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "copyToFloat");
     if (!dst) {
         return;
     }
@@ -901,6 +918,7 @@ void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
 }  // namespace
 
 void CLDNNInferRequest::PrepareInput(const cldnn::primitive_id &inputName, const Blob &inputBlob) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::PrepareInput");
     // Get input layout
     if (m_graph->GetInputLayouts().find(inputName) == m_graph->GetInputLayouts().end()) {
         THROW_IE_EXCEPTION << "Input name mismatch.";
@@ -959,6 +977,7 @@ void CLDNNInferRequest::PrepareInput(const cldnn::primitive_id &inputName, const
 }
 
 void CLDNNInferRequest::PrepareInputDyn(const cldnn::primitive_id &inputName, const Blob &inputBlob) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::PrepareInputDyn");
     // now try to get execution results
     for (unsigned nb = 0; nb < m_graph->GetNetworksCount(); nb++) {
         unsigned int mask = 1 << nb;

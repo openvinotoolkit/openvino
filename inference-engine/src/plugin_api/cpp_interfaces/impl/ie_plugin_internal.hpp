@@ -84,7 +84,7 @@ public:
                                     const std::map<std::string, std::string>& config) override {
         (void)modelFileName;
         (void)config;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
@@ -102,7 +102,7 @@ public:
 
     void SetConfig(const std::map<std::string, std::string>& config) override {
         (void)config;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     void SetCore(ICore* core) noexcept override {
@@ -115,11 +115,11 @@ public:
     }
 
     void AddExtension(InferenceEngine::IExtensionPtr /*extension*/) override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     QueryNetworkResult QueryNetwork(const CNNNetwork& /*network*/, const std::map<std::string, std::string>& /*config*/) const override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     void SetName(const std::string& pluginName) noexcept override {
@@ -132,20 +132,20 @@ public:
 
     Parameter GetConfig(const std::string& /*name*/,
                         const std::map<std::string, Parameter>& /*options*/) const override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     Parameter GetMetric(const std::string& /*name*/,
                         const std::map<std::string, Parameter>& /*options*/) const override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     RemoteContext::Ptr CreateContext(const ParamMap& /*params*/) override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     RemoteContext::Ptr GetDefaultContext(const ParamMap& /*params*/) override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
 protected:
@@ -178,7 +178,7 @@ protected:
         (void)network;
         (void)context;
         (void)config;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     /**
@@ -194,7 +194,7 @@ protected:
                                                 const std::map<std::string, std::string>& config) {
         (void)networkModel;
         (void)config;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     /**
@@ -211,7 +211,7 @@ protected:
         (void)networkModel;
         (void)context;
         (void)config;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     std::string _pluginName;  //!< A device name that plugins enables
