@@ -251,24 +251,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v0::Unsqueeze>::createLayer(const std::s
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PSROIPooling>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "PSROIPooling",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::PSROIPooling>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["output_dim"] = asString(castedLayer->get_output_dim());
-    res->params["group_size"] = asString(castedLayer->get_group_size());
-    res->params["spatial_bins_x"] = asString(castedLayer->get_spatial_bins_x());
-    res->params["spatial_bins_y"] = asString(castedLayer->get_spatial_bins_y());
-    res->params["spatial_scale"] = asString(castedLayer->get_spatial_scale());
-    res->params["mode"] = castedLayer->get_mode();
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::VariadicSplit>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Split",
                           details::convertPrecision(layer->get_output_element_type(0))};

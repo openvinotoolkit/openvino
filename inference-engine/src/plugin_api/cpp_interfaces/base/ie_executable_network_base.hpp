@@ -63,7 +63,10 @@ public:
     }
 
     StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept override {
+        IE_SUPPRESS_DEPRECATED_START
+        // should be refactored together with ExecutableNetwork interface
         TO_STATUS(graphPtr = _impl->GetExecGraphInfo());
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     IE_SUPPRESS_DEPRECATED_START

@@ -167,7 +167,6 @@ set(SRC
     type_prop/prelu.cpp
     type_prop/proposal.cpp
     type_prop/psroi_pooling.cpp
-    type_prop/quantize.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
@@ -273,6 +272,7 @@ set(MULTI_TEST_SRC
     backend/cos.in.cpp
     backend/cosh.in.cpp
     backend/ctc_greedy_decoder.in.cpp
+    backend/ctc_greedy_decoder_seq_len.in.cpp
     backend/cum_sum.in.cpp
     backend/detection_output.in.cpp
     backend/divide.in.cpp

@@ -1171,8 +1171,10 @@ IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores
 IE_CPU.nonmaxsuppression_two_batches
 IE_CPU.nonmaxsuppression_two_classes
 
-# Bug in CPU plugin for ROIPooling when pooled size is 1x1 and method is bilinear
-IE_CPU.roi_pooling_1x1_bilinear
+# Unsupported dynamic ops: v3::NonMaxSuppressionIE3
+IE_CPU.onnx_model_nonmaxsuppression_center_point_box_format
+IE_CPU.onnx_model_nonmaxsuppression_single_box
+IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores_without_constants
 
 # Unsupported dynamic op
 IE_CPU.range_v4_trunc_inputs
@@ -1594,6 +1596,17 @@ IE_GPU.onnx_model_gather_elements_float_negative_axis
 IE_GPU.onnx_model_gather_elements_int32_axis_0
 IE_GPU.onnx_model_gather_elements_int8_axis_1
 IE_GPU.onnx_model_gather_elements_float_3D_axis_2
+
+IE_CPU.evaluate_ctc_greedy_decoder_seq_len
+IE_GPU.evaluate_ctc_greedy_decoder_seq_len
+IE_CPU.evaluate_ctc_greedy_decoder_seq_len_f16
+IE_GPU.evaluate_ctc_greedy_decoder_seq_len_f16
+IE_CPU.evaluate_ctc_greedy_decoder_seq_len_merge
+IE_GPU.evaluate_ctc_greedy_decoder_seq_len_merge
+IE_CPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches
+IE_GPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches
+IE_CPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches2
+IE_GPU.evaluate_ctc_greedy_decoder_seq_len_multiple_batches2
 
 # incorrect result for Minimum if u16 type is used
 minimum_u16

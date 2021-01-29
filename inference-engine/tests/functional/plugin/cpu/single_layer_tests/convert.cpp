@@ -28,7 +28,6 @@ const std::vector<std::vector<size_t>> inShape = {{1, 2, 3, 4}};
 const std::vector<Precision> precisions = {
         Precision::U8,
         Precision::I8,
-        Precision::I16,
         Precision::I32,
         Precision::FP32,
         Precision::BF16

@@ -145,6 +145,21 @@ bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 void op::v0::LSTMCell::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v0_LSTMCell_validate_and_infer_types);
+
+    // There should be 7 inputs, if no, it's possible the op can be fixed by
+    // generating default ones for input 6 and 7 (bias input, peepholes)
+
+    // missing both bias_input and peepholes
+    if (get_input_size() == 5)
+    {
+        set_argument(5, get_default_bias_input());
+    }
+    // missing peepholes
+    if (get_input_size() == 6)
+    {
+        set_argument(6, get_default_peepholes_input());
+    }
+
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())

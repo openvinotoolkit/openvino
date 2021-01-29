@@ -74,7 +74,7 @@ namespace ngraph
 
             private:
                 void validate_and_infer_elementwise_logical(const op::AutoBroadcastSpec& autob);
-                AutoBroadcastSpec m_autob;
+                AutoBroadcastSpec m_autob = AutoBroadcastSpec::NUMPY;
             };
         }
     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -356,7 +356,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     uint32_t num_filters = convolution._out_depth;
     uint32_t num_filter_coefficients = single_conv_kernel_size + num_conv_kernel_padding;
     uint32_t num_filter_rows = num_filter_coefficients / num_feature_map_columns;
-    uint32_t num_columns_in = num_inputs;
+    uint32_t num_columns_in = num_inputs + num_input_padding;
 
     uint32_t num_columns_out = (((num_inputs - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
     uint32_t num_columns_out_unpadded = (((num_inputs - single_conv_kernel_size) / num_feature_map_columns) + 1) * convolution._out_depth;
@@ -841,15 +841,20 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     IE_ASSERT(!layer->insData.empty());
     IE_ASSERT(!layer->outData.empty());
+    printPoolingLayer(pooling);
+
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
-    uint32_t w_dim_in = FROM_IR_DIM(inputs, 1);
-    uint32_t h_dim_in = FROM_IR_DIM(inputs, 2);
-    uint32_t c_dim_in = FROM_IR_DIM(inputs, 3);
-    uint32_t w_dim_out = FROM_IR_DIM(outputs, 1);
-    uint32_t h_dim_out = FROM_IR_DIM(outputs, 2);
-    uint32_t c_dim_out = FROM_IR_DIM(outputs, 3);
+    auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());
+    uint32_t w_dim_in = FROM_IR_DIM(inputs, in_order[3]);
+    uint32_t h_dim_in = FROM_IR_DIM(inputs, in_order[2]);
+    uint32_t c_dim_in = FROM_IR_DIM(inputs, in_order[1]);
+
+    auto out_order = getFromIRDimsOrderNCHW(outputs->getLayout());
+    uint32_t w_dim_out = FROM_IR_DIM(outputs, out_order[3]);
+    uint32_t h_dim_out = FROM_IR_DIM(outputs, out_order[2]);
+    uint32_t c_dim_out = FROM_IR_DIM(outputs, out_order[1]);
 
     if (w_dim_in == 1) {  // swap dimensions if needed to support swapped 1D case
         swap(h_dim_in, w_dim_in);
@@ -2403,6 +2408,24 @@ void GNAGraphCompiler::printConvolutionLayer(const InferenceEngine::ConvolutionL
         << layer._stride_x << x << layer._stride_y
         << " Dilation: "
         << layer._dilation_x << x << layer._dilation_y
+        << " Auto Padding: '"
+        << layer._auto_pad << "'";
+    gnalog() << "\n";
+    printTensorDesc("Input", layer.input()->getTensorDesc());
+    printTensorDesc("Output", layer.outData.front()->getTensorDesc());
+}
+
+void GNAGraphCompiler::printPoolingLayer(const InferenceEngine::PoolingLayer& layer) {
+    const char x = 'x';
+
+    gnalog() << "PoolingLayer '"
+        << layer.name
+        << "' Kernel: "
+        << layer._kernel_x << x << layer._kernel_y
+        << " Padding: "
+        << layer._padding_x << x << layer._padding_y
+        << " Stride: "
+        << layer._stride_x << x << layer._stride_y
         << " Auto Padding: '"
         << layer._auto_pad << "'";
     gnalog() << "\n";

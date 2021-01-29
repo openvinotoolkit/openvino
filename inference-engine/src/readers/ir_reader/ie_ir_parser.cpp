@@ -601,7 +601,7 @@ void V10Parser::parsePreProcess(CNNNetwork& network, const pugi::xml_node& root,
 }
 
 V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(const pugi::xml_node& node) {
-    const auto parsePort = [](const pugi::xml_node& parentNode,
+    const auto parsePort = [this](const pugi::xml_node& parentNode,
                               const GenericLayerParams& params,
                               bool input) -> GenericLayerParams::LayerPortData {
         GenericLayerParams::LayerPortData port;
@@ -626,6 +626,12 @@ V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(con
             type = InferenceEngine::details::convertPrecision(preStr);
         }
         port.precision = type;
+        std::vector<std::string> names;
+        if (getParameters<std::string>(parentNode, "names", names)) {
+            for (const auto& name : names) {
+                port.names.emplace(name);
+            }
+        }
         return port;
     };
     GenericLayerParams params;
@@ -663,17 +669,9 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                     const Blob::CPtr& weights,
                                                     const GenericLayerParams& params) {
     static const InferenceEngine::details::caseless_unordered_map<std::string, std::shared_ptr<LayerBaseCreator>> creators = {
-        { "GreaterEqual", std::make_shared<LayerCreator<ngraph::op::v1::GreaterEqual>>("GreaterEqual") },
-        { "LessEqual", std::make_shared<LayerCreator<ngraph::op::v1::LessEqual>>("LessEqual") },
-        { "Equal", std::make_shared<LayerCreator<ngraph::op::v1::Equal>>("Equal") },
-        { "LSTMCell", std::make_shared<LayerCreator<ngraph::op::v0::LSTMCell>>("LSTMCell") },
         { "ReorgYolo", std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo") },
         { "PSROIPooling", std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling") },
         { "VariadicSplit", std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit") },
-        { "LogicalAnd", std::make_shared<LayerCreator<ngraph::op::v1::LogicalAnd>>("LogicalAnd") },
-        { "LogicalOr", std::make_shared<LayerCreator<ngraph::op::v1::LogicalOr>>("LogicalOr") },
-        { "LogicalXor", std::make_shared<LayerCreator<ngraph::op::v1::LogicalXor>>("LogicalXor") },
-        { "LogicalNot", std::make_shared<LayerCreator<ngraph::op::v1::LogicalNot>>("LogicalNot") },
     };
 
     // Check that operation in default opsets
@@ -831,58 +829,15 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     }
 
     ngraphNode->set_friendly_name(params.name);
+    for (size_t i = 0; i < params.outputPorts.size() && i < ngraphNode->get_output_size(); ++i) {
+        if (!params.outputPorts[i].names.empty())
+            ngraphNode->get_output_tensor(i).set_names(params.outputPorts[i].names);
+    }
 
     return ngraphNode;
 }
 
 namespace InferenceEngine {
-
-// LSTMCell layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 6);
-    pugi::xml_node dn = node.child("data");
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    std::vector<std::string> activations = getParameters<std::string>(dn, "activations", {"sigmoid", "tanh", "tanh"});
-    std::vector<float> activations_alpha = getParameters<float>(dn, "activations_alpha", {});
-    std::vector<float> activations_beta = getParameters<float>(dn, "activations_beta", {});
-    float clip = GetFloatAttr(dn, "clip", 0.f);
-    return std::make_shared<ngraph::op::v0::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
-                                                  GetUInt64Attr(dn, "hidden_size"), ngraph::op::LSTMWeightsFormat::IFCO,
-                                                  activations, activations_alpha, activations_beta, clip);
-}
-
-// GreaterEqual layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::GreaterEqual>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::GreaterEqual>(inputs[0], inputs[1]);
-}
-
-// LessEqual layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::LessEqual>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::LessEqual>(inputs[0], inputs[1]);
-}
-
-// Equal layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Equal>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::Equal>(inputs[0], inputs[1]);
-}
-
 // VariadicSplit layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::VariadicSplit>::createLayer(
@@ -942,42 +897,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PSROIPooling>:
     return std::make_shared<ngraph::op::PSROIPooling>(inputs[0], inputs[1],
                                                       output_dim, group_size, spatial_scale, spatial_bins_x,
                                                       spatial_bins_y, mode);
-}
-
-// LogicalAnd layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::LogicalAnd>::createLayer(
-    const ngraph::OutputVector & inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::LogicalAnd>(inputs[0], inputs[1]);
-}
-
-// LogicalOr layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::LogicalOr>::createLayer(
-    const ngraph::OutputVector & inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::LogicalOr>(inputs[0], inputs[1]);
-}
-
-// LogicalXor layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::LogicalXor>::createLayer(
-    const ngraph::OutputVector & inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::LogicalXor>(inputs[0], inputs[1]);
-}
-
-// LogicalNot layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::LogicalNot>::createLayer(
-    const ngraph::OutputVector & inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    return std::make_shared<ngraph::op::v1::LogicalNot>(inputs[0]);
 }
 
 }  // namespace InferenceEngine
