@@ -141,12 +141,6 @@ static std::string GetOutputIndexOnAxis(const scatter_update_params& params, siz
     return default_order[axis];
 }
 
-static std::vector<std::string> GetVectorSecondOutputIndexOrder(const scatter_update_params& params, size_t axis) {
-    std::vector<std::string> default_order = GetDefaultOrder(params.output.GetDims().size());
-    default_order[axis] = "convert_int(indices[OUTPUT_INDEX_ON_AXIS])";
-    return default_order;
-}
-
 static std::vector<std::string> GetIndicesOrder(const scatter_update_params& params, size_t axis) {
     std::vector<std::string> indices_order {"0", "0", "0", "0"};
     auto updates_dim = params.inputs[2].GetDims().size();
@@ -162,7 +156,7 @@ static std::vector<std::string> GetIndicesOrder(const scatter_update_params& par
     return indices_order;
 }
 
-static std::string GetSecondIterOutputIndexOrder(const scatter_update_params& params, size_t axis) {
+static std::vector<std::string> GetVectorSecondOutputIndexOrder(const scatter_update_params& params, size_t axis) {
     auto output_order  = GetDefaultOrder(params.output.GetDims().size());
     auto update_order  = GetDefaultOrder(params.inputs[2].GetDims().size());
     auto indices_order = GetIndicesOrder(params, axis);
@@ -182,7 +176,14 @@ static std::string GetSecondIterOutputIndexOrder(const scatter_update_params& pa
     }
     output_order[axis] = "convert_int(indices[(INPUT1_GET_INDEX(" + GetOrderString(indices_order) + "))])";
 
+    return output_order;
+}
+
+
+static std::string GetSecondIterOutputIndexOrder(const scatter_update_params& params, size_t axis) {
+    auto output_order = GetVectorSecondOutputIndexOrder(params, axis);
     return GetOrderString(output_order);
+
 }
 
 JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params& params) const {
