@@ -319,11 +319,6 @@ private:
 namespace equal {
 
 template <typename Value>
-static constexpr bool in_range(Value v, std::pair<Value, Value> range) {
-    return range.first <= v && v < range.second;
-}
-
-template <typename Value>
 struct Equal {
     static bool equal_value(const Value& lhs, const Value& rhs) {
         return lhs == rhs;
@@ -333,14 +328,14 @@ struct Equal {
 template <>
 struct Equal<float> {
     static bool equal_value(float lhs, float rhs) {
-        return in_range(lhs - rhs, {-0.01, 0.01});
+        return std::abs(lhs - rhs) < 1e-5;
     }
 };
 
 template <>
 struct Equal<double> {
     static bool equal_value(double lhs, double rhs) {
-        return in_range(lhs - rhs, {-0.01, 0.01});
+        return std::abs(lhs - rhs) < 1e-5;
     }
 };
 
@@ -613,7 +608,7 @@ std::pair<bool, std::string> compare_functions(
     const bool compareNames,
     const bool compareRuntimeKeys,
     const bool comparePrecisions,
-    const bool compareAttribures) {
+    const bool compareAttributes) {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
@@ -680,7 +675,7 @@ std::pair<bool, std::string> compare_functions(
         if (subgraph1 && subgraph2) {
             auto res = compare_functions(
                 subgraph1->get_function(), subgraph2->get_function(), compareConstValues,
-                compareNames, compareRuntimeKeys, comparePrecisions);
+                compareNames, compareRuntimeKeys, comparePrecisions, compareAttributes);
             if (!res.first) {
                 return res;
             }
@@ -783,7 +778,7 @@ std::pair<bool, std::string> compare_functions(
             }
         }
 
-        if (compareAttribures) {
+        if (compareAttributes) {
             CompareNodesAttributes compare_nodes;
             node1->visit_attributes(compare_nodes.get_ref_reder());
             node2->visit_attributes(compare_nodes.get_cmp_reader());
