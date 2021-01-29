@@ -121,7 +121,7 @@ void Function::validate_nodes_and_infer_types() const
     std::stringstream unregistered_parameters;
     for (auto& node : get_ordered_ops())
     {
-        node->validate_and_infer_types();
+        node->revalidate_and_infer_types();
         if (op::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
             unregistered_parameters << node << std::endl;
