@@ -9,7 +9,6 @@
 #include <memory>
 
 #include <ie_blob.h>
-#include <ie_profiling.hpp>
 #include <file_utils.h>
 #include <ie_preprocess.hpp>
 

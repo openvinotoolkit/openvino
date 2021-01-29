@@ -17,6 +17,8 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "ngraph/descriptor/input.hpp"
