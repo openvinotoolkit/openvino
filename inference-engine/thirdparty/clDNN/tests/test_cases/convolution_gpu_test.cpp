@@ -7524,25 +7524,19 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
 
     const int input_x = testing::get<0>(GetParam()),
               input_y = testing::get<1>(GetParam()),
-              input_z = testing::get<2>(GetParam()),
               input_f = testing::get<3>(GetParam()),
               output_f = testing::get<4>(GetParam()),
               filter_x = testing::get<5>(GetParam()),
               filter_y = testing::get<6>(GetParam()),
-              filter_z = testing::get<7>(GetParam()),
               groups = testing::get<8>(GetParam()),
               stride = testing::get<9>(GetParam()),
               batch_num = testing::get<10>(GetParam()),
               output_padding = 0,
-              input_offset_z = (filter_z - 1) / 2,
               input_offset_y = (filter_y - 1) / 2,
               input_offset_x = (filter_x - 1) / 2;
     auto input_data_format = testing::get<11>(GetParam());
     auto impl_name = testing::get<12>(GetParam());
     auto with_bias = testing::get<13>(GetParam());
-
-    const int output_y = 1 + (input_y + 2 * (-input_offset_y) - filter_y) / stride + 2 * output_padding;
-    const int output_x = 1 + (input_x + 2 * (-input_offset_x) - filter_x) / stride + 2 * output_padding;
 
     auto input_size = tensor(batch_num, input_f, input_x, input_y);
     auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);

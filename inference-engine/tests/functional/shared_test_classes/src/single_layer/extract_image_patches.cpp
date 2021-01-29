@@ -13,7 +13,7 @@ std::string ExtractImagePatchesTest::getTestCaseName(const testing::TestParamInf
     ngraph::op::PadType pad_type;
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
+    InferenceEngine::Layout inLayout;
     std::string targetName;
     std::tie(inputShape, kernel, strides, rates, pad_type, netPrc, inPrc, outPrc, inLayout, targetName) = obj.param;
     std::ostringstream result;

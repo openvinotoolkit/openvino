@@ -24,9 +24,9 @@ class DynamicToStaticShapeUnaryElementwise : public CommonTestUtils::TestsCommon
 public:
     void SetUp() override {
         const auto& parameters = GetParam();
-        const auto& dataType = std::get<0>(GetParam());
-        const auto& dataDims = std::get<1>(GetParam());
-        const auto& type_info = std::get<2>(GetParam());
+        const auto& dataType = std::get<0>(parameters);
+        const auto& dataDims = std::get<1>(parameters);
+        const auto& type_info = std::get<2>(parameters);
 
         ngraph::helpers::CompareFunctions(*transform(dataType, dataDims, type_info), *reference(dataType, dataDims, type_info));
     }

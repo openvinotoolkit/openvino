@@ -67,8 +67,6 @@ namespace ngraph
                         const auto& ng_inputs = node.get_ng_inputs();
                         // We have input, output, forget and cell gates
                         constexpr std::size_t gates_count{4};
-                        // Peepholes add additional connections to input, output and forget gates.
-                        constexpr std::size_t peepholes_count{3};
 
                         // ----- Mandatory inputs ------
                         // Packed input sequences.

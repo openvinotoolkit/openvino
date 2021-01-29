@@ -60,10 +60,6 @@ void RangeLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "Range");
 }
 
-TEST_P(RangeLayerTest, CompareWithRefs) {
-    Run();
-}
-
 std::string RangeNumpyLayerTest::getTestCaseName(testing::TestParamInfo<RangeParams> obj) {
     InferenceEngine::Precision netPrc;
     InferenceEngine::Precision paramPrc;

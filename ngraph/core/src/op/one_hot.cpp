@@ -143,7 +143,6 @@ namespace detail
                   const int64_t axis)
     {
         const auto& indices = input_values[0];
-        const auto& depth = input_values[1];
         const auto& on_value = input_values[2];
         const auto& off_value = input_values[3];
 

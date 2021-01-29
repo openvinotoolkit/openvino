@@ -22,7 +22,6 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerCPUTestParamSet> obj) {
         LayerTestsDefinitions::NormalizeL2LayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        Precision inputPrecision, outputPrecision;
         std::tie(basicParamsSet, cpuParams) = obj.param;
 
         std::ostringstream result;

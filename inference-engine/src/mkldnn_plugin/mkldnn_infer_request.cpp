@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "mkldnn_memory_state.h"
 #include "nodes/mkldnn_memory_node.hpp"
+#include "nodes/common/cpu_memcpy.h"
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
                                                      InferenceEngine::OutputsDataMap    networkOutputs,
@@ -42,7 +43,7 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
     // of MemoryLayer implementation. It uses output edge of MemoryLayer
     // producer as storage for tensor to keep it between infer calls.
     IE_SUPPRESS_DEPRECATED_START
-    if (execNetwork->QueryState().size() == 0) {
+    if (execNetwork->_numRequests > 1 || execNetwork->QueryState().size() == 0) {
         for (auto &node : graph->GetNodes()) {
             if (node->getType() == MemoryInput) {
                 auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
@@ -112,14 +113,14 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
             // these precisions are supported by mkldnn, so we push the blob directly
             // BUT if a mean image exists, we convert the blob and send FP32
             case InferenceEngine::Precision::U8:
-            case InferenceEngine::Precision::BOOL:
-            case InferenceEngine::Precision::I16: {
+            case InferenceEngine::Precision::BOOL: {
                 if (graph->hasMeanImageFor(input.first))
                     inPrec = InferenceEngine::Precision::FP32;
                 break;
             }
             // these precisions are unsupported by mkldnn, so we convert the blob and send I32
             case InferenceEngine::Precision::U16:
+            case InferenceEngine::Precision::I16:
             case InferenceEngine::Precision::I64:
             case InferenceEngine::Precision::U64: {
                 inPrec = InferenceEngine::Precision::I32;
@@ -131,6 +132,45 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
         pushInput(input.first, input.second, inPrec);
     }
 }
+
+void MKLDNNPlugin::MKLDNNInferRequest::PushStates() {
+    for (auto &node : graph->GetNodes()) {
+        if (node->getType() == MemoryInput) {
+            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            auto cur_id = cur_node->getId();
+            for (const auto& state : memoryStates) {
+                if (state->GetName() == cur_id) {
+                    auto cur_state_mem = cur_node->getStore();
+                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
+                    auto data_size = state->GetState()->byteSize();
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
+
+                    cpu_memcpy(cur_state_mem_buf, data_ptr, data_size);
+                }
+            }
+        }
+    }
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::PullStates() {
+    for (auto &node : graph->GetNodes()) {
+        if (node->getType() == MemoryInput) {
+            auto cur_node = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+            auto cur_id = cur_node->getId();
+            for (const auto& state : memoryStates) {
+                if (state->GetName() == cur_id) {
+                    auto cur_state_mem = cur_node->getStore();
+                    auto data_ptr = state->GetState()->cbuffer().as<void*>();
+                    auto data_size = state->GetState()->byteSize();
+                    auto cur_state_mem_buf = static_cast<uint8_t*>(cur_state_mem->GetPtr());
+
+                    cpu_memcpy(data_ptr, cur_state_mem_buf, data_size);
+                }
+            }
+        }
+    }
+}
+
 
 void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
     using namespace openvino::itt;
@@ -144,7 +184,15 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
 
     PushInputData();
 
+    if (memoryStates.size() != 0) {
+        PushStates();
+    }
+
     graph->Infer(m_curBatch);
+
+    if (memoryStates.size() != 0) {
+        PullStates();
+    }
 
     graph->PullOutputData(_outputs);
 }

@@ -16,7 +16,6 @@ function(add_common_target TARGET_NAME STATIC_IE)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         # TODO: enable some day and fix all warnings
 #        target_compile_options(${TARGET_NAME} PRIVATE "-Wall")
-        target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-variable")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-function")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=strict-aliasing")
     endif()

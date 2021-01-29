@@ -44,7 +44,6 @@ namespace ngraph
                                                      const std::vector<size_t>& begin,
                                                      const Shape& slice_shape)
             {
-                size_t begin_idx = begin[0];
                 size_t slice_size = shape_size(slice_shape);
                 size_t rank = begin.size();
                 auto coord = begin;

@@ -139,9 +139,6 @@ R"V0G0N(
         </net>
 )V0G0N";
 
-    InferenceEngine::StatusCode st = InferenceEngine::OK;
-    InferenceEngine::ResponseDesc resp;
-
     InferenceEngine::TBlob<uint8_t> *weights_raw = new InferenceEngine::TBlob<uint8_t>(
         {InferenceEngine::Precision::U8,
          {indices.size() * sizeof(ie_fp16)},
