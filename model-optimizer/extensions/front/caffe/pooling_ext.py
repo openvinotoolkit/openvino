@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ class PoolingFrontExtractor(FrontExtractorOp):
         param = proto_layer.pooling_param
 
         method = 'max'
-        exclude_pad = 'true'
+        exclude_pad = True
         kernel = [0, 0]
         stride = [1, 1]
         padding = [0, 0]
@@ -46,10 +46,10 @@ class PoolingFrontExtractor(FrontExtractorOp):
 
         if param.pool == 0:
             method = 'max'
-            exclude_pad = 'true'
+            exclude_pad = True
         elif param.pool == 1:
             method = 'avg'
-            exclude_pad = 'false'
+            exclude_pad = False
         else:
             raise ValueError('Unknown Pooling Method!')
 

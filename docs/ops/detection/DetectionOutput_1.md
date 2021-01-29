@@ -156,7 +156,7 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 
 ```xml
 <layer ... type="DetectionOutput" ... >
-    <data background_label_id="1" code_type="caffe.PriorBoxParameter.CENTER_SIZE" confidence_threshold="0.019999999552965164" eta="1.0" height="0" height_scale="0" input_height="1" input_width="1" interp_mode="" keep_top_k="200" nms_threshold="0.44999998807907104" normalized="1" num_classes="2" pad_mode="" pad_value="" prob="0" resize_mode="" share_location="1" top_k="200" variance_encoded_in_target="0" visualize_threshold="0.6" width="0" width_scale="0"/>
+    <data background_label_id="1" code_type="caffe.PriorBoxParameter.CENTER_SIZE" confidence_threshold="0.019999999552965164" input_height="1" input_width="1" keep_top_k="200" nms_threshold="0.44999998807907104" normalized="true" num_classes="2" share_location="true" top_k="200" variance_encoded_in_target="false" clip_after_nms="false" clip_before_nms="false" objectness_score="0" decrease_label_id="false"/>
     <input>
         <port id="0">
             <dim>1</dim>
