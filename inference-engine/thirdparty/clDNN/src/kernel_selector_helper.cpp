@@ -542,6 +542,17 @@ kernel_selector::tuning_mode to_tuning_mode(cldnn::tuning_mode mode) {
     }
 }
 
+kernel_selector::dev_type get_device_type(cldnn::device_type type) {
+    switch (type) {
+        case cldnn::device_type::integrated_gpu:
+            return kernel_selector::dev_type::integrated_gpu;
+        case cldnn::device_type::discrete_gpu:
+            return kernel_selector::dev_type::discrete_gpu;
+        default:
+            return kernel_selector::dev_type::integrated_gpu;
+    }
+}
+
 kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split, const tensor view_offset) {
     const auto& pad = l.data_padding;
     const auto& vals = l.size.sizes(l.format);
@@ -744,11 +755,14 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     params.engineInfo.bImageSupport = device_info.supports_image != 0;
     params.engineInfo.bOptHintsSupport = device_info.supports_optimization_hints;
     params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io;
+    params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;
     params.engineInfo.maxImage2dWidth = device_info.max_image2d_width;
     params.engineInfo.maxImage2dHeight = device_info.max_image2d_height;
     params.engineInfo.computeUnitsCount = device_info.compute_units_count;
+    params.engineInfo.maxThreadsPerExecutionUnit = device_info.max_threads_per_execution_unit;
+    params.engineInfo.maxThreadsPerDevice = device_info.max_threads_per_device;
     params.engineInfo.deviceCache = context->get_device_cache();
     params.engineInfo.driverVersion = device_info.driver_version;
 

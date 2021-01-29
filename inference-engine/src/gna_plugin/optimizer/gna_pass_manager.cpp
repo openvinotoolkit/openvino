@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,8 +62,6 @@ static const char softSignLayersCounter[] = "numSoftSignLayers";
 /**
  * @brief helper injections of diagonal layer with certain value
  */
-
-static const char diagonalLayerCounterName[] = "diagonalLayerCounter";
 
 static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
                                        InferenceEngine::CNNLayerPtr nextLayer,
@@ -550,13 +548,6 @@ void ReversePermutationsPass::run() {
         return prev;
     };
 
-    auto prevLayerSkipReshape = [&prevLayerSkipCertain](CNNLayerPtr layer) -> CNNLayerPtr {
-        return prevLayerSkipCertain(layer, [] (CNNLayerPtr l2) {
-            return LayerInfo(l2).isNonFunctional();
-        });
-    };
-
-
     std::function<CNNLayerPtr(CNNLayerPtr)> nextLayerSkipReshape = [&nextLayerSkipReshape](CNNLayerPtr layer) -> CNNLayerPtr {
         if (layer->outData.empty()) {
             return nullptr;
@@ -637,7 +628,8 @@ void ReversePermutationsPass::run() {
 }
 
 void RemovePermutationsNHWCToNCHWPass::run() {
-    std::list<CNNLayerPtr> permutationsToRemove;
+    std::set<CNNLayerPtr> permutations_to_remove;
+    std::list<std::pair<CNNLayerPtr, CNNLayerPtr>> nhwc_layout_patterns;
     for (auto& l : *pLayers) {
         if (!LayerInfo(l).isConvolution()) {
             continue;
@@ -650,8 +642,18 @@ void RemovePermutationsNHWCToNCHWPass::run() {
         if (getInputTo(l->outData.front()).empty()) {
             continue;
         }
+
+        if (!CNNNetHasPrevLayer(l.get())) {
+            continue;
+        }
+
         auto next = getInputTo(l->outData.front()).begin()->second;
-        auto prev = CNNNetPrevLayer(l);
+        while (!LayerInfo(next).isPermute() && !LayerInfo(next).isNonFunctional() && !LayerInfo(next).isOutput() &&
+               next->outData.size() == 1) {
+            auto input_to = getInputTo(next->outData.front());
+            if (input_to.size() != 1) break;
+            next = input_to.begin()->second;
+        }
 
         // The next layer must be NCHW to NHWC permute
         if (!LayerInfo(next).isPermute() || next->input()->getLayout() != Layout::NCHW ||
@@ -659,6 +661,12 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             continue;
         }
 
+        auto parent = CNNNetPrevLayer(l);
+        auto prev = parent;
+        while (!LayerInfo(prev).isPermute() && !LayerInfo(prev).isNonFunctional() &&
+               !LayerInfo(prev).isInput() && CNNNetHasPrevLayer(prev.get())) {
+            prev = CNNNetPrevLayer(prev);
+        }
         // The previous layer must be NHWC to NCHW permute or have 1D data
         if (LayerInfo(prev).isPermute()) {
             if (prev->outData[0]->getLayout() != Layout::NCHW ||
@@ -667,62 +675,79 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             }
 
             if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
-                permutationsToRemove.push_back(prev);
+                permutations_to_remove.insert(prev);
             }
         } else  {
-            if (prev->outData.size() != 1 || getInputTo(prev->outData[0]).size() != 1) {
+            if (parent->outData.size() != 1 || getInputTo(parent->outData[0]).size() != 1) {
                 continue;
             }
-            auto prev_dims = prev->outData[0]->getDims();
+            auto parent_dims = parent->outData[0]->getDims();
             // Check if the previous layer has all dimensions except one to be equal to 1
-            if (std::count_if(std::begin(prev_dims), std::end(prev_dims), [](size_t dim) { return dim != 1; }) > 1) {
+            if (std::count_if(std::begin(parent_dims), std::end(parent_dims), [](size_t dim) { return dim != 1; }) > 1) {
                 continue;
             }
         }
-        permutationsToRemove.push_back(next);
+        permutations_to_remove.insert(next);
+        nhwc_layout_patterns.push_back({prev, next});
+
+        auto* convolution = dynamic_cast<ConvolutionLayer*>(l.get());
+        if (!convolution) {
+            THROW_GNA_EXCEPTION << "Invalid type of convolution layer";
+        }
+        if (convolution->_kernel_y != 1) {
+            THROW_GNA_LAYER_EXCEPTION(l) << "this case is not implemented yet";
+        }
+        auto in_channels = convolution->input()->getDims()[1];
+        convolution->_kernel_y = in_channels;
     }
 
-    for (auto&& toRemove : permutationsToRemove) {
-        gnalog() << toRemove->type << " layer '" << toRemove->name << "' will be removed" << '\n';
+    for (const auto& layers : nhwc_layout_patterns) {
+        auto pattern_start = layers.first;
+        auto pattern_end = layers.second;
 
-        if (!getInputTo(toRemove->outData.front()).empty()) {
-            auto next = getInputTo(toRemove->outData.front()).begin()->second;
-            IE_ASSERT(next != nullptr);
+        auto setNHWCOrder = [](InferenceEngine::DataPtr data) {
+            if (data->getLayout() == Layout::NHWC) return;
+            auto dims = data->getDims();
+            auto order = GetPermuteOrder(Layout::NCHW, Layout::NHWC);
+            InferenceEngine::SizeVector new_dims;
+            for (int i = 0; i < dims.size(); ++i) {
+                new_dims.push_back(dims[order[i]]);
+            }
+            data->setDims(new_dims);
+            data->setLayout(Layout::NHWC);
+        };
 
-            if (LayerInfo(next).isConvolution()) {
-                next->input()->setDims(toRemove->input()->getDims());
-                next->input()->setLayout(Layout::NHWC);
-                auto layerBeforePermute = CNNNetPrevLayer(toRemove);
-                DataPtr output = nullptr;
-                for (auto before_output : layerBeforePermute->outData) {
-                    if (areEqualDatas(toRemove->input(), before_output)) {
-                        output = before_output;
-                        output->setLayout(Layout::NHWC);
-                        break;
-                    }
-                }
-                if (output == nullptr) {
-                    THROW_GNA_EXCEPTION << "Could not find correct data link between " << toRemove->name << " and " << layerBeforePermute->name;
-                }
+        auto current_layer = getInputTo(pattern_start->outData[0]).begin()->second;
+        setNHWCOrder(current_layer->input());
+        while (current_layer != pattern_end) {
+            setNHWCOrder(current_layer->outData[0]);
+            current_layer = getInputTo(current_layer->outData[0]).begin()->second;
+        }
 
-                auto* convolution = dynamic_cast<ConvolutionLayer*>(next.get());
-                if (!convolution) {
-                    THROW_GNA_EXCEPTION << "There needs to be a convolution between permutations for RemovePermutationsNHWCToNCHWPass!";
+        if (LayerInfo(pattern_start).isPermute() && !getInputTo(pattern_start->outData.front()).empty()) {
+            auto layer_before_permute = CNNNetPrevLayer(pattern_start);
+            DataPtr output = nullptr;
+            for (auto before_output : layer_before_permute->outData) {
+                if (areEqualDatas(pattern_start->input(), before_output)) {
+                    output = before_output;
+                    output->setLayout(Layout::NHWC);
+                    break;
                 }
-
-                if (convolution->_kernel_y != 1) {
-                    THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
-                }
-                auto in_channels = next->input()->getDims()[3];
-                convolution->_kernel_y = in_channels;
+            }
+            if (output == nullptr) {
+                THROW_GNA_EXCEPTION << "Could not find correct data link between " << pattern_start->name << " and " << layer_before_permute->name;
             }
         }
-        auto prev = CNNNetPrevLayer(toRemove);
-        if (LayerInfo(prev).isConvolution()) {
-            prev->outData[0]->setDims(toRemove->outData[0]->getDims());
-            prev->outData[0]->setLayout(Layout::NHWC);
+
+        if (!pattern_end->outData.empty() && !getInputTo(pattern_end->outData.front()).empty()) {
+            auto layer_after_permute = getInputTo(pattern_end->outData.front()).begin()->second;
+            layer_after_permute->input()->setLayout(Layout::NHWC);
         }
-        CNNNetworkRemoveLayer(toRemove, false);
+    }
+
+    for (auto&& to_remove : permutations_to_remove) {
+        gnalog() << to_remove->type << " layer '" << to_remove->name << "' will be removed" << '\n';
+        CNNNetworkRemoveLayer(to_remove, false);
     }
 }
 
@@ -1445,7 +1470,6 @@ void SubstituteScaleShiftBroadCastPass::run() {
         auto batchSize = dataDims[0];
         auto nElements = product(begin(dataDims), end(dataDims)) / batchSize;
         auto weightsElements = scaleShift->_weights->size();
-        auto weightsBytes = scaleShift->_weights->byteSize();
 
         if (!reshape_batch && nElements == weightsElements) {
             continue;
@@ -1580,8 +1604,7 @@ void BreakFusingOfOutputLayersPass::run() {
 #if GNA_LIB_VER == 1
     return;
 #endif
-    OutputsDataMap outputsMap;
-    this->getPassManager()->getNetwork()->getOutputsInfo(outputsMap);
+    OutputsDataMap outputsMap = this->getPassManager()->getNetwork().getOutputsInfo();
     for (auto layer : *pLayers) {
         for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
             auto& output = layer->outData[output_idx];
@@ -1617,7 +1640,7 @@ void BreakFusingOfOutputLayersPass::run() {
 }
 
 void UnrollLSTMCellPass::run() {
-    InferenceEngine::NetPass::UnrollRNN_if(*getPassManager()->getNetwork(), [] (const RNNCellBase& rnn) -> bool {
+    InferenceEngine::NetPass::UnrollRNN_if(getPassManager()->getNetwork(), [] (const RNNCellBase& rnn) -> bool {
         if (rnn.clip != 0.0f)
             return true;
         if (rnn.type == "GRUCell" ||
@@ -1633,7 +1656,7 @@ void UnrollLSTMCellPass::run() {
 }
 
 void UnrollTIPass::run() {
-    auto sts = InferenceEngine::NetPass::UnrollTI(*getPassManager()->getNetwork());
+    auto sts = InferenceEngine::NetPass::UnrollTI(getPassManager()->getNetwork());
     if (!sts) {
         THROW_GNA_EXCEPTION << "TensorIterator layer cannot be unrolled!";
     }
@@ -1641,7 +1664,8 @@ void UnrollTIPass::run() {
 
 void RemoveConstPass::run() {
     auto network = getPassManager()->getNetwork();
-    auto* implNetwork = dynamic_cast<details::CNNNetworkImpl*>(network.get());
+    auto & icnnnet = static_cast<ICNNNetwork &>(network);
+    auto* implNetwork = dynamic_cast<details::CNNNetworkImpl*>(&icnnnet);
     if (!implNetwork) {
         THROW_GNA_EXCEPTION << "Remove const layers pass can only work on cnnnetworkimpl type";
     }
@@ -1941,7 +1965,6 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         }
 
         float fqLevels = fqLayer.getLevels();
-        float scaleInput = (fqLevels - 1) / (inputRange.second[0] - inputRange.first[0]);
         float scaleOutputs = (fqLevels - 1) / (outputRange.second[0] - outputRange.first[0]);
 
         // Before FQ layer is removed, the previous layer has to be updated with its quantization data
@@ -1988,10 +2011,10 @@ int PassManager::run(int index) {
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
         std::ofstream out(name + ".dot");
-        saveGraphToDot(*network.get(), out, [](const CNNLayerPtr layer,
-                                               ordered_properties &printed_properties,
-                                               ordered_properties &node_properties) {});
-        network->serialize(name + ".xml", name + ".bin", nullptr);
+        saveGraphToDot(network, out, [](const CNNLayerPtr layer,
+                                        ordered_properties &printed_properties,
+                                        ordered_properties &node_properties) {});
+        network.serialize(name + ".xml", name + ".bin", nullptr);
     };
 #else
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};
@@ -2001,7 +2024,7 @@ int PassManager::run(int index) {
         if (settings.runBeforeCopy != pass->runBeforeCopyPass()) {
             continue;
         }
-        auto layers = CNNNetSortTopologically(*network.get());
+        auto layers = CNNNetSortTopologically(network);
         pass->attach(layers);
         gnalog() << "PASS: " << ++index << "/" << passes.size() << ":" << pass->getName() << "\n";
         pass->run();

@@ -19,7 +19,6 @@
 namespace kernel_selector {
 
 static const size_t fsv = 32;
-static const size_t sub_group_size = 16;
 static const size_t x_block_align = 8;
 static const std::vector<size_t> optimal_x_sizes = { 16, 8, 4, 2, 1 };
 static const std::vector<size_t> optimal_feature_sizes = { 16, 8, 1 };
@@ -85,6 +84,10 @@ ReorderKernelBase::DispatchData ReorderKernel_fs_b_yx_fsv32_to_bfyx::SetDefault(
 
 KernelsData ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetKernelsData(const Params& params, const optional_params& options) const {
     const auto& orgParams = static_cast<const reorder_params&>(params);
-    return GetCommonKernelsData(orgParams, options, FORCE_PRIORITY_2);
+    return GetCommonKernelsData(orgParams, options);
+}
+
+KernelsPriority ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 }  // namespace kernel_selector

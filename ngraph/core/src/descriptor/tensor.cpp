@@ -42,11 +42,6 @@ descriptor::Tensor::Tensor(const element::Type& element_type,
 {
 }
 
-void descriptor::Tensor::set_name(const string& name)
-{
-    m_name = name;
-}
-
 void descriptor::Tensor::set_tensor_type(const element::Type& element_type,
                                          const PartialShape& pshape)
 {
@@ -90,13 +85,41 @@ size_t descriptor::Tensor::size() const
     return shape_size(get_shape()) * m_element_type.size();
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+void descriptor::Tensor::set_name(const string& name)
+{
+    m_name = name;
+}
+
 const std::string& descriptor::Tensor::get_name() const
 {
     return m_name;
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
+
+const std::unordered_set<std::string>& descriptor::Tensor::get_names() const
+{
+    return m_names;
+}
+
+void descriptor::Tensor::set_names(const std::unordered_set<std::string>& names)
+{
+    m_names = names;
+}
 
 ostream& operator<<(ostream& out, const descriptor::Tensor& tensor)
 {
-    out << "Tensor(" << tensor.get_name() << ")";
+    std::string names;
+    for (const auto& name : tensor.get_names())
+    {
+        if (!names.empty())
+            names += ", ";
+        names += name;
+    }
+    NGRAPH_SUPPRESS_DEPRECATED_START
+    if (names.empty())
+        names = tensor.get_name();
+    NGRAPH_SUPPRESS_DEPRECATED_END
+    out << "Tensor(" << names << ")";
     return out;
 }

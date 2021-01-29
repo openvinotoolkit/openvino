@@ -15,10 +15,6 @@ static const char* model_message = "Required. Path to an .xml file with a traine
 /// @brief message for images argument
 static const char *image_message = "Required. Path to one or more .bmp images.";
 
-/// @brief message for plugin argument
-static const char *plugin_message = "Plugin name. For example MKLDNNPlugin. If this parameter is pointed, " \
-"the sample will look for this plugin only";
-
 /// @brief message for assigning cnn calculation to device
 static const char *target_device_message = "Optional. Specify the target device to infer on (the list of available devices is shown below). " \
 "Default value is CPU. Use \"-d HETERO:<comma-separated_devices_list>\" format to specify HETERO plugin. " \

@@ -134,8 +134,6 @@ protected:
             logical_reduce->set_keep_dims(reduce_setup.keep_dims);
         node->validate_and_infer_types();
 
-        const auto data_rank_value = reduce_setup.data_shape.size();
-
         ngraph::Output<ngraph::Node> output_shape;
         if (reduce_setup.keep_dims) {
             output_shape = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(

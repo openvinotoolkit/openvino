@@ -147,28 +147,28 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
     return nullptr;  // Silence "control may reach end of non-void function" warning
 }
 
-std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
+CNNNetwork cloneNetwork(const CNNNetwork& network) {
     OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNetwork");
 
     if (network.getFunction()) {
-        return std::make_shared<details::CNNNetworkNGraphImpl>(network);
+        return CNNNetwork(std::make_shared<details::CNNNetworkNGraphImpl>(network));
     }
 
-    return cloneNet(network);
+    return CNNNetwork(cloneNet(network));
 }
 
-details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
+details::CNNNetworkImplPtr cloneNet(const CNNNetwork& origin_network) {
     OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(ICNNNetwork)");
     std::shared_ptr<ICNNNetwork> clonedNetwork;
     // Call conversion only on the copy of nGraph function
     if (origin_network.getFunction()) {
         // Copy and call conversion
-        clonedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(*cloneNetwork(origin_network));
+        clonedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cloneNetwork(origin_network));
     }
-    const ICNNNetwork& network = (clonedNetwork) ? *clonedNetwork : origin_network;
+    const CNNNetwork network = clonedNetwork ? CNNNetwork(clonedNetwork) : origin_network;
 
     std::vector<CNNLayerPtr> layers;
-    details::CNNNetworkIterator i(&network);
+    details::CNNNetworkIterator i(network);
     while (i != details::CNNNetworkIterator()) {
         layers.push_back(*i);
         i++;
@@ -177,8 +177,7 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
     // copy of the network
     details::CNNNetworkImplPtr net = cloneNet(layers);
     // going over output layers and aligning output ports and outputs
-    OutputsDataMap outputs;
-    network.getOutputsInfo(outputs);
+    OutputsDataMap outputs = network.getOutputsInfo();
     OutputsDataMap outputInfo;
     net->getOutputsInfo(outputInfo);
     for (auto o : outputs) {
@@ -195,9 +194,7 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
     }
     net->setName(network.getName());
 
-    InputsDataMap externalInputsData;
-    network.getInputsInfo(externalInputsData);
-
+    InputsDataMap externalInputsData = network.getInputsInfo();
     InputsDataMap clonedInputs;
     net->getInputsInfo(clonedInputs);
     for (auto&& it : externalInputsData) {
@@ -544,7 +541,7 @@ struct NodePrinter {
     }
 };
 
-void saveGraphToDot(const InferenceEngine::ICNNNetwork& network, std::ostream& out, printer_callback layer_cb) {
+void saveGraphToDot(const InferenceEngine::CNNNetwork& network, std::ostream& out, printer_callback layer_cb) {
     NodePrinter printer(out, std::move(layer_cb));
 
     out << "digraph Network {\n";
@@ -572,9 +569,9 @@ void saveGraphToDot(const InferenceEngine::ICNNNetwork& network, std::ostream& o
     out << "}" << std::endl;
 }
 
-std::unordered_set<DataPtr> getRootDataObjects(ICNNNetwork& network) {
+std::unordered_set<DataPtr> getRootDataObjects(const CNNNetwork& network) {
     std::unordered_set<DataPtr> ret;
-    details::CNNNetworkIterator i(&network);
+    details::CNNNetworkIterator i(network);
     while (i != details::CNNNetworkIterator()) {
         CNNLayer::Ptr layer = *i;
 

@@ -660,37 +660,28 @@ TEST_F(MyriadX_HW_Tests_nightly, With_3_FC_Layers) {
     GenRandomData(input);
 
     Blob::Ptr swOutput, hwOutput;
-    _inferRequest.reset();
-    _exeNetwork.reset();
+    _inferRequest = {};
+    _exeNetwork = {};
 
-    StatusCode st;
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network,
+        {
+            {
+                InferenceEngine::MYRIAD_PERF_REPORT_MODE,
+                InferenceEngine::MYRIAD_PER_STAGE
+            },
+            {
+                InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
+                CONFIG_VALUE(YES)
+            },
+        }));
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
-                                                      {
-                                                          {
-                                                              InferenceEngine::MYRIAD_PERF_REPORT_MODE,
-                                                              InferenceEngine::MYRIAD_PER_STAGE
-                                                          },
-                                                          {
-                                                              InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,
-                                                              CONFIG_VALUE(YES)
-                                                          },
-                                                      },
-                                                      &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(_inferRequest.SetBlob("input", input));
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->SetBlob("input", input, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     std::vector<float> results(sizeof(names) / sizeof(names[0]));
     for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i) {
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob(names[i].c_str(), hwOutput, &_resp));
+        ASSERT_NO_THROW(hwOutput = _inferRequest.GetBlob(names[i].c_str()));
         ASSERT_NE(hwOutput, nullptr);
         BufferWrapper res_ptr(hwOutput);
         results[i] = res_ptr[0];

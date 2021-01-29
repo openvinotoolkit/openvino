@@ -160,7 +160,6 @@ VpuTestNet::NetworkSerializedData VpuTestNet::genNetwork(IRVersion version) {
     IE_ASSERT(!_layers.empty());
     IRDumperNetwork IRDumper(version);
     IRDumper.addInput("input"  , _layers.begin()->_inDim);
-    const size_t inputsSize = _layers.begin()->_inDim.size();
 
     size_t testNetIndex = 0;
     for (auto& elem : _layers) {

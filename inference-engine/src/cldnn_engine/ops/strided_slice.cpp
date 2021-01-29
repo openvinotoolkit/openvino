@@ -226,7 +226,6 @@ void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v1::Stri
         }
 
 
-        const size_t ods = crop_shape.size();
         cldnn::tensor refSize = CldnnTensorFromIEDims(crop_shape);
         cldnn::tensor offSize = CldnnTensorFromIEDims(offset, 0);
 

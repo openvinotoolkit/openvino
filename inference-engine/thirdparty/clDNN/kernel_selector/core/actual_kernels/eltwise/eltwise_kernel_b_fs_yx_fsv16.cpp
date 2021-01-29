@@ -233,8 +233,11 @@ EltwiseKernelBase::DispatchData EltwiseKernel_b_fs_yx_fsv16::SetDefault(const el
     }
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
     return dispatchData;
+}
+
+KernelsPriority EltwiseKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -261,8 +264,6 @@ KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, co
                                    false,
                                    false,
                                    GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = dispatchData.efficiency;
 
     return {kd};
 }

@@ -162,7 +162,6 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
 
             if (CNNNetHasPrevLayer(cnnLayer)) {
                 auto prevLayer = CNNNetPrevLayer(cnnLayer);
-                auto prevInfo = LayerInfo(prevLayer);
                 auto inputQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
                 // locating corresponding memory layers with same ID
                 for (auto&& input : CNNNetGetAllInputLayers(cnnLayer)) {

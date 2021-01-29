@@ -16,7 +16,7 @@
 
 namespace kernel_selector {
 KernelsData GatherTreeKernelRef::GetKernelsData(const Params & params, const optional_params & options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, options);
 }
 
 ParamsKey GatherTreeKernelRef::GetSupportedKey() const {
@@ -37,5 +37,9 @@ ParamsKey GatherTreeKernelRef::GetSupportedKey() const {
     k.EnableBatching();
 
     return k;
+}
+
+KernelsPriority GatherTreeKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

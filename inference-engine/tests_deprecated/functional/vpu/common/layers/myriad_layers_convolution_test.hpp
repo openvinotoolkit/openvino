@@ -33,7 +33,6 @@ public:
         size_t out_channels = get<4>(GetParam());
         size_t group = get<5>(GetParam());
         param_size dilation_factor = get<6>(GetParam());
-        vpu::LayoutPreference layoutPreference = get<7>(GetParam());
 
         size_t out_w = (input_dims.w + 2 * pad.x - dilation_factor.x * (kernel.x - 1) - 1 + stride.x) / stride.x;
         size_t out_h = (input_dims.h + 2 * pad.y - dilation_factor.y * (kernel.y - 1) - 1 + stride.y) / stride.y;
@@ -161,7 +160,6 @@ void FillWeights(uint16_t* ptr, size_t weightsSize) {
     ASSERT_NE(ptr, nullptr);
     auto szW = sizeof(s_3X3X3YOLO_Weights)/sizeof(s_3X3X3YOLO_Weights[0]);
     ASSERT_EQ(szW, weightsSize);
-    auto sz = szW;
     size_t indx = 0;
     for (; indx < szW; ++indx) {
         ptr[indx] = PrecisionUtils::f32tof16(s_3X3X3YOLO_Weights[indx]);
@@ -202,7 +200,6 @@ TEST_P(myriadLayers_3X3X3_ConstInput_smoke, Convolution) {
     ASSERT_TRUE(generateNetAndInfer( NetworkInitParams().layoutPreference(layoutPreference) ));
     auto outputBlob = _outputMap.begin()->second;
     const uint16_t *res_ptr = outputBlob->buffer().as<const uint16_t*>();
-    size_t res_size = outputBlob->size();
 
     size_t N = outputBlob->getTensorDesc().getDims()[0];
     size_t C = outputBlob->getTensorDesc().getDims()[1];

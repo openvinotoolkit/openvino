@@ -244,7 +244,6 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_base::Set
     dispatchData.gemmStyle.subBlockDimK = 1;
     dispatchData.gemmStyle.subBlockDimM = 0;
     dispatchData.gemmStyle.subBlockDimN = 0;
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return dispatchData;
 }
 
@@ -303,7 +302,6 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
-    kd.estimatedTime = dispatchData.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

@@ -197,7 +197,7 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
     return dispatchData;
 }
 
-KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params, const optional_params& options, float estimated_time) const {
+KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params, const optional_params& options) const {
     assert(params.GetType() == KernelType::REORDER);
     if (!Validate(params, options))
         return {};
@@ -219,12 +219,10 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     kernel.arguments = GetArgsDesc(1, false, false);
 
-    kd.estimatedTime = estimated_time;
-
     return {kd};
 }
 
-KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params, const optional_params& options, float estimated_time) const {
+KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
@@ -247,8 +245,6 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
     if (newParams.mode == MeanSubtractMode::IN_BUFFER) {
         kernel.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }

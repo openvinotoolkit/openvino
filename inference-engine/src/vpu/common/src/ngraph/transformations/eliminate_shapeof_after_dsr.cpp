@@ -13,14 +13,14 @@ NGRAPH_RTTI_DEFINITION(vpu::EliminateShapeOfAfterDSR, "EliminateShapeOfAfterDSR"
 
 namespace vpu {
 
-EliminateShapeOfAfterDSR::EliminateShapeOfAfterDSR() : GraphRewrite() {
+EliminateShapeOfAfterDSR::EliminateShapeOfAfterDSR() {
     // We don't set strict_mode when use pattern Matcher,
     // so we can set any type and shape for input.
     auto inputWithAnyTypeAndShape = std::make_shared<ngraph::pattern::op::Label>(
             ngraph::element::dynamic, ngraph::PartialShape{});
     auto shapeOfPattern = std::make_shared<ngraph::opset3::ShapeOf>(inputWithAnyTypeAndShape);
 
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
         auto shapeOfNode = std::dynamic_pointer_cast<ngraph::opset3::ShapeOf>(m.get_match_root());
         if (!shapeOfNode) {
             return false;
@@ -36,9 +36,7 @@ EliminateShapeOfAfterDSR::EliminateShapeOfAfterDSR() : GraphRewrite() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(shapeOfPattern, "EliminateShapeOfAfterDSR");
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
+    register_matcher(m, callback);
 }
 
 } // namespace vpu

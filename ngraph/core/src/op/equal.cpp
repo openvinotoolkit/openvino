@@ -87,3 +87,9 @@ bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVe
     NGRAPH_OP_SCOPE(v1_Equal_evaluate);
     return equal::evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
+
+bool op::v1::Equal::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v1_Equal_visit_attributes);
+    return true;
+}

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -225,6 +225,9 @@ device_info_internal::device_info_internal(const cl::Device& device) {
 
     supports_imad = get_imad_support(device);
     supports_immad = false;
+
+    max_threads_per_execution_unit = 7;
+    max_threads_per_device = static_cast<uint32_t>(cores_count * max_threads_per_execution_unit);
 
     vendor_id = static_cast<uint32_t>(device.getInfo<CL_DEVICE_VENDOR_ID>());
 
