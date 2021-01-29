@@ -522,13 +522,13 @@ public:
         m_visited_attributes.insert(name);
         const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
         if (!ref_value) {
-            m_cmp_result += "missing attribute name: " + name;
+            m_cmp_result += "missing attribute name: '" + name + "'";
             return;
         }
 
         if (adapter.size() != ref_value->size() ||
             std::memcmp(ref_value->data(), adapter.get_ptr(), ref_value->size()) != 0) {
-            m_cmp_result += "mismatch in value: " + name + " : look in to the mem buffer";
+            m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
             return;
         }
     }
@@ -593,12 +593,12 @@ private:
         m_visited_attributes.insert(name);
         const auto ref_value = m_attr_ref.get<AttrValue>(name);
         if (!ref_value) {
-            m_cmp_result += "missing attribute name: " + name;
+            m_cmp_result += "missing attribute name: '" + name + "'";
             return;
         }
 
         if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
-            m_cmp_result += "mismatch in value: " + name + " : " +
+            m_cmp_result += "mismatch in value: '" + name + "' : " +
                             str::Get<AttrValue>::value(*ref_value) + " vs " +
                             str::Get<AttrValue>::value(attr_value);
         }
