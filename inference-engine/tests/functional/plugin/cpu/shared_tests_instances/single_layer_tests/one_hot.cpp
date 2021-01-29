@@ -9,13 +9,21 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::I64,
         InferenceEngine::Precision::I32,
         InferenceEngine::Precision::I16,
-        // Not implemented:
-        //InferenceEngine::Precision::I16,
-        //InferenceEngine::Precision::U16,
-        //InferenceEngine::Precision::I8,
+        InferenceEngine::Precision::U64,
+        InferenceEngine::Precision::U16,
+        // [NOT_IMPLEMENTED] Input image format U32 is not supported yet...
+        //InferenceEngine::Precision::U32,
+        /*
+            /home/nii/source/openvino_fresh/inference-engine/tests/functional/shared_test_classes/src/base/layer_test_utils.cpp:189: Failure
+            OneHot_835 Incorrect input precision for the input. Only I32 and FP32 are supported!
+            /home/nii/source/openvino_fresh/inference-engine/src/mkldnn_plugin/nodes/one_hot.cpp:42
+            /home/nii/source/openvino_fresh/inference-engine/include/details/ie_exception_conversion.hpp:64
+         */
         //InferenceEngine::Precision::U8,
+        //InferenceEngine::Precision::I8,
 };
 
 using namespace ngraph::element;
