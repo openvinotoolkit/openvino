@@ -53,7 +53,7 @@ TEST_P(SerializationTest, CompareFunctions) {
 
     bool success;
     std::string message;
-    std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction(), true, false, true);
+    std::tie(success, message) = compare_functions(result.getFunction(), expected.getFunction(), true, false, true, true, true);
     ASSERT_TRUE(success) << message;
 }
 
