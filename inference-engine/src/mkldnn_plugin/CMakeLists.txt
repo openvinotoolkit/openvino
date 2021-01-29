@@ -161,6 +161,14 @@ ie_add_plugin(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
+if(SELECTIVE_BUILD STREQUAL "ON")
+    # After disabling a block of code, some variables might be unused.
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+        OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
+    endif()
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
                                              inference_engine_transformations inference_engine_lp_transformations openvino::conditional_compilation)
 
