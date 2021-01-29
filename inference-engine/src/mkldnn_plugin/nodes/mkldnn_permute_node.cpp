@@ -631,8 +631,7 @@ void MKLDNNPermuteNode::execute(mkldnn::stream strm) {
     auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
     auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
 
-    auto layout = getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getLayout();
-    if (prec == Precision::FP32 && layout != NHWC && layout != NDHWC) {
+    if (prec == Precision::FP32 && !getParentEdgeAt(0)->getMemory().GetDesc().isTailCFormat()) {
         for (const auto &impl : OptimizedCases) {
             if (impl.first == order && impl.second.isValidParams(batchToProcess(), srcMemPtr, dstMemPtr)) {
                 impl.second.execute(batchToProcess(), srcMemPtr, dstMemPtr);
