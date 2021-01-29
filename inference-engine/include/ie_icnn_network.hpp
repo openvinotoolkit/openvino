@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,9 +69,11 @@ public:
      *
      * For single and multiple outputs networks.
      *
-     * This method need to be called to find output names for using them later
+     * This method need to be called to find out OpenVINO output names for using them later
      * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
      *
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor or
+     * InferenceEngine::ICNNNetwork::getOVNameForOperation methods to map framework names to OpenVINO names
      *
      * @param out Reference to the OutputsDataMap object
      */
@@ -82,8 +84,11 @@ public:
      * object.
      *
      * For single and multiple inputs networks.
-     * This method need to be called to find out input names for using them later
+     * This method need to be called to find out OpenVINO input names for using them later
      * when calling InferenceEngine::InferRequest::SetBlob
+     *
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor or
+     * InferenceEngine::ICNNNetwork::getOVNameForOperation methods to map framework names to OpenVINO names
      *
      * @param inputs Reference to InputsDataMap object.
      */
@@ -178,6 +183,38 @@ public:
      */
     virtual StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept = 0;
+
+    /**
+     * @brief Methods maps framework tensor name to OpenVINO name
+     *
+     * @param ov_name OpenVINO name
+     * @param orig_name Framework tensor name
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     *
+     * @return Status code of the operation
+     */
+    virtual StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+        (void) ov_name;
+        (void) orig_name;
+        (void) resp;
+        return NOT_IMPLEMENTED;
+    }
+
+    /**
+     * @brief Methods maps framework operation name to OpenVINO name
+     *
+     * @param ov_name OpenVINO name
+     * @param orig_name Framework operation name
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     *
+     * @return Status code of the operation
+     */
+    virtual StatusCode getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+        (void) ov_name;
+        (void) orig_name;
+        (void) resp;
+        return NOT_IMPLEMENTED;
+    }
 
     /**
      * @brief A virtual destructor.

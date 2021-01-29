@@ -924,7 +924,9 @@ bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>&
         {
             replacement.get_node()->set_friendly_name(output.get_node()->get_friendly_name());
             // Update output tensor name
+            NGRAPH_SUPPRESS_DEPRECATED_START
             replacement.get_tensor().set_name(output.get_node()->get_friendly_name());
+            NGRAPH_SUPPRESS_DEPRECATED_END
         }
         output.replace(replacement);
         copy_runtime_info({replacement.get_node_shared_ptr(), output.get_node_shared_ptr()},

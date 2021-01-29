@@ -63,6 +63,7 @@ namespace ngraph
 
             /// \brief Get tensor's unique name
             /// \return tensor's name
+            NGRAPH_DEPRECATED("Only output ports have names")
             const std::string& get_name() const;
 
             /// \brief Get the stale value of the tensor. A tensor is stale if its data is

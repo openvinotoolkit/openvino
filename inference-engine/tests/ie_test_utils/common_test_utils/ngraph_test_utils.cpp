@@ -248,6 +248,13 @@ std::pair<bool, std::string> compare_functions(
         }
 
         for (int i = 0; i < node1->outputs().size(); ++i) {
+            const auto& tensor1 = node1->output(i).get_tensor();
+            const auto& tensor2 = node2->output(i).get_tensor();
+
+            if (tensor1.get_names() != tensor2.get_names()) {
+                err_log << "Output tensors names are different for nodes: "
+                    << node1->get_friendly_name() << " and " << node2->get_friendly_name() << std::endl;
+            }
             if (!node1->output(i).get_partial_shape().same_scheme(
                     node2->output(i).get_partial_shape())) {
                 err_log << "Different shape detected\n"
