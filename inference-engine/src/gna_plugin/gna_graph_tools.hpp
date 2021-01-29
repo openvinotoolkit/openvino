@@ -765,6 +765,7 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
     // remove old_prev->layer connection
     for (auto i = getInputTo(old_prev_layer_out_port_0).begin(); i != getInputTo(old_prev_layer_out_port_0).end(); i++) {
         if (i->second.get() == layer.get()) {
+            getInputTo(new_prev_layer_out_port_0).insert({ layer->name, layer });
             getInputTo(old_prev_layer_out_port_0).erase(i);
             break;
         }
