@@ -28,20 +28,18 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         auto attrsV0 = interpolationV0->get_attrs();
 
         std::vector<float> scales(attrsV0.axes.size(), 1.0f);
-        if (inp_partial_shape.is_static()) {
-            auto inp_shape = inp_partial_shape.to_shape();
-            size_t i = 0;
-            for (std::size_t axis : attrsV0.axes) {
-                scales[i] = static_cast<float>(out_shape.at(axis))/inp_shape.at(axis);
-                i++;
-            }
+        auto inp_shape = inp_partial_shape.to_shape();
+        size_t i = 0;
+        for (std::size_t axis : attrsV0.axes) {
+            scales[i] = static_cast<float>(out_shape.at(axis))/inp_shape.at(axis);
+            i++;
         }
 
         auto scalesConstant = ngraph::op::Constant::create(ngraph::element::f32, {scales.size()}, scales);
         auto axisConstant = ngraph::op::Constant::create(ngraph::element::i64, {attrsV0.axes.size()},
                                                          std::vector<std::size_t>{attrsV0.axes.begin(), attrsV0.axes.end()});
 
-        ngraph::op::v4::Interpolate::InterpolateAttrs attrsV4;
+        ngraph::opset4::Interpolate::InterpolateAttrs attrsV4;
 
         if (attrsV0.mode == "nearest") {
             attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::nearest;
