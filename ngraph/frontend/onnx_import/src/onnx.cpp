@@ -44,6 +44,8 @@ namespace ngraph
                 {
                     function->get_output_op(i)->set_friendly_name(
                         graph.get_outputs().at(i).get_name());
+                    function->get_output_op(i)->get_output_tensor(0).set_names(
+                        std::unordered_set<std::string>{graph.get_outputs().at(i).get_name()});
                 }
                 return function;
             }
