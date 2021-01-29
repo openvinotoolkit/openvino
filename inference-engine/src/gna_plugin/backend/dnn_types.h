@@ -49,7 +49,7 @@ struct DnnActivation {
         struct {
             float low;
             float high;
-        } clamp; // structure to store cut-off values
+        } clamp;
         struct {
             int32_t levels;
             // if input is per-channel quantization - input pointers contains per-channel ranges

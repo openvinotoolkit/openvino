@@ -1785,9 +1785,21 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     if (it->second == kActKaldiLstmClipping) {
-        auto& clamp_layer = dynamic_cast<ClampLayer&>(*layer.get());
-        activation_type.args.clamp.low = clamp_layer.min_value;
-        activation_type.args.clamp.high = clamp_layer.max_value;
+        auto clamp_layer = dynamic_cast<ClampLayer*>(layer.get());
+        if (clamp_layer) {
+            if (clamp_layer->min_value == 0 && clamp_layer->max_value == 0) {
+                // Clamp layer may be not initialized due to backward compatibility
+                // use in such case old default values
+                activation_type.args.clamp.low = KALDI_LSTM_CLIP_LOWER;
+                activation_type.args.clamp.high = KALDI_LSTM_CLIP_UPPER;
+            } else {
+                activation_type.args.clamp.low = clamp_layer->min_value;
+                activation_type.args.clamp.high = clamp_layer->max_value;
+            }
+        } else {
+            activation_type.args.clamp.low = KALDI_LSTM_CLIP_LOWER;
+            activation_type.args.clamp.high = KALDI_LSTM_CLIP_UPPER;
+        }
     }
     string actName = "unknown";
 

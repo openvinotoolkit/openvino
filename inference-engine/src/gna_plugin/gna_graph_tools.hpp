@@ -743,6 +743,9 @@ inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new
         THROW_IE_EXCEPTION << "Cannot reconnect layer : " << old_prev_layer->name << " must have exactly 1 outgoing port";
     }
 
+    if (new_prev_layer->outData.size() != 1) {
+        THROW_IE_EXCEPTION << "Cannot reconnect layer : " << new_prev_layer->name << " must have exactly 1 outgoing port";
+    }
     // layer has ports
     // each port has several layers connected to port
     // we are assuming that old & new prev has only one outgoing port
