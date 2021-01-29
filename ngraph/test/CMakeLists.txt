@@ -276,6 +276,7 @@ set(MULTI_TEST_SRC
     backend/cum_sum.in.cpp
     backend/detection_output.in.cpp
     backend/divide.in.cpp
+    backend/deformable_convolution.in.cpp
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
