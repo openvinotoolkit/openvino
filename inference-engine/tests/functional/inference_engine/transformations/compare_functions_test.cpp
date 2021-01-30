@@ -215,43 +215,43 @@ static inline bool contains(const std::string& text, const std::string& search_f
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentElementType) {
-    auto f1 = [] {
+    const auto& f1 = [] {
         using namespace ngraph::opset5;
-        auto constant1 = Constant::create(ngraph::element::f64, ngraph::Shape{1}, {10.1});
+        auto constant = Constant::create(ngraph::element::f64, ngraph::Shape{1}, {10.1});
 
         return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant1}, ngraph::ParameterVector{});
+            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
     }();
 
-    auto f2 = [] {
+    const auto& f2 = [] {
         using namespace ngraph::opset5;
-        auto constant1 = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10.1});
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10.1});
 
         return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant1}, ngraph::ParameterVector{});
+            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
     }();
 
-    auto res = compare_functions(f1, f2, false, false, false, true, true);
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
     EXPECT_TRUE(contains(res.second, "mismatch in value: 'element_type'"))
         << "Return: >" << res.second << "< instead";
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentValues) {
-    auto f1 = [] {
+    const auto& f1 = [] {
         using namespace ngraph::opset5;
-        auto constant1 = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.2});
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.2});
 
         return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant1}, ngraph::ParameterVector{});
+            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
     }();
 
-    auto f2 = [] {
+    const auto& f2 = [] {
         using namespace ngraph::opset5;
-        auto constant1 = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10.1});
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10.1});
 
         return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant1}, ngraph::ParameterVector{});
+            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
     }();
 
     auto res = compare_functions(f1, f2, false, false, false, true, true);
@@ -261,24 +261,74 @@ TEST(TransformationTests, ConstantNegativeDifferentValues) {
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentShapes) {
-    auto f1 = [] {
+    const auto& f1 = [] {
         using namespace ngraph::opset5;
-        auto constant1 = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
 
         return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant1}, ngraph::ParameterVector{});
+            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
     }();
 
-    auto f2 = [] {
+    const auto& f2 = [] {
         using namespace ngraph::opset5;
-        auto constant1 = Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1.0});
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1.0});
 
         return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant1}, ngraph::ParameterVector{});
+            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
     }();
 
-    auto res = compare_functions(f1, f2, false, false, false, true, true);
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
     EXPECT_TRUE(contains(res.second, "mismatch in value: 'shape'"))
+        << "Return: >" << res.second << "< instead";
+}
+
+TEST(TransformationTests, ClampNegativeDifferentMin) {
+    const auto& f1 = [] {
+        using namespace ngraph::opset5;
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
+        auto clamp = std::make_shared<Clamp>(constant, 1., 2.);
+
+        return std::make_shared<ngraph::Function>(
+            ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
+    }();
+
+    const auto& f2 = [] {
+        using namespace ngraph::opset5;
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
+        auto clamp = std::make_shared<Clamp>(constant, 1.3, 2.);
+
+        return std::make_shared<ngraph::Function>(
+            ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
+    }();
+
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
+    EXPECT_FALSE(res.first);
+    EXPECT_TRUE(contains(res.second, "mismatch in value: 'min'"))
+        << "Return: >" << res.second << "< instead";
+}
+
+TEST(TransformationTests, ClampNegativeDifferentMax) {
+    const auto& f1 = [] {
+        using namespace ngraph::opset5;
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
+        auto clamp = std::make_shared<Clamp>(constant, 1., 2.);
+
+        return std::make_shared<ngraph::Function>(
+            ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
+    }();
+
+    const auto& f2 = [] {
+        using namespace ngraph::opset5;
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
+        auto clamp = std::make_shared<Clamp>(constant, 1., 200.);
+
+        return std::make_shared<ngraph::Function>(
+            ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
+    }();
+
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
+    EXPECT_FALSE(res.first);
+    EXPECT_TRUE(contains(res.second, "mismatch in value: 'max'"))
         << "Return: >" << res.second << "< instead";
 }
