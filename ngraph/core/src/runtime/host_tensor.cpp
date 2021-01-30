@@ -65,10 +65,12 @@ runtime::HostTensor::HostTensor(const std::string& name)
 {
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 runtime::HostTensor::HostTensor(const Output<Node>& value)
     : HostTensor(value.get_element_type(), value.get_partial_shape(), value.get_tensor().get_name())
 {
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 void runtime::HostTensor::allocate_buffer()
 {
@@ -101,11 +103,13 @@ void runtime::HostTensor::allocate_buffer()
     }
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 runtime::HostTensor::HostTensor(const std::shared_ptr<op::v0::Constant>& constant)
     : HostTensor(constant->output(0).get_tensor().get_name())
 {
     initialize(constant);
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 void runtime::HostTensor::initialize(const std::shared_ptr<op::v0::Constant>& constant)
 {
