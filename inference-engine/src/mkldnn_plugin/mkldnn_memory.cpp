@@ -152,7 +152,7 @@ void MKLDNNMemory::SetData(memory::data_type dataType, memory::format_tag format
         cpu_memcpy(dataPtr, data, size);
     } else {
         auto memData = this->GetDescriptor().data;
-        std::vector<ptrdiff_t> dims(memData.dims, memData.dims + memData.ndims);
+        memory::dims dims(memData.dims, memData.dims + memData.ndims);
 
         MKLDNNMemory src(this->eng);
         src.Create(dims, dataType, format, data);
