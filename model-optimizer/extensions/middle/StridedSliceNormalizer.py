@@ -100,7 +100,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             concat.out_port(0).get_connection().set_destination(node.in_port(i))
 
     def extend_inputs(self, node: Node, num: int):
-        # int32_array = lambda x: np.array(x, dtype=np.int32)
+        int32_array = lambda x: np.array(x, dtype=np.int32)
         graph = node.graph
 
         for i, slice_name in enumerate(('begin', 'end', 'strides')):
