@@ -13,7 +13,6 @@
 #include <cpp_interfaces/base/ie_variable_state_base.hpp>
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
-#include "ie_profiling.hpp"
 
 namespace InferenceEngine {
 
