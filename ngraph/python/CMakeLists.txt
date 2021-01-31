@@ -50,7 +50,19 @@ else()
     message(FATAL_ERROR "Python was not found!")
 endif()
 
+if(WIN32)
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/)
+else()
+    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/)
+endif()
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+
 # compile options
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    add_compile_options(-fPIC)
+endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # disable warning: This operator was deprecated and will be removed with v0 operation.
@@ -70,6 +82,13 @@ pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
 
 target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
+
+# perform copy
+
+add_custom_command(TARGET _${PROJECT_NAME}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
+)
 
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
