@@ -159,7 +159,7 @@ Output<Node> op::util::SubGraphOp::get_iter_value(const Output<Node>& body_value
     m_output_descriptions.push_back(std::make_shared<BodyOutputDescription>(
         m_body->get_result_index(body_value), output_index, iteration));
     set_output_size(output_index + 1);
-    this->validate_and_infer_types();
+    validate_and_infer_types();
     return Output<Node>(shared_from_this(), output_index);
 }
 
