@@ -354,9 +354,24 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 
     {
         shared_ptr<Function> specialized_ngraph_function = nullptr;
+        std::cout << "value propagation branch" << std::endl;
         if (outputs_are_static) {
             specialized_ngraph_function = _ngraph_function;
         } else {
+            std::cout << "FOLDING while read network" << std::endl;
+            std::set<std::string> dyn_ops;
+            for (const auto & node : _ngraph_function->get_ops()) {
+                const auto & input = node->input_values();
+                const auto & output = node->outputs();
+                bool out_dyn = std::any_of(output.begin(), output.end(),
+                    [](const ngraph::Output<ngraph::Node>& out){ return out.get_partial_shape().is_dynamic(); });
+                bool inp_dyn = std::any_of(input.begin(), input.end(),
+                    [](const ngraph::Output<ngraph::Node>& out){ return out.get_partial_shape().is_dynamic(); });
+                if (out_dyn && !inp_dyn)
+                    dyn_ops.insert(std::string(node->get_type_info().name) + " " + std::to_string(node->get_type_info().version));
+                }
+            for (const auto & i : dyn_ops)
+                std::cout << "DYN " << i << std::endl;
             specialized_ngraph_function = cloneFunction(false);
             {
                 OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");

@@ -57,7 +57,6 @@ TEST(TransformationTests, LowLatencyLSTM) {
         tensor_iterator->set_merged_input(C_t, C_init, res_3);
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
         tensor_iterator->set_merged_input(H_t, H_init, res_1);
-        tensor_iterator->validate_and_infer_types();
 
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
@@ -139,7 +138,6 @@ TEST(TransformationTests, LowLatencyGRU) {
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
         tensor_iterator->set_merged_input(Yi, Y, res_1);
-        tensor_iterator->validate_and_infer_types();
 
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
@@ -217,7 +215,6 @@ TEST(TransformationTests, LowLatencyRNN) {
 
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
         tensor_iterator->set_merged_input(Yi, Y, res_1);
-        tensor_iterator->validate_and_infer_types();
 
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
@@ -299,7 +296,6 @@ TEST(TransformationTests, LowLatencyLSTMReshape) {
         tensor_iterator->set_merged_input(C_t, C, res_3);
         tensor_iterator->set_sliced_input(Xi, X, 0, 1, 1, -1, 0);
         tensor_iterator->set_merged_input(H_t, H, res_1);
-        tensor_iterator->validate_and_infer_types();
 
         auto out0 = tensor_iterator->get_iter_value(res_1, -1);
         auto out1 = tensor_iterator->get_concatenated_slices(res_2, 0, 1, 1, -1, 0);
