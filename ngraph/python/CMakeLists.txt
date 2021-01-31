@@ -60,10 +60,6 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 
 # compile options
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    add_compile_options(-fPIC)
-endif()
-
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
