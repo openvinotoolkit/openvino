@@ -1316,19 +1316,14 @@ pre.fragment {
   margin-top: 0.75rem;
 }
 
-.content-copy {
-  cursor: pointer;
+.code-header {
   display: flex;
   justify-content: flex-end;
   padding: 0.3rem;
 }
 
-.content-copy > span {
-  font-size: 20px;
-}
-
-.content-copy > span:hover {
-  color: rgba(0, 0, 0, 0.6);
+.copy-button {
+  cursor: pointer;
 }
 
 div.line {
