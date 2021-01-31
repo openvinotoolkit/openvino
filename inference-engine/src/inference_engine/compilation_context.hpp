@@ -21,6 +21,8 @@
 #include "ngraph/function.hpp"
 #include "ngraph/opsets/opset6.hpp"
 
+#include "ie_parallel.hpp"
+
 namespace InferenceEngine {
 
 struct NetworkCompilationContext final {
@@ -88,13 +90,17 @@ struct NetworkCompilationContext final {
         seed = hash_combine(seed, m_xmlFile.str());
 
         // compute hash on weights if any
-        if (m_weights.empty()) {
+        if (!m_weights.empty()) {
             std::cout << "Compute hash on weights" << std::endl;
             for (const auto & c : m_weights) {
                 auto data = reinterpret_cast<const std::uint8_t *>(c->get_data_ptr());
-                for (size_t i = 0; i < ngraph::shape_size(c->get_shape()); ++i) {
-                    seed = hash_combine(seed, data[i]);
+                auto data_size = c->get_element_type().size() * ngraph::shape_size(c->get_shape());
+
+                std::uint64_t sum = 0;
+                for (size_t i = 0; i < data_size; ++i) {
+                    sum += data[i];
                 }
+                seed = hash_combine(seed, sum);
             }
         }
 
