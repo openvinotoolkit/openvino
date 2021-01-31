@@ -28,7 +28,7 @@ namespace InferenceEngine {
 struct NetworkCompilationContext final {
     explicit NetworkCompilationContext(CNNNetwork network,
         const std::map<std::string, std::string> & compileOptions = {}) :
-            m_weights{nullptr},
+            m_weights{},
             m_compileOptions{compileOptions},
             m_inputsInfo{network.getInputsInfo()},
             m_outputsInfo{network.getOutputsInfo()} {
@@ -100,6 +100,7 @@ struct NetworkCompilationContext final {
                 for (size_t i = 0; i < data_size; ++i) {
                     sum += data[i];
                 }
+
                 seed = hash_combine(seed, sum);
             }
         }
