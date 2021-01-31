@@ -105,32 +105,73 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 }
 
 static std::string GetUpdatesIndexOrder(const scatter_update_params& params) {
-    std::vector<std::string> default_order = GetDefaultOrder(params.inputs[2].GetDims().size());
-
+    std::vector<std::string> default_order = GetDefaultOrder(params.output.GetDims().size());
     return GetOrderString(default_order);
 }
 
 CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_params& params, const optional_params&, bool is_second) const {
     CommonDispatchData dispatchData;
     const auto& output = params.output;
-    const auto& updates = params.inputs[2];
-    const auto& tensor = is_second ? updates : output;
-
-    switch (tensor.GetLayout()) {
-        case DataLayout::bfyx:
-           dispatchData.gws = {tensor.X().v, tensor.Y().v, tensor.Feature().v * tensor.Batch().v};
-           break;
-        case DataLayout::bfzyx:
-           dispatchData.gws = {tensor.X().v * tensor.Y().v, tensor.Z().v, tensor.Feature().v * tensor.Batch().v};
-           break;
-        case DataLayout::bfwzyx:
-           dispatchData.gws = {tensor.X().v * tensor.Y().v, tensor.Z().v * tensor.W().v, tensor.Feature().v * tensor.Batch().v};
-           break;
-        default:
-           throw std::runtime_error("Unsupported combination\n");
-           break;
+    if (!is_second) {
+        switch (output.GetLayout()) {
+            case DataLayout::bfyx:
+               dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+               break;
+            case DataLayout::bfzyx:
+               dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
+               break;
+            case DataLayout::bfwzyx:
+               dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+               break;
+            default:
+               throw std::runtime_error("Unsupported combination\n");
+               break;
+        }
+    } else {
+        // second iteration
+        const size_t indices_size = params.inputs[1].LogicalSize();
+        switch (output.GetLayout()) {
+            case DataLayout::bfyx:
+                if (params.axis == ScatterUpdateAxis::BATCH)
+                    dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * indices_size};
+                else if (params.axis == ScatterUpdateAxis::FEATURE)
+                    dispatchData.gws = {output.X().v, output.Y().v, indices_size * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::Y)
+                     dispatchData.gws = {output.X().v, indices_size, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::X)
+                     dispatchData.gws = {indices_size, output.Y().v, output.Feature().v * output.Batch().v};
+                break;
+            case DataLayout::bfzyx:
+                if (params.axis == ScatterUpdateAxis::BATCH)
+                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * indices_size};
+                else if (params.axis == ScatterUpdateAxis::FEATURE)
+                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, indices_size * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::Z)
+                    dispatchData.gws = {output.X().v * output.Y().v, indices_size, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::Y)
+                    dispatchData.gws = {output.X().v * indices_size, output.Z().v, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::X)
+                    dispatchData.gws = {indices_size * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
+                break;
+            case DataLayout::bfwzyx:
+                if (params.axis == ScatterUpdateAxis::BATCH)
+                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * indices_size};
+                else if (params.axis == ScatterUpdateAxis::FEATURE)
+                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, indices_size * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::W)
+                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * indices_size, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::Z)
+                    dispatchData.gws = {output.X().v * output.Y().v, indices_size * output.W().v, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::Y)
+                    dispatchData.gws = {output.X().v * indices_size, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::X)
+                    dispatchData.gws = {indices_size * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+               break;
+            default:
+               throw std::runtime_error("Unsupported combination\n");
+               break;
+        }
     }
-
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -141,44 +182,11 @@ static std::string GetOutputIndexOnAxis(const scatter_update_params& params, siz
     return default_order[axis];
 }
 
-static std::vector<std::string> GetIndicesOrder(const scatter_update_params& params, size_t axis) {
-    std::vector<std::string> indices_order {"0", "0", "0", "0"};
-    auto updates_dim = params.inputs[2].GetDims().size();
-    auto updates_order = GetDefaultOrder(updates_dim);
-    auto input_dim = params.inputs[0].GetDims().size();
-    if (updates_dim == input_dim) {
-        indices_order[1] = updates_order[axis];
-    } else {
-        for (int32_t i = 0; i <= ((int32_t)updates_dim - (int32_t)input_dim); ++i) {
-            indices_order[i] = updates_order[axis + i];
-        }
-    }
-    return indices_order;
-}
-
 static std::vector<std::string> GetVectorSecondOutputIndexOrder(const scatter_update_params& params, size_t axis) {
-    auto output_order  = GetDefaultOrder(params.output.GetDims().size());
-    auto update_order  = GetDefaultOrder(params.inputs[2].GetDims().size());
-    auto indices_order = GetIndicesOrder(params, axis);
-
-    auto indices_size  = GetNonEmptyDimsNumber(params.inputs[1]);
-    // When original input for indice size is 1d of size N, the indices tensor is given as 2d tensor [1/*b*/, N/*f*/].
-    // However the updates tensor is made with 1d tensor.
-    if ((indices_size == 2) && params.inputs[1].Batch().v == 1)
-        indices_size = 1;
-
-    for (int32_t i = axis + 1; i < (int32_t) output_order.size(); ++i) {
-      output_order[i] = update_order[i + indices_size - 1];
-    }
-
-    for (int32_t i = axis - 1; i >= 0; --i) {
-      output_order[i] = update_order[i];
-    }
-    output_order[axis] = "convert_int(indices[(INPUT1_GET_INDEX(" + GetOrderString(indices_order) + "))])";
-
+    auto output_order = GetDefaultOrder(params.output.GetDims().size());
+    output_order[axis] = "convert_int(indices[OUTPUT_INDEX_ON_AXIS])";
     return output_order;
 }
-
 
 static std::string GetSecondIterOutputIndexOrder(const scatter_update_params& params, size_t axis) {
     auto output_order = GetVectorSecondOutputIndexOrder(params, axis);
@@ -193,6 +201,7 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetScatterUpdateChannelIndex(params)));
+    jit.AddConstant(MakeJitConstant("INDICES_SIZE", params.inputs[1].LogicalSize()));
 
     if (!params.fused_ops.empty()) {
         FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };

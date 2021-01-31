@@ -175,7 +175,7 @@ TEST(scatter_update_gpu_fp32, d8111_axisB) {
 TEST(scatter_update_gpu_fp16, d4311_axisB) {
     //  Dictionary : 4x3x1x1
     //  Indexes : 2x2x1x1
-    //  Updates : 2x2x3x1x1
+    //  Updates : 2x2x3x1
     //  Axis : 0
     //  Output : 4x3x1x1
     //  Input values in fp16
@@ -207,7 +207,7 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
 
     auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 4, 3, 1, 1 } }); // Dictionary
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 2, 1, 1, 3 } }); // Updates
+    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 3 } }); // Updates
     auto axis = cldnn::scatter_update::scatter_update_axis::along_b;
 
     set_values(input1, {
@@ -264,7 +264,7 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
 TEST(scatter_update_gpu_fp16, d2521_axisF) {
     //  Dictionary : 2x5x2x1
     //  Indexes : 2x2x1x1
-    //  Updates : 2x2x2x2x1
+    //  Updates : 2x2x2x2
     //  Axis : 1
     //  Output : 2x5x2x1
     //  Input values in fp16
@@ -316,7 +316,7 @@ TEST(scatter_update_gpu_fp16, d2521_axisF) {
 
     auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 5, 1, 2 } }); // Dictionary
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 2, 1, 2, 2 } }); // Updates
+    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 2, 2 } }); // Updates
     auto axis = cldnn::scatter_update::scatter_update_axis::along_f;
 
     set_values(input1, {
@@ -391,7 +391,7 @@ TEST(scatter_update_gpu_fp16, d2521_axisF) {
 TEST(scatter_update_gpu_fp16, d2241_axisY) {
     //  Dictionary : 2x2x4x1
     //  Indexes : 2x2x1x1
-    //  Updates : 2x2x2x2x1
+    //  Updates : 2x2x2x2
     //  Axis : 2
     //  Output : 2x2x4x1
     //  Input values in fp16
@@ -429,7 +429,7 @@ TEST(scatter_update_gpu_fp16, d2241_axisY) {
 
     auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 1, 4 } }); // Dictionary
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 2, 1, 2, 2 } }); // Updates
+    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 2, 2, 2 } }); // Updates
     auto axis = cldnn::scatter_update::scatter_update_axis::along_y;
 
     set_values(input1, {
@@ -491,7 +491,7 @@ TEST(scatter_update_gpu_fp16, d2241_axisY) {
 TEST(scatter_update_gpu_fp16, d8x2x20x1_axisB) {
     //  Dictionary : 8x2x20x1
     //  Indexes : 2x3x1x1
-    //  Updates : 2x3x2x20x1
+    //  Updates : 2x3x2x20
     //  Axis : 0
     //  Output : 8x2x20x1
     //  Input values in fp16
@@ -500,7 +500,7 @@ TEST(scatter_update_gpu_fp16, d8x2x20x1_axisB) {
 
     auto input1 = memory::allocate(engine, { data_types::f16, format::bfyx, { 8, 2, 1, 20 } }); // Dictionary
     auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 3, 1, 1 } });  // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f16, format::bfzyx, { 2, 3, 1, 20, 2 } }); // Updates
+    auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 2, 3, 20, 2 } }); // Updates
     auto axis = cldnn::scatter_update::scatter_update_axis::along_b;
 
     set_values(input1, {
@@ -696,7 +696,7 @@ TEST(scatter_update_gpu_fp32, d2214_axisX) {
 TEST(scatter_update_gpu_int32, d6211_axisB) {
     //  Dictionary : 6x2x1x1
     //  Indexes : 1x2x2x1
-    //  Updates : 1x2x2x2x1x1
+    //  Updates : 1x2x2x2
     //  Axis : 0
     //  Output : 6x2x1x1
     //  Input values in int32
@@ -732,7 +732,7 @@ TEST(scatter_update_gpu_int32, d6211_axisB) {
 
     auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx, { 6, 2, 1, 1 } }); // Dictionary
     auto input2 = memory::allocate(engine, { data_types::i32, format::bfyx, { 1, 2, 1, 2 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::i32, format::bfwzyx, { 1, 2, 1, 1, 2, 2 } }); // Updates
+    auto input3 = memory::allocate(engine, { data_types::i32, format::bfyx, { 1, 2, 2, 2 } }); // Updates
     auto axis = cldnn::scatter_update::scatter_update_axis::along_b;
 
     set_values(input1, {
@@ -792,7 +792,7 @@ TEST(scatter_update_gpu_int32, d6211_axisB) {
 TEST(scatter_update_gpu_int32, d3151_axisY) {
     //  Dictionary : 3x1x5x1
     //  Indexes : 2x2x1x1
-    //  Updates : 3x1x2x2x1
+    //  Updates : 3x1x2x2
     //  Axis : 2
     //  Output : 3x1x5x1
     //  Input values in int32
@@ -825,7 +825,7 @@ TEST(scatter_update_gpu_int32, d3151_axisY) {
 
     auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 1, 1, 5 } }); // Dictionary
     auto input2 = memory::allocate(engine, { data_types::i32, format::bfyx, { 2, 2, 1, 1 } }); // Indexes
-    auto input3 = memory::allocate(engine, { data_types::i32, format::bfzyx, { 3, 1, 1, 2, 2} }); // Updates
+    auto input3 = memory::allocate(engine, { data_types::i32, format::bfyx, { 3, 1, 2, 2 } }); // Updates
     auto axis = cldnn::scatter_update::scatter_update_axis::along_y;
 
     set_values(input1, {
@@ -880,8 +880,8 @@ TEST(scatter_update_gpu_int32, d3151_axisY) {
 
 TEST(scatter_update_gpu_fp32, d24111_axisF_bfzyx) {
     //  Dictionary : 2x4x1x1
-    //  Indexes : 1x1x2x1
-    //  Updates : 2x1x1x2x1x1
+    //  Indexes : 1x1x1x2
+    //  Updates : 2x1x1x1x2
     //  Axis : 1
     //  Output : 2x4x1x1x1
     //  Input values in fp32
@@ -904,8 +904,8 @@ TEST(scatter_update_gpu_fp32, d24111_axisF_bfzyx) {
     engine engine;
 
     auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 4, 1, 1 } });      // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 1, 2 } });      // Indexes
-    auto input3 = memory::allocate(engine, { data_types::f32, format::bfwzyx, { 2, 1, 1, 1, 2 } });  // Updates
+    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 1, 1, 2, 1 } });      // Indexes
+    auto input3 = memory::allocate(engine, { data_types::f32, format::bfzyx, { 2, 1, 1, 2, 1 } });  // Updates
     auto axis = cldnn::scatter_update::scatter_update_axis::along_f;
 
     set_values(input1, {
@@ -952,11 +952,11 @@ TEST(scatter_update_gpu_fp32, d24111_axisF_bfzyx) {
 }
 
 TEST(scatter_update_gpu_int32, d121251_bfwzyx_axisB) {
-    //  Dictionary : 1x2x1x2x5
-    //  Indexes : 2x2
+    //  Dictionary : 1x2x1x2x5x1
+    //  Indexes : 1x2x2x1
     //  Updates : 1x2x1x2x2x2
     //  Axis : 4
-    //  Output : 1x2x1x2x5
+    //  Output : 1x2x1x2x5x1
     //  Input values in int32
 
     //  Indexes:
@@ -990,10 +990,10 @@ TEST(scatter_update_gpu_int32, d121251_bfwzyx_axisB) {
 
     engine engine;
 
-    auto input1 = memory::allocate(engine, { data_types::i32, format::bfzyx, tensor{ batch(1), feature(2), spatial(5, 2, 1, 1) }}); // Dictionary
+    auto input1 = memory::allocate(engine, { data_types::i32, format::bfwzyx, tensor{ batch(1), feature(2), spatial(1, 5, 2, 1) }}); // Dictionary
     auto input2 = memory::allocate(engine, { data_types::i32, format::bfyx, { 2, 2, 1, 1 } });                                       // Indexes
     auto input3 = memory::allocate(engine, { data_types::i32, format::bfwzyx, tensor{ batch(1), feature(2), spatial(2, 2, 2, 1) }}); // Updates
-    auto axis = cldnn::scatter_update::scatter_update_axis::along_x;
+    auto axis = cldnn::scatter_update::scatter_update_axis::along_y;
 
     set_values(input1, {
         0, 1, 2, 3, 4,
@@ -1049,10 +1049,10 @@ TEST(scatter_update_gpu_int32, d121251_bfwzyx_axisB) {
     }
 }
 
-TEST(scatter_update_gpu_fp32, d2151_bfzyx_axisX) {
-    //  Dictionary : 2x1x5x1
+TEST(scatter_update_gpu_fp32, d21511_bfzyx_axisX) {
+    //  Dictionary : 2x1x5x1x1
     //  Indexes : 2x1x2x1
-    //  Updates : 2x1x2x1x2x1
+    //  Updates : 2x1x2x1x2
     //  Axis : 2
     //  Output : 2x1x5x1x1
     //  Input values in fp32
@@ -1078,10 +1078,10 @@ TEST(scatter_update_gpu_fp32, d2151_bfzyx_axisX) {
 
     engine engine;
 
-    auto input1 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 1, 5 } }); // Dictionary
-    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 1, 1, 2 } });     // Indices
-    auto input3 = memory::allocate(engine, { data_types::f32, format::bfwzyx, { 2, 1, 1, 2, 1, 2 } }); // Updates
-    auto axis = cldnn::scatter_update::scatter_update_axis::along_y;
+    auto input1 = memory::allocate(engine, { data_types::f32, format::bfzyx, { 2, 1, 1, 1, 5 } }); // Dictionary
+    auto input2 = memory::allocate(engine, { data_types::f32, format::bfyx, { 2, 2, 1, 1 } });     // Indices
+    auto input3 = memory::allocate(engine, { data_types::f32, format::bfzyx, { 2, 1, 1, 2, 2 } }); // Updates
+    auto axis = cldnn::scatter_update::scatter_update_axis::along_z;
 
     set_values(input1, {
         0.f, 1.f, 2.f, 3.f, 4.f,
