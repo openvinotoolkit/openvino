@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMinimum, "ConvertMinimum", 0);
 
 ngraph::pass::ConvertMinimum::ConvertMinimum() {
+    MATCHER_SCOPE(ConvertMinimum);
     auto minimum = ngraph::pattern::wrap_type<opset1::Minimum>();
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
@@ -43,6 +45,6 @@ ngraph::pass::ConvertMinimum::ConvertMinimum() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(minimum, "ConvertMinimum");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(minimum, matcher_name);
     this->register_matcher(m, callback);
 }

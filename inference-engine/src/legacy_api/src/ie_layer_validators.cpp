@@ -16,10 +16,6 @@
 #include <legacy/ie_layers.h>
 #include "ie_layer_validators.hpp"
 
-#ifdef __clang__
-#pragma clang diagnostic ignored "-Wunused-variable"
-#endif
-
 namespace InferenceEngine {
 
 using namespace details;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,10 @@ CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     TensorIterator::Body body;
     {
         InferenceEngine::CNNNetwork body_net(sub_graph->get_function());
+        IE_SUPPRESS_DEPRECATED_START
+        // TODO: fix convertFunctionToICNNNetwork
         InferenceEngine::CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
+        IE_SUPPRESS_DEPRECATED_END
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
             CNNNetGetAllInputLayers(net), [](const CNNLayerPtr& layer) {}, false);
@@ -386,6 +389,8 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
         (void)a;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::vector<std::shared_ptr<
     ngraph::op::util::SubGraphOp::OutputDescription>>>>(& adapter)) {
+        (void)a;
+    } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(& adapter)) {
         (void)a;
     } else {
         THROW_IE_EXCEPTION << "Error converting ngraph to CNN network. "
@@ -1550,9 +1555,42 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"TensorIterator"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+    addSpecificCreator({"TensorIterator"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                              const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         auto res = createSubGraphLayer(node);
         res->type = "TensorIterator";
+        return res;
+    });
+
+    addSpecificCreator({"Loop"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                    const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        auto res = createSubGraphLayer(node);
+        res->type = "Loop";
+        return res;
+    });
+
+    addSpecificCreator({"SquaredDifference"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                 const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Eltwise", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::EltwiseLayer>(attrs);
+        res->params["operation"] = "squared_diff";
+        return res;
+    });
+
+    addSpecificCreator({"RegionYolo"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "RegionYolo", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+        res->params["do_softmax"] = res->getBoolStrParamAsIntStr("do_softmax");
+        return res;
+    });
+
+    addSpecificCreator({"PSROIPooling"}, [](const std::shared_ptr<::ngraph::Node> &node,
+                                            const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "PSROIPooling", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
         return res;
     });
 }
@@ -1590,13 +1628,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::RegionYolo>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReorgYolo>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PSROIPooling>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ScaleShiftIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::SquaredDifference>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::opset5::Loop>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v4::Interpolate>>(),
                 std::make_shared<Builder::NodeConverter<::ExecGraphInfoSerialization::ExecutionNode>>(),
@@ -1842,7 +1876,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 cnnLayer->outData.clear();
                 continue;
             }
+            NGRAPH_SUPPRESS_DEPRECATED_START
             auto outName = layer->output(i).get_tensor().get_name();
+            NGRAPH_SUPPRESS_DEPRECATED_END
             if (outName.empty()) {
                 outName = ngraph::op::util::create_ie_output_name(layer->output(i));
             }
@@ -1896,7 +1932,9 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
+            NGRAPH_SUPPRESS_DEPRECATED_START
             auto name = input.get_tensor().get_name();
+            NGRAPH_SUPPRESS_DEPRECATED_END
             if (!name.empty())
                 cnnNetworkImpl->addOutput(name);
             else

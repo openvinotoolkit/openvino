@@ -48,7 +48,7 @@ struct memory_impl : refcounted_obj<memory_impl> {
         // - To be Weights format (Data memory can be reused by memory_pool, which can lead to errors)
         // - To have zero paddings
         // - To be completely filled with data
-        if (!format::is_weights_format(l.format) || format::is_winograd(l.format) || format::is_image_2d(l.format)) {
+        if ((!format::is_weights_format(l.format) && !format::is_simple_data_format(l.format)) || format::is_winograd(l.format) || format::is_image_2d(l.format)) {
             return true;
         }
 

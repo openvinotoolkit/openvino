@@ -35,6 +35,24 @@ public:
     ngraph::matcher_pass_callback convert_reduce_to_pooling();
 };
 
+class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertReduceMeanToPooling();
+};
+
+class ngraph::pass::ConvertReduceMaxToPooling: public ConvertReduceBase {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertReduceMaxToPooling();
+};
+
+class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertReduceSumToPooling();
+};
+
 class ngraph::pass::ConvertReduceToPooling: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
@@ -42,42 +60,6 @@ public:
         add_matcher<ConvertReduceMeanToPooling>();
         add_matcher<ConvertReduceMaxToPooling>();
         add_matcher<ConvertReduceSumToPooling>();
-    }
-};
-
-class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvertReduceMeanToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(
-                ngraph::pattern::wrap_type<opset1::ReduceMean>({pattern::any_input(pattern::has_static_shape()),
-                                                                pattern::wrap_type<opset1::Constant>()},
-                                                                pattern::has_static_shape()), "ConvertReduceMean");
-        register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMean>());
-    }
-};
-
-class ngraph::pass::ConvertReduceMaxToPooling: public ConvertReduceBase {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvertReduceMaxToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(
-                ngraph::pattern::wrap_type<opset1::ReduceMax>({pattern::any_input(pattern::has_static_shape()),
-                                                               pattern::wrap_type<opset1::Constant>()},
-                                                               pattern::has_static_shape()), "ConvertReduceMax");
-        register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMax>());
-    }
-};
-
-class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    ConvertReduceSumToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(
-                ngraph::pattern::wrap_type<opset1::ReduceSum>({pattern::any_input(pattern::has_static_shape()),
-                                                               pattern::wrap_type<opset1::Constant>()},
-                                                               pattern::has_static_shape()), "ConvertReduceSum");
-        register_matcher(m, convert_reduce_to_pooling<opset1::ReduceSum>());
     }
 };
 

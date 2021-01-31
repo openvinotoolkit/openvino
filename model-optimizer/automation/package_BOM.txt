@@ -224,6 +224,7 @@ extensions/front/mxnet/ssd_pattern_remove_transpose.py
 extensions/front/mxnet/ssd_reorder_detection_out_inputs.py
 extensions/front/mxnet/stack_ext.py
 extensions/front/mxnet/swapaxis_ext.py
+extensions/front/mxnet/take_ext.py
 extensions/front/mxnet/tile_ext.py
 extensions/front/mxnet/tile_replacer.py
 extensions/front/mxnet/transpose_ext.py
@@ -404,6 +405,7 @@ extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
+extensions/front/tf/KerasRNNTransformation.py
 extensions/front/tf/log_softmax_ext.py
 extensions/front/tf/LookupTableInsert_ext.py
 extensions/front/tf/LoopCond_ext.py
@@ -483,6 +485,8 @@ extensions/front/tf/UnpackPackReverseInputChannels.py
 extensions/front/tf/variable_ext.py
 extensions/front/tf/variables_values_freezing.py
 extensions/front/tf/WhereDecomposition.py
+extensions/front/tf/while_ext.py
+extensions/front/tf/WhileNormalize.py
 extensions/front/tf/yolo_v1.json
 extensions/front/tf/yolo_v1_tiny.json
 extensions/front/tf/yolo_v2.json

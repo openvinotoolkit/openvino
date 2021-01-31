@@ -194,7 +194,6 @@ NGRAPH_TEST(${BACKEND_NAME}, roi_pooling_2x2_bilinear)
                                0.75f,
                                0.8f};
 
-    const auto count = shape_size(output_shape);
     const vector<float> expected_vect = {1.225f,
                                          1.645f,
                                          4.585f,

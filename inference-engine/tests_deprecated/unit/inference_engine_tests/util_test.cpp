@@ -334,18 +334,18 @@ TEST(UtilTests, cloneNet) {
         EXPECT_TRUE(contains(outputs,"data6"));
     }
     {
-        auto cloned = IE::cloneNet(*net);
+        auto cloned = IE::cloneNet(IE::CNNNetwork(net));
         auto layer1 = getLayer(cloned, "layer1");
         auto layer2 = getLayer(cloned, "layer2");
         EXPECT_TRUE(IE::Precision::Q78          == layer1->precision);
         EXPECT_TRUE(IE::Precision::UNSPECIFIED  == layer2->precision);
     }
     {
-        auto cloned = IE::cloneNet(*net);
+        auto cloned = IE::cloneNet(IE::CNNNetwork(net));
         EXPECT_EQ("net",                         cloned->getName());
     }
     {
-        auto cloned = IE::cloneNet(*net);
+        auto cloned = IE::cloneNet(IE::CNNNetwork(net));
         IE::InputsDataMap clonedInputs;
         cloned->getInputsInfo(clonedInputs);
         for (auto &&clonedInput : clonedInputs) {
@@ -543,10 +543,10 @@ TEST(UtilTests, DISABLED_getRootDataObjects) {
 
                .finalize();
 
-    auto cloned = IE::cloneNet(*net);
+    auto cloned = IE::cloneNet(IE::CNNNetwork(net));
 
     ASSERT_EQ(13, cloned->layerCount());
-    auto root_data = IE::getRootDataObjects(*cloned);
+    auto root_data = IE::getRootDataObjects(IE::CNNNetwork(cloned));
     ASSERT_EQ(6, root_data.size());
     std::unordered_set<std::string> data_names;
     for (auto& data : root_data) {

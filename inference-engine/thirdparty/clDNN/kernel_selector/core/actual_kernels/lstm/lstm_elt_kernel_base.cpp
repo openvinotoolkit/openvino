@@ -80,7 +80,6 @@ KernelsData LSTMEltKernelBase::GetCommonKernelsData(const Params& params, const 
 
     KernelData kd = KernelData::Default<lstm_elt_params>(params, orgParams.inputs.size());
 
-    float efficiency = FORCE_PRIORITY_1;
     const auto& input = orgParams.inputs[0];
 
     auto newParams = orgParams;
@@ -100,8 +99,6 @@ KernelsData LSTMEltKernelBase::GetCommonKernelsData(const Params& params, const 
     if (orgParams.has_cell) {
         kernel.arguments.push_back({ArgumentDescriptor::Types::CELL, 0});
     }
-
-    kd.estimatedTime = efficiency;
 
     return {kd};
 }

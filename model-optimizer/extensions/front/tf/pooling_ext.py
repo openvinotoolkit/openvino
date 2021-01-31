@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -86,6 +86,6 @@ def create_pooling_attrs(node, pool_method):
         'pool_method': pool_method,
         'type': 'Pooling',
         'layout': data_format.s.decode(),
-        'exclude_pad': 'true',
+        'exclude_pad': True,
     }
     return attrs

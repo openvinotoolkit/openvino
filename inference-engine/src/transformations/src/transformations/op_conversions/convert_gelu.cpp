@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include <memory>
 #include <ngraph/opsets/opset2.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -13,6 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGELU, "ConvertGELU", 0);
 
 ngraph::pass::ConvertGELU::ConvertGELU() {
+    MATCHER_SCOPE(ConvertGELU);
     auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto gelu = std::make_shared<ngraph::opset2::Gelu>(input);
 
@@ -37,6 +39,6 @@ ngraph::pass::ConvertGELU::ConvertGELU() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gelu, "ConvertGELU");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gelu, matcher_name);
     register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

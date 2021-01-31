@@ -20,9 +20,8 @@ class MockInferencePluginInternal2 : public InferenceEngine::InferencePluginInte
 public:
     MOCK_METHOD2(LoadExeNetworkImpl, std::shared_ptr<InferenceEngine::ExecutableNetworkInternal>(
             const InferenceEngine::CNNNetwork &, const std::map<std::string, std::string> &));
-    MOCK_METHOD3(LoadNetwork, void(
-            InferenceEngine::IExecutableNetwork::Ptr &,
-            const InferenceEngine::ICNNNetwork &,
+    MOCK_METHOD2(LoadNetwork, ExecutableNetwork(
+            const InferenceEngine::CNNNetwork &,
             const std::map<std::string, std::string> &));
     MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr ext_ptr));
     MOCK_METHOD1(SetConfig, void(const std::map <std::string, std::string> &));

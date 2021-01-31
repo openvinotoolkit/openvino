@@ -41,32 +41,6 @@
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
-namespace {
-std::string ndrange_to_string(cl::NDRange const& range) {
-    std::string ret = "(";
-    for (cl::size_type i = 0; i < range.dimensions(); ++i) ret += (!i ? "" : ", ") + std::to_string(range.get()[i]);
-
-    ret += ")";
-    return ret;
-}
-
-std::string events_list_to_string(std::vector<cldnn::event_impl::ptr> events) {
-    std::string ret = "(";
-    bool empty = true;
-    for (auto& ev : events) {
-        std::string id = "unk";
-        if (auto* ocl_ev = dynamic_cast<cldnn::gpu::base_event*>(ev.get()))
-            id = std::to_string(ocl_ev->get_queue_stamp());
-
-        ret += (empty ? "" : ", ") + id;
-        empty = false;
-    }
-
-    ret += ")";
-    return ret;
-}
-}  // namespace
-
 // static class memebers - pointers to dynamically obtained OpenCL extension functions
 cl::PFN_clEnqueueAcquireMediaSurfacesINTEL cl::SharedSurfLock::pfn_acquire = NULL;
 cl::PFN_clEnqueueReleaseMediaSurfacesINTEL cl::SharedSurfLock::pfn_release = NULL;

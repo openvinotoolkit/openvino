@@ -16,7 +16,6 @@ std::string ParameterResultSubgraphTest::getTestCaseName(testing::TestParamInfo<
 
 void ParameterResultSubgraphTest::SetUp() {
     InferenceEngine::SizeVector inputShapes;
-    InferenceEngine::Precision inputPrecision;
     std::tie(targetDevice) = this->GetParam();
 
     auto parameter = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 10, 10});

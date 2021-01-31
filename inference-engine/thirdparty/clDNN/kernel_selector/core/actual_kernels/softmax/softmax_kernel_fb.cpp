@@ -63,8 +63,11 @@ SoftmaxKernel_fb::Parent::DispatchData SoftmaxKernel_fb::SetDefault(const softma
 
     assert(dispatchData.itemsNum > 0 && dispatchData.lws[0] && dispatchData.gws[0] > 0);
 
-    dispatchData.efficiency = FORCE_PRIORITY_6;
     return dispatchData;
+}
+
+KernelsPriority SoftmaxKernel_fb::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 
 bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params, const optional_params& o) const {

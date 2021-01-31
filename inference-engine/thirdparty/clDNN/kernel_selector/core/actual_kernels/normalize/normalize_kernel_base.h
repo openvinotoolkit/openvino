@@ -57,7 +57,7 @@ public:
 protected:
     JitConstants GetJitConstants(const normalize_params& params) const;
     DispatchData SetDefault(const normalize_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::ACTIVATION,

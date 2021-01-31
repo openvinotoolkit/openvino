@@ -6,7 +6,9 @@ set (TARGET_NAME "inference_engine")
 
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/threading/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/ie_built_in_holder.cpp
       )
 
@@ -118,7 +120,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 target_link_libraries(${TARGET_NAME}_obj PRIVATE ${TARGET_NAME}_reader_api)
 
 if(ENABLE_MKL_DNN)
-    target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/xbyak")
+    target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE "${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu/x64/xbyak")
 endif()
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)

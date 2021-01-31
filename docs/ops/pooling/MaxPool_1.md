@@ -68,9 +68,12 @@
 **Inputs**:
 
 *   **1**: 3D, 4D or 5D input tensor. Required.
+<<<<<<< HEAD
 
 **Outputs**:
   * **1**: Input shape can be either [N,C,H], [N,C,H,W] or [N,C,H,W,D]. Then the corresponding output shape will be [N,C,H_out], [N,C,H_out,W_out] or [N,C,H_out,W_out,D_out]
+=======
+>>>>>>> upstream/master
 
 **Mathematical Formulation**
 Output shape calculation based on `auto_pad` and `rounding_type`:  

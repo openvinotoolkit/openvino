@@ -98,8 +98,8 @@ TEST_F(ParameterTests, StringParameterAsInt) {
     Parameter p = "4";
     ASSERT_FALSE(p.is<int>());
     ASSERT_TRUE(p.is<std::string>());
-    ASSERT_THROW(int test = p, std::bad_cast);
-    ASSERT_THROW(int test = p.as<int>(), std::bad_cast);
+    ASSERT_THROW((void)static_cast<int>(p), std::bad_cast);
+    ASSERT_THROW((void)p.as<int>(), std::bad_cast);
 }
 
 TEST_F(ParameterTests, ParameterAsTensorDesc) {
@@ -259,10 +259,10 @@ TEST_F(ParameterTests, CompareParametersWithoutEqualOperator) {
     Parameter parB = b;
     Parameter parC = c;
 
-    ASSERT_THROW(bool equal = parA == parB, details::InferenceEngineException);
-    ASSERT_THROW(bool equal = parA != parB, details::InferenceEngineException);
-    ASSERT_THROW(bool equal = parA == parC, details::InferenceEngineException);
-    ASSERT_THROW(bool equal = parA != parC, details::InferenceEngineException);
+    ASSERT_THROW((void)(parA == parB), details::InferenceEngineException);
+    ASSERT_THROW((void)(parA != parB), details::InferenceEngineException);
+    ASSERT_THROW((void)(parA == parC), details::InferenceEngineException);
+    ASSERT_THROW((void)(parA != parC), details::InferenceEngineException);
 }
 
 TEST_F(ParameterTests, ParameterRemovedRealObject) {

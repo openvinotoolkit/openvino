@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_topk3.hpp"
 
 #include <memory>
@@ -17,6 +18,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTopK3, "ConvertTopK3", 0);
 
 ngraph::pass::ConvertTopK3::ConvertTopK3() {
+    MATCHER_SCOPE(ConvertTopK3);
     auto topk = pattern::wrap_type<opset3::TopK>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -61,6 +63,6 @@ ngraph::pass::ConvertTopK3::ConvertTopK3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(topk, "ConvertTopK3");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(topk, matcher_name);
     register_matcher(m, callback);
 }
