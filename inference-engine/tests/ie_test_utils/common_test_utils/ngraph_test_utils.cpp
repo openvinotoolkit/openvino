@@ -5,10 +5,14 @@
 #include "ngraph_test_utils.hpp"
 
 #include <cassert>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <queue>
+#include <sstream>
 #include <string>
+#include <type_traits>
+#include <typeinfo>
 #include <vector>
 
 #include <ngraph/function.hpp>
@@ -445,7 +449,9 @@ struct Equal<SpecialBodyPorts> {
 
 namespace str {
 template <typename...>
-using void_t = void;
+struct Void_t {
+    using type = void;
+};
 
 template <typename T, typename = void>
 struct Get {
@@ -455,7 +461,7 @@ struct Get {
 };
 
 template <typename T>
-struct Get<T, void_t<decltype(std::to_string(std::declval<T>()))>> {
+struct Get<T, typename Void_t<decltype(std::to_string(std::declval<T>()))>::type> {
     static std::string value(const T& v) {
         return "[" + std::to_string(v) + "]";
     }
@@ -469,7 +475,9 @@ struct Get<std::string, void> {
 };
 
 template <typename T>
-struct Get<T, void_t<decltype(begin(std::declval<T>())), decltype(end(std::declval<T>()))>> {
+struct Get<
+    T,
+    typename Void_t<decltype(begin(std::declval<T>())), decltype(end(std::declval<T>()))>::type> {
     template <typename Container>
     static std::string join(const Container& c, const char* glue = ", ") {
         std::stringstream oss;
@@ -598,8 +606,8 @@ private:
         }
 
         if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
-            m_cmp_result += "mismatch in value: '" + name + "' : " +
-                            str::Get<AttrValue>::value(*ref_value) + " vs " +
+            m_cmp_result += "mismatch in value: '" + name +
+                            "' : " + str::Get<AttrValue>::value(*ref_value) + " vs " +
                             str::Get<AttrValue>::value(attr_value);
         }
     }
