@@ -58,21 +58,13 @@ class CTCGreedyDecoderReplacementTests(unittest.TestCase):
         graph_ref = build_graph(nodes_attributes,
                                 [('logits', 'transpose', {'out': 0, 'in': 0}),
                                  ('order_arr', 'transpose', {'out': 0, 'in': 1}),
-
                                  ('transpose', 'decoder', {'out': 0, 'in': 0}),
-
                                  ('seq_len', 'decoder', {'out': 0, 'in': 1}),
                                  ('decoder', 'last', {'out': 0, 'in': 0}),
-                                 #('squeeze_axes', 'squeeze_dec_seq', {'out': 0, 'in': 1}),
-                                 #('squeeze_dec_seq', 'cast_to_int', {'out': 0, 'in': 0}),
-                                 #('cast_to_int', 'last', {'out': 0, 'in': 0}),
                                  ],
                                 nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'last', check_op_attrs=True)
-        # self.assertEqual(len(graph.get_op_nodes(op='Cast')) == 1 and
-        #                  graph.get_op_nodes(op='Cast')[0]['name'] == 'sparse_to_dense', True,
-        #                  'Name is not inherited from original node for CTCGreedyDecoderReplacement')
         self.assertTrue(flag, resp)
 
     def test2(self):
