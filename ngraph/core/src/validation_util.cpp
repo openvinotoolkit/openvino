@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <ngraph/ops.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
@@ -1198,12 +1199,12 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
     }
 }
 
-bool could_propagate(const Output<Node>& output, NodeVector& order)
+bool could_propagate(const Output<Node>& output, std::vector<Node*>& order)
 {
     bool status = true;
 
-    std::deque<shared_ptr<Node>> nodes_to_calculate = {output.get_node_shared_ptr()};
-    order.push_back(output.get_node_shared_ptr());
+    std::deque<Node*> nodes_to_calculate = {output.get_node()};
+    order.push_back(output.get_node());
 
     while (status && !nodes_to_calculate.empty())
     {
@@ -1217,13 +1218,27 @@ bool could_propagate(const Output<Node>& output, NodeVector& order)
             // not a leaf, not a shape_of -- continue to search
             for (const auto& input_value : current_node->input_values())
             {
-                const auto& input_node = input_value.get_node_shared_ptr();
+                const auto& input_node = input_value.get_node();
                 order.push_back(input_node);
                 nodes_to_calculate.push_front(input_node);
             }
         }
     }
     return status;
+}
+
+void propagate_rt_info(Node* node, const Output<Node>& final_port)
+{
+    for (const auto& output : node->outputs())
+    {
+        if (output == final_port)
+            continue;
+        for (auto& in : output.get_target_inputs())
+        {
+            auto consumer = in.get_node()->shared_from_this();
+            copy_runtime_info({node->shared_from_this(), consumer}, consumer);
+        }
+    }
 }
 
 HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
@@ -1234,7 +1249,7 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
     if (!is_upper && output.get_tensor().get_lower_value() != nullptr)
         return output.get_tensor().get_lower_value();
 
-    NodeVector order;
+    std::vector<Node*> order;
     if (could_propagate(output, order))
     {
         reverse(order.begin(), order.end());
@@ -1263,6 +1278,13 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
                 for (const auto& input : input_values)
                     if (input.get_target_inputs().size() == 1)
                         input.get_tensor().invalidate_values();
+                const auto& node_outputs = node->outputs();
+                bool same_outputs = std::all_of(
+                    node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
+                        return output.get_tensor().has_and_set_bound();
+                    });
+                if (same_outputs)
+                    propagate_rt_info(node, output);
             }
             else
             {
