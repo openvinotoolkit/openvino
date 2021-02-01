@@ -43,7 +43,7 @@ jobs:
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
     displayName: 'Make dir'
 
-  - script: sudo fallocate -l 15G /swapfile ; sudo chmod 777 /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; free -h
+  - script: sudo fallocate -l 15G /swapfile ; sudo chmod 777 /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
     displayName: 'Create a swap and display swap space'
     enabled: true
 
@@ -57,7 +57,7 @@ jobs:
       #ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(TMP_DIR) -c -f
       ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o
     displayName: 'Clone ONNX models'
-    enabled: false
+    enabled: true
 
   - task: CMake@1
     inputs:
