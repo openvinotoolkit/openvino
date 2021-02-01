@@ -5,7 +5,7 @@ jobs:
   timeoutInMinutes: 240
 
   pool:
-    name: LIN_VMSS_VENV_F8S_WU2
+    name: LIN_VMSS_VENV_F8S_WE
 
   variables:
     system.debug: true
@@ -35,6 +35,7 @@ jobs:
       vmstat -s
       df
       lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
+      free -h
     displayName: 'System info'
 
   - script: |
@@ -42,13 +43,19 @@ jobs:
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
     displayName: 'Make dir'
 
+  - script: sudo fallocate -l 15G /swapfile ; sudo chmod 777 /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; free -h
+    displayName: 'Create a swap and display swap space'
+    enabled: true
+
   - checkout: self
     clean: true
     lfs: false
     submodules: recursive
     path: openvino
 
-  - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(TMP_DIR) -c -f
+  - script: |
+      #ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(TMP_DIR) -c -f
+      ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o
     displayName: 'Clone ONNX models'
     enabled: false
 
@@ -85,7 +92,9 @@ jobs:
     displayName: 'Docker build'
     enabled: true
 
-  - script: docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR):/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
+  - script: |
+      #docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR):/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
+      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo openvino-onnx-ci-image
     displayName: 'Docker run'
     enabled: true
 
