@@ -50,13 +50,15 @@ else()
     message(FATAL_ERROR "Python was not found!")
 endif()
 
-if(WIN32)
-    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/)
-else()
-    set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/)
+if(OpenVINO_MAIN_SOURCE_DIR)
+    if(WIN32)
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/$<CONFIG>/python_api/${PYTHON_VERSION}/)
+    else()
+        set(PYTHON_BRIDGE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/python_api/${PYTHON_VERSION}/)
+    endif()
+    
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 endif()
-
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 
 # compile options
 
@@ -80,11 +82,12 @@ target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
 
 # perform copy
-
-add_custom_command(TARGET _${PROJECT_NAME}
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
-)
+if(OpenVINO_MAIN_SOURCE_DIR)
+    add_custom_command(TARGET _${PROJECT_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/src/ngraph ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/ngraph
+    )
+endif()
 
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
     ie_cpack_add_component(pyngraph_${PYTHON_VERSION})
