@@ -74,27 +74,26 @@ jobs:
     displayName: 'Copy MSFT models'
     enabled: false
 
-  - script: ls -alR $(MODELS_DIR)
-    displayName: 'List $(MODELS_DIR)'
-    enabled: false
-
-  - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
-    displayName: 'Docker build'
-    enabled: true
 
   - script: |
       #ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(TMP_DIR) -c -f
       ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o
-    displayName: 'Clone ONNX models'
-    enabled: true
+    displayName: 'Get models'
+
+  - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
+    displayName: 'Docker build'
+
+  - script: |
+      ls -alR $(MODELS_DIR)
+      ls -alR $(TMP_DIR)
+    displayName: 'List models'
+    enabled: false
 
   - script: sudo fallocate -l 15G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
     displayName: 'Create swap'
-    enabled: true
 
   - script: |
       #docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR):/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
       docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
     displayName: 'Docker run'
-    enabled: true
 
