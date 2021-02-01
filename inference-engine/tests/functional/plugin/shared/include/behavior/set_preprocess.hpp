@@ -20,7 +20,7 @@ using PreprocessTest = BehaviorTestsUtils::BehaviorTestsBasic;
 TEST_P(PreprocessTest, SetPreProcessToInputInfo) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
+    // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(function);
 
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
@@ -41,7 +41,7 @@ TEST_P(PreprocessTest, SetPreProcessToInputInfo) {
 TEST_P(PreprocessTest, SetPreProcessToInferRequest) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    // Create CNNNetwork from ngrpah::Function
+    // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(function);
 
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
@@ -82,7 +82,7 @@ TEST_P(PreprocessTest, SetMeanImagePreProcess) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    // Create CNNNetwork from ngrpah::Function
+    // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(ngraph);
 
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
@@ -124,8 +124,9 @@ TEST_P(PreprocessTest, SetMeanImagePreProcess) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
+        for (size_t i = 0; i < inBlob->size(); i++) {
             ASSERT_EQ(inData[i] + inData[i], outData[i]);
+        }
     }
 }
 
@@ -149,7 +150,7 @@ TEST_P(PreprocessTest, SetMeanValuePreProcess) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    // Create CNNNetwork from ngrpah::Function
+    // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(ngraph);
 
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
@@ -185,8 +186,9 @@ TEST_P(PreprocessTest, SetMeanValuePreProcess) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
-            ASSERT_EQ(inData[i]+5, outData[i]);
+        for (size_t i = 0; i < inBlob->size(); i++) {
+            ASSERT_EQ(inData[i] + 5, outData[i]);
+        }
     }
 }
 
@@ -210,7 +212,7 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcess) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    // Create CNNNetwork from ngrpah::Function
+    // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(ngraph);
 
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
@@ -273,7 +275,7 @@ TEST_P(PreprocessTest, SetScalePreProcess) {
         ngraph = std::make_shared<ngraph::Function>(results, params);
     }
 
-    // Create CNNNetwork from ngrpah::Function
+    // Create CNNNetwork from ngraph::Function
     InferenceEngine::CNNNetwork cnnNet(ngraph);
 
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
@@ -309,8 +311,9 @@ TEST_P(PreprocessTest, SetScalePreProcess) {
         auto outMem = outBlob->cbuffer();
         const auto* outData = outMem.as<const float*>();
         ASSERT_EQ(inBlob->size(), outBlob->size());
-        for (size_t i = 0; i < inBlob->size(); i++)
+        for (size_t i = 0; i < inBlob->size(); i++) {
             ASSERT_EQ(inData[i]*2, outData[i]);
+        }
     }
 }
 

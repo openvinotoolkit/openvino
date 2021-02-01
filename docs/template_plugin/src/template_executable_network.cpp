@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ using namespace TemplatePlugin;
 
 // ! [executable_network:ctor_cnnnetwork]
 TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                                                     const InferenceEngine::InputsDataMap&          inputInfoMap,
                                                      const Configuration&                           cfg,
                                                      const Plugin::Ptr&                             plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, nullptr), // Disable default threads creation
@@ -25,7 +26,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
     try {
-        CompileNetwork(function);
+        CompileNetwork(function, inputInfoMap);
         InitExecutor(); // creates thread-based executor using for async requests
     } catch (const InferenceEngine::details::InferenceEngineException&) {
         throw;
@@ -64,6 +65,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
 
     // TODO: implement Import / Export of configuration options and merge with `cfg`
     // TODO: implement Import / Export of network precisions, layouts, preprocessing info
+    InferenceEngine::InputsDataMap inputInfoMap;
 
     auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
 
@@ -72,7 +74,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
     SetPointerToPlugin(_plugin->shared_from_this());
 
     try {
-        CompileNetwork(cnnnetwork.getFunction());
+        CompileNetwork(cnnnetwork.getFunction(), inputInfoMap);
         InitExecutor(); // creates thread-based executor using for async requests
     } catch (const InferenceEngine::details::InferenceEngineException&) {
         throw;
@@ -86,13 +88,15 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
 
 // ! [executable_network:map_graph]
 // forward declaration
-std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function);
+std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                                                   const InferenceEngine::InputsDataMap & inputInfoMap);
 
-void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function) {
+void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                                                       const InferenceEngine::InputsDataMap & inputInfoMap) {
     // TODO: perform actual graph compilation / mapping to backend graph representation / kernels
 
     // apply plugins transformations
-    _function = TransformNetwork(function);
+    _function = TransformNetwork(function, inputInfoMap);
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.

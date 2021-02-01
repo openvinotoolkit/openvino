@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ class Plugin;
 class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
     ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                      const InferenceEngine::InputsDataMap&          inputInfoMap,
                       const Configuration&                           cfg,
                       const std::shared_ptr<Plugin>&                 plugin);
 
@@ -46,7 +47,8 @@ public:
 private:
     friend class TemplateInferRequest;
 
-    void CompileNetwork(const std::shared_ptr<const ngraph::Function>& function);
+    void CompileNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                        const InferenceEngine::InputsDataMap&          inputInfoMap);
     void InitExecutor();
 
     std::atomic<std::size_t>                    _requestId = {0};

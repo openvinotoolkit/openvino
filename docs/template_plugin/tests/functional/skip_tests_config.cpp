@@ -12,7 +12,5 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ExclusiveAsyncRequests.*",
         ".*reusableCPUStreamsExecutor.*",
         R"(.*SplitLayerTest.*numSplits\=30.*)",
-        // CVS-44774
-        ".*PreprocessTest.*",
     };
 }
