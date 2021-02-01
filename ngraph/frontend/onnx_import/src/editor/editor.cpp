@@ -193,22 +193,19 @@ namespace
         initializer.mutable_raw_data();
 
         // update input with type and shape of initializer
-        if (input && input->has_type())
+        if (input)
         {
-            auto type_proto = input->mutable_type();
-            if (type_proto->has_tensor_type())
+            auto tensor_type = input->mutable_type()->mutable_tensor_type();
+
+            TensorShapeProto shape;
+            shape.clear_dim();
+            for (size_t i = 0; i < initializer.dims_size(); ++i)
             {
-                auto tensor_type = type_proto->mutable_tensor_type();
-
-                auto shape = tensor_type->mutable_shape();
-                shape->clear_dim();
-                for (size_t i = 0; i < initializer.dims_size(); ++i)
-                {
-                    shape->add_dim()->set_dim_value(initializer.dims(i));
-                }
-
-                tensor_type->set_elem_type(initializer.data_type());
+                shape.add_dim()->set_dim_value(initializer.dims(i));
             }
+
+            *tensor_type->mutable_shape() = std::move(shape);
+            tensor_type->set_elem_type(initializer.data_type());
         }
     }
 } // namespace
@@ -312,20 +309,20 @@ void onnx_import::ONNXModelEditor::set_input_values(
         auto& name = input.first;
         auto& values = input.second;
 
-        auto input_desc = find_graph_input(*onnx_graph, name);
-        auto initializer_desc = find_graph_initializer(*onnx_graph, name);
+        auto onnx_input = find_graph_input(*onnx_graph, name);
+        auto onnx_initializer = find_graph_initializer(*onnx_graph, name);
 
-        if (!initializer_desc && !input_desc)
+        if (!onnx_initializer && !onnx_input)
         {
             NGRAPH_INFO << "There is no input nor initializer named '" << name
                         << "' in original model '" << m_model_path << "'.";
         }
 
-        if (!initializer_desc)
+        if (!onnx_initializer)
         {
-            initializer_desc = onnx_graph->add_initializer();
+            onnx_initializer = onnx_graph->add_initializer();
         }
 
-        modify_initializer(*initializer_desc, name, values, input_desc);
+        modify_initializer(*onnx_initializer, name, values, onnx_input);
     }
 }
