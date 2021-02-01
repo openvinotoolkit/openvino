@@ -340,6 +340,8 @@ class PermuteAttrs:
     Attr = namedtuple('Attr', ['name', 'port', 'func'])
 
     common_permutation = lambda node, permutation, attr: node[attr][permutation.perm]
+    slice_permutation = lambda node, permutation, attr: \
+        node[attr][permutation.perm] if len(node.in_port(0).data.get_shape()) >= 4 else node[attr]
     common_permutation_inv = lambda node, permutation, attr: permutation.inv[node[attr]]
 
     # List of default permutations
@@ -355,8 +357,11 @@ class PermuteAttrs:
             'kernel_shape': common_permutation,
             'output_shape': common_permutation,
             'slices': common_permutation,
-            'shrink_axis_mask': common_permutation,
-            'new_axis_mask': common_permutation,
+            'begin_mask': slice_permutation,
+            'end_mask': slice_permutation,
+            'shrink_axis_mask': slice_permutation,
+            'new_axis_mask': slice_permutation,
+            'ellipsis_mask': slice_permutation,
             'axes': common_permutation_inv,
             'axis': common_permutation_inv,
             'batch_dims': common_permutation_inv,

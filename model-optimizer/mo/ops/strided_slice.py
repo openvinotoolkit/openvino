@@ -18,8 +18,7 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
-from mo.graph.perm_inputs import PermuteInputs
-from mo.ops.op import Op, PermuteAttrs
+from mo.ops.op import Op
 from mo.utils.error import Error
 from mo.utils.utils import array_to_str
 
@@ -57,20 +56,6 @@ class StridedSlice(Op):
     def infer(node: Node):
         # FW assures that begin, end, and strides are of the same length th
         tf_strided_slice_infer(node)
-
-        out_shape = node.out_port(0).data.get_shape()
-        assert out_shape is not None, \
-            'Output shape was not calculated for node {}'.format(node.name)
-
-        PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0', permute_masks),
-                                                       ('new_axis_mask', 'input:0', permute_masks),
-                                                       ('ellipsis_mask', 'input:0', permute_masks),
-                                                       ('begin_mask', 'input:0', permute_masks),
-                                                       ('end_mask', 'input:0', permute_masks)])
-
-        # PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
-        # PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
-        # PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'shape')
 
 
 def tf_strided_slice_infer(node):
@@ -171,32 +156,3 @@ def convert_negative_indices(indices: np.array, shape: np.array):
     for ind, value in enumerate(indices):
         if value < 0:
             indices[ind] += shape[ind]
-
-def permute_array(node: Node, array: np.array):
-    """
-    This function permutes masks according to permutation parameter. Mask have the same or more length than output
-    """
-    attr_mask_extended = list(array)
-
-    # If input and output have length of shape 3 and less, no need to permute
-    if len(node.in_port(0).data.get_shape()) < 4 and len(node.out_port(0).data.get_shape()) < 4:
-        return attr_mask_extended
-
-    perm_len = len(node.out_port(0).data.get_shape()) + np.count_nonzero(node.shrink_axis_mask)
-    perm_len = len(array)
-
-    perm = PermuteAttrs.get_nhwc_to_nchw_permutation(perm_len)
-    perm_list = list(perm.perm)
-    # if mask length is more than output, just add tail that will not be permuted to avoid error
-    for i in range(perm_len, len(attr_mask_extended)):
-        perm_list.append(i)
-    return int64_array(attr_mask_extended)[int64_array(perm_list)]
-
-
-def permute_masks(node: Node, permutation: PermuteAttrs.Permutation, attr: str):
-    if not node.has_valid(attr):
-        return None
-
-    node[attr] = permute_array(node, node[attr])
-    return node[attr]
-

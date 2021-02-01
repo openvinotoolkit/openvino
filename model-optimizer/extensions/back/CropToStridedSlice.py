@@ -59,6 +59,7 @@ class CropToStridedSlice(BackReplacementPattern):
 
         in_shape = node.in_port(0).data.get_shape()
         shape_rank = in_shape.size
+        # dangerous place
         axis_mask = int64_array([1 if i in node_axis else 0 for i in range(shape_rank)])
         begin_mask = axis_mask.copy()
         end_mask = axis_mask.copy()

@@ -23,6 +23,8 @@ from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.graph.perm_inputs import PermuteInputs
+from mo.ops.op import Op, PermuteAttrs
+
 
 class StridedSliceNormalizer(MiddleReplacementPattern):
     enabled = True
@@ -35,10 +37,16 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         ss_nodes = graph.get_op_nodes(op='StridedSlice')
         for node in ss_nodes:
             self.normalize_strided_slice(graph, node)
+
+            PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0'),
+                                                           ('new_axis_mask', 'input:0'),
+                                                           ('ellipsis_mask', 'input:0'),
+                                                           ('begin_mask', 'input:0'),
+                                                           ('end_mask', 'input:0')])
+
             PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
             PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
             PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'shape')
-            pass
 
     def normalize_strided_slice(self, graph: Graph, node: Node):
         input_shape = node.in_port(0).data.get_shape()
@@ -61,9 +69,8 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             node.ellipsis_mask[ellipsis_start] = 0
 
             self.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num_inserts)
-
         elif slice_rank < input_rank:  # process somehow nonzero
-            num = input_rank - (slice_rank)
+            num = input_rank - slice_rank
             # extend masks
             for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
                 node[mask_name] = np.append(node[mask_name], [0] * num)
