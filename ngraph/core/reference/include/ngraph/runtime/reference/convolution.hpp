@@ -195,9 +195,6 @@ namespace ngraph
                              "Unsupported kernel rank: ",
                              f_shape);
 
-                auto old_mode = std::fegetround();
-                std::fesetround(FE_TONEAREST);
-
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later
                 ConvolutionParams params{strides, dilation, pads_begin, pads_end};
@@ -230,8 +227,6 @@ namespace ngraph
                     }
                     batch += batch_size;
                 }
-
-                std::fesetround(old_mode);
             }
 
             // DEPRECATED, can't be removed currently due to kmb-plugin dependency (#47799)
