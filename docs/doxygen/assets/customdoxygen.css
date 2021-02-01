@@ -379,7 +379,7 @@ h3 {
 }
 
 h4 {
-  font: normal 400 1.25/1.25 "Lato", "Helvetica", sans-serif;
+  font: normal 400 1.25rem/1.25 "Lato", "Helvetica", sans-serif;
 }
 
 /* "H1" headings */
@@ -791,7 +791,11 @@ a.see-all {
   }
 
   #download-link {
-    margin-right:3.28rem;
+    margin-right: 2.25rem;
+  }
+
+  #install-link {
+    margin-right: 3.28rem;
   }
 }
 
@@ -816,7 +820,11 @@ div.old-version > p {
 }
 
 #download-link {
-  margin-right: 3.75rem;
+  margin-right: 2.25rem;
+}
+
+#install-link {
+    margin-right: 3.75rem;
 }
 
 .nav-placeholder {
@@ -1298,9 +1306,24 @@ pre.fragment {
   background: #f9f9f9;
   border: none;
   counter-reset: codegroup;
-  margin: 1.1rem 0;
-  padding: 0.75rem 1rem;
+  margin-bottom: 1.1rem;
+  padding: 0 1rem 0.75rem 0;
   overflow: auto;
+}
+
+.code-container {
+  background: #f9f9f9;
+  margin-top: 0.75rem;
+}
+
+.code-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.3rem;
+}
+
+.copy-button {
+  cursor: pointer;
 }
 
 div.line {
@@ -1425,6 +1448,7 @@ iframe#MSearchResults {
   transform: translateY(-50%);
   right: 9rem;
   width: 60vw;
+  padding-left:5px;
 }
 
 #search-slider {
