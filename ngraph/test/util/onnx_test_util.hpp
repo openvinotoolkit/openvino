@@ -27,7 +27,29 @@ namespace ngraph
 {
     namespace test
     {
-        std::pair<bool, std::string> compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
-                                                         const std::string& reference_model_path);
-    }
+        struct ComparisonResult
+        {
+            ComparisonResult() = default;
+            ComparisonResult(std::string error)
+                : error_message{std::move(error)}
+            {
+            }
+            ComparisonResult(ComparisonResult&&) = default;
+            ComparisonResult(const ComparisonResult&) = default;
+            ComparisonResult& operator=(ComparisonResult&&) = default;
+            ComparisonResult& operator=(const ComparisonResult&) = default;
+
+            bool is_ok = true;
+            std::string error_message;
+
+            static ComparisonResult pass() { return {}; }
+            static ComparisonResult fail(std::string error)
+            {
+                return ComparisonResult{std::move(error)};
+            }
+        };
+
+        ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
+                                             const std::string& reference_model_path);
+    } // namespace test
 } // namespace ngraph

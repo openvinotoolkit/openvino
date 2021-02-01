@@ -36,22 +36,10 @@ namespace
             ")");
     }
 
-    struct CheckIfHasName
-    {
-    };
-
     template <typename T>
     std::function<bool(const T&)> name_equals(const std::string& name)
     {
         return [&name](const T& onnx_object) -> bool { return onnx_object.name() == name; };
-    }
-
-    template <typename T>
-    std::function<bool(const T&)> name_equals(const std::string& name, CheckIfHasName)
-    {
-        return [&name](const T& onnx_object) -> bool {
-            return onnx_object.has_name() && onnx_object.name() == name;
-        };
     }
 
     std::function<bool(const std::string&)> is_equal_to(const std::string& other)
@@ -62,8 +50,10 @@ namespace
     template <typename Container>
     bool already_exists(const Container& items, const std::string& name)
     {
+        using std::begin;
+        using std::end;
         return std::any_of(
-            items.begin(), items.end(), name_equals<typename Container::value_type>(name));
+            begin(items), end(items), name_equals<typename Container::value_type>(name));
     }
 
     bool is_graph_input(const ONNX_NAMESPACE::GraphProto& graph, const std::string& name)
@@ -84,7 +74,7 @@ namespace
         {
             const auto& outputs = graph.node(i).output();
             const auto output_found =
-                std::any_of(outputs.begin(), outputs.end(), is_equal_to(input_name));
+                std::any_of(std::begin(outputs), std::end(outputs), is_equal_to(input_name));
 
             if (output_found)
             {
@@ -92,9 +82,9 @@ namespace
             }
         }
 
-        throw ngraph::ngraph_error{"Source node not found in the graph for node: " +
-                                   std::to_string(current_node_idx) + " and input name: " +
-                                   input_name};
+        throw ngraph::ngraph_error{
+            "Source node not found in the graph for node: " + std::to_string(current_node_idx) +
+            " and input name: " + input_name};
     }
 
     /// \brief Looks up a descriptor for a given tensor name. This descriptor contains inferred
@@ -103,12 +93,11 @@ namespace
         find_tensor_descriptor(const ONNX_NAMESPACE::GraphProto& graph,
                                const std::string& tensor_name)
     {
-        const auto it = std::find_if(
-            graph.value_info().begin(),
-            graph.value_info().end(),
-            name_equals<ONNX_NAMESPACE::ValueInfoProto>(tensor_name, CheckIfHasName{}));
+        const auto it = std::find_if(std::begin(graph.value_info()),
+                                     std::end(graph.value_info()),
+                                     name_equals<ONNX_NAMESPACE::ValueInfoProto>(tensor_name));
 
-        NGRAPH_CHECK(it != graph.value_info().end(),
+        NGRAPH_CHECK(it != std::end(graph.value_info()),
                      "Could not find a tensor descriptor for tensor '",
                      tensor_name,
                      "'. It's not possible to add a new input to the graph without the type and "
@@ -121,11 +110,11 @@ namespace
                                             const InputEdge& edge,
                                             const std::string& new_input_name)
     {
-        const auto it = std::find_if(graph.initializer().begin(),
-                                     graph.initializer().end(),
+        const auto it = std::find_if(std::begin(graph.initializer()),
+                                     std::end(graph.initializer()),
                                      name_equals<ONNX_NAMESPACE::TensorProto>(edge.m_tensor_name));
 
-        NGRAPH_CHECK(it != graph.initializer().end(),
+        NGRAPH_CHECK(it != std::end(graph.initializer()),
                      "Could not find an initializer in the graph: '",
                      edge.m_tensor_name);
 
@@ -157,9 +146,10 @@ namespace
 
         auto& target_node = *(graph.mutable_node(edge.m_node_idx));
         auto& node_inputs = *(target_node.mutable_input());
-        auto target_input = std::find(node_inputs.begin(), node_inputs.end(), edge.m_tensor_name);
+        auto target_input =
+            std::find(std::begin(node_inputs), std::end(node_inputs), edge.m_tensor_name);
 
-        NGRAPH_CHECK(target_input != node_inputs.end(),
+        NGRAPH_CHECK(target_input != std::end(node_inputs),
                      "Input '",
                      edge.m_tensor_name,
                      "' not found in the inputs of node ",
@@ -196,9 +186,9 @@ namespace
         auto& target_node = *(graph.mutable_node(edge.m_node_idx));
         const auto& node_outputs = target_node.output();
         const auto target_output =
-            std::find(node_outputs.begin(), node_outputs.end(), edge.m_tensor_name);
+            std::find(std::begin(node_outputs), std::end(node_outputs), edge.m_tensor_name);
 
-        NGRAPH_CHECK(target_output != node_outputs.end(),
+        NGRAPH_CHECK(target_output != std::end(node_outputs),
                      "Output '",
                      edge.m_tensor_name,
                      "' not found in the outputs of node ",
@@ -226,18 +216,11 @@ namespace
             return items_to_keep.count(item.name()) == 0;
         };
 
-        auto items_to_remove = all_items.size() - items_to_keep.size();
-
         // move the elements-to-discard to the end of the container
-        auto new_end = all_items.end();
-        while (items_to_remove > 0)
-        {
-            new_end = std::remove_if(all_items.begin(), new_end, can_be_discarded);
-
-            --items_to_remove;
-        }
+        const auto new_end =
+            std::remove_if(std::begin(all_items), std::end(all_items), can_be_discarded);
         // erase all of the discarded elements past the new end of the container
-        all_items.erase(new_end, all_items.end());
+        all_items.erase(new_end, std::end(all_items));
     }
 
     /// \brief Removes all nodes from a container keeping the ones whose index is in nodes_to_keep
@@ -256,8 +239,9 @@ namespace
         // Stable partition rearranges the nodes keeping the relative order in both partitions.
         // This way the topological sort is preserved and all of the nodes to discard are moved
         // after the returned iterator.
-        const auto new_end = std::stable_partition(all_nodes.begin(), all_nodes.end(), keep_node);
-        all_nodes.erase(new_end, all_nodes.end());
+        const auto new_end =
+            std::stable_partition(std::begin(all_nodes), std::end(all_nodes), keep_node);
+        all_nodes.erase(new_end, std::end(all_nodes));
     }
 } // namespace
 
