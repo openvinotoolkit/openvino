@@ -185,7 +185,7 @@ void op::v4::Interpolate::infer_using_scales(PartialShape& output_shape,
         if (padded_input_shape[axis].is_static())
         {
             float padded_len = static_cast<float>(padded_input_shape[axis].get_length());
-            int64_t new_dim = static_cast<int64_t>(padded_len * scales[i] + epsilon);
+            int64_t new_dim = static_cast<int64_t>(padded_len * (scales[i] + epsilon));
             output_shape[axis] = Dimension(new_dim);
         }
         ++i;
