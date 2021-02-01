@@ -554,9 +554,6 @@ def default_tree(args):
             return tree
         with open(process_dct, 'r') as file:
             tree["process"] = eval(file.read())
-        data_jit = os.path.join(args.input, 'data.jit')
-        if os.path.exists(data_jit):
-            parse_jit(tree, data_jit)
         for filename in glob(os.path.join(args.input, '*.mdl')):
             with open(filename, 'r') as file:
                 parts = file.readline().split()
@@ -583,42 +580,6 @@ def build_tid_map(args, path):
     for folder in glob(os.path.join(path, '*-*')):
         parse_process(folder)
     return tid_map
-
-
-def parse_jit(tree, path):
-    if tree['process']['bits'] == 64:
-        pointer = {'code': 'Q', 'size': 8}
-    else:
-        pointer = {'code': 'I', 'size': 4}
-    addr_list = []
-    with open(path, 'rb') as file:
-        prev_addr = 0
-        while True:
-            chunk = file.read(4 + pointer['size'] + 4 + 4)
-            if not chunk:
-                break
-            method_id, load_address, method_size, table_size = struct.unpack('I' + pointer['code'] + 'I' + 'I', chunk)
-            data = {'id': method_id, 'addr': load_address, 'size': method_size, 'lines': []}
-            for i in range(table_size):
-                chunk = file.read(4 + 4)
-                offset_line = struct.unpack('II', chunk)
-                if not data['lines'] or offset_line != data['lines'][-1]:
-                    data['lines'].append(offset_line)
-            names = []
-            for i in range(3):
-                chunk = file.read(2)  # uint16_t
-                length = struct.unpack('H', chunk)[0]
-                names.append(file.read(length))
-            data['name'], data['class'], data['file'] = names
-            if load_address > prev_addr:
-                addr_list.append(data)
-            prev_addr = load_address
-    if addr_list:
-        tree['jit'] = {
-            'start': addr_list[0]['addr'],
-            'end': addr_list[-1]['addr'] + addr_list[-1]['size'],
-            'data': addr_list
-        }
 
 
 def sea_reader(args):  # reads the structure of .sea format folder into dictionary
