@@ -53,7 +53,6 @@ namespace BehaviorTestsDefinitions {
         std::tie(targetDevice, netPrecision, batch_sizes, run_async, config) = this->GetParam();
         configuration.insert(config.begin(), config.end());
         configuration[InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED] = InferenceEngine::PluginConfigParams::YES;
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         max_batch_size = *std::max_element(batch_sizes.begin(), batch_sizes.end());
 
