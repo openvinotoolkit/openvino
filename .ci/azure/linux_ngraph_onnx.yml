@@ -43,8 +43,8 @@ jobs:
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
     displayName: 'Make dir'
 
-  - script: sudo fallocate -l 15G /swapfile ; sudo chmod 777 /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
-    displayName: 'Create a swap and display swap space'
+  - script: sudo fallocate -l 15G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
+    displayName: 'Create swap'
     enabled: true
 
   - checkout: self
@@ -94,7 +94,7 @@ jobs:
 
   - script: |
       #docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR):/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
-      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo openvino-onnx-ci-image
+      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
     displayName: 'Docker run'
     enabled: true
 

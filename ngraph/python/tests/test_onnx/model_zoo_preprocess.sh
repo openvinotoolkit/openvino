@@ -89,7 +89,7 @@ function update_onnx_models() {
             printf "The proper github repository detected: %s\n" "$git_remote_url"
         else
             echo "The ONNX Model Zoo repository doesn't exist then will be cloned"
-            git clone https://github.com/onnx/models.git "$ONNX_MODELS_DIR"
+            git clone --single-branch --branch=master --reference-if-able=/mnt/onnxtestdata/models/onnx_model_zoo https://github.com/onnx/models.git "$ONNX_MODELS_DIR"
         fi
     fi
 
