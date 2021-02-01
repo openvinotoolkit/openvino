@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,12 +14,16 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.concat import concat_infer
+from extensions.ops.identity import Identity
+from mo.front.extractor import FrontExtractorOp
+from mo.graph.graph import Node
 
 
-def concat_ext(pb_layer, pb_model):
-    return {
-        'type': "Concat",
-        'axis': pb_layer.concat_param.axis,
-        'infer': concat_infer
-    }
+class DropoutFrontExtractor(FrontExtractorOp):
+    op = 'dropout'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        Identity.update_node_stat(node, {})
+        return cls.enabled

@@ -279,7 +279,7 @@ class Core::Impl : public ICore {
             cachingIsAvailable = false, networkIsImported = false;
         std::string networkHash = localCoreConfig.getModelHash();
 
-        // FORCE MODEL CACHE
+        // TEST CODE: FORCE MODEL CACHE
         modelCacheEnabled = true;
 
         if (modelCacheEnabled && networkHash.empty() && deviceSupportsImport(this)) {
@@ -385,18 +385,18 @@ class Core::Impl : public ICore {
                         std::cout << "Network is exported for " << parsed._deviceName
                             << " as " << networkHash << std::endl;
                     }
-                    {
-                        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::DesctroyExe");
-                        execNetwork = {};
-                    }
-                    {
-                        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::ImportNetwork_fake");
-                        std::ifstream networkStream(blobFileName);
-                        auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
-                        execNetwork = context ?
-                            ImportNetwork(networkStream, context, importConfig._config) :
-                            ImportNetwork(networkStream, importConfig._deviceName, importConfig._config);
-                    }
+                    // {
+                    //     OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::DesctroyExe");
+                    //     execNetwork = {};
+                    // }
+                    // {
+                    //     OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::ImportNetwork_fake");
+                    //     std::ifstream networkStream(blobFileName);
+                    //     auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
+                    //     execNetwork = context ?
+                    //         ImportNetwork(networkStream, context, importConfig._config) :
+                    //         ImportNetwork(networkStream, importConfig._deviceName, importConfig._config);
+                    // }
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
                     removeCacheEntry(blobFileName);

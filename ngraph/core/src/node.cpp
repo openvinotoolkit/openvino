@@ -143,6 +143,10 @@ std::shared_ptr<Node>
     {
         clone->add_control_dependency(cdep);
     }
+    for (size_t i = 0; i < get_output_size(); i++)
+    {
+        clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
+    }
     return clone;
 }
 
@@ -658,13 +662,6 @@ descriptor::Tensor& Node::get_input_tensor(size_t i) const
     return input.get_tensor();
 }
 
-const string& Node::get_output_tensor_name(size_t i) const
-{
-    NGRAPH_CHECK(
-        i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
-    return m_outputs[i].get_tensor().get_name();
-}
-
 size_t Node::get_input_size() const
 {
     return m_inputs.size();
@@ -690,12 +687,21 @@ const PartialShape& Node::get_input_partial_shape(size_t i) const
     return m_inputs[i].get_partial_shape();
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 const string& Node::get_input_tensor_name(size_t i) const
 {
     NGRAPH_CHECK(
         i < m_inputs.size(), "index '", i, "' out of range in get_input_tensor_name(size_t i)");
     return m_inputs[i].get_tensor().get_name();
 }
+
+const string& Node::get_output_tensor_name(size_t i) const
+{
+    NGRAPH_CHECK(
+        i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
+    return m_outputs[i].get_tensor().get_name();
+}
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 bool Node::has_same_type(std::shared_ptr<const Node> node) const
 {
