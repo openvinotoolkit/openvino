@@ -46,24 +46,32 @@ jobs:
 
   - script: sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
     displayName: 'Create $(TMP_DIR)'
-    enabled: true
+    enabled: false
 
   - script: sudo fallocate -l 15G /swapfile ; sudo chmod 777 /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; free -h
     displayName: 'Create a swap and display swap space'
-    enabled: true
+    enabled: false
 
   - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o
     displayName: 'Clone ONNX models'
-    enabled: true
+    enabled: false
 
   - script: ls -alR $(TMP_DIR)
     displayName: 'List $(TMP_DIR)'
+    enabled: false
+
+  - script: ls -alR $(MODELS_DIR)
+    displayName: 'List $(TMP_DIR)'
+    enabled: true
+
+  - script: ls -alR $(MODELS_DIR)/msft
+    displayName: 'List $(TMP_DIR)/msft'
     enabled: true
 
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
     displayName: 'Docker build'
-    enabled: true
+    enabled: false
 
   - script: docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo  --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
     displayName: 'Docker run'
-    enabled: true
+    enabled: false
