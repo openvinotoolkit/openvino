@@ -165,16 +165,16 @@ struct CompiledGraph final {
 // compileNetwork
 //
 
-CompiledGraph::Ptr compileNetwork(const ie::ICNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
     const ie::ICore* core);
 
-CompiledGraph::Ptr compileSubNetwork(const ie::ICNNNetwork& network, const CompilationConfig& subConfig, const ie::ICore* core);
+CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const CompilationConfig& subConfig, const ie::ICore* core);
 
 //
 // getSupportedLayers
 //
 
-std::set<std::string> getSupportedLayers(const ie::ICNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
     const ie::ICore* core);
 
 //

@@ -58,8 +58,8 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].desc = parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
         config.outConfs[0].desc = child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
     } else {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format::any);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format::any);
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::any);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::any);
     }
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder, MKLDNNMemory::Convert(config.outConfs[0].desc.getLayout()));
@@ -103,65 +103,53 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         mask = 1 << oc_dim_id;
 
         attr.set_output_scales(mask, scales);
-        attr.set_int_output_round_mode(round_nearest);
     }
 
-    auto createReorder = [&]() {
+    auto createReorder = [&]() -> bool {
         // No autoblocking. Reorder can be applied as is
-        reorder::primitive_desc pd = reorder::primitive_desc(src_blocked->GetPrimitiveDescriptor(), dst_blocked->GetPrimitiveDescriptor(), attr);
+        reorder::primitive_desc pd = mkldnn::reorder::primitive_desc(src_blocked->GetPrimitive(), dst_blocked->GetPrimitive(), attr, true);
 
-        const char *info;
-        mkldnn_primitive_desc_query(pd.get(), mkldnn::convert_to_c(impl_info_str), 0, &info);
-        supportedPrimitiveDescriptors[0].setImplementationType(parse_impl_name(std::string(info)));
-        supportedPrimitiveDescriptors[0].setOutputLayouts(static_cast<memory::format>(dstDesc.data.format));
+        if (!pd)
+            return false;
 
-        prim.reset(new mkldnn::reorder(pd, src_blocked->GetPrimitive(), dst_blocked->GetPrimitive()));
+        auto info = pd.impl_info_str();
+        supportedPrimitiveDescriptors[0].setImplementationType(parse_impl_name(info));
+
+        prim.reset(new mkldnn::reorder(pd));
+        return true;
     };
 
-    try {
-        createReorder();
-    } catch (...) {
+    auto success = createReorder();
+    if (!success) {
+        // TODO: We should keep shape consistency for const and expected shape for node.
+        //       If it requires reshape operation it should explicitly injected into graph.
+        //
+        // There is a limitation for IE representing of weights for grouped convolutions. IE doesn't
+        // split group dimension in separate shape dimension. IE use OIHW, but mkldnn expect GOIHW.
+        // So we will perform implicit reshape to dst shape.
+        //
         // MKLDNN doesn't support direct reorders from planar data formats to grouped weights formats.
         // Code block below tries to detect such cases and reinterpret data planar formats (e.g. nchw)
         // as grouped weights planar formats (e.g. goihw) since they have same physical memory layout.
-        if (MKLDNNMemory::GetPlainFormat(src_blocked->GetDims()) == src_blocked->GetFormat() &&
+        if (src_blocked->GetDesc().isPlainFormat() &&
             src_blocked->GetDims().size() + 1 == dst_blocked->GetDims().size()) {
-            try {
-                mkldnn::memory::dims newDims = dst_blocked->GetDims();
-                mkldnn::memory::format newFormat;
-                if (MKLDNNMemory::IsGroupedFormat(dst_blocked->GetFormat())) {
-                    newFormat = src_blocked->GetDims().size() == 4 ? memory::goihw :
-                                src_blocked->GetDims().size() == 5 ? memory::goidhw :
-                                src_blocked->GetFormat();
-                } else {
-                    newFormat = src_blocked->GetDims().size() == 4 ? memory::ncdhw :
-                                src_blocked->GetFormat();
-                }
+            const auto newDims = dst_blocked->GetDims();
+            const auto newFormat = MKLDNNMemory::GetPlainFormat(newDims);
 
-                auto newDesc = mkldnn::memory::desc(newDims, src_blocked->GetDataType(), newFormat);
-                src_blocked->Create(newDesc, srcPtr, false);
+            auto newDesc = mkldnn::memory::desc(newDims, src_blocked->GetDataType(), newFormat);
+            src_blocked->Create(newDesc, srcPtr, false);
 
-                createReorder();
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
-            }
-        // MKLDNN doesn't support direct reorders between planar data formats in case they have different rank but the same number of elements.
-        // Code block below detects these cases and substitute src dims with dst ones.
-        } else if (MKLDNNMemory::GetPlainFormat(src_blocked->GetDims()) == src_blocked->GetFormat() &&
-                   MKLDNNMemory::GetPlainFormat(dst_blocked->GetDims()) == dst_blocked->GetFormat() &&
-                   src_blocked->GetElementsCount() == dst_blocked->GetElementsCount()) {
-            try {
-                auto newDesc = mkldnn::memory::desc(dst_blocked->GetDims(), src_blocked->GetDataType(), dst_blocked->GetFormat());
-                src_blocked->Create(newDesc, srcPtr, false);
-
-                createReorder();
-            } catch (...) {
-                THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
-            }
-        } else {
-            THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
+            success = createReorder();
         }
     }
+
+    if (!success) {
+        THROW_IE_EXCEPTION << "Cannot create reorder primitive: unsupported reorder case";
+    }
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
 const std::vector<impl_desc_type>& MKLDNNReorderNode::getPrimitivesPriority() {
@@ -194,10 +182,10 @@ void MKLDNNReorderNode::setDynamicBatchLim(int lim) {
         void *dst_data_hdl = dstMemPtr->GetPrimitive().get_data_handle();
 
         src_d.data.dims[0] = batchToProcess();
-        src_d.data.layout_desc.blocking.padding_dims[0] = batchToProcess();
+        src_d.data.padded_dims[0] = batchToProcess();
 
         dst_d.data.dims[0] = batchToProcess();
-        dst_d.data.layout_desc.blocking.padding_dims[0] = batchToProcess();
+        dst_d.data.padded_dims[0] = batchToProcess();
 
         createReorderPrimitive(src_d, src_data_hdl, dst_d, dst_data_hdl);
     }

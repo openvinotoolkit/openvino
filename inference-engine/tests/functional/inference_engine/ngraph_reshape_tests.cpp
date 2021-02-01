@@ -342,7 +342,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
     ASSERT_EQ(outDims, refAfterReshape);
     // Convert to CNNNetwork
     auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-    auto layer = CommonTestUtils::getLayerByName(convertedNetwork.get(), "activation");
+    auto layer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedNetwork), "activation");
     ASSERT_EQ("CustomTestLayer", layer->type);
 }
 
@@ -413,7 +413,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
     ASSERT_EQ(outDims, refAfterReshape);
     // Convert to CNNNetwork
     auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-    auto layer = CommonTestUtils::getLayerByName(convertedNetwork.get(), "activation");
+    auto layer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedNetwork), "activation");
     ASSERT_EQ("CustomTestLayer", layer->type);
     ASSERT_EQ("false", layer->params["test1"]);
     ASSERT_EQ("3", layer->params["test2"]);

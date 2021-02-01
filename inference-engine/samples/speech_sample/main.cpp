@@ -432,7 +432,7 @@ std::vector<std::string> ParseBlobName(std::string str) {
         size_t pos_last = 0;
         size_t pos_next = 0;
         while ((pos_next = str.find(",", pos_last)) != std::string::npos) {
-            blobName.push_back(str.substr(pos_last, pos_next));
+            blobName.push_back(str.substr(pos_last, pos_next - pos_last));
             pos_last = pos_next + 1;
         }
         blobName.push_back(str.substr(pos_last));

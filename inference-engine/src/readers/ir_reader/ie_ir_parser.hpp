@@ -70,6 +70,7 @@ private:
             // Precision and dimensions are needed only for GenericIE op
             ngraph::element::Type_t precision;
             SizeVector dims;
+            std::unordered_set<std::string> names;
         };
         size_t layerId;
         std::string version;
