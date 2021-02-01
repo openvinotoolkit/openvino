@@ -32,9 +32,9 @@ limitations under the License.
 <script src="assets/jquery-2.2.4.min.js"></script>
 <script type="text/javascript" src="$relpath^dynsections.js"></script>
 <!-- Bootstrap 4.4.1 -->
-<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet"
+<link href="assets/bootstrap.min.css" rel="stylesheet"
     type="text/css" />
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.bundle.min.js"
+<script src="assets/bootstrap.bundle.min.js"
     type="text/javascript"></script>
 <!-- $treeview -->
 $search
@@ -45,6 +45,7 @@ $extrastylesheet
 <script type="text/javascript" src="assets/openvino-layout.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.6.2/viewer.css" integrity="sha512-Fd7AWkSYX3RBadbJlBrETnOyX5tkcQu2oN+nO11c+kewdhPlNWQ1Hj83W3hN1odgyh+k7rpvvv7IxZq9bRomCg==" crossorigin="anonymous" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.6.2/viewer.min.js" integrity="sha512-VzJLwaOOYyQemqxRypvwosaCDSQzOGqmBFRrKuoOv7rF2DZPlTaamK1zadh7i2FRmmpdUPAE/VBkCwq2HKPSEQ==" crossorigin="anonymous"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
