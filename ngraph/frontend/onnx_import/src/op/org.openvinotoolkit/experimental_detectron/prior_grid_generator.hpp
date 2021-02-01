@@ -40,7 +40,7 @@ namespace ngraph
 
                     PriorGridGenerator::Attributes attrs{};
                     attrs.flatten =
-                        static_cast<bool>(node.get_attribute_value<int64_t>("flatten1"), 1);
+                        static_cast<bool>(node.get_attribute_value<int64_t>("flatten", 1));
                     attrs.h = node.get_attribute_value<int64_t>("h", 0);
                     attrs.w = node.get_attribute_value<int64_t>("w", 0);
                     attrs.stride_x = node.get_attribute_value<float>("stride_x", 0.0f);

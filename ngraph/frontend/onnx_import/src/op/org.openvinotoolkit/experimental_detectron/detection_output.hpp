@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <cmath>
+
 #include "ngraph/node.hpp"
 #include "ngraph/op/experimental_detectron_detection_output.hpp"
 #include "onnx_import/core/node.hpp"
@@ -41,15 +43,15 @@ namespace ngraph
                     DetectionOutput::Attributes attrs{};
                     attrs.score_threshold = node.get_attribute_value<float>("score_threshold", 0.05);
                     attrs.nms_threshold = node.get_attribute_value<float>("nms_threshold", 0.5);
-                    attrs.max_delta_log_wh = node.get_attribute_value<float>("max_delta_log_wh", log(1000. / 16.));
+                    attrs.max_delta_log_wh = node.get_attribute_value<float>("max_delta_log_wh", std::log(1000.0f / 16.0f));
                     attrs.num_classes = node.get_attribute_value<std::int64_t>("num_classes", 81);
                     attrs.post_nms_count = node.get_attribute_value<std::int64_t>("post_nms_count", 2000);
                     attrs.max_detections_per_image =
-                        node.get_attribute_value<std::size_t>("max_detections_per_image", 100);
+                        node.get_attribute_value<std::int64_t>("max_detections_per_image", 100);
                     attrs.class_agnostic_box_regression = static_cast<bool>(
-                        node.get_attribute_value<int64_t>("class_agnostic_box_regression", 0));
+                        node.get_attribute_value<std::int64_t>("class_agnostic_box_regression", 0));
                     attrs.deltas_weights =
-                        node.get_attribute_value<std::vector<float>>("deltas_weights", {10., 10., 5., 5.});
+                        node.get_attribute_value<std::vector<float>>("deltas_weights", {10.0f, 10.0f, 5.0f, 5.0f});
 
                     return {
                         std::make_shared<DetectionOutput>(rois, deltas, scores, im_info, attrs)};

@@ -39,9 +39,6 @@ namespace ngraph
                     attrs.output_size = node.get_attribute_value<std::int64_t>("output_size", 7);
                     attrs.sampling_ratio = node.get_attribute_value<std::int64_t>("sampling_ratio", 2);
                     attrs.aligned = static_cast<bool>(node.get_attribute_value<std::int64_t>("aligned", 0));
-                    attrs.num_classes = node.get_attribute_value<std::int64_t>("num_classes", 81);
-                    attrs.post_nms_count = node.get_attribute_value<std::int64_t>("post_nms_count", 2000);
-                    attrs.score_threshold = node.get_attribute_value<float>("score_threshold", 0.05f);
                     attrs.pyramid_scales = node.get_attribute_value<std::vector<std::int64_t>>("pyramid_scales", {4, 8, 16, 32, 64});
                     return {std::make_shared<ROIFeatureExtractor>(inputs, attrs)};
                 }
