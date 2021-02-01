@@ -23,7 +23,6 @@ class ROIAlignLayerTest : public testing::WithParamInterface<roialignParams>,
                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<roialignParams> obj);
-    void Infer() override;
 
 protected:
     void SetUp() override;

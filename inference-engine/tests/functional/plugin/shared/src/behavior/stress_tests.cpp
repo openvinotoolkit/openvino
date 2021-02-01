@@ -43,6 +43,7 @@ TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
 
         std::cout << "Infer(): " << j << std::flush;
 
+        GenerateInputs();
         Infer();
         Validate();
     }
