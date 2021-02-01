@@ -13,7 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.front.common.layout import get_features_dim
 from mo.front.common.partial_infer.elemental import copy_shape_infer
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Graph
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
@@ -44,9 +47,11 @@ class MVN(Op):
     def backend_attrs(self):
         version = self.get_opset()
         if version == 'opset2':
-            return ['eps', 'across_channels', 'normalize_variance']
+            return ['eps',
+                    ('across_channels', lambda node: bool_to_str(node, 'across_channels')),
+                    ('normalize_variance', lambda node: bool_to_str(node, 'normalize_variance'))]
         elif version == 'opset6':
-            return ['eps', 'eps_mode', 'normalize_variance']
+            return ['eps', 'eps_mode', ('normalize_variance', lambda node: bool_to_str(node, 'normalize_variance'))]
         else:
             raise Error('Unsupported MVN opset version "{}"'.format(version))
 
