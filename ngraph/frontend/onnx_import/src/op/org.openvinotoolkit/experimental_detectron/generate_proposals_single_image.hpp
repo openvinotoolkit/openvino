@@ -40,10 +40,10 @@ namespace ngraph
                     auto scores = inputs[3];
 
                     GenerateProposalsSingleImage::Attributes attrs{};
-                    attrs.min_size = node.get_attribute_value<float>("min_size");
-                    attrs.nms_threshold = node.get_attribute_value<float>("nms_threshold");
-                    attrs.post_nms_count = node.get_attribute_value<std::int64_t>("post_nms_count");
-                    attrs.pre_nms_count = node.get_attribute_value<std::int64_t>("pre_nms_count");
+                    attrs.min_size = node.get_attribute_value<float>("min_size", 0.0);
+                    attrs.nms_threshold = node.get_attribute_value<float>("nms_threshold", 0.7);
+                    attrs.post_nms_count = node.get_attribute_value<std::int64_t>("post_nms_count", 1000);
+                    attrs.pre_nms_count = node.get_attribute_value<std::int64_t>("pre_nms_count", 1000);
 
                     return {std::make_shared<GenerateProposalsSingleImage>(
                         im_info, anchors, deltas, scores, attrs)};
