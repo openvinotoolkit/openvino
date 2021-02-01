@@ -67,22 +67,6 @@ ParamsKey ScatterUpdateKernelRef::GetSupportedKey() const {
     return k;
 }
 
-static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
-    if (data_tensor.LogicalSize() != 1) {
-        // Count the number of "one size" dimensions starting with X to Batch
-        size_t one_size_dims = 0;
-        for (auto& i : data_tensor.GetDims()) {
-            if (i.v == 1)
-                one_size_dims++;
-            else
-                break;
-        }
-        return data_tensor.Dimentions() - one_size_dims;
-    } else {
-        return 1;
-    }
-}
-
 static inline std::string GetOrderString(std::vector<std::string>& order) {
     std::string order_str = order[0];
     for (size_t i = 1; i < order.size(); i++)
