@@ -23,7 +23,7 @@ typedef std::tuple<
     std::map<std::string, std::string> > deconvLayerCPUTestParamsSet;
 
 class DeconvolutionLayerCPUTest : public testing::WithParamInterface<deconvLayerCPUTestParamsSet>,
-    virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
+    virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<deconvLayerCPUTestParamsSet> obj) {
         convBackpropDataLayerTestParamsSet basicParamsSet;
