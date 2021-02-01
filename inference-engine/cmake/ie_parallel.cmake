@@ -9,10 +9,15 @@ function(set_ie_threading_interface_for TARGET_NAME)
         set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
         set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
         if (TBB_FOUND)
-            if (TBB_VERSION VERSION_LESS 2020)
+            if (TBB_VERSION VERSION_LESS 2021.2)
                 ext_message(WARNING "TBB version is less than OpenVINO recommends to use.\
+                                    Some TBB related features like Hybrid-aware tbb::task_arena\
+                                    execution will be disabled.")
+                if (TBB_VERSION VERSION_LESS 2020)
+                    ext_message(WARNING "TBB version is less than OpenVINO recommends to use.\
                                     Some TBB related features like NUMA-aware tbb::task_arena\
                                     execution will be disabled.")
+                endif()
             endif()
         else ()
             ext_message(WARNING "TBB was not found by the configured TBB_DIR/TBBROOT path.\
