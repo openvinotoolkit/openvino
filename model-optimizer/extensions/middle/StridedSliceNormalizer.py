@@ -22,7 +22,7 @@ from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
 from mo.ops.const import Const
-
+from mo.graph.perm_inputs import PermuteInputs
 
 class StridedSliceNormalizer(MiddleReplacementPattern):
     enabled = True
@@ -35,47 +35,43 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         ss_nodes = graph.get_op_nodes(op='StridedSlice')
         for node in ss_nodes:
             self.normalize_strided_slice(graph, node)
+            PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
+            PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
+            PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'shape')
+            pass
 
     def normalize_strided_slice(self, graph: Graph, node: Node):
         input_shape = node.in_port(0).data.get_shape()
         input_rank = len(input_shape)
         slice_rank = node.in_port(1).data.get_shape()[0]
-        num_ellipsis_ext = None
 
         if np.any(node.ellipsis_mask):
             idx = np.nonzero(node.ellipsis_mask)
             assert len(idx[0]) == 1
             ellipsis_start = idx[0][0]
-            ellipsis_stop = input_rank - (slice_rank - ellipsis_start)  # stop index in extended masks
+            num_inserts = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
 
             node.begin_mask[ellipsis_start] = 0
             node.end_mask[ellipsis_start] = 0
 
             # unroll ellipsis for masks
-            for i in range(ellipsis_start + 1, ellipsis_stop + 1):
+            for i in range(0, num_inserts):
                 for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
-                    node[mask_name] = np.insert(node[mask_name], i, 0)
+                    node[mask_name] = np.insert(node[mask_name], ellipsis_start + 1 + i, 0)
             node.ellipsis_mask[ellipsis_start] = 0
 
-            self.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, ellipsis_stop, input_rank, slice_rank)
-            num_ellipsis_ext = ellipsis_stop - ellipsis_start
+            self.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num_inserts)
 
-        if num_ellipsis_ext is None:
-            num_ellipsis_ext = 0
-
-        if slice_rank + num_ellipsis_ext < input_rank:
-            num = input_rank - (slice_rank + num_ellipsis_ext)
+        elif slice_rank < input_rank:  # process somehow nonzero
+            num = input_rank - (slice_rank)
             # extend masks
             for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
-                node[mask_name] = np.append(node[mask_name], [0]*num)
+                node[mask_name] = np.append(node[mask_name], [0] * num)
 
             self.extend_inputs(node, num)
 
-    def unroll_ellipsis_for_inputs(self, graph, node, ellipsis_start, ellipsis_stop, input_rank, slice_rank):
-        in_ports = 3 if ellipsis_start != 0 else 2
-
-        num_ellipsis_ext = ellipsis_stop - ellipsis_start
-
+    @staticmethod
+    def unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num_ellipsis_ext):
         for i, slice_name in enumerate(('begin', 'end', 'strides')):
             i += 1
             if ellipsis_start != 0:
@@ -87,6 +83,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             placeholder_arr = np.zeros(num_ellipsis_ext) if i != 3 else np.ones(num_ellipsis_ext)
             placeholder_node = Const(graph, {'name': node.name + '/const_to_unroll_{}_ellipsis'.format(slice_name),
                                              'value': int64_array(placeholder_arr)}).create_node()
+            in_ports = 3 if ellipsis_start != 0 else 2
             concat = Concat(graph, {'axis': 0, 'name': node.name + '/concat_{}'.format(slice_name),
                                     'in_ports_count': in_ports}).create_node()
             if ellipsis_start == 0:
@@ -99,7 +96,8 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
 
             concat.out_port(0).get_connection().set_destination(node.in_port(i))
 
-    def extend_inputs(self, node: Node, num: int):
+    @staticmethod
+    def extend_inputs(node: Node, num: int):
         int32_array = lambda x: np.array(x, dtype=np.int32)
         graph = node.graph
 

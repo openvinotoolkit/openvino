@@ -68,9 +68,9 @@ class StridedSlice(Op):
                                                        ('begin_mask', 'input:0', permute_masks),
                                                        ('end_mask', 'input:0', permute_masks)])
 
-        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
-        PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
-        PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'shape')
+        # PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
+        # PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
+        # PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'shape')
 
 
 def tf_strided_slice_infer(node):

@@ -64,8 +64,11 @@ class CropToStridedSlice(BackReplacementPattern):
         end_mask = axis_mask.copy()
 
         ss = StridedSlice(graph, {'name': node.soft_get('name', node.id) + '/strided_slice', 'begin_mask': begin_mask,
-                                  'end_mask': end_mask, 'new_axis_mask': np.array([0]),
-                                  'shrink_axis_mask': np.array([0]), 'ellipsis_mask': np.array([0])}).create_node()
+                                  'end_mask': end_mask,
+                                  'new_axis_mask': np.zeros(len(end_mask)),
+                                  'shrink_axis_mask': np.zeros(len(end_mask)),
+                                  'ellipsis_mask': np.zeros(len(end_mask))}).create_node()
+
 
         if len(node.in_nodes()) == 2 and node.has_valid('offset'):
             # Crop Type 1
