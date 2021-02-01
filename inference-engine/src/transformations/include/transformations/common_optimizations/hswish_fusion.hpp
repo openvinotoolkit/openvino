@@ -18,6 +18,7 @@ class TRANSFORMATIONS_API HSwishFusionWithReluDiv;
 class TRANSFORMATIONS_API HSwishFusionWithReluMul;
 class TRANSFORMATIONS_API HSwishFusionWithoutRelu;
 class TRANSFORMATIONS_API HSwishFusionWithClamp;
+class TRANSFORMATIONS_API HSwishFusionWithHSigmoidMul;
 
 
 }  // namespace pass
@@ -65,6 +66,16 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
+ * @brief HSwishFusion transformation replaces a sub-graph x * HSigmoid(x) with a HSwish op.
+ */
+class ngraph::pass::HSwishFusionWithHSigmoidMul: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    HSwishFusionWithHSigmoidMul();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
  * @brief HSwishFusion transformation replaces various sub-graphs with a HSwish op.
  */
 class ngraph::pass::HSwishFusion: public ngraph::pass::GraphRewrite {
@@ -75,5 +86,6 @@ public:
         add_matcher<ngraph::pass::HSwishFusionWithReluMul>();
         add_matcher<ngraph::pass::HSwishFusionWithoutRelu>();
         add_matcher<ngraph::pass::HSwishFusionWithClamp>();
+        add_matcher<ngraph::pass::HSwishFusionWithHSigmoidMul>();
     }
 };
