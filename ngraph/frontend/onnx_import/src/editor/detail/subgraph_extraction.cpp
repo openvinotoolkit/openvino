@@ -92,7 +92,9 @@ namespace
             }
         }
 
-        return -1;
+        throw ngraph::ngraph_error{"Source node not found in the graph for node: " +
+                                   std::to_string(current_node_idx) + " and input name: " +
+                                   input_name};
     }
 
     /// \brief Looks up a descriptor for a given tensor name. This descriptor contains inferred
@@ -210,13 +212,14 @@ namespace
     }
 
     /// \brief Removes all items from a container except the ones whose names are in items_to_keep
-    ///        It's intended to work with ONNX graph inputs and initializers only.
+    ///        It's intended to work with ONNX graph inputs, outputs and initializers only.
     template <typename Container>
     void discard_by_name(Container& all_items, const std::set<std::string>& items_to_keep)
     {
         static_assert(
             std::is_same<typename Container::value_type, ONNX_NAMESPACE::ValueInfoProto>::value ||
-            std::is_same<typename Container::value_type, ONNX_NAMESPACE::TensorProto>::value);
+                std::is_same<typename Container::value_type, ONNX_NAMESPACE::TensorProto>::value,
+            "Unsupported value type of the container");
 
         // The tested item can be discarded if its name is not found in the items_to_keep set
         const auto can_be_discarded = [&items_to_keep](const typename Container::value_type& item) {
@@ -242,15 +245,17 @@ namespace
     void discard_nodes(Container& all_nodes, const std::set<int>& nodes_to_keep)
     {
         static_assert(
-            std::is_same<typename Container::value_type, ONNX_NAMESPACE::NodeProto>::value);
+            std::is_same<typename Container::value_type, ONNX_NAMESPACE::NodeProto>::value,
+            "Unsupported value type of the container");
 
         int idx = 0;
         const auto keep_node = [&nodes_to_keep, &idx](const typename Container::value_type&) {
             return nodes_to_keep.count(idx++) > 0;
         };
 
-        // Stable partition rearranges the nodes keeping the relative order. This way the relative
-        // ordering is preserved and all of the nodes to discard are moved after the returned iter.
+        // Stable partition rearranges the nodes keeping the relative order in both partitions.
+        // This way the topological sort is preserved and all of the nodes to discard are moved
+        // after the returned iterator.
         const auto new_end = std::stable_partition(all_nodes.begin(), all_nodes.end(), keep_node);
         all_nodes.erase(new_end, all_nodes.end());
     }
