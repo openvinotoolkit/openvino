@@ -233,7 +233,8 @@ ngraph::pass::HSwishFusionWithHSigmoidMul::HSwishFusionWithHSigmoidMul() {
         auto mul = std::dynamic_pointer_cast<opset5::Multiply>(m.get_match_root());
         if (!mul)
             return false;
-        auto hsigmoid = std::dynamic_pointer_cast<opset5::HSigmoid>(mul->input_value(1).get_node_shared_ptr());
+        auto& pattern_to_output = m.get_pattern_value_map();
+        auto hsigmoid = pattern_to_output.at(hsigmoid_pattern).get_node_shared_ptr();
         if (!hsigmoid)
             return false;
         auto hswish = std::make_shared<ngraph::opset5::HSwish>(hsigmoid->input_value(0));
