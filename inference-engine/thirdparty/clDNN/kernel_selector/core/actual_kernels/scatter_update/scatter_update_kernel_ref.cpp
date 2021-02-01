@@ -113,6 +113,10 @@ CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_param
         }
     } else {
         // second iteration
+        // Each work item is for each tensor in input2.
+        // Not using input2's shape info directly, because the input2's shape might be reordered from the reordering pass.
+        // Instead, we reconsider update2's dimension with input1's shape which is shrinked as 1d.
+        // e.g., axis = b, input0(10, 9, 10, 9, 10) && input1(4, 2) => input2(8, 9, 10, 9, 10 
         const size_t indices_size = params.inputs[1].LogicalSize();
         switch (output.GetLayout()) {
             case DataLayout::bfyx:
@@ -206,6 +210,10 @@ bool ScatterUpdateKernelRef::Validate(const Params& p, const optional_params& o)
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             return false;
+    }
+
+    if (params.output.PitchesDifferFromLogicalDims() || params.inputs[2].PitchesDifferFromLogicalDims()) {
+        return false;
     }
 
     return true;
