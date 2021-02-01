@@ -491,11 +491,13 @@ void MKLDNNROIPoolingNode::execute(mkldnn::stream strm) {
                 float roi_end_w_   = src_roi_ptr[3];
                 float roi_end_h_   = src_roi_ptr[4];
 
-                float height_scale = ((roi_end_h_ - roi_start_h_) * (jpp.ih - 1)) / (jpp.pooled_h - 1);
-                float width_scale  = ((roi_end_w_ - roi_start_w_) * (jpp.iw - 1)) / (jpp.pooled_w - 1);
+                float height_scale = (jpp.pooled_h > 1 ? ((roi_end_h_ - roi_start_h_) * (jpp.ih - 1)) / (jpp.pooled_h - 1) : 0);
+                float width_scale  = (jpp.pooled_w > 1 ? ((roi_end_w_ - roi_start_w_) * (jpp.iw - 1)) / (jpp.pooled_w - 1) : 0);
 
-                float in_y = (oh * height_scale + roi_start_h_ * (jpp.ih - 1));
-                float in_x = (ow * width_scale  + roi_start_w_ * (jpp.iw - 1));
+                float in_y = (jpp.pooled_h > 1 ? (oh * height_scale + roi_start_h_ * (jpp.ih - 1)) :
+                              0.5 * (roi_start_h_ + roi_end_h_) * (jpp.ih - 1));
+                float in_x = (jpp.pooled_w > 1 ? (ow * width_scale  + roi_start_w_ * (jpp.iw - 1)) :
+                              0.5 * (roi_start_w_ + roi_end_w_) * (jpp.iw - 1));
 
                 if (in_y < 0 || in_y > jpp.ih - 1 || in_x < 0 || in_x > jpp.iw - 1) {
                     if (roi_pooling_kernel) {
