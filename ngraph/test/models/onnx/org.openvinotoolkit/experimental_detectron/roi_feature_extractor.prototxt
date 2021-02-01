@@ -1,0 +1,51 @@
+ir_version: 7
+producer_name: "onnx-importer-test"
+graph {
+  node {
+    input: "in1"
+    input: "in2"
+    output: "out1"
+    output: "out2"
+    op_type: "ExperimentalDetectronROIFeatureExtractor"
+    domain: "org.openvinotoolkit"
+    attribute {
+      name: "distribute_rois_between_levels"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "image_id"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "output_size"
+      i: 7
+      type: INT
+    }
+    attribute {
+      name: "preserve_rois_order"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "pyramid_scales"
+      ints: 4
+      type: INTS
+    }
+    attribute {
+      name: "sampling_ratio"
+      i: 2
+      type: INT
+    }
+  }
+  name: "test-model"
+}
+opset_import {
+  domain: ""
+  version: 10
+}
+opset_import {
+  domain: "org.openvinotoolkit"
+  version: 1
+}

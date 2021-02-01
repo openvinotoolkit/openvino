@@ -1,0 +1,31 @@
+ir_version: 7
+producer_name: "onnx-importer-test"
+graph {
+  node {
+    input: "in1"
+    input: "in2"
+    input: "in3"
+    output: "out1"
+    op_type: "ExperimentalDetectronGroupNorm"
+    domain: "org.openvinotoolkit"
+    attribute {
+      name: "eps"
+      f: 9.9999997473787516e-06
+      type: FLOAT
+    }
+    attribute {
+      name: "num_groups"
+      i: 1
+      type: INT
+    }
+  }
+  name: "test-model"
+}
+opset_import {
+  domain: ""
+  version: 10
+}
+opset_import {
+  domain: "org.openvinotoolkit"
+  version: 1
+}

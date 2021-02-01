@@ -1,0 +1,43 @@
+ir_version: 7
+producer_name: "onnx-importer-test"
+graph {
+  node {
+    input: "in1"
+    input: "in2"
+    input: "in3"
+    input: "in4"
+    output: "out1"
+    output: "out2"
+    op_type: "ExperimentalDetectronGenerateProposalsSingleImage"
+    domain: "org.openvinotoolkit"
+    attribute {
+      name: "min_size"
+      f: 0
+      type: FLOAT
+    }
+    attribute {
+      name: "nms_threshold"
+      f: 0.69999998807907104
+      type: FLOAT
+    }
+    attribute {
+      name: "post_nms_count"
+      i: 1000
+      type: INT
+    }
+    attribute {
+      name: "pre_nms_count"
+      i: 1000
+      type: INT
+    }
+  }
+  name: "test-model"
+}
+opset_import {
+  domain: ""
+  version: 10
+}
+opset_import {
+  domain: "org.openvinotoolkit"
+  version: 1
+}

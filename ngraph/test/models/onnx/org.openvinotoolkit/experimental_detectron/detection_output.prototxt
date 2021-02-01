@@ -1,0 +1,69 @@
+ir_version: 7
+producer_name: "onnx-importer-test"
+graph {
+  node {
+    input: "in1"
+    input: "in2"
+    input: "in3"
+    input: "in4"
+    output: "out1"
+    output: "out2"
+    output: "out3"
+    output: "out4"
+    op_type: "ExperimentalDetectronDetectionOutput"
+    domain: "org.openvinotoolkit"
+    attribute {
+      name: "class_agnostic_box_regression"
+      i: 0
+      type: INT
+    }
+    attribute {
+      name: "deltas_weights"
+      floats: 10
+      floats: 10
+      floats: 5
+      floats: 5
+      type: FLOATS
+    }
+    attribute {
+      name: "max_delta_log_wh"
+      f: 4.1351666450500488
+      type: FLOAT
+    }
+    attribute {
+      name: "max_detections_per_image"
+      i: 100
+      type: INT
+    }
+    attribute {
+      name: "nms_threshold"
+      f: 0.5
+      type: FLOAT
+    }
+    attribute {
+      name: "num_classes"
+      i: 81
+      type: INT
+    }
+    attribute {
+      name: "post_nms_count"
+      i: 2000
+      type: INT
+    }
+    attribute {
+      name: "score_threshold"
+      f: 0.05000000074505806
+      type: FLOAT
+    }
+  }
+
+  name: "test-model"
+}
+opset_import {
+  domain: ""
+  version: 10
+}
+opset_import {
+  domain: "org.openvinotoolkit"
+  version: 1
+}
