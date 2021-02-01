@@ -89,7 +89,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_46765,
                    xfail_issue_47317,
                    xfail_issue_47323,
-                   xfail_issue_47330)
+                   xfail_issue_47330,
+                   xfail_issue_30074)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -682,7 +683,11 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_squeeze_cpu",
         "OnnxBackendNodeModelTest.test_squeeze_negative_axes_cpu",),
     (xfail_issue_44976,
-        "OnnxBackendNodeModelTest.test_quantizelinear_axis_cpu",)
+        "OnnxBackendNodeModelTest.test_quantizelinear_axis_cpu",),
+    (xfail_issue_30074,
+        "OnnxBackendNodeModelTest.test_instancenorm_epsilon_cpu",
+        "OnnxBackendNodeModelTest.test_instancenorm_example_cpu",
+        "OnnxBackendPyTorchOperatorModelTest.test_operator_symbolic_override_cpu",),
 ]
 
 for test_group in tests_expected_to_fail:
