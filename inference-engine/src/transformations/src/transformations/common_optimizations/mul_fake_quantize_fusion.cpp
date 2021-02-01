@@ -40,7 +40,16 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         }
 
         auto shape = mul_const->get_shape();
-        if (shape_size(shape) > 1 &&
+        size_t const_shape_size = shape_size(shape);
+        if (const_shape_size > 1) {
+            // disallow constant shapes other than (N, 1, 1, ..., 1) or (1, C, 1, ..., 1)
+            if (!(shape[0] > 1 && shape[0] == const_shape_size) &&
+                !(shape.size() > 1 && shape[1] == const_shape_size)) {
+                return false;
+            }
+        }
+
+        if (const_shape_size > 1 &&
             static_cast<Dimension::value_type>(shape.size()) < fq->get_input_partial_shape(0).rank().get_length()) {
             // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
             shape.insert(shape.begin(), fq->get_input_partial_shape(0).rank().get_length() - shape.size(), 1);

@@ -38,7 +38,16 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             return false;
         }
         auto const_shape = add_const->get_shape();
-        if (shape_size(const_shape) > 1 &&
+        size_t const_shape_size = shape_size(const_shape);
+        if (const_shape_size > 1) {
+            // disallow constant shapes other than (N, 1, 1, ..., 1) or (1, C, 1, ..., 1)
+            if (!(const_shape[0] > 1 && const_shape[0] == const_shape_size) &&
+                !(const_shape.size() > 1 && const_shape[1] == const_shape_size)) {
+                return false;
+            }
+        }
+
+        if (const_shape_size > 1 &&
             static_cast<Dimension::value_type>(const_shape.size()) < fq->get_input_partial_shape(0).rank().get_length()) {
             // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
             const_shape.insert(const_shape.begin(), fq->get_input_partial_shape(0).rank().get_length() - const_shape.size(), 1);
