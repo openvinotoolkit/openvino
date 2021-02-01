@@ -18,7 +18,7 @@ from .cimport ie_api_impl_defs as C
 import numpy as np
 from enum import Enum
 
-supported_precisions = ["FP32", "FP64", "FP16", "I64", "U64", "I32", "U32", "I16", "I8", "U16", "U8"]
+supported_precisions = ["FP32", "FP64", "FP16", "I64", "U64", "I32", "U32", "I16", "I8", "U16", "U8", "BOOL"]
 
 known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO', 'HDDL', 'MULTI']
 
@@ -34,7 +34,8 @@ format_map = {
       'U16'  : np.uint16,
       'I8'   : np.int8,
       'U8'   : np.uint8,
-      'I64'  : np.int64
+      'I64'  : np.int64,
+      'BOOL' : np.uint8
     }
 
 layout_str_to_enum = {'ANY': C.Layout.ANY,
