@@ -28,7 +28,6 @@
 #include "legacy/ngraph_ops/tile_ie.hpp"
 #include "legacy/ngraph_ops/rnn_cell_ie.hpp"
 
-#include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
 #include <cnn_network_ngraph_impl.hpp>
@@ -78,37 +77,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Abs>::createLayer(const std::shared_ptr<
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::GenericIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::GenericIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get layer " << layer->get_friendly_name();
-
-    LayerParams params = {layer->get_friendly_name(), castedLayer->getType(),
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    if (castedLayer->getType() == "RNNCell")
-        res = std::make_shared<InferenceEngine::RNNCell>(params);
-    if (castedLayer->getType() == "GRUCell")
-        res = std::make_shared<InferenceEngine::GRUCell>(params);
-
-    auto weightableLayer = std::dynamic_pointer_cast<InferenceEngine::WeightableLayer>(res);
-
-    for (const auto& param : castedLayer->getParameters()) {
-        if (param.second.is<Blob::Ptr>()) {
-            res->blobs[param.first] = param.second.as<Blob::Ptr>();
-        } else if (param.second.is<Blob::CPtr>()) {
-            res->blobs[param.first] = std::const_pointer_cast<Blob>(param.second.as<Blob::CPtr>());
-        } else if (param.second.is<std::string>()) {
-            res->params[param.first] = param.second.as<std::string>();
-        }
-        if (weightableLayer && param.first == "weights")
-            weightableLayer->_weights = res->blobs[param.first];
-        if (weightableLayer && param.first == "biases")
-            weightableLayer->_biases = res->blobs[param.first];
-    }
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Floor>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Floor",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -129,19 +97,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Tanh>::createLayer(const std::shared_ptr
     LayerParams params = {layer->get_friendly_name(), "TanH",
                           details::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::ReLUIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReLU",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::ReLULayer>(params);
-
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::ReLUIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["negative_slope"] = asString(castedLayer->get_slope());
     return res;
 }
 
@@ -306,21 +261,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std:
 
     res->params["axis"] = std::to_string(castedLayer->get_axis());
     res->params["group"] = std::to_string(castedLayer->get_group());
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PowerIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Power",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::PowerLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::PowerIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["power"] = asString(castedLayer->power);
-    res->params["scale"] = asString(castedLayer->scale);
-    res->params["shift"] = asString(castedLayer->shift);
 
     return res;
 }
