@@ -248,7 +248,7 @@ namespace
 /* -----------------------------------------------------------------------------------------------*/
 
 SubgraphExtractor::SubgraphExtractor(ONNX_NAMESPACE::GraphProto& graph)
-    : m_onnx_graph{graph}
+    : m_onnx_graph(graph)
 {
     for (int i = 0; i < graph.node_size(); ++i)
     {

@@ -145,8 +145,8 @@ namespace
             {
                 const auto& lhs_dim = lhs_shape.dim(j);
                 const auto& rhs_dim = rhs_shape.dim(j);
-                if (lhs_dim.has_dim_value() && rhs_dim.has_dim_param() ||
-                    rhs_dim.has_dim_value() && lhs_dim.has_dim_param())
+                if ((lhs_dim.has_dim_value() && rhs_dim.has_dim_param()) ||
+                    (rhs_dim.has_dim_value() && lhs_dim.has_dim_param()))
                 {
                     return ComparisonResult::fail("Dynamic vs static dimension mismatch for " +
                                                   item_type + " " + lhs.name() + " at index: " +
