@@ -110,7 +110,7 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         for node_name, node_mean_scale_values in values.items():
             node_id = None
             try:
-                node_id, direction, port = get_node_id_with_ports(graph, node_name)
+                node_id, direction, port = get_node_id_with_ports(graph, node_name, skip_if_no_port=False)
                 assert direction != 'out', 'Only input port can be specified for mean/scale application'
             except Error as e:
                 log.warning('node_name {} is not found in graph'.format(node_name))
@@ -126,7 +126,7 @@ class AddMeanScaleValues(MiddleReplacementPattern):
                         log.debug('Can not get the port number from the node {}'.format(placeholder.id))
                         log.debug('Port will be defined as None')
                         port = None
-                    if placeholder.has('initial_node_name') and placeholder.initial_node_name == node_name and (
+                    if placeholder.has('initial_node_name') and placeholder.initial_node_name == node_id and (
                             port is None or placeholder_port == port):
                         new_node_id = placeholder.id
                         break
