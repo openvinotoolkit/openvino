@@ -49,11 +49,14 @@ namespace ngraph
                 OutputVector mean_variance_normalization(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
-                    auto axes = node.get_attribute_value<std::vector<int64_t>>("axes", {0, 2, 3});
+                    auto axes =
+                        node.get_attribute_value<std::vector<std::int64_t>>("axes", {0, 2, 3});
                     const std::vector<std::size_t> normalized_axes = ngraph::normalize_axes(
                         node.get_description(), axes, data.get_partial_shape().rank());
-
-                    return {std::make_shared<default_opset::MVN>(data, AxisSet(normalized_axes))};
+                    auto const_axes = default_opset::Constant::create(
+                        element::i64, Shape{normalized_axes.size()}, normalized_axes);
+                    return {std::make_shared<ngraph::op::v6::MVN>(
+                        data, const_axes, true, 1e-09, ngraph::op::MVNEpsMode::OUTSIDE_SQRT)};
                 }
 
             } // namespace set_9
