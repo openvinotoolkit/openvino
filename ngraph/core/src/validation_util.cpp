@@ -1227,20 +1227,6 @@ bool could_propagate(const Output<Node>& output, std::vector<Node*>& order)
     return status;
 }
 
-void propagate_rt_info(Node* node, const Output<Node>& final_port)
-{
-    for (const auto& output : node->outputs())
-    {
-        if (output == final_port)
-            continue;
-        for (auto& in : output.get_target_inputs())
-        {
-            auto consumer = in.get_node()->shared_from_this();
-            copy_runtime_info({node->shared_from_this(), consumer}, consumer);
-        }
-    }
-}
-
 HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
 {
     // bound is already set in the tensor
@@ -1278,13 +1264,6 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
                 for (const auto& input : input_values)
                     if (input.get_target_inputs().size() == 1)
                         input.get_tensor().invalidate_values();
-                const auto& node_outputs = node->outputs();
-                bool same_outputs = std::all_of(
-                    node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
-                        return output.get_tensor().has_and_set_bound();
-                    });
-                if (same_outputs)
-                    propagate_rt_info(node, output);
             }
             else
             {
