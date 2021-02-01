@@ -59,8 +59,6 @@ void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNet
             std::string opFriendlyName = op->get_friendly_name();
             auto pos = originalLayersNames.find(opFriendlyName);
             ASSERT_TRUE(pos != std::string::npos) << "Operation name " << op->get_friendly_name() << " has not been found in originalLayersNames!";
-            pos += opFriendlyName.size();
-
             for (auto fusedOp : fusedOps) {
                 pos = originalLayersNames.find(fusedOp, checkFusingPosition ? pos : 0);
                 ASSERT_TRUE(pos != std::string::npos) << "Fused op " << fusedOp << " has not been found!";
