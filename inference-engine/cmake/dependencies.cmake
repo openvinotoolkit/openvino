@@ -154,7 +154,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 ARCHIVE_WIN "oneapi-tbb-2021.2.0-win_strip.zip"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "dad5a2407d581509796e37ef5f69b1041d872760dbb6291ef86d744fbf25602a")
+                SHA256 "d346449f6d43293c2562b3d60a0354fcc89e4da243c0b6a08e7a78360527aa8f")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -165,7 +165,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "oneapi-tbb-2021.2.0-lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
-                SHA256 "5e5728078ae12cf885d7cafc142cb5ca857d169daf2025e960ce95af9d4bd730")
+                SHA256 "511ba7091c1e2e03f6a67bce79bd9b54c5b1c4ce82b7fe0760a1ebf4b4dd4190")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
@@ -248,8 +248,9 @@ if (ENABLE_OPENCV)
                 set(OPENCV_SUFFIX "centos7")
                 set(OPENCV_HASH "9b813af064d463b31fa1603b11b6559532a031d59bb0782d234380955fd397e0")
             elseif (LINUX_OS_NAME MATCHES "CentOS 8")
+                set(OPENCV_BUILD "061-try_onetbb")
                 set(OPENCV_SUFFIX "centos8")
-                set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
+                set(OPENCV_HASH "7bf5db868dd2260e012c58bedcb4071ea57daa3cfb1e0cc1d8b2c71948972e11")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04")
                 set(OPENCV_SUFFIX "ubuntu16")
                 set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
