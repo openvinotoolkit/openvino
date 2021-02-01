@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <gmock/gmock-matchers.h>
+
 #include "common_test_utils/test_common.hpp"
 #include <string>
 #include <memory>
@@ -210,10 +212,6 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
     EXPECT_EQ(res.second, "LSTMCell/4 != Relu/0");
 }
 
-static inline bool contains(const std::string& text, const std::string& search_for) {
-    return text.find(search_for) != std::string::npos;
-}
-
 TEST(TransformationTests, ConstantNegativeDifferentElementType) {
     const auto& f1 = [] {
         using namespace ngraph::opset5;
@@ -233,8 +231,7 @@ TEST(TransformationTests, ConstantNegativeDifferentElementType) {
 
     const auto& res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
-    EXPECT_TRUE(contains(res.second, "mismatch in value: 'element_type'"))
-        << "Return: >" << res.second << "< instead";
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'element_type'"));
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentValues) {
@@ -256,8 +253,7 @@ TEST(TransformationTests, ConstantNegativeDifferentValues) {
 
     auto res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
-    EXPECT_TRUE(contains(res.second, "mismatch in value: 'value'"))
-        << "Return: >" << res.second << "< instead";
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'value'"));
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentShapes) {
@@ -279,8 +275,7 @@ TEST(TransformationTests, ConstantNegativeDifferentShapes) {
 
     const auto& res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
-    EXPECT_TRUE(contains(res.second, "mismatch in value: 'shape'"))
-        << "Return: >" << res.second << "< instead";
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'shape'"));
 }
 
 TEST(TransformationTests, ClampNegativeDifferentMin) {
@@ -304,8 +299,7 @@ TEST(TransformationTests, ClampNegativeDifferentMin) {
 
     const auto& res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
-    EXPECT_TRUE(contains(res.second, "mismatch in value: 'min'"))
-        << "Return: >" << res.second << "< instead";
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'min'"));
 }
 
 TEST(TransformationTests, ClampNegativeDifferentMax) {
@@ -329,6 +323,5 @@ TEST(TransformationTests, ClampNegativeDifferentMax) {
 
     const auto& res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
-    EXPECT_TRUE(contains(res.second, "mismatch in value: 'max'"))
-        << "Return: >" << res.second << "< instead";
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'max'"));
 }
