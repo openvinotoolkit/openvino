@@ -90,7 +90,8 @@ function update_onnx_models() {
         else
             echo "The ONNX Model Zoo repository doesn't exist then will be cloned"
             #git clone https://github.com/onnx/models.git "$ONNX_MODELS_DIR"
-            git clone -v --single-branch --branch=master --reference=/mnt/onnxtestdata/models/onnx_model_zoo https://github.com/onnx/models.git "$ONNX_MODELS_DIR"
+            #git clone -v --single-branch --branch=master --reference=/mnt/onnxtestdata/models/onnx_model_zoo https://github.com/onnx/models.git "$ONNX_MODELS_DIR"
+            git clone -v --single-branch --branch=master https://github.com/onnx/models.git "$ONNX_MODELS_DIR"
         fi
     fi
 
