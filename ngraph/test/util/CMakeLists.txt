@@ -45,5 +45,5 @@ endif()
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${IE_MAIN_SOURCE_DIR}/include)
 target_link_libraries(ngraph_test_util PRIVATE ngraph ngraph_backend libgtest)
 
-target_include_directories(ngraph_test_util SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR})
-target_link_libraries(ngraph_test_util PRIVATE ${ONNX_LIBRARIES})
+target_include_directories(ngraph_test_util SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
+target_link_libraries(ngraph_test_util PRIVATE ${ONNX_LIBRARIES} ${Protobuf_LIBRARIES})

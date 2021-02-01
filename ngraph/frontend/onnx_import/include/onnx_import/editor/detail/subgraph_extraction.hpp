@@ -119,6 +119,7 @@ namespace ngraph
                     inputs.insert(other.inputs.begin(), other.inputs.end());
                     initializers.insert(other.initializers.begin(), other.initializers.end());
                     outputs.insert(other.outputs.begin(), other.outputs.end());
+                    return *this;
                 }
             };
 
