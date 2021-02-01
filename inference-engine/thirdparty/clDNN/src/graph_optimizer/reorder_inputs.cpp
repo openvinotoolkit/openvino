@@ -17,7 +17,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "api/binary_convolution.hpp"
-#include "api/scatter_update.hpp"
 #include "pass_manager.h"
 #include "program_node.h"
 #include "layout_optimizer.h"
@@ -352,9 +351,6 @@ void insert_reorders_in_dir(program_impl& p, const std::map<program_node*, forma
             continue;
 
         if (fmt_map.count(next) > 0 && fmt_map.at(next) == fmt)
-            continue;
-
-        if (node->is_type<scatter_update>())
             continue;
 
         auto next_layout = next->get_output_layout();
