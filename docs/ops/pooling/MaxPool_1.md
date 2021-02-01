@@ -6,7 +6,7 @@
 
 **Short description**: Performs max pooling operation on input.
 
-**Detailed description**: Input shape can be either 3D, 4D or 5D. Max Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value are `-inf`. The max pooling operation involves sliding a filter over each channel of feature map and down sampling by choosing the biggest value within the region covered by the filter. [Article about max pooling in Convolutional Networks](https://deeplizard.com/learn/video/ZjM_XQa5s6s). 
+**Detailed description**: Input shape can be either 3D, 4D or 5D. Max Pooling operation is performed with the respect to input shape from the third dimension to the last dimension. If paddings are used then during the pooling calculation their value are `-inf`. The Max Pooling operation involves sliding a filter over each channel of feature map and downsampling by choosing the biggest value within the region covered by the filter. [Article about max pooling in Convolutional Networks](https://deeplizard.com/learn/video/ZjM_XQa5s6s). 
 
 **Attributes**: *Pooling* attributes are specified in the `data` node, which is a child of the layer node.
 
@@ -67,10 +67,14 @@
 
 **Inputs**:
 
-*   **1**: 3D, 4D or 5D input tensor. Required.
+*   **1**: 3D, 4D or 5D input tensor of type T. Required.
 
 **Outputs**:
-  * **1**: Input shape can be either `[N, C, H]`, `[N, C, H, W]` or `[N, C, H, W, D]`. Then the corresponding output shape will be `[N, C, H_out]`, `[N, C, H_out, W_out]` or `[N, C, H_out, W_out, D_out]`
+  * **1**: Input shape can be either `[N, C, H]`, `[N, C, H, W]` or `[N, C, H, W, D]`. Then the corresponding output shape will be `[N, C, H_out]`, `[N, C, H_out, W_out]` or `[N, C, H_out, W_out, D_out]`. Output tensor has the same data type as input tensor.
+
+**Types**
+
+* *T*: `uint64`, `int32`, `int64`, `float16`, `float32`.
 
 **Mathematical Formulation**
 Output shape calculation based on `auto_pad` and `rounding_type`:  
