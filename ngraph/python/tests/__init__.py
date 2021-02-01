@@ -85,7 +85,6 @@ xfail_issue_35918 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.Validatio
                                       "Mismatched attribute type in 'test_node : alpha'")
 xfail_issue_35921 = xfail_test(reason="ValueError - shapes mismatch in gemm")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
-xfail_issue_35924 = xfail_test(reason="Assertion error - elu results mismatch")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
@@ -104,7 +103,6 @@ xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get
                                       "CNNNetwork::reshape() method in order to specialize shapes "
                                       "before the conversion.")
 xfail_issue_38086 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
-xfail_issue_38087 = xfail_test(reason="RuntimeError: Cannot cast to tensor desc. Format is unsupported!")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Gradient")
@@ -203,9 +201,7 @@ xfail_issue_39658 = xfail_test(reason="RuntimeError: Tile operation has a form t
                                       " z should be converted to TileIE operation.")
 xfail_issue_39659 = xfail_test(reason="RuntimeError: Broadcast operation has a form that is not supported."
                                       " y should be converted to Tile operation.")
-xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation has a form that is not "
-                                      "supported. selected_indices should be converted to "
-                                      "NonMaxSuppressionIE operation.")
+xfail_issue_45344 = xfail_test(reason="Unsupported dynamic ops: v3::NonMaxSuppressionIE3")
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 
@@ -215,3 +211,5 @@ xfail_issue_43208 = xfail_test(reason="GPT-2 - AssertionError: zoo models result
 xfail_issue_43209 = xfail_test(reason="GPT-2-LM-HEAD - AssertionError: zoo models results mismatch")
 xfail_issue_43213 = xfail_test(reason="RetinaNet Resnet101 - AssertionError: zoo models results mismatch")
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
+xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
+xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
