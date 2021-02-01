@@ -103,6 +103,21 @@ static const char shape_message[] = "Optional. Set shape for input. For example,
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
 
+// @brief TBD
+static constexpr char inputs_precision_message[] =
+                                             "Optional. Specifies precision for all input layers of the network.";
+
+// @brief TBD
+static constexpr char outputs_precision_message[] =
+                                             "Optional. Specifies precision for all output layers of the network.";
+
+// @brief TBD
+static constexpr char iop_message[] =
+                                             "Optional. Specifies precision for input and output layers by name.\n"
+"                                             Example: -iop \"input:FP16, output:FP16\".\n"
+"                                             Notice that quotes are required.\n"
+"                                             Overwrites precision from ip and op options for specified layers.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -189,6 +204,15 @@ DEFINE_string(shape, "", shape_message);
 
 /// @brief Define flag for quantization bits (default 16)
 DEFINE_int32(qb, 16, gna_qb_message);
+
+/// @brief TODO
+DEFINE_string(ip, "", inputs_precision_message);
+
+/// @brief TODO
+DEFINE_string(op, "", outputs_precision_message);
+
+/// @brief TODO
+DEFINE_string(iop, "", iop_message);
 
 /**
 * @brief This function show a help message

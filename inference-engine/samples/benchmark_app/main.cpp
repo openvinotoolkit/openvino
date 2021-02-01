@@ -376,6 +376,10 @@ int main(int argc, char *argv[]) {
                     item.second->setPrecision(Precision::U8);
                 }
             }
+
+            processPrecisions(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
+
+            printInputAndOutputsInfo(cnnNetwork);
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
             next_step();
             startTime = Time::now();

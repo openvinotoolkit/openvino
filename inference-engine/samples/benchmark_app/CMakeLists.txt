@@ -10,3 +10,8 @@ ie_add_sample(NAME benchmark_app
               HEADERS ${HDR}
               DEPENDENCIES format_reader
               OPENCV_DEPENDENCIES imgcodecs)
+
+target_include_directories(benchmark_app SYSTEM PRIVATE
+    ${IE_MAIN_SOURCE_DIR}/src/vpu/common/include
+    ${IE_MAIN_SOURCE_DIR}/src/plugin_api
+)
