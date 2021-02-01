@@ -64,6 +64,6 @@ jobs:
     displayName: 'Docker build'
     enabled: true
 
-  - script: docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo  openvino-onnx-ci-image
+  - script: docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
     displayName: 'Docker run'
     enabled: true
