@@ -113,6 +113,19 @@ bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQu
         !is_type<opset1::Constant>(quantize->get_input_node_ptr(4))) {
         return false;
     }
+
+    const size_t inputLowValuesSize = as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(1))->cast_vector<float>().size();
+    const size_t inputHighValuesSize = as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(2))->cast_vector<float>().size();
+    if (inputLowValuesSize != inputHighValuesSize) {
+        return false;
+    }
+
+    const size_t outputLowValuesSize = as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(3))->cast_vector<float>().size();
+    const size_t outputHighValuesSize = as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(4))->cast_vector<float>().size();
+    if (outputLowValuesSize != outputHighValuesSize) {
+        return false;
+    }
+
     return true;
 }
 
