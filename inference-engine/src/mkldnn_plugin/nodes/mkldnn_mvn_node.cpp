@@ -380,7 +380,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
         tail_num = jcp_.planar_layout ? (jcp_.D * jcp_.H * jcp_.W) - ((jcp_.D * jcp_.H * jcp_.W) / step) * step :
                                         jcp_.C - (jcp_.C / step) * step;
 
-        load_pool_gpr_idxs = {reg_load_table.getIdx(), reg_load_store_mask.getIdx()};
+        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
 
         if (jcp_.planar_layout) {
             worker_unroll();
@@ -531,13 +531,13 @@ private:
 
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 
-    std::vector<int> load_pool_gpr_idxs;
+    std::vector<size_t> load_pool_gpr_idxs;
 
     inline void worker_full_size() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({reg_src.getIdx()}, {vmm_val.getIdx()},
-                            {}, {load_pool_gpr_idxs},
-                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, step));
+        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, step),
+                            {}, {load_pool_gpr_idxs});
 
         if (jcp_.normalize_variance) {
             // all with float
@@ -557,9 +557,9 @@ private:
 
     inline void worker_tail_blk() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({reg_src.getIdx()}, {vmm_val.getIdx()},
-                            {}, {load_pool_gpr_idxs},
-                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num));
+        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num),
+                            {}, {load_pool_gpr_idxs});
 
         if (jcp_.normalize_variance) {
             // all with float
@@ -601,9 +601,9 @@ private:
 
     inline void worker_tail_planar() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({reg_src.getIdx()}, {vmm_val.getIdx()},
-                            {}, {load_pool_gpr_idxs},
-                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num, true, "zero"));
+        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num, true, "zero"),
+                            {}, {load_pool_gpr_idxs});
 
         if (jcp_.normalize_variance) {
             if (!isFloatCompatible(jcp_.src_prc))
@@ -708,9 +708,9 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         tail_num = jcp_.planar_layout ? (jcp_.D * jcp_.H * jcp_.W) - ((jcp_.D * jcp_.H * jcp_.W) / step) * step :
                                         jcp_.C - (jcp_.C / step) * step;
 
-        load_pool_gpr_idxs = {reg_load_table.getIdx(), reg_load_store_mask.getIdx()};
-        store_pool_gpr_idxs = {reg_load_store_mask.getIdx()};
-        store_pool_vec_idxs = {vmm_zero.getIdx()};
+        load_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx()), static_cast<size_t>(reg_load_table.getIdx())};
+        store_pool_gpr_idxs = {static_cast<size_t>(reg_load_store_mask.getIdx())};
+        store_pool_vec_idxs = {static_cast<size_t>(vmm_zero.getIdx())};
 
         if (jcp_.planar_layout) {
             worker_mvn_unroll();
@@ -819,25 +819,25 @@ private:
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
-    std::vector<int> store_pool_gpr_idxs;
-    std::vector<int> store_pool_vec_idxs;
-    std::vector<int> load_pool_gpr_idxs;
+    std::vector<size_t> store_pool_gpr_idxs;
+    std::vector<size_t> store_pool_vec_idxs;
+    std::vector<size_t> load_pool_gpr_idxs;
 
     inline void worker_mvn(bool is_tail) {
         int elt_num = is_tail ? tail_num : step;
-        load_emitter->emit({reg_src.getIdx()}, {vmm_val.getIdx()},
-            {}, {load_pool_gpr_idxs},
-            std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, elt_num));
+        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+            std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, elt_num),
+            {}, {load_pool_gpr_idxs});
 
         uni_vsubps(vmm_val, vmm_val, vmm_mean);
         if (jcp_.normalize_variance)
             uni_vmulps(vmm_val, vmm_val, vmm_variance_inv);
 
-        apply_post_ops(jcp_.dst_prc);
+        apply_post_ops(jcp_.dst_prc, jcp_.planar_layout);
 
-        store_emitter->emit({vmm_val.getIdx()}, {reg_dst.getIdx()},
-            {store_pool_vec_idxs}, {store_pool_gpr_idxs},
-            std::make_shared<store_emitter_context>(Precision::FP32, jcp_.dst_prc, elt_num));
+        store_emitter->emit({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+            std::make_shared<store_emitter_context>(Precision::FP32, jcp_.dst_prc, elt_num),
+            {store_pool_vec_idxs}, {store_pool_gpr_idxs});
     }
 
     inline void worker_mvn_unroll(bool is_tail = false) {
@@ -860,7 +860,7 @@ private:
         L(mvn_loop_end_label);
     }
 
-    void apply_post_ops(InferenceEngine::Precision dst_prc) {
+    void apply_post_ops(InferenceEngine::Precision dst_prc, bool is_broadcast) {
         const auto &p = attr_.post_ops_;
         int eltwise_inj_idx = 0;
         int depthwise_inj_idx = 0;
@@ -875,7 +875,7 @@ private:
                 mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
                 add(reg_d_weights, reg_oc_off);
                 add(reg_d_bias, reg_oc_off);
-                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias);
+                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
                 depthwise_inj_idx++;
             } else if (post_op.is_quantization()) {
                 bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
@@ -883,13 +883,13 @@ private:
                 int s_idx = vmm_val.getIdx();
 
                 quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
-                quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0);
+                quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0, 0, is_broadcast);
 
                 quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
-                quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding);
+                quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding, 0, is_broadcast);
 
                 quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
-                quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0);
+                quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0, 0, is_broadcast);
 
                 quantization_inj_idx++;
             }
@@ -974,6 +974,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     setPostOps(attr, true);
 
     Precision inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
+<<<<<<< c5552707875fff3fae27a28ee976692091479d43
 <<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
 <<<<<<< d1b410794020115566f9dae54371a233b74b709d
     Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
@@ -991,6 +992,9 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 =======
 >>>>>>> review comments fix - part2
     if (getParentEdgeAt(0)->getDims().ndims() < 4 || getParentEdgeAt(0)->getDims().ndims() > 5
+=======
+    if (getParentEdgeAt(0)->getDims().ndims() < 3 || getParentEdgeAt(0)->getDims().ndims() > 5
+>>>>>>> an overloaded emit() and size_t index
         || across_channels != 0 || normalize_variance != 1) {
         if (!isFloatCompatible(inputPrecision)) {
             inputPrecision = Precision::FP32;
@@ -1185,6 +1189,7 @@ void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
             quantizeNode->appendPostOps(ops);
             continue;
         }
+
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
         if (eltwiseNode) {
             eltwiseNode->appendPostOps(ops);
@@ -1292,6 +1297,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                         arg.src_stride = src_stride_size;
                         arg.dst_stride = dst_stride_size;
                         arg.work_amount = static_cast<size_t>(C2 / blk_size);  // work amount for vector part
+                        arg.oc_off = static_cast<size_t>(c * sizeof(float));
                         (*mvn_kernel)(&arg);
                     });
                 }
@@ -1307,6 +1313,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                         arg.src_stride = src_stride_size;
                         arg.dst_stride = dst_stride_size;
                         arg.work_amount = static_cast<size_t>(C2 / blk_size);
+                        arg.oc_off = static_cast<size_t>(c * sizeof(float));
                         (*mvn_kernel)(&arg);
                     });
                 }
@@ -1326,6 +1333,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                     arg.src_stride = src_stride_size;
                     arg.dst_stride = dst_stride_size;
                     arg.work_amount = static_cast<size_t>(C2 / blk_size);
+                    arg.oc_off = static_cast<size_t>(c * sizeof(float));
                     (*mvn_mean_kernel)(&arg);
 
                     mean *= C2inv;

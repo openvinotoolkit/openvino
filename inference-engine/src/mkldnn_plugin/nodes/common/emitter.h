@@ -31,9 +31,12 @@ public:
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
     }
 
-    virtual void emit(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
-                      const std::vector<int> &pool_vec_idxs = {}, const std::vector<int> &pool_gpr_idxs = {},
-                      const std::shared_ptr<const emitter_context> &emit_context = nullptr);
+    virtual void emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                      const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {});
+
+    virtual void emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                      const std::shared_ptr<const emitter_context> &emit_context,
+                      const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {});
     virtual void emit_table();
     virtual size_t get_inputs_num() = 0;
     virtual size_t aux_vecs_count() const;
@@ -84,18 +87,21 @@ protected:
         _cmp_gt_os = mkldnn::impl::cpu::x64::jit_generator::_cmp_nle_us,
     };
 
-    virtual void emit_impl(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
-                           const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
+    virtual void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                           const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {}
+
+    virtual void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                           const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                            const emitter_context *emit_context) {}
 
-    virtual void emitter_preamble(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
-                          const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs);
+    virtual void emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                          const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs);
     virtual void emitter_postamble();
 
     emitter_in_out_map in_out_type_;
 
-    std::vector<int> aux_vec_idxs;
-    std::vector<int> aux_gpr_idxs;
+    std::vector<size_t> aux_vec_idxs;
+    std::vector<size_t> aux_gpr_idxs;
 
     static constexpr int k_mask_size = 8;
 
@@ -123,11 +129,11 @@ protected:
     }
 
 private:
-    std::vector<int> preserved_vec_idxs;
-    std::vector<int> preserved_gpr_idxs;
+    std::vector<size_t> preserved_vec_idxs;
+    std::vector<size_t> preserved_gpr_idxs;
 
-    void push_vec(const Xbyak::Address &addr, int vec_idx) const;
-    void pop_vec(int vec_idx, const Xbyak::Address &addr) const;
+    void push_vec(const Xbyak::Address &addr, size_t vec_idx) const;
+    void pop_vec(size_t vec_idx, const Xbyak::Address &addr) const;
 
     size_t table_off(std::string& key, size_t key_off_val_shift = 0) const {
         // assumption: all table entries sharing the same key also

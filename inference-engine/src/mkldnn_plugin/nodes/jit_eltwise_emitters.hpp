@@ -18,12 +18,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
 class jit_mul_add_emitter : public jit_emitter {
@@ -34,12 +33,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     size_t aux_vecs_count() const override;
 };
@@ -53,12 +51,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
 
@@ -70,12 +67,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
 
@@ -88,12 +84,11 @@ public:
     static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
     size_t aux_vecs_count() const override;
 };
 
@@ -106,12 +101,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
     size_t aux_vecs_count() const override;
 };
 
@@ -124,12 +118,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
     size_t aux_vecs_count() const override;
 };
 
@@ -143,12 +136,11 @@ public:
     static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
 
@@ -161,12 +153,11 @@ public:
     static std::set<InferenceEngine::Precision> get_supported_precisions();
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
 
@@ -178,12 +169,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
 
@@ -195,12 +185,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 };
 
 
@@ -212,12 +201,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -232,12 +220,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -252,12 +239,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -272,12 +258,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -292,12 +277,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -312,12 +296,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -332,12 +315,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -352,12 +334,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -372,12 +353,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -391,12 +371,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -410,12 +389,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     void register_table_entries() override;
     size_t aux_vecs_count() const override;
@@ -429,12 +407,11 @@ public:
     size_t get_inputs_num() override;
 
 private:
-    void emit_impl(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+    void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) override;
 
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const std::vector<int> &in_vec_idxs, const std::vector<int> &out_vec_idxs) const;
+    void emit_isa(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const;
 
     size_t aux_vecs_count() const override;
 };

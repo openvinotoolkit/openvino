@@ -84,8 +84,8 @@ public:
     size_t get_inputs_num() override { return 1; };
 
 private:
-    void emit_impl(const std::vector<int>& in_vec_idxs, const std::vector<int>& out_vec_idxs,
-        const std::vector<int>& pool_vec_idxs, const std::vector<int>& pool_gpr_idxs, const emitter_context *emit_context) override {
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs,
+        const std::vector<size_t>& pool_vec_idxs, const std::vector<size_t>& pool_gpr_idxs) override {
         if (host_isa_ == mkldnn::impl::cpu::x64::cpu_isa_t::avx512_common) {
             Xbyak::Zmm in = Xbyak::Zmm(in_vec_idxs[0]);
             Xbyak::Ymm out = Xbyak::Ymm(out_vec_idxs[0]);

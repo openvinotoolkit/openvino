@@ -33,8 +33,8 @@ size_t jit_load_emitter::aux_gprs_count() const {
     return 2;
 }
 
-void jit_load_emitter::emit_impl(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
+void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) {
     const auto* load_emitter_context = dynamic_cast<const MKLDNNPlugin::load_emitter_context*>(emit_context);
     if (load_emitter_context == nullptr) {
@@ -42,13 +42,13 @@ void jit_load_emitter::emit_impl(const std::vector<int> &in_idxs, const std::vec
     }
 
     if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, out_idxs[0],
+        emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, static_cast<int>(out_idxs[0]),
             load_emitter_context->dst_prc_, load_emitter_context->load_num_, load_emitter_context->is_fill_, load_emitter_context->fill_value_);
     } else if (host_isa_ == cpu::x64::avx2) {
-        emit_isa<cpu::x64::avx2>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, out_idxs[0],
+        emit_isa<cpu::x64::avx2>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, static_cast<int>(out_idxs[0]),
             load_emitter_context->dst_prc_, load_emitter_context->load_num_, load_emitter_context->is_fill_, load_emitter_context->fill_value_);
     } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, out_idxs[0],
+        emit_isa<cpu::x64::avx512_common>(Reg64(in_idxs[0]), load_emitter_context->offset_byte_, load_emitter_context->src_prc_, static_cast<int>(out_idxs[0]),
             load_emitter_context->dst_prc_, load_emitter_context->load_num_, load_emitter_context->is_fill_, load_emitter_context->fill_value_);
     } else {
         THROW_IE_EXCEPTION << "Load emitter in " << n->getName() << " is performed on unsupported isa(at least x64::sse41).";
@@ -510,21 +510,21 @@ size_t jit_store_emitter::aux_vecs_count() const {
 
 size_t jit_store_emitter::get_inputs_num() { return 1; }
 
-void jit_store_emitter::emit_impl(const std::vector<int> &in_idxs, const std::vector<int> &out_idxs,
-                  const std::vector<int> &pool_vec_idxs, const std::vector<int> &pool_gpr_idxs,
+void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) {
     const auto* store_emitter_context = dynamic_cast<const MKLDNNPlugin::store_emitter_context*>(emit_context);
     if (store_emitter_context == nullptr) {
         THROW_IE_EXCEPTION << "Store emitter in " << n->getName() << " does not get store emmiter context.";
     }
     if (host_isa_ == cpu::x64::sse41) {
-        emit_isa<cpu::x64::sse41>(in_idxs[0], store_emitter_context->src_prc_, Reg64(out_idxs[0]),
+        emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), store_emitter_context->src_prc_, Reg64(out_idxs[0]),
             store_emitter_context->offset_byte_, store_emitter_context->dst_prc_, store_emitter_context->store_num_);
     } else if (host_isa_ == cpu::x64::avx2) {
-        emit_isa<cpu::x64::avx2>(in_idxs[0], store_emitter_context->src_prc_, Reg64(out_idxs[0]),
+        emit_isa<cpu::x64::avx2>(static_cast<int>(in_idxs[0]), store_emitter_context->src_prc_, Reg64(out_idxs[0]),
             store_emitter_context->offset_byte_, store_emitter_context->dst_prc_, store_emitter_context->store_num_);
     } else if (host_isa_ == cpu::x64::avx512_common) {
-        emit_isa<cpu::x64::avx512_common>(in_idxs[0], store_emitter_context->src_prc_, Reg64(out_idxs[0]),
+        emit_isa<cpu::x64::avx512_common>(static_cast<int>(in_idxs[0]), store_emitter_context->src_prc_, Reg64(out_idxs[0]),
             store_emitter_context->offset_byte_, store_emitter_context->dst_prc_, store_emitter_context->store_num_);
     } else {
         THROW_IE_EXCEPTION << "Store emitter in " << n->getName() << " is performed on unsupported isa(at least x64::sse41).";
@@ -829,7 +829,7 @@ template <typename Vmm>
             if (mayiuse(cpu::x64::avx512_core_bf16)) {
                 h->vcvtneps2bf16(ymm, zmm);
             } else {
-                emu_vcvtneps2bf16->emit({vmm.getIdx()}, {ymm.getIdx()});
+                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
             }
             if (store_num == 16) {
                 h->vmovdqu16(ptr[reg + offset], ymm);
