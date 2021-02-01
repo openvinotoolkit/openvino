@@ -379,6 +379,30 @@ bool updateExternals(const ngraph::Node* source, const Nodes& allForward, const 
     return updated;
 }
 
+template<class NextTop, class NextBottom>
+bool removeExternalConnections(ngraph::Node* source, SubGraph& topSubGraph, SubGraph& bottomSubGraph, Nodes& topExternals, Nodes& bottomExternals,
+                               NextTop&& getNextTop, NextBottom&& getNextBottom) {
+    bool hasBeenUpdated = false;
+
+    bool hasNewTopExternals = false;
+    bool hasNewBottomExternals = false;
+    do {
+        hasNewTopExternals = updateExternals(source, topSubGraph.all, bottomSubGraph.all, topExternals, getNextBottom);
+        if (hasNewTopExternals) {
+            topSubGraph = getLeaves(source, topExternals, getNextTop);
+            hasBeenUpdated = true;
+        }
+
+        hasNewBottomExternals = updateExternals(source, bottomSubGraph.all, topSubGraph.all, bottomExternals, getNextTop);
+        if (hasNewBottomExternals) {
+            bottomSubGraph = getLeaves(source, bottomExternals, getNextBottom);
+            hasBeenUpdated = true;
+        }
+    } while (hasNewTopExternals || hasNewBottomExternals);
+
+    return hasBeenUpdated;
+}
+
 }  // namespace
 
 bool ExtractBatch::run_on_function(std::shared_ptr<ngraph::Function> functionPointer) {
@@ -434,32 +458,14 @@ bool ExtractBatch::run_on_function(std::shared_ptr<ngraph::Function> functionPoi
         auto topSubGraph = getLeaves(source, topExternals, getNextTop);
         auto bottomSubGraph = getLeaves(source, bottomExternals, getNextBottom);
 
-        auto hasNewTopExternals = updateExternals(source, topSubGraph.all, bottomSubGraph.all, topExternals, getNextBottom);
-        if (hasNewTopExternals) {
-            topSubGraph = getLeaves(source, topExternals, getNextTop);
-        }
-
-        bool hasNewBottomExternals = updateExternals(source, bottomSubGraph.all, topSubGraph.all, bottomExternals, getNextTop);
-        if (hasNewBottomExternals) {
-            bottomSubGraph = getLeaves(source, bottomExternals, getNextBottom);
-        }
+        removeExternalConnections(source, topSubGraph, bottomSubGraph, topExternals, bottomExternals, getNextTop, getNextBottom);
 
         ngraph::Node* top = nullptr;
         ngraph::Node* bottom = nullptr;
         do {
             getLeavesLCA(source, top, topSubGraph.all, topSubGraph.leaves, bottomSubGraph.all, getNextTop, getNextBottom);
             getLeavesLCA(source, bottom, bottomSubGraph.all, bottomSubGraph.leaves, topSubGraph.all, getNextBottom, getNextTop);
-
-            hasNewTopExternals = updateExternals(source, topSubGraph.all, bottomSubGraph.all, topExternals, getNextBottom);
-            if (hasNewTopExternals) {
-                topSubGraph = getLeaves(source, topExternals, getNextTop);
-            }
-
-            hasNewBottomExternals = updateExternals(source, bottomSubGraph.all, topSubGraph.all, bottomExternals, getNextTop);
-            if (hasNewBottomExternals) {
-                bottomSubGraph = getLeaves(source, bottomExternals, getNextBottom);
-            }
-        } while (hasNewTopExternals || hasNewBottomExternals);
+        } while (removeExternalConnections(source, topSubGraph, bottomSubGraph, topExternals, bottomExternals, getNextTop, getNextBottom));
 
         for (const auto& node : topSubGraph.all) {
             if (sources.count(node)) {
