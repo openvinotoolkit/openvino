@@ -373,6 +373,8 @@ bool fuse_type_to_constant(std::shared_ptr<Node> & node, element::Type to, const
             new_const = change_constant_precision<element::Type_t::u8, element::Type_t::i32>(constant);
         } else if (from == element::u16 && to == element::i32) {
             new_const = change_constant_precision<element::Type_t::u16, element::Type_t::i32>(constant);
+        } else if (from == element::i16 && to == element::i32) {
+            new_const = change_constant_precision<element::Type_t::i16, element::Type_t::i32>(constant);
         } else if (from == element::u32 && to == element::i32) {
             new_const = change_constant_precision<element::Type_t::u32, element::Type_t::i32>(constant);
         } else if (from == element::f16 && to == element::f32) {

@@ -200,7 +200,7 @@ inline void process_gemm(char transa, char transb, int M, int N, int K, float al
 
 inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const uint16_t *A, int lda,
                          const uint16_t *B, int ldb, float beta, float *C, int ldc) {
-    mkldnn_gemm_bf16bf16f32(transa, transb, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
+    dnnl_gemm_bf16bf16f32(transa, transb, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
 }
 
 inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const uint8_t *A, int lda,
@@ -231,13 +231,11 @@ void MKLDNNGemmNode::process_data() {
 
     auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
     auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
+    auto& dstMemory0 = getChildEdgeAt(0)->getMemory();
 
-    const T0 *src0_ptr = reinterpret_cast<const T0*>(srcMemory0.GetData()) +
-                              srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    const T1 *src1_ptr = reinterpret_cast<const T1*>(srcMemory1.GetData()) +
-                             srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    float *dst_ptr = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetData()) +
-                     getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const T0 *src0_ptr = reinterpret_cast<const T0*>(srcMemory0.GetPtr());
+    const T1 *src1_ptr = reinterpret_cast<const T1*>(srcMemory1.GetData());
+    float *dst_ptr = reinterpret_cast<float*>(dstMemory0.GetData());
 
     int MB1 = outDims.ndims() == 4 ? batchToProcess() : 1;
     int MB2 = outDims.ndims() == 3 ? batchToProcess() : outDims.ndims() > 3 ? outDims[outDims.ndims() - 3] : 1;
@@ -255,8 +253,7 @@ void MKLDNNGemmNode::process_data() {
     const float *src2_ptr;
     if (isThreeInputs) {
         auto& srcMemory2 = getParentEdgeAt(2)->getMemory();
-        src2_ptr = reinterpret_cast<const float *>(srcMemory2.GetData()) +
-                   srcMemory2.GetDescriptor().data.layout_desc.blocking.offset_padding;
+        src2_ptr = reinterpret_cast<const float *>(srcMemory2.GetPtr());
     } else {
         src2_ptr = dst_ptr;
     }

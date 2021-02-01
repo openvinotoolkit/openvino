@@ -247,3 +247,61 @@ def test_multi_out_data():
     assert net.outputs["28/Reshape"].name == "28/Reshape" and net.outputs["28/Reshape"].shape == [1, 5184]
     assert net.outputs["fc_out"].name == "fc_out" and net.outputs["fc_out"].shape == [1, 10]
     pass
+
+def test_tensor_names():
+    model = """
+            <net name="Network" version="10">
+                <layers>
+                    <layer name="in1" type="Parameter" id="0" version="opset1">
+                        <data element_type="f32" shape="1,3,22,22"/>
+                        <output>
+                            <port id="0" precision="FP32" names="input">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer name="activation" id="1" type="ReLU" version="opset1">
+                        <input>
+                            <port id="1" precision="FP32">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </input>
+                        <output>
+                            <port id="2" precision="FP32" names="relu_t, identity_t">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer name="output" type="Result" id="2" version="opset1">
+                        <input>
+                            <port id="0" precision="FP32">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </input>
+                    </layer>
+                </layers>
+                <edges>
+                    <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+                    <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+                </edges>
+            </net>
+            """
+    ie = IECore()
+    weights = b''
+    net = ie.read_network(model=model.encode('utf-8'), weights=weights, init_from_buffer=True)
+    assert net.get_ov_name_for_tensor("relu_t") == "activation"
+    assert net.get_ov_name_for_tensor("identity_t") == "activation"
+    assert net.get_ov_name_for_tensor("input") == "in1"
+    assert net.get_ov_name_for_operation("output") == "activation"

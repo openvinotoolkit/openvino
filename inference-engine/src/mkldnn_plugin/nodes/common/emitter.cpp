@@ -3,6 +3,9 @@
 //
 
 #include "emitter.h"
+
+#include "utils/general_utils.h"
+
 #include <vector>
 
 using namespace mkldnn::impl::cpu;
@@ -11,28 +14,19 @@ using namespace Xbyak;
 
 namespace MKLDNNPlugin {
 
-template <typename T, typename P>
-constexpr bool one_of(T val, P item) { return val == item; }
-
-template <typename T, typename P, typename... Args>
-constexpr bool one_of(T val, P item, Args... item_others) {
-    return val == item || one_of(val, item_others...);
-}
-
-
 size_t jit_emitter::get_max_vecs_count() const {
-    return one_of(host_isa_, cpu::avx512_common, cpu::avx512_core) ? 32 : 16;
+    return one_of(host_isa_, cpu::x64::avx512_common, cpu::x64::avx512_core) ? 32 : 16;
 }
 
 size_t jit_emitter::get_vec_length() const {
-    return one_of(host_isa_, cpu::avx512_common, cpu::avx512_core) ? 64 :
-           one_of(host_isa_, cpu::avx2) ? 32 : 16;
+    return one_of(host_isa_, cpu::x64::avx512_common, cpu::x64::avx512_core) ? 64 :
+           one_of(host_isa_, cpu::x64::avx2) ? 32 : 16;
 }
 
 void jit_emitter::push_vec(const Xbyak::Address &addr, size_t vec_idx) const {
-    if (host_isa_ == cpu::sse42) {
+    if (host_isa_ == cpu::x64::sse41) {
         h->uni_vmovups(addr, Xmm(vec_idx));
-    } else if (host_isa_ == cpu::avx2) {
+    } else if (host_isa_ == cpu::x64::avx2) {
         h->uni_vmovups(addr, Ymm(vec_idx));
     } else {
         h->uni_vmovups(addr, Zmm(vec_idx));
@@ -40,9 +34,9 @@ void jit_emitter::push_vec(const Xbyak::Address &addr, size_t vec_idx) const {
 }
 
 void jit_emitter::pop_vec(size_t vec_idx, const Xbyak::Address &addr) const {
-    if (host_isa_ == cpu::sse42) {
+    if (host_isa_ == cpu::x64::sse41) {
         h->uni_vmovups(Xmm(vec_idx), addr);
-    } else if (host_isa_ == cpu::avx2) {
+    } else if (host_isa_ == cpu::x64::avx2) {
         h->uni_vmovups(Ymm(vec_idx), addr);
     } else {
         h->uni_vmovups(Zmm(vec_idx), addr);
@@ -69,8 +63,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_vec_idxs, const
     for (auto idx : pool_vec_idxs)
         aux_vec_idxs.push_back(idx);
 
-    // For sse42 mask register has to be Xmm(0)
-    if (host_isa_ == cpu::sse42 && aux_vecs_count() > 0) {
+    // For sse41 mask register has to be Xmm(0)
+    if (host_isa_ == cpu::x64::sse41 && aux_vecs_count() > 0) {
         size_t idx = 0;
         assert(std::find(in_vec_idxs.begin(), in_vec_idxs.end(), idx) == in_vec_idxs.end());
         if (std::find(aux_vec_idxs.begin(), aux_vec_idxs.end(), idx) == aux_vec_idxs.end()) {

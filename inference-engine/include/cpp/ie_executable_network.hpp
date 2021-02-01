@@ -164,9 +164,11 @@ public:
      * @return CNNetwork containing Executable Graph Info
      */
     CNNNetwork GetExecGraphInfo() {
+        IE_SUPPRESS_DEPRECATED_START
         ICNNNetwork::Ptr ptr = nullptr;
         CALL_STATUS_FNC(GetExecGraphInfo, ptr);
         return CNNNetwork(ptr);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**

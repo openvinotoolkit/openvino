@@ -4,7 +4,8 @@
 
 #include "mkldnn_rnn.h"
 #include "mkldnn_extension_utils.h"
-#include "desc_iterator.hpp"
+
+#include "utils/general_utils.h"
 
 #include <string>
 #include <utility>
@@ -14,38 +15,55 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-template <typename T, typename P>
-inline bool one_of(T val, P item) { return val == item; }
-template <typename T, typename P, typename... Args>
-inline bool one_of(T val, P item, Args... item_others) {
-    return val == item || one_of(val, item_others...);
-}
-
 using _RNN = RNNSequenceLayer;  // alias
 
 static rnn_direction ie2mkl(_RNN::Direction &direction) {
-    return direction == _RNN::FWD ? unidirectional_left2right
-         : direction == _RNN::BWD ? unidirectional_right2left
-         : direction == _RNN::BDR ? bidirectional_concat
-         : unidirectional;
+    return direction == _RNN::FWD ? rnn_direction::unidirectional_left2right
+         : direction == _RNN::BWD ? rnn_direction::unidirectional_right2left
+         : direction == _RNN::BDR ? rnn_direction::bidirectional_concat
+         : rnn_direction::unidirectional;
 }
 
 static algorithm ie2mkl(std::string act_type) {
-    return act_type == "sigmoid" ? eltwise_logistic
-         : act_type == "tanh"    ? eltwise_tanh
-         : act_type == "relu"    ? eltwise_relu
-         : algorithm_undef;
+    return act_type == "sigmoid" ? algorithm::eltwise_logistic
+         : act_type == "tanh"    ? algorithm::eltwise_tanh
+         : act_type == "relu"    ? algorithm::eltwise_relu
+         : algorithm::undef;
 }
 
 static algorithm ie2mkl(RNNCellBase::CellType cell_type) {
     switch (cell_type) {
-        case RNNCellBase::LSTM: return vanilla_lstm;
-        case RNNCellBase::GRU:  return vanilla_gru;
-        case RNNCellBase::GRU_LBR:  return gru_linear_before_reset;
-        case RNNCellBase::RNN:  return vanilla_rnn;
+        case RNNCellBase::RNN:     return algorithm::vanilla_rnn;
+        case RNNCellBase::LSTM:    return algorithm::vanilla_lstm;
+        case RNNCellBase::GRU:     return algorithm::vanilla_gru;
+        case RNNCellBase::GRU_LBR: return algorithm::lbr_gru;
         default:
-            THROW_IE_EXCEPTION << "Unsoupported cell type";
-            return algorithm_undef;
+            THROW_IE_EXCEPTION << "Unsupported cell type";
+            return algorithm::undef;
+    }
+}
+
+size_t gatesCount(algorithm alg) {
+    switch (alg) {
+        case algorithm::vanilla_rnn:     return 1;
+        case algorithm::vanilla_gru:
+        case algorithm::lbr_gru:         return 3;
+        case algorithm::vanilla_lstm:    return 4;
+        default:
+            THROW_IE_EXCEPTION << "Unsupported cell type";
+            return 0;
+    }
+}
+
+size_t statesCount(algorithm alg) {
+    switch (alg) {
+        case algorithm::vanilla_rnn:
+        case algorithm::vanilla_gru:
+        case algorithm::lbr_gru:         return 1;
+        case algorithm::vanilla_lstm:    return 2;
+        default:
+            THROW_IE_EXCEPTION << "Unsupported cell type";
+            return 0;
     }
 }
 
@@ -72,12 +90,14 @@ void MKLDNNRNN::fillCellDesc() {
     if (!cellLayer)
         THROW_IE_EXCEPTION << "No original layer for RNNCell.";
 
-    algorithm cell_type = ie2mkl(cellLayer->cellType);
-    algorithm cell_act = ie2mkl(cellLayer->activations[0]);  // Works only for RNN with one gate
+    cell_type = ie2mkl(cellLayer->cellType);
+    cell_act = ie2mkl(cellLayer->activations[0]);  // Works only for RNN with one gate
 
-    cell_desc = {cell_type, cell_act};
-    if (cellLayer->clip != 0.0f)
-        cell_desc.set_clipping(cellLayer->clip);
+    if (cellLayer->clip != 0.0f) {
+        // TODO [oneDNN]: No more supported
+        THROW_IE_EXCEPTION << "Clipping is not supported for RNN primitive";
+//        cell_desc.set_clipping(cellLayer->clip);
+    }
 
     auto &ins = cellLayer->insData;
     auto &outs = cellLayer->outData;
@@ -94,17 +114,17 @@ void MKLDNNRNN::fillCellDesc() {
     if (in_data_dims.ndims() != 2 || in_h_state_dims.ndims() != 2)
         THROW_IE_EXCEPTION << "Incorrect shape of input/output ports for layer " << getName();
 
-    G = cell_desc.get_gates_count();
-    S = cell_desc.get_state_count();
+    G = gatesCount(cell_type);
+    S = statesCount(cell_type);
     T = 1;
     N  = in_data_dims[0];
     DC = in_data_dims[1];
     SC = in_h_state_dims[1];
 
-    Gb = (cell_type != gru_linear_before_reset) ? G : G + 1;
+    Gb = (cell_type != mkldnn::algorithm::lbr_gru) ? G : G + 1;
 
     // Expected shapes
-    MKLDNNDims D_shape {N, DC}, S_shape {N, SC};
+    MKLDNNDims D_shape {N, DC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
 
     if (in_data_dims != D_shape
         || in_h_state_dims != S_shape
@@ -135,33 +155,34 @@ void MKLDNNRNN::fillCellDesc() {
         THROW_IE_EXCEPTION << "RNN Layer. Biases size is not correct. Expected size:" << G*SC;
 
     // Shapes and Attributes are correct. Can start internal stuff initialization.
-
-    in_state_d  = {{L, D, S, N, SC}, memory::f32, memory::ldsnc};
-    out_state_d = {{L, D, S, N, SC}, memory::f32, memory::ldsnc};
-
-    in_data_d  = {{T, N, DC}, memory::f32, memory::tnc};;
-    out_data_d = {{T, N, SC}, memory::f32, memory::tnc};;
-
-    w_data_d   = {{L, D, DC, G, SC}, memory::f32, memory::ldigo};
-    w_state_d  = {{L, D, SC, G, SC}, memory::f32, memory::ldigo};
-
-    if (bias)
-        w_bias_d = {{L, D, Gb, SC}, memory::f32, memory::ldgo};
-
-    std::vector<TensorDesc> in_candidate, out_candidate;
-    std::vector<memory::format> outputFormats;
-    in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, memory::f32, memory::nc});
-    in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
-    out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
-    outputFormats.emplace_back(memory::nc);
-
-    if (S == 2) {
-        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
-        out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
-        outputFormats.emplace_back(memory::nc);
+    for (size_t i = 0; i < S; i++) {
+        in_states_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
+        out_states_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
     }
 
-    createDescriptor(in_candidate, out_candidate, outputFormats);
+    in_data_d  = {{T, N, DC}, memory::data_type::f32, memory::format_tag::tnc};;
+    out_data_d = {{T, N, SC}, memory::data_type::f32, memory::format_tag::tnc};;
+
+    w_data_d   = {{L, D, DC, G, SC}, memory::data_type::f32, memory::format_tag::ldigo};
+    w_state_d  = {{L, D, SC, G, SC}, memory::data_type::f32, memory::format_tag::ldigo};
+
+    if (bias)
+        w_bias_d = {{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo};
+
+    std::vector<TensorDesc> in_candidate, out_candidate;
+    std::vector<memory::format_tag> outputFormats;
+    in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, memory::data_type::f32, memory::format_tag::nc});
+    in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
+    out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
+    outputFormats.emplace_back(memory::format_tag::nc);
+
+    if (S == 2) {
+        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
+        out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
+        outputFormats.emplace_back(memory::format_tag::nc);
+    }
+
+    createDescriptor(in_candidate, out_candidate);
 }
 
 void MKLDNNRNN::fillSeqDesc() {
@@ -174,15 +195,16 @@ void MKLDNNRNN::fillSeqDesc() {
     if (!one_of(rnnLayer->cellType, _RNN::LSTM, _RNN::GRU, _RNN::GRU_LBR, _RNN::RNN))
         THROW_IE_EXCEPTION << "RNN layer supports only LSTM/GRU/RNN cell";
 
-    algorithm cell_type = ie2mkl(rnnLayer->cellType);
-    algorithm cell_act = algorithm_undef;
+    cell_type = ie2mkl(rnnLayer->cellType);
+    cell_act = algorithm::undef;
     if (!rnnLayer->activations.empty())
         cell_act = ie2mkl(rnnLayer->activations[0]);  // Works only for RNN with one gate
 
-    cell_desc = {cell_type, cell_act};
-
-    if (rnnLayer->clip != 0.0f)
-        cell_desc.set_clipping(rnnLayer->clip);
+    // TODO [oneDNN]: No more supported
+    if (rnnLayer->clip != 0.0f) {
+        THROW_IE_EXCEPTION << "Clipping is not supported for RNN primitive";
+//        cell_desc.set_clipping(rnnLayer->clip);
+    }
 
     if (!one_of(rnnLayer->axis, 0, 1))
         THROW_IE_EXCEPTION << "RNN layer supports only sequence axis 0 or 1";
@@ -211,34 +233,33 @@ void MKLDNNRNN::fillSeqDesc() {
         std::swap(out_data_dims[0], out_data_dims[1]);
     }
 
-    G = cell_desc.get_gates_count();
-    S = cell_desc.get_state_count();
+    G = gatesCount(cell_type);
+    S = statesCount(cell_type);
     T = in_data_dims[0];
     N = in_data_dims[1];
     DC = in_data_dims[2];
     SC = out_data_dims[2];
 
-    Gb = (cell_type != gru_linear_before_reset) ? G : G + 1;
+    Gb = (cell_type != mkldnn::algorithm::lbr_gru) ? G : G + 1;
 
-    MKLDNNDims ID_shape {T, N, DC}, OD_shape {T, N, SC}, S_shape {N, SC};
+    MKLDNNDims ID_shape {T, N, DC}, OD_shape {T, N, SC}, S_shape {N, SC}, S_4D_shape {L, D, N, SC};
 
     if (out_data_dims != OD_shape)
         THROW_IE_EXCEPTION << "Incorrect shape of input/output ports for layer " << getName();
 
-    if (ins.size() > 1) {
-        for (int i = 1; i < ins.size(); i++)
-            if (getParentEdgeAt(i)->getDims() != S_shape)
-                THROW_IE_EXCEPTION << "Incorrect shape of state ports for layer " << getName();
+    in_states_d.resize(S);
+    out_states_d.resize(S);
 
-        in_state_d = {{L, D, S, N, SC}, memory::f32, memory::ldsnc};
+    for (int i = 1; i < ins.size(); i++) {
+        if (getParentEdgeAt(i)->getDims() != S_shape)
+            THROW_IE_EXCEPTION << "Incorrect shape of state ports for layer " << getName();
+        in_states_d[i - 1] = {S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc};
     }
 
-    if (outs.size() > 1) {
-        for (int i = 1; i < outs.size(); i++)
-            if (getChildEdgeAt(i)->getDims() != S_shape)
-                THROW_IE_EXCEPTION << "Incorrect shape of state ports for layer " << getName();
-
-        out_state_d = {{L, D, S, N, SC}, memory::f32, memory::ldsnc};
+    for (int i = 1; i < outs.size(); i++) {
+        if (getChildEdgeAt(i)->getDims() != S_shape)
+            THROW_IE_EXCEPTION << "Incorrect shape of state ports for layer " << getName();
+        out_states_d[i - 1] = {S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc};
     }
 
     auto blobs = rnnLayer->blobs;
@@ -252,60 +273,98 @@ void MKLDNNRNN::fillSeqDesc() {
     if (weights->size() != G*SC*(SC+DC))
         THROW_IE_EXCEPTION << "RNN Layer. Weights size is not correct. Expected size:" << G*SC*(SC+DC);
 
-    w_data_d  = {{L, D, DC, G, SC}, memory::f32, memory::ldigo};
-    w_state_d = {{L, D, SC, G, SC}, memory::f32, memory::ldigo};
+    w_data_d  = {{L, D, DC, G, SC}, memory::data_type::f32, memory::format_tag::ldigo};
+    w_state_d = {{L, D, SC, G, SC}, memory::data_type::f32, memory::format_tag::ldigo};
 
     if (bias && bias->size() != Gb*SC)
         THROW_IE_EXCEPTION << "RNN Layer. Biases size is not correct. Expected size:" << G*SC;
 
     if (bias)
-        w_bias_d = {{L, D, Gb, SC}, memory::f32, memory::ldgo};
+        w_bias_d = {{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo};
 
     // Try to create descriptor and corresponding configuration
-    in_data_d = {in_data_dims, memory::f32, memory::tnc};
-    out_data_d = {out_data_dims, memory::f32, memory::tnc};
+    in_data_d = {in_data_dims, memory::data_type::f32, memory::format_tag::tnc};
+    out_data_d = {out_data_dims, memory::data_type::f32, memory::format_tag::tnc};
 
     std::vector<TensorDesc> in_candidate;
     if (nativeOrder)
         in_candidate.push_back(in_data_d);
     else
-        in_candidate.push_back(MKLDNNMemoryDesc{{N, T, DC}, memory::f32, memory::ntc});
+        in_candidate.push_back(MKLDNNMemoryDesc{{N, T, DC}, memory::data_type::f32, memory::format_tag::ntc});
 
     for (int i = 1; i < ins.size(); i++)
-        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::f32, memory::nc});
+        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
 
     std::vector<TensorDesc> out_candidate;
-    std::vector<memory::format> outputFormats;
     if (nativeOrder) {
         out_candidate.push_back(out_data_d);
-        outputFormats.push_back(out_data_d.getFormat());
     } else {
-        out_candidate.push_back(MKLDNNMemoryDesc{{N, T, SC}, memory::f32, memory::ntc});
-        outputFormats.push_back(memory::ntc);
+        out_candidate.push_back(MKLDNNMemoryDesc{{N, T, SC}, memory::data_type::f32, memory::format_tag::ntc});
     }
 
     for (int i = 1; i < outs.size(); i++) {
-        out_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, memory::f32, memory::nc});
-        outputFormats.push_back(memory::nc);
+        out_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, memory::data_type::f32, memory::format_tag::nc});
     }
 
-    createDescriptor(in_candidate, out_candidate, outputFormats);
+    createDescriptor(in_candidate, out_candidate);
 }
 
 void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
-                                 const std::vector<TensorDesc> &outputDesc,
-                                 const std::vector<memory::format> &outputFormats) {
-    MKLDNNDescriptor desc(std::shared_ptr<rnn_forward::desc>(
-            new rnn_forward::desc(forward_scoring, cell_desc,
-                    direction,
-                    /* In Data       */ in_data_d,
-                    /* In State      */ in_state_d,
-                    /* Weights data  */ w_data_d,
-                    /* Weights state */ w_state_d,
-                    /* Bias          */ w_bias_d,
-                    /* Out Data      */ out_data_d,
-                    /* Out State     */ out_state_d)));
-    descs.push_back(desc);
+                                 const std::vector<TensorDesc> &outputDesc) {
+    switch (cell_type) {
+        case mkldnn::algorithm::vanilla_rnn: {
+            MKLDNNDescriptor desc(std::shared_ptr<vanilla_rnn_forward::desc>(
+                    new vanilla_rnn_forward::desc(prop_kind::forward_scoring, cell_act, direction,
+                            /* In Data       */ in_data_d,
+                            /* In State      */ in_states_d[0],
+                            /* Weights data  */ w_data_d,
+                            /* Weights state */ w_state_d,
+                            /* Bias          */ w_bias_d,
+                            /* Out Data      */ out_data_d,
+                            /* Out State     */ out_states_d[0])));
+            descs.push_back(desc);
+        } break;
+        case mkldnn::algorithm::vanilla_gru: {
+            MKLDNNDescriptor desc(std::shared_ptr<gru_forward::desc>(
+                    new gru_forward::desc(prop_kind::forward_scoring, direction,
+                            /* In Data       */ in_data_d,
+                            /* In State      */ in_states_d[0],
+                            /* Weights data  */ w_data_d,
+                            /* Weights state */ w_state_d,
+                            /* Bias          */ w_bias_d,
+                            /* Out Data      */ out_data_d,
+                            /* Out State     */ out_states_d[0])));
+            descs.push_back(desc);
+        } break;
+        case mkldnn::algorithm::lbr_gru: {
+            MKLDNNDescriptor desc(std::shared_ptr<lbr_gru_forward::desc>(
+                    new lbr_gru_forward::desc(prop_kind::forward_scoring, direction,
+                            /* In Data       */ in_data_d,
+                            /* In State      */ in_states_d[0],
+                            /* Weights data  */ w_data_d,
+                            /* Weights state */ w_state_d,
+                            /* Bias          */ w_bias_d,
+                            /* Out Data      */ out_data_d,
+                            /* Out State     */ out_states_d[0])));
+            descs.push_back(desc);
+        } break;
+        case mkldnn::algorithm::vanilla_lstm: {
+            MKLDNNDescriptor desc(std::shared_ptr<lstm_forward::desc>(
+                    new lstm_forward::desc(prop_kind::forward_scoring, direction,
+                            /* In Data       */ in_data_d,
+                            /* In State H    */ in_states_d[0],
+                            /* In State C    */ in_states_d[1],
+                            /* Weights data  */ w_data_d,
+                            /* Weights state */ w_state_d,
+                            /* Bias          */ w_bias_d,
+                            /* Out Data      */ out_data_d,
+                            /* Out State H   */ out_states_d[0],
+                            /* Out State C   */ out_states_d[1])));
+            descs.push_back(desc);
+        } break;
+        default:
+            THROW_IE_EXCEPTION << "Unknown cell type";
+    }
 
     // Fill supported config
     InferenceEngine::LayerConfig config;
@@ -326,7 +385,7 @@ void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
         config.outConfs.push_back(dataConfig);
     }
 
-    supportedPrimitiveDescriptors.emplace_back(config, ref_any, outputFormats);
+    supportedPrimitiveDescriptors.emplace_back(config, ref_any);
 }
 
 void MKLDNNRNN::createPrimitive() {
@@ -342,8 +401,7 @@ void MKLDNNRNN::createPrimitive() {
             && getCnnLayer()->blobs["biases"]->getTensorDesc().getPrecision() != Precision::FP32)
         THROW_IE_EXCEPTION << errorPrefix << " has invalid biases precision: " << getCnnLayer()->blobs["biases"]->getTensorDesc().getPrecision();
 
-    std::shared_ptr<rnn_forward::desc> d = descs[0];
-    rnn_forward::primitive_desc pd(*d, getEngine());
+    auto pd = descs[0].createPrimitiveDescriptorIterator(getEngine());
 
     auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
     auto dst_data_mem = getChildEdgeAt(0)->getMemoryPtr();
@@ -387,22 +445,22 @@ void MKLDNNRNN::createPrimitive() {
         const int gate_map_lstm_size = sizeof(gate_map_lstm) / sizeof(int);
         const int gate_map_gru_size = sizeof(gate_map_gru) / sizeof(int);
         const int gate_map_rnn_size = sizeof(gate_map_rnn) / sizeof(int);
-        if (cell_desc.get_cell_kind() == vanilla_lstm) {
+        if (cell_type == algorithm::vanilla_lstm) {
             gate_map = gate_map_lstm;
             if (G > gate_map_lstm_size) {
                 THROW_IE_EXCEPTION << "G isn't equal to the size of gate_map";
             }
-        } else if (cell_desc.get_cell_kind() == vanilla_gru) {
+        } else if (cell_type == algorithm::vanilla_gru) {
             gate_map = gate_map_gru;
             if (G > gate_map_gru_size) {
                 THROW_IE_EXCEPTION << "G isn't equal to the size of gate_map";
             }
-        } else if (cell_desc.get_cell_kind() == gru_linear_before_reset) {
+        } else if (cell_type == algorithm::lbr_gru) {
             gate_map = gate_map_gru;
             if (G > gate_map_gru_size) {
                 THROW_IE_EXCEPTION << "G isn't equal to the size of gate_map";
             }
-        } else if (cell_desc.get_cell_kind() == vanilla_rnn) {
+        } else if (cell_type == algorithm::vanilla_rnn) {
             gate_map = gate_map_rnn;
             if (G > gate_map_rnn_size) {
                 THROW_IE_EXCEPTION << "G isn't equal to the size of gate_map";
@@ -448,76 +506,48 @@ void MKLDNNRNN::createPrimitive() {
         }
     }
 
-    auto src_state_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    src_state_mem->Create(in_state_d);
-    internalBlobMemory.push_back(src_state_mem);
-    if (in_state_d) {
-        int offset = 0;
-        for (int i = 0; i < S; i++) {
-            /* create copy/concat primitive */
-            auto src_stat = getParentEdgeAt(i+1)->getMemory().GetPrimitive();
-
-            auto state_mem = std::make_shared<MKLDNNMemory>(getEngine());
-            state_mem->Create(
-                    src_stat.get_primitive_desc().desc(),
-                    static_cast<uint8_t *>(src_state_mem->GetPrimitive().get_data_handle()) + offset);
-            offset += src_stat.get_primitive_desc().get_size();
-
-            internalBlobMemory.push_back(state_mem);
-
-            exec_before.emplace_back(src_stat, state_mem->GetPrimitive());
-        }
-    }
-
-    auto dst_state_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    dst_state_mem->Create(out_state_d);
-    internalBlobMemory.push_back(dst_state_mem);
-    if (out_state_d) {
-        int offset = 0;
-        int idx_start = is_cell ? 0 : 1;
-        for (int i = 0; i < S; i++) {
-            /* create copy/split primitive */
-            auto dst_stat = getChildEdgeAt(idx_start + i)->getMemory().GetPrimitive();
-
-            auto state_mem = std::make_shared<MKLDNNMemory>(getEngine());
-            state_mem->Create(
-                    dst_stat.get_primitive_desc().desc(),
-                    static_cast<uint8_t *>(dst_state_mem->GetPrimitive().get_data_handle()) + offset);
-            offset += dst_stat.get_primitive_desc().get_size();
-
-            internalBlobMemory.push_back(state_mem);
-
-            if (is_cell && i == 0) continue;
-            exec_after.emplace_back(state_mem->GetPrimitive(), dst_stat);
-        }
-    }
-
-    auto workspace_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    workspace_mem->Create({}, memory::f32, memory::format_undef, nullptr);  // stub, not in use
-    internalBlobMemory.push_back(workspace_mem);
-
-    auto p = new rnn_forward(pd,
-            /* In Data       */ src_data_mem ->GetPrimitive(),
-            /* In State      */ src_state_mem->GetPrimitive(),
-            /* Weights data  */ w_data_mem   ->GetPrimitive(),
-            /* Weights state */ w_state_mem  ->GetPrimitive(),
-            /* Bias          */ w_bias_mem   ->GetPrimitive(),
-            /* Out Data      */ dst_data_mem ->GetPrimitive(),
-            /* Out State     */ dst_state_mem->GetPrimitive(),
-            /* Workspace     */ workspace_mem->GetPrimitive());
-
-    prim.reset(p);
+    prim.reset(new mkldnn::primitive(pd));
 }
 
 void MKLDNNRNN::execute(mkldnn::stream strm) {
-    if (!exec_before.empty())
-        strm.submit({exec_before.begin(), exec_before.end()});
+    if (!prim)
+        THROW_IE_EXCEPTION << "No initialized primitive to execute";
 
-    if (prim)
-        strm.submit({*prim});
+    const auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
+    const auto dst_data_mem = getChildEdgeAt(0)->getMemoryPtr();
 
-    if (!exec_after.empty())
-        strm.submit({exec_after.begin(), exec_after.end()});
+    const auto &wgh_data_mem = internalBlobMemory[0];
+    const auto &wgh_stat_mem = internalBlobMemory[1];
+    const auto &wgh_bias_mem = internalBlobMemory[2];
+
+    std::unordered_map<int, memory> args {
+        {DNNL_ARG_SRC_LAYER,     src_data_mem->GetPrimitive()},
+        {DNNL_ARG_WEIGHTS_LAYER, wgh_data_mem->GetPrimitive()},
+        {DNNL_ARG_WEIGHTS_ITER,  wgh_stat_mem->GetPrimitive()},
+        {DNNL_ARG_BIAS,          wgh_bias_mem->GetPrimitive()},
+        {DNNL_ARG_DST_LAYER,     dst_data_mem->GetPrimitive()},
+    };
+
+    int state_i_tags[] {DNNL_ARG_SRC_ITER, DNNL_ARG_SRC_ITER_C};
+    int state_o_tags[] {DNNL_ARG_DST_ITER, DNNL_ARG_DST_ITER_C};
+    for (size_t s = 0; s < S; s++) {
+        args[state_i_tags[s]] = getParentEdgeAt(s+1)->getMemoryPtr()->GetPrimitive();
+    }
+
+    if (is_cell) {
+        for (size_t s = 0; s < S; s++) {
+            args[state_o_tags[s]] = getChildEdgesAtPort(s)[0]->getMemoryPtr()->GetPrimitive();
+        }
+    } else {
+        ptrdiff_t n_ports_with_init_states = outDims.size() - 1; // first is a sequence data
+        for (size_t s = 0; s < std::min(S, n_ports_with_init_states); s++) {
+            if (s < inDims.size()) {
+                args[state_o_tags[s]] = getChildEdgesAtPort(s+1)[0]->getMemoryPtr()->GetPrimitive();
+            }
+        }
+    }
+
+    (*prim).execute(strm, args);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);
