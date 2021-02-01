@@ -88,6 +88,18 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
+static inline std::string GetAxisName(size_t size, size_t axis) {
+    std::vector<std::string> axis_names;;
+    if (size <= 4) {
+        axis_names = {"BATCH", "FEATURE", "Y", "X"};
+    } else if (size == 5) {
+        axis_names = {"BATCH", "FEATURE", "Z", "Y", "X"};
+    } else if (size == 6) {
+        axis_names = {"BATCH", "FEATURE", "W", "Z", "Y", "X"};
+    }
+    return axis_names[axis];
+}
+
 static std::string GetUpdatesIndexOrder(const scatter_update_params& params) {
     std::vector<std::string> default_order = GetDefaultOrder(params.output.GetDims().size());
     return GetOrderString(default_order);
@@ -179,17 +191,43 @@ static std::vector<std::string> GetVectorSecondOutputIndexOrder(const scatter_up
 static std::string GetSecondIterOutputIndexOrder(const scatter_update_params& params, size_t axis) {
     auto output_order = GetVectorSecondOutputIndexOrder(params, axis);
     return GetOrderString(output_order);
-
 }
 
 JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params& params) const {
+    size_t axis_value = GetScatterUpdateChannelIndex(params);
+
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
     jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
-    jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetScatterUpdateChannelIndex(params)));
+    jit.AddConstant(MakeJitConstant("AXIS_VALUE", axis_value));
     jit.AddConstant(MakeJitConstant("INDICES_SIZE", params.inputs[1].LogicalSize()));
+
+    auto default_order = GetDefaultOrder(params.output.GetDims().size());
+    size_t dims = default_order.size();
+    std::string get_update_idx = "(INPUT2_OFFSET)";
+    std::string output_size_feature = "OUTPUT_FEATURE_NUM";
+    for (size_t i = 0; i < dims; ++i) {
+        if (i >= axis_value) {
+            std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
+            std::string src_pitch = "(OUTPUT_" + GetAxisName(dims, i) + "_PITCH)";
+            jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
+        } else if (i == (axis_value - 1)) {
+            std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
+            std::string src_pitch = "(OUTPUT_" + GetAxisName(dims, i + 1) + "_PITCH * INDICES_SIZE)";
+            jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
+        } else { // i < axis_value - 1
+            std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH" + "";
+            std::string output_size_name;
+            if (i == 0) output_size_name = "OUTPUT_FEATURE_NUM";
+            else output_size_name = "OUTPUT_SIZE_" + GetAxisName(dims, i + 1);
+            std::string src_pitch = "(UPDATES_" + GetAxisName(dims, i + 1) + "_PITCH * " + output_size_name + ")";
+            jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
+        }
+        get_update_idx = get_update_idx + " + (" + default_order[i] + ")*(UPDATES_" + GetAxisName(dims, i) + "_PITCH)";
+    }
+    jit.AddConstant(MakeJitConstant("GET_UPDATES_INDEX(idx_order)", get_update_idx));
 
     if (!params.fused_ops.empty()) {
         FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };
