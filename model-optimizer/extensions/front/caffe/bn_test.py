@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,9 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import unittest
-
 import numpy as np
+import unittest
 
 from extensions.front.caffe.bn import BNToScaleShift
 from mo.graph.graph import Node
@@ -47,7 +46,7 @@ class TestBNReplacer(unittest.TestCase):
                                  FakeParam('data', shift)])
         nodes = [
             ('input', {'kind': 'op', 'type': 'Identity', 'op': 'Identity'}),
-            ('bn', {'type': None, 'kind': 'op', 'op': 'batchNormInference', 'pb': bn_pb, 'model_pb': bn_bin}),
+            ('bn', {'type': None, 'kind': 'op', 'op': 'BN', 'pb': bn_pb, 'model_pb': bn_bin}),
             ('output', {'kind': 'op', 'type': 'Identity', 'op': 'Identity'}),
         ]
         edges = [
