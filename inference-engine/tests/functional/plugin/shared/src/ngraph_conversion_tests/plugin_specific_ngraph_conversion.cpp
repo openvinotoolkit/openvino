@@ -16,6 +16,7 @@ std::string PluginSpecificConversion::getTestCaseName(const testing::TestParamIn
 }
 
 TEST_P(PluginSpecificConversion, addOutputAfterLoadNetwork) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr);
 
     {
@@ -41,6 +42,7 @@ TEST_P(PluginSpecificConversion, addOutputAfterLoadNetwork) {
 }
 
 TEST_P(PluginSpecificConversion, GeluConversionTest) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr);
 
     {
@@ -59,6 +61,7 @@ TEST_P(PluginSpecificConversion, GeluConversionTest) {
 }
 
 TEST_P(PluginSpecificConversion, MatMulConversionTest) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr);
 
     {
