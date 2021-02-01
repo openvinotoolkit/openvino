@@ -73,28 +73,33 @@ class MVNUnrolled(FrontReplacementSubgraph):
 
     @staticmethod
     def infer(node: Node):
-        if not (node.in_node(1).has_valid('value') and node.in_node(2).has_valid('value')):
+        axes_1_value = node.in_port(1).data.get_value()
+        axes_2_value = node.in_port(2).data.get_value()
+        if axes_1_value is None or axes_2_value is None:
             log.warning('Reduction indices for mean and variance for MVN node {} are not constants'.format(node.name))
             return
 
-        if not (all(node.in_node(1).value == node.in_node(2).value)):
+        if not (all(axes_1_value == axes_2_value)):
             log.warning('Reduction indices for mean {} and variance {} do not match'.format(
-                node.in_node(1).value,
-                node.in_node(2).value
+                axes_1_value,
+                axes_2_value
             ))
             return
-        
-        if not (node.in_node(3).has_valid('value') and node.in_node(4).has_valid('value')):
+
+        power_value = node.in_port(3).data.get_value()
+        eps_value = node.in_port(4).data.get_value()
+        if power_value is None or eps_value is None:
             log.warning('Power or/and epsilon values for MVN node {} are not constants'.format(node.name))
             return
 
-        if node.in_node(3).value != 0.5:
-            log.warning('Power for MVN node {} ({}) is not equal to 0.5'.format(node.name, node.in_node(3).value))
+        if power_value != 0.5:
+            log.warning('Power for MVN node {} ({}) is not equal to 0.5'.format(node.name, power_value))
             return
 
-        node['eps'] = node.in_node(4).value
+        node['eps'] = eps_value
 
         for i in range(2, 5):
-            node.graph.remove_edge(node.in_node(i).id, node.id)
+            node.in_port(i).disconnect()
         node.old_infer(node)
-        node['infer'] = node.old_infer
+        node.infer = node.old_infer
+        del node['old_infer']

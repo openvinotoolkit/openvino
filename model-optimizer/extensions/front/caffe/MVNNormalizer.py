@@ -39,6 +39,8 @@ class MVNCaffeToMVN(FrontReplacementPattern):
                 start_axis = 1
 
             rank = Rank(graph, {'name': node_name + '/Rank'}).create_node()
+
+            # create range of axes based on `start_axis` and rank of input
             rng = create_op_with_const_inputs(graph, Range, {0: int64_array(start_axis), 2: int64_array(1)},
                                               {'name': node_name + '/Range', 'output_type': np.int64})
             rng.in_port(1).connect(rank.out_port(0))

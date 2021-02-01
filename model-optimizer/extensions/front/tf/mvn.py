@@ -85,17 +85,20 @@ class MVNReplacer(FrontReplacementSubgraph):
 
     @staticmethod
     def infer(node: Node):
-        if not (node.in_node(1).has_valid('value') and node.in_node(2).has_valid('value')):
+        axes_1_value = node.in_port(1).data.get_value()
+        axes_2_value = node.in_port(2).data.get_value()
+        if axes_1_value is None or axes_2_value is None:
             log.warning('Reduction indices for mean and variance for MVN node {} are not constants'.format(node.name))
             return
 
-        if not (all(node.in_node(1).value == node.in_node(2).value)):
+        if not (all(axes_1_value == axes_2_value)):
             log.warning('Reduction indices for mean {} and variance {} do not match'.format(
-                node.in_node(1).value,
-                node.in_node(2).value
+                axes_1_value,
+                axes_2_value
             ))
             return
 
-        node.graph.remove_edge(node.in_node(2).id, node.id)
+        node.in_port(2).disconnect()
         node.old_infer(node)
-        node['infer'] = node.old_infer
+        node.infer = node.old_infer
+        del node['old_infer']
