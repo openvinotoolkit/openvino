@@ -77,3 +77,39 @@ class TestInstanceNormalization(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=False)
         self.assertTrue(flag, resp)
+
+    def test_instance_normalization_test_2(self):
+        graph = build_graph(nodes_attributes,
+                            [('input', 'out', {'out': 0, 'in': 0}),
+                             ('input', 'node', {'out': 1}),
+                             ('scale', 'node'),
+                             ('B', 'node'),
+                             ('node', 'out', {'in': 1})
+                             ],
+                            {'node': {'epsilon': 0.123},
+                             }, nodes_with_edges_only=True)
+
+        graph_ref = build_graph(nodes_ref_attributes,
+                                [('input', 'out', {'out': 0, 'in': 0}),
+                                 ('input', 'mvn', {'out': 1}),
+                                 ('input', 'rank', {'out': 1}),
+                                 ('start', 'mvn_axes'),
+                                 ('rank', 'mvn_axes'),
+                                 ('step', 'mvn_axes'),
+                                 ('mvn_axes', 'mvn'),
+                                 ('mvn', 'mul'),
+                                 ('scale', 'mul'),
+                                 ('mul', 'add'),
+                                 ('B', 'add'),
+                                 ('add', 'out', {'in': 1})
+                                 ],
+                                {'mvn': {'eps': 0.123, 'eps_mode': 'inside_sqrt', 'normalize_variance': 1},
+                                 }, nodes_with_edges_only=True)
+
+        graph.stage = 'front'
+
+        tested_class = InstanceNormalization()
+        tested_class.find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=False)
+        self.assertTrue(flag, resp)
