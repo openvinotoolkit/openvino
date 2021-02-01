@@ -162,9 +162,9 @@ if len(zoo_models) > 0:
             (xfail_issue_43742, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu"),
             (xfail_issue_38726, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
 
-            # # Model MSFT
-            # (xfail_issue_43742, "test_MSFT_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
-            # (xfail_issue_37957, "test_MSFT_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
+            # Model MSFT
+            (xfail_issue_43742, "test_msft_opset10_mlperf_ssd_mobilenet_300_ssd_mobilenet_v1_coco_2018_01_28_cpu"),
+            (xfail_issue_37957, "test_msft_opset10_mask_rcnn_keras_mask_rcnn_keras_cpu"),
         ]
         for test_case in import_xfail_list:
             xfail, test_name = test_case
@@ -188,22 +188,22 @@ if len(zoo_models) > 0:
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet50_11_fcn_resnet50_11_model_cpu"),
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet101_11_fcn_resnet101_11_model_cpu"),
 
-            # # Model MSFT
-            # (xfail_issue_37973, "test_MSFT_opset7_tf_inception_v2_model_cpu"),
-            # (xfail_issue_37973, "test_MSFT_opset8_tf_inception_v2_model_cpu"),
-            # (xfail_issue_37973, "test_MSFT_opset9_tf_inception_v2_model_cpu"),
-            # (xfail_issue_37973, "test_MSFT_opset11_tf_inception_v2_model_cpu"),
-            # (xfail_issue_37973, "test_MSFT_opset10_tf_inception_v2_model_cpu"),
-            #
-            # (xfail_issue_40686, "test_MSFT_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
-            # (xfail_issue_40686, "test_MSFT_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
-            #
-            # (xfail_issue_38084, "test_MSFT_opset10_mask_rcnn_mask_rcnn_R_50_FPN_1x_cpu"),
-            # (xfail_issue_38084, "test_MSFT_opset10_faster_rcnn_faster_rcnn_R_50_FPN_1x_cpu"),
-            #
-            # (xfail_issue_39669, "test_MSFT_opset9_cgan_cgan_cpu"),
-            # (xfail_issue_40957, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
-            # (xfail_issue_45457, "test_MSFT_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
+            # Model MSFT
+            (xfail_issue_37973, "test_msft_opset7_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_msft_opset8_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_msft_opset9_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_msft_opset11_tf_inception_v2_model_cpu"),
+            (xfail_issue_37973, "test_msft_opset10_tf_inception_v2_model_cpu"),
+
+            (xfail_issue_40686, "test_msft_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
+            (xfail_issue_40686, "test_msft_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
+
+            (xfail_issue_38084, "test_msft_opset10_mask_rcnn_mask_rcnn_R_50_FPN_1x_cpu"),
+            (xfail_issue_38084, "test_msft_opset10_faster_rcnn_faster_rcnn_R_50_FPN_1x_cpu"),
+
+            (xfail_issue_39669, "test_msft_opset9_cgan_cgan_cpu"),
+            (xfail_issue_40957, "test_msft_opset10_BERT_Squad_bertsquad10_cpu"),
+            (xfail_issue_45457, "test_msft_opset10_mlperf_ssd_resnet34_1200_ssd_resnet34_mAP_20.2_cpu"),
 
         ]
         for test_case in import_xfail_list + execution_xfail_list:
