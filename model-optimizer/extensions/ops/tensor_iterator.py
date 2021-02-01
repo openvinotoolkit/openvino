@@ -254,9 +254,7 @@ class TensorIterator(Op):
 
         back_edges_attrs = [
             ('from-layer', 'from_layer'),
-            ('from-port', 'from_port'),
             ('to-layer', 'to_layer'),
-            ('to-port', 'to_port'),
         ]
 
         new_attrs.update({
