@@ -276,7 +276,7 @@ static XLinkError_t _dispatcher_HandleRequest(DispatcherNew* dispatcher, Packet*
                 &dispatcher->receivedPacketsQueue[streamId];
             BlockingQueue_Push(streamReceivedPacketsQueue, receivedPacket);
 
-            break;
+            return X_LINK_SUCCESS;
         }
         case XLINK_PING_REQ: {
             sem_post(&pingSem);
@@ -472,7 +472,6 @@ static void* _dispatcher_SendPacketsThr(void* arg) {
             mvLog(MVLOG_ERROR, "Failed to write packet. Packet: %s, id=%d, size=%u, streamId=%u, streamName=%s.",
                   _dispatcher_TypeToStr(packet->header.type), packet->header.id,
                   packet->header.size, packet->header.streamId, packet->header.streamName);
-
 
             if (status == PACKET_PENDING_TO_SEND || status == PACKET_PENDING_RESPONSE) {
                 ASSERT_XLINK(!Packet_FreePending(packet, PACKET_DROPPED));

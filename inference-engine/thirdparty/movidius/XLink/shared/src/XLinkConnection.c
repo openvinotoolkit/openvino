@@ -194,7 +194,7 @@ XLinkError_t Connection_Reset(Connection* connection) {
             type, NULL, 0);
 
     XLINK_RET_IF(packet == NULL);
-    Packet_SetPacketStatus(packet, PACKET_PENDING_RESPONSE);
+    Packet_SetPacketStatus(packet, PACKET_PENDING_TO_SEND);
     XLinkError_t packetSendStatus = _connection_SendPacket(connection, packet);
     if (packetSendStatus != X_LINK_SUCCESS) {
         mvLog(MVLOG_ERROR, "Sending reset request failed with error %d. Just closing the connection...", packetSendStatus);
