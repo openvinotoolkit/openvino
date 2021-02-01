@@ -76,6 +76,6 @@ WORKDIR /openvino/ngraph/python
 ENV NGRAPH_CPP_BUILD_PATH=/openvino/dist/deployment_tools/ngraph
 ENV LD_LIBRARY_PATH=/openvino/dist/deployment_tools/ngraph/lib
 ENV NGRAPH_ONNX_IMPORT_ENABLE=TRUE
-ENV PYTHONPATH=/openvino/bin/intel64/Release/lib/python_api/python3.8:${PYTHONPATH}
 RUN git clone --recursive https://github.com/pybind/pybind11.git -b v2.5.0 --depth 1
+RUN source /openvino/dist/bin/setupvars.sh
 CMD tox
