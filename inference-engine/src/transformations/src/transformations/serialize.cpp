@@ -474,12 +474,10 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
 
 std::string escape_delim(const std::string& name) {
     std::string result_name = name;
-    size_t index(0);
+    size_t index = result_name.find(',', 0);
     while (index != std::string::npos) {
-        index = result_name.find(',', index);
-        if (index == std::string::npos) break;
         result_name.replace(index, 1, "\\,");
-        index += 2;
+        index = result_name.find(',', index + 2);
     }
     return result_name;
 }
