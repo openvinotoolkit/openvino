@@ -13,7 +13,6 @@
 #include <opencv2/gapi/gcompiled.hpp>
 #include <opencv2/gapi/gcomputation.hpp>
 #include <opencv2/gapi/util/optional.hpp>
-#include "ie_profiling.hpp"
 #include <openvino/itt.hpp>
 
 // FIXME: Move this definition back to ie_preprocess_data,
