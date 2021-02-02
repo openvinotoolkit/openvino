@@ -1,9 +1,9 @@
 // Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-#include <behavior/dynamic_batch.hpp>
+#include <configuration_tests/dynamic_batch.hpp>
 #include "common_test_utils/test_constants.hpp"
 
-namespace BehaviorTestsDefinitions {
+namespace ConfigurationTestsDefinitions {
 namespace {
 std::vector<size_t> batch_sizes = {
     1,
@@ -34,4 +34,4 @@ INSTANTIATE_TEST_CASE_P(smoke_DynamicBatchTest_sync, DynamicBatchTest,
         ::testing::Values(false),
         ::testing::Values(additional_config)),
     DynamicBatchTest::getTestCaseName);
-} // namespace BehaviorTestsDefinitions
+} // namespace ConfigurationTestsDefinitions

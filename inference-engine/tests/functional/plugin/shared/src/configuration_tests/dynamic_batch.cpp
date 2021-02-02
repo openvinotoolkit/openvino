@@ -22,11 +22,11 @@
 
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include "transformations/control_flow/unroll_tensor_iterator.hpp"
-#include "behavior/dynamic_batch.hpp"
+#include "configuration_tests/dynamic_batch.hpp"
 
 #include "ngraph_functions/subgraph_builders.hpp"
 
-namespace BehaviorTestsDefinitions {
+namespace ConfigurationTestsDefinitions {
 
     std::string DynamicBatchTest::getTestCaseName(const testing::TestParamInfo<dynamicBatchTestParams> &obj) {
         std::string targetDevice;
@@ -161,4 +161,4 @@ namespace BehaviorTestsDefinitions {
     TEST_P(DynamicBatchTest, CompareWithRefs) {
         Run();
     };
-} // namespace BehaviorTestsDefinitions
+} // namespace ConfigurationTestsDefinitions

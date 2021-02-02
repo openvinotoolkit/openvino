@@ -11,7 +11,7 @@
 
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
-namespace BehaviorTestsDefinitions {
+namespace ConfigurationTestsDefinitions {
 typedef std::tuple<
     std::string,                       // Device
     InferenceEngine::Precision,        // Network precision
@@ -41,4 +41,4 @@ protected:
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<dynamicBatchTestParams> &obj);
 };
-} // namespace BehaviorTestsDefinitions
+} // namespace ConfigurationTestsDefinitions
