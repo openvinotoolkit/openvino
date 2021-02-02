@@ -113,7 +113,7 @@ namespace ngraph
 
                     return build_dropout(node, ratio, training_mode);
                 }
-            } // namespace set_1
+            } // namespace set_7
 
             namespace set_1
             {
