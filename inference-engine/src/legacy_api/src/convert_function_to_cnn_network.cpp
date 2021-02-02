@@ -1586,11 +1586,25 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"PSROIPooling"}, [](const std::shared_ptr<::ngraph::Node> &node,
-                                            const std::map<std::string, std::string> &params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "PSROIPooling", details::convertPrecision(node->get_output_element_type(0))};
-        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
-        res->params = params;
+    addSpecificCreator({"VariadicSplit"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Split", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::SplitLayer>(attrs);
+        auto castedLayer = std::dynamic_pointer_cast<ngraph::op::VariadicSplit>(node);
+        if (!castedLayer) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+
+        auto axis_node = castedLayer->input_value(1).get_node_shared_ptr();
+        const auto axis_node_const = ngraph::as_type_ptr<ngraph::op::Constant>(axis_node);
+        if (!axis_node_const) {
+            THROW_IE_EXCEPTION << "Split " << castedLayer->get_friendly_name() << " has no axes as Constant";
+        }
+
+        auto axis = axis_node_const->cast_vector<int64_t>()[0];
+        if (axis < 0) {
+            axis += castedLayer->get_input_shape(0).size();
+        }
+
+        res->params["axis"] = Builder::asString(axis);
         return res;
     });
 }
@@ -1628,9 +1642,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ReorgYolo>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ScaleShiftIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v4::Interpolate>>(),
                 std::make_shared<Builder::NodeConverter<::ExecGraphInfoSerialization::ExecutionNode>>(),

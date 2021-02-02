@@ -668,22 +668,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                     const pugi::xml_node& node,
                                                     const Blob::CPtr& weights,
                                                     const GenericLayerParams& params) {
-    static const InferenceEngine::details::caseless_unordered_map<std::string, std::shared_ptr<LayerBaseCreator>> creators = {
-        { "ReorgYolo", std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo") },
-        { "PSROIPooling", std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling") },
-        { "VariadicSplit", std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit") },
-    };
-
-    // Check that operation in default opsets
-    auto isDefaultOpSet = [](const std::string& version) -> bool {
-        static char const * prefix = "opset";
-        static size_t const prefixLen = strlen(prefix);
-        return version.length() == prefixLen + 1
-                && version.compare(0, prefixLen, prefix) == 0
-                && version[prefixLen] >= '1'
-                && version[prefixLen] <= '6';
-    };
-
+    // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
             THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
@@ -697,21 +682,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
     // Find registerd opset
     auto opsetIt = opsets.find(params.version);
-
-    if (isDefaultOpSet(params.version)) {
-        // Try to create operation from creators
-        auto creatorIt = creators.find(params.type);
-        if (creatorIt != creators.end()) {
-            auto const & creator = creatorIt->second;
-            // Check that opset isn't registered
-            // or opset should contains the same version of operation
-            // or doesn't contain operation with current type
-            if (opsetIt == opsets.end()
-                || opsetIt->second.contains_type(creator->getNodeType())
-                || !opsetIt->second.contains_type(params.type))
-                ngraphNode = creator->createLayer(inputs, node, weights, params);
-        }
-    }
 
     // Try to create operation from loaded opsets
     auto version = params.version;
@@ -732,8 +702,8 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                 : params.type;
 
         if (params.version == "opset1") {
-            // MVN and ROIPooling were missing in opset1
-            if (type == "MVN" || type == "ROIPooling") {
+            // MVN, ROIPooling and ReorgYolo were missing in opset1
+            if (type == "MVN" || type == "ROIPooling" || type == "ReorgYolo") {
                 opsetIt = opsets.find("opset2");
                 if (opsetIt == opsets.end()) {
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
@@ -836,67 +806,3 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
     return ngraphNode;
 }
-
-namespace InferenceEngine {
-// VariadicSplit layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::VariadicSplit>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 3);
-    return std::make_shared<ngraph::op::VariadicSplit>(inputs[0], inputs[1], inputs[2]);
-}
-
-// DepthToSpace layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::DepthToSpace>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::DepthToSpace>(inputs[0], GetStrAttr(dn, "mode"), GetIntAttr(dn, "block_size", 1));
-}
-
-// ReorgYolo layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ReorgYolo>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto stride = GetUIntAttr(dn, "stride");
-    return std::make_shared<ngraph::op::ReorgYolo>(inputs[0], ngraph::Strides {stride});
-}
-
-// PSROIPooling layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PSROIPooling>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto output_dim = GetIntAttr(dn, "output_dim");
-    auto group_size = GetIntAttr(dn, "group_size", 1);
-    auto spatial_bins_x = GetIntAttr(dn, "spatial_bins_x", 1);
-    auto spatial_bins_y = GetIntAttr(dn, "spatial_bins_y", 1);
-    auto spatial_scale = GetFloatAttr(dn, "spatial_scale");
-    auto mode = GetStrAttr(dn, "mode", "average");
-
-    return std::make_shared<ngraph::op::PSROIPooling>(inputs[0], inputs[1],
-                                                      output_dim, group_size, spatial_scale, spatial_bins_x,
-                                                      spatial_bins_y, mode);
-}
-
-}  // namespace InferenceEngine
