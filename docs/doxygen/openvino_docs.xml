@@ -35,7 +35,6 @@ limitations under the License.
                 </tab>
                 <tab type="user" title="macOS" url="@ref openvino_docs_install_guides_installing_openvino_macos"/>
                 <tab type="user" title="Raspbian OS" url="@ref openvino_docs_install_guides_installing_openvino_raspbian"/>
-                <tab type="user" title="DL Workbench Installation Guide" url="./workbench_docs_Workbench_DG_Install_Workbench.html"/><!-- Link to the original Workbench topic -->
             </tab> 
             <!-- Install From Images and Repositories -->  
             <tab type="usergroup" title="Install From Images and Repositories" url="@ref openvino_docs_install_guides_installing_openvino_images">
@@ -78,6 +77,7 @@ limitations under the License.
                 <tab type="user" title="Introduction" url="@ref openvino_docs_security_guide_introduction"/>
                 <tab type="user" title="Using DL Workbench Securely" url="@ref openvino_docs_security_guide_workbench"/>
                 <tab type="user" title="Using Encrypted Models" url="@ref openvino_docs_IE_DG_protecting_model_guide"/>
+                <tab type="user" title="Security Add-on" url="@ref ovsa_get_started"/>
             </tab>
         </tab>
 
@@ -102,7 +102,7 @@ limitations under the License.
                 <!-- Performance Benchmarks -->
                 <tab type="usergroup" title="Performance Measures" url="@ref openvino_docs_performance_benchmarks">
                     <tab type="user" title="Performance Information Frequently Asked Questions" url="@ref openvino_docs_performance_benchmarks_faq"/>
-                    <tab type="user" title="Download Performance Data Spreadsheet in MS Excel* Format" url="https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.1-Download-Excel.xlsx"/>
+                    <tab type="user" title="Download Performance Data Spreadsheet in MS Excel* Format" url="https://docs.openvinotoolkit.org/downloads/benchmark_files/OV-2021.2-Download-Excel.xlsx"/>
                     <tab type="user" title="INT8 vs. FP32 Comparison on Select Networks and Platforms" url="@ref openvino_docs_performance_int8_vs_fp32"/>
                 </tab>
                 <tab type="user" title="Performance Optimization Guide" url="@ref openvino_docs_optimization_guide_dldt_optimization_guide"/>
@@ -125,6 +125,19 @@ limitations under the License.
                 <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
                 <!-- DL Streamer Examples -->
                 <tab type="usergroup" title="DL Streamer Examples" url="@ref gst_samples_README">
+                </tab>
+                <!-- G-API -->
+                <tab type="usergroup" title="Graph API (G-API) Developer Guide" url="@ref openvino_docs_gapi_gapi_intro">
+                    <tab type="user" title="Introduction to G-API" url="@ref openvino_docs_gapi_gapi_intro"/>
+                    <tab type="user" title="G-API Kernel API" url="@ref openvino_docs_gapi_kernel_api"/>
+                    <tab type="user" title="Use Cases: Implementing a Face Beautification Algorithm" url="@ref openvino_docs_gapi_face_beautification"/>
+                    <tab type="user" title="Use Cases: Building a Face Analytics Pipeline" url="@ref openvino_docs_gapi_gapi_face_analytics_pipeline"/>
+                    <tab type="usergroup" title="API Reference" url="">
+                        <tab type="user" title="G-API Core functionality" url="https://docs.opencv.org/4.2.0/df/d1f/group__gapi__core.html"/>
+                        <tab type="user" title="G-API Image processing functionality" url="https://docs.opencv.org/4.2.0/d2/d00/group__gapi__imgproc.html"/>
+                        <tab type="user" title="G-API Drawing and composition functionality" url="https://docs.opencv.org/4.2.0/df/de4/group__gapi__draw.html"/>
+                        <tab type="user" title="G-API Framework" url="https://docs.opencv.org/4.2.0/d7/d0d/group__gapi.html"/>
+                    </tab>
                 </tab>    
                 <!-- OpenVX -->
                 <tab type="user" title="OpenVX Developer Guide" url="https://software.intel.com/en-us/openvino-ovx-guide"/>
@@ -185,7 +198,8 @@ limitations under the License.
                 <tab type="user" title="Benchmark Sample" url="@ref gst_samples_benchmark_README"/>
             </tab>
             <tab type="usergroup" title="Add-Ons" url="">
-              <tab type="user" title="Model Server" url="@ref openvino_docs_ovms"/>  
+              <tab type="user" title="Model Server" url="@ref openvino_docs_ovms"/>
+              <tab type="user" title="Security Add-on" url="./ovsa_get_started.html"/>  
             </tab>
         </tab>
 

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,15 +14,22 @@
  limitations under the License.
 """
 
-from mo.front.common.partial_infer.roipooling import roipooling_infer
+from mo.graph.graph import Graph
+from mo.ops.op import Op
 
 
-def roipooling_ext(proto_layer, model_layer):
-    param = proto_layer.roi_pooling_param
-    return {
-        'type': 'ROIPooling',
-        'pooled_h': param.pooled_h,
-        'pooled_w': param.pooled_w,
-        'spatial_scale': param.spatial_scale,
-        'infer': roipooling_infer
-    }
+class BN(Op):
+    """
+    BN operation comes from caffe and will be replaced by BNToScaleShift FrontReplacer.
+    """
+    op = 'BN'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'type': None,
+            'op': self.op,
+            'in_ports_count': 5,
+            'out_ports_count': 1,
+            'infer': None
+        }, attrs)
