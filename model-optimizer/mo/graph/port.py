@@ -278,6 +278,33 @@ class Port:
             consumer_ports.append(node.in_port(d['in'], control_flow=self.control_flow))
         return consumer_ports
 
+    def get_tensor_names(self):
+        def get_tensor_names_list(attrs):
+            tensor_names_list = []
+            if 'fw_tensor_debug_info' in attrs:
+                for attr in attrs['fw_tensor_debug_info']:
+                    if len(attr) >= 3:
+                        tensor_names_list.append(attr[2].replace(',', '\\,'))
+            return tensor_names_list
+
+        assert self.type != 'in', "Can't get tensor names for input port at {} node".format(self.node.name)
+
+        fw_names = []
+        if self.node.graph.stage == 'front':
+            if self.idx in self.node.out_edges():
+                out_edge = self.node.out_edge(self.idx)
+                fw_names += get_tensor_names_list(out_edge)
+        else:
+            # for non-constant operations out nodes numeration starts from len(node.in_nodes())
+            node_idx = self.idx + len(self.node.in_nodes()) if self.node.type != 'Const' else self.idx
+
+            if node_idx in self.node.out_nodes():
+                out_node = self.node.out_node(node_idx)
+                fw_names += get_tensor_names_list(out_node.attrs())
+        if len(fw_names) > 0:
+            return ','.join(fw_names)
+        return None
+
     def disconnect(self):
         if self.type == 'out':
             consumer_ports = self.get_destinations()

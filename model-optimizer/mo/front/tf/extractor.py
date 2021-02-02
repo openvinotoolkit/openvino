@@ -34,7 +34,7 @@ def get_tf_edges(node: Node):
     edge_list = []
     for in_port, src_node_id in enumerate(node.pb.input):
         src_node, src_port = get_tf_node_port(src_node_id)
-        tensor_name = str(src_port) + ":" + src_node
+        tensor_name = src_node + ":" + str(src_port)
         cf_flag = False
         if src_node[0] == '^':
             src_node = src_node[1:]

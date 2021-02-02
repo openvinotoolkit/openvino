@@ -84,8 +84,8 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
                                          'size': graph.node[node.node]['size'], 'blob': blob}
                 update_offset_size_in_const_node(node)
 
-                assert (blob.dtype.itemsize * np.prod(node.shape) == end - start) or node.has_valid(
-                    'force_shape'), node.attrs()
+                assert (blob.dtype.itemsize * np.prod(node.shape) == end - start) or \
+                       node.has_valid('force_shape'), node.attrs()
 
             log.debug(
                 "Detected binary for graph: '{}', node: '{}', id: {}, shape: '{}', offset: '{}', size: '{}'".format(
@@ -173,7 +173,7 @@ def xml_ports(node: Node, element: Element, edges: Element):
             port.set('precision', node.soft_get('force_type', np_data_type_to_precision(data_type)))
             assert node.graph.node[v]['shape'] is not None, 'Output shape is not calculated properly for node {}' \
                                                             ''.format(node.id)
-            tensor_names = node.get_tensor_names(d['out'])
+            tensor_names = node.out_port(port_id).get_tensor_names()
             if tensor_names is not None:
                 port.set('names', tensor_names)
             xml_shape(node.graph.node[v]['shape'], port)
