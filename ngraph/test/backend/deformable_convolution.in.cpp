@@ -63,29 +63,6 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
     test_case.add_expected_output<float>(outputs_shape, outputs);
     test_case.run();
 }
-/*
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_1D_1batch_1channel)
-{
-    const Strides strides{1};
-    const CoordinateDiff padding{0};
-    const Strides dilations{1};
-
-    const Shape inputs_shape{1, 1, 6};
-    const std::vector<float> inputs{1.0f, 3.0f, 3.0f, 0.0f, 1.0f, 2.0f};
-
-    const Shape deformable_values_shape{1, 1, 6};
-    const std::vector<float> deformable_values{1.0f, 3.0f, 3.0f, 0.0f, 1.0f, 2.0f};
-
-    const Shape filter_shape{1, 1, 3};
-    const std::vector<float> filters{2.0f, 0.0f, 1.0f};
-
-    const Shape outputs_shape{1, 1, 4};
-    const std::vector<float> outputs{5.0f, 6.0f, 7.0f, 2.0f};
-
-    DeformableConvolutionTest(inputs, inputs_shape, deformable_values, deformable_values_shape, filters, filter_shape, outputs, outputs_shape,
-                    strides, padding, dilations);
-}
-*/
 
 NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_1batch_1channel_padding)
 {
@@ -105,9 +82,41 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_1batch_1channel_padding)
                                      2.0f, 1.0f, 2.0f};
     
     const Shape deformable_values_shape{1, 1, 3, 3};
-    const std::vector<float> deformable_values{0.1f, 0.3f, 0.2f,
-                                               0.6f, 0.5f, 0.1f,
-                                               0.3f, 0.1f, 0.6f};
+    const std::vector<float> deformable_values{-1.0f, 0.0f, 0.0f,
+                                               0.0f, -1.0f, 1.0f,
+                                               1.0f, 1.0f, 1.0f};
+
+    const Shape outputs_shape{1, 1, 4, 4};
+    const std::vector<float> outputs{18.0f, 28.0f, 20.0f, 14.0f,
+                                     28.0f, 40.0f, 64.0f, 35.0f,
+                                     51.0f, 53.0f, 35.0f, 23.0f,
+                                     24.0f, 32.0f, 44.0f, 24.0f};
+
+    DeformableConvolutionTest(inputs, inputs_shape, deformable_values, deformable_values_shape, filters, filter_shape, outputs, outputs_shape,
+                    strides, padding, dilations);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_1batch_1channel_padding_v2)
+{
+    const Strides strides{1, 1};
+    const CoordinateDiff padding{1, 1};
+    const Strides dilations{1, 1};
+
+    const Shape inputs_shape{1, 1, 4, 4};
+    const std::vector<float> inputs{1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f, 1.0f};
+
+    const Shape filter_shape{1, 1, 3, 3};
+    const std::vector<float> filters{1.0f, 2.0f, 3.0f,
+                                     1.0f, 1.0f, 1.0f,
+                                     2.0f, 1.0f, 2.0f};
+    
+    const Shape deformable_values_shape{1, 1, 3, 3};
+    const std::vector<float> deformable_values{0.0f, 0.0f, 0.0f,
+                                               0.0f, 1.0f, 0.0f,
+                                               0.0f, 0.0f, 0.0f};
 
     const Shape outputs_shape{1, 1, 4, 4};
     const std::vector<float> outputs{18.0f, 28.0f, 20.0f, 14.0f,
