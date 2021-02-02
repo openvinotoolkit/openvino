@@ -273,12 +273,11 @@ ngraph::pass::HSwishFusionWithHSigmoidMul::HSwishFusionWithHSigmoidMul() {
     auto mul_pattern = ngraph::pattern::wrap_type<ngraph::opset6::Multiply>({input, hsigmoid_pattern});
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
-        auto mul = std::dynamic_pointer_cast<opset6::Multiply>(m.get_match_root());
-        if (!mul)
-            return false;
-        auto& pattern_to_output = m.get_pattern_value_map();
+        const auto& pattern_to_output = m.get_pattern_value_map();
         auto hsigmoid = pattern_to_output.at(hsigmoid_pattern).get_node_shared_ptr();
-        auto hswish = std::make_shared<ngraph::opset6::HSwish>(hsigmoid->input_value(0));
+        auto mul = pattern_to_output.at(mul_pattern).get_node_shared_ptr();
+
+        auto hswish = std::make_shared<ngraph::opset6::HSwish>(pattern_to_output.at(input));
         hswish->set_friendly_name(mul->get_friendly_name());
         ngraph::copy_runtime_info({hsigmoid, mul}, hswish);
         ngraph::replace_node(mul, hswish);
