@@ -177,8 +177,14 @@ struct ROIFeatureIntervalsTestParams
     Dimension first_dims[4];
 };
 
-void run_roi_feature_test(const ROIFeatureIntervalsTestParams& params)
+struct ROIFeatureIntervalsTest : ::testing::TestWithParam<ROIFeatureIntervalsTestParams>
 {
+};
+
+TEST_P(ROIFeatureIntervalsTest, detectron_roi_feature_extractor_intervals_1)
+{
+    auto params = GetParam();
+
     Attrs attrs;
     attrs.aligned = false;
     attrs.output_size = 14;
@@ -210,15 +216,6 @@ void run_roi_feature_test(const ROIFeatureIntervalsTestParams& params)
 
     ASSERT_EQ(roi->get_output_element_type(0), element::f32);
     ASSERT_TRUE(roi->get_output_partial_shape(0).same_scheme(ref_out_shape));
-}
-
-struct ROIFeatureIntervalsTest : ::testing::TestWithParam<ROIFeatureIntervalsTestParams>
-{
-};
-
-TEST_P(ROIFeatureIntervalsTest, detectron_roi_feature_extractor_intervals_1)
-{
-    run_roi_feature_test(GetParam());
 }
 
 INSTANTIATE_TEST_CASE_P(
