@@ -41,9 +41,10 @@ namespace ngraph
                         drop_probability == 0 || !training_mode,
                         "Training mode is not supported for Dropout op if drop_probability is not "
                         "equal 0");
-                    const auto input_data = node.get_ng_inputs().at(0);
 
+                    const auto input_data = node.get_ng_inputs().at(0);
                     const bool return_mask = node.get_outputs_size() > 1;
+
                     if (return_mask)
                     {
                         NGRAPH_WARN << "Default mask for Dropout is ignored, "
@@ -109,7 +110,7 @@ namespace ngraph
                 OutputVector dropout(const Node& node)
                 {
                     CHECK_VALID_NODE(node,
-                                     node.has_attribute("consumed_inputs"),
+                                     !node.has_attribute("consumed_inputs"),
                                      "Legacy consumed_inputs attrubute is not supported.");
 
                     const bool is_test = node.get_attribute_value<int64_t>("is_test", 0);

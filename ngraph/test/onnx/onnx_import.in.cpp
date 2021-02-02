@@ -3967,6 +3967,30 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_mvn_v6)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout1_no_training_no_return_mask)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout1_no_training_no_return_mask.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data(3 * 4 * 5, 2.0f);
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout1_no_training_return_mask)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout1_no_training_return_mask.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data(3 * 4 * 5, 2.0f);
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_no_return_mask)
 {
     auto function = onnx_import::import_onnx_model(
