@@ -605,13 +605,15 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
         if (i == 0) {
             topology.add(lstm(lstm_id, lstm_inputs, weights_id, recurrent_id,
                             hasBias ? biases_id : "", hasInitialHidden ? hidden_id : "", hasInitialCell ? cell_id : "", "",
-                            clip_threshold, input_forget, {}, {},
+                            clip_threshold, input_forget,
+                            { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
                             lstm_output_selection::sequence, default_offset_type));
         }
         else {
             topology.add(lstm(lstm_id, { prev_lstm_id }, weights_id, recurrent_id,
                             hasBias ? biases_id : "", hasInitialHidden ? hidden_id : "", hasInitialCell ? cell_id : "", "",
-                            clip_threshold, input_forget, {}, {},
+                            clip_threshold, input_forget,
+                            { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
                             lstm_output_selection::sequence, default_offset_type));
         }
         prev_lstm_id = lstm_id;
@@ -732,7 +734,8 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
     topology.add(input_layout("hidden", hidden.get_layout()));
     topology.add(input_layout("cell", cell.get_layout()));
     topology.add(lstm("lstm", lstm_inputs, "weights", "recurrent",
-                      "biases", "hidden", "cell", "", 0, false, {}, {},
+                      "biases", "hidden", "cell", "", 0, false,
+                      { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
                       output_selection, default_offset_type));
     if (emit_last_cell)
     {
@@ -894,7 +897,8 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
     topology.add(input_layout("hidden", hidden.get_layout()));
     topology.add(input_layout("cell", cell.get_layout()));
     topology.add(lstm("lstm"+get_string_id(0), lstm_inputs, "weights", "recurrent",
-                      "biases", "hidden", "cell", "", 0, false, {}, {},
+                      "biases", "hidden", "cell", "", 0, false,
+                      { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
                       output_selection, default_offset_type));
 
     if (emit_last_cell)
@@ -1066,7 +1070,8 @@ void lstm_gpu_users_test() {
     topology.add(input_layout("hidden", hidden.get_layout()));
     topology.add(input_layout("cell", cell.get_layout()));
     topology.add(lstm("lstm", lstm_inputs, "weights", "recurrent",
-                      "biases", "hidden", "cell", "", 0, false, {}, {},
+                      "biases", "hidden", "cell", "", 0, false,
+                      { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
                       lstm_output_selection::hidden, default_offset_type));
     std::vector<primitive_id> output_ids_offsets {"lstm", "hidden"};
     topology.add(concatenation("concatenation", output_ids_offsets, concatenation::along_f));
@@ -1210,13 +1215,15 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 		if (i == 0) {
             topology.add(lstm(lstm_id, { "input" }, weights_id, recurrent_id,
 				has_bias ? biases_id : "", has_initial_hidden ? hidden_id : "", has_initial_cell ? cell_id : "", "",
-				clip_threshold, input_forget, {}, {},
+				clip_threshold, input_forget,
+                { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
 				lstm_output_selection::sequence_cell, default_offset_type));
 		}
 		else {
 			topology.add(lstm(lstm_id, { prev_node_id }, weights_id, recurrent_id,
 				has_bias ? biases_id : "", has_initial_hidden ? hidden_id : "", has_initial_cell ? cell_id : "", "",
-				clip_threshold, input_forget, {}, {},
+				clip_threshold, input_forget,
+                { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
 				lstm_output_selection::sequence_cell, default_offset_type));
 		}
 
@@ -1536,7 +1543,8 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
                 topology.add(lstm(lstm_id, lstm_inputs, weights_id, recurrent_id,
                     has_bias ? biases_id : "",
                     initial_hidden_id, initial_cell_id,
-                    "", clip_threshold, input_forget, {}, {},
+                    "", clip_threshold, input_forget,
+                    { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
                     output_selection_per_layer, default_offset_type));
             }
             else
@@ -1544,7 +1552,8 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
                 topology.add(lstm(lstm_id, { output_sequence_ids[layer - 1] }, weights_id, recurrent_id,
                     has_bias ? biases_id : "",
                     initial_hidden_id, initial_cell_id,
-                    "", clip_threshold, input_forget, {}, {},
+                    "", clip_threshold, input_forget,
+                    { activation_func::logistic, activation_func::hyperbolic_tan, activation_func::hyperbolic_tan }, {},
                     output_selection_per_layer, default_offset_type));
             }
 
@@ -1734,35 +1743,35 @@ TEST(lstm_custom_gpu, generic_lstm_custom_no_bias_hidden_cell_f32) {
 
 // generic_lstm_gpu_test paramters:
 // layers, sequence, dir, batch, input, hidden, bias, initial_h, initial_cell, threshold, coupled_input_forget
-TEST(DISABLED_lstm_gpu, generic_lstm_f32) {
+TEST(lstm_gpu, generic_lstm_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_bias_f32) {
+TEST(lstm_gpu, generic_lstm_no_bias_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, false, true, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_hidden_f32) {
+TEST(lstm_gpu, generic_lstm_no_hidden_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, false, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_bias_hidden_f32) {
+TEST(lstm_gpu, generic_lstm_no_bias_hidden_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, false, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_cell_f32) {
+TEST(lstm_gpu, generic_lstm_no_cell_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, true, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_bias_cell_f32) {
+TEST(lstm_gpu, generic_lstm_no_bias_cell_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, true, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_hidden_cell_f32) {
+TEST(lstm_gpu, generic_lstm_no_hidden_cell_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, false, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_bias_hidden_cell_f32) {
+TEST(lstm_gpu, generic_lstm_no_bias_hidden_cell_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, false, false);
 }
 
@@ -1770,7 +1779,7 @@ TEST(DISABLED_lstm_gpu, generic_lstm_clip_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 0);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_input_forget_f32) {
+TEST(lstm_gpu, generic_lstm_input_forget_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true, 0.f, 1);
 }
 
@@ -1778,116 +1787,116 @@ TEST(DISABLED_lstm_gpu, generic_lstm_clip_input_forget_f32) {
     generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 1);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_offset_order_ifoz_f32) {
+TEST(lstm_gpu, generic_lstm_offset_order_ifoz_f32) {
     default_offset_type = lstm_weights_order::ifoz;
     generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true);
     default_offset_type = lstm_weights_order::iofz;
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_canonical_f32) {
+TEST(lstm_gpu, generic_lstm_canonical_f32) {
     generic_lstm_gpu_test<float>(1, 1, 1, 1, 1, 1, true, true, true);
 }
 
 // bidirectional support
-TEST(DISABLED_lstm_gpu, generic_lstm_bi_f32) {
+TEST(lstm_gpu, generic_lstm_bi_f32) {
     generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, false, false, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_bi_bias_f32) {
+TEST(lstm_gpu, generic_lstm_bi_bias_f32) {
     generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, false, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_bi_bias_hidden_f32) {
+TEST(lstm_gpu, generic_lstm_bi_bias_hidden_f32) {
     generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, true, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_bi_bias_hidden_cell_f32) {
+TEST(lstm_gpu, generic_lstm_bi_bias_hidden_cell_f32) {
     generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, true, true);
 }
 
 // multi-layer support
-TEST(DISABLED_lstm_gpu, generic_lstm_stacked_no_seq_f32) {
+TEST(lstm_gpu, generic_lstm_stacked_no_seq_f32) {
     generic_lstm_gpu_test<float>(4, 1, 1, 3, 3, 2, true, true, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_stacked_seq_f32) {
+TEST(lstm_gpu, generic_lstm_stacked_seq_f32) {
     generic_lstm_gpu_test<float>(4, 7, 1, 3, 3, 2, true, true, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_stacked_bi_f32) {
+TEST(lstm_gpu, generic_lstm_stacked_bi_f32) {
     generic_lstm_gpu_test<float>(4, 7, 2, 3, 3, 2, true, true, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_stacked_seq_bi_f32) {
+TEST(lstm_gpu, generic_lstm_stacked_seq_bi_f32) {
     generic_lstm_gpu_test<float>(4, 7, 2, 3, 3, 2, true, true, true);
 }
 
 // optional outputs support
-TEST(DISABLED_lstm_gpu, output_test_sequence_f32) {
+TEST(lstm_gpu, output_test_sequence_f32) {
     lstm_gpu_output_test<float>(lstm_output_selection::sequence, 1);
 }
 
-TEST(DISABLED_lstm_gpu, output_test_hidden_f32) {
+TEST(lstm_gpu, output_test_hidden_f32) {
     lstm_gpu_output_test<float>(lstm_output_selection::hidden, 1);
 }
 
-TEST(DISABLED_lstm_gpu, output_test_hidden_cell_f32) {
+TEST(lstm_gpu, output_test_hidden_cell_f32) {
     lstm_gpu_output_test<float>(lstm_output_selection::hidden_cell, 1);
 }
 
-TEST(DISABLED_lstm_gpu, output_test_sequence_cell_f32) {
+TEST(lstm_gpu, output_test_sequence_cell_f32) {
     lstm_gpu_output_test<float>(lstm_output_selection::sequence_cell, 1);
 }
 
-TEST(DISABLED_lstm_gpu, output_test_sequence_bi_f32) {
+TEST(lstm_gpu, output_test_sequence_bi_f32) {
     lstm_gpu_output_test<float>(lstm_output_selection::sequence, 2);
 }
 
-TEST(DISABLED_lstm_gpu, output_test_hidden_bi_f32) {
+TEST(lstm_gpu, output_test_hidden_bi_f32) {
     lstm_gpu_output_test<float>(lstm_output_selection::hidden, 2);
 }
 
-TEST(DISABLED_lstm_gpu, output_test_hidden_cell_bi_f32) {
+TEST(lstm_gpu, output_test_hidden_cell_bi_f32) {
     lstm_gpu_output_test<float>(lstm_output_selection::hidden_cell, 2);
 }
 
-TEST(DISABLED_lstm_gpu, output_test_sequence_cell_bi_f32) {
+TEST(lstm_gpu, output_test_sequence_cell_bi_f32) {
     lstm_gpu_output_test<float>(lstm_output_selection::sequence_cell, 2);
 }
 
 // format tests
-TEST(DISABLED_lstm_gpu, lstm_gpu_format_bfyx_f32) {
+TEST(lstm_gpu, lstm_gpu_format_bfyx_f32) {
     lstm_gpu_format_test<float>(cldnn::format::bfyx, 1);
 }
 
-TEST(DISABLED_lstm_gpu, lstm_gpu_format_bfyx_bi_f32) {
+TEST(lstm_gpu, lstm_gpu_format_bfyx_bi_f32) {
     lstm_gpu_format_test<float>(cldnn::format::bfyx, 2);
 }
 
-TEST(DISABLED_lstm_gpu, lstm_gpu_format_fyxb_f32) {
+TEST(lstm_gpu, lstm_gpu_format_fyxb_f32) {
     lstm_gpu_format_test<float>(cldnn::format::fyxb, 1);
 }
 
-TEST(DISABLED_lstm_gpu, lstm_gpu_format_fyxb_bi_f32) {
+TEST(lstm_gpu, lstm_gpu_format_fyxb_bi_f32) {
     lstm_gpu_format_test<float>(cldnn::format::fyxb, 2);
 }
 
 // test for LSTM users' dependencies
-TEST(DISABLED_lstm_gpu, lstm_users_f32) {
+TEST(lstm_gpu, lstm_users_f32) {
     lstm_gpu_users_test<float>();
 }
 
 // Test for LSTM with concatenated input
-TEST(DISABLED_lstm_gpu, generic_lstm_concatenated_input) {
+TEST(lstm_gpu, generic_lstm_concatenated_input) {
     lstm_gpu_concatenated_input_test<float>(1, 2, 2, 1, 1, 1, true, true, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_concatenated_input_multi_layer) {
+TEST(lstm_gpu, generic_lstm_concatenated_input_multi_layer) {
     lstm_gpu_concatenated_input_test<float>(5, 5, 2, 1, 1, 4, true, true, true);
 }
 
 // test for LSTM with chain and stack (multilayer)
-TEST(DISABLED_lstm_gpu, generic_lstm_chained_unidirectional_f32) {
+TEST(lstm_gpu, generic_lstm_chained_unidirectional_f32) {
     // batch size = 1
     // input size = 2
     // hidden size = 4
@@ -1899,7 +1908,7 @@ TEST(DISABLED_lstm_gpu, generic_lstm_chained_unidirectional_f32) {
     lstm_gpu_chain_test<float>(1, 2, 4, 1, 1, 2, 1, lstm_output_selection::sequence_cell);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_chained_bidirectional_f32) {
+TEST(lstm_gpu, generic_lstm_chained_bidirectional_f32) {
     // batch size = 1
     // input size = 2
     // hidden size = 4
@@ -1911,7 +1920,7 @@ TEST(DISABLED_lstm_gpu, generic_lstm_chained_bidirectional_f32) {
     lstm_gpu_chain_test<float>(1, 2, 4, 2, 1, 1, 1, lstm_output_selection::sequence_cell);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_chained_no_stack_bidirectional_f32) {
+TEST(lstm_gpu, generic_lstm_chained_no_stack_bidirectional_f32) {
     // batch size = 2
     // input size = 2
     // hidden size = 4
@@ -1923,7 +1932,7 @@ TEST(DISABLED_lstm_gpu, generic_lstm_chained_no_stack_bidirectional_f32) {
     lstm_gpu_chain_test<float>(2, 2, 4, 2, 1, 2, 5, lstm_output_selection::sequence_cell);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_chained_stacked_bidirectional_f32) {
+TEST(lstm_gpu, generic_lstm_chained_stacked_bidirectional_f32) {
     // batch size = 2
     // input size = 2
     // hidden size = 4
@@ -1972,35 +1981,35 @@ TEST(lstm_elt_gpu, generic_lstm_elt_no_cell_f16) {
     generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_f16) {
+TEST(lstm_gpu, generic_lstm_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_bias_f16) {
+TEST(lstm_gpu, generic_lstm_no_bias_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, false, true, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_hidden_f16) {
+TEST(lstm_gpu, generic_lstm_no_hidden_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_bias_hidden_f16) {
+TEST(lstm_gpu, generic_lstm_no_bias_hidden_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_cell_f16) {
+TEST(lstm_gpu, generic_lstm_no_cell_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, true, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_bias_cell_f16) {
+TEST(lstm_gpu, generic_lstm_no_bias_cell_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, true, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_hidden_cell_f16) {
+TEST(lstm_gpu, generic_lstm_no_hidden_cell_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_no_bias_hidden_cell_f16) {
+TEST(lstm_gpu, generic_lstm_no_bias_hidden_cell_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, false);
 }
 
@@ -2008,7 +2017,7 @@ TEST(DISABLED_lstm_gpu, generic_lstm_clip_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 0);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_input_forget_f16) {
+TEST(lstm_gpu, generic_lstm_input_forget_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.f, 1);
 }
 
@@ -2016,35 +2025,35 @@ TEST(DISABLED_lstm_gpu, generic_lstm_clip_input_forget_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 1);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_offset_order_ifoz_f16) {
+TEST(lstm_gpu, generic_lstm_offset_order_ifoz_f16) {
     default_offset_type = lstm_weights_order::ifoz;
     generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true);
     default_offset_type = lstm_weights_order::iofz;
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_canonical_f16) {
+TEST(lstm_gpu, generic_lstm_canonical_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 1, 1, 1, 1, 1, true, true, true);
 }
 
 // bidirectional support
-TEST(DISABLED_lstm_gpu, generic_lstm_bi_bias_f16) {
+TEST(lstm_gpu, generic_lstm_bi_bias_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, false, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_bi_bias_hidden_f16) {
+TEST(lstm_gpu, generic_lstm_bi_bias_hidden_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, false);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_bi_bias_hidden_cell_f16) {
+TEST(lstm_gpu, generic_lstm_bi_bias_hidden_cell_f16) {
     generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, true);
 }
 
 // multi-layer support
-TEST(DISABLED_lstm_gpu, generic_lstm_stacked_seq_f16) {
+TEST(lstm_gpu, generic_lstm_stacked_seq_f16) {
     generic_lstm_gpu_test<FLOAT16>(4, 7, 1, 3, 3, 2, true, true, true);
 }
 
-TEST(DISABLED_lstm_gpu, generic_lstm_stacked_bi_f16) {
+TEST(lstm_gpu, generic_lstm_stacked_bi_f16) {
     generic_lstm_gpu_test<FLOAT16>(4, 7, 2, 3, 3, 2, true, true, true);
 }
 
@@ -2052,3 +2061,4 @@ TEST(DISABLED_lstm_gpu, generic_lstm_stacked_bi_f16) {
 // integration testing using multi-layer and chained LSTMs
 // LSTMs single input
 // optional activation list
+
