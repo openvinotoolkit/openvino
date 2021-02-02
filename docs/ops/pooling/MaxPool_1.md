@@ -193,62 +193,62 @@ output = [[[[5, 3],
 
 ```xml
 <layer ... type="MaxPool" ... >
-        <data auto_pad="same_upper" kernel="2,2" strides="2,2"/>
-        <input> 
-          <port id="0">
+    <data auto_pad="same_upper" kernel="2,2" strides="2,2"/>
+    <input> 
+        <port id="0">
             <dim>1</dim>
             <dim>3</dim>
             <dim>32</dim>
             <dim>32</dim>
-          </port>
-        </input>
-        <output>
-          <port id="1">
+        </port>
+    </input>
+    <output>
+        <port id="1">
             <dim>1</dim>
             <dim>3</dim>
             <dim>32</dim>
             <dim>32</dim>
-          </port>
+        </port>
     </output>
 </layer>
 
 <layer ... type="MaxPool" ... >
-        <data auto_pad="explicit" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
-        <input> 
-          <port id="0">
+    <data auto_pad="explicit" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
+    <input> 
+        <port id="0">
             <dim>1</dim>
             <dim>3</dim>
             <dim>32</dim>
             <dim>32</dim>
-          </port>
-        </input>
-        <output>
-          <port id="1">
+        </port>
+    </input>
+    <output>
+        <port id="1">
             <dim>1</dim>
             <dim>3</dim>
             <dim>17</dim>
             <dim>17</dim>
-          </port>
+        </port>
     </output>
 </layer>
 
 <layer ... type="MaxPool" ... >
-        <data auto_pad="valid" kernel="2,2" strides="2,2"/>
-        <input> 
-          <port id="0">
+    <data auto_pad="valid" kernel="2,2" strides="2,2"/>
+    <input> 
+        <port id="0">
             <dim>1</dim>
             <dim>3</dim>
             <dim>32</dim>
             <dim>32</dim>
-          </port>
-        </input>
-        <output>
-          <port id="1">
+        </port>
+    </input>
+    <output>
+        <port id="1">
             <dim>1</dim>
             <dim>3</dim>
             <dim>16</dim>
             <dim>16</dim>
-          </port>
+        </port>
     </output>
 </layer>
 ```
