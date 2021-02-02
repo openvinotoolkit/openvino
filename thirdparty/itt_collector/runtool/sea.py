@@ -301,25 +301,3 @@ class ITT(object):
         if not self.lib:
             return ""
         return self.lib.get_gpa_version()
-
-    def export_exe_icon_as_gif(self, exe_path, gif_path):
-        if sys.platform == 'win32':
-            if not hasattr(self.lib, 'ExportExeIconAsGif'):
-                return None
-            return self.lib.ExportExeIconAsGif(exe_path, gif_path)
-        elif sys.platform == 'darwin':
-            import glob
-            for file_path in glob.glob(os.path.normpath(os.path.join(exe_path, '../../Resources/*.icns'))):
-                self.convert_image(file_path, gif_path, 16, 16)
-                return True
-            return False
-        else:
-            return False
-
-    def convert_image(self, from_path, to_path, width, height):
-        if sys.platform == 'win32':
-            return self.lib.ConvertToGif(from_path, to_path, width, height)
-        elif sys.platform == 'darwin':
-            return os.system('sips -s format gif -z %d %d "%s" --out "%s"' % (width, height, from_path, to_path))
-        else:
-            os.system('convert %s -resize %dx%d %s' % (from_path, width, height, to_path))

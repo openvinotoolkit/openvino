@@ -549,11 +549,6 @@ def split_filename(path):
 def default_tree(args):
     tree = {"strings": {}, "domains": {}, "threads": {}, "groups": {}, "modules": {}, "ring_buffer": False, "cuts": set()}
     if os.path.isdir(args.input):
-        process_dct = os.path.join(args.input, 'process.dct')
-        if not os.path.exists(process_dct):
-            return tree
-        with open(process_dct, 'r') as file:
-            tree["process"] = eval(file.read())
         for filename in glob(os.path.join(args.input, '*.mdl')):
             with open(filename, 'r') as file:
                 parts = file.readline().split()
