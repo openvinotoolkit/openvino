@@ -64,6 +64,7 @@ namespace {
 
 const std::vector<Precision> precisions = {
         Precision::I8,
+        Precision::I32,
         Precision::FP32,
         Precision::BF16
 };
