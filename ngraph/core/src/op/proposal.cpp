@@ -110,12 +110,10 @@ void op::v0::Proposal::validate_and_infer_types()
     }
 
     // intersect the batch size
-    Dimension batch_dim = class_probs_ps[0] & bbox_deltas_ps[0];
-    if (batch_dim.is_static())
-    {
-        out_dimension = batch_dim * Dimension(m_attrs.post_nms_topn);
-    }
-    set_output_type(0, get_input_element_type(0), PartialShape{out_dimension, 5});
+    set_output_type(
+        0,
+        get_input_element_type(0),
+        PartialShape{(class_probs_ps[0] & bbox_deltas_ps[0]) * m_attrs.post_nms_topn, 5});
 }
 
 shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
@@ -161,8 +159,13 @@ void op::v4::Proposal::validate_and_infer_types()
     NGRAPH_OP_SCOPE(v4_Proposal_validate_and_infer_types);
     v0::Proposal::validate_and_infer_types();
     // Output shape was inferred in v0's validate_and_infer_types
-    const auto out_ps = get_output_partial_shape(0);
-    set_output_type(1, get_input_element_type(0), PartialShape{out_ps[0]});
+    const auto proposals_ps = get_output_partial_shape(0);
+    auto out_ps = PartialShape{Dimension::dynamic()};
+    if (proposals_ps.rank().is_static())
+    {
+        out_ps = PartialShape{proposals_ps[0]};
+    }
+    set_output_type(1, get_input_element_type(0), out_ps);
 }
 
 std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
