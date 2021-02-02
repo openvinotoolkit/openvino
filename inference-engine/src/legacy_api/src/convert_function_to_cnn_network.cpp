@@ -860,7 +860,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"Relu"},
+    addSpecificCreator({"Relu", "ReLUIE"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "ReLU",
@@ -1655,14 +1655,6 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                                        const std::map<std::string, std::string> &params) -> CNNLayerPtr {
     LayerParams attrs = {node->get_friendly_name(), "Power", details::convertPrecision(node->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::PowerLayer>(attrs);
-    res->params = params;
-    return res;
-    });
-
-    addSpecificCreator({"ReLUIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                                      const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-    LayerParams attrs = {node->get_friendly_name(), "ReLU", details::convertPrecision(node->get_output_element_type(0))};
-    auto res = std::make_shared<ReLULayer>(attrs);
     res->params = params;
     return res;
     });
