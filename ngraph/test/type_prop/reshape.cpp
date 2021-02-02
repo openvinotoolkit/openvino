@@ -21,6 +21,180 @@
 using namespace std;
 using namespace ngraph;
 
+TEST(type_prop, static_value_propagation)
+{
+    auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+
+    auto r = make_shared<op::v1::Reshape>(param, shape_of, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_shape(), (Shape{1, 2, 3}));
+}
+
+TEST(type_prop, interval_value_propagation)
+{
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 8), 2, 3});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+
+    auto r = make_shared<op::v1::Reshape>(param, shape_of, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(1, 8), 2, 3}));
+
+    auto shape_of_opset1 = make_shared<op::v0::ShapeOf>(param);
+
+    auto reshape = make_shared<op::v1::Reshape>(param, shape_of_opset1, false);
+
+    ASSERT_EQ(reshape->get_element_type(), element::f32);
+    ASSERT_EQ(reshape->get_output_partial_shape(0), PartialShape({Dimension(1, 8), 2, 3}));
+}
+
+TEST(type_prop, static_value_propagation_through_gather)
+{
+    auto param = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto gather = make_shared<op::v1::Gather>(shape_of,
+                                              op::Constant::create(element::i64, {3}, {2, 1, 0}),
+                                              op::Constant::create(element::i64, {}, {0}));
+
+    auto r = make_shared<op::v1::Reshape>(param, gather, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_shape(), (Shape{3, 2, 1}));
+}
+
+TEST(type_prop, interval_value_propagation_through_gather)
+{
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 8), 2, 3});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto gather = make_shared<op::v1::Gather>(shape_of,
+                                              op::Constant::create(element::i64, {3}, {2, 1, 0}),
+                                              op::Constant::create(element::i64, {}, {0}));
+
+    auto r = make_shared<op::v1::Reshape>(param, gather, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({3, 2, Dimension(1, 8)}));
+}
+
+TEST(type_prop, interval_value_propagation_through_consecutive_gathers)
+{
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 8), 2, 3});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto gather_1 = make_shared<op::v1::Gather>(shape_of,
+                                                op::Constant::create(element::i64, {3}, {2, 1, 0}),
+                                                op::Constant::create(element::i64, {}, {0}));
+
+    auto gather_2 = make_shared<op::v1::Gather>(gather_1,
+                                                op::Constant::create(element::i64, {3}, {1, 2, 0}),
+                                                op::Constant::create(element::i64, {}, {0}));
+
+    auto r = make_shared<op::v1::Reshape>(param, gather_2, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({2, Dimension(1, 8), 3}));
+}
+
+TEST(type_prop, interval_value_propagation_concatenated_gathers)
+{
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 8), 2, 3});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+
+    auto gather_1 = make_shared<op::v1::Gather>(shape_of,
+                                                op::Constant::create(element::i64, {}, {2}),
+                                                op::Constant::create(element::i64, {}, {0}));
+    auto dim_1 = make_shared<op::Unsqueeze>(gather_1, op::Constant::create(element::i64, {1}, {0}));
+
+    auto gather_2 = make_shared<op::v1::Gather>(shape_of,
+                                                op::Constant::create(element::i64, {}, {1}),
+                                                op::Constant::create(element::i64, {}, {0}));
+    auto tmp_dim_2 = make_shared<op::v1::Reshape>(
+        gather_2, op::Constant::create(element::i64, {2}, {1, 1}), true);
+    auto dim_2 =
+        make_shared<op::v0::Squeeze>(tmp_dim_2, op::Constant::create(element::i64, {1}, {0}));
+
+    auto gather_3 = make_shared<op::v1::Gather>(shape_of,
+                                                op::Constant::create(element::i64, {}, {0}),
+                                                op::Constant::create(element::i64, {}, {0}));
+    auto dim_3 = make_shared<op::Unsqueeze>(gather_3, op::Constant::create(element::i64, {1}, {0}));
+
+    auto shape = make_shared<op::Concat>(OutputVector{dim_1, dim_2, dim_3}, 0);
+    auto r = make_shared<op::v1::Reshape>(param, shape, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({3, 2, Dimension(1, 8)}));
+}
+
+TEST(type_prop, interval_value_propagation_mul_div)
+{
+    auto param = make_shared<op::Parameter>(element::f32,
+                                            PartialShape{Dimension(2, 8), Dimension(4, 16), 2});
+
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto cast_fp = make_shared<op::Convert>(shape_of, element::f32);
+    auto mul = make_shared<op::v1::Multiply>(cast_fp,
+                                             op::Constant::create(element::f32, {3}, {-2, 2, -4}));
+    auto div =
+        make_shared<op::v1::Divide>(mul, op::Constant::create(element::f32, {3}, {-2, 2, -4}));
+    auto cast_int = make_shared<op::Convert>(div, element::i32);
+
+    auto r = make_shared<op::v1::Reshape>(param, cast_int, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape({Dimension(2, 8), Dimension(4, 16), 2}));
+}
+
+TEST(type_prop, interval_value_propagation_reduce)
+{
+    auto param = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 8), 2, 3});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+    auto reduce_prod = make_shared<op::v1::ReduceProd>(
+        shape_of, op::Constant::create(element::i64, {1}, {0}), true);
+    auto r = make_shared<op::v1::Reshape>(param, reduce_prod, false);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0), PartialShape{Dimension(6, 48)});
+}
+
+TEST(type_prop, interval_value_propagation_reshape_zero_special_value)
+{
+    auto param = make_shared<op::Parameter>(
+        element::f32, PartialShape{Dimension(1, 8), Dimension(16, 64), 3, Dimension(200, 400)});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+
+    auto dim_021 = make_shared<op::v1::Gather>(shape_of,
+                                               op::Constant::create(element::i64, {3}, {0, 2, 1}),
+                                               op::Constant::create(element::i64, {}, {0}));
+    auto dim_3 = op::Constant::create(element::i64, {1}, {0});
+
+    auto shape = make_shared<op::Concat>(OutputVector{dim_021, dim_3}, 0);
+    auto r = make_shared<op::v1::Reshape>(param, shape, true);
+
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0),
+              PartialShape({Dimension(1, 8), 3, Dimension(16, 64), Dimension(200, 400)}));
+}
+
+TEST(type_prop, interval_value_propagation_reshape_zero_minus_one_special_values)
+{
+    auto param = make_shared<op::Parameter>(
+        element::f32, PartialShape{Dimension(1, 8), Dimension(16, 64), 6, Dimension(200, 400)});
+    auto shape_of = make_shared<op::v3::ShapeOf>(param);
+
+    auto dim_0 = make_shared<op::v1::Gather>(shape_of,
+                                             op::Constant::create(element::i64, {1}, {1}),
+                                             op::Constant::create(element::i64, {}, {0}));
+    auto dim_1 = op::Constant::create(element::i64, {1}, {0});
+    auto dim_2 = op::Constant::create(element::i64, {1}, {-1});
+
+    auto shape = make_shared<op::Concat>(OutputVector{dim_0, dim_1, dim_2}, 0);
+    auto r = make_shared<op::v1::Reshape>(param, shape, true);
+    ASSERT_EQ(r->get_element_type(), element::f32);
+    ASSERT_EQ(r->get_output_partial_shape(0),
+              PartialShape({Dimension(16, 64), Dimension(16, 64), Dimension(19, 1200)}));
+}
+
 TEST(type_prop, reshape_deduce_s2t)
 {
     auto param = make_shared<op::Parameter>(element::f32, Shape{});

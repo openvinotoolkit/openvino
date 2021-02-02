@@ -24,6 +24,7 @@
 
 #include "ngraph/runtime/reference/broadcast.hpp"
 
+#include <ngraph/validation_util.hpp>
 #include <numeric>
 
 using namespace std;
@@ -48,9 +49,12 @@ op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
 
 PartialShape op::util::BroadcastBase::get_result_shape_pdpd(
     const PartialShape& arg0_shape,
-    const Shape& target_shape,
+    const PartialShape& target_pshape,
     const op::BroadcastModeSpec& broadcast_spec) const
 {
+    if (target_pshape.is_dynamic())
+        return PartialShape::dynamic(target_pshape.rank());
+    Shape target_shape = target_pshape.to_shape();
     if (arg0_shape.rank().is_dynamic())
     {
         return PartialShape::dynamic(target_shape.size());
@@ -85,44 +89,47 @@ PartialShape op::util::BroadcastBase::get_result_shape_pdpd(
 }
 
 void op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& arg_shape,
-                                                          const Shape& target_shape) const
+                                                          const PartialShape& target_shape) const
 {
-    if (arg_shape.rank().is_dynamic())
+    if (arg_shape.rank().is_dynamic() || target_shape.rank().is_dynamic())
     {
         return;
     }
     const auto arg_rank_length = arg_shape.rank().get_length();
-    const int64_t start_axis = target_shape.size() - arg_rank_length;
+    const auto target_rank_length = target_shape.rank().get_length();
+    const int64_t start_axis = target_rank_length - arg_rank_length;
     NODE_VALIDATION_CHECK(this,
                           start_axis >= 0,
                           "Broadcast target_shape has smaller rank ",
-                          target_shape.size(),
+                          target_rank_length,
                           " than arg shape ",
                           arg_rank_length);
-    for (auto i = start_axis; i < target_shape.size(); i++)
+    for (auto i = start_axis; i < target_rank_length; i++)
     {
-        if (arg_shape[i - start_axis].is_dynamic())
-        {
-            continue;
-        }
-        const size_t arg_dim = arg_shape[i - start_axis].get_length();
+        stringstream ss;
+        ss << " or " << target_shape[i];
         NODE_VALIDATION_CHECK(this,
-                              arg_dim == 1 || arg_dim == target_shape[i],
+                              arg_shape[i - start_axis].is_dynamic() ||
+                                  target_shape[i].is_dynamic() || arg_shape[i - start_axis] == 1 ||
+                                  arg_shape[i - start_axis] == target_shape[i],
                               "Input shape dimension equal ",
-                              arg_dim,
+                              arg_shape[i - start_axis],
                               " cannot be broadcasted (numpy mode) to ",
                               target_shape[i],
                               ". Allowed input dimension value would be 1",
-                              target_shape[i] != 1
-                                  ? (std::string(" or ") + std::to_string(target_shape[i])).c_str()
-                                  : "");
+                              target_shape[i] != 1 ? ss.str() : "");
     }
 }
 
-void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
+void op::util::BroadcastBase::validate_target_shape_none(const PartialShape& arg_shape,
                                                          const AxisVector& axes_mapping_val,
-                                                         const Shape& target_shape) const
+                                                         const PartialShape& target_shape) const
 {
+    if (arg_shape.rank().is_dynamic() || target_shape.rank().is_dynamic())
+    {
+        return;
+    }
+    const auto target_rank_length = target_shape.rank().get_length();
     // axes_mapping needs to be in sorted order
     NODE_VALIDATION_CHECK(this,
                           std::is_sorted(axes_mapping_val.begin(), axes_mapping_val.end()),
@@ -130,7 +137,7 @@ void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
                           axes_mapping_val,
                           " not in sorted order");
 
-    if (arg_shape.size() == 0 && axes_mapping_val.size() > 0)
+    if (arg_shape.rank().get_length() == 0 && axes_mapping_val.size() > 0)
     {
         NODE_VALIDATION_CHECK(this,
                               target_shape[axes_mapping_val[0]] == 1,
@@ -141,18 +148,18 @@ void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
     for (size_t i = 0; i < axes_mapping_val.size(); i++)
     {
         NODE_VALIDATION_CHECK(this,
-                              axes_mapping_val[i] < target_shape.size(),
+                              axes_mapping_val[i] < target_rank_length,
                               "Broadcast axes_mapping[",
                               i,
                               "]: ",
                               axes_mapping_val[i],
                               " exceeds target rank ",
-                              target_shape.size());
+                              target_rank_length);
 
-        if (arg_shape.size() > 0)
+        if (arg_shape.rank().get_length() > 0)
         {
             NODE_VALIDATION_CHECK(this,
-                                  target_shape[axes_mapping_val[i]] == arg_shape[i],
+                                  target_shape[axes_mapping_val[i]].same_scheme(arg_shape[i]),
                                   "Broadcast target[axes_mapping[",
                                   i,
                                   "]]",
@@ -219,13 +226,15 @@ void op::util::BroadcastBase::validate_and_infer_types()
         }
     }
 
-    const auto shape_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+    PartialShape output_shape;
+    bool output_shape_defined = evaluate_as_partial_shape(get_input_source_output(1), output_shape);
 
     if (auto concat = as_type_ptr<op::v0::Concat>(input_value(1).get_node_shared_ptr()))
     {
         auto concat_inputs = concat->inputs();
 
-        if (concat->get_output_partial_shape(0).is_static() && concat->get_shape().size() == 1 &&
+        if (!output_shape_defined && concat->get_output_partial_shape(0).is_static() &&
+            concat->get_shape().size() == 1 &&
             concat_inputs.size() == shape_size(concat->get_shape()))
         {
             auto output_partial_shape = vector<Dimension>{};
@@ -241,15 +250,16 @@ void op::util::BroadcastBase::validate_and_infer_types()
                     output_partial_shape.push_back(Dimension::dynamic());
                 }
             }
-            result_shape = PartialShape(output_partial_shape);
+            output_shape_defined = true;
+            output_shape = PartialShape(output_partial_shape);
         }
     }
 
     if (m_mode.m_type == BroadcastType::NONE)
     {
-        if (shape_constant)
+        if (output_shape_defined)
         {
-            result_shape = shape_constant->get_shape_val();
+            result_shape = output_shape;
         }
         // Validate axes_mapping
         if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static() &&
@@ -268,31 +278,27 @@ void op::util::BroadcastBase::validate_and_infer_types()
                                   " doesn't match rank of input tensor ",
                                   input_rank);
 
-            if (shape_constant && op::is_constant(input_value(2).get_node()))
+            if (output_shape_defined && has_and_set_equal_bounds(input_value(2)))
             {
-                auto target_shape = shape_constant->get_shape_val();
                 auto axes_mapping_val =
-                    as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr())
-                        ->get_axis_vector_val();
-                validate_target_shape_none(arg_shape, axes_mapping_val, target_shape);
+                    get_constant_from_source(input_value(2))->get_axis_vector_val();
+                validate_target_shape_none(arg_shape, axes_mapping_val, output_shape);
             }
         }
     }
     else if (m_mode.m_type == BroadcastType::NUMPY)
     {
-        if (shape_constant)
+        if (output_shape_defined)
         {
-            const auto target_shape = shape_constant->get_shape_val();
-            result_shape = target_shape;
-            validate_target_shape_numpy(input_shape, target_shape);
+            result_shape = output_shape;
+            validate_target_shape_numpy(input_shape, output_shape);
         }
     }
     else if (m_mode.m_type == BroadcastType::PDPD)
     {
-        if (shape_constant)
+        if (output_shape_defined)
         {
-            const auto target_shape = shape_constant->get_shape_val();
-            result_shape = get_result_shape_pdpd(input_shape, target_shape, m_mode);
+            result_shape = get_result_shape_pdpd(input_shape, output_shape, m_mode);
         }
     }
     set_output_type(0, get_input_element_type(0), result_shape);
@@ -344,8 +350,7 @@ std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes() const
 
     if (m_mode.m_type == BroadcastType::NONE)
     {
-        const auto axes_mapping_constant =
-            as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr());
+        const auto axes_mapping_constant = get_constant_from_source(input_value(2));
         if (get_input_partial_shape(1).is_static() && axes_mapping_constant)
         {
             auto axes_mapping_val = axes_mapping_constant->get_axis_vector_val();
@@ -562,4 +567,20 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
     }
 
     return evaluate_broadcast(inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
+}
+
+bool op::util::BroadcastBase::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::util::BroadcastBase::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }

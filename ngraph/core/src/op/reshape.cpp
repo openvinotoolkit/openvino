@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/function.hpp"
@@ -105,7 +106,8 @@ namespace reshapeop
         if (input_pshape.rank().is_static())
             for (size_t i = 0; i < input_pshape.rank().get_length(); ++i)
             {
-                if (i < reshape_pattern.size() && reshape_pattern[i] == 0)
+                if (i < reshape_pattern.size() && reshape_pattern[i].get_min_length() == 0 &&
+                    reshape_pattern[i].get_max_length() == 0)
                     continue;
                 input_product *= input_pshape[i];
             }
@@ -240,20 +242,26 @@ void op::v1::Reshape::validate_and_infer_types()
     std::vector<Dimension> reshape_pattern;
     int64_t minus_one_idx = -1;
 
-    if (const auto constant = as_type_ptr<op::Constant>(get_input_node_shared_ptr(1)))
+    HostTensorPtr lb, ub;
+    std::tie(lb, ub) = evaluate_both_bounds(get_input_source_output(1));
+    if (lb && ub)
     {
-        const auto pattern_vector = constant->cast_vector<int64_t>();
-        for (size_t i = 0; i < pattern_vector.size(); ++i)
+        const auto lower_bound = std::make_shared<op::Constant>(lb)->cast_vector<int64_t>();
+        const auto upper_bound = std::make_shared<op::Constant>(ub)->cast_vector<int64_t>();
+        NGRAPH_CHECK(lower_bound.size() == upper_bound.size());
+        for (size_t i = 0; i < lower_bound.size(); ++i)
         {
-            NODE_VALIDATION_CHECK(this, pattern_vector[i] >= -1, "Dim size cannot be less than -1");
+            NODE_VALIDATION_CHECK(this,
+                                  lower_bound[i] >= -1 && upper_bound[i] >= -1,
+                                  "Dim size cannot be less than -1");
 
-            if (pattern_vector[i] == -1)
+            if (lower_bound[i] == -1 && upper_bound[i] == -1)
             { // ctor of Dimension(-1) would turn input Dimension(0, max_int)
                 NODE_VALIDATION_CHECK(
                     this, minus_one_idx == -1, "More than one dimension has size of -1");
                 minus_one_idx = static_cast<int64_t>(i);
             }
-            reshape_pattern.emplace_back(pattern_vector[i]);
+            reshape_pattern.emplace_back(lower_bound[i], upper_bound[i]);
         }
     }
 
@@ -330,6 +338,20 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v1_Reshape_evaluate);
     return evaluate_reshape(outputs, inputs);
+}
+
+bool op::v1::Reshape::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Reshape::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

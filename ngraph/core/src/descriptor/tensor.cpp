@@ -16,6 +16,7 @@
 
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -65,6 +66,26 @@ void descriptor::Tensor::set_partial_shape(const PartialShape& partial_shape)
     {
         m_shape = Shape{};
     }
+}
+
+void descriptor::Tensor::invalidate_values()
+{
+    m_upper_value = nullptr;
+    m_lower_value = nullptr;
+}
+
+void descriptor::Tensor::set_lower_value(const HostTensorPtr& value)
+{
+    NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
+    NGRAPH_CHECK(m_element_type == value->get_element_type());
+    m_lower_value = value;
+}
+
+void descriptor::Tensor::set_upper_value(const HostTensorPtr& value)
+{
+    NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
+    NGRAPH_CHECK(m_element_type == value->get_element_type());
+    m_upper_value = value;
 }
 
 const Shape& descriptor::Tensor::get_shape() const

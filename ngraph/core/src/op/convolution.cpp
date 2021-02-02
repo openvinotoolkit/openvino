@@ -221,7 +221,7 @@ bool op::v1::ConvolutionBackpropData::is_dynamic() const
     bool is_dynamic = Node::is_dynamic();
     if (inputs().size() == 3 && !is_dynamic)
     {
-        return !is_type<op::Constant>(input_value(2).get_node());
+        return !has_and_set_equal_bounds(input_value(2));
     }
     return is_dynamic;
 }
@@ -242,7 +242,7 @@ const PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
     bool is_output_shape_present = inputs().size() == 3;
     if (is_output_shape_present)
     {
-        if (auto const_op = as_type<op::Constant>(input_value(2).get_node()))
+        if (auto const_op = get_constant_from_source(input_value(2)))
         {
             shape = const_op->get_shape_val();
         }

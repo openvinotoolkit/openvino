@@ -211,7 +211,8 @@ protected:
         }
 
         const auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(broadcastInput, shapeOfNode, ngraph::op::BroadcastType::BIDIRECTIONAL);
-
+        // tests are invalid -- output shape of broadcast gets fully deduced and transformations stop working for this particular graph
+        broadcast->set_output_type(0, broadcast->get_output_element_type(0), ngraph::PartialShape::dynamic(broadcast->get_output_partial_shape(0).rank()));
         auto function = std::make_shared<ngraph::Function>(
             ngraph::NodeVector{broadcast},
             params,

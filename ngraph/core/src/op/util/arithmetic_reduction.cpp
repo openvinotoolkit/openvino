@@ -50,7 +50,7 @@ bool op::util::ArithmeticReduction::reduction_axes_constant() const
 const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const
 {
     AxisSet axes;
-    if (auto const_op = as_type<op::Constant>(input_value(1).get_node()))
+    if (const auto& const_op = get_constant_from_source(input_value(1)))
     {
         const auto const_data = const_op->cast_vector<int64_t>();
         const auto input_data_rank = get_input_partial_shape(0).rank();
@@ -76,11 +76,11 @@ void op::util::ArithmeticReduction::validate_and_infer_types()
 
     PartialShape result_shape{PartialShape::dynamic()};
 
-    if (input_rank.is_static() && reduction_axes_constant())
+    auto axes = get_constant_from_source(input_value(1));
+    if (input_rank.is_static() && axes)
     {
         AxisSet reduction_axes;
-        const auto reduction_axes_val =
-            as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
+        const auto reduction_axes_val = axes->cast_vector<int64_t>();
         for (auto axis : reduction_axes_val)
         {
             try

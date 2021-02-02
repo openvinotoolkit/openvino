@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <algorithm>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
@@ -110,9 +111,9 @@ void op::v4::Range::validate_and_infer_types()
                           "'step' input scalar should be a numeric type. Got: ",
                           get_input_element_type(2));
 
-    auto const_start = as_type_ptr<op::Constant>(this->input_value(0).get_node_shared_ptr());
-    auto const_stop = as_type_ptr<op::Constant>(this->input_value(1).get_node_shared_ptr());
-    auto const_step = as_type_ptr<op::Constant>(this->input_value(2).get_node_shared_ptr());
+    auto const_start = get_constant_from_source(input_value(0));
+    auto const_stop = get_constant_from_source(input_value(1));
+    auto const_step = get_constant_from_source(input_value(2));
 
     double start = 0;
     double stop = 0;
@@ -360,9 +361,9 @@ static
 template <typename T>
 static PartialShape infer_output_shape(const op::v0::Range* node, const element::Type& /* et */)
 {
-    auto const_start = as_type_ptr<op::Constant>(node->input_value(0).get_node_shared_ptr());
-    auto const_stop = as_type_ptr<op::Constant>(node->input_value(1).get_node_shared_ptr());
-    auto const_step = as_type_ptr<op::Constant>(node->input_value(2).get_node_shared_ptr());
+    auto const_start = get_constant_from_source(node->input_value(0));
+    auto const_stop = get_constant_from_source(node->input_value(1));
+    auto const_step = get_constant_from_source(node->input_value(2));
 
     T start = static_cast<T>(0);
     T stop = static_cast<T>(0);

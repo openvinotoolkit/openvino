@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <ngraph/validation_util.hpp>
 #include <numeric>
 #include "itt.hpp"
 
@@ -74,9 +75,11 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
     auto pads_begin = input_value(2);
     auto pads_end = input_value(3);
 
-    if (ngraph::op::is_constant(block.get_node_shared_ptr()) &&
-        ngraph::op::is_constant(pads_begin.get_node_shared_ptr()) &&
-        ngraph::op::is_constant(pads_end.get_node_shared_ptr()) && data_pshape.is_static())
+    const auto& block_const = get_constant_from_source(block);
+    const auto& pads_begin_const = get_constant_from_source(pads_begin);
+    const auto& pads_end_const = get_constant_from_source(pads_end);
+
+    if (block_const && pads_begin_const && pads_end_const && data_pshape.is_static())
     {
         const auto& data_shape = data.get_shape();
 
@@ -87,13 +90,9 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
             data_shape.size(),
             ")");
 
-        auto block_val = std::dynamic_pointer_cast<op::Constant>(block.get_node_shared_ptr())
-                             ->cast_vector<int64_t>();
-        auto pads_begin_val =
-            std::dynamic_pointer_cast<op::Constant>(pads_begin.get_node_shared_ptr())
-                ->cast_vector<int64_t>();
-        auto pads_end_val = std::dynamic_pointer_cast<op::Constant>(pads_end.get_node_shared_ptr())
-                                ->cast_vector<int64_t>();
+        auto block_val = block_const->cast_vector<int64_t>();
+        auto pads_begin_val = pads_begin_const->cast_vector<int64_t>();
+        auto pads_end_val = pads_end_const->cast_vector<int64_t>();
 
         int64_t block_prod = 1;
         for (long idx : block_val)

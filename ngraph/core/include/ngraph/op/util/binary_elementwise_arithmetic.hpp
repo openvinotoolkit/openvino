@@ -72,6 +72,8 @@ namespace ngraph
                 const AutoBroadcastSpec& get_autob() const override { return m_autob; }
                 void set_autob(const AutoBroadcastSpec& autob) { m_autob = autob; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
 
             private:
                 AutoBroadcastSpec m_autob;

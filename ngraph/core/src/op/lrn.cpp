@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/lrn.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
@@ -50,10 +51,8 @@ AxisSet op::LRN::get_reduction_axes() const
 {
     AxisSet axes{1}; // channel axis as default
     auto axes_input_node = input_value(1).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
-    {
+    if (const auto& const_op = get_constant_from_source(axes_input_node))
         axes = const_op->get_axis_set_val();
-    }
     return axes;
 }
 

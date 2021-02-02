@@ -21,8 +21,8 @@
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/gather.hpp"
+#include "ngraph/op/select.hpp"
 #include "ngraph/op/shape_of.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/shape_of.hpp"
 #include "ngraph/type/element_type_traits.hpp"
@@ -46,7 +46,8 @@ void op::v3::ShapeOf::validate_and_infer_types()
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
     set_input_is_relevant_to_value(0, false);
-    set_output_type(0, m_output_type, PartialShape{get_input_partial_shape(0).rank()});
+    const auto input_partial_shape = get_input_partial_shape(0);
+    set_output_type(0, m_output_type, PartialShape{input_partial_shape.rank()});
 }
 
 bool ngraph::op::v3::ShapeOf::visit_attributes(AttributeVisitor& visitor)
@@ -152,6 +153,73 @@ namespace shape_of
         }
         return false;
     }
+
+    bool evaluate_bound_shape(const Node* shape_of_node,
+                              const HostTensorVector& output_values,
+                              bool is_upper)
+    {
+        const auto& input_partial_shape = shape_of_node->get_input_partial_shape(0);
+        if (input_partial_shape.rank().is_dynamic())
+            return false;
+        const auto rank = input_partial_shape.rank().get_length();
+        auto pshape_low = PartialShape::dynamic(rank), pshape_up = PartialShape::dynamic(rank);
+        for (Dimension::value_type i = 0; i < rank; ++i)
+        {
+            Interval interval = input_partial_shape[i].get_interval();
+            pshape_low[i] = interval.get_min_val();
+            pshape_up[i] = Dimension(interval.get_max_val()).is_dynamic()
+                               ? Dimension(interval.get_max_val() - 1)
+                               : interval.get_max_val();
+        }
+        NGRAPH_CHECK(pshape_up.is_static() && pshape_low.is_static());
+        const auto input_et = shape_of_node->get_input_element_type(0);
+        const auto output_et = shape_of_node->get_output_element_type(0);
+        if (pshape_low.to_shape() == pshape_up.to_shape())
+        {
+            shape_of_node->evaluate(output_values,
+                                    {std::make_shared<HostTensor>(input_et, pshape_low)});
+            shape_of_node->get_output_tensor(0).set_lower_value(output_values[0]);
+            shape_of_node->get_output_tensor(0).set_upper_value(output_values[0]);
+        }
+        else
+        {
+            HostTensorVector upper =
+                is_upper ? output_values
+                         : HostTensorVector{std::make_shared<HostTensor>(
+                               output_et, PartialShape{pshape_up.rank().get_length()})};
+            shape_of_node->evaluate(upper, {std::make_shared<HostTensor>(input_et, pshape_up)});
+            shape_of_node->get_output_tensor(0).set_upper_value(upper[0]);
+
+            HostTensorVector lower =
+                !is_upper ? output_values
+                          : HostTensorVector{std::make_shared<HostTensor>(
+                                output_et, PartialShape{pshape_low.rank().get_length()})};
+            shape_of_node->evaluate(lower, {std::make_shared<HostTensor>(input_et, pshape_low)});
+            shape_of_node->get_output_tensor(0).set_lower_value(lower[0]);
+
+            vector<bool> dynamic_mask; // true if dimension is dynamic
+            for (const auto& i : input_partial_shape)
+                dynamic_mask.push_back(Dimension(i.get_interval().get_max_val()).is_dynamic());
+            auto mask_const =
+                ngraph::op::Constant::create(element::boolean, {dynamic_mask.size()}, dynamic_mask);
+            auto dynamic_min_const = ngraph::op::Constant::create(output_et, {}, {0});
+            auto dynamic_max_const = ngraph::op::Constant::create(
+                output_et,
+                {},
+                {output_et == element::i64 ? std::numeric_limits<int64_t>::max()
+                                           : std::numeric_limits<int32_t>::max()});
+
+            op::v1::Select().evaluate(lower,
+                                      {std::make_shared<HostTensor>(mask_const),
+                                       std::make_shared<HostTensor>(dynamic_min_const),
+                                       lower[0]});
+            op::v1::Select().evaluate(upper,
+                                      {std::make_shared<HostTensor>(mask_const),
+                                       std::make_shared<HostTensor>(dynamic_max_const),
+                                       upper[0]});
+        }
+        return true;
+    }
 }
 
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
@@ -159,6 +227,16 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
 {
     NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate);
     return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
+}
+
+bool op::v3::ShapeOf::evaluate_lower(const HostTensorVector& output_values) const
+{
+    return shape_of::evaluate_bound_shape(this, output_values, false);
+}
+
+bool op::v3::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const
+{
+    return shape_of::evaluate_bound_shape(this, output_values, true);
 }
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
@@ -219,4 +297,14 @@ bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
     if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
         return false;
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
+}
+
+bool op::v0::ShapeOf::evaluate_lower(const HostTensorVector& output_values) const
+{
+    return shape_of::evaluate_bound_shape(this, output_values, false);
+}
+
+bool op::v0::ShapeOf::evaluate_upper(const HostTensorVector& output_values) const
+{
+    return shape_of::evaluate_bound_shape(this, output_values, true);
 }

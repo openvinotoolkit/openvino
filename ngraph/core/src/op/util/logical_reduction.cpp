@@ -43,13 +43,13 @@ op::util::LogicalReduction::LogicalReduction(const Output<Node>& arg,
 
 bool op::util::LogicalReduction::reduction_axes_constant() const
 {
-    return is_type<op::Constant>(input_value(1).get_node());
+    return has_and_set_equal_bounds(input_value(1));
 }
 
 const AxisSet op::util::LogicalReduction::get_reduction_axes() const
 {
     AxisSet axes;
-    if (auto const_op = as_type<op::Constant>(input_value(1).get_node()))
+    if (auto const_op = get_constant_from_source(input_value(1)))
     {
         axes = const_op->get_axis_set_val();
     }
@@ -71,11 +71,21 @@ void op::util::LogicalReduction::validate_and_infer_types()
 
     PartialShape result_shape{PartialShape::dynamic()};
 
-    if (input_rank.is_static() && reduction_axes_constant())
+    set_input_is_relevant_to_shape(1);
+
+    NODE_VALIDATION_CHECK(this,
+                          get_input_element_type(0).compatible(element::boolean),
+                          "Input element type must be boolean.");
+
+    set_output_type(0, element::boolean, result_shape);
+
+    if (input_rank.is_dynamic())
+        return;
+
+    if (const auto axes_const = get_constant_from_source(input_value(1)))
     {
         AxisSet reduction_axes;
-        auto reduction_axes_val =
-            as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
+        auto reduction_axes_val = axes_const->cast_vector<int64_t>();
         for (auto axis : reduction_axes_val)
         {
             try
@@ -109,12 +119,6 @@ void op::util::LogicalReduction::validate_and_infer_types()
 
         result_shape = PartialShape(dims);
     }
-
-    set_input_is_relevant_to_shape(1);
-
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(0).compatible(element::boolean),
-                          "Input element type must be boolean.");
 
     set_output_type(0, element::boolean, result_shape);
 }

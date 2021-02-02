@@ -52,7 +52,7 @@ void op::Squeeze::pre_validate_and_infer_types()
     bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
     bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
 
-    auto axes_constant = as_type_ptr<op::v0::Constant>(axes_node);
+    auto axes_constant = get_constant_from_source(axes_node);
     bool axes_is_empty_constant =
         (axes_constant) ? axes_constant->cast_vector<int64_t>().empty() : false;
 
@@ -182,6 +182,20 @@ bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v0_Squeeze_evaluate);
     return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
+}
+
+bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

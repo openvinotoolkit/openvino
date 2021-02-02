@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/pass/constant_folding.hpp"
+#include <ngraph/op/constant.hpp>
 #include "ngraph/op/util/sub_graph_base.hpp"
 #include "ngraph/rt_info.hpp"
 
@@ -25,13 +26,13 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConstantFolding, "ConstantFolding", 0);
 
 bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
-    bool rewritten = false;
+    bool rewritten = pre_calculated_values_folding(f);
 
     for (const auto& node : f->get_ordered_ops())
     {
         if (rewritten)
         {
-            node->revalidate_and_infer_types();
+            node->validate_and_infer_types();
         }
 
         OutputVector replacements(node->get_output_size());
@@ -89,4 +90,59 @@ void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
         auto consumer = input.get_node()->shared_from_this();
         copy_runtime_info({node, consumer}, consumer);
     }
+}
+
+bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(
+    const std::shared_ptr<ngraph::Function>& f)
+{
+    deque<shared_ptr<Node>> nodes;
+    set<shared_ptr<Node>> visited;
+    for (auto& r : f->get_results())
+        nodes.push_back(r);
+    for (auto& r : f->get_sinks())
+        nodes.emplace_back(r);
+
+    bool rewritten = false;
+    while (!nodes.empty())
+    {
+        auto curr_node = nodes.front();
+        nodes.pop_front();
+        if (visited.count(curr_node) || is_type<op::Constant>(curr_node))
+            continue;
+        visited.insert(curr_node);
+
+        for (auto& input_value : curr_node->input_values())
+        {
+            if (input_value.get_tensor().has_and_set_bound())
+            {
+                auto input_node = input_value.get_node_shared_ptr();
+                auto replacement =
+                    std::make_shared<op::Constant>(input_value.get_tensor().get_lower_value());
+                if (replacement && !is_type<op::Constant>(input_node))
+                {
+                    if (input_node->get_output_size() == 1)
+                    {
+                        replacement->set_friendly_name(input_node->get_friendly_name());
+                    }
+                    else
+                    {
+                        replacement->set_friendly_name(input_node->get_friendly_name() + "." +
+                                                       std::to_string(input_value.get_index()));
+                    }
+                    input_value.replace(replacement);
+                    // Propagate runtime info attributes to replacement consumer nodes
+                    copy_runtime_info_to_target_inputs(input_node, replacement);
+
+                    rewritten = true;
+                }
+            }
+            else
+            {
+                // continue searching
+                const auto& input_node = input_value.get_node_shared_ptr();
+                nodes.push_front(input_node);
+            }
+        }
+    }
+    return rewritten;
 }

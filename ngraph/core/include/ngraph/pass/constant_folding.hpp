@@ -36,6 +36,9 @@ namespace ngraph
         private:
             void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
                                                     const Output<Node>& replacement);
+            /// \brief Folds pre-calculated output tensor values to constants in case lower and
+            /// upper estimations are equal. Traverses graph backwards starting from the results.
+            bool pre_calculated_values_folding(const std::shared_ptr<ngraph::Function>& f);
         };
     } // namespace pass
 } // namespace ngraph

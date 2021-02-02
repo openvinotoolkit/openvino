@@ -21,6 +21,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 
+#include <ngraph/validation_util.hpp>
 #include <numeric>
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
@@ -185,8 +186,7 @@ void op::v3::Broadcast::validate_and_infer_types()
         {
             auto arg_shape = get_input_partial_shape(0);
 
-            const auto shape_constant =
-                as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+            const auto shape_constant = get_constant_from_source(input_value(1));
             if (shape_constant)
             {
                 auto target_shape = shape_constant->get_shape_val();

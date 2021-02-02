@@ -174,6 +174,8 @@ namespace ngraph
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
         Function& operator=(const Function&) = delete;
+        /// \brief Checks all the Parameter nodes are registered in the list of Function parameters
+        void check_all_parameters_registered() const;
 
         static std::atomic<size_t> m_next_instance_id;
         std::string m_name;

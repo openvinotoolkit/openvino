@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <memory>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -151,4 +152,13 @@ bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     NGRAPH_OP_SCOPE(v0_Concat_evaluate);
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
+}
+bool op::Concat::evaluate_lower(const HostTensorVector& output_values) const
+{
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::Concat::evaluate_upper(const HostTensorVector& output_values) const
+{
+    return default_upper_bound_evaluator(this, output_values);
 }

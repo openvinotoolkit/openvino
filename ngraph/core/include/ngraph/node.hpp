@@ -208,6 +208,9 @@ namespace ngraph
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const;
+        virtual bool evaluate_lower(const HostTensorVector& output_values) const;
+        virtual bool evaluate_upper(const HostTensorVector& output_values) const;
+
         virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
         /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
         ///
@@ -233,7 +236,12 @@ namespace ngraph
         /// Sets the number of outputs
         void set_output_size(size_t output_size);
 
-        void revalidate_and_infer_types() { validate_and_infer_types(); }
+        void invalidate_values();
+        void revalidate_and_infer_types()
+        {
+            invalidate_values();
+            validate_and_infer_types();
+        }
         /// \brief Get the string name for the type of the node, such as `Add` or `Multiply`.
         ///        The class name, must not contain spaces as it is used for codegen.
         /// \returns A const reference to the node's type name
