@@ -105,11 +105,6 @@ const std::vector<fusingSpecificParams> fusingParamsSet{
         fusingDepthwiseScaleShift
 };
 
-const std::vector<fusingSpecificParams> fusingParamsSetBF16{
-        emptyFusingSpec,
-        fusingDepthwiseScaleShift
-};
-
 const std::map<std::string, std::string> cpuEmptyPluginConfig;
 const std::map<std::string, std::string> cpuBF16PluginConfig = { { PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES } };
 
@@ -174,7 +169,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Planar_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7 })),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_2D})),
-        ::testing::ValuesIn({emptyFusingSpec}),
+        ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -217,7 +212,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Planar_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(std::vector<size_t >({ 2, 12, 7, 7, 7 })),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_gemm_3D})),
-        ::testing::ValuesIn({emptyFusingSpec}),
+        ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -260,7 +255,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_Blocked_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7 })),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D})),
-        ::testing::ValuesIn(fusingParamsSetBF16),
+        ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -303,7 +298,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_3D_Blocked_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7, 7 })),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_3D})),
-        ::testing::ValuesIn(fusingParamsSetBF16),
+        ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
@@ -347,7 +342,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Deconv_2D_1x1_BF16, DeconvolutionLayerCPUTest,
             ::testing::Values(std::vector<size_t >({ 2, 64, 7, 7 })),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUInfoForDevice({conv_avx512_2D_1x1})),
-        ::testing::ValuesIn({emptyFusingSpec}),
+        ::testing::ValuesIn(fusingParamsSet),
         ::testing::Values(cpuBF16PluginConfig)),
     DeconvolutionLayerCPUTest::getTestCaseName);
 
