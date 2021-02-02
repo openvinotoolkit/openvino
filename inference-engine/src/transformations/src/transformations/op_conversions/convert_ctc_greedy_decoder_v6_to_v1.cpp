@@ -25,6 +25,8 @@ ngraph::pass::ConvertCTCGreedyDecoderV6ToV1::ConvertCTCGreedyDecoderV6ToV1() {
             return false;
         }
 
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(decoder_v6->input_value(0), ngraph::opset6::Constant::create(element::i64,
+                                                               Shape({3}), {1, 0, 2}));
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(decoder_v6->input_value(0));
         auto constT_0 = ngraph::opset6::Constant::create(element::i64, Shape{}, {-1});
         auto constT_1 = ngraph::opset6::Constant::create(element::i64, Shape{}, {1});
@@ -53,7 +55,7 @@ ngraph::pass::ConvertCTCGreedyDecoderV6ToV1::ConvertCTCGreedyDecoderV6ToV1() {
         auto const_1f = ngraph::opset6::Constant::create(element::f64, Shape{}, {1.0});
         auto seq_mask = std::make_shared<ngraph::opset6::Select>(bool_seq_mask, const_1f, const_0f);
 
-        auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(decoder_v6->input_value(0),
+        auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
                                                                              seq_mask->output(0),
                                                                              decoder_v6->get_merge_repeated());
         simplified_decoder->set_friendly_name(decoder_v6->get_friendly_name());
