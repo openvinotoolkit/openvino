@@ -18,42 +18,76 @@
 
 using TransformationTests = CommonTestUtils::TestsCommon;
 
-std::pair<bool, std::string> compare_functions(
+class FunctionsComparator {
+public:
+    enum CmpValues {
+        NONE = 0,
+        CONST_VALUES = 1 << 0,
+        NAMES = 1 << 1,
+        RUNTIME_KEYS = 1 << 2,
+        PRECISIONS = 1 << 3,
+        ATTRIBUTES = 1 << 4,
+    };
+
+    struct Result {
+        bool valid;
+        std::string message;
+    };
+
+    static constexpr FunctionsComparator no_default() noexcept {
+        return FunctionsComparator{NONE};
+    }
+    static constexpr FunctionsComparator with_default() noexcept {
+        return FunctionsComparator{PRECISIONS};
+    }
+    FunctionsComparator& enable(CmpValues f) noexcept {
+        m_comparition_flags = static_cast<CmpValues>(m_comparition_flags | f);
+        return *this;
+    }
+    constexpr bool should_compare(CmpValues f) const noexcept {
+        return m_comparition_flags & f;
+    }
+    Result compare(
+        const std::shared_ptr<ngraph::Function>& f1,
+        const std::shared_ptr<ngraph::Function>& f2) const;
+
+    Result operator()(
+        const std::shared_ptr<ngraph::Function>& f1,
+        const std::shared_ptr<ngraph::Function>& f2) const {
+        return compare(f1, f2);
+    }
+
+private:
+    constexpr explicit FunctionsComparator(CmpValues f) noexcept : m_comparition_flags(f) {}
+    CmpValues m_comparition_flags;
+};
+
+///
+/// \deprecated
+/// \brief compare_functions is obsolete function use FunctionComparator instead.
+///
+inline std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,
     const std::shared_ptr<ngraph::Function>& f2,
     const bool compareConstValues = false,
     const bool compareNames = false,
     const bool compareRuntimeKeys = false,
     const bool comparePrecisions = true,
-    const bool compareAttributes = false);
+    const bool compareAttributes = false) {
+    auto fc = FunctionsComparator::no_default();
+
+    using Cmp = FunctionsComparator::CmpValues;
+    if (compareConstValues) fc.enable(Cmp::CONST_VALUES);
+    if (compareNames) fc.enable(Cmp::NAMES);
+    if (compareRuntimeKeys) fc.enable(Cmp::RUNTIME_KEYS);
+    if (comparePrecisions) fc.enable(Cmp::PRECISIONS);
+    if (compareAttributes) fc.enable(Cmp::ATTRIBUTES);
+
+    const auto r = fc(f1, f2);
+    return {r.valid, r.message};
+}
 
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f);
-
-template <typename T>
-std::vector<std::shared_ptr<T>> get(const std::shared_ptr<ngraph::Function>& f) {
-    std::vector<std::shared_ptr<T>> nodes;
-
-    std::queue<std::shared_ptr<ngraph::Node>> q;
-    for (const auto result : f->get_results()) {
-        q.push(result);
-    }
-
-    while (!q.empty()) {
-        auto node = q.front();
-        q.pop();
-
-        std::shared_ptr<T> op = ngraph::as_type_ptr<T>(node);
-        if (op != nullptr) {
-            nodes.push_back(op);
-        }
-
-        for (size_t i = 0; i < node->inputs().size(); ++i) {
-            q.push(node->get_input_node_shared_ptr(i));
-        }
-    }
-
-    return nodes;
-}
 
 namespace ngraph {
 namespace pass {
