@@ -4012,7 +4012,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_return_mask)
     const std::vector<float> data(3 * 4 * 5, 2.0f);
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
-    // constant network not supported
+    // constant network not supported (ticket 48055)
     // test_case.add_expected_output<bool>(Shape{3, 4, 5}, std::vector<bool>(3*4*5, true));
     test_case.run();
 }
