@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,6 +69,7 @@ protected:
 protected:
     std::shared_ptr<postOpMgr> postOpMgrPtr;
     std::vector<std::string> fusedOps;
+    bool checkFusingPosition = true;
 };
 
 /* FUSING PATTERNS */

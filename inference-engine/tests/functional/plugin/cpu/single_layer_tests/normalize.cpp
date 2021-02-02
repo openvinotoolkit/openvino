@@ -1,70 +1,67 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <shared_test_classes/single_layer/normalize_l2.hpp>
+#include "test_utils/fusing_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
-#include "test_utils/cpu_test_utils.hpp"
 
+using namespace ngraph;
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
+using namespace LayerTestsDefinitions;
 
 namespace CPULayerTestsDefinitions {
 
-typedef std::tuple<
-        LayerTestsDefinitions::NormalizeL2LayerTestParams,
-        CPUSpecificParams>
-NormalizeL2LayerCPUTestParamSet;
+using NormalizeL2LayerCPUTestParamSet = std::tuple<NormalizeL2LayerTestParams,
+                                                   CPUSpecificParams,
+                                                   fusingSpecificParams>;
 
 class NormalizeL2LayerCPUTest : public testing::WithParamInterface<NormalizeL2LayerCPUTestParamSet>,
-                        virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                                virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2LayerCPUTestParamSet> obj) {
-        LayerTestsDefinitions::NormalizeL2LayerTestParams basicParamsSet;
+        NormalizeL2LayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, cpuParams, fusingParams) = obj.param;
 
         std::ostringstream result;
-        result << LayerTestsDefinitions::NormalizeL2LayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::NormalizeL2LayerTestParams>(
-                basicParamsSet, 0));
-
+        result << NormalizeL2LayerTest::getTestCaseName(testing::TestParamInfo<NormalizeL2LayerTestParams>(basicParamsSet, 0));
         result << CPUTestsBase::getTestCaseName(cpuParams);
+        result << CpuTestWithFusing::getTestCaseName(fusingParams);
 
         return result.str();
     }
+
 protected:
     void SetUp() override {
-        LayerTestsDefinitions::NormalizeL2LayerTestParams basicParamsSet;
+        NormalizeL2LayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         std::vector<int64_t> axes;
         float eps;
-        ngraph::op::EpsMode eps_mode;
-        InferenceEngine::SizeVector inputShapes;
-        InferenceEngine::Precision  netPrecision;
+        op::EpsMode eps_mode;
+        SizeVector inputShapes;
+        Precision netPrecision;
         std::tie(axes, eps, eps_mode, inputShapes, netPrecision, targetDevice) = basicParamsSet;
+
         inPrc = outPrc = netPrecision;
         auto netPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto param = ngraph::builder::makeParams(netPrc, {inputShapes});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
-        auto normalize_l2 = ngraph::builder::makeNormalizeL2(paramOuts[0], axes, eps, eps_mode);
+        auto params = builder::makeParams(netPrc, {inputShapes});
+        auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<op::Parameter>(params));
+        auto normalize = builder::makeNormalizeL2(paramOuts[0], axes, eps, eps_mode);
 
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(normalize_l2)};
+        function = makeNgraphFunction(netPrc, params, normalize, "Normalize");
 
-        if (Precision::BF16 == netPrecision) {
-            selectedType = "unknown_BF16";
-        } else if (Precision::FP32 == netPrecision) {
-            selectedType = "unknown_FP32";
-        }
-
+        selectedType = "unknown_" + std::string(netPrecision.name());
         threshold = 0.015f;
-
-        normalize_l2->get_rt_info() = getCPUInfo();
-
-        function = std::make_shared<ngraph::Function>(results, param, "Normalize");
+        checkFusingPosition = false;
     }
 };
 
@@ -77,53 +74,123 @@ TEST_P(NormalizeL2LayerCPUTest, CompareWithRefs) {
 
 namespace {
 
-const std::vector<std::vector<int64_t>> axes = {
-        {},
-        {1},
+/* ============= Common params ============= */
+const auto fusingMultiplySharedChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+                SizeVector secondMultInShape(1, 1);
+                auto secondMultInput = builder::makeConstant(ngPrc, Shape(secondMultInShape), std::vector<float>{}, true);
+                return std::make_shared<op::v1::Multiply>(inpNode, secondMultInput);
+            }, "Multiply(SharedChannel)"}}), {"Multiply"}};
+
+const auto fusingMultiplyNoSharedChannel = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
+                SizeVector secondMultInShape(inpNode->get_shape().size(), 1);
+                secondMultInShape[1] = inpNode->get_shape()[1];
+                auto secondMultInput = builder::makeConstant(ngPrc, Shape(secondMultInShape), std::vector<float>{}, true);
+                return std::make_shared<op::v1::Multiply>(inpNode, secondMultInput);
+            }, "Multiply(NoSharedChannel)"}}), {"Multiply"}};
+
+std::vector<fusingSpecificParams> fusingParamsSet {
+        emptyFusingSpec,
+        fusingMultiplySharedChannel,
+        fusingMultiplyNoSharedChannel
 };
-const std::vector<float> eps = { 1e-4f };
 
-const std::vector<ngraph::op::EpsMode> epsMode = {
-        ngraph::op::EpsMode::ADD,
-        ngraph::op::EpsMode::MAX,
-};
-
-std::vector<CPUSpecificParams> cpuParams_4D = {
-        CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
-        CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
-        CPUSpecificParams({nchw}, {nchw}, {}, {})
-};
-
-
+const float epsilon = 1e-4f;
+const op::EpsMode epsMode = op::EpsMode::ADD;
 const std::vector<Precision> netPrecisions = {
     Precision::FP32,
     Precision::BF16
 };
 
-const auto NormalizeL23D = testing::Combine(
-        testing::Combine(
-            testing::ValuesIn(axes),
-            testing::ValuesIn(eps),
-            testing::ValuesIn(epsMode),
-            testing::Values(std::vector<size_t>{1, 32, 17}),
-            testing::ValuesIn(netPrecisions),
-            testing::Values(CommonTestUtils::DEVICE_CPU)),
-        testing::Values(emptyCPUSpec));
+/* ============= 2D ============= */
+const std::vector<std::vector<size_t>> inputShape_2D = {
+    {2, 3},
+    {2, 16},
+    {3, 20}
+};
 
-INSTANTIATE_TEST_CASE_P(smoke_NormalizeL2CompareWithRefs_3D, NormalizeL2LayerCPUTest, NormalizeL23D, NormalizeL2LayerCPUTest::getTestCaseName);
+const std::vector<std::vector<int64_t>> axes_2D = {
+    {1}
+};
 
-const auto NormalizeL24D = testing::Combine(
-        testing::Combine(
-                testing::ValuesIn(axes),
-                testing::ValuesIn(eps),
-                testing::ValuesIn(epsMode),
-                testing::Values(std::vector<size_t>{1, 3, 10, 5}),
-                testing::ValuesIn(netPrecisions),
-                testing::Values(CommonTestUtils::DEVICE_CPU)),
-        testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
+const auto normalizeParams_2D = ::testing::Combine(::testing::ValuesIn(axes_2D),
+                                                   ::testing::Values(epsilon),
+                                                   ::testing::Values(epsMode),
+                                                   ::testing::ValuesIn(inputShape_2D),
+                                                   ::testing::ValuesIn(netPrecisions),
+                                                   ::testing::Values(CommonTestUtils::DEVICE_CPU));
 
-INSTANTIATE_TEST_CASE_P(smoke_NormalizeL2CompareWithRefs_4D, NormalizeL2LayerCPUTest, NormalizeL24D, NormalizeL2LayerCPUTest::getTestCaseName);
+const auto testParams_2D = ::testing::Combine(normalizeParams_2D,
+                                              ::testing::Values(CPUSpecificParams{}),
+                                              ::testing::ValuesIn(fusingParamsSet));
 
+INSTANTIATE_TEST_CASE_P(smoke_2D, NormalizeL2LayerCPUTest, testParams_2D, NormalizeL2LayerCPUTest::getTestCaseName);
+
+/* ============= 3D ============= */
+const std::vector<std::vector<size_t>> inputShape_3D = {
+    {2, 3, 4},
+    {2, 16, 6},
+    {3, 20, 10}
+};
+
+const std::vector<std::vector<int64_t>> axes_3D = {
+    {1, 2},
+    {1}
+};
+
+const auto normalizeParams_3D = ::testing::Combine(::testing::ValuesIn(axes_3D),
+                                                   ::testing::Values(epsilon),
+                                                   ::testing::Values(epsMode),
+                                                   ::testing::ValuesIn(inputShape_3D),
+                                                   ::testing::ValuesIn(netPrecisions),
+                                                   ::testing::Values(CommonTestUtils::DEVICE_CPU));
+
+const auto testParams_3D = ::testing::Combine(normalizeParams_3D,
+                                              ::testing::Values(CPUSpecificParams{}),
+                                              ::testing::ValuesIn(fusingParamsSet));
+
+INSTANTIATE_TEST_CASE_P(smoke_3D, NormalizeL2LayerCPUTest, testParams_3D, NormalizeL2LayerCPUTest::getTestCaseName);
+
+/* ============= 4D ============= */
+const std::vector<std::vector<size_t>> inputShape_4D = {
+    {2, 3, 4, 4},
+    {2, 16, 7, 6},
+    {3, 20, 2, 10}
+};
+
+const std::vector<std::vector<int64_t>> axes_4D = {
+    {1, 2, 3},
+    {1}
+};
+
+std::vector<CPUSpecificParams> getCPUSpecificParams() {
+    std::vector<CPUSpecificParams> result;
+    result.push_back(CPUSpecificParams({nchw}, {nchw}, {}, {}));
+    if (with_cpu_x86_sse42()) {
+        result.push_back(CPUSpecificParams({nhwc}, {nhwc}, {}, {}));
+        if (with_cpu_x86_avx512f()) {
+            result.push_back(CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}));
+        } else if (with_cpu_x86_avx2()) {
+            result.push_back(CPUSpecificParams({nChw8c}, {nChw8c}, {}, {}));
+        }
+    }
+    return result;
+}
+
+const auto normalizeParams_4D = ::testing::Combine(::testing::ValuesIn(axes_4D),
+                                                   ::testing::Values(epsilon),
+                                                   ::testing::Values(epsMode),
+                                                   ::testing::ValuesIn(inputShape_4D),
+                                                   ::testing::ValuesIn(netPrecisions),
+                                                   ::testing::Values(CommonTestUtils::DEVICE_CPU));
+
+const auto testParams_4D = ::testing::Combine(normalizeParams_4D,
+                                              ::testing::ValuesIn(getCPUSpecificParams()),
+                                              ::testing::ValuesIn(fusingParamsSet));
+
+INSTANTIATE_TEST_CASE_P(smoke_4D, NormalizeL2LayerCPUTest, testParams_4D, NormalizeL2LayerCPUTest::getTestCaseName);
 
 } // namespace
+
 } // namespace CPULayerTestsDefinitions
