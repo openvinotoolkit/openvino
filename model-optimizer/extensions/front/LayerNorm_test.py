@@ -1,5 +1,5 @@
 """
- Copyright (C) 2020 Intel Corporation
+ Copyright (C) 2017-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ nodes_attributes_mvn = {
     'inp': {'kind': 'op', 'op': 'AnyOp'},
     'pool0': {'kind': 'op', 'op': 'ReduceMean'},
     'pool1': {'kind': 'op', 'op': 'ReduceMean'},
+    'cast': {'kind': 'op', 'op': 'Cast'},
     'pow': {'kind': 'op', 'op': 'Pow'},
     'div': {'kind': 'op', 'op': 'Div'},
     'sqrt': {'kind': 'op', 'op': 'Pow'},
@@ -53,6 +54,42 @@ class TestMVNPatternReplacement(unittest.TestCase):
                              ('inp', 'sub', {'out': 0}),
                              ('pool0', 'sub'),
                              ('sub', 'pow'),
+                             ('pow', 'pool1'),
+                             ('pool1', 'add'),
+                             ('add', 'sqrt'),
+                             ('sqrt', 'div'),
+                             ('sub', 'div'),
+                             ('div', 'out'),
+                             ('pow_param', 'sqrt'),
+                             ('add_param', 'add'),
+                             ('pool0_param', 'pool0'),
+                             ('pool1_param', 'pool1'),
+                             ],
+                            {'pow_param': {'shape': np.array([1]), 'value': np.array(0.5)},
+                             'add_param': {'shape': np.array([1]), 'value': np.array(1e-06)},
+                             'pool0_param': {'shape': np.array([1]), 'value': np.array(-1)},
+                             'pool1_param': {'shape': np.array([1]), 'value': np.array(-1)},
+                             },
+                            nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes_attributes_ref,
+                                [('inp', 'mvn'),
+                                 ('mvn', 'out')],
+                                {}, nodes_with_edges_only=True)
+        graph.stage = 'front'
+
+        replacer = LayerNorm()
+        replacer.find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_MVNPatternReplacement_test_2(self):
+        graph = build_graph(nodes_attributes_mvn,
+                            [('inp', 'pool0', {'out': 0}),
+                             ('inp', 'sub', {'out': 0}),
+                             ('pool0', 'sub'),
+                             ('sub', 'cast'),
+                             ('cast', 'pow'),
                              ('pow', 'pool1'),
                              ('pool1', 'add'),
                              ('add', 'sqrt'),
