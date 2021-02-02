@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,7 +59,7 @@ void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNet
             auto pos = originalLayersNames.find(nodeType);
             ASSERT_TRUE(pos != std::string::npos) << "Node type " << nodeType << " has not been found!";
             for (auto fusedOp : fusedOps) {
-                pos = originalLayersNames.find(fusedOp, pos);
+                pos = originalLayersNames.find(fusedOp, checkFusingPosition ? pos : 0);
                 ASSERT_TRUE(pos != std::string::npos) << "Fused op " << fusedOp << " has not been found!";
             }
         }
