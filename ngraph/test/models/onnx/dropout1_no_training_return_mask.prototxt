@@ -9,7 +9,7 @@ graph {
     op_type: "Dropout"
     attribute {
       name: "is_test"
-      i: 0
+      i: 1
       type: INT
     }
     attribute {

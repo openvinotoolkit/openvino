@@ -111,10 +111,10 @@ namespace ngraph
                                      !node.has_attribute("consumed_inputs"),
                                      "Legacy consumed_inputs attrubute is not supported.");
 
-                    const bool is_test = node.get_attribute_value<int64_t>("is_test", 0);
+                    const bool training_mode = !node.get_attribute_value<int64_t>("is_test", 0);
                     const auto ratio = node.get_attribute_value<float>("ratio", 0.5f);
 
-                    return build_dropout(node, ratio, is_test);
+                    return build_dropout(node, ratio, training_mode);
                 }
             } // namespace set_1
 

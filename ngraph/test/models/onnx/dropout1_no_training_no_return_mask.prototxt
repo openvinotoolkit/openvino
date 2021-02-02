@@ -5,6 +5,11 @@ graph {
     input: "x"
     output: "y"
     op_type: "Dropout"
+    attribute {
+      name: "is_test"
+      i: 1
+      type: INT
+    }
   }
   name: "test_dropout_default_mask"
   input {
