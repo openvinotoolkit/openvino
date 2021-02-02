@@ -138,7 +138,7 @@ verbose_choices = ['fatal', 'error', 'warning', 'info']
 def parse_args(args):
     import argparse
     parser = argparse.ArgumentParser(epilog="After this command line add ! followed by command line of your program")
-    format_choices = ["mfc", "mfp"] + list(get_exporters().keys())
+    format_choices = list(get_exporters().keys())
     if sys.platform == 'win32':
         format_choices.append("etw")
     elif sys.platform == 'darwin':
