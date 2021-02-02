@@ -1,34 +1,13 @@
-// Copyright (C) 2018-2020 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
+#include "samples/args_helper.hpp"
 
-/**
- * @brief a header file with common samples functionality
- * @file args_helper.hpp
- */
+using supported_precisions_t = std::unordered_map<std::string, InferenceEngine::Precision>;
 
-#pragma once
+InferenceEngine::Precision getPrecision(std::string value, const supported_precisions_t& supported_precisions);
 
-#include <string>
-#include <vector>
-#include <gflags/gflags.h>
-#include <iostream>
-#include <sys/stat.h>
+InferenceEngine::Precision getPrecision(const std::string& value);
 
-#include <samples/slog.hpp>
-#include <vpu/utils/string.hpp>
+void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string &iop);
 
-#ifdef _WIN32
-#include <os/windows/w_dirent.h>
-#else
-#include <dirent.h>
-#endif
-
-/**
-* @brief This function checks input args and existence of specified files in a given folder
-* @param arg path to a file to be checked for existence
-* @return files updated vector of verified input files
-*/
 void readInputFilesArguments(std::vector<std::string> &files, const std::string& arg) {
     struct stat sb;
     if (stat(arg.c_str(), &sb) != 0) {
@@ -64,11 +43,6 @@ void readInputFilesArguments(std::vector<std::string> &files, const std::string&
     }
 }
 
-/**
-* @brief This function find -i/--images key in input args
-*        It's necessary to process multiple values for single key
-* @return files updated vector of verified input files
-*/
 void parseInputFilesArguments(std::vector<std::string> &files) {
     std::vector<std::string> args = gflags::GetArgvs();
     bool readArguments = false;
@@ -107,7 +81,26 @@ std::map<std::string, std::string> parseArgMap(std::string argMap) {
     return parsedMap;
 }
 
-using supported_precisions_t = std::unordered_map<std::string, InferenceEngine::Precision>;
+void processPrecisions(InferenceEngine::CNNNetwork& network, const std::string &ip, const std::string &op,
+        const std::string &iop) {
+    if (!ip.empty()) {
+        const auto user_precision = getPrecision(ip);
+        for (auto&& layer : network.getInputsInfo()) {
+            layer.second->setPrecision(user_precision);
+        }
+    }
+
+    if (!op.empty()) {
+        auto user_precision = getPrecision(op);
+        for (auto&& layer : network.getOutputsInfo()) {
+            layer.second->setPrecision(user_precision);
+        }
+    }
+
+    if (!iop.empty()) {
+        setPrecisions(network, iop);
+    }
+}
 
 InferenceEngine::Precision getPrecision(std::string value,
                                                const supported_precisions_t& supported_precisions) {
@@ -163,26 +156,6 @@ void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string
     }
 }
 
-void processPrecisions(InferenceEngine::CNNNetwork& network, const std::string &ip, const std::string &op,
-        const std::string &iop) {
-    if (!ip.empty()) {
-        const auto user_precision = getPrecision(ip);
-        for (auto&& layer : network.getInputsInfo()) {
-            layer.second->setPrecision(user_precision);
-        }
-    }
-
-    if (!op.empty()) {
-        auto user_precision = getPrecision(op);
-        for (auto&& layer : network.getOutputsInfo()) {
-            layer.second->setPrecision(user_precision);
-        }
-    }
-
-    if (!iop.empty()) {
-        setPrecisions(network, iop);
-    }
-}
 
 void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network) {
     std::cout << "Network inputs:" << std::endl;
