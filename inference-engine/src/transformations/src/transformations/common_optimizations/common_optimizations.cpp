@@ -83,7 +83,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>();
     common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
-    //common_fusions->add_matcher<ngraph::pass::MishFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
     common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
     common_fusions->add_matcher<ngraph::pass::SwishFusion>();
@@ -115,7 +114,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
-    decomp->add_matcher<ngraph::pass::BatchNormV5Decomposition>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
