@@ -86,7 +86,12 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
 
+            protected:
+                Loop(const Loop&);
+
             private:
+                void clone_to(Loop& dst, const OutputVector& new_args) const;
+
                 SpecialBodyPorts m_special_body_ports;
                 int64_t m_num_iterations = -1; // -1 means infinity
             };
