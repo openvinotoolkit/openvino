@@ -118,6 +118,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
         gstreamer1.0-plugins-base
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
+        gstreamer1.0-tools
         libavcodec57
         libavformat57
         libavresample3
@@ -134,6 +135,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
         gstreamer1.0-vaapi
+        gstreamer1.0-tools
         libfaac0
         libfluidsynth1
         libgl-dev
@@ -159,6 +161,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         gstreamer1.0-plugins-base
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
+        gstreamer1.0-tools
         libavcodec58
         libavformat58
         libavresample4
@@ -176,6 +179,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
         gstreamer1.0-vaapi
+        gstreamer1.0-tools
         libfaac0
         libfluidsynth2
         libgl-dev
