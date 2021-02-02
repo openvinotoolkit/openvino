@@ -20,7 +20,6 @@ import numpy as np
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
-from mo.graph.port import Port
 from mo.middle.passes.infer import partial_infer
 from mo.ops.const import Const
 
@@ -95,9 +94,9 @@ class Loop(TensorIterator):
                 if loop_port_idx != -1:
                     input_shape = loop_node.in_port(loop_port_idx).get_connection().get_source().data.get_shape()
                 slice_axis = record['axis']
+                body_node.shape = input_shape.copy()
                 if slice_axis is not None:
-                    input_shape[slice_axis] = 1
-                body_node.shape = input_shape
+                    body_node.shape[slice_axis] = 1
                 log.debug('Updated shape for the body node with internal_id "{}" with value {}'
                           ''.format(record['internal_layer_id'], body_node.shape))
 
@@ -252,42 +251,53 @@ class Loop(TensorIterator):
         return result_nodes[0]
 
     @staticmethod
-    def connect_body_input(loop_input_port: Port, internal_parameter: Node, external_node_out_port: Port = None,
+    def connect_body_input(loop_node: Node, loop_input_port_idx: int, body_parameter: Node,
                            axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
                            stride: [int, None] = None, part_size: [int, None] = None):
-        loop_node = loop_input_port.node
-        assert loop_node.soft_get('op') == 'Loop'
-        assert loop_input_port.type == 'in'
-        assert internal_parameter.soft_get('op') == 'Parameter'
-        assert internal_parameter.id in loop_node.body
+        """
+        Update the input port map to connect the input port with the specified body parameter
 
-        if external_node_out_port is not None:
-            assert loop_input_port.disconnected()
-            assert external_node_out_port.node.id not in loop_node.body
-            loop_input_port.connect(external_node_out_port)
+        :param loop_node: the Loop node
+        :param loop_input_port_idx: the input port index to connect
+        :param body_parameter: the body parameter node to connect
+        :param axis: dimension for input slicing
+        :param start: start value of dimension from which to start slicing
+        :param end: end value of dimension when to finish slicing
+        :param stride: a step value for slicing
+        :param part_size: a partial size for slicing, i.e. slicing [start; start + part_size)
+        :return: None
+        """
+        assert loop_node.soft_get('op') == 'Loop'
+        assert body_parameter.soft_get('op') == 'Parameter'
+        assert body_parameter.id in loop_node.body
 
         loop_node.input_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
-                                         'end': end, 'external_port_id': loop_input_port.idx,
-                                         'internal_layer_id': internal_parameter['internal_layer_id']})
+                                         'end': end, 'external_port_id': loop_input_port_idx,
+                                         'internal_layer_id': body_parameter['internal_layer_id']})
 
     @staticmethod
-    def connect_body_output(loop_output_port: Port, internal_result: Node, external_node_input_ports: list = None,
-                            axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
-                            stride: [int, None] = None, part_size: [int, None] = None):
-        loop_node = loop_output_port.node
+    def connect_body_output(loop_node: Node, loop_output_port_idx: int, internal_result: Node, axis: [int, None] = None,
+                            start: [int, None] = None, end: [int, None] = None, stride: [int, None] = None,
+                            part_size: [int, None] = None):
+        """
+        Update the output port map to connect the body Result node with the specified output port
+
+        :param loop_node: the Loop node
+        :param loop_output_port_idx: the output port index to connect
+        :param internal_result: the body Result node to connect
+        :param axis: dimension for output concatenation
+        :param start: start value of dimension from which to start concatenation
+        :param end: end value of dimension when to finish concatenation
+        :param stride: a step value for concatenation
+        :param part_size: a partial size for concatenation, i.e. concatenation [start; start + part_size)
+        :return: None
+        """
         assert loop_node.soft_get('op') == 'Loop'
-        assert loop_output_port.type == 'out'
         assert internal_result.soft_get('op') == 'Result'
         assert internal_result.id in loop_node.body
 
-        if external_node_input_ports is not None:
-            assert loop_output_port.disconnected()
-            assert all([port.node.id not in loop_node.body for port in external_node_input_ports])
-            for port in external_node_input_ports:
-                port.disconnect()
-                loop_output_port.connect(port)
         loop_node.output_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
-                                          'end': end, 'external_port_id': loop_output_port.idx,
+                                          'end': end, 'external_port_id': loop_output_port_idx,
                                           'internal_layer_id': internal_result['internal_layer_id']})
 
     @staticmethod
