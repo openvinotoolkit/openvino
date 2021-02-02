@@ -16,12 +16,11 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import get_shape_from_slice
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
 from mo.utils.utils import array_to_str
-from mo.ops.slice import get_shape_from_slice
 
 
 class StridedSlice(Op):
