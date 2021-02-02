@@ -41,7 +41,7 @@ p(S) = \prod_{t=1}^{L_i} p_{i,t,ct}
 
 3. Finally, compute negative log of summed up probabilities of all found alignments:
 \f[
-CTCLoss = \minus \ln \sum_{S} p(S)
+CTCLoss = - \ln \sum_{S} p(S)
 \f]
 
 **Note 1**:  This calculation scheme does not provide steps for optimal implementation and primarily serves for better explanation.

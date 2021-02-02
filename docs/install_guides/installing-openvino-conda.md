@@ -49,7 +49,7 @@ Now you can start to develop and run your application.
 ## Known Issues and Limitations
 
 - You cannot use Python bindings included in  Intel® Distribution of OpenVINO™ toolkit  with  [Anaconda* distribution](https://www.anaconda.com/products/individual/)
-- You cannot use Python OpenVINO™ bindings included in Anaconda* package with official  [Python distribution](https://https://www.python.org/).
+- You cannot use Python OpenVINO™ bindings included in Anaconda* package with official  [Python distribution](https://www.python.org/).
 
 
 ## Additional Resources
@@ -59,6 +59,5 @@ Now you can start to develop and run your application.
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
-- For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic).
 - Intel® Distribution of OpenVINO™ toolkit Anaconda* home page: [https://anaconda.org/intel/openvino-ie4py](https://anaconda.org/intel/openvino-ie4py)
 
