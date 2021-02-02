@@ -3967,6 +3967,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_mvn_v6)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_no_return_mask)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_no_training_no_return_mask.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data(3 * 4 * 5, 2.0f);
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_return_mask)
 {
     auto function = onnx_import::import_onnx_model(
@@ -3991,8 +4003,29 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_training_mode)
     }
     catch (const ngraph::ngraph_error& e)
     {
-        EXPECT_HAS_SUBSTRING(e.what(), std::string("Training mode is not supported for Dropout op "
-                                                   "if drop_probability is not equal 0"));
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("Training mode is not supported for Dropout op "
+                                         "if drop_probability is not equal 0"));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception was not thrown";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_not_const_training_mode)
+{
+    try
+    {
+        auto function = onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/dropout12_not_const_training_mode.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string("Not constant (or omitted) training_mode input is not supported."));
     }
     catch (...)
     {
