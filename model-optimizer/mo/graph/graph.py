@@ -1097,7 +1097,6 @@ def rename_nodes(nodes: List[tuple]):
     for node, name in nodes:
         rename_node(node, name)
 
-
 # All functions below are deprecated and will be removed in next release
 # Please, use methods from Graph/Node classes instead
 
