@@ -314,8 +314,7 @@ INSTANTIATE_TEST_CASE_P(
     type_prop,
     GridGeneratorIntervalsTest,
     ::testing::Values(
-        GridGeneratorIntervalsTestParams{
-            {3, 4},
+        GridGeneratorIntervalsTestParams{{3, 4},
             {1, 256, 200, Dimension(0, 100)},
             {Dimension(0, 5), 3, 800, 1344},
             {Dimension(0, 60000), 4},
