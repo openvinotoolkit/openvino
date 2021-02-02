@@ -224,8 +224,8 @@ struct CPUStreamsExecutor::Impl {
             printf("%s total_streams_on_core_types: [%d core_type, %d #streams], [%d core_type, %d #streams]) \n",
                 _config._name.c_str(), static_cast<int>(total_streams_on_core_types.front().first), total_streams_on_core_types.front().second,
                 static_cast<int>(total_streams_on_core_types.back().first), total_streams_on_core_types.back().second);
-        #endif
         }
+        #endif
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
                 openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
@@ -294,7 +294,7 @@ struct CPUStreamsExecutor::Impl {
     bool                                    _isStopped = false;
     std::vector<int>                        _usedNumaNodes;
     ThreadLocal<std::shared_ptr<Stream>>    _streams;
-    #if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
+    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
     // stream id mapping to the core type
     // stored in the reversed order (so the big cores, with the highest core_type_id value, are populated first)
     // every entry is the core type and #streams that this AND ALL EARLIER entries can handle (prefix sum)
