@@ -16,11 +16,11 @@ namespace Cpu {
 
 class CumSumImpl: public ExtLayerBase {
     enum { CUM_SUM_DATA, AXIS, numOfInputs };
-    enum { N, C, D, H, W, numOfDims };
     bool exclusive;
     bool reverse;
+    size_t numOfDims;
     size_t axis = 0;
-    std::vector<size_t> shape5d;
+    std::vector<size_t> shape;
 
 public:
     explicit CumSumImpl(const CNNLayer* layer) {
@@ -31,9 +31,10 @@ public:
 
             const auto &dataTensor = layer->insData[CUM_SUM_DATA].lock()->getTensorDesc();
             const auto &dataShape = dataTensor.getDims();
-            if (dataShape.size() < 1 || dataShape.size() > 5) {
+            if (dataShape.size() < 1) {
                 THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "' doesn't support 'data' input tensor with rank: " << dataShape.size();
             }
+            numOfDims = dataShape.size();
 
             exclusive = layer->GetParamAsBool("exclusive", false);
             reverse = layer->GetParamAsBool("reverse", false);
@@ -57,7 +58,7 @@ public:
             if (dataShape != layer->outData[0]->getTensorDesc().getDims())
                 THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "' has different 'data' input and output dimensions";
 
-            shape5d = get5dShape(dataShape);
+            shape = dataShape;
 
             LayerConfig config;
             for (size_t i = 0; i < layer->insData.size(); i++) {
@@ -65,7 +66,7 @@ public:
                 inConfig.inPlace = -1;
                 inConfig.constant = false;
 
-                Precision inPrecision = layer->insData[i].lock()->getTensorDesc().getPrecision();
+                Precision inPrecision = i == 1 ? Precision(Precision::I32) : layer->insData[i].lock()->getTensorDesc().getPrecision();
                 if (inPrecision == Precision::BF16)
                     inPrecision = Precision::FP32;
                 const SizeVector& inDims = layer->insData[i].lock()->getTensorDesc().getDims();
@@ -120,75 +121,121 @@ private:
     void execImpl(const Blob::CPtr& _input, const Blob::Ptr& _output) {
         const auto *input = _input->cbuffer().as<const dataType *>() + _input->getTensorDesc().getBlockingDesc().getOffsetPadding();
         auto *output = _output->buffer().as<dataType *>() + _output->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        const size_t offset = _input->getTensorDesc().getBlockingDesc().getStrides()[axis];
+        const std::vector<size_t> strides = _input->getTensorDesc().getBlockingDesc().getStrides();
 
         if (reverse) {
             if (exclusive) {
-                cumSum<true, true, dataType>(input, output, offset);
+                cumSum<true, true, dataType>(input, output, strides);
             } else {
-                cumSum<true, false, dataType>(input, output, offset);
+                cumSum<true, false, dataType>(input, output, strides);
             }
         } else {
             if (exclusive) {
-                cumSum<false, true, dataType>(input, output, offset);
+                cumSum<false, true, dataType>(input, output, strides);
             } else {
-                cumSum<false, false, dataType>(input, output, offset);
+                cumSum<false, false, dataType>(input, output, strides);
             }
         }
     }
 
     template <bool reverse, bool exclusive, typename dataType>
-    void cumSum(const dataType *input, dataType *output, const size_t &offset) {
-        std::vector<size_t> iterationRange(numOfDims - 1);
+    void cumSum(const dataType *input, dataType *output, const std::vector<size_t> &strides) {
+        SizeVector iterationRange(numOfDims - 1);
         size_t j = 0;
-        for (size_t i = 0; i < shape5d.size(); i++) {
+        for (size_t i = 0; i < shape.size(); i++) {
             if (i == axis)
                 continue;
-            iterationRange[j++] = shape5d[i];
+            iterationRange[j++] = shape[i];
         }
-        parallel_for4d(iterationRange[0], iterationRange[1], iterationRange[2], iterationRange[3], [&](size_t ir0, size_t ir1, size_t ir2, size_t ir3) {
-            std::vector<size_t> forStartOffset;
-            forStartOffset.push_back(ir0); forStartOffset.push_back(ir1); forStartOffset.push_back(ir2); forStartOffset.push_back(ir3);
-            forStartOffset.insert(forStartOffset.begin() + axis, 0);
-            size_t startOffset = getStartOffset(forStartOffset);
+        size_t work_amount_dst = std::accumulate(iterationRange.begin(), iterationRange.end(), 1, std::multiplies<size_t>());
+        parallel_nt(0, [&](const int ithr, const int nthr) {
+            size_t start = 0, end = 0;
+            SizeVector counters(numOfDims - 1, 0);
+            splitter(work_amount_dst, nthr, ithr, start, end);
 
-            const dataType *inputStart = input + startOffset;
-            dataType *outputStart = output + startOffset;
+            parallelItInit(start, counters, iterationRange);
 
-            if (reverse) {
-                if (exclusive) {
-                    outputStart[offset*(shape5d[axis] - 1)] = 0;
-                    for (int64_t i = shape5d[axis] - 2; i >= 0; i--) {
-                        outputStart[i*offset] = inputStart[(i+1)*offset] + outputStart[(i+1)*offset];
+            for (size_t iwork = start; iwork < end; ++iwork) {
+                std::vector<size_t> forStartOffset(numOfDims);
+                forStartOffset[axis] = 0;
+                for (int64_t offsetIdx = 0, countersIdx = 0; offsetIdx < numOfDims; ++offsetIdx) {
+                    if (offsetIdx == axis) {
+                        continue;
+                    }
+                    forStartOffset[offsetIdx] = counters[countersIdx++];
+                }
+
+                size_t startOffset = getStartOffset(forStartOffset, strides);
+
+                const dataType *inputStart = input + startOffset;
+                dataType *outputStart = output + startOffset;
+
+                size_t offset = strides[axis];
+                if (reverse) {
+                    if (exclusive) {
+                        outputStart[offset*(shape[axis] - 1)] = 0;
+                        for (int64_t i = shape[axis] - 2; i >= 0; i--) {
+                            outputStart[i*offset] = inputStart[(i+1)*offset] + outputStart[(i+1)*offset];
+                        }
+                    } else {
+                        outputStart[offset*(shape[axis] - 1)] = inputStart[offset * (shape[axis] - 1)];
+                        for (int64_t i = shape[axis] - 2; i >= 0; i--) {
+                            outputStart[i*offset] = inputStart[i*offset] + outputStart[(i+1)*offset];
+                        }
                     }
                 } else {
-                    outputStart[offset*(shape5d[axis] - 1)] = inputStart[offset*(shape5d[axis] - 1)];
-                    for (int64_t i = shape5d[axis] - 2; i >= 0; i--) {
-                        outputStart[i*offset] = inputStart[i*offset] + outputStart[(i+1)*offset];
+                    if (exclusive) {
+                        outputStart[0] = 0;
+                        for (size_t i = 1; i < shape[axis]; i++) {
+                            outputStart[i*offset] = inputStart[(i-1)*offset] + outputStart[(i-1)*offset];
+                        }
+                    } else {
+                        outputStart[0] = inputStart[0];
+                        for (size_t i = 1; i < shape[axis]; i++) {
+                            outputStart[i*offset] = inputStart[i*offset] + outputStart[(i-1)*offset];
+                        }
                     }
                 }
-            } else {
-                if (exclusive) {
-                    outputStart[0] = 0;
-                    for (size_t i = 1; i < shape5d[axis]; i++) {
-                        outputStart[i*offset] = inputStart[(i-1)*offset] + outputStart[(i-1)*offset];
-                    }
-                } else {
-                    outputStart[0] = inputStart[0];
-                    for (size_t i = 1; i < shape5d[axis]; i++) {
-                        outputStart[i*offset] = inputStart[i*offset] + outputStart[(i-1)*offset];
-                    }
-                }
+
+                parallelItStep(counters, iterationRange);
             }
         });
     }
 
-    size_t getStartOffset(std::vector<size_t> &forStartOffset) {
-        return forStartOffset[N]*shape5d[C]*shape5d[D]*shape5d[H]*shape5d[W] + forStartOffset[C]*shape5d[D]*shape5d[H]*shape5d[W] +
-               forStartOffset[D]*shape5d[H]*shape5d[W] + forStartOffset[H]*shape5d[W] + forStartOffset[W];
+    void parallelItInit(size_t start, std::vector<size_t>& counters, const std::vector<size_t>& iterationRange) {
+        auto itCounter = counters.rbegin();
+        auto itWork = iterationRange.rbegin();
+        while (itCounter != counters.rend()) {
+            *itCounter = start % *itWork;
+            start /= *itWork;
+            ++itCounter;
+            ++itWork;
+        }
     }
 
-    size_t getAxis(const Blob::CPtr& _axis, const Blob::CPtr& _data) {
+    inline void parallelItStep(std::vector<size_t>& counters, const std::vector<size_t>& iterationRange) {
+        auto itCounter = counters.rbegin();
+        auto itWork = iterationRange.rbegin();
+
+        while (itCounter != counters.rend()) {
+            *itCounter = (*itCounter + 1) % *itWork;
+            if (*itCounter != 0) {
+                break;
+            }
+            ++itCounter;
+            ++itWork;
+        }
+    }
+
+    inline size_t getStartOffset(const std::vector<size_t> &forStartOffset, const std::vector<size_t>& strides) const {
+        size_t startOffset = 0;
+        for (size_t idx = 0; idx < forStartOffset.size(); ++idx) {
+            startOffset += forStartOffset[idx] * strides[idx];
+        }
+        return startOffset;
+    }
+
+    size_t getAxis(const Blob::CPtr& _axis, const Blob::CPtr& _data) const {
         const auto& axisPrecision = _axis->getTensorDesc().getPrecision();
         const int64_t dataShapeSize = static_cast<int64_t>(_data->getTensorDesc().getDims().size());
         int64_t axisValueFromBlob;
@@ -210,13 +257,6 @@ private:
         if (axisValueFromBlob < -dataShapeSize || axisValueFromBlob > dataShapeSize - 1)
             THROW_IE_EXCEPTION << "CumSum layer with name '" << layerName << "'  has axis with a value out of range: " << axisValueFromBlob;
         return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
-    }
-
-    std::vector<size_t> get5dShape(const SizeVector& dims) {
-        std::vector<size_t> shape5d(numOfDims, 1);
-        for (size_t i = 0; i < dims.size(); i++)
-            shape5d[i] = dims[i];
-        return shape5d;
     }
 
 private:
