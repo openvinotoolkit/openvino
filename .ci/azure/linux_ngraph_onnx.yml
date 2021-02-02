@@ -89,7 +89,7 @@ jobs:
     displayName: 'List models'
     enabled: false
 
-  - script: sudo fallocate -l 15G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
+  - script: sudo fallocate -l 48G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
     displayName: 'Create swap'
 
   - script: |
