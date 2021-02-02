@@ -9,6 +9,7 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
+        ".*TensorNamesTest\\.CheckAddOutput.*",
         // TODO: FIX BUG 31661
         // TODO: support InferRequest in GNAPlugin
         ".*InferRequestTests\\.canRun3AsyncRequestsConsistentlyFromThreadsWithoutWait.*",
