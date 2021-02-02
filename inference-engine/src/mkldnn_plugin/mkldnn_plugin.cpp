@@ -76,13 +76,12 @@
 #include "nodes/mkldnn_quantize_node.h"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#if defined(_WIN32) || defined(WIN32)
-#include <intrin.h>
-#include <windows.h>
-#else
-#include <cpuid.h>
-
-#endif
+# ifdef _WIN32
+#  include <intrin.h>
+#  include <windows.h>
+# else
+#  include <cpuid.h>
+# endif
 #endif
 
 using namespace MKLDNNPlugin;
@@ -366,7 +365,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 static bool hasAVX512() {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
     unsigned int regs[4] = {7, 0, 0, 0};
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
     __cpuid(reinterpret_cast<int*>(regs), regs[0]);
 #else
     __cpuid_count(regs[0], regs[1], regs[0], regs[1], regs[2], regs[3]);
@@ -395,7 +394,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         unsigned int regs[4];
         for (auto addr : addr_list) {
             regs[0] = addr;
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
             __cpuid(reinterpret_cast<int*>(regs), regs[0]);
 #else
             __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);

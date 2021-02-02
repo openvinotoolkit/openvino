@@ -19,10 +19,10 @@
 # define NOMINMAX
 #endif
 
-#ifdef WIN32
-#include <gpu/gpu_context_api_dx.hpp>
+#ifdef _WIN32
+# include <gpu/gpu_context_api_dx.hpp>
 #else
-#include <gpu/gpu_context_api_va.hpp>
+# include <gpu/gpu_context_api_va.hpp>
 #endif
 
 namespace CLDNNPlugin {
@@ -122,7 +122,7 @@ protected:
 
 using CLDNNRemoteCLbuffer = typedCLDNNRemoteBlob<InferenceEngine::gpu::ClBufferBlob>;
 using CLDNNRemoteCLImage2D = typedCLDNNRemoteBlob<InferenceEngine::gpu::ClImage2DBlob>;
-#ifdef WIN32
+#ifdef _WIN32
 using CLDNNRemoteD3DBuffer = typedCLDNNRemoteBlob<InferenceEngine::gpu::D3DBufferBlob>;
 using CLDNNRemoteD3DSurface = typedCLDNNRemoteBlob<InferenceEngine::gpu::D3DSurface2DBlob>;
 #else
@@ -130,7 +130,7 @@ using CLDNNRemoteVASurface = typedCLDNNRemoteBlob<InferenceEngine::gpu::VASurfac
 #endif
 
 inline CLDNNRemoteBlobImpl* getBlobImpl(InferenceEngine::gpu::ClBlob* blobPtr) {
-#ifdef WIN32
+#ifdef _WIN32
     {
         auto ptr = blobPtr->as<CLDNNRemoteD3DSurface>();
         if (ptr) return ptr->getImpl();
@@ -257,7 +257,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
         }
     };
 
-#ifdef WIN32
+#ifdef _WIN32
     using surf_key = _Key<cldnn::shared_handle, uint32_t>;
 #else
     using surf_key = _Key<cldnn::shared_surface, uint32_t>;
@@ -270,7 +270,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
         using InferenceEngine::gpu::details::param_map_obj_getter;
         InferenceEngine::RemoteBlob::Ptr ret = nullptr;
         uint32_t plane = param_map_obj_getter::_ObjFromParamSimple<uint32_t>(params, GPU_PARAM_KEY(VA_PLANE));
-#ifdef WIN32
+#ifdef _WIN32
         cldnn::shared_handle mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
         surf_key skey(mem, plane);
 #else
@@ -291,7 +291,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
             auto smart_this =
                 std::dynamic_pointer_cast<InferenceEngine::gpu::ClContext>
                 (std::enable_shared_from_this<typedCLDNNExecutionContext<TpublicContextAPI>>::shared_from_this());
-#ifdef WIN32
+#ifdef _WIN32
             ret = std::make_shared<CLDNNRemoteD3DSurface>(smart_this,
                 tensorDesc, layout, mem, 0, plane,
                 CLDNNRemoteBlobImpl::BlobType::BT_SURF_SHARED);
@@ -335,7 +335,7 @@ class typedCLDNNExecutionContext : public TpublicContextAPI,
                 layout.format = ImageFormatFromLayout(tensorDesc.getLayout());
                 ret = std::make_shared<CLDNNRemoteCLImage2D>(smart_this, tensorDesc, layout, mem, 0, 0, blob_type);
                 break;
-#ifdef WIN32
+#ifdef _WIN32
             case CLDNNRemoteBlobImpl::BlobType::BT_DX_BUF_SHARED:
                 ret = std::make_shared<CLDNNRemoteD3DBuffer>(smart_this, tensorDesc, layout, mem, 0, 0, blob_type);
                 break;
@@ -402,7 +402,7 @@ public:
                 } else if (GPU_PARAM_VALUE(OCL_IMAGE2D) == memTypeStr) {
                     blob_type = CLDNNRemoteBlobImpl::BlobType::BT_IMG_SHARED;
                     mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(MEM_HANDLE));
-#ifdef WIN32
+#ifdef _WIN32
                 } else if (GPU_PARAM_VALUE(DX_BUFFER) == memTypeStr) {
                     blob_type = CLDNNRemoteBlobImpl::BlobType::BT_DX_BUF_SHARED;
                     mem = param_map_obj_getter::_ObjFromParamSimple<cldnn::shared_handle>(params, GPU_PARAM_KEY(DEV_OBJECT_HANDLE));
@@ -426,14 +426,14 @@ protected:
 };
 
 using CLDNNRemoteCLContext = typedCLDNNExecutionContext<InferenceEngine::gpu::ClContext>;
-#ifdef WIN32
+#ifdef _WIN32
 using CLDNNRemoteD3DContext = typedCLDNNExecutionContext<InferenceEngine::gpu::D3DContext>;
 #else
 using CLDNNRemoteVAContext = typedCLDNNExecutionContext<InferenceEngine::gpu::VAContext>;
 #endif
 
 inline CLDNNExecutionContextImpl* getContextImpl(InferenceEngine::gpu::ClContext::Ptr ctxPtr) {
-#ifdef WIN32
+#ifdef _WIN32
     {
         auto ptr = ctxPtr->as<CLDNNRemoteD3DContext>();
         if (ptr) return ptr->getImpl();

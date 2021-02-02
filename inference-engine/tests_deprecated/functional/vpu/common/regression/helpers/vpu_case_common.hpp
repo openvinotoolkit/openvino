@@ -26,7 +26,7 @@ using namespace Regression::Matchers;
     }while(false)
 
 
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
 #   define DISABLE_ON_WINDOWS_IF(expr) DISABLE_IF((expr))
 #else
 #   define DISABLE_ON_WINDOWS_IF(expr)

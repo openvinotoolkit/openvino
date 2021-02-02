@@ -35,8 +35,8 @@
 #include <sstream>
 #include <iomanip>
 
-#ifdef WIN32
-#pragma warning(disable: 4503)
+#ifdef _WIN32
+# pragma warning(disable: 4503)
 #endif
 
 using namespace cldnn;
