@@ -60,8 +60,8 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
     for node in nodes:
         node = Node(graph, node)
 
-        if node.kind == 'data' and node.value is not None and any(
-                'bin' in d for u, v, d in graph.out_edges(node.node, data=True)):
+        if node.kind == 'data' and node.value is not None and \
+                any('bin' in d for u, v, d in graph.out_edges(node.node, data=True)):
             # avoid array copying while taking hash
             blob = node.value if node.value.ndim > 0 else node.value.reshape((1))
             blob_hash = hashlib.sha512(np.ascontiguousarray(blob).view(np.uint8)).hexdigest()
