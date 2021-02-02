@@ -163,17 +163,8 @@ struct onnx_import::ONNXModelEditor::Impl
     {
     }
 
-    void infer_shapes()
-    {
-        if (!m_shapes_inferred)
-        {
-            ONNX_NAMESPACE::shape_inference::InferShapes(m_model_proto);
-            m_shapes_inferred = true;
-        }
-    }
-
-private:
-    bool m_shapes_inferred = false;
+    void infer_shapes() { ONNX_NAMESPACE::shape_inference::InferShapes(m_model_proto); }
+    void remove_shape_inference_info() { m_model_proto.mutable_graph()->clear_value_info(); }
 };
 
 onnx_import::ONNXModelEditor::ONNXModelEditor(const std::string& model_path)
@@ -263,11 +254,11 @@ void onnx_import::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdg
     m_pimpl->infer_shapes();
 
     SubgraphExtractor editor{*(m_pimpl->m_model_proto.mutable_graph())};
-
     editor.add_new_inputs(inputs);
     editor.add_new_outputs(outputs);
-
     editor.extract_subgraph(outputs);
+
+    m_pimpl->remove_shape_inference_info();
 }
 
 std::vector<std::string> onnx_import::ONNXModelEditor::model_inputs() const

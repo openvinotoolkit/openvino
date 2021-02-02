@@ -380,7 +380,6 @@ void SubgraphExtractor::extract_subgraph_from_onnx_model(const SubgraphComponent
     discard_by_name(*(m_onnx_graph.mutable_initializer()), subgraph.initializers);
     discard_by_name(*(m_onnx_graph.mutable_output()), subgraph.outputs);
     discard_nodes(*(m_onnx_graph.mutable_node()), subgraph.nodes);
-    m_onnx_graph.clear_value_info();
 }
 
 std::vector<OutputEdge> SubgraphExtractor::all_output_edges() const
