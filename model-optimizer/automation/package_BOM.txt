@@ -95,6 +95,7 @@ extensions/front/caffe/input_ext.py
 extensions/front/caffe/interp_ext.py
 extensions/front/caffe/lrn_ext.py
 extensions/front/caffe/mvn_ext.py
+extensions/front/caffe/MVNNormalizer.py
 extensions/front/caffe/normalize_ext.py
 extensions/front/caffe/permute_ext.py
 extensions/front/caffe/pooling_ext.py
