@@ -124,7 +124,7 @@ tolerance_map = {
     "yolov4": {"atol": 1e-04, "rtol": 0.001},
     "tinyyolov3": {"atol": 1e-04, "rtol": 0.001},
     "tiny-yolov3-11": {"atol": 1e-04, "rtol": 0.001},
-    "GPT2": {"rtol": 0.01},
+    "GPT2": {"atol": 5e-06, "rtol": 0.01},
     "GPT-2-LM-HEAD": {"atol": 4e-06},
     "test_retinanet_resnet101": {"atol": 1.3e-06},
 }
