@@ -280,7 +280,8 @@ struct ROIFeatureIntervalsSameFirstDimsTestParams
     Dimension channels[4];
 };
 
-struct ROIFeatureIntervalsSameFirstDimsTest : ::testing::TestWithParam<ROIFeatureIntervalsSameFirstDimsTestParams>
+struct ROIFeatureIntervalsSameFirstDimsTest
+    : ::testing::TestWithParam<ROIFeatureIntervalsSameFirstDimsTestParams>
 {
 };
 
