@@ -116,7 +116,7 @@ class Connection:
                         source_fw_names += edge_attrs[attr]
             # remove duplicates
             source_fw_names = list(set(source_fw_names))
-            source_attrs = {'fw_tensor_debug_info': source_fw_names}
+            attrs = {'fw_tensor_debug_info': source_fw_names}
 
             # Reconnecting all destinations as consumers to the source port preserving edge attrs
             for dst_port in self.destinations:
@@ -124,32 +124,36 @@ class Connection:
                 if u is not None:
                     edge_attrs['out'] = port.idx
 
-                    new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, source_attrs, edge_attrs)
+                    new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, attrs, edge_attrs)
                     self._update_tensor_debug_info(edge_attrs, new_tensor_info)
 
                     self.graph.remove_edge(u, v, key=key)
                     self.graph.add_edge(scr_node.id, v, **edge_attrs)
                 else:
                     if attributes_save_mode == "dest":
-                        source_attrs = {}
-                    self.graph.create_edge(scr_node, dst_port.node, port.idx, dst_port.idx, edge_attrs=source_attrs)
+                        attrs = {}
+                    self.graph.create_edge(scr_node, dst_port.node, port.idx, dst_port.idx, edge_attrs=attrs)
         else:
             # Create out data node if not exists and mark node with need_shape_inference = True
             # In case if data node exists just use it.
             port._create_data_if_necessary()
             port_out_data = port.node.out_node(port.idx)
 
-            source_attrs = {}
+            attrs = {}
             if self.source is not None and self.source.idx in self.source.node.out_nodes():
                 source_out_data = self.source.node.out_node(self.source.idx)
                 # Copy attrs from source_out_data to port_out_data
-                source_attrs = deepcopy(source_out_data.attrs())
+                attrs = deepcopy(source_out_data.attrs())
                 if attributes_save_mode != "source":
                     # Remove debug info
                     if 'fw_tensor_debug_info' in source_out_data.attrs():
                         del self.graph.node[source_out_data.id]['fw_tensor_debug_info']
+                    # Copy attrs to new data node
+                    for attr in attrs:
+                        if attr != 'fw_tensor_debug_info':
+                            port_out_data[attr] = attrs[attr]
 
-            new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, port_out_data.attrs(), source_attrs)
+            new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, port_out_data.attrs(), attrs)
             self._update_tensor_debug_info(port_out_data.attrs(), new_tensor_info)
 
             for dst_port in self.destinations:
