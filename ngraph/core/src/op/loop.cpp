@@ -72,8 +72,7 @@ void op::v5::Loop::validate_and_infer_types()
                                   loop_condition_rank.compatible(0),
                               "Rank of ExecutionCondition input must be equal to 0 or 1");
     }
-    if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-            loop_execution_condition.get_node_shared_ptr()))
+    if (const auto& cond_value = get_constant_from_source(loop_execution_condition))
     {
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
@@ -101,8 +100,7 @@ void op::v5::Loop::validate_and_infer_types()
                                   body_condition_rank.compatible(1),
                               "Rank of BodyExecutionCondition output must be equal to 0 or 1");
     }
-    if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-            body_execution_condition.get_node_shared_ptr()))
+    if (const auto& cond_value = get_constant_from_source(body_execution_condition))
     {
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
@@ -127,8 +125,7 @@ void op::v5::Loop::validate_and_infer_types()
             if (m_body->get_parameters().at(desc->m_body_parameter_index) == cond_param)
             {
                 if (const auto& cond_value =
-                        std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-                            input_value(desc->m_input_index).get_node_shared_ptr()))
+                        get_constant_from_source(input_value(desc->m_input_index)))
                 {
                     auto val = cond_value->cast_vector<bool>();
                     NODE_VALIDATION_CHECK(
@@ -157,8 +154,7 @@ void op::v5::Loop::validate_and_infer_types()
                               trip_count_rank.compatible(1) || trip_count_rank.compatible(0),
                               "Rank of TripCount input must be equal to 0 or 1");
     }
-    if (const auto& trip_count_val = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-            trip_count.get_node_shared_ptr()))
+    if (const auto& trip_count_val = get_constant_from_source(trip_count))
     {
         auto val = trip_count_val->cast_vector<int64_t>();
         NODE_VALIDATION_CHECK(this,
