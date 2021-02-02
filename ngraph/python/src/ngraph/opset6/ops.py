@@ -76,7 +76,10 @@ def ctc_greedy_decoder_seq_len(
                             Optional parameter. Default value is num_classes-1.
     @return:                The new node which performs CTCGreedyDecoderSeqLen.
     """
-    inputs = as_nodes(data, sequence_length, blank_index)
+    if blank_index is not None:
+        inputs = as_nodes(data, sequence_length, blank_index)
+    else:
+        inputs = as_nodes(data, sequence_length)
 
     attributes = {
         "merge_repeated": merge_repeated,
