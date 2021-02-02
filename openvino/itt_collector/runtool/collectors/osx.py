@@ -466,67 +466,6 @@ class DTraceCollector(Collector):
         os.chmod(path, 0o700)
         return path
 
-    def gen_gpu_hooks(self, text):  # TODO: check /System/Library/Extensions/AppleIntelSKLGraphics.kext/Contents/Info.plist
-        probes = ''
-        driver = None
-        for line in text.split('\n'):
-            parts = line.split()
-            signature = ' '.join(parts[4:-1])
-            arity = signature.count(',') + 1
-            name = signature.split('(')[0][1:]
-            if 'dtHook' in name and parts[-1] == 'entry' and is_domain_enabled('dtHook'):
-                probe = '%s::%s:entry{' % (parts[1], parts[3])
-                probe += r'printf("%x\t' + name + r'\t%x\t%x'
-                probe += r'\t%x' * arity
-                probe += r'\n", machtimestamp, pid, tid, '
-                probe += ', '.join(['arg'+str(i) for i in range(0, arity)])
-                stack = ''
-                probe += '); %s}\n' % stack
-                probes += probe
-                if not driver:
-                    driver = parts[2]
-                    DTraceCollector.check_graphics_firmware(driver)
-            if 'process_token_' in name and is_domain_enabled('process_token'):
-                probe = '%s::%s:%s{' % (parts[1], parts[3], parts[-1])
-                probe += r'printf("%x\t' + parts[-1][0] + r'\t%x\t%x\tigfx\t' + name.replace('process_token_', '')
-                probe += r'\n", machtimestamp, pid, tid'
-                probe += ');}\n'
-                probes += probe
-        return probes
-
-    @staticmethod
-    def check_graphics_firmware(driver):
-        driver = driver.split('.')[-1]
-        if 'SKL' not in driver and 'BDW' not in driver:
-            return
-        import xml.dom.minidom as minidom
-        file_name = '/System/Library/Extensions/%s.kext/Contents/Info.plist' % driver
-        if not os.path.exists(file_name):
-            return
-        dom = minidom.parse(file_name)  # FIXME: import plistlib
-
-        def find_by_content(el, content):
-            if el.nodeValue == content:
-                return el
-            for child in el.childNodes:
-                found = find_by_content(child, content)
-                if found:
-                    return found
-            return None
-
-        el = find_by_content(dom.documentElement, 'GraphicsFirmwareSelect')
-        if el:
-            value = None
-            sibling = el.parentNode.nextSibling
-            while sibling:
-                if sibling.nodeName == 'integer':
-                    value = sibling.childNodes[0].nodeValue
-                    break
-                else:
-                    sibling = sibling.nextSibling
-            if value != '0':
-                print("Warning: To enable Graphics profiling, set GraphicsFirmwareSelect to 0 in: %s\n\tThen: sudo kextcache -i / & reboot" % file_name)
-
     @staticmethod
     def gen_options(options):
         return '\n'.join('#pragma D option %s=%s' % (key, str(value)) for key, value in options) + '\n'
@@ -563,10 +502,6 @@ class DTraceCollector(Collector):
             if hooks:
                 dtrace_script += hooks
             subcollector.collect(self, True)
-
-        (probes, err) = self.execute('sudo -A dtrace -l -m *com.apple.driver.AppleIntel*Graphics*', log=False)  # FIXME: sudo_execute
-        if probes:
-            dtrace_script.append(self.gen_gpu_hooks(probes))
 
         self.script = dtrace_script
 
