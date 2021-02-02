@@ -31,7 +31,12 @@ bool pattern::op::WrapType::match_value(Matcher* matcher,
                                         const Output<Node>& pattern_value,
                                         const Output<Node>& graph_value)
 {
-    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_wrapped_type()) &&
+    if (std::any_of(m_wrapped_types.begin(),
+                    m_wrapped_types.end(),
+                    [&](const NodeTypeInfo& type_info) {
+                        return graph_value.get_node_shared_ptr()->get_type_info().is_castable(
+                            type_info);
+                    }) &&
         m_predicate(graph_value))
     {
         auto& pattern_map = matcher->get_pattern_value_map();
@@ -43,4 +48,18 @@ bool pattern::op::WrapType::match_value(Matcher* matcher,
                                                graph_value.get_node_shared_ptr()));
     }
     return false;
+}
+
+NodeTypeInfo pattern::op::WrapType::get_wrapped_type() const
+{
+    if (m_wrapped_types.size() > 1)
+    {
+        throw ngraph::ngraph_error("get_wrapped_type() called on WrapType with more than one type");
+    }
+    return m_wrapped_types.at(0);
+}
+
+const std::vector<NodeTypeInfo>& pattern::op::WrapType::get_wrapped_types() const
+{
+    return m_wrapped_types;
 }

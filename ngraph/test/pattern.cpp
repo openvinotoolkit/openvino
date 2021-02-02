@@ -810,7 +810,7 @@ TEST(pattern, is_contained_match)
     ASSERT_FALSE(n.is_contained_match());
 }
 
-TEST(pattern, wrap_type)
+TEST(pattern, wrap_type_single_op)
 {
     auto a = make_shared<op::Parameter>(element::f32, Shape{1, 3, 64, 64});
     auto b = make_shared<op::Abs>(a);
@@ -850,5 +850,49 @@ TEST(pattern, wrap_type)
         auto matcher = std::make_shared<pattern::Matcher>(m1, "MultiplyMatcher");
         ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(mul1)));
         ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(mul2)));
+    }
+}
+
+TEST(pattern, wrap_type_multi_op)
+{
+    auto a = make_shared<op::Parameter>(element::f32, Shape{1, 3, 64, 64});
+    auto b = make_shared<op::Abs>(a);
+    auto c = make_shared<op::Relu>(a);
+    auto mul = make_shared<op::v1::Multiply>(a, op::Constant::create(element::f32, Shape{}, {1}));
+    auto add = make_shared<op::v1::Add>(op::Constant::create(element::f32, Shape{}, {1}), a);
+
+    {
+        auto m = pattern::wrap_type<op::v1::Multiply, op::v1::Add>();
+        auto matcher = std::make_shared<pattern::Matcher>(m, "MulAddMatcher");
+        ASSERT_TRUE(matcher->match(mul->output(0)));
+        ASSERT_EQ(matcher->get_matched_nodes().size(), 1);
+        ASSERT_EQ(matcher->get_matched_nodes()[0], mul);
+        ASSERT_EQ(matcher->get_pattern_map().count(m), 1);
+
+        ASSERT_TRUE(matcher->match(add->output(0)));
+        ASSERT_EQ(matcher->get_matched_nodes().size(), 1);
+        ASSERT_EQ(matcher->get_matched_nodes()[0], add);
+        ASSERT_EQ(matcher->get_pattern_map().count(m), 1);
+
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(a)));
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(b)));
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(c)));
+    }
+    {
+        auto m = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>();
+        auto matcher = std::make_shared<pattern::Matcher>(m, "ElementwiseMatcher");
+        ASSERT_TRUE(matcher->match(mul->output(0)));
+        ASSERT_EQ(matcher->get_matched_nodes().size(), 1);
+        ASSERT_EQ(matcher->get_matched_nodes()[0], mul);
+        ASSERT_EQ(matcher->get_pattern_map().count(m), 1);
+
+        ASSERT_TRUE(matcher->match(add->output(0)));
+        ASSERT_EQ(matcher->get_matched_nodes().size(), 1);
+        ASSERT_EQ(matcher->get_matched_nodes()[0], add);
+        ASSERT_EQ(matcher->get_pattern_map().count(m), 1);
+
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(a)));
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(b)));
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(c)));
     }
 }

@@ -10,13 +10,13 @@
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGELU, "ConvertGELU", 0);
 
 ngraph::pass::ConvertGELU::ConvertGELU() {
     MATCHER_SCOPE(ConvertGELU);
-    auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto gelu = std::make_shared<ngraph::opset2::Gelu>(input);
+    auto gelu = pattern::wrap_type<ngraph::opset2::Gelu>();
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto gelu = std::dynamic_pointer_cast<ngraph::opset2::Gelu>(m.get_match_root());
