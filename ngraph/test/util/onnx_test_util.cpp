@@ -45,21 +45,15 @@ namespace
         }
 
         ONNX_NAMESPACE::ModelProto model_proto;
-        if (!model_proto.ParseFromIstream(&file_stream))
+        google::protobuf::io::IstreamInputStream iistream(&file_stream);
+        if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto))
         {
-#ifdef NGRAPH_USE_PROTOBUF_LITE
-            throw ngraph_error("Could not import the model");
-#else
-            // Rewind to the beginning and clear stream state.
             file_stream.clear();
             file_stream.seekg(0);
-            google::protobuf::io::IstreamInputStream iistream(&file_stream);
-            // Try parsing input as a prototxt message
-            if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto))
+            if (!model_proto.ParseFromIstream(&file_stream))
             {
-                throw std::runtime_error("Could not import the prototxt model");
+                throw std::runtime_error("Could not import the test model: " + file_path);
             }
-#endif
         }
 
         return model_proto;
@@ -117,8 +111,8 @@ namespace
     {
         if (lhs.name() != rhs.name())
         {
-            return ComparisonResult::fail(item_type + " names in the graph don't match: " +
-                                          lhs.name() + " vs " + rhs.name());
+            return ComparisonResult::fail(
+                item_type + " names in the graph don't match: " + lhs.name() + " vs " + rhs.name());
         }
 
         const auto& lhs_tensor = lhs.type().tensor_type();
@@ -149,14 +143,14 @@ namespace
                     (rhs_dim.has_dim_value() && lhs_dim.has_dim_param()))
                 {
                     return ComparisonResult::fail("Dynamic vs static dimension mismatch for " +
-                                                  item_type + " " + lhs.name() + " at index: " +
-                                                  std::to_string(j));
+                                                  item_type + " " + lhs.name() +
+                                                  " at index: " + std::to_string(j));
                 }
                 else if (lhs_dim.has_dim_value() && lhs_dim.dim_value() != rhs_dim.dim_value())
                 {
                     return ComparisonResult::fail("Shape dimensions don't match for " + item_type +
-                                                  " " + lhs.name() + " at index: " +
-                                                  std::to_string(j) + ". " +
+                                                  " " + lhs.name() +
+                                                  " at index: " + std::to_string(j) + ". " +
                                                   std::to_string(lhs_dim.dim_value()) + " vs " +
                                                   std::to_string(rhs_dim.dim_value()));
                 }
