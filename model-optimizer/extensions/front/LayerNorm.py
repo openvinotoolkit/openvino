@@ -1,5 +1,5 @@
 """
- Copyright (C) 2020 Intel Corporation
+ Copyright (C) 2017-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 import logging as log
 
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
 from extensions.ops.mvn import MVN
 
@@ -65,9 +66,9 @@ class LayerNorm(FrontReplacementSubgraph):
         if add_param.value.size == 1 and pow_param.value.size == 1 and add_param.value.item() <= 1e-05 \
                 and pow_param.value.item() == 0.5 and match['pool0_param'].value == match['pool1_param'].value:
             log.debug('Found LayerNorm pattern after {} with name {}'.format(inp_port.node.op, inp_port.node.name))
-            mvn = MVN(graph, {'eps': add_param.value.item(),
-                              'axes': match['pool1_param'].value,
-                              'normalize_variance': 1}).create_node()
+            mvn = create_op_with_const_inputs(graph, MVN, {1: match['pool1_param'].value},
+                                              {'eps': add_param.value.item(), 'normalize_variance': 1,
+                                               'eps_mode': 'inside_sqrt'})
             div_name = match['div'].soft_get('name', match['div'].id)
             rename_nodes([(match['div'], div_name + '/to_be_removed'), (mvn, div_name)])
 

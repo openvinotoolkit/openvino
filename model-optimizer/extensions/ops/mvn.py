@@ -18,6 +18,7 @@ from mo.front.common.layout import get_features_dim
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.extractor import bool_to_str
 from mo.graph.graph import Graph
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 from mo.utils.error import Error
 
@@ -29,55 +30,58 @@ class MVN(Op):
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
-            'version': 'opset2',
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset6',
             'eps': None,
-            'across_channels': None,
-            'normalize_variance': 1,
-            'axes': None,
-            'in_ports_count': 1,
+            'normalize_variance': None,
+            'eps_mode': None,
+            'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer
+            'infer': self.infer
         }, attrs)
 
     def supported_attrs(self):
-        return ['eps', 'across_channels', 'normalize_variance', 'axes']
+        return ['eps', 'eps_mode', 'normalize_variance']
 
     def backend_attrs(self):
-        return ['eps',
-                ('across_channels', lambda node: bool_to_str(node, 'across_channels')),
-                ('normalize_variance', lambda node: bool_to_str(node, 'normalize_variance'))]
+        version = self.get_opset()
+        if version == 'opset2':
+            return ['eps',
+                    ('across_channels', lambda node: bool_to_str(node, 'across_channels')),
+                    ('normalize_variance', lambda node: bool_to_str(node, 'normalize_variance'))]
+        elif version == 'opset6':
+            return ['eps', 'eps_mode', ('normalize_variance', lambda node: bool_to_str(node, 'normalize_variance'))]
+        else:
+            raise Error('Unsupported MVN opset version "{}"'.format(version))
 
     @staticmethod
     def infer(node: None):
-        input_shape = node.in_node(0).shape
         name = node.soft_get('name', node.id)
 
-        if node.axes is not None and node.across_channels is not None:
-            raise Error('Either axes or across_channels can be set for the MVN in node "{}".'.format(name))
+        assert node.eps is not None, 'MVN required attribute `eps` unspecified for node {}'.format(name)
+        assert node.eps_mode is not None, 'MVN required attribute `eps_mode` unspecified for node {}'.format(name)
+        assert node.normalize_variance is not None, \
+            'MVN required attribute `normalize_variance` unspecified for node {}'.format(name)
 
-        if node.across_channels is None:
-            if node.axes is not None:
-                # normalizing (replacing -1 with actual index)
-                axes_data_value = node.axes
-                axes = [axes_data_value.item()] if axes_data_value.size == 1 else axes_data_value
-                axes = [get_canonical_axis_index(input_shape, a) for a in axes]
-                # deduce across_channels from the axes, e.g. if the first axis is included (assuming batch is zero axis)
-                feature_dim = get_features_dim(node.graph.graph['layout'], len(input_shape)) \
-                    if (4 <= len(input_shape) <= 5) \
-                    else 1
-                node.across_channels = int(feature_dim in axes)
-
-                if 0 in axes:
-                    raise Error('Reduction over the batch dimension in node "{}" '
-                                'is not supported by the backend.'.format(name))
-                for i in range(2, len(input_shape)):
-                    if i not in axes:
-                        raise Error(
-                            'Reduction over spatial dimensions in node "{}" '
-                            'is obligatory for the backend.'.format(name))
-            else:
-                node.across_channels = 0  # default
-
+        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
         copy_shape_infer(node)
+
+
+class MVNCaffe(Op):
+    op = 'MVNCaffe'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'kind': 'op',
+            'type': None,
+            'op': self.op,
+            'version': None,
+            'eps': 1e-9,
+            'normalize_variance': 1,
+            'across_channels': 0,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+            'infer': None
+        }, attrs)

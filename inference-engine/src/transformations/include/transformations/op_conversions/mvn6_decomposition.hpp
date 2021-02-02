@@ -18,7 +18,7 @@ namespace pass {
 /**
  * @ingroup ie_transformation_common_api
  * @brief MVN6Decomposition transformation into sub-graph x - ReduceMean(x, axes) if normalize_variance is false and
- * into sub-graph (x - ReduceMean(x, axes)) / Sqrt(ReduceSum((x - ReduceMean(x, axes)) ^ 2)) if normalize_variance is true.
+ * into sub-graph (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) if normalize_variance is true.
  */
 class ngraph::pass::MVN6Decomposition : public ngraph::pass::MatcherPass {
 public:

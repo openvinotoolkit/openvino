@@ -70,11 +70,11 @@ TEST(TransformationTests, MVN6Decomposition_Inside_Sqrt) {
         auto mean_normalization = std::make_shared<ngraph::opset6::Subtract>(input0, mean);
 
         auto mul = std::make_shared<ngraph::opset6::Multiply>(mean_normalization, mean_normalization);
-        auto sum = std::make_shared<ngraph::opset6::ReduceSum>(mul, axes_const, true);
+        auto mean2 = std::make_shared<ngraph::opset6::ReduceMean>(mul, axes_const, true);
 
         auto eps_node = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 1 }, { 1e-5 });
 
-        auto eps_add = std::make_shared<ngraph::opset6::Add>(sum, eps_node);
+        auto eps_add = std::make_shared<ngraph::opset6::Add>(mean2, eps_node);
         auto sqrt = std::make_shared<ngraph::opset6::Sqrt>(eps_add);
         auto div = std::make_shared<ngraph::opset6::Divide>(mean_normalization, sqrt);
 
@@ -108,13 +108,13 @@ TEST(TransformationTests, MVN6Decomposition_Outside_Sqrt) {
         auto mean_normalization = std::make_shared<ngraph::opset6::Subtract>(input0, mean);
 
         auto mul = std::make_shared<ngraph::opset6::Multiply>(mean_normalization, mean_normalization);
-        auto sum = std::make_shared<ngraph::opset6::ReduceSum>(mul, axes_const, true);
+        auto mean2 = std::make_shared<ngraph::opset6::ReduceMean>(mul, axes_const, true);
 
         auto eps_node = ngraph::opset6::Constant::create(ngraph::element::f32, ngraph::Shape{ 1 }, { 1e-5 });
 
-        auto sqrt = std::make_shared<ngraph::opset6::Sqrt>(sum);
+        auto sqrt = std::make_shared<ngraph::opset6::Sqrt>(mean2);
         auto eps_add = std::make_shared<ngraph::opset6::Add>(sqrt, eps_node);
-        auto div = std::make_shared<ngraph::opset6::Divide>(mean_normalization, sqrt);
+        auto div = std::make_shared<ngraph::opset6::Divide>(mean_normalization, eps_add);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ div }, ngraph::ParameterVector{ input0 });
     }

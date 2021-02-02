@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import numpy as np
 from extensions.ops.mvn import MVN
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.utils.error import Error
+from mo.ops.const import Const
 
 
 class MeanVarianceNormalizationExtractor(FrontExtractorOp):
@@ -33,18 +33,15 @@ class MeanVarianceNormalizationExtractor(FrontExtractorOp):
                          default=np.array([0, 2, 3], dtype=np.int64),
                          dst_type=lambda x: np.array(x, dtype=np.int64))
 
-        if 0 in axes:
-            raise Error('Reduction over the batch dimension in node "{}" is not supported by the backend.'.format(name))
-        # Dimension 4 (if it's present in the input tensor) should also be in the list of axes for reduction.
-        # This case will be handled at the MVN Op side, because input shape is not available at that stage.
-        for i in (2, 3):
-            if i not in axes:
-                raise Error('Reduction over spatial dimensions in node "{}" is obligatory for a backend.'.format(name))
+        axes = Const(node.graph, {'value': axes, 'name': name + '/Axes'}).create_node()
+        node.add_input_port(1, skip_if_exist=True)
+        node.in_port(1).connect(axes.out_port(0))
 
         attrs = {
             'eps': 1e-9,
             'normalize_variance': 1,
-            'axes': axes
+            'eps_mode': 'outside_sqrt'
         }
+
         MVN.update_node_stat(node, attrs)
         return cls.enabled
