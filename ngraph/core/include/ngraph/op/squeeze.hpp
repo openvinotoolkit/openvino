@@ -44,6 +44,8 @@ namespace ngraph
                 virtual void pre_validate_and_infer_types() override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
 

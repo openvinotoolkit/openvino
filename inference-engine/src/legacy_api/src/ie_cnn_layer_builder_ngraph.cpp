@@ -251,27 +251,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v0::Unsqueeze>::createLayer(const std::s
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::VariadicSplit>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Split",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::SplitLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::VariadicSplit>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    auto axis_node = castedLayer->input_value(1).get_node_shared_ptr();
-    const auto axis_node_const = std::dynamic_pointer_cast<ngraph::op::Constant>(axis_node);
-    if (!axis_node_const) {
-        THROW_IE_EXCEPTION << "Split " << castedLayer->get_friendly_name() << " has no axes as Constant";
-    }
-    auto axis = axis_node_const->cast_vector<int64_t>()[0];
-    if (axis < 0) {
-        axis += castedLayer->get_input_shape(0).size();
-    }
-    res->params["axis"] = asString(axis);
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Concat>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Concat",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -596,24 +575,6 @@ CNNLayer::Ptr NodeConverter<ExecGraphInfoSerialization::ExecutionNode>::createLa
             res->params[kvp.first] = getStringValue(castedVariant);
     }
 
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::ReorgYolo>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "ReorgYolo",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::ReorgYolo>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-
-    res->params["stride"] = value;
     return res;
 }
 
