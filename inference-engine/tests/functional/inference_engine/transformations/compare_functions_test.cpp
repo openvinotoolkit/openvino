@@ -213,115 +213,165 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentElementType) {
-    const auto& f1 = [] {
+    const auto createConstantFunc = [](ngraph::element::Type t) {
         using namespace ngraph::opset5;
-        auto constant = Constant::create(ngraph::element::f64, ngraph::Shape{1}, {10.1});
+        auto constant = Constant::create(t, ngraph::Shape{1}, {1.1});
 
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{constant}, ngraph::ParameterVector{});
-    }();
+    };
 
-    const auto& f2 = [] {
-        using namespace ngraph::opset5;
-        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10.1});
-
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
-    }();
+    const auto& f1 = createConstantFunc(ngraph::element::f64);
+    const auto& f2 = createConstantFunc(ngraph::element::f32);
 
     const auto& res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'element_type'"));
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'element_type' : [f64] vs [f32]"));
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentValues) {
-    const auto& f1 = [] {
+    const auto createConstantFunc = [](double value) {
         using namespace ngraph::opset5;
-        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.2});
+        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {value});
 
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{constant}, ngraph::ParameterVector{});
-    }();
+    };
 
-    const auto& f2 = [] {
-        using namespace ngraph::opset5;
-        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {10.1});
-
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
-    }();
+    const auto& f1 = createConstantFunc(1.0);
+    const auto& f2 = createConstantFunc(10.0);
 
     auto res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'value'"));
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'value' : look in to the mem buffer"));
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentShapes) {
-    const auto& f1 = [] {
+    const auto createConstantFunc = [](const ngraph::Shape& s) {
         using namespace ngraph::opset5;
-        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
+        auto constant = Constant::create(ngraph::element::f32, s, {1.1});
 
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{constant}, ngraph::ParameterVector{});
-    }();
+    };
 
-    const auto& f2 = [] {
-        using namespace ngraph::opset5;
-        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1.0});
-
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{constant}, ngraph::ParameterVector{});
-    }();
+    const auto& f1 = createConstantFunc(ngraph::Shape{2});
+    const auto& f2 = createConstantFunc(ngraph::Shape{2, 2});
 
     const auto& res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'shape'"));
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'shape' : [2] vs [2, 2]"));
 }
 
 TEST(TransformationTests, ClampNegativeDifferentMin) {
-    const auto& f1 = [] {
+    const auto createClampFunc = [](double min) {
         using namespace ngraph::opset5;
         auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
-        auto clamp = std::make_shared<Clamp>(constant, 1., 2.);
+        auto clamp = std::make_shared<Clamp>(constant, min, 20.);
 
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
-    }();
+    };
 
-    const auto& f2 = [] {
-        using namespace ngraph::opset5;
-        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
-        auto clamp = std::make_shared<Clamp>(constant, 1.3, 2.);
-
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
-    }();
+    const auto& f1 = createClampFunc(1.0);
+    const auto& f2 = createClampFunc(11.0);
 
     const auto& res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'min'"));
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'min' "));
 }
 
 TEST(TransformationTests, ClampNegativeDifferentMax) {
-    const auto& f1 = [] {
+    const auto createClampFunc = [](double max) {
         using namespace ngraph::opset5;
         auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
-        auto clamp = std::make_shared<Clamp>(constant, 1., 2.);
+        auto clamp = std::make_shared<Clamp>(constant, 1., max);
 
         return std::make_shared<ngraph::Function>(
             ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
-    }();
+    };
 
-    const auto& f2 = [] {
-        using namespace ngraph::opset5;
-        auto constant = Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.0});
-        auto clamp = std::make_shared<Clamp>(constant, 1., 200.);
-
-        return std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
-    }();
+    const auto& f1 = createClampFunc(10.1);
+    const auto& f2 = createClampFunc(101.1);
 
     const auto& res = compare_functions(f1, f2, false, false, false, true, true);
     EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'max'"));
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'max' "));
+}
+
+TEST(TransformationTests, ConcatNegativeDifferentMax) {
+    const auto createConcatFunc = [](int64_t axis) {
+        using namespace ngraph::opset5;
+        auto constant =
+            Constant::create(ngraph::element::f32, ngraph::Shape{10, 10, 2, 2, 3}, {1.0});
+        auto clamp = std::make_shared<Concat>(ngraph::OutputVector{constant}, axis);
+
+        return std::make_shared<ngraph::Function>(
+            ngraph::NodeVector{clamp}, ngraph::ParameterVector{});
+    };
+
+    const auto& f1 = createConcatFunc(1);
+    const auto& f2 = createConcatFunc(2);
+
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
+    EXPECT_FALSE(res.first);
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'axis' : [1] vs [2]"));
+}
+
+TEST(TransformationTests, GreaterNegativeDifferentMax) {
+    const auto createGreaterFunc = [](ngraph::op::AutoBroadcastType t) {
+        using namespace ngraph::opset5;
+
+        auto input1 = std::make_shared<Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto input2 = std::make_shared<Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<Greater>(input1, input2, t);
+
+        return std::make_shared<Function>(OutputVector{node}, ParameterVector{input1, input2});
+    };
+
+    const auto& f1 = createGreaterFunc(ngraph::op::AutoBroadcastType::NUMPY);
+    const auto& f2 = createGreaterFunc(ngraph::op::AutoBroadcastType::PDPD);
+
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
+    EXPECT_FALSE(res.first);
+    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'auto_broadcast' : [numpy] vs [pdpd]"));
+}
+
+
+TEST(TransformationTests, ReadValueNegativeDifferentMax) {
+    const auto createReadValueFunc = [](const std::string& variable_id) {
+        using namespace ngraph::opset5;
+
+        auto input1 = std::make_shared<Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
+        auto node = std::make_shared<ReadValue>(input1, variable_id);
+
+        return std::make_shared<Function>(OutputVector{node}, ParameterVector{input1});
+    };
+
+    const auto& f1 = createReadValueFunc("10");
+    const auto& f2 = createReadValueFunc("20");
+
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
+    EXPECT_FALSE(res.first);
+    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'variable_id' : [10] vs [20]"));
+}
+
+TEST(TransformationTests, ReorgYoloNegativeDifferentMax) {
+    const auto createReorgYoloFunc = [](const Strides& stride) {
+        using namespace ngraph::opset5;
+
+        auto param =
+            std::make_shared<Parameter>(ngraph::element::f32, ngraph::Shape{10, 10, 10, 10});
+        auto reorg_yolo = std::make_shared<ReorgYolo>(param, stride);
+
+        return std::make_shared<ngraph::Function>(
+            std::make_shared<ngraph::opset1::Result>(reorg_yolo), ngraph::ParameterVector{param});
+    };
+
+    const auto& f1 = createReorgYoloFunc({1, 2});
+    const auto& f2 = createReorgYoloFunc({2, 2});
+
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
+    EXPECT_FALSE(res.first);
+    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'stride' : [1, 2] vs [2, 2]"));
 }
