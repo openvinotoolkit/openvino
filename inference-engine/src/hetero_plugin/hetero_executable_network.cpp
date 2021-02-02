@@ -652,6 +652,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
             if (itClonedInput != clonedInputs.end() && nullptr != itClonedInput->second) {
                 itClonedInput->second->getPreProcess() = externalInput.second->getPreProcess();
                 itClonedInput->second->setPrecision(externalInput.second->getPrecision());
+                itClonedInput->second->setLayout(externalInput.second->getLayout());
             }
         }
         isInputSubnetwork[id] = std::any_of(std::begin(subgraph._parameters),
