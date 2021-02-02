@@ -24,6 +24,10 @@ public:
 
     void emit_table() override;
 
+    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                   const emitter_context *emit_context = nullptr) override {};
+
 private:
     std::shared_ptr<mkldnn::impl::cpu::x64::jit_uni_eltwise_injector_f32<mkldnn::impl::cpu::x64::sse41>> eltwise_injector_sse42;
     std::shared_ptr<mkldnn::impl::cpu::x64::jit_uni_eltwise_injector_f32<mkldnn::impl::cpu::x64::avx2>> eltwise_injector_avx2;

@@ -88,11 +88,8 @@ protected:
     };
 
     virtual void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                           const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {}
-
-    virtual void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                            const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                           const emitter_context *emit_context) {}
+                           const emitter_context *emit_context) = 0;
 
     virtual void emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                           const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs);

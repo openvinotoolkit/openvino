@@ -202,7 +202,7 @@ void jit_emitter::emit(const std::vector<size_t> &in_idxs, const std::vector<siz
                        const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-    emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+    emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, nullptr);
 
     emitter_postamble();
 }
@@ -212,11 +212,7 @@ void jit_emitter::emit(const std::vector<size_t> &in_idxs, const std::vector<siz
                        const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-    if (emit_context) {
-        emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, emit_context.get());
-    } else {
-        emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
-    }
+    emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, emit_context.get());
 
     emitter_postamble();
 }
