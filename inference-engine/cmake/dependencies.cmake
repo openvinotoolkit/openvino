@@ -250,7 +250,7 @@ if (ENABLE_OPENCV)
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04" AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu20")
                 set(OPENCV_HASH "2b7808d002864acdc5fc0b19cd30dadc31a37cc267931cad605f23f2383bfc21")
-            elseif(NOT DEFINED OpenCV_DIR AND NOT DEFINED $ENV{OpenCV_DIR})
+            elseif(NOT DEFINED OpenCV_DIR AND NOT DEFINED ENV{OpenCV_DIR})
                 message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
             endif()
             RESOLVE_DEPENDENCY(OPENCV
