@@ -155,29 +155,34 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "d346449f6d43293c2562b3d60a0354fcc89e4da243c0b6a08e7a78360527aa8f")
+        log_rpath_from_dir(TBB "${TBB}/redist/intel64/vc14")
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
+        log_rpath_from_dir(TBB "${TBB}/lib")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "oneapi-tbb-2021.2.0-lin_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 SHA256 "511ba7091c1e2e03f6a67bce79bd9b54c5b1c4ce82b7fe0760a1ebf4b4dd4190")
+        log_rpath_from_dir(TBB "${TBB}/lib/intel64/gcc4.8")
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
                 TARGET_PATH "${TEMP}/tbb_yocto"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b")
+        log_rpath_from_dir(TBB "${TBB}/lib")
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_MAC "oneapi-tbb-2021.2.0-mac_strip.tgz"
                 TARGET_PATH "${TEMP}/tbb"
                 ENVIRONMENT "TBBROOT"
                 SHA256 "02f1438c7b0f8c83b08a762d23307cd7b6177d044fcda3efd6f0c2f0694b1d20")
+        log_rpath_from_dir(TBB "${TBB}/lib")
     else()
         message(FATAL_ERROR "TBB is not available on current platform")
     endif()
@@ -185,11 +190,6 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
     update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
 
-    if (WIN32)
-        log_rpath_from_dir(TBB "${TBB}/redist/intel64/vc14")
-    else ()
-        log_rpath_from_dir(TBB "${TBB}/lib")
-    endif ()
     debug_message(STATUS "tbb=" ${TBB})
 endif ()
 
