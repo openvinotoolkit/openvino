@@ -5,7 +5,7 @@ jobs:
   timeoutInMinutes: 240
 
   pool:
-    name: LIN_VMSS_VENV_F8S_WE
+    name: LIN_VMSS_VENV_EPHEMERAL_WU2
 
   variables:
     system.debug: true
@@ -48,7 +48,7 @@ jobs:
     displayName: 'Create $(TMP_DIR)'
     enabled: false
 
-  - script: sudo fallocate -l 15G /swapfile ; sudo chmod 777 /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; free -h
+  - script: sudo fallocate -l 15G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; free -h
     displayName: 'Create a swap and display swap space'
     enabled: true
 
