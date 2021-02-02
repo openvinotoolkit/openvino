@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,4 @@
 # limitations under the License.
 # ******************************************************************************
 
-add_subdirectory(itt)
-add_subdirectory(conditional_compilation)
-
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::itt openvino::conditional_compilation)
+add_subdirectory(itt_collector)
