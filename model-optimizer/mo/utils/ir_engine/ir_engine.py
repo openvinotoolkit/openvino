@@ -123,9 +123,10 @@ class IREngine(object):
             data_nodes = {}
             for port in self.graph.node[node]['ports']:
                 data = self.graph.unique_id(prefix='data_')
-                self.graph.add_node(data, **{'kind': 'data', 'shape': self.graph.node[node]['ports'][port],
+                self.graph.add_node(data, **{'kind': 'data', 'shape': self.graph.node[node]['ports'][port][0],
                                              'value': None})
-                self.graph.add_edges_from([(node, data, {'out': port})])
+                self.graph.create_edge(Node(self.graph, node), Node(self.graph, data), edge_attrs={'out': port})
+                # self.graph.add_edges_from([(node, data, {'out': port})])
                 data_nodes.update({port: data})
 
             for out_node, edge_attrs in out_edges:
@@ -232,7 +233,11 @@ class IREngine(object):
                     for dim in port:
                         output_shape.append(int(dim.text))
 
-                    layer_attrs['ports'].update({port_id: output_shape})
+                    out_tensor_names = None
+                    if 'names' in port.attrib:
+                        out_tensor_names = port.attrib['names']
+
+                    layer_attrs['ports'].update({port_id: (output_shape, out_tensor_names)})
             elif attr.tag == 'blobs':
                 in_port = inputs_counter
                 for blob_attr in attr:

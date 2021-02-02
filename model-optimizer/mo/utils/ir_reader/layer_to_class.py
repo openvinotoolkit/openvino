@@ -125,7 +125,7 @@ def restore_correct_ports(graph: Graph):
         if 'out' in d:
             node = Node(graph, u)
             num_of_in_nodes = len(node.in_nodes())
-            decremented_number = d['out'] - num_of_in_nodes
+            decremented_number = d['out']#  - num_of_in_nodes
             # Initially Const operation in IR has output port with number 1. But later the behaviour was changed
             # so the output port become 0. This change was made to be consistent with the IR serializer in the IE which
             # generates Const with output port 0. For the backward compatibility reason we need to decrement the Const
@@ -293,6 +293,13 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
 
     node_connections = dict()
     mapping_of_old_idx_into_new = dict()
+
+    # for op in graph.get_op_nodes():
+        # restore tensor names
+        # for out_port in op.ports:
+            # out_tensor_name = op.ports[out_port][1]
+            # if out_tensor_name is not None:
+                # op['fw_tensor_debug_info'] = [(out_tensor_name, out_port, out_tensor_name)]
 
     restore_correct_ports(graph)
 
