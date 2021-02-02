@@ -63,23 +63,21 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
 
         auto num_outputs = split_lengths_pshape[0].get_length();
         auto data = input_value(0);
-        auto axis_input = input_value(1).get_node_shared_ptr();
-        auto split_lengths_input = input_value(2).get_node_shared_ptr();
+        auto axis_source = input_value(1);
+        auto split_lengths_source = input_value(2);
         auto data_shape = data.get_partial_shape();
         const auto& data_type = data.get_element_type();
 
         set_output_size(num_outputs);
-        if (data_shape.rank().is_static() && op::is_constant(axis_input) &&
-            op::is_constant(split_lengths_input))
+        const auto& axis_input_constant = get_constant_from_source(axis_source);
+        const auto& split_lengths_constant = get_constant_from_source(split_lengths_source);
+        if (data_shape.rank().is_static() && axis_input_constant && split_lengths_constant)
         {
-            const auto axis_input_constant = as_type_ptr<op::Constant>(axis_input);
             auto axis_val = axis_input_constant->cast_vector<int64_t>()[0];
-
             // Adjust split axis in case of negatives
             int64_t axis = ngraph::normalize_axis(this, axis_val, data_shape.rank());
 
-            auto split_lengths =
-                as_type_ptr<op::Constant>(split_lengths_input)->cast_vector<int64_t>();
+            auto split_lengths = split_lengths_constant->cast_vector<int64_t>();
             // Adjust split lengths in case of negatives
             size_t sum_of_splits = 0;
             int64_t negative_one = -1;

@@ -142,6 +142,7 @@ void op::util::SubGraphOp::set_merged_input(const std::shared_ptr<Parameter>& bo
         input_for_value(initial_value).get_index(),
         m_body->get_parameter_index(body_parameter),
         m_body->get_result_index(successive_value)));
+    validate_and_infer_types();
 }
 
 void op::util::SubGraphOp::set_invariant_input(const std::shared_ptr<Parameter>& body_parameter,
@@ -149,6 +150,7 @@ void op::util::SubGraphOp::set_invariant_input(const std::shared_ptr<Parameter>&
 {
     m_input_descriptions.push_back(std::make_shared<TensorIterator::InvariantInputDescription>(
         input_for_value(value).get_index(), m_body->get_parameter_index(body_parameter)));
+    validate_and_infer_types();
 }
 
 Output<Node> op::util::SubGraphOp::get_iter_value(const Output<Node>& body_value, int64_t iteration)
@@ -157,6 +159,7 @@ Output<Node> op::util::SubGraphOp::get_iter_value(const Output<Node>& body_value
     m_output_descriptions.push_back(std::make_shared<BodyOutputDescription>(
         m_body->get_result_index(body_value), output_index, iteration));
     set_output_size(output_index + 1);
+    validate_and_infer_types();
     return Output<Node>(shared_from_this(), output_index);
 }
 
@@ -171,6 +174,7 @@ Output<Node> op::util::SubGraphOp::get_concatenated_slices(const Output<Node>& b
     m_output_descriptions.push_back(std::make_shared<ConcatOutputDescription>(
         m_body->get_result_index(body_value), output_index, start, stride, part_size, end, axis));
     set_output_size(output_index + 1);
+    validate_and_infer_types();
     return Output<Node>(shared_from_this(), output_index);
 }
 
@@ -190,6 +194,7 @@ void op::util::SubGraphOp::set_sliced_input(const std::shared_ptr<Parameter>& pa
                                                 part_size,
                                                 end,
                                                 axis));
+    validate_and_infer_types();
 }
 
 Input<Node> op::util::SubGraphOp::input_for_value(const Output<Node>& value)
