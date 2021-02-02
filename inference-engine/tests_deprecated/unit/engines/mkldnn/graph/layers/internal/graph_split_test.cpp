@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -230,27 +230,27 @@ INSTANTIATE_TEST_CASE_P(
                 split_test_params {
                         {1, 24, 2, 5},
                         {{1, 16, 2, 5}, {1, 8, 2, 5}},
-                        1, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        1, 6, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {1, 20, 2, 5},
                         {{1, 13, 2, 5}, {1, 7, 2, 5}},
-                        1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        1, 4, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {1, 20, 2, 5},
                         {{1, 10, 2, 5}, {1, 10, 2, 5}},
-                        1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        1, 4, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {2, 20, 2, 5},
                         {{2, 10, 2, 5}, {2, 10, 2, 5}},
-                        1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        1, 4, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {2, 20, 2, 5},
                         {{2, 15, 2, 5}, {2,  5, 2, 5}},
-                        1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        1, 4, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {9, 11, 7, 5},
@@ -275,7 +275,7 @@ INSTANTIATE_TEST_CASE_P(
                 split_test_params {
                         {5, 6, 7, 15},
                         {{5, 1, 7, 15}, {5, 2, 7, 15}, {5, 1, 7, 15}, {5, 2, 7, 15}},
-                        1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
+                        1, 4, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}
                 },
                 split_test_params {
                         {5, 6, 7, 15},
@@ -290,15 +290,15 @@ INSTANTIATE_TEST_CASE_P(
                 split_test_params {
                         {5, 6, 7, 15},
                         {{5, 6, 7, 15}},
-                        1, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}},
+                        1, 4, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}},
                 split_test_params {
                         {1, 32, 16, 16, 16},
                         {{1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}},
-                        1, 5, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}},
+                        1, 6, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref}},
                 split_test_params {
                         {1, 32, 16, 16, 16},
                         {{1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}, {1, 8, 16, 16, 16}},
-                        1, 5, MKLDNNPlugin::impl_desc_type::unknown, {}}));
+                        1, 6, MKLDNNPlugin::impl_desc_type::unknown, {}}));
 
 class MKLDNNGraphDynBatchSplitTests: public MKLDNNGraphSplitTests {
 protected:

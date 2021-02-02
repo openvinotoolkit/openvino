@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,13 +29,17 @@ public:
 
 private:
     void prepareOptimizedParams();
+    void initializeDstMemPtrs();
+    void optimizedNspc2Ncsp(size_t MB);
+
+    bool canUseOptimizedNspc2Ncsp;
 
     size_t axis = 1;
+    std::vector<uint8_t*> dstMemPtrs;
 
     struct {
         std::vector<size_t> dataSize;
         std::vector<size_t> srcDataOffsets;
-        std::vector<uint8_t *> dstMemPtrs;
         size_t srcDataStride;
         size_t countStrides;
     } optimizedParams;
