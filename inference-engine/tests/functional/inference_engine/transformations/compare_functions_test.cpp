@@ -375,3 +375,102 @@ TEST(TransformationTests, ReorgYoloNegativeDifferentMax) {
     EXPECT_FALSE(res.first);
     EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'stride' : [1, 2] vs [2, 2]"));
 }
+
+namespace {
+
+template <typename Member>
+class DummyConstant : public ngraph::op::Op {
+public:
+    DummyConstant() = default;
+
+    DummyConstant(const Member& member)
+        : m_element_type(element::Type_t::u8), m_shape({1, 1}), m_member(member) {
+        constructor_validate_and_infer_types();
+    }
+
+    DummyConstant(const DummyConstant& o)
+        : m_element_type(o.m_element_type), m_shape(o.m_shape), m_member(o.m_member) {
+        constructor_validate_and_infer_types();
+    }
+
+    DummyConstant& operator=(const DummyConstant&) = delete;
+
+    const NodeTypeInfo& get_type_info() const override {
+        static const NodeTypeInfo type_info{typeid(this).name(), 0};
+        return type_info;
+    }
+
+    void validate_and_infer_types() override {
+        set_output_type(0, m_element_type, m_shape);  // !!??
+    }
+
+    bool visit_attributes(AttributeVisitor& visitor) override {
+        visitor.on_attribute("member", m_member);
+        return true;
+    }
+
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override {
+        return true;
+    }
+
+    // Don't constant fold a constant; it would make a copy
+    bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override {
+        return false;
+    }
+
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
+        check_new_args_count(this, new_args);
+        return std::make_shared<DummyConstant>(*this);
+    }
+
+protected:
+    element::Type m_element_type{element::Type_t::i64};
+    Shape m_shape{1, 1};
+    Member m_member{};
+};
+
+template <typename Member>
+std::shared_ptr<ngraph::Function> createDummyFunc(const Member& m) {
+    auto constant = std::make_shared<DummyConstant<Member>>(m);
+
+    return std::make_shared<ngraph::Function>(
+        ngraph::NodeVector{constant}, ngraph::ParameterVector{});
+}
+
+}  // namespace
+
+TEST(TransformationTests, DummyOpNegativeDifferentElementType) {
+    const auto& f1 = createDummyFunc(element::Type_t::i64);
+    const auto& f2 = createDummyFunc(element::Type_t::f64);
+
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
+    EXPECT_FALSE(res.first);
+    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'member' : [i64] vs [f64]"));
+}
+
+TEST(TransformationTests, DummyOpNegativeDifferentIntVector) {
+    const auto& f1 = createDummyFunc(std::vector<int>{1, 2, 3});
+    const auto& f2 = createDummyFunc(std::vector<int>{3, 2, 1});
+
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
+    EXPECT_FALSE(res.first);
+    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'member' : [1, 2, 3] vs [3, 2, 1]"));
+}
+
+TEST(TransformationTests, DummyOpNegativeDifferentFloatVector) {
+    const auto& f1 = createDummyFunc(std::vector<float>{1., 2., 3.});
+    const auto& f2 = createDummyFunc(std::vector<float>{3., 2., 1.});
+
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
+    EXPECT_FALSE(res.first);
+    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'member' : [1, 2, 3] vs [3, 2, 1]"));
+}
+
+TEST(TransformationTests, DummyOpNegativeDifferentStringVector) {
+    const auto& f1 = createDummyFunc(std::vector<std::string>{"a", "ba"});
+    const auto& f2 = createDummyFunc(std::vector<std::string>{"b", "ab"});
+
+    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
+    EXPECT_FALSE(res.first);
+    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'member' : [a, ba] vs [b, ab]"));
+}
