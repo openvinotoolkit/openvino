@@ -223,11 +223,11 @@ namespace ngraph
                                                out_high,
                                                i,
                                                out_high_offsets);
-                    if (arg[i] <= in_low_val)
+                    if (arg[i] <= std::min(in_low_val, in_high_val))
                     {
                         out[i] = out_low_val;
                     }
-                    else if (arg[i] > in_high_val)
+                    else if (arg[i] > std::max(in_low_val, in_high_val))
                     {
                         out[i] = out_high_val;
                     }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,6 +57,8 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/op_conversions/fq_decomposition.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -70,6 +72,8 @@
 # include <low_precision/convolution.hpp>
 # include <low_precision/group_convolution.hpp>
 # include <low_precision/multiply_to_group_convolution.hpp>
+
+#include "nodes/mkldnn_quantize_node.h"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -227,13 +231,22 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         transformer.transform(nGraphFunc);
     }
 
+    bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+
     ngraph::pass::Manager legacyManager;
+
+    legacyManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     legacyManager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
     // not legacy actually, but it should be the last transformation in the transformation pipeline
     legacyManager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
     auto legacyPassConfig = legacyManager.get_pass_config();
+
+    legacyPassConfig->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
+        return !MKLDNNQuantizeNode::isNeedToDecompose(node);
+    });
+
     legacyPassConfig->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
         if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
             auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(mul_op->get_input_node_shared_ptr(0));
@@ -248,15 +261,16 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         return false;
     });
 
-    legacyManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
+    legacyPassConfig->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
+
     legacyManager.run_passes(nGraphFunc);
 
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
 
-    clonedNetwork = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork));
+    clonedNetwork = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork, has_fake_quantize));
 
     OV_ITT_TASK_NEXT(taskChain, "ConvertIOPrecision");
 

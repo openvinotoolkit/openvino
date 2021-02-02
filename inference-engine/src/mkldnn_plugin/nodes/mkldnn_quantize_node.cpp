@@ -18,6 +18,8 @@
 #include <cpu/x64/jit_generator.hpp>
 #include "ie_parallel.hpp"
 
+#include <ngraph/opsets/opset1.hpp>
+
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
 
@@ -1029,7 +1031,7 @@ void MKLDNNQuantizeNode::init() {
             float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
-            if ((il == ih && levels != 2) || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
+            if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) || std::isinf(ih)) {
                 THROW_IE_EXCEPTION << "Quantize layer with name '" << getName() << "' has invalid input quantize ranges: "
                                    << "inputLow = " << il << ", inputHigh = " << ih;
             }
@@ -1576,6 +1578,33 @@ void MKLDNNQuantizeNode::appendPostOps(mkldnn::post_ops& ops) {
 
     if (!isPostOpDataInitialized)
         isPostOpDataInitialized = true;
+}
+
+bool MKLDNNQuantizeNode::isNeedToDecompose(const std::shared_ptr<const ngraph::Node>& node) {
+    if (const auto fq = std::dynamic_pointer_cast<const ngraph::opset1::FakeQuantize>(node)) {
+        for (size_t i = 0; i < fq->get_input_size(); i++) {
+            if (fq->get_input_shape(i).size() > 5)
+                return true;
+        }
+
+        for (size_t i = 1; i < fq->get_input_size(); i++) {
+            size_t count_not_unit_axis = 0;
+            auto shape = fq->get_input_shape(i);
+
+            if (ngraph::shape_size(shape) != 1) {
+                size_t not_unit_axis = 0;
+                for (size_t i = 0; i < shape.size(); i++) {
+                    if (shape[i] > 1) {
+                        not_unit_axis = i;
+                        count_not_unit_axis++;
+                    }
+                }
+                if (count_not_unit_axis > 1 || not_unit_axis > 1)
+                    return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool MKLDNNQuantizeNode::created() const {
