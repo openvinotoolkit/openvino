@@ -56,7 +56,7 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto fused = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f_ref->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -103,7 +103,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto fused = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f_ref->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -158,7 +158,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto fused = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f_ref->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
@@ -214,7 +214,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto fused = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
-    auto ref = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f->get_result()->input_value(0).get_node_shared_ptr());
+    auto ref = std::dynamic_pointer_cast<ngraph::opset3::Constant>(f_ref->get_result()->input_value(0).get_node_shared_ptr());
 
     EXPECT_TRUE(fused != nullptr);
     EXPECT_TRUE(ref != nullptr);
