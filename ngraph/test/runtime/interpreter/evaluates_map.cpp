@@ -26,6 +26,7 @@
 #include <ngraph/runtime/reference/ceiling.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
 #include <ngraph/runtime/reference/convolution.hpp>
+#include <ngraph/runtime/reference/convolution_backprop_data.hpp>
 #include <ngraph/runtime/reference/ctc_greedy_decoder.hpp>
 #include <ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp>
 #include <ngraph/runtime/reference/ctc_loss.hpp>
@@ -196,8 +197,6 @@ namespace
         const auto& out_shape = outputs[0]->get_shape();
         const auto& in_shape = inputs[0]->get_shape();
         const auto& filter_shape = inputs[1]->get_shape();
-        Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
-        std::fill(in_dilation.begin(), in_dilation.end(), 1);
         runtime::reference::convolution<typename element_type_traits<ET>::value_type>(
             in_data_ptr,
             filter_data,
@@ -208,8 +207,7 @@ namespace
             op->get_strides(),
             op->get_dilations(),
             op->get_pads_begin(),
-            op->get_pads_end(),
-            in_dilation);
+            op->get_pads_end());
         return true;
     }
 

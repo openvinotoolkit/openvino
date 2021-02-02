@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <cfenv>
 #include <cmath>
 #include <functional>
@@ -24,339 +25,245 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
+#include "ngraph/runtime/reference/helpers.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/util.hpp"
 
+// can't be removed currently due to arm-plugin dependency
+#include "ngraph/runtime/reference/convolution_backprop_data.hpp"
 namespace ngraph
 {
     namespace runtime
     {
         namespace reference
         {
-            template <typename T>
-            struct widen
+            namespace
             {
-                using type = T;
-            };
+                constexpr size_t in_batch_axis = 0;
+                constexpr size_t in_channel_axis = 1;
+                constexpr size_t filter_out_ch_axis = 0;
+                constexpr size_t filter_in_ch_axis = 1;
+                constexpr size_t out_batch_axis = 0;
+                constexpr size_t out_channel_axis = 1;
+                constexpr size_t spatial_axis = 2;
 
-            template <>
-            struct widen<float>
-            {
-                using type = double;
-            };
-
-            template <>
-            struct widen<double>
-            {
-                using type = long double;
-            };
-
-            // in: NC_I...
-            // filter: C_OC_I...
-            // out: NC_O...
-            template <typename INPUT,
-                      typename FILTER,
-                      typename OUTPUT,
-                      typename ACCUMULATION = typename widen<OUTPUT>::type>
-            void general_convolution(const INPUT* in,
-                                     const FILTER* filter,
-                                     OUTPUT* out,
-                                     const Shape& in_shape,
-                                     const Shape& filter_shape,
-                                     const Shape& out_shape,
-                                     const Strides& stride,
-                                     const Strides& filter_dilation,
-                                     const CoordinateDiff& in_pad_below,
-                                     const CoordinateDiff& in_pad_above,
-                                     const Strides& in_dilation,
-                                     size_t in_batch_axis,
-                                     size_t in_channel_axis,
-                                     size_t filter_out_channel_axis,
-                                     size_t filter_in_channel_axis,
-                                     size_t out_batch_axis,
-                                     size_t out_channel_axis)
-            {
-                auto old_mode = std::fegetround();
-                std::fesetround(FE_TONEAREST);
-                // Comments throughout assume without loss of generality that:
-                //
-                // * batch axes for both in and out are 0
-                // * in channel axes for both in and filter are 1
-                // * out channel axes for filter is 0
-                // * out channel axis for out is 1
-
-                // At the outermost level we will walk over every out coordinate O.
-                CoordinateTransform out_transform(out_shape);
-
-                for (const Coordinate& out_coord : out_transform)
+                struct ConvolutionParams
                 {
-                    // Our out coordinate O will have the form:
-                    //
-                    //   (N,chan_out,i_1,...,i_n)
+                    std::vector<int> strides;
+                    std::vector<int> dilation;
+                    std::vector<int> pads_begin;
+                    std::vector<int> pads_end;
 
-                    size_t batch_index = out_coord[out_batch_axis];
-                    size_t out_channel = out_coord[out_channel_axis];
+                    ConvolutionParams(const Strides& strides_,
+                                      const Strides& dilation_,
+                                      const CoordinateDiff& pads_begin_,
+                                      const CoordinateDiff& pads_end_)
+                        : strides{strides_.begin(), strides_.end()}
+                        , dilation{dilation_.begin(), dilation_.end()}
+                        , pads_begin{pads_begin_.begin(), pads_begin_.end()}
+                        , pads_end{pads_end_.begin(), pads_end_.end()} {};
+                };
 
-                    // For the in we need to iterate the coordinate:
-                    //
-                    //   I:
-                    //
-                    // over the range (noninclusive on the right):
-                    //
-                    //   (N,0,s_1*i_1,s_2*i_2,...,s_n*i_n) ->
-                    //
-                    //     (N+1,
-                    //      chans_in_count,
-                    //      s_1*i_1+ l_1*filter_dims_1,
-                    ///       ...,
-                    ///     s_n*i_n +l_n*filter_dims_n)
-                    //
-                    // with strides:
-                    //
-                    //   (1,l_1,...,l_n).
-                    //
-                    // Note that we are iterating within the *padded* and *dilated* in batch, so
-                    // further down we must check the current coordinate is in the pad or dilation
-                    // gap.
+                template <typename Int>
+                constexpr inline bool in_range(Int val, std::pair<Int, Int> range) noexcept
+                {
+                    return val >= range.first && val < range.second;
+                }
 
-                    size_t n_spatial_dimensions = in_shape.size() - 2;
-                    size_t n_in_channels = in_shape[in_channel_axis];
+                template <typename T>
+                void convolve_3D_channels(const ConvolutionParams& p,
+                                          const T* batch,
+                                          const Shape& batch_shape,
+                                          const T* filter,
+                                          const Shape& filter_shape,
+                                          T*& out)
+                {
+                    const int input_size_z = batch_shape[1];
+                    const int input_size_y = batch_shape[2];
+                    const int input_size_x = batch_shape[3];
+                    const int filter_size_z = filter_shape[1];
+                    const int filter_size_y = filter_shape[2];
+                    const int filter_size_x = filter_shape[3];
+                    const int dilated_filter_size_z =
+                        filter_size_z + (filter_size_z - 1) * (p.dilation[0] - 1);
+                    const int dilated_filter_size_y =
+                        filter_size_y + (filter_size_y - 1) * (p.dilation[1] - 1);
+                    const int dilated_filter_size_x =
+                        filter_size_x + (filter_size_x - 1) * (p.dilation[2] - 1);
 
-                    Coordinate in_transform_start(2 + n_spatial_dimensions);
-                    Coordinate in_transform_end(2 + n_spatial_dimensions);
-                    Strides in_transform_movement_strides(2 + n_spatial_dimensions, 1);
-                    CoordinateDiff in_transform_pad_below(2 + n_spatial_dimensions, 0);
-                    CoordinateDiff in_transform_pad_above(2 + n_spatial_dimensions, 0);
-                    Strides in_transform_dilation_strides(2 + n_spatial_dimensions, 1);
+                    const Shape input_channel_shape(++batch_shape.begin(), batch_shape.end());
+                    const size_t input_channel_size = shape_size(input_channel_shape);
+                    const Shape filter_channel_shape(++filter_shape.begin(), filter_shape.end());
+                    const size_t filter_channel_size = shape_size(filter_channel_shape);
 
-                    in_transform_start[in_batch_axis] = batch_index;
-                    in_transform_end[in_batch_axis] = batch_index + 1;
-                    in_transform_start[in_channel_axis] = 0;
-                    in_transform_end[in_channel_axis] = 1;
-
-                    for (size_t i = 2; i < n_spatial_dimensions + 2; i++)
+                    for (int i_z = -p.pads_begin[0];
+                         i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z);
+                         i_z += p.strides[0])
                     {
-                        size_t filter_dilation_stride = filter_dilation[i - 2];
-                        size_t filter_movement_stride = stride[i - 2];
-                        std::ptrdiff_t below_pad = in_pad_below[i - 2];
-                        std::ptrdiff_t above_pad = in_pad_above[i - 2];
-                        size_t in_dilation_stride = in_dilation[i - 2];
-
-                        in_transform_start[i] = filter_movement_stride * out_coord[i];
-                        in_transform_end[i] = in_transform_start[i] +
-                                              (filter_shape[i] - 1) * filter_dilation_stride + 1;
-                        in_transform_movement_strides[i] = filter_dilation_stride;
-                        in_transform_pad_below[i] = below_pad;
-                        in_transform_pad_above[i] = above_pad;
-                        in_transform_dilation_strides[i] = in_dilation_stride;
-                    }
-
-                    AxisVector in_transform_axis_order(2 + n_spatial_dimensions);
-                    for (size_t i = 0; i < in_transform_axis_order.size(); i++)
-                    {
-                        in_transform_axis_order[i] = i;
-                    }
-                    CoordinateTransform in_transform(in_shape,
-                                                     in_transform_start,
-                                                     in_transform_end,
-                                                     in_transform_movement_strides,
-                                                     in_transform_axis_order,
-                                                     in_transform_pad_below,
-                                                     in_transform_pad_above,
-                                                     in_transform_dilation_strides);
-
-                    // Simultaneously with iterating I, for the filter we need to iterate the
-                    // coordinate:
-                    //
-                    //   F
-                    //
-                    // over the range (noninclusive on the right):
-                    //
-                    //   (chan_out,0,0,...,0) ->
-                    //     (chan_out+1,
-                    //      chans_in_count,
-                    //      filter_dims_1,
-                    //        ...,
-                    //      filter_dims_n)
-                    //
-                    // with unit stride.
-
-                    Shape filter_transform_start(2 + n_spatial_dimensions);
-                    Shape filter_transform_end(2 + n_spatial_dimensions);
-
-                    filter_transform_start[filter_out_channel_axis] = out_channel;
-                    filter_transform_end[filter_out_channel_axis] = out_channel + 1;
-                    filter_transform_start[filter_in_channel_axis] = 0;
-                    filter_transform_end[filter_in_channel_axis] = 1;
-
-                    for (size_t i = 2; i < n_spatial_dimensions + 2; i++)
-                    {
-                        filter_transform_start[i] = 0;
-                        filter_transform_end[i] = filter_shape[i];
-                    }
-
-                    CoordinateTransform filter_transform(
-                        filter_shape, filter_transform_start, filter_transform_end);
-
-                    // As we go, we sum up:
-                    //
-                    //   out[O] += in[I] * filter[F].
-
-                    ACCUMULATION result = 0;
-
-                    CoordinateTransform::Iterator in_it = in_transform.begin();
-                    CoordinateTransform::Iterator filter_it = filter_transform.begin();
-                    CoordinateTransform::Iterator in_it_end = in_transform.end();
-                    CoordinateTransform::Iterator filter_it_end = filter_transform.end();
-
-                    size_t in_channel_stride = row_major_strides(in_shape).at(in_channel_axis);
-                    size_t filter_in_channel_stride =
-                        row_major_strides(filter_shape).at(filter_in_channel_axis);
-
-                    while (in_it != in_it_end && filter_it != filter_it_end)
-                    {
-                        const Coordinate& in_coord = *in_it;
-                        if (in_transform.has_source_coordinate(in_coord))
+                        for (int i_y = -p.pads_begin[1];
+                             i_y <= (p.pads_end[1] + input_size_y - dilated_filter_size_y);
+                             i_y += p.strides[1])
                         {
-                            size_t in_idx = in_transform.index(in_coord);
-                            const Coordinate& filter_coord = *filter_it;
-                            size_t filter_idx = filter_transform.index(filter_coord);
-                            for (size_t in_channel = 0; in_channel < n_in_channels; ++in_channel)
+                            for (int i_x = -p.pads_begin[2];
+                                 i_x <= (p.pads_end[2] + input_size_x - dilated_filter_size_x);
+                                 i_x += p.strides[2])
                             {
-                                ACCUMULATION in_v = static_cast<ACCUMULATION>(in[in_idx]);
-                                ACCUMULATION f_v = static_cast<ACCUMULATION>(filter[filter_idx]);
+                                auto input_channel = batch;
+                                auto filter_channel = filter;
+                                T sum = 0;
+                                size_t filter_channels_count = filter_shape[0];
+                                while (filter_channels_count--)
+                                {
+                                    for (int f_z = 0; f_z < filter_size_z; ++f_z)
+                                    {
+                                        for (int f_y = 0; f_y < filter_size_y; ++f_y)
+                                        {
+                                            for (int f_x = 0; f_x < filter_size_x; ++f_x)
+                                            {
+                                                int rel_i_z = i_z + (f_z * p.dilation[0]);
+                                                int rel_i_y = i_y + (f_y * p.dilation[1]);
+                                                int rel_i_x = i_x + (f_x * p.dilation[2]);
 
-                                result += in_v * f_v;
-                                in_idx += in_channel_stride;
-                                filter_idx += filter_in_channel_stride;
+                                                bool padding =
+                                                    !(in_range(rel_i_x, {0, input_size_x}) &&
+                                                      in_range(rel_i_y, {0, input_size_y}) &&
+                                                      in_range(rel_i_z, {0, input_size_z}));
+                                                if (padding)
+                                                    continue;
+
+                                                int f_buf_idx =
+                                                    (f_z * filter_size_y * filter_size_x) +
+                                                    (f_y * filter_size_x) + f_x;
+                                                int i_buf_idx =
+                                                    (rel_i_z * input_size_y * input_size_x) +
+                                                    (rel_i_y * input_size_x) + rel_i_x;
+                                                sum += static_cast<T>(input_channel[i_buf_idx]) *
+                                                       static_cast<T>(filter_channel[f_buf_idx]);
+                                            }
+                                        }
+                                    }
+                                    input_channel += input_channel_size;
+                                    filter_channel += filter_channel_size;
+                                }
+                                *out = sum;
+                                ++out;
                             }
                         }
-                        ++in_it;
-                        ++filter_it;
                     }
-
-                    out[out_transform.index(out_coord)] = result;
                 }
-                std::fesetround(old_mode);
+
+                void extend_to_3D(ConvolutionParams& p, Shape& in_shape, Shape& filter_shape)
+                {
+                    int spatial_rank = in_shape.size() - 2;
+                    if (spatial_rank < 3)
+                    {
+                        int missing_dims = 3 - spatial_rank;
+                        p.dilation.insert(
+                            std::prev(p.dilation.end(), spatial_rank), missing_dims, 1);
+                        p.strides.insert(std::prev(p.strides.end(), spatial_rank), missing_dims, 1);
+                        p.pads_begin.insert(
+                            std::prev(p.pads_begin.end(), spatial_rank), missing_dims, 0);
+                        p.pads_end.insert(
+                            std::prev(p.pads_end.end(), spatial_rank), missing_dims, 0);
+                        in_shape.insert(std::next(in_shape.end(), -spatial_rank), missing_dims, 1);
+                        filter_shape.insert(
+                            std::prev(filter_shape.end(), spatial_rank), missing_dims, 1);
+                    }
+                }
             }
 
+            template <typename T>
+            void convolution(const T* in,
+                             const T* f,
+                             T* out,
+                             const Shape& in_shape,
+                             const Shape& f_shape,
+                             const Shape& out_shape,
+                             const Strides& strides,
+                             const Strides& dilation,
+                             const CoordinateDiff& pads_begin,
+                             const CoordinateDiff& pads_end)
+
+            {
+                // this implementation supports 1D, 2D and 3D convolutions
+                NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
+                             "Unsupported input rank: ",
+                             in_shape);
+
+                NGRAPH_CHECK(f_shape.size() >= 3 && f_shape.size() <= 5,
+                             "Unsupported kernel rank: ",
+                             f_shape);
+
+                // here we are converting all param types to int's to avoid arithmetic issues
+                // (e.g signed + unsigned) in indexes calculation later
+                ConvolutionParams params{strides, dilation, pads_begin, pads_end};
+
+                // here we are extending spatial dimensions to 3D, because we are going to use 3D
+                // convolution implementation to convolve also in 1D & 2D case
+                Shape input_shape{in_shape};
+                Shape filters_shape{f_shape};
+                if (in_shape.size() < 5)
+                {
+                    extend_to_3D(params, input_shape, filters_shape);
+                }
+
+                const size_t batches_count = input_shape[in_batch_axis];
+                const Shape batch_shape(++input_shape.begin(), input_shape.end());
+                const size_t batch_size = shape_size(batch_shape);
+
+                const size_t filters_count = filters_shape[filter_out_ch_axis];
+                const Shape filter_shape(++filters_shape.begin(), filters_shape.end());
+                const size_t filter_size = shape_size(filter_shape);
+
+                auto batch = in;
+                for (size_t batch_idx = 0; batch_idx < batches_count; ++batch_idx)
+                {
+                    auto filter = f;
+                    for (size_t f_idx = 0; f_idx < filters_count; ++f_idx)
+                    {
+                        convolve_3D_channels(params, batch, batch_shape, filter, filter_shape, out);
+                        filter += filter_size;
+                    }
+                    batch += batch_size;
+                }
+            }
+
+            // DEPRECATED, can't be removed currently due to kmb-plugin dependency (#47799)
             template <typename INPUT,
                       typename FILTER,
                       typename OUTPUT,
-                      typename ACCUMULATION = typename widen<OUTPUT>::type>
+                      typename ACCU = typename widen<OUTPUT>::type>
             void convolution(const INPUT* in,
-                             const FILTER* filter,
+                             const FILTER* f,
                              OUTPUT* out,
                              const Shape& in_shape,
-                             const Shape& filter_shape,
+                             const Shape& f_shape,
                              const Shape& out_shape,
-                             const Strides& stride,
-                             const Strides& filter_dilation,
-                             const CoordinateDiff& in_pad_below,
-                             const CoordinateDiff& in_pad_above,
-                             const Strides& in_dilation)
+                             const Strides& strides,
+                             const Strides& dilation,
+                             const CoordinateDiff& pads_begin,
+                             const CoordinateDiff& pads_end,
+                             const Strides&)
 
             {
-                general_convolution<INPUT, FILTER, OUTPUT, ACCUMULATION>(in,
-                                                                         filter,
-                                                                         out,
-                                                                         in_shape,
-                                                                         filter_shape,
-                                                                         out_shape,
-                                                                         stride,
-                                                                         filter_dilation,
-                                                                         in_pad_below,
-                                                                         in_pad_above,
-                                                                         in_dilation,
-                                                                         0,
-                                                                         1,
-                                                                         0,
-                                                                         1,
-                                                                         0,
-                                                                         1);
+                static_assert(std::is_same<INPUT, FILTER>::value,
+                              "input and filter types must be the same");
+                static_assert(std::is_same<INPUT, OUTPUT>::value,
+                              "input and output types must be the same");
+
+                convolution(in,
+                            f,
+                            out,
+                            in_shape,
+                            f_shape,
+                            out_shape,
+                            strides,
+                            dilation,
+                            pads_begin,
+                            pads_end);
             }
 
-            template <typename OUTPUT,
-                      typename FILTER,
-                      typename INPUT,
-                      typename ACCUMULATION = typename widen<INPUT>::type>
-            void convolution_backprop_in(const OUTPUT* delta_out,
-                                         const FILTER* filter,
-                                         INPUT* delta_in,
-                                         const Shape& out_shape,
-                                         const Shape& filter_shape,
-                                         const Shape& in_shape,
-                                         const Strides& in_dilation,
-                                         const Strides& filter_dilation,
-                                         const CoordinateDiff& forward_in_pad_bellow,
-                                         const CoordinateDiff& forward_in_pad_above,
-                                         const Strides& stride)
-            {
-                // Note that we only reverse the spatial dimensions here (loop
-                // starts at 2)
-                std::vector<INPUT> reversed(shape_size(filter_shape));
-                AxisSet reverse_axes;
-                size_t reverse_axes_start = 2;
-                for (size_t i = reverse_axes_start; i < filter_shape.size(); ++i)
-                {
-                    reverse_axes.insert(i);
-                }
-                reverse(reinterpret_cast<const char*>(filter),
-                        reinterpret_cast<char*>(&reversed[0]),
-                        filter_shape,
-                        filter_shape,
-                        reverse_axes,
-                        sizeof(FILTER));
-                size_t filter_out_channel_axis = 1;
-                size_t filter_in_channel_axis = 0;
-
-                // Compute backward pad out pad bellow
-                size_t spatial_dim_count = in_shape.size() - 2;
-
-                CoordinateDiff backward_delta_out_pad_below;
-                backward_delta_out_pad_below.resize(spatial_dim_count);
-
-                for (size_t i = 0; i < spatial_dim_count; i++)
-                {
-                    backward_delta_out_pad_below[i] =
-                        (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] -
-                        forward_in_pad_bellow[i];
-                }
-                // Compute backward pad out pad above
-                CoordinateDiff backward_delta_out_pad_above;
-                backward_delta_out_pad_above.resize(spatial_dim_count);
-
-                for (size_t i = 0; i < spatial_dim_count; i++)
-                {
-                    backward_delta_out_pad_above[i] =
-                        (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] +
-                        ((forward_in_pad_bellow[i] + ((in_shape[i + 2]) - 1) * in_dilation[i] +
-                          forward_in_pad_above[i] -
-                          (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i]) %
-                         stride[i]) -
-                        forward_in_pad_above[i];
-                }
-
-                general_convolution<OUTPUT, FILTER, INPUT, ACCUMULATION>(
-                    delta_out,
-                    &reversed[0],
-                    delta_in,
-                    out_shape,
-                    filter_shape,
-                    in_shape,
-                    in_dilation,
-                    filter_dilation,
-                    backward_delta_out_pad_below,
-                    backward_delta_out_pad_above,
-                    stride,
-                    0,
-                    1,
-                    filter_out_channel_axis,
-                    filter_in_channel_axis,
-                    0,
-                    1);
-            }
         } // namespace reference
     }     // namespace runtime
 } // namespace ngraph
