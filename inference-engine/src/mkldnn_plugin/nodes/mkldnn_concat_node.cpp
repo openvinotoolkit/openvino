@@ -253,6 +253,12 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
         if (it.second > maxCount) {
             maxCount = it.second;
             convertTo = it.first;
+        } else if (it.second == maxCount) {
+            if (outputPrecision == Precision::I8 || outputPrecision == Precision::U8) {
+                if (it.first == PartialBlkDesc::makeTailC(getChildEdgeAt(0)->getDims().ToSizeVector())) {
+                    convertTo = it.first;
+                }
+            }
         }
     }
 
