@@ -103,6 +103,18 @@ namespace ngraph
                 }
             } // namespace set_12
 
+            namespace set_7
+            {
+                OutputVector dropout(const Node& node)
+                {
+                    // "is_test" attribute was removed
+                    const bool training_mode = false;
+                    const auto ratio = node.get_attribute_value<float>("ratio", 0.5f);
+
+                    return build_dropout(node, ratio, training_mode);
+                }
+            } // namespace set_1
+
             namespace set_1
             {
                 OutputVector dropout(const Node& node)
