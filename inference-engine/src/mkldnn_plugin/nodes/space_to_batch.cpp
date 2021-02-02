@@ -60,14 +60,14 @@ public:
                         IE_THROW() << "SpaceToBatch layer with name '" << spaceToBatchLayer->name << "' has nullable input data";
                     DataConfig inConfig;
                     if (i == 0)
-                        inConfig.desc = TensorDesc(inData->getPrecision(), inData->getTensorDesc().getDims(), layout);
+                        inConfig.desc = TensorDesc(precision, inData->getTensorDesc().getDims(), layout);
                     else
                         inConfig.desc = TensorDesc(inData->getPrecision(), inData->getTensorDesc().getDims(), inData->getTensorDesc().getLayout());
                     config.inConfs.push_back(inConfig);
                 }
 
                 DataConfig outConfig;
-                outConfig.desc = TensorDesc(spaceToBatchLayer->outData[0]->getTensorDesc().getPrecision(), outDims, layout);
+                outConfig.desc = TensorDesc(precision, outDims, layout);
                 config.outConfs.push_back(outConfig);
 
                 config.dynBatchSupport = false;
