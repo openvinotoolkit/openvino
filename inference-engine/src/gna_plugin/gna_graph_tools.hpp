@@ -573,7 +573,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
 
         // separately checking case of possible single unconnected output of given layer
         if (!bLocated && !before && !hasOutputIndex) {
-            if (nUnconnectedOData != 1) {
+            if (nUnconnectedOData != 1 && number_of_connections_between_after_n_before <= 1) {
                 THROW_GNA_EXCEPTION << "Cannot insert layer: " << LAYER_NAME(layerToInsert) <<" after: " << LAYER_NAME(after);
             }
 

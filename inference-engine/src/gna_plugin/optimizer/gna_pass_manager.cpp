@@ -821,7 +821,6 @@ void InsertCopyLayerPass::run() {
         if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined()) || LayerInfo(l).isConcat() || LayerInfo(l).isSplit() || LayerInfo(l).isMemory()) {
             std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> copy_insertion_tuples;
             std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> delayed_copy_insertion_tuples;
-
             for (auto output : l->outData) {
                 auto& inputTo = getInputTo(output);
                 for (auto& childLayer : inputTo) {
@@ -849,6 +848,7 @@ void InsertCopyLayerPass::run() {
                             delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
                         } else if ((LayerInfo(l).isSplit() || LayerInfo(l).isMemory() || LayerInfo(l).isCrop()) && LayerInfo(current_layer).isConcat()) {
                             // Split|Crop|Memory -> Concat case
+                            // concat may be connected to previous layer with multiple connections
                             copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
                         }
                     }
@@ -1998,7 +1998,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 }
 
 int PassManager::run(int index) {
-#ifdef PLOT || defined ENABLE_V7_SERIALIZE
+#if defined PLOT || defined ENABLE_V7_SERIALIZE
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
 #ifdef PLOT
