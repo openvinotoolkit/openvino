@@ -36,8 +36,16 @@ if(SELECTIVE_BUILD STREQUAL "COLLECT")
     FetchContent_GetProperties(ext_seapi)
     if(NOT ext_seapi_POPULATED)
         FetchContent_Populate(ext_seapi)
+        if (X86_64)
+            set (SEAPI_FORCE_BITS 64)
+        elseif(X86)
+            set (SEAPI_FORCE_BITS 32)
+        else()
+            message(FATAL_ERROR "Failed to detect target architecture")
+        endif()
         add_custom_target(build-seapi
-            COMMAND pushd ${ext_seapi_SOURCE_DIR} && python ${ext_seapi_SOURCE_DIR}/buildall.py -i && popd
+            COMMAND python ${ext_seapi_SOURCE_DIR}/buildall.py -i --force_bits=${SEAPI_FORCE_BITS}
+            WORKING_DIRECTORY ${ext_seapi_SOURCE_DIR}
             )
     endif()
     add_dependencies(${TARGET_NAME} build-seapi)
