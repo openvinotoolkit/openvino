@@ -340,8 +340,7 @@ class PermuteAttrs:
     Attr = namedtuple('Attr', ['name', 'port', 'func'])
 
     common_permutation = lambda node, permutation, attr: node[attr][permutation.perm]
-    slice_permutation = lambda node, permutation, attr: \
-        node[attr][permutation.perm] if len(node.in_port(0).data.get_shape()) >= 4 else node[attr]
+    slice_permutation = lambda node, permutation, attr: node[attr][PermuteAttrs.get_nhwc_to_nchw_permutation(len(node[attr])).perm]
     common_permutation_inv = lambda node, permutation, attr: permutation.inv[node[attr]]
 
     # List of default permutations

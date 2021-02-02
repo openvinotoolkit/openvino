@@ -70,7 +70,6 @@ class CropToStridedSlice(BackReplacementPattern):
                                   'shrink_axis_mask': np.zeros(len(end_mask)),
                                   'ellipsis_mask': np.zeros(len(end_mask))}).create_node()
 
-
         if len(node.in_nodes()) == 2 and node.has_valid('offset'):
             # Crop Type 1
             begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node_axis, node.offset),
@@ -116,7 +115,7 @@ class CropToStridedSlice(BackReplacementPattern):
         source = node.in_port(0).get_connection().get_source()
 
         stride = Const(graph, {'value': np.ones(shape_rank, dtype=np.int64),
-                               'name': ss.name +  '/stride'}).create_node()
+                               'name': ss.name + '/stride'}).create_node()
 
         source.connect(ss.in_port(0))
         begin.out_port(0).connect(ss.in_port(1))

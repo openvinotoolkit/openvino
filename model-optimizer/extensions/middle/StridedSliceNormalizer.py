@@ -55,9 +55,9 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
 
         if np.any(node.ellipsis_mask):
             idx = np.nonzero(node.ellipsis_mask)
-            assert len(idx[0]) == 1
+            assert len(idx[0]) == 1, 'only one ellipsis_mask nonzero value is allowed'
             ellipsis_start = idx[0][0]
-            num_inserts = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
+            num_inserts = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask[ellipsis_start:])
 
             node.begin_mask[ellipsis_start] = 0
             node.end_mask[ellipsis_start] = 0

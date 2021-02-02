@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from typing import List
+from typing import List, Union
 
 import numpy as np
 
@@ -157,7 +157,7 @@ class Slice(Op):
             # Ranged for output value for specified axis
             slice_idx[axes[i]] = slice(starts[i], ends[i], steps[i])
         if input_value is None:
-            output_shape = get_shape_after_slice(input_shape, slice_idx)
+            output_shape = get_shape_from_slice(input_shape, slice_idx)
             if np.any(output_shape <= 0):
                 raise Error('Output shape: {} of node "{}" contains non-positive values'.format(output_shape, node.name))
             node.out_port(0).data.set_shape(output_shape)
@@ -165,12 +165,28 @@ class Slice(Op):
             node.out_port(0).data.set_value(input_value[tuple(slice_idx)])
 
 
-def get_shape_after_slice(input_shape: np.ndarray, slice_idx: List[slice]) -> np.ndarray:
+def get_shape_from_slice(input_shape: np.ndarray, slices: List[Union[int, slice]]) -> np.ndarray:
     """
     Calculate shape of a tensor after slicing without actually creating the resulting tensor.
     Is introduced to prevent potentially large memory consumption.
     """
-    output_shape = np.zeros(len(input_shape), dtype=np.int32)
-    for i, s in enumerate(slice_idx):
-        output_shape[i] = len(range(*s.indices(input_shape[i])))
+    out_rank = len(slices) - sum(map(lambda x: isinstance(x, int), slices))
+    output_shape = np.zeros(out_rank, dtype=np.int64)
+    output_shape = []
+    in_idx, out_idx = 0, 0
+    for i, s in enumerate(slices):
+        if isinstance(s, slice):
+            output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
+            out_idx += 1
+            in_idx += 1
+        elif s is None:  # new_axis
+            output_shape.append(1)
+            out_idx += 1
+        elif isinstance(s, int):  # shrink_axis
+            in_idx += 1
+        else:
+            raise Exception('Element type of a slice List is unacceptable. '
+                            'Allowed types are: slice, int, and None. Instead got: '. format(type(s)))
+    for i in range(in_idx, len(input_shape)):
+        output_shape.append(input_shape[i])
     return output_shape

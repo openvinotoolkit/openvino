@@ -21,6 +21,7 @@ from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
 from mo.utils.utils import array_to_str
+from mo.ops.slice import get_shape_from_slice
 
 
 class StridedSlice(Op):
@@ -61,98 +62,85 @@ class StridedSlice(Op):
 def tf_strided_slice_infer(node):
     if node.in_node(1).value is None or node.in_node(2).value is None:
         raise Error('Strided slice layer supports only constant begin and end inputs')
-    begin_id = node.in_node(1).value.copy()
-    end_id = node.in_node(2).value.copy()
-    if len(node.in_nodes()) > 3:
-        if node.in_node(3).value is None:
-            raise Error('Strided slice layer supports only constant stride input')
-        stride = node.in_node(3).value
-    else:
-        stride = []
+    begin_id = node.in_port(1).data.get_value()
+    end_id = node.in_port(2).data.get_value()
 
+    if len(node.in_nodes()) > 3:
+        if node.in_port(3).data.get_value() is None:
+            raise Error('Strided slice layer supports only constant stride input')
+        strides = node.in_port(3).data.get_value()
+    else:
+        strides = np.ones_like(begin_id)
     shape = node.in_node(0).shape
+    value = node.in_port(0).data.get_value()
+    input_rank = len(shape)
 
     if shape is None or any([x < 0 for x in shape]):
         return
 
-    convert_negative_indices(begin_id, shape)
-    convert_negative_indices(end_id, shape)
+    assert len(begin_id) == len(end_id) == len(strides), 'begin, end, and strides must be of the same length'
 
-    slice_idx = []
-    dims = np.amax(np.array([len(begin_id), len(end_id), len(stride),
-                             len(node.shrink_axis_mask), len(node.new_axis_mask), len(node.ellipsis_mask),
-                             len(node.begin_mask), len(node.end_mask)]))
+    extend_mask = lambda mask: np.append(mask, [0] * (len(begin_id) - len(mask)))
+    new_axis_mask = extend_mask(node.new_axis_mask)
+    shrink_axis_mask = extend_mask(node.shrink_axis_mask)
+    begin_mask = extend_mask(node.begin_mask)
+    end_mask = extend_mask(node.end_mask)
 
-    # make mask correct length
-    def extend_mask(in_mask, fin_len, zeros=True):
-        mask = list(in_mask)
-        if len(mask) < fin_len:
-            if zeros:
-                mask.extend(np.zeros(dims-len(mask), dtype=np.int32))
-            else:
-                mask.extend(np.ones(dims-len(mask), dtype=np.int32))
-        return np.array(mask, dtype=np.int32)
+    # unroll ellipsis
+    if np.any(node.ellipsis_mask):
+        i = np.nonzero(node.ellipsis_mask)
+        assert len(i[0]) == 1, 'only one nonzero value in ellipsis_mask is allowed'
+        ellipsis_start = i[0][0]
+        num_inserts = input_rank - len(begin_id) + np.count_nonzero(node.new_axis_mask[ellipsis_start:])
 
-    new_axis_mask = extend_mask(node.new_axis_mask, dims)
-    shrink_axis_mask = extend_mask(node.shrink_axis_mask, dims)
-    ellipsis_mask = extend_mask(node.ellipsis_mask, dims)
-    begin_mask = extend_mask(node.begin_mask, dims)
-    end_mask = extend_mask(node.end_mask, dims)
+        # since we don't unse begin, end value
+        begin_mask[ellipsis_start] = 0
+        end_mask[ellipsis_start] = 0
+        new_axis_mask = np.insert(new_axis_mask, ellipsis_start + 1, [0] * num_inserts)
+        shrink_axis_mask = np.insert(shrink_axis_mask, ellipsis_start + 1, [0] * num_inserts)
+        begin_mask = np.insert(begin_mask, ellipsis_start + 1, [0] * num_inserts)
+        end_mask = np.insert(end_mask, ellipsis_start + 1, [0] * num_inserts)
 
-    old_idx = 0
-    ellips_ext = 0
-    id_em = 0
-    for idx in range(dims):
-        if new_axis_mask[idx]:
-            slice_idx.append(np.newaxis)
-        elif ellipsis_mask[idx]:
-            ellips_ext = len(shape) - (dims - np.count_nonzero(new_axis_mask) - 1)
-            id_em = idx
-            for i in range(0, ellips_ext):
-                slice_idx.append(slice(0, shape[old_idx], 1))
-                old_idx = old_idx + 1
+        begin_id = np.insert(end_id, ellipsis_start + 1, [0] * num_inserts)
+        end_id = np.insert(end_id, ellipsis_start + 1, [0] * num_inserts)
+        strides = np.insert(strides, ellipsis_start + 1, [1] * num_inserts)
+
+    # from now slices are without ellipsis
+    dims = len(begin_id)
+    slice_idx = [[]] * dims
+    in_idx = 0
+    for i in range(dims):
+        if new_axis_mask[i]:
+            slice_idx[i] = np.newaxis
+        elif shrink_axis_mask[i]:
+            begin = begin_id[in_idx]
+            if begin < 0:
+                begin += shape[in_idx]
+            slice_idx[i] = int(begin)
         else:
-            s = stride[idx] if len(stride) > idx else 1
-            def_beg = 0 if s > 0 else -1
-            def_end = shape[old_idx] if s > 0 else -shape[old_idx]-1
-            l = begin_id[idx] if begin_mask[idx] and idx < len(begin_id) else def_beg
-            r = end_id[idx] if end_mask[idx] and idx < len(end_id) else def_end
+            begin = begin_id[in_idx]
+            end = end_id[in_idx]
+            if not begin_mask[i]:
+                begin = 0 if strides[in_idx] > 0 else -1
+            if not end_mask[i]:
+                end = shape[in_idx] if strides[in_idx] > 0 else -shape[in_idx] - 1
+            slice_idx[i] = slice(begin, end, strides[in_idx])
+        in_idx += 1 if not new_axis_mask[i] else 0
 
-            # Check shrink_axis_mask
-            if shrink_axis_mask[idx] and idx < len(shape):
-                slice_idx.append(slice(l, l+1, s))
-            else:
-                slice_idx.append(slice(l, r, s))
-            old_idx = old_idx + 1
+    if value is not None:
+        node.out_port(0).data.set_value(value[tuple(slice_idx)])
+    else:
+        node.out_port(0).data.set_shape(get_shape_from_slice(shape, slice_idx))
 
-    value = node.in_node(0).value if node.in_node(0).value is not None else np.zeros(shape)
-    value = value[tuple(slice_idx)]
-
-    for idx, flag in reversed(list(enumerate(shrink_axis_mask))):
-        if flag:
-            if ellips_ext > 0 and idx > id_em:
-                idx = idx + ellips_ext - 1
-            try:
-                value = np.squeeze(value, idx)
-            except ValueError:
-                # ignore this error
-                continue
-
-    for i, s in enumerate(slice_idx):
-        if s is None:
+    in_idx = 0
+    for i in range(dims):
+        if new_axis_mask[i]:
             slice_idx[i] = slice(0, 1, 1)
-
+        elif shrink_axis_mask[i]:
+            slice_idx[i] = slice(slice_idx[i], slice_idx[i] + 1, strides[i])
+        if not new_axis_mask[i]:
+            slice_idx[i] = slice(*slice_idx[i].indices(shape[in_idx]))  # will convert negative indices
+            in_idx += 1
     node['slices'] = np.array(slice_idx)
-    for attr in ('shrink_axis_mask', 'new_axis_mask', 'ellipsis_mask', 'begin_mask', 'end_mask'):
-        node[attr] = np.array(node[attr], dtype=np.int32)
 
     node['force_precision_in_ports'] = {port: 'int64' for port in range(1, len(node.in_nodes()))}
-
-    node.out_node().value = value.copy() if node.in_node(0).value is not None else None
-    node.out_node().shape = np.array(value.shape, dtype=np.int64)
-
-
-def convert_negative_indices(indices: np.array, shape: np.array):
-    for ind, value in enumerate(indices):
-        if value < 0:
-            indices[ind] += shape[ind]

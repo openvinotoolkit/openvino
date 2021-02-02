@@ -41,19 +41,9 @@ input = np.random.rand(10, 10, 10, 10)
 
 nodes = {
     **valued_const_with_data('input', input),
-    **regular_op_with_empty_data('strided_slice', {'op': 'StridedSlice',
-                                                   'begin_mask': [1, 1, 1],
-                                                   'end_mask': [1, 1, 1],
-                                                   'ellipsis_mask': [0, 0, 0],
-                                                   'new_axis_mask': [0, 0, 0],
-                                                   'shrink_axis_mask': [0, 0, 0],
-                                                   'infer': StridedSlice.infer}),
-    **regular_op_with_empty_data('strided_slice_normalized', {'op': 'StridedSlice',
-                                                   'begin_mask': [0, 1, 1, 0],
-                                                   'end_mask': [0, 1, 1, 0],
-                                                   'ellipsis_mask': [0, 0, 0, 0],
-                                                   'new_axis_mask': [0, 0, 0, 0],
-                                                   'shrink_axis_mask': [0, 0, 0, 0],
+    **regular_op_with_empty_data('strided_slice', {'op': 'StridedSlice', 'begin_mask': [1, 1, 1],
+                                                   'end_mask': [1, 1, 1], 'ellipsis_mask': [0, 0, 0],
+                                                   'new_axis_mask': [0, 0, 0], 'shrink_axis_mask': [0, 0, 0],
                                                    'infer': StridedSlice.infer}),
     **valued_const_with_data('begin', int64_array(begin)),
     **valued_const_with_data('begin_placeholder', int64_array([0])),
@@ -94,7 +84,7 @@ edges_ref_extend = (
     *connect('strided_slice', 'res')
 )
 
-edges_ref_extend = (
+edges_ref_ellipsis_unrolled = (
     *connect('input', '0:strided_slice'),
 
     # after extending begin
@@ -112,6 +102,10 @@ edges_ref_extend = (
 
     *connect('strided_slice', 'res')
 )
+
+# unrolled and extended
+
+# extended with existing concat
 
 
 class TestStridedSliceNormalizer(unittest.TestCase):

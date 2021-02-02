@@ -116,92 +116,78 @@ class TestStridedSliceInfer(unittest.TestCase):
 
     def test_slice_infer_shape_1(self,  # inp[]
                                  inp=(10, 10, 10, 10), ref_res=(3, 0, 5, 10), is_shape=True,
-                                 begin=(0, 0, 0), end=(3, 0, 5), strides=(1,), begin_mask=(1, 1, 1), end_mask=(1, 1, 1),
+                                 begin=(0, 0, 0), end=(3, 0, 5), strides=(1, 1, 1), begin_mask=(1, 1, 1), end_mask=(1, 1, 1),
                                  shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
     def test_slice_infer_shape_2(self,  # inp[]
                                    inp=(10, 10, 10, 10), ref_res=(3, 0, 5, 10), is_shape=True,
-                                   begin=(0,), end=(3, 0, 5, 120), strides=(1,), begin_mask=(1, 1, 1, 0), end_mask=(1, 1, 1, 0),
+                                   begin=(0, 0, 0), end=(3, 0, 5), strides=(1, 1, 1), begin_mask=(1, 1, 1), end_mask=(1, 1, 1),
                                    shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_slice_infer_shape_3(self,  # inp[0:1, :, :, :] res = inp[0:1] todo: be aware that [1, 35, 35, 3]) is incorrect
-                                 inp=(1, 35, 35, 3), ref_res=(1, 35, 35, 3), is_shape=True,
-                                 begin=(0,), end=(1, 34, 20, 2), strides=(1,), begin_mask=(1,), end_mask=(1,),
-                                 shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)):
+    def test_slice_infer_shape_6_(self,  # inp[1:34, 0, :, :2]
+                                 inp=(1, 35, 35, 3), ref_res=(1, 35, 2), is_shape=True,
+                                 begin=(0, 0, 0, 0), end=(1, 34, 20, 2), strides=(1, 1, 1, 1), begin_mask=(1,), end_mask=(1, 0, 0, 1),
+                                 shrink_axis_mask=(0, 1), new_axis_mask=(0,), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_slice_infer_shape_4(self,  # inp[0:1, :, :, :2] = inp[0:1, ..., :2] todo: be aware that [1, 25, 25, 2]) is incorrect
-                                 inp=(1, 35, 35, 3), ref_res=(1, 35, 35, 2), is_shape=True,
-                                 begin=(0, 10, 10), end=(1, 34, 20, 2), strides=(1,), begin_mask=(1,), end_mask=(1, 0, 0, 1),
-                                 shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)):
-        self.run_test(inp, is_shape, ref_res, begin, end, strides,
-                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
-
-    def test_slice_infer_shape_5(self,  # inp[0:1, :, :, 0:] = inp[0:1] todo: be aware that [1, 34, 30, 2]) is incorrect
-                                 inp=(1, 35, 35, 3), ref_res=(1, 35, 35, 3), is_shape=True,
-                                 begin=(0, 10, 10), end=(1, 34, 20, 2), strides=(1,), begin_mask=(1, 0, 0, 1), end_mask=(1,),
-                                 shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)):
-        self.run_test(inp, is_shape, ref_res, begin, end, strides,
-                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
-
-    def test_slice_infer_shape_6(self,  # inp[1:34, :, :, :2]
-                                 inp=(1, 35, 35, 3), ref_res=(1, 35, 35, 2), is_shape=True,
-                                 begin=(0,), end=(1, 34, 20, 2), strides=(1,), begin_mask=(1,), end_mask=(1, 0, 0, 1),
-                                 shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)):
+    def test_slice_infer_shape_6(self,  # inp[1:34, :, :, :2] begin mask is (1,) so only one value can be specified
+                                 inp=(1, 35, 35, 3), ref_res=(1, 35, 2), is_shape=True,
+                                 begin=(0, 0, 0, 0), end=(1, 34, 20, 2), strides=(1, 1, 1, 1), begin_mask=(1,), end_mask=(1, 0, 0, 1),
+                                 shrink_axis_mask=(0, 1), new_axis_mask=(0,), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
     def test_slice_infer_shape_7(self,  # inp[:, :, :, :] since all begin and end masks are zero
                                  inp=(1, 35, 35, 3), ref_res=(1, 35, 35, 3), is_shape=True,
-                                 begin=(1, 10, 10, 0), end=(1, 34, 20, 2), strides=(1,), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+                                 begin=(1, 10, 10, 0), end=(1, 34, 20, 2), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
                                  shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_slice_infer_shape_8(self,  # inp[20] todo: suspicious begin
+    def test_slice_infer_shape_8(self,  # inp[0] todo: suspicious begin
                                  inp=(1, 35, 35, 3), ref_res=(35, 35, 3), is_shape=True,
-                                 begin=(20,), end=(1, 34, 20, 2), strides=(1,), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+                                 begin=(0,), end=(1,), strides=(1,), begin_mask=(0,), end_mask=(0,),
                                  shrink_axis_mask=(1,), new_axis_mask=(0,), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_slice_infer_shape_9(self,  # inp[0, :, :, np.newaxis] todo: looks suspicious
+    def test_slice_infer_shape_8_(self,  # inp[0, 20] ends can be of any value
+                                 inp=(1, 35, 35, 3), ref_res=(35, 3), is_shape=True,
+                                 begin=(0, 20), end=(1, 9999), strides=(1, 1), begin_mask=(0,), end_mask=(0,),
+                                 shrink_axis_mask=(1, 1), new_axis_mask=(0,), ellipsis_mask=(0,)):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_slice_infer_shape_9(self,  # inp[0, :, :, np.newaxis]
                                  inp=(1, 35, 35, 3), ref_res=(35, 35, 1, 3), is_shape=True,
-                                 begin=(1,), end=(1, 34, 20, 2), strides=(1,), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+                                 begin=(1, 0, 22, 0), end=(1, 34, 20, 2), strides=(1, 1, 1, 1), begin_mask=(0,), end_mask=(0,),
                                  shrink_axis_mask=(1,), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
     def test_slice_infer_shape_10(self,  # inp[], since begin_mask is [0], begin can be of any value
                                   inp=(1, 35, 35, 3), ref_res=(35, 3), is_shape=True,
-                                  begin=(0,), end=(1, 34, 20, 2), strides=(1,), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+                                  begin=(0, 0, 0, 0), end=(1, 34, 20, 2), strides=(1, 1, 1, 1), begin_mask=(0,), end_mask=(0,),
                                   shrink_axis_mask=(1, 0, 1, 0), new_axis_mask=(0,), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_slice_infer_shape_11(self,  # inp[], since begin_mask is [0], begin can be of any value
+    def test_slice_infer_shape_11(self,  # inp[0, 0, 0], since begin_mask is [0], begin can be of any value
                                   inp=(1, 35, 35, 3), ref_res=(3,), is_shape=True,
-                                  begin=(0,), end=(1, 34, 20, 2), strides=(1,), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-                                  shrink_axis_mask=(1, 1, 1, 0), new_axis_mask=(0,), ellipsis_mask=(0,)):
+                                  begin=(0, 0, 0), end=(1, 34, 20), strides=(1, 1, 1), begin_mask=(0,), end_mask=(0,),
+                                  shrink_axis_mask=(1, 1, 1), new_axis_mask=(0,), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
     def test_slice_infer_shape_12(self,  # inp[..., np.newaxis]
                                   inp=(1, 35, 35), ref_res=(1, 35, 35, 1), is_shape=True,
-                                  begin=(101, 0), end=(0, 10), strides=(-1,), begin_mask=(0, 0), end_mask=(0, 0),
-                                  shrink_axis_mask=(0, ), new_axis_mask=(0, 1), ellipsis_mask=(1, 0)):
-        self.run_test(inp, is_shape, ref_res, begin, end, strides,
-                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
-
-    def test_slice_infer_shape_13(self,  # inp[..., np.newaxis] todo: suspicious that does not raise Exception when strides are 0
-                                  inp=(1, 35, 35), ref_res=(1, 35, 35, 1), is_shape=True,
-                                  begin=(101, 0), end=(0, 0), strides=(0,), begin_mask=(0, 0), end_mask=(0, 0),
-                                  shrink_axis_mask=(0, ), new_axis_mask=(0, 1), ellipsis_mask=(1, 0)):
+                                  begin=(101, 0), end=(0, 0), strides=(-1, -1), begin_mask=(0, 0), end_mask=(0, 0),
+                                  shrink_axis_mask=(0, 0), new_axis_mask=(0, 1), ellipsis_mask=(1, 0)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
