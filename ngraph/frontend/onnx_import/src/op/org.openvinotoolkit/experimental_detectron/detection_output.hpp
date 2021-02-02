@@ -52,9 +52,8 @@ namespace ngraph
                         node.get_attribute_value<std::int64_t>("class_agnostic_box_regression", 0));
                     attrs.deltas_weights =
                         node.get_attribute_value<std::vector<float>>("deltas_weights", {10.0f, 10.0f, 5.0f, 5.0f});
-
-                    return {
-                        std::make_shared<DetectionOutput>(rois, deltas, scores, im_info, attrs)};
+                    auto detection_output = std::make_shared<DetectionOutput>(rois, deltas, scores, im_info, attrs);
+                    return {detection_output->output(0), detection_output->output(1), detection_output->output(2)};
                 }
 
             } // namespace set_1
