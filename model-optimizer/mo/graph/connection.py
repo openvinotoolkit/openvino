@@ -148,10 +148,10 @@ class Connection:
                     # Remove debug info
                     if 'fw_tensor_debug_info' in source_out_data.attrs():
                         del self.graph.node[source_out_data.id]['fw_tensor_debug_info']
-                    # Copy attrs to new data node
-                    for attr in attrs:
-                        if attr != 'fw_tensor_debug_info':
-                            port_out_data[attr] = attrs[attr]
+                # Copy attrs to new data node
+                for attr in attrs:
+                    if attr != 'fw_tensor_debug_info':
+                        port_out_data[attr] = attrs[attr]
 
             new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, port_out_data.attrs(), attrs)
             self._update_tensor_debug_info(port_out_data.attrs(), new_tensor_info)
