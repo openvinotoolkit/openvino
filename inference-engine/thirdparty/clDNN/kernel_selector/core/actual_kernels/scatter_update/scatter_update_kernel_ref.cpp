@@ -67,22 +67,6 @@ ParamsKey ScatterUpdateKernelRef::GetSupportedKey() const {
     return k;
 }
 
-static size_t GetNonEmptyDimsNumber(const DataTensor& data_tensor) {
-    if (data_tensor.LogicalSize() != 1) {
-        // Count the number of "one size" dimensions starting with X to Batch
-        size_t one_size_dims = 0;
-        for (auto& i : data_tensor.GetDims()) {
-            if (i.v == 1)
-                one_size_dims++;
-            else
-                break;
-        }
-        return data_tensor.Dimentions() - one_size_dims;
-    } else {
-        return 1;
-    }
-}
-
 static inline std::string GetOrderString(std::vector<std::string>& order) {
     std::string order_str = order[0];
     for (size_t i = 1; i < order.size(); i++)
@@ -104,99 +88,90 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
-static std::string GetUpdatesIndexOrder(const scatter_update_params& params, size_t axis) {
-    std::vector<std::string> default_order = GetDefaultOrder(params.output.GetDims().size());
-
-    for (unsigned int i = 0; i < params.inputs[2].GetDims().size() - params.output.GetDims().size(); i++)
-        default_order.push_back("0");
-
-    size_t indices_non_empty_dims = GetNonEmptyDimsNumber(params.inputs[1]);
-    std::string FYX_indices_size = "(INPUT1_FEATURE_NUM * INPUT1_SIZE_Y * INPUT1_SIZE_X)";
-    std::string YX_indices_size = "(INPUT1_SIZE_Y * INPUT1_SIZE_X)";
-    std::string X_indices_size = "(INPUT1_SIZE_X)";
-
-    // Shift indices of ScatterUpdate updates input related to Indices dims
-    for (size_t i = default_order.size() - 1; i > (axis + indices_non_empty_dims - 1); i--)
-        default_order[i] = default_order[i - indices_non_empty_dims + 1];
-
-    // Insert Indices indexes in axis dimention in the Update index order
-    for (size_t i = axis; i < (axis + indices_non_empty_dims) && i < default_order.size(); i++) {
-        switch(i - axis) {
-            case 0:
-                default_order[i] = "(OUTPUT_INDEX_ON_AXIS /" + FYX_indices_size + ")";
-                break;
-            case 1:
-                default_order[i] = "((OUTPUT_INDEX_ON_AXIS %" + FYX_indices_size + ")/" + YX_indices_size + ")";
-                break;
-            case 2:
-                default_order[i] = "(((OUTPUT_INDEX_ON_AXIS %" + FYX_indices_size + ")%" + YX_indices_size + ")/" + X_indices_size + ")";
-                break;
-            case 3:
-                default_order[i] = "(((OUTPUT_INDEX_ON_AXIS %" + FYX_indices_size + ")%" + YX_indices_size + ")%" + X_indices_size + ")";
-                break;
-        }
+static inline std::string GetAxisName(size_t size, size_t axis) {
+    std::vector<std::string> axis_names;;
+    if (size <= 4) {
+        axis_names = {"BATCH", "FEATURE", "Y", "X"};
+    } else if (size == 5) {
+        axis_names = {"BATCH", "FEATURE", "Z", "Y", "X"};
+    } else if (size == 6) {
+        axis_names = {"BATCH", "FEATURE", "W", "Z", "Y", "X"};
     }
+    return axis_names[axis];
+}
 
+static std::string GetUpdatesIndexOrder(const scatter_update_params& params) {
+    std::vector<std::string> default_order = GetDefaultOrder(params.output.GetDims().size());
     return GetOrderString(default_order);
 }
 
 CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_params& params, const optional_params&, bool is_second) const {
     CommonDispatchData dispatchData;
     const auto& output = params.output;
-
-    const size_t indices_size = params.inputs[1].LogicalSize();
-
-    switch (params.inputs[0].GetLayout()) {
-    case DataLayout::bfyx:
-        dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
-        if (is_second) {
-            if (params.axis == ScatterUpdateAxis::BATCH)
-                dispatchData.gws[2] = indices_size * output.Feature().v;
-            else if (params.axis == ScatterUpdateAxis::FEATURE)
-                dispatchData.gws[2] = indices_size * output.Batch().v;
-            else if (params.axis == ScatterUpdateAxis::Y)
-                dispatchData.gws[1] = indices_size;
-            else
-                dispatchData.gws[0] = indices_size;
+    if (!is_second) {
+        switch (output.GetLayout()) {
+            case DataLayout::bfyx:
+               dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+               break;
+            case DataLayout::bfzyx:
+               dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
+               break;
+            case DataLayout::bfwzyx:
+               dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+               break;
+            default:
+               throw std::runtime_error("Unsupported combination\n");
+               break;
         }
-        break;
-
-    case DataLayout::bfzyx:
-        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
-        if (is_second) {
-            if (params.axis == ScatterUpdateAxis::BATCH)
-                dispatchData.gws[2] = indices_size * output.Feature().v;
-            else if (params.axis == ScatterUpdateAxis::FEATURE)
-                dispatchData.gws[2] = indices_size * output.Batch().v;
-            else if (params.axis == ScatterUpdateAxis::Z)
-                dispatchData.gws[1] = indices_size;
-            else if (params.axis == ScatterUpdateAxis::Y)
-                dispatchData.gws[0] = indices_size * output.X().v;
-            else
-                dispatchData.gws[0] = indices_size * output.Y().v;
+    } else {
+        // second iteration
+        // Each work item is for each tensor in input2.
+        // Not using input2's shape info directly, because the input2's shape might be reordered from the reordering pass.
+        // Instead, we reconsider update2's dimension with input1's shape which is shrinked as 1d.
+        // e.g., axis = b, input0(10, 9, 10, 9, 10) && input1(4, 2) => input2(8, 9, 10, 9, 10 
+        const size_t indices_size = params.inputs[1].LogicalSize();
+        switch (output.GetLayout()) {
+            case DataLayout::bfyx:
+                if (params.axis == ScatterUpdateAxis::BATCH)
+                    dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * indices_size};
+                else if (params.axis == ScatterUpdateAxis::FEATURE)
+                    dispatchData.gws = {output.X().v, output.Y().v, indices_size * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::Y)
+                     dispatchData.gws = {output.X().v, indices_size, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::X)
+                     dispatchData.gws = {indices_size, output.Y().v, output.Feature().v * output.Batch().v};
+                break;
+            case DataLayout::bfzyx:
+                if (params.axis == ScatterUpdateAxis::BATCH)
+                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * indices_size};
+                else if (params.axis == ScatterUpdateAxis::FEATURE)
+                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, indices_size * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::Z)
+                    dispatchData.gws = {output.X().v * output.Y().v, indices_size, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::Y)
+                    dispatchData.gws = {output.X().v * indices_size, output.Z().v, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::X)
+                    dispatchData.gws = {indices_size * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
+                break;
+            case DataLayout::bfwzyx:
+                if (params.axis == ScatterUpdateAxis::BATCH)
+                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * indices_size};
+                else if (params.axis == ScatterUpdateAxis::FEATURE)
+                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, indices_size * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::W)
+                    dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * indices_size, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::Z)
+                    dispatchData.gws = {output.X().v * output.Y().v, indices_size * output.W().v, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::Y)
+                    dispatchData.gws = {output.X().v * indices_size, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+                else if (params.axis == ScatterUpdateAxis::X)
+                    dispatchData.gws = {indices_size * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+               break;
+            default:
+               throw std::runtime_error("Unsupported combination\n");
+               break;
         }
-        break;
-
-    case DataLayout::bfwzyx:
-        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
-        if (is_second) {
-            if (params.axis == ScatterUpdateAxis::BATCH)
-                dispatchData.gws[2] = indices_size * output.Feature().v;
-            else if (params.axis == ScatterUpdateAxis::FEATURE)
-                dispatchData.gws[2] = indices_size * output.Batch().v;
-            else if (params.axis == ScatterUpdateAxis::Z)
-                dispatchData.gws[1] = indices_size * output.W().v;
-            else if (params.axis == ScatterUpdateAxis::W)
-                dispatchData.gws[1] = indices_size * output.Z().v;
-            else if (params.axis == ScatterUpdateAxis::Y)
-                dispatchData.gws[0] = indices_size * output.X().v;
-            else
-                dispatchData.gws[0] = indices_size * output.Y().v;
-        }
-        break;
-    default: break;
     }
-
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
@@ -208,24 +183,51 @@ static std::string GetOutputIndexOnAxis(const scatter_update_params& params, siz
 }
 
 static std::vector<std::string> GetVectorSecondOutputIndexOrder(const scatter_update_params& params, size_t axis) {
-    std::vector<std::string> default_order = GetDefaultOrder(params.output.GetDims().size());
-    default_order[axis] = "convert_int(indices[OUTPUT_INDEX_ON_AXIS])";
-    return default_order;
+    auto output_order = GetDefaultOrder(params.output.GetDims().size());
+    output_order[axis] = "convert_int(indices[OUTPUT_INDEX_ON_AXIS])";
+    return output_order;
 }
 
 static std::string GetSecondIterOutputIndexOrder(const scatter_update_params& params, size_t axis) {
-    std::vector<std::string> default_order = GetDefaultOrder(params.output.GetDims().size());
-    default_order[axis] = "convert_int(indices[OUTPUT_INDEX_ON_AXIS])";
-    return GetOrderString(default_order);
+    auto output_order = GetVectorSecondOutputIndexOrder(params, axis);
+    return GetOrderString(output_order);
 }
 
 JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params& params) const {
+    size_t axis_value = GetScatterUpdateChannelIndex(params);
+
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params, GetScatterUpdateChannelIndex(params))));
+    jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
     jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
-    jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetScatterUpdateChannelIndex(params)));
+    jit.AddConstant(MakeJitConstant("AXIS_VALUE", axis_value));
+    jit.AddConstant(MakeJitConstant("INDICES_SIZE", params.inputs[1].LogicalSize()));
+
+    auto default_order = GetDefaultOrder(params.output.GetDims().size());
+    size_t dims = default_order.size();
+    std::string get_update_idx = "(INPUT2_OFFSET)";
+    std::string output_size_feature = "OUTPUT_FEATURE_NUM";
+    for (size_t i = 0; i < dims; ++i) {
+        if (i >= axis_value) {
+            std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
+            std::string src_pitch = "(OUTPUT_" + GetAxisName(dims, i) + "_PITCH)";
+            jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
+        } else if (i == (axis_value - 1)) {
+            std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
+            std::string src_pitch = "(OUTPUT_" + GetAxisName(dims, i + 1) + "_PITCH * INDICES_SIZE)";
+            jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
+        } else { // i < axis_value - 1
+            std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH" + "";
+            std::string output_size_name;
+            if (i == 0) output_size_name = "OUTPUT_FEATURE_NUM";
+            else output_size_name = "OUTPUT_SIZE_" + GetAxisName(dims, i + 1);
+            std::string src_pitch = "(UPDATES_" + GetAxisName(dims, i + 1) + "_PITCH * " + output_size_name + ")";
+            jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
+        }
+        get_update_idx = get_update_idx + " + (" + default_order[i] + ")*(UPDATES_" + GetAxisName(dims, i) + "_PITCH)";
+    }
+    jit.AddConstant(MakeJitConstant("GET_UPDATES_INDEX(idx_order)", get_update_idx));
 
     if (!params.fused_ops.empty()) {
         FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };
@@ -246,6 +248,10 @@ bool ScatterUpdateKernelRef::Validate(const Params& p, const optional_params& o)
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             return false;
+    }
+
+    if (params.output.PitchesDifferFromLogicalDims() || params.inputs[2].PitchesDifferFromLogicalDims()) {
+        return false;
     }
 
     return true;
