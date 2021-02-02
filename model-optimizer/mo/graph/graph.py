@@ -815,8 +815,8 @@ class Graph(nx.MultiDiGraph):
             if node_attrs.get('type', '') == 'Const':
                 if 'value' not in attrs_to_print and 'value' in node_attrs:
                     if node_attrs['value'] is not None:
-                        label += '\\nvalue=\\"' + ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + \
-                                 '\\"'
+                        label += '\\nvalue=\\"' + \
+                                 ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
                     else:
                         label += '\\nvalue=None'
             return label

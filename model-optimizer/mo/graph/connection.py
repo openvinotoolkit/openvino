@@ -213,8 +213,8 @@ class Connection:
                 node = self.source.node
                 source_attrs = check_and_remove_edge() or {}
                 dest_attrs = port.get_in_edge_attrs() or {}
-                edge_attrs = {}
 
+                edge_attrs = {}
                 new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, source_attrs, dest_attrs)
                 self._update_tensor_debug_info(edge_attrs, new_tensor_info)
 
