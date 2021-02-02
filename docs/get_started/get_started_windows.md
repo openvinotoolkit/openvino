@@ -538,4 +538,3 @@ Use these resources to learn more about the OpenVINO™ toolkit:
 * [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
 * [Overview of OpenVINO™ Toolkit Pre-Trained Models](https://software.intel.com/en-us/openvino-toolkit/documentation/pretrained-models)
-* [OpenVINO™ Hello World Face Detection Exercise](https://github.com/intel-iot-devkit/inference-tutorials-generic)

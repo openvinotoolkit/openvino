@@ -23,7 +23,7 @@ A summary of the steps for optimizing and deploying a model that was trained wit
 * **Object detection models:**
 	* SSD300-VGG16, SSD500-VGG16
 	* Faster-RCNN
-	* RefineDet (Myriad plugin only)
+	* RefineDet (MYRIAD plugin only)
 
 * **Face detection models:**
 	* VGG Face

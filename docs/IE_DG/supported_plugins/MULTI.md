@@ -47,11 +47,13 @@ Inference Engine now features a dedicated API to enumerate devices and their cap
 ```sh
 ./hello_query_device
 Available devices: 
-	Device: CPU
+    Device: CPU
 ...
-	Device: GPU
+    Device: GPU.0
 ...
-	Device: HDDL
+    Device: GPU.1
+...
+    Device: HDDL
 ```
 Simple programmatic way to enumerate the devices and use with the multi-device is as follows:
 

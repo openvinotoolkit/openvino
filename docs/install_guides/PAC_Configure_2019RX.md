@@ -237,12 +237,7 @@ classification_sample_async -m squeezenet1.1.xml -i $IE_INSTALL/demo/car.png
 classification_sample_async -m squeezenet1.1.xml -i $IE_INSTALL/demo/car.png -d HETERO:FPGA,CPU
 ```
 
-Congratulations, You are done with the Intel® Distribution of OpenVINO™ toolkit installation for FPGA. To learn more about how the Intel® Distribution of OpenVINO™ toolkit works, the Hello World tutorial and are other resources are provided below.
-
-## Hello World Face Detection Tutorial
-
-Use the  [Intel® Distribution of OpenVINO™ toolkit with FPGA Hello World Face Detection Exercise](https://github.com/fritzboyle/openvino-with-fpga-hello-world-face-detection) to learn more about how the software and hardware work together.
-
+Congratulations, You are done with the Intel® Distribution of OpenVINO™ toolkit installation for FPGA. 
 ## Additional Resources
 
 Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)

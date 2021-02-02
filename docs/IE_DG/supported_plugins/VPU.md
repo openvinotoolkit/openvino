@@ -9,12 +9,12 @@ This chapter provides information on the Inference Engine plugins that enable in
 
 ## Known Layers Limitations
 
-* `'ScaleShift'` layer is supported for zero value of `'broadcast'` attribute only.
-* `'CTCGreedyDecoder'` layer works with `'ctc_merge_repeated'` attribute equal 1.
-* `'DetectionOutput'` layer works with zero values of `'interpolate_orientation'` and `'num_orient_classes'` parameters only.
-* `'MVN'` layer uses fixed value for `'eps'` parameters (1e-9).
-* `'Normalize'` layer uses fixed value for `'eps'` parameters (1e-9) and is supported for zero value of `'across_spatial'` only.
-* `'Pad'` layer works only with 4D tensors.
+* `ScaleShift` layer is supported for zero value of `broadcast` attribute only.
+* `CTCGreedyDecoder` layer works with `ctc_merge_repeated` attribute equal 1.
+* `DetectionOutput` layer works with zero values of `interpolate_orientation` and `num_orient_classes` parameters only.
+* `MVN` layer uses fixed value for `eps` parameters (1e-9).
+* `Normalize` layer uses fixed value for `eps` parameters (1e-9) and is supported for zero value of `across_spatial` only.
+* `Pad` layer works only with 4D tensors.
 
 ## Optimizations
 
