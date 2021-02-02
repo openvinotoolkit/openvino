@@ -216,11 +216,13 @@ namespace
             return items_to_keep.count(item.name()) == 0;
         };
 
+        using std::begin;
+        using std::end;
+
         // move the elements-to-discard to the end of the container
-        const auto new_end =
-            std::remove_if(std::begin(all_items), std::end(all_items), can_be_discarded);
+        const auto new_end = std::remove_if(begin(all_items), end(all_items), can_be_discarded);
         // erase all of the discarded elements past the new end of the container
-        all_items.erase(new_end, std::end(all_items));
+        all_items.erase(new_end, end(all_items));
     }
 
     /// \brief Removes all nodes from a container keeping the ones whose index is in nodes_to_keep
@@ -236,12 +238,14 @@ namespace
             return nodes_to_keep.count(idx++) > 0;
         };
 
+        using std::begin;
+        using std::end;
+
         // Stable partition rearranges the nodes keeping the relative order in both partitions.
         // This way the topological sort is preserved and all of the nodes to discard are moved
         // after the returned iterator.
-        const auto new_end =
-            std::stable_partition(std::begin(all_nodes), std::end(all_nodes), keep_node);
-        all_nodes.erase(new_end, std::end(all_nodes));
+        const auto new_end = std::stable_partition(begin(all_nodes), end(all_nodes), keep_node);
+        all_nodes.erase(new_end, end(all_nodes));
     }
 } // namespace
 
