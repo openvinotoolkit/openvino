@@ -37,10 +37,7 @@ limitations under the License.
       <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
       <tab type="user" title="nGraph С++ API Reference" url="../ngraph_cpp_api/annotated.html"/>
       <!-- nGraph Python API Reference -->
-      <tab type="files" visible="yes" title="nGraph Python API Reference">
-        <tab type="filelist" visible="yes" title="nGraph Python API Reference" intro=""/>
-        <tab type="globals" visible="yes" title="" intro=""/>
-      </tab>
+      <tab type="filelist" visible="yes" title="nGraph Python API Reference" intro=""/>
     </tab>
     <!-- Chinese docs -->
     <tab type="user" title="中文文件" url="https://docs.openvinotoolkit.org/cn/index.html"/>

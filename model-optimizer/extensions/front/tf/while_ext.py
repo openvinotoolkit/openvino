@@ -15,7 +15,6 @@
 """
 import copy
 
-from extensions.front.onnx.loop_ext import connect_body_input, connect_body_output
 from extensions.ops.loop import Loop
 from extensions.ops.parameter import Parameter
 from mo.front.common.register_custom_ops import check_for_duplicates
@@ -174,7 +173,7 @@ class WhileExtractor(FrontExtractorOp):
         # connect external input ports with body parameter nodes except current iteration
         # since it must be disconnected from external port
         for idx in range(1, len(body_parameters)):
-            connect_body_input(loop_node, idx, body_parameters[idx])
+            Loop.connect_body_input(loop_node, idx, body_parameters[idx])
 
         # mark current iteration input Parameter node and execution condition Result node
         Loop.mark_current_iteration_parameter_node(loop_node, body_parameters[0])
@@ -186,7 +185,7 @@ class WhileExtractor(FrontExtractorOp):
 
         # connect body outputs with Loop operation output ports except the execution condition result
         for idx in range(len(body_results)-1):
-            connect_body_output(loop_node, idx, body_results[idx])
+            Loop.connect_body_output(loop_node, idx, body_results[idx])
 
         # run function to parse body nodes attributes similar to the main graph
         extract_node_attrs(body_graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))

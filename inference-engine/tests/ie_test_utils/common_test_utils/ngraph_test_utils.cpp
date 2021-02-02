@@ -72,7 +72,7 @@ std::string to_str(const T& v) {
     return std::to_string(v);
 }
 
-std::pair<bool, std::string> error(std::string s) {
+FunctionsComparator::Result error(std::string s) {
     return {false, std::move(s)};
 }
 
@@ -601,21 +601,16 @@ private:
 };
 }  // namespace
 
-std::pair<bool, std::string> compare_functions(
+FunctionsComparator::Result FunctionsComparator::compare(
     const std::shared_ptr<ngraph::Function>& f1,
-    const std::shared_ptr<ngraph::Function>& f2,
-    const bool compareConstValues,
-    const bool compareNames,
-    const bool compareRuntimeKeys,
-    const bool comparePrecisions,
-    const bool compareAttributes) {
+    const std::shared_ptr<ngraph::Function>& f2) const {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
      * + Check number of inputs
      * + Check shapes
      * + Check parent ports
-     * - Do not check nodes attributes (requires visitor mechanism to be completed)
+     * + Check node attributes by Visitor API
      */
 
     auto f1_results = f1->get_results();
@@ -645,7 +640,7 @@ std::pair<bool, std::string> compare_functions(
     std::unordered_set<ngraph::Node*> used;
 
     for (size_t i = 0; i < f1_results.size(); ++i) {
-        if (compareNames) {
+        if (should_compare(NAMES)) {
             if (name(f1_results[i]->get_input_node_shared_ptr(0)) !=
                 name(f2_results[i]->get_input_node_shared_ptr(0))) {
                 return error(
@@ -673,11 +668,9 @@ std::pair<bool, std::string> compare_functions(
         auto subgraph2 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node2);
 
         if (subgraph1 && subgraph2) {
-            auto res = compare_functions(
-                subgraph1->get_function(), subgraph2->get_function(), compareConstValues,
-                compareNames, compareRuntimeKeys, comparePrecisions, compareAttributes);
-            if (!res.first) {
-                return res;
+            auto result = compare(subgraph1->get_function(), subgraph2->get_function());
+            if (!result.valid) {
+                return result;
             }
         }
 
@@ -703,7 +696,7 @@ std::pair<bool, std::string> compare_functions(
         }
 
         for (int i = 0; i < node1->inputs().size(); ++i) {
-            if (compareConstValues) {
+            if (should_compare(CONST_VALUES)) {
                 using Constant = ngraph::opset1::Constant;
                 auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
                 auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
@@ -726,7 +719,7 @@ std::pair<bool, std::string> compare_functions(
                 }
             }
 
-            if (comparePrecisions) {
+            if (should_compare(PRECISIONS)) {
                 if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
                     err_log << "Different element type detected\n"
                             << name(node1) << " Input(" << i << ") "
@@ -755,7 +748,7 @@ std::pair<bool, std::string> compare_functions(
                         << idx2 << std::endl;
             }
 
-            if (compareRuntimeKeys && !compare_rt_keys(node1, node2)) {
+            if (should_compare(RUNTIME_KEYS) && !compare_rt_keys(node1, node2)) {
                 err_log << "Different runtime info detected\n"
                         << name(node1) << " and " << name(node2) << " not equal runtime info."
                         << std::endl;
@@ -785,7 +778,7 @@ std::pair<bool, std::string> compare_functions(
             }
         }
 
-        if (compareAttributes) {
+        if (should_compare(ATTRIBUTES)) {
             CompareNodesAttributes compare_nodes;
             node1->visit_attributes(compare_nodes.get_ref_reder());
             node2->visit_attributes(compare_nodes.get_cmp_reader());
