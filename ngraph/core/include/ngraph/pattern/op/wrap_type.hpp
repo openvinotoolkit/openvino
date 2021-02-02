@@ -36,7 +36,17 @@ namespace ngraph
                                       [](const Output<Node>& output) { return true; },
                                   const OutputVector& input_values = {})
                     : Pattern(input_values, pred)
-                    , m_wrapped_type(wrapped_type)
+                    , m_wrapped_types({wrapped_type})
+                {
+                    set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
+                }
+
+                explicit WrapType(std::vector<NodeTypeInfo> wrapped_types,
+                                  const ValuePredicate& pred =
+                                      [](const Output<Node>& output) { return true; },
+                                  const OutputVector& input_values = {})
+                    : Pattern(input_values, pred)
+                    , m_wrapped_types(std::move(wrapped_types))
                 {
                     set_output_type(0, element::Type_t::dynamic, PartialShape::dynamic());
                 }
@@ -45,30 +55,33 @@ namespace ngraph
                                  const Output<Node>& pattern_value,
                                  const Output<Node>& graph_value) override;
 
-                NodeTypeInfo get_wrapped_type() const { return m_wrapped_type; }
+                NodeTypeInfo get_wrapped_type() const;
+
+                const std::vector<NodeTypeInfo>& get_wrapped_types() const;
+
             private:
-                NodeTypeInfo m_wrapped_type;
+                std::vector<NodeTypeInfo> m_wrapped_types;
             };
         }
 
-        template <class T>
+        template <class... Args>
         std::shared_ptr<Node> wrap_type(const OutputVector& inputs,
                                         const pattern::op::ValuePredicate& pred)
         {
-            static_assert(std::is_base_of<Node, T>::value, "Unexpected template type");
-            return std::make_shared<op::WrapType>(T::type_info, pred, inputs);
+            std::vector<DiscreteTypeInfo> info{Args::type_info...};
+            return std::make_shared<op::WrapType>(info, pred, inputs);
         }
 
-        template <class T>
+        template <class... Args>
         std::shared_ptr<Node> wrap_type(const OutputVector& inputs = {})
         {
-            return wrap_type<T>(inputs, [](const Output<Node>& output) { return true; });
+            return wrap_type<Args...>(inputs, [](const Output<Node>& output) { return true; });
         }
 
-        template <class T>
+        template <class... Args>
         std::shared_ptr<Node> wrap_type(const pattern::op::ValuePredicate& pred)
         {
-            return wrap_type<T>({}, pred);
+            return wrap_type<Args...>({}, pred);
         }
     }
 }

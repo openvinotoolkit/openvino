@@ -105,7 +105,7 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
 
-  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid --gtest_output=xml:TEST-NGraphUT.xml
+  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid:IE_CPU/GRUSequenceOp.onnx_model_gru* --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
     continueOnError: false
 
