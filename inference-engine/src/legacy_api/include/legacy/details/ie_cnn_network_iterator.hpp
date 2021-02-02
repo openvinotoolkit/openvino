@@ -32,7 +32,6 @@ class INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Functio
 CNNNetworkIterator {
     IE_SUPPRESS_DEPRECATED_START
 
-    std::unordered_set<CNNLayer*> visited {};
     std::list<CNNLayerPtr> nextLayersToVisit {};
     InferenceEngine::CNNLayerPtr currentLayer = nullptr;
     const ICNNNetwork* network = nullptr;
@@ -56,6 +55,7 @@ CNNNetworkIterator {
             }
             return consumers;
         };
+        std::unordered_set<CNNLayer*> visited;
         auto bfs = [&](const CNNLayerPtr& start_node, bool traverse_via_outputs = false) {
             if (!start_node || visited.count(start_node.get())) return;
             std::deque<CNNLayerPtr> q;
@@ -98,16 +98,31 @@ CNNNetworkIterator {
             }
         };
 
-        // First we run bfs starting from outputs that provides deterministic graph traverse
-        for (const auto & output : outputs) {
-            bfs(getCreatorLayer(output.second).lock());
+        // Find all outputLayers
+        std::vector<CNNLayerPtr> outputLayers;
+        const auto* networkImpl = dynamic_cast<const CNNNetworkImpl*>(network);
+        if (networkImpl) {
+            for (const auto & node : networkImpl->allLayers()) {
+                if (get_consumers(node.second).empty())
+                    outputLayers.emplace_back(node.second);
+            }
+        } else {
+            // For backward compatibility
+            for (const auto& out : outputs) {
+                outputLayers.emplace_back(getCreatorLayer(out.second).lock());
+            }
         }
-
-        // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
-        for (const auto & input : inputs) {
-            const auto data_ptr = input.second->getInputData();
-            for (const auto & consumer : getInputTo(data_ptr))
-                bfs(consumer.second, true);
+        // First we run bfs starting from outputs that provides deterministic graph traverse
+        for (const auto & output : outputLayers) {
+            bfs(output);
+        }
+        if (!networkImpl) {
+            // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
+            for (const auto & input : inputs) {
+                const auto data_ptr = input.second->getInputData();
+                for (const auto & consumer : getInputTo(data_ptr))
+                    bfs(consumer.second, true);
+            }
         }
         currentLayer = nextLayersToVisit.front();
     }
