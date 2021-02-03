@@ -85,7 +85,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             node[mask_name] = np.append(node[mask_name], [0] * num)
 
     @staticmethod
-    def unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num_ellipsis_ext):
+    def unroll_ellipsis_for_inputs(graph: Graph, node: Node, ellipsis_start: int, num_ellipsis_ext: int):
         for i, slice_name in enumerate(('begin', 'end', 'strides')):
             i += 1
             if ellipsis_start != 0:

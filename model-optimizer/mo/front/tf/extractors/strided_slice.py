@@ -33,33 +33,17 @@ class StridedSliceFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         pb = node.pb
-
+        bm = int_to_array_bit_mask(pb.attr["begin_mask"].i)
+        bm = np.array([1 - b for b in bm], dtype=np.int32)
+        em = int_to_array_bit_mask(pb.attr["end_mask"].i)
+        em = np.array([1 - b for b in em], dtype=np.int32)
         attrs = {
-            'begin_mask': int_to_array_bit_mask(pb.attr["begin_mask"].i),
-            'end_mask': int_to_array_bit_mask(pb.attr["end_mask"].i),
+            'begin_mask': bm,
+            'end_mask': em,
             'ellipsis_mask': int_to_array_bit_mask(pb.attr["ellipsis_mask"].i),
             'new_axis_mask': int_to_array_bit_mask(pb.attr["new_axis_mask"].i),
             'shrink_axis_mask': int_to_array_bit_mask(pb.attr["shrink_axis_mask"].i),
         }
-        attrs['begin_mask'] = np.array([1 - b for b in attrs['begin_mask']], dtype=np.int32)
-        attrs['end_mask'] = np.array([1 - b for b in attrs['end_mask']], dtype=np.int32)
-
-        dims = max(map(lambda x: len(x[1]), attrs.items()))
-
-        def extend_mask(in_mask, dims=dims, zeros=True):
-            mask = list(in_mask)
-            if len(mask) < dims:
-                if zeros:
-                    mask.extend(np.zeros(dims - len(mask), dtype=np.int32))
-                else:
-                    mask.extend(np.ones(dims - len(mask), dtype=np.int32))
-            return np.array(mask, dtype=np.int32)
-
-        attrs['begin_mask'] = extend_mask(attrs['begin_mask'], zeros=False)
-        attrs['end_mask'] = extend_mask(attrs['end_mask'], zeros=False)
-        attrs['new_axis_mask'] = extend_mask(attrs['new_axis_mask'])
-        attrs['shrink_axis_mask'] = extend_mask(attrs['shrink_axis_mask'])
-        attrs['ellipsis_mask'] = extend_mask(attrs['ellipsis_mask'])
 
         StridedSlice.update_node_stat(node, attrs)
         return cls.enabled
