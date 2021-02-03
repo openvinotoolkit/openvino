@@ -47,15 +47,28 @@ void op::v3::Bucketize::validate_and_infer_types()
     const PartialShape& data_pshape = get_input_partial_shape(0);
     const PartialShape& buckets_pshape = get_input_partial_shape(1);
 
+    const auto data_et = get_input_element_type(0);
+    const auto buckets_et = get_input_element_type(1);
+
+    NODE_VALIDATION_CHECK(this,
+                          data_et.is_real() || data_et.is_integral_number(),
+                          "Data input type must be numeric. Got: ",
+                          data_et);
+
+    NODE_VALIDATION_CHECK(this,
+                          buckets_et.is_real() || buckets_et.is_integral_number(),
+                          "Buckets input type must be numeric. Got: ",
+                          buckets_et);
+
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
-                          "Output type must be i32 or i64. Default is i64");
+                          "Output type must be i32 or i64. Got: ",
+                          m_output_type);
 
-    if (buckets_pshape.is_static())
-    {
-        NODE_VALIDATION_CHECK(
-            this, buckets_pshape.rank().compatible(1), "buckets input must be a 1D tensor");
-    }
+    NODE_VALIDATION_CHECK(this,
+                          buckets_pshape.rank().compatible(1),
+                          "Buckets input must be a 1D tensor. Got: ",
+                          buckets_pshape);
 
     if (data_pshape.is_dynamic())
     {

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -272,6 +272,17 @@ def protobuf_attrs(pb:tf_v1.NodeDef):
 
 def protobuf2nx(graph, pb: tf_v1.GraphDef):
     fill_graph_with_nodes(graph, pb.node, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
+
+    # Create a library with auxiliary functions used in TensorFlow 2 operations
+    if hasattr(pb, 'library') and hasattr(pb.library, 'function'):
+        graph.graph['library'] = {}
+        for library_function in pb.library.function:
+            function_name = library_function.signature.name
+            graph.graph['library'][function_name] = {}
+            graph.graph['library'][function_name]['input_arg'] = library_function.signature.input_arg
+            graph.graph['library'][function_name]['output_arg'] = library_function.signature.output_arg
+            graph.graph['library'][function_name]['node_def'] = library_function.node_def
+            graph.graph['library'][function_name]['ret'] = library_function.ret
     # initial order of nodes in the GraphDef. It is used to specify order in
     # which merged nodes are added to the generated sub-graph GraphDef for the TensorFlow offload feature.
     graph.graph['initial_nodes_order'] = [node.name for node in pb.node]

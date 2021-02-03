@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,7 @@
 # include <ngraph/op/util/sub_graph_base.hpp>
 # include <ngraph/opsets/opset.hpp>
 # include <ie_ngraph_utils.hpp>
-# include <ngraph/opsets/opset.hpp>
+# include <ngraph/opsets/opset5.hpp>
 #endif  // IR_READER_V10
 
 #include <ie_blob.h>
@@ -69,6 +69,7 @@ private:
             // Precision and dimensions are needed only for GenericIE op
             ngraph::element::Type_t precision;
             SizeVector dims;
+            std::unordered_set<std::string> names;
         };
         size_t layerId;
         std::string version;
@@ -144,7 +145,7 @@ private:
             return result;
         }
 
-        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, int numInputs) {
+        void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, size_t numInputs) {
             if (numInputs >= 0 && inputs.size() != numInputs) {
                 THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
                                    << " has incorrect number of inputs! Expected: " << numInputs << ", actual: " << inputs.size();
@@ -301,13 +302,17 @@ private:
         ///  op iterations. Map constains type id and assigned to it consecutive number starting from 0.
         /// \param node xml op representation
         /// \param type op type name to find
-        /// \param type_id_in_function map container
-        void map_type_in_function(const pugi::xml_node& node, std::string type, std::map<uint64_t, uint64_t>& type_id_in_function);
+        /// \return map container
+        std::map<uint64_t, uint64_t> map_type_in_function(const pugi::xml_node& node, std::string type);
         /// \brief Traverses xml node representation in order to create nGraph function for it.
         /// \param node xml node representation
         /// \param weights weights attached to current node
         /// \return shared pointer to function representing input node
         std::shared_ptr<ngraph::Function> parse_function(const pugi::xml_node& root, const Blob::CPtr& weights);
+        /// \brief Traverses xml node representation in order to get the purpose attribute of inputs/outputs in the body of Loop op.
+        /// \param node xml node representation
+        /// \return struct with value of purpuse attribute
+        ngraph::op::v5::Loop::SpecialBodyPorts parsePurposeAttribute(const pugi::xml_node& node);
 
         GenericLayerParams parseGenericParams(const pugi::xml_node& node);
         std::shared_ptr<ngraph::Node> createNode(const ngraph::OutputVector& inputs, const pugi::xml_node& node,

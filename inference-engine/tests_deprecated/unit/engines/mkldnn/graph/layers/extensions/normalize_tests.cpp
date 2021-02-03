@@ -365,7 +365,6 @@ public:
             const SizeVector& data_dims = data_desc.getDims();
 
             InferenceEngine::Precision precision = data_desc.getPrecision();
-            Layout layout;
             if (is_blocked) {
                 int blk_size = InferenceEngine::with_cpu_x86_avx512f() ? 16 : 8;
 

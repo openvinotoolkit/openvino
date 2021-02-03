@@ -16,9 +16,9 @@
 
 #include <memory>
 
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/shrink.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
+#include "op/shrink.hpp"
 
 namespace ngraph
 {

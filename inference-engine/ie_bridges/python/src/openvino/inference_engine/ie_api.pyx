@@ -71,8 +71,7 @@ cdef class TensorDesc:
     # @return Instance of defines class
     def __cinit__(self, precision : str, dims : [list, tuple], layout : str):
         if precision not in supported_precisions:
-            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
-                                                                                                 supported_precisions))
+            raise ValueError(f"Unsupported precision {precision}! List of supported precisions: {supported_precisions}")
         self.impl = C.CTensorDesc(C.Precision.FromStr(precision.encode()), dims, layout_str_to_enum[layout])
     ## Shape (dimensions) of the TensorDesc object
     @property
@@ -88,8 +87,7 @@ cdef class TensorDesc:
     @precision.setter
     def precision(self, precision : str):
         if precision not in supported_precisions:
-            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
-                                                                                                 supported_precisions))
+            raise ValueError(f"Unsupported precision {precision}! List of supported precisions: {supported_precisions}")
         self.impl.setPrecision(C.Precision.FromStr(precision.encode()))
     ## Layout of the TensorDesc object
     @property
@@ -98,8 +96,8 @@ cdef class TensorDesc:
     @layout.setter
     def layout(self, layout : str):
         if layout not in layout_str_to_enum.keys():
-            raise ValueError("Unsupported layout {}! "
-                             "List of supported layouts: {}".format(layout, list(layout_str_to_enum.keys())))
+            raise ValueError(f"Unsupported layout {layout}! "
+                             f"List of supported layouts: {list(layout_str_to_enum.keys())}")
         self.impl.setLayout(layout_str_to_enum[layout])
 
 ## This class represents Blob
@@ -153,7 +151,7 @@ cdef class Blob:
             elif  precision == "I64":
                 self._ptr = C.make_shared_blob[int64_t](c_tensor_desc)
             else:
-                raise AttributeError("Unsupported precision {} for blob".format(precision))
+                raise AttributeError(f"Unsupported precision {precision} for blob")
             deref(self._ptr).allocate()
         elif tensor_desc is not None and self._array_data is not None:
             c_tensor_desc = tensor_desc.impl
@@ -161,11 +159,11 @@ cdef class Blob:
             size_arr = np.prod(array.shape)
             size_td = np.prod(tensor_desc.dims)
             if size_arr != size_td:
-                raise AttributeError("Number of elements in provided numpy array {} and "
-                                     "required by TensorDesc {} are not equal".format(size_arr, size_td))
+                raise AttributeError(f"Number of elements in provided numpy array {size_arr} and "
+                                     f"required by TensorDesc {size_td} are not equal")
             if self._array_data.dtype != format_map[precision]:
-                raise ValueError("Data type {} of provided numpy array "
-                                 "doesn't match to TensorDesc precision {}".format(self._array_data.dtype, precision))
+                raise ValueError(f"Data type {self._array_data.dtype} of provided numpy array "
+                                 f"doesn't match to TensorDesc precision {precision}")
             if not self._array_data.flags['C_CONTIGUOUS']:
                 self._array_data = np.ascontiguousarray(self._array_data)
             if precision == "FP32":
@@ -175,7 +173,8 @@ cdef class Blob:
                 fp64_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[double](c_tensor_desc, &fp64_array_memview[0], fp64_array_memview.shape[0])
             elif precision == "FP16":
-                raise RuntimeError("Currently, it's impossible to set_blob with FP16 precision")
+                I16_array_memview = self._array_data.view(dtype=np.int16)
+                self._ptr = C.make_shared_blob[int16_t](c_tensor_desc, &I16_array_memview[0], I16_array_memview.shape[0])
             elif precision == "I16":
                 I16_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int16_t](c_tensor_desc, &I16_array_memview[0], I16_array_memview.shape[0])
@@ -195,7 +194,7 @@ cdef class Blob:
                 I64_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int64_t](c_tensor_desc, &I64_array_memview[0], I64_array_memview.shape[0])
             else:
-                raise AttributeError("Unsupported precision {} for blob".format(precision))
+                raise AttributeError(f"Unsupported precision {precision} for blob")
 
     def __deepcopy__(self, memodict):
         res = Blob(deepcopy(self.tensor_desc, memodict), deepcopy(self._array_data, memodict))
@@ -277,13 +276,13 @@ cdef class IECore:
 
             model = os.fspath(model)
             if not os.path.isfile(model):
-                raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
+                raise Exception(f"Path to the model {model} doesn't exist or it's a directory")
             model_ = model.encode()
 
             if not (fnmatch(model, "*.onnx") or fnmatch(model, "*.prototxt")) and weights:
                 weights = os.fspath(weights)
                 if not os.path.isfile(weights):
-                    raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
+                    raise Exception(f"Path to the weights {weights} doesn't exist or it's a directory")
                 weights_ = weights.encode()
 
             net.impl =  self.impl.readNetwork(model_, weights_)
@@ -311,8 +310,8 @@ cdef class IECore:
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
         if num_requests < 0:
-            raise ValueError("Incorrect number of requests specified: {}. Expected positive integer number "
-                             "or zero for auto detection".format(num_requests))
+            raise ValueError(f"Incorrect number of requests specified: {num_requests}. Expected positive integer number "
+                             "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
         exec_net.ie_core_impl = self.impl
@@ -341,8 +340,8 @@ cdef class IECore:
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
         cdef map[string, string] c_config
         if num_requests < 0:
-            raise ValueError("Incorrect number of requests specified: {}. Expected positive integer number "
-                             "or zero for auto detection".format(num_requests))
+            raise ValueError(f"Incorrect number of requests specified: {num_requests}. Expected positive integer number "
+                             "or zero for auto detection")
         if config:
             c_config = dict_to_c_map(config)
         exec_net.ie_core_impl = self.impl
@@ -600,8 +599,7 @@ cdef class InputInfoPtr:
     @precision.setter
     def precision(self, precision : str):
         if precision not in supported_precisions:
-            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
-                                                                                                 supported_precisions))
+            raise ValueError(f"Unsupported precision {precision}! List of supported precisions: {supported_precisions}")
         deref(self._ptr).setPrecision(C.Precision.FromStr(precision.encode()))
 
     ## Layout of this input
@@ -612,8 +610,8 @@ cdef class InputInfoPtr:
     @layout.setter
     def layout(self, layout : str):
         if layout not in layout_str_to_enum.keys():
-            raise ValueError("Unsupported layout {}! "
-                             "List of supported layouts: {}".format(layout, list(layout_str_to_enum.keys())))
+            raise ValueError(f"Unsupported layout {layout}! "
+                             f"List of supported layouts: {list(layout_str_to_enum.keys())}")
         deref(self._ptr).setLayout(layout_str_to_enum[layout])
 
     ## Gets pre-process info for the input
@@ -708,8 +706,7 @@ cdef class DataPtr:
     @precision.setter
     def precision(self, precision):
         if precision not in supported_precisions:
-            raise ValueError("Unsupported precision {}! List of supported precisions: {}".format(precision,
-                                                                                                 supported_precisions))
+            raise ValueError(f"Unsupported precision {precision}! List of supported precisions: {supported_precisions}")
         deref(self._ptr).setPrecision(C.Precision.FromStr(precision.encode()))
 
     ## Shape (dimensions) of the data object
@@ -725,8 +722,8 @@ cdef class DataPtr:
     @layout.setter
     def layout(self, layout):
         if layout not in layout_str_to_enum.keys():
-            raise ValueError("Unsupported layout {}! "
-                             "List of supported layouts: {}".format(layout, list(layout_str_to_enum.keys())))
+            raise ValueError(f"Unsupported layout {layout}! "
+                             f"List of supported layouts: {list(layout_str_to_enum.keys())}")
         deref(self._ptr).setLayout(layout_str_to_enum[layout])
 
     ## Checks if the current data object is resolved
@@ -979,7 +976,7 @@ cdef class InferRequest:
     #
     #  Usage example:\n
     #  ```python
-    #  callback = lambda status, py_data: print("Request with id {} finished with status {}".format(py_data, status))
+    #  callback = lambda status, py_data: print(f"Request with id {py_data} finished with status {status}")
     #  ie = IECore()
     #  net = ie.read_network(model="./model.xml", weights="./model.bin")
     #  exec_net = ie.load_network(net, "CPU", num_requests=4)
@@ -1220,13 +1217,16 @@ cdef class InferRequest:
     #  ```
     def set_batch(self, size):
         if size <= 0:
-            raise ValueError("Batch size should be positive integer number but {} specified".format(size))
+            raise ValueError(f"Batch size should be positive integer number but {size} specified")
         deref(self.impl).setBatch(size)
 
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
-            assert k in self._inputs_list, "No input with name {} found in network".format(k)
-            self.input_blobs[k].buffer[:] = v
+            assert k in self._inputs_list, f"No input with name {k} found in network"
+            if self.input_blobs[k].tensor_desc.precision == "FP16":
+                self.input_blobs[k].buffer[:] = v.view(dtype=np.int16)
+            else:
+                self.input_blobs[k].buffer[:] = v
 
 
 ## This class contains the information about the network model read from IR and allows you to manipulate with
@@ -1288,9 +1288,9 @@ cdef class IENetwork:
                           "Please, use IECore.read_network() method instead",
                           DeprecationWarning)
                 if not os.path.isfile(model):
-                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
+                    raise Exception(f"Path to the model {model} doesn't exist or it's a directory")
                 if not os.path.isfile(weights):
-                    raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
+                    raise Exception(f"Path to the weights {weights} doesn't exist or it's a directory")
                 model_ = model.encode()
                 weights_ = weights.encode()
                 self.impl = C.IENetwork(model_, weights_)
@@ -1367,7 +1367,7 @@ cdef class IENetwork:
     @batch_size.setter
     def batch_size(self, batch: int):
         if batch <= 0:
-            raise AttributeError("Invalid batch size {}! Batch size should be positive integer value".format(batch))
+            raise AttributeError(f"Invalid batch size {batch}! Batch size should be positive integer value")
         self.impl.setBatch(batch)
 
 
@@ -1392,9 +1392,9 @@ cdef class IENetwork:
             elif isinstance(l, tuple) and len(l) == 2:
                 self.impl.addOutput(l[0].encode(), l[1])
             else:
-                raise TypeError("Incorrect type {type} for layer to add at index {ind}. "
+                raise TypeError(f"Incorrect type {type(l)} for layer to add at index {i}. "
                                 "Expected string with layer name or tuple with two elements: layer name as "
-                                "first element and port id as second".format(type=type(l), ind=i))
+                                "first element and port id as second")
 
     ## Serializes the network and stores it in files.
     #
@@ -1434,7 +1434,7 @@ cdef class IENetwork:
         for input, shape in input_shapes.items():
             c_shape = []
             if input not in net_inputs:
-                raise AttributeError("Specified '{}' layer not in network inputs '{}'! ".format(input, net_inputs))
+                raise AttributeError(f"Specified '{input}' layer not in network inputs '{net_inputs}'! ")
             for v in shape:
                 c_shape.push_back(v)
             c_input_shapes[input.encode()] = c_shape
@@ -1442,6 +1442,14 @@ cdef class IENetwork:
 
     def _get_function_capsule(self):
         return self.impl.getFunction()
+
+    def get_ov_name_for_tensor(self, orig_name: str):
+        name = bytes(orig_name, 'utf-8')
+        return self.impl.getOVNameForTensor(name).decode('utf-8')
+
+    def get_ov_name_for_operation(self, orig_name: str):
+        name = bytes(orig_name, 'utf-8')
+        return self.impl.getOVNameForOperation(name).decode('utf-8')
 
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""
@@ -1503,7 +1511,7 @@ cdef class BlobBuffer:
             'U64': 'Q',  # unsigned long int
         }
         if name not in precision_to_format:
-            raise ValueError("Unknown Blob precision: {}".format(name))
+            raise ValueError(f"Unknown Blob precision: {name}")
 
         return precision_to_format[name].encode()
 

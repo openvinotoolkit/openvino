@@ -47,33 +47,30 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
-    memory::format outFormat = mkldnn::memory::format_undef;
     if (getType() == Input || getType() == MemoryInput) {
         precision = getCnnLayer()->outData[0]->getPrecision();
         if (precision == InferenceEngine::Precision::U16 || isMeanImage) {
             precision = InferenceEngine::Precision::FP32;
         }
-        auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        outFormat = MKLDNNMemory::Convert(getCnnLayer()->outData[0]->getLayout());
-        dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, outFormat);
+        auto mem_tdesc = MKLDNNMemoryDesc(getCnnLayer()->outData[0]->getTensorDesc());
+        dataConfig.desc = mem_tdesc;
         config.outConfs.push_back(dataConfig);
     } else if (getType() == Output) {
         precision = getCnnLayer()->insData[0].lock()->getPrecision();
         if (precision == InferenceEngine::Precision::U16) precision = InferenceEngine::Precision::FP32;
-        auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        outFormat = MKLDNNMemory::Convert(getCnnLayer()->insData[0].lock()->getLayout());
-        dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, outFormat);
+        auto mem_tdesc = MKLDNNMemoryDesc(getCnnLayer()->insData[0].lock()->getTensorDesc());
+        dataConfig.desc = mem_tdesc;
         config.inConfs.push_back(dataConfig);
     }
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MKLDNNInputNode::createPrimitive() {
@@ -145,17 +142,28 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
         return;
     auto dstBlob = getChildEdgeAt(0)->getBlob();
 
-    if (constBlob->size() != dstBlob->size()) {
-        THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
-    }
-
     if (constBlob->getTensorDesc() == dstBlob->getTensorDesc()
         || isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc())) {
         const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
         int8_t *dstData = dstBlob->buffer();
 
         cpu_memcpy_s(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
+    } else if (constBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN ||
+               dstBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN) {
+        size_t dstSize = dstBlob->size() / 8;
+        if (constBlob->size() != dstSize) {
+            THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
+        }
+
+        const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
+        int8_t *dstData = dstBlob->buffer();
+
+        cpu_memcpy_s(dstData, dstSize, srcData, constBlob->byteSize());
     } else {
+        if (constBlob->size() != dstBlob->size()) {
+            THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
+        }
+
         switch (precision.size()) {
             case 1: {
                 const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();

@@ -85,9 +85,7 @@ protected:
                                                                          scalesInput,
                                                                          axesInput,
                                                                          interpolateAttributes);
-        interpolate->get_rt_info() = getCPUInfo();
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
-        function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+        function = makeNgraphFunction(ngPrc, params, interpolate, "interpolate");
         selectedType = getPrimitiveType() + "_" + inPrc.name();
     }
 };
@@ -96,7 +94,7 @@ TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Interpolate");
+    CheckPluginRelatedResults(executableNetwork, "Interpolate");
 }
 
 namespace {
@@ -288,6 +286,97 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Enforced_Bf16_Layout_Test, Interpolate
             ::testing::ValuesIn(bf16EnforceFlags),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
         InterpolateLayerCPUTest::getTestCaseName);
+
+
+////////////////////////5D/////////////////////////////
+std::vector<CPUSpecificParams> filterCPUInfoForDevice5D() {
+    std::vector<CPUSpecificParams> resCPUParams;
+    if (with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{nCdhw16c, x, x}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x}, {ndhwc}, {"jit_avx512"}, "jit_avx512_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x}, {ncdhw}, {"jit_avx512"}, "jit_avx512_FP32"});
+    } else if (with_cpu_x86_avx2()) {
+        resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x, x}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x}, {ndhwc}, {"jit_avx2"}, "jit_avx2_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x}, {ncdhw}, {"jit_avx2"}, "jit_avx2_FP32"});
+    } else if (with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x, x}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x}, {ndhwc}, {"jit_sse42"}, "jit_sse42_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x}, {ncdhw}, {"jit_sse42"}, "jit_sse42_FP32"});
+    } else {
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x}, {ncdhw}, {"ref"}, "ref_FP32"});
+    }
+    return resCPUParams;
+}
+
+const std::vector<std::vector<size_t>> pads5D = {
+        {0, 0, 0, 0, 0}
+};
+
+const std::vector<std::vector<int64_t>> defaultAxes5D = {
+    {2, 3, 4}
+};
+
+const std::vector<std::vector<float>> defaultScales5D = {
+    {1.25f, 1.5f, 1.5f}
+};
+
+const auto interpolateCasesLinearOnnx5D = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(nearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes5D),
+        ::testing::ValuesIn(defaultScales5D));
+
+const auto interpolateCasesNN5D = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes5D),
+        ::testing::ValuesIn(defaultScales5D));
+
+// open when ref merged
+// INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx5D_Layout_Test, InterpolateLayerCPUTest,
+//         ::testing::Combine(
+//             ::testing::Combine(
+//                 interpolateCasesLinearOnnx5D,
+//                 ::testing::ValuesIn(netPrecisions),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Layout::ANY),
+//                 ::testing::Values(InferenceEngine::Layout::ANY),
+//                 ::testing::Values(std::vector<size_t>({1, 21, 4, 10, 10})),
+//                 ::testing::Values(std::vector<size_t>({1, 21, 5, 15, 15})),
+//                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//             ::testing::Values(std::map<std::string, std::string> {}),
+//             ::testing::ValuesIn(filterCPUInfoForDevice5D())),
+//     InterpolateLayerCPUTest::getTestCaseName);
+
+// INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN5D_Layout_Test, InterpolateLayerCPUTest,
+//         ::testing::Combine(
+//             ::testing::Combine(
+//                 interpolateCasesNN5D,
+//                 ::testing::ValuesIn(netPrecisions),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Layout::ANY),
+//                 ::testing::Values(InferenceEngine::Layout::ANY),
+//                 ::testing::Values(std::vector<size_t>({1, 21, 4, 10, 10})),
+//                 ::testing::Values(std::vector<size_t>({1, 21, 5, 15, 15})),
+//                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//             ::testing::Values(std::map<std::string, std::string> {}),
+//             ::testing::ValuesIn(filterCPUInfoForDevice5D())),
+//     InterpolateLayerCPUTest::getTestCaseName);
 
 } // namespace
 

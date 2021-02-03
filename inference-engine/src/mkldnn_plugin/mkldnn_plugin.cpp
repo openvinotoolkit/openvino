@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,6 +57,8 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/op_conversions/fq_decomposition.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -71,14 +73,15 @@
 # include <low_precision/group_convolution.hpp>
 # include <low_precision/multiply_to_group_convolution.hpp>
 
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#if defined(_WIN32) || defined(WIN32)
-#include <intrin.h>
-#include <windows.h>
-#else
-#include <cpuid.h>
+#include "nodes/mkldnn_quantize_node.h"
 
-#endif
+#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
+# ifdef _WIN32
+#  include <intrin.h>
+#  include <windows.h>
+# else
+#  include <cpuid.h>
+# endif
 #endif
 
 using namespace MKLDNNPlugin;
@@ -94,8 +97,8 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
-static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
-    auto nGraphFunc = clonedNetwork->getFunction();
+static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
+    auto nGraphFunc = clonedNetwork.getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
@@ -120,6 +123,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
             {ngraph::element::i64,     ngraph::element::i32},
             {ngraph::element::u64,     ngraph::element::i32},
+            {ngraph::element::i16,     ngraph::element::i32},
             {ngraph::element::u16,     ngraph::element::i32},
             {ngraph::element::u32,     ngraph::element::i32},
             {ngraph::element::f16,     ngraph::element::f32},
@@ -226,13 +230,22 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         transformer.transform(nGraphFunc);
     }
 
+    bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+
     ngraph::pass::Manager legacyManager;
+
+    legacyManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     legacyManager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
     // not legacy actually, but it should be the last transformation in the transformation pipeline
     legacyManager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
     auto legacyPassConfig = legacyManager.get_pass_config();
+
+    legacyPassConfig->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
+        return !MKLDNNQuantizeNode::isNeedToDecompose(node);
+    });
+
     legacyPassConfig->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
         if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
             auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(mul_op->get_input_node_shared_ptr(0));
@@ -247,22 +260,23 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         return false;
     });
 
-    legacyManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
+    legacyPassConfig->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
+
     legacyManager.run_passes(nGraphFunc);
 
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
 
-    clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+    clonedNetwork = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork, has_fake_quantize));
 
     OV_ITT_TASK_NEXT(taskChain, "ConvertIOPrecision");
 
     // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
     // so we need to apply additional precision conversion but only for inputs and outputs
     for (auto & precision : convert_precision_list) {
-        NetPass::ConvertIOPrecision(*clonedNetwork,
+        NetPass::ConvertIOPrecision(clonedNetwork,
             InferenceEngine::details::convertPrecision(precision.first),
             InferenceEngine::details::convertPrecision(precision.second));
     }
@@ -301,30 +315,35 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    std::shared_ptr<ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(network);
+    CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(network);
 
     bool is_transformed = false;
-    if (clonedNetwork->getFunction()) {
+    if (clonedNetwork.getFunction()) {
         Transformation(clonedNetwork, conf);
         is_transformed = true;
     }
-    auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
+    IE_SUPPRESS_DEPRECATED_START
+    auto icnnnet = static_cast<ICNNNetwork::Ptr>(clonedNetwork);
+    IE_SUPPRESS_DEPRECATED_END
+    auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(icnnnet);
     if (implNetwork) {
         OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "CNNNet_based_ConstFolding");
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
         if (!is_transformed) {
-            NetPass::ConvertPrecision(*implNetwork, Precision::I64, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U64, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U32, Precision::I32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::FP16, Precision::FP32);
-            NetPass::ConvertPrecision(*implNetwork, Precision::BOOL, Precision::U8);
-            NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
+            InferenceEngine::CNNNetwork implNetworkWrapper(implNetwork);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::I64, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U64, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U32, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::FP16, Precision::FP32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::BOOL, Precision::U8);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::U16, Precision::I32);
+            NetPass::ConvertPrecision(implNetworkWrapper, Precision::I16, Precision::I32);
         }
     }
 
-    return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager, weightsSharing);
+    return std::make_shared<MKLDNNExecNetwork>(clonedNetwork, conf, extensionManager, weightsSharing);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -346,7 +365,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 static bool hasAVX512() {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
     unsigned int regs[4] = {7, 0, 0, 0};
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
     __cpuid(reinterpret_cast<int*>(regs), regs[0]);
 #else
     __cpuid_count(regs[0], regs[1], regs[0], regs[1], regs[2], regs[3]);
@@ -375,7 +394,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         unsigned int regs[4];
         for (auto addr : addr_list) {
             regs[0] = addr;
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
             __cpuid(reinterpret_cast<int*>(regs), regs[0]);
 #else
             __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
@@ -444,7 +463,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
         Transformation(clonedNetwork, conf);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
-        for (details::CNNNetworkIterator itLayer{clonedNetwork.get()}; itLayer != details::CNNNetworkIterator(); itLayer++) {
+        for (details::CNNNetworkIterator itLayer{clonedNetwork}; itLayer != details::CNNNetworkIterator(); itLayer++) {
             auto layerIsSupported = [&] {
                 std::unique_ptr<MKLDNNNode> ptr;
                 try {

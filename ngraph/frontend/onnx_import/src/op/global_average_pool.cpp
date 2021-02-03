@@ -17,9 +17,9 @@
 #include <numeric>
 #include <vector>
 
+#include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/global_average_pool.hpp"
+#include "op/global_average_pool.hpp"
 
 namespace ngraph
 {

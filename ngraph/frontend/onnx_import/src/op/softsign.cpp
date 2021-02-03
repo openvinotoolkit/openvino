@@ -17,9 +17,9 @@
 #include <memory>
 #include <vector>
 
+#include "default_opset.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/op/softsign.hpp"
+#include "op/softsign.hpp"
 
 namespace ngraph
 {

@@ -16,11 +16,11 @@
 
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/unsqueeze.hpp"
+#include "op/unsqueeze.hpp"
 
 namespace ngraph
 {

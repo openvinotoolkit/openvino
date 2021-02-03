@@ -61,6 +61,8 @@ void ConvConcatSubgraphTest::SetUp() {
     std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
+    selectedType += "_FP32";
+
     auto inputParams = ngraph::builder::makeParams(ngraph::element::f32, {inputShapes, inputShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(inputParams));
 
@@ -112,7 +114,7 @@ TEST_P(ConvConcatSubgraphTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, pluginTypeNode);
+    CheckPluginRelatedResults(executableNetwork, pluginTypeNode);
 };
 
 /* ============= Common Convolution Params ============= */
@@ -137,28 +139,6 @@ const std::vector<ptrdiff_t> padEnd3D{1, 1, 1};
 const SizeVector dilation3D{1, 1, 1};
 commonConvParams convParams3D = commonConvParams{kernelSize3D, strides3D, padBegin3D, padEnd3D, dilation3D, numOutChannels, paddingType, 1};
 commonConvParams groupConvParams3D = commonConvParams{kernelSize3D, strides3D, padBegin3D, padEnd3D, dilation3D, numOutChannels, paddingType, 2};
-
-std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
-    std::vector<CPUSpecificParams> resCPUParams;
-    const int selectedTypeIndex = 3;
-
-    for (auto param : CPUParams) {
-        auto selectedTypeStr = std::get<selectedTypeIndex>(param);
-
-        if (selectedTypeStr.find("jit") != std::string::npos && !with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("sse42") != std::string::npos && !with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("avx2") != std::string::npos && !with_cpu_x86_avx2())
-            continue;
-        if (selectedTypeStr.find("avx512") != std::string::npos && !with_cpu_x86_avx512f())
-            continue;
-
-        resCPUParams.push_back(param);
-    }
-
-    return resCPUParams;
-}
 
 namespace Kernel_1x1 {
 

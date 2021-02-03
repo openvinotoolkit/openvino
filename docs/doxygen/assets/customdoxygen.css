@@ -1,3 +1,21 @@
+/*
+******************************************************************************
+Copyright 2017-2021 Intel Corporation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+******************************************************************************
+*/
+
 /* CUSTOM FONTS */
 /* lato-100 - latin */
 @font-face {
@@ -361,7 +379,7 @@ h3 {
 }
 
 h4 {
-  font: normal 400 1.25/1.25 "Lato", "Helvetica", sans-serif;
+  font: normal 400 1.25rem/1.25 "Lato", "Helvetica", sans-serif;
 }
 
 /* "H1" headings */
@@ -773,7 +791,11 @@ a.see-all {
   }
 
   #download-link {
-    margin-right:3.28rem;
+    margin-right: 2.25rem;
+  }
+
+  #install-link {
+    margin-right: 3.28rem;
   }
 }
 
@@ -798,7 +820,11 @@ div.old-version > p {
 }
 
 #download-link {
-  margin-right: 3.75rem;
+  margin-right: 2.25rem;
+}
+
+#install-link {
+    margin-right: 3.75rem;
 }
 
 .nav-placeholder {
@@ -1280,9 +1306,24 @@ pre.fragment {
   background: #f9f9f9;
   border: none;
   counter-reset: codegroup;
-  margin: 1.1rem 0;
-  padding: 0.75rem 1rem;
+  margin-bottom: 1.1rem;
+  padding: 0 1rem 0.75rem 0;
   overflow: auto;
+}
+
+.code-container {
+  background: #f9f9f9;
+  margin-top: 0.75rem;
+}
+
+.code-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.3rem;
+}
+
+.copy-button {
+  cursor: pointer;
 }
 
 div.line {
@@ -1407,6 +1448,7 @@ iframe#MSearchResults {
   transform: translateY(-50%);
   right: 9rem;
   width: 60vw;
+  padding-left:5px;
 }
 
 #search-slider {

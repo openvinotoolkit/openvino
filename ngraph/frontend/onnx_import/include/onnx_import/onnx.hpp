@@ -22,9 +22,9 @@
 #include <set>
 #include <string>
 
+#include "editor/editor.hpp"
 #include "ngraph/function.hpp"
-#include "onnx_import/editor/editor.hpp"
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
+#include "utils/onnx_importer_visibility.hpp"
 
 /// \brief              Top level nGraph namespace.
 namespace ngraph

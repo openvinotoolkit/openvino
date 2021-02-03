@@ -1,4 +1,4 @@
-# Add Custom nGraph Operations {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
+# Custom nGraph Operation {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
 
 Inference Engine Extension API allows to register operation sets (opsets) with custom nGraph operations, it allows to support Networks with unknown operations.
 
@@ -71,10 +71,9 @@ nGraph provides opsets mechanism for operation versioning. Different opsets dist
 
 When specifying opset names, follow the rules below:
 * Use unique opset names.
-* Do not use the following built-in opset names: `extension`, `experimental`, `opset1`, `opest2`.
+* Do not use the following built-in opset names: `extension`, `experimental`, `opset1`, `opset2`, `opset3`, ... , `opsetN`.
 * Make sure that the Model Optimizer and your extension use the same opset names.
-* IR v10 layers have the mandatory `version` attribute  specifying the opset. 
-* `opset1` is the name of default operations set.
+* IR v10 operations have the mandatory `version` attribute specifying the opset.
 Operations from the default opset cannot be redefined.
 
 Use a custom opset to create a new operation or extend functionality of an existing operation from another opset.

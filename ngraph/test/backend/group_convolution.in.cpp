@@ -46,7 +46,6 @@ NGRAPH_TEST(${BACKEND_NAME}, dyn_group_convolution_backprop_data)
     auto dilations = Strides{1, 1};
     auto padding_begin = CoordinateDiff{0, 0};
     auto padding_end = CoordinateDiff{0, 0};
-    size_t groups = 3;
 
     auto conv_bprop_data = make_shared<op::v1::GroupConvolutionBackpropData>(
         data_batch, filters, deltas, strides, padding_begin, padding_end, dilations);

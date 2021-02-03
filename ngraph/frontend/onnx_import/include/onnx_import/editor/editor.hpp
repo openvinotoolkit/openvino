@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include <map>
 #include <memory>
 
+#include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/utils/onnx_importer_visibility.hpp"
 
@@ -60,6 +61,15 @@ namespace ngraph
             ///                    the inputs specified in its parameter.
             void set_input_types(const std::map<std::string, element::Type_t>& input_types);
 
+            /// \brief Modifies the in-memory representation of the model (m_model_proto) by setting
+            ///        custom input shapes for all inputs specified in the provided map.
+            ///
+            /// \param input_shapes A collection of pairs {input_name: new_input_shape} that should
+            ///                     be used to modified the ONNX model loaded from a file. This
+            ///                     method throws an exception if the model doesn't contain any of
+            ///                     the inputs specified in its parameter.
+            void set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes);
+
             /// \brief Returns a non-const reference to the underlying ModelProto object, possibly
             ///        modified by the editor's API calls
             ///
@@ -68,6 +78,12 @@ namespace ngraph
 
             /// \brief Returns the path to the original model file
             const std::string& model_path() const;
+
+            /// \brief Saves the possibly model held by this class to a file. Serializes in binary
+            /// mode.
+            ///
+            /// \param out_file_path A path to the file where the modified model should be dumped.
+            void serialize(const std::string& out_file_path) const;
 
         private:
             const std::string m_model_path;

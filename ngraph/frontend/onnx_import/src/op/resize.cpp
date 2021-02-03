@@ -14,12 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/resize.hpp"
+#include "op/resize.hpp"
 #include <map>
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {

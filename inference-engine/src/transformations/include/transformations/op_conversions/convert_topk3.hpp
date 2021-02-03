@@ -19,13 +19,8 @@ class TRANSFORMATIONS_API ConvertTopK3;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertTopK3: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertTopK3: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertTopK3() : GraphRewrite() {
-        convert_topk3();
-    }
-
-private:
-    void convert_topk3();
+    ConvertTopK3();
 };

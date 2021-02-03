@@ -64,9 +64,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg
     dispatchData.gws = { Align(out.X().v * out.Y().v, 16), out.Feature().v, out.Batch().v };
     dispatchData.lws = { 16, 1, 1 };
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
-
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_bfyx_depthwise_weights_lwg::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 JitConstants ConvolutionKernel_bfyx_depthwise_weights_lwg::GetJitConstants(const convolution_params& params,

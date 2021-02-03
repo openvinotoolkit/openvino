@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/qlinear_matmul.hpp"
+#include "op/qlinear_matmul.hpp"
 #include "ngraph/builder/matmul_factory.hpp"
 #include "ngraph/log.hpp"
 

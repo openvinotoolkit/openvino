@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/average_pool.hpp"
+#include "op/average_pool.hpp"
 #include "ngraph/node.hpp"
-#include "onnx_import/utils/pooling_factory.hpp"
+#include "utils/pooling_factory.hpp"
 
 namespace ngraph
 {

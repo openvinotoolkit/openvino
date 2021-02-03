@@ -20,7 +20,7 @@ include(FetchContent)
 # ONNX.proto definition version
 #------------------------------------------------------------------------------
 
-set(ONNX_VERSION 1.7.0)
+set(ONNX_VERSION 1.8.1)
 
 #------------------------------------------------------------------------------
 # Download and install libonnx ...
@@ -43,13 +43,14 @@ FetchContent_Declare(
 )
 
 macro(onnx_set_target_properties)
-    target_include_directories(onnx PRIVATE "${Protobuf_INCLUDE_DIRS}")
-    target_include_directories(onnx_proto PRIVATE "${Protobuf_INCLUDE_DIRS}")
+    target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
+    target_include_directories(onnx_proto SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(onnx PRIVATE /WX-)
-    else()
-        target_compile_options(onnx PRIVATE -Wno-error)
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        target_compile_options(onnx PRIVATE -Wno-unused-variable -Wno-unused-parameter)
+        target_compile_options(onnx_proto PRIVATE -Wno-unused-variable)
     endif()
 
     set_target_properties(onnx onnx_proto PROPERTIES

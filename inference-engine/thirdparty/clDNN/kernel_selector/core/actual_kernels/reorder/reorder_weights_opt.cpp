@@ -189,6 +189,10 @@ bool ReorderWeightsOpt::Validate(const Params& params, const optional_params& /*
 
 KernelsData ReorderWeightsOpt::GetKernelsData(const Params& params, const optional_params& options) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
-    return GetCommonKernelsData(orgParams, options, FORCE_PRIORITY_5);
+    return GetCommonKernelsData(orgParams, options);
+}
+
+KernelsPriority ReorderWeightsOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

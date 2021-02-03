@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/normalize_l2_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -17,6 +18,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2Fusion, "NormalizeL2Fusion", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2FusionWithMax, "NormalizeL2FusionWithMax", 0);
 
 ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
+    MATCHER_SCOPE(NormalizeL2FusionWithMax);
     auto input = ngraph::pattern::any_input();
 
     auto exp = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -28,7 +30,7 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
     auto sqrt_max_eps = std::make_shared<ngraph::opset4::Maximum>(sqrt, eps_const);
     auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_max_eps);
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
@@ -63,13 +65,14 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "NormalizeL2FusionWithMax");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(divide, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NormalizeL2FusionWithAdd, "NormalizeL2FusionWithAdd", 0);
 
 ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
+    MATCHER_SCOPE(NormalizeL2FusionWithAdd);
     auto input = ngraph::pattern::any_input();
 
     auto exp = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -81,7 +84,7 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
     auto sqrt_add_eps = std::make_shared<ngraph::opset4::Add>(sqrt, eps_const);
     auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_add_eps);
 
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
@@ -116,6 +119,6 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "NormalizeL2FusionWithMax");
-    register_matcher(m, matcher_pass_callback);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(divide, matcher_name);
+    register_matcher(m, callback);
 }

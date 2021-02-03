@@ -680,5 +680,5 @@ INSTANTIATE_TEST_CASE_P(
     TestsGather, MKLDNNCPUExtGatherHolesTests,
     ::testing::Values(
         // Params: dct_dim, dct, in_dim, in, axis, ref_dim, ref
-        gatherTF_test_params{ { 1, 3, 2, 2 }, dict,{ 1, 5, 2, 2 },{ 0, 1, 2, 1 }, 1,{ 2, 2, 2, 2 }, ref_in1_a0_d322 }));
+        gatherTF_test_params{ { 3, 2, 2 }, dict,{ 1, 5, 2, 2 },{ 0, 1, 2, 1 }, 1,{ 2, 2, 2, 2 }, ref_in1_a0_d322 }));
 

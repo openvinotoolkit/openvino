@@ -30,11 +30,11 @@ LayerTransformation::LayerTransformation(const Params& params) :
     supportAsymmetricQuantization(params.supportAsymmetricQuantization),
     precisionsOnActivations(params.precisionsOnActivations),
     precisionsOnWeights(params.precisionsOnWeights),
-    layerTransformationsManager(nullptr),
-    paramsManager(nullptr),
     quantizationIntervalAsymmetryThreshold(0.002f),
     zeroThreshold(1.e-6f),
-    minQuantizationLevels(2ul) {}
+    minQuantizationLevels(2ul),
+    paramsManager(nullptr),
+    layerTransformationsManager(nullptr) {}
 
 void LayerTransformation::setParamsManager(IParamsManager* paramsManager) noexcept {
     this->paramsManager = paramsManager;
@@ -110,6 +110,20 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         }
     }
 
+    return true;
+}
+
+bool LayerTransformation::canBeTransformedSpecialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    if (!isQuantized(layer)) {
+        return false;
+    }
+
+    for (const auto& output : layer->outputs()) {
+        const size_t size = output.get_shape().size();
+        if ((size < 2ul) || (size > 5ul)) {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -477,6 +491,7 @@ void LayerTransformation::updateOutput(
 void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const {
     ngraph::graph_rewrite_callback internal_callback = [this, &context](ngraph::pattern::Matcher &m) {
         const bool result = transform(context, m);
+        (void)result;
 #ifdef LPT_DISPLAY_PRECISION
         if (result) {
             auto operationNode = m.get_match_root();
@@ -491,7 +506,9 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
     };
     // TODO: better name for matcher? required?
     auto m = std::make_shared<ngraph::pattern::Matcher>(patternRoot, "SingleNodeMatcher");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 }  // namespace low_precision

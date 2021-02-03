@@ -94,7 +94,7 @@ QueryNetworkResult Engine::QueryNetwork(
 
     if (auto function = network.getFunction()) {
         auto clonedNetwork = cloneNetwork(network);
-        auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
+        auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
 
         res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
     } else {
@@ -119,6 +119,7 @@ IE_SUPPRESS_DEPRECATED_START
         { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO) },
         { MYRIAD_CUSTOM_LAYERS, "" },
         { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
+        { MYRIAD_THROUGHPUT_STREAMS, "-1" },
 
         // Deprecated
         { KEY_VPU_HW_STAGES_OPTIMIZATION, CONFIG_VALUE(YES) },
@@ -215,5 +216,5 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
             return Parameter();
         }
     }
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
 }

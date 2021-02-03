@@ -90,7 +90,7 @@ namespace BehaviorTestsDefinitions {
         } else {
             try {
                 ie->SetConfig(configuration, targetDevice);
-            } catch (InferenceEngine::details::InferenceEngineException ex) {}
+            } catch (InferenceEngine::details::InferenceEngineException &) {}
         }
     }
 

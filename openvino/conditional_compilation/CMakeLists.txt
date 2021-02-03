@@ -26,6 +26,29 @@ target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/
 
 if(SELECTIVE_BUILD STREQUAL "COLLECT")
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD_ANALYZER)
+    include(FetchContent)
+    FetchContent_Declare(
+        ext_seapi
+        GIT_REPOSITORY  https://github.com/intel/IntelSEAPI.git
+        GIT_TAG         7997a782fd3fa5621e275bd31060f9795564e6ca
+        )
+
+    FetchContent_GetProperties(ext_seapi)
+    if(NOT ext_seapi_POPULATED)
+        FetchContent_Populate(ext_seapi)
+        if (X86_64)
+            set (SEAPI_FORCE_BITS 64)
+        elseif(X86)
+            set (SEAPI_FORCE_BITS 32)
+        else()
+            message(FATAL_ERROR "Failed to detect target architecture")
+        endif()
+        add_custom_target(build-seapi
+            COMMAND python ${ext_seapi_SOURCE_DIR}/buildall.py -i --force_bits=${SEAPI_FORCE_BITS}
+            WORKING_DIRECTORY ${ext_seapi_SOURCE_DIR}
+            )
+    endif()
+    add_dependencies(${TARGET_NAME} build-seapi)
 elseif(SELECTIVE_BUILD STREQUAL "ON")
     if(NOT DEFINED SELECTIVE_BUILD_STAT)
         message(FATAL_ERROR "In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics.\
@@ -35,6 +58,15 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
     file(GLOB STAT_FILES ${SELECTIVE_BUILD_STAT})
 
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD)
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+        OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        # After disabling a block of code, some variables might be unused.
+        target_compile_options(${TARGET_NAME} INTERFACE
+                                -Wno-unused-function
+                                -Wno-unused-parameter
+                                -Wunused-local-typedefs)
+    endif()
 
     set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h)
     set(GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ccheader.py)

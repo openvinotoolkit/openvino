@@ -14,14 +14,14 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/hardmax.hpp"
+#include "op/hardmax.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/one_hot.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "utils/common.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
