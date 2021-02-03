@@ -19,15 +19,6 @@
 #include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/util.hpp"
 
-namespace
-{
-    constexpr size_t filter_group_axis = 0;
-    constexpr size_t in_batch_axis = 0;
-    constexpr size_t in_channel_axis = 1;
-    constexpr size_t out_batch_axis = 0;
-    constexpr size_t out_channel_axis = 1;
-}
-
 namespace ngraph
 {
     namespace runtime
