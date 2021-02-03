@@ -59,7 +59,7 @@ op::Constant::Constant(const shared_ptr<runtime::Tensor>& tensor)
 }
 
 op::Constant::Constant(const element::Type& type,
-                       Shape shape,
+                       const Shape& shape,
                        const std::vector<std::string>& values)
     : Constant(type, shape)
 {
