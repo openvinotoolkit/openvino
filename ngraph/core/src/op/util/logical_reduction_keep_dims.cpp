@@ -46,18 +46,18 @@ void op::util::LogicalReductionKeepDims::validate_and_infer_types()
     {
         const auto input_shape = get_input_partial_shape(0);
         const auto input_rank = input_shape.rank();
-        PartialShape result_shape{PartialShape::dynamic()};
+        PartialShape result_shape{PartialShape::dynamic(input_rank)};
 
-        if (input_rank.is_static())
-        {
-            result_shape = PartialShape::dynamic(input_rank);
-        }
+        set_input_is_relevant_to_shape(1);
+        set_output_type(0, get_input_element_type(0), result_shape);
 
-        if (input_rank.is_static() && reduction_axes_constant())
+        if (input_shape.is_dynamic())
+            return;
+
+        if (auto axes_const = get_constant_from_source(input_value(1)))
         {
             AxisSet reduction_axes;
-            auto reduction_axes_val =
-                as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
+            auto reduction_axes_val = axes_const->cast_vector<int64_t>();
             for (auto axis : reduction_axes_val)
             {
                 try
@@ -94,7 +94,7 @@ void op::util::LogicalReductionKeepDims::validate_and_infer_types()
             }
             result_shape = PartialShape(dims);
         }
-        set_input_is_relevant_to_shape(1);
+
         set_output_type(0, get_input_element_type(0), result_shape);
     }
     else

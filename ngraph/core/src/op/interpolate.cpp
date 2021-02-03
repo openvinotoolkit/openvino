@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <ngraph/validation_util.hpp>
 #include <numeric>
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
@@ -67,7 +68,7 @@ void op::v0::Interpolate::validate_and_infer_types()
         }
     }
 
-    if (auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
+    if (const auto& const_shape = get_constant_from_source(input_value(1)))
     {
         auto out_shape = const_shape->cast_vector<int64_t>();
         size_t i = 0;
@@ -166,8 +167,8 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
         return default_value;
     }
 
-    auto axes_node = as_type_ptr<op::v0::Constant>(input_value(3).get_node_shared_ptr());
-    NODE_VALIDATION_CHECK(this, axes_node, "Input 'axes' should be Constant.");
+    auto axes_node = get_constant_from_source(input_value(3));
+    NODE_VALIDATION_CHECK(this, axes_node, "Input 'axes' should be Constant or foldable.");
 
     return axes_node->cast_vector<int64_t>();
 }
@@ -259,7 +260,7 @@ void op::v4::Interpolate::validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), output_shape);
     if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
     {
-        if (auto const_scales = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr()))
+        if (const auto& const_scales = get_constant_from_source(input_value(2)))
         {
             auto scales = const_scales->cast_vector<float>();
             infer_using_scales(output_shape, axes, scales, padded_input_shape);
@@ -267,7 +268,7 @@ void op::v4::Interpolate::validate_and_infer_types()
     }
     else
     {
-        if (auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
+        if (const auto& const_shape = get_constant_from_source(input_value(1)))
         {
             auto sizes = const_shape->cast_vector<int64_t>();
             infer_using_shapes(output_shape, axes, sizes);

@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <ngraph/validation_util.hpp>
 #include <sstream>
 #include "itt.hpp"
 
@@ -99,12 +100,9 @@ void op::v1::Reverse::validate_and_infer_types()
     if (input_rank.is_static())
     {
         const auto rank = input_rank.get_length();
-        const auto rev_axes_node = input_value(1).get_node_shared_ptr();
 
-        if (op::is_constant(rev_axes_node))
+        if (const auto& rev_axes_constant = get_constant_from_source(input_value(1)))
         {
-            const auto rev_axes_constant = as_type_ptr<op::Constant>(rev_axes_node);
-
             if (m_mode == Mode::INDEX)
             {
                 const AxisSet rev_axes = rev_axes_constant->get_axis_set_val();

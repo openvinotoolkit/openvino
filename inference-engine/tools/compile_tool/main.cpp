@@ -509,7 +509,7 @@ int main(int argc, char* argv[]) {
             outputName = getFileNameFromPath(fileNameNoExt(FLAGS_m)) + ".blob";
         }
 
-        std::ofstream outputFile{outputName};
+        std::ofstream outputFile{outputName, std::ios::out | std::ios::binary};
         if (!outputFile.is_open()) {
             std::cout << "Output file " << outputName << " can't be opened for writing" << std::endl;
             return EXIT_FAILURE;

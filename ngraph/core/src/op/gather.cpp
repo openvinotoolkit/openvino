@@ -23,7 +23,7 @@
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/shape.hpp"
 
-#include <limits>
+#include <ngraph/validation_util.hpp>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -118,8 +118,7 @@ void op::v1::Gather::validate_and_infer_types()
 int64_t op::v1::Gather::get_axis() const
 {
     int64_t axis = AXIS_NOT_SET_VALUE;
-    auto axes_input_node = input_value(AXIS).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
+    if (const auto& const_op = get_constant_from_source(input_value(AXIS)))
     {
         axis = const_op->cast_vector<int64_t>()[0];
     }
@@ -317,6 +316,22 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
 {
     NGRAPH_OP_SCOPE(v1_Gather_evaluate);
     return evaluate_gather(outputs, inputs);
+}
+
+bool op::v1::Gather::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!input_value(INDICES).get_tensor().has_and_set_bound() ||
+        !input_value(AXIS).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Gather::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!input_value(INDICES).get_tensor().has_and_set_bound() ||
+        !input_value(AXIS).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Gather::constant_fold(OutputVector& output_values, const OutputVector& input_values)
