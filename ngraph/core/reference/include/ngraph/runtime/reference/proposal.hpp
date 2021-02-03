@@ -369,6 +369,114 @@ namespace ngraph
                         rois[num_rois * 5] = static_cast<T>(-1);
                     }
                 }
+
+                // fucntion here
+                template <typename T>
+                static void proposal_exec(const T* class_probs,
+                                          const T* bbox_deltas,
+                                          const T* image_shape,
+                                          T* output,
+                                          T* out_probs,
+                                          const Shape& class_probs_shape,
+                                          const Shape& bbox_deltas_shape,
+                                          const Shape& image_shape_shape,
+                                          const Shape& output_shape,
+                                          const Shape& out_probs_shape,
+                                          const op::ProposalAttrs& attrs)
+                {
+                    const T* p_bottom_item = class_probs;
+                    const T* p_d_anchor_item = bbox_deltas;
+                    T* p_roi_item = output;
+                    T* p_prob_item = attrs.infer_probs ? out_probs : nullptr;
+
+                    // bottom shape (batch_size * (2 * num_anchors) * H * W)
+                    const unsigned int bottom_H = class_probs_shape[2];
+                    const unsigned int bottom_W = class_probs_shape[3];
+                    // input image height and width
+                    const T img_H = image_shape[0];
+                    const T img_W = image_shape[1];
+                    // scale factor for H and W, depends on shape of image_shape
+                    // can be split into H and W {image_height, image_width, scale_height,
+                    // scale_width}
+                    // or be the same for both   {image_height, image_width, scale_height_and_width}
+                    const T scale_H = image_shape[2];
+                    const T scale_W = (image_shape_shape.size() < 4 ? scale_H : image_shape[3]);
+                    const T min_box_H = attrs.min_size * scale_H;
+                    const T min_box_W = attrs.min_size * scale_W;
+                    // get number of proposals
+                    // class_probs shape is {batch_size, anchor_count*2, bottom_H, bottom_W}
+                    const unsigned int anchor_count = class_probs_shape[1] / 2;
+                    const unsigned int num_proposals = anchor_count * bottom_H * bottom_W;
+                    // final RoI count
+                    int num_rois = 0;
+                    std::vector<ProposalBox<T>> proposals(num_proposals);
+                    const int pre_nms_topn =
+                        num_proposals < attrs.pre_nms_topn ? num_proposals : attrs.pre_nms_topn;
+                    std::vector<int> is_dead(pre_nms_topn);
+                    std::vector<unsigned int> roi_indices(attrs.post_nms_topn);
+
+                    std::vector<float> anchors = generate_anchors(attrs, anchor_count);
+
+                    unsigned int batch_num = class_probs_shape[0];
+                    float coordinates_offset = attrs.framework == "tensorflow" ? 0.0f : 1.0f;
+                    bool initial_clip = attrs.framework == "tensorflow";
+                    bool swap_xy = attrs.framework == "tensorflow";
+
+                    for (unsigned int batch_idx = 0; batch_idx < batch_num; ++batch_idx)
+                    {
+                        enumerate_proposals(p_bottom_item + num_proposals +
+                                                batch_idx * num_proposals * 2,
+                                            p_d_anchor_item + batch_idx * num_proposals * 4,
+                                            anchors.data(),
+                                            proposals,
+                                            anchor_count,
+                                            bottom_H,
+                                            bottom_W,
+                                            img_H,
+                                            img_W,
+                                            min_box_H,
+                                            min_box_W,
+                                            attrs.feat_stride,
+                                            attrs.box_coordinate_scale,
+                                            attrs.box_size_scale,
+                                            coordinates_offset,
+                                            initial_clip,
+                                            swap_xy,
+                                            attrs.clip_before_nms);
+
+                        std::partial_sort(
+                            proposals.begin(),
+                            proposals.begin() + pre_nms_topn,
+                            proposals.end(),
+                            [](const ProposalBox<T>& box1, const ProposalBox<T>& box2) {
+                                return (box1.score > box2.score);
+                            });
+                        nms(pre_nms_topn,
+                            is_dead,
+                            proposals,
+                            roi_indices,
+                            num_rois,
+                            0,
+                            attrs.nms_thresh,
+                            attrs.post_nms_topn,
+                            static_cast<T>(coordinates_offset));
+
+                        T* p_probs =
+                            p_prob_item ? p_prob_item + batch_idx * attrs.post_nms_topn : nullptr;
+                        retrieve_rois(num_rois,
+                                      batch_idx,
+                                      pre_nms_topn,
+                                      proposals,
+                                      roi_indices,
+                                      p_roi_item + batch_idx * attrs.post_nms_topn * 5,
+                                      attrs.post_nms_topn,
+                                      attrs.normalize,
+                                      img_H,
+                                      img_W,
+                                      attrs.clip_after_nms,
+                                      p_probs);
+                    }
+                }
             } // namespace details
 
             template <typename T>
@@ -382,92 +490,17 @@ namespace ngraph
                              const Shape& output_shape,
                              const op::ProposalAttrs& attrs)
             {
-                const T* p_bottom_item = class_probs;
-                const T* p_d_anchor_item = bbox_deltas;
-                T* p_roi_item = output;
-                // bottom shape (batch_size * (2 * num_anchors) * H * W)
-                const unsigned int bottom_H = class_probs_shape[2];
-                const unsigned int bottom_W = class_probs_shape[3];
-                // input image height and width
-                const T img_H = image_shape[0];
-                const T img_W = image_shape[1];
-                // scale factor for H and W, depends on shape of image_shape
-                // can be split into H and W {image_height, image_width, scale_height, scale_width}
-                // or be the same for both   {image_height, image_width, scale_height_and_width}
-                const T scale_H = image_shape[2];
-                const T scale_W = (image_shape_shape.size() < 4 ? scale_H : image_shape[3]);
-                const T min_box_H = attrs.min_size * scale_H;
-                const T min_box_W = attrs.min_size * scale_W;
-                // get number of proposals
-                // class_probs shape is {batch_size, anchor_count*2, bottom_H, bottom_W}
-                const unsigned int anchor_count = class_probs_shape[1] / 2;
-                const unsigned int num_proposals = anchor_count * bottom_H * bottom_W;
-                // final RoI count
-                int num_rois = 0;
-                std::vector<details::ProposalBox<T>> proposals(num_proposals);
-                const int pre_nms_topn =
-                    num_proposals < attrs.pre_nms_topn ? num_proposals : attrs.pre_nms_topn;
-                std::vector<int> is_dead(pre_nms_topn);
-                std::vector<unsigned int> roi_indices(attrs.post_nms_topn);
-
-                std::vector<float> anchors = details::generate_anchors(attrs, anchor_count);
-
-                unsigned int batch_num = class_probs_shape[0];
-                float coordinates_offset = attrs.framework == "tensorflow" ? 0.0f : 1.0f;
-                bool initial_clip = attrs.framework == "tensorflow" ? true : false;
-                bool swap_xy = attrs.framework == "tensorflow" ? true : false;
-
-                for (unsigned int batch_idx = 0; batch_idx < batch_num; ++batch_idx)
-                {
-                    details::enumerate_proposals(p_bottom_item + num_proposals +
-                                                     batch_idx * num_proposals * 2,
-                                                 p_d_anchor_item + batch_idx * num_proposals * 4,
-                                                 anchors.data(),
-                                                 proposals,
-                                                 anchor_count,
-                                                 bottom_H,
-                                                 bottom_W,
-                                                 img_H,
-                                                 img_W,
-                                                 min_box_H,
-                                                 min_box_W,
-                                                 attrs.feat_stride,
-                                                 attrs.box_coordinate_scale,
-                                                 attrs.box_size_scale,
-                                                 coordinates_offset,
-                                                 initial_clip,
-                                                 swap_xy,
-                                                 attrs.clip_before_nms);
-
-                    std::partial_sort(proposals.begin(),
-                                      proposals.begin() + pre_nms_topn,
-                                      proposals.end(),
-                                      [](const details::ProposalBox<T>& box1,
-                                         const details::ProposalBox<T>& box2) {
-                                          return (box1.score > box2.score);
-                                      });
-                    details::nms(pre_nms_topn,
-                                 is_dead,
-                                 proposals,
-                                 roi_indices,
-                                 num_rois,
-                                 0,
-                                 attrs.nms_thresh,
-                                 attrs.post_nms_topn,
-                                 static_cast<T>(coordinates_offset));
-
-                    details::retrieve_rois(num_rois,
-                                           batch_idx,
-                                           pre_nms_topn,
-                                           proposals,
-                                           roi_indices,
-                                           p_roi_item + batch_idx * attrs.post_nms_topn * 5,
-                                           attrs.post_nms_topn,
-                                           attrs.normalize,
-                                           img_H,
-                                           img_W,
-                                           attrs.clip_after_nms);
-                }
+                details::proposal_exec(class_probs,
+                                       bbox_deltas,
+                                       image_shape,
+                                       output,
+                                       static_cast<T*>(nullptr),
+                                       class_probs_shape,
+                                       bbox_deltas_shape,
+                                       image_shape_shape,
+                                       output_shape,
+                                       Shape{},
+                                       attrs);
             }
 
             template <typename T>
@@ -483,97 +516,17 @@ namespace ngraph
                              const Shape& out_probs_shape,
                              const op::ProposalAttrs& attrs)
             {
-                const T* p_bottom_item = class_probs;
-                const T* p_d_anchor_item = bbox_deltas;
-                T* p_roi_item = output;
-                T* p_prob_item = attrs.infer_probs ? out_probs : nullptr;
-
-                // bottom shape (batch_size * (2 * num_anchors) * H * W)
-                const unsigned int bottom_H = class_probs_shape[2];
-                const unsigned int bottom_W = class_probs_shape[3];
-                // input image height and width
-                const T img_H = image_shape[0];
-                const T img_W = image_shape[1];
-                // scale factor for H and W, depends on shape of image_shape
-                // can be split into H and W {image_height, image_width, scale_height, scale_width}
-                // or be the same for both   {image_height, image_width, scale_height_and_width}
-                const T scale_H = image_shape[2];
-                const T scale_W = (image_shape_shape.size() < 4 ? scale_H : image_shape[3]);
-                const T min_box_H = attrs.min_size * scale_H;
-                const T min_box_W = attrs.min_size * scale_W;
-                // get number of proposals
-                // class_probs shape is {batch_size, anchor_count*2, bottom_H, bottom_W}
-                const unsigned int anchor_count = class_probs_shape[1] / 2;
-                const unsigned int num_proposals = anchor_count * bottom_H * bottom_W;
-                // final RoI count
-                int num_rois = 0;
-                std::vector<details::ProposalBox<T>> proposals(num_proposals);
-                const int pre_nms_topn =
-                    num_proposals < attrs.pre_nms_topn ? num_proposals : attrs.pre_nms_topn;
-                std::vector<int> is_dead(pre_nms_topn);
-                std::vector<unsigned int> roi_indices(attrs.post_nms_topn);
-
-                std::vector<float> anchors = details::generate_anchors(attrs, anchor_count);
-
-                unsigned int batch_num = class_probs_shape[0];
-                float coordinates_offset = attrs.framework == "tensorflow" ? 0.0f : 1.0f;
-                bool initial_clip = attrs.framework == "tensorflow";
-                bool swap_xy = attrs.framework == "tensorflow";
-
-                for (unsigned int batch_idx = 0; batch_idx < batch_num; ++batch_idx)
-                {
-                    details::enumerate_proposals(p_bottom_item + num_proposals +
-                                                     batch_idx * num_proposals * 2,
-                                                 p_d_anchor_item + batch_idx * num_proposals * 4,
-                                                 anchors.data(),
-                                                 proposals,
-                                                 anchor_count,
-                                                 bottom_H,
-                                                 bottom_W,
-                                                 img_H,
-                                                 img_W,
-                                                 min_box_H,
-                                                 min_box_W,
-                                                 attrs.feat_stride,
-                                                 attrs.box_coordinate_scale,
-                                                 attrs.box_size_scale,
-                                                 coordinates_offset,
-                                                 initial_clip,
-                                                 swap_xy,
-                                                 attrs.clip_before_nms);
-
-                    std::partial_sort(proposals.begin(),
-                                      proposals.begin() + pre_nms_topn,
-                                      proposals.end(),
-                                      [](const details::ProposalBox<T>& box1,
-                                         const details::ProposalBox<T>& box2) {
-                                          return (box1.score > box2.score);
-                                      });
-                    details::nms(pre_nms_topn,
-                                 is_dead,
-                                 proposals,
-                                 roi_indices,
-                                 num_rois,
-                                 0,
-                                 attrs.nms_thresh,
-                                 attrs.post_nms_topn,
-                                 static_cast<T>(coordinates_offset));
-
-                    T* p_probs =
-                        p_prob_item ? p_prob_item + batch_idx * attrs.post_nms_topn : nullptr;
-                    details::retrieve_rois(num_rois,
-                                           batch_idx,
-                                           pre_nms_topn,
-                                           proposals,
-                                           roi_indices,
-                                           p_roi_item + batch_idx * attrs.post_nms_topn * 5,
-                                           attrs.post_nms_topn,
-                                           attrs.normalize,
-                                           img_H,
-                                           img_W,
-                                           attrs.clip_after_nms,
-                                           p_probs);
-                }
+                details::proposal_exec(class_probs,
+                                       bbox_deltas,
+                                       image_shape,
+                                       output,
+                                       out_probs,
+                                       class_probs_shape,
+                                       bbox_deltas_shape,
+                                       image_shape_shape,
+                                       output_shape,
+                                       out_probs_shape,
+                                       attrs);
             }
         } // namespace reference
     }     // namespace runtime
