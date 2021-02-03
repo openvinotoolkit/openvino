@@ -20,11 +20,12 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::ReadValueBase, "ReadValueBase", 0);
 NGRAPH_RTTI_DEFINITION(op::v3::ReadValue, "ReadValue", 3);
 NGRAPH_RTTI_DEFINITION(op::v6::ReadValue, "ReadValue", 6);
 
 op::v3::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& variable_id)
-    : Op({init_value})
+    : ReadValueBase({init_value})
     , m_variable_id(variable_id)
 {
     constructor_validate_and_infer_types();
@@ -59,9 +60,9 @@ bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor)
 }
 
 op::v6::ReadValue::ReadValue(const Output<Node>& init_value, const shared_ptr<Variable>& variable)
-        : Op({init_value})
-        , m_variable(variable)
+    : ReadValueBase({init_value})
 {
+    m_variable = variable;
     constructor_validate_and_infer_types();
 }
 
@@ -72,12 +73,14 @@ void op::v6::ReadValue::validate_and_infer_types()
     auto output_shape = get_input_partial_shape(0);
     NGRAPH_CHECK(m_variable, "Variable is not initialized.");
     VariableInfo var_info = {output_shape, element::dynamic, m_variable->get_info().variable_id};
-    NODE_VALIDATION_CHECK(this,
-                          element::Type::merge(var_info.data_type, m_variable->get_info().data_type, arg_t),
-                          "Variables types are inconsistent.");
-    NODE_VALIDATION_CHECK(this,
-                          PartialShape::merge_into(var_info.data_shape, m_variable->get_info().data_shape),
-                          "Variable shape and output shape are inconsistent.");
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(var_info.data_type, m_variable->get_info().data_type, arg_t),
+        "Variables types are inconsistent.");
+    NODE_VALIDATION_CHECK(
+        this,
+        PartialShape::merge_into(var_info.data_shape, m_variable->get_info().data_shape),
+        "Variable shape and output shape are inconsistent.");
     m_variable->update(var_info);
     set_output_type(0, arg_t, output_shape);
 }
@@ -86,7 +89,8 @@ shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& ne
 {
     NGRAPH_OP_SCOPE(v6_ReadValue_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<ReadValue>(new_args.at(0), std::make_shared<Variable>(m_variable->get_info()));
+    return make_shared<ReadValue>(new_args.at(0),
+                                  std::make_shared<Variable>(m_variable->get_info()));
 }
 
 bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor)

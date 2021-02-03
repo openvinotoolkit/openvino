@@ -179,5 +179,5 @@ NGRAPH_OP(ExperimentalDetectronROIFeatureExtractor, ngraph::op::v6)
 NGRAPH_OP(ExperimentalDetectronTopKROIs, ngraph::op::v6)
 NGRAPH_OP(GatherElements, ngraph::op::v6)
 NGRAPH_OP(MVN, ngraph::op::v6)
-NGRAPH_OP(Assign, ngraph::op::v6) // new version
+NGRAPH_OP(Assign, ngraph::op::v6)    // new version
 NGRAPH_OP(ReadValue, ngraph::op::v6) // new version

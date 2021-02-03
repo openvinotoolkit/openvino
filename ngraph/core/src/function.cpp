@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <list>
 #include <memory>
+#include <ngraph/ops.hpp>
 
 #include "itt.hpp"
 #include "ngraph/function.hpp"
@@ -102,11 +103,19 @@ void Function::validate_nodes_and_infer_types() const
 {
     OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
                        "Function::validate_nodes_and_infer_types");
-
-    for (auto& node : get_ordered_ops())
+    std::map<Variable*, int> pair_checker;
+    for (const auto& node : get_ordered_ops())
     {
         node->revalidate_and_infer_types();
-
+        if (const auto& assign = std::dynamic_pointer_cast<ngraph::op::AssignBase>(node))
+        {
+            pair_checker[assign->get_variable().get()]++;
+        }
+        else if (const auto& read_value =
+                     std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(node))
+        {
+            pair_checker[read_value->get_variable().get()]++;
+        }
         // If we find a parameter make sure it is in the list of parameters of the function
         if (op::is_parameter(node))
         {
@@ -117,6 +126,14 @@ void Function::validate_nodes_and_infer_types() const
             }
         }
     }
+
+    bool are_pairs =
+        std::all_of(pair_checker.begin(),
+                    pair_checker.end(),
+                    [](std::pair<Variable*, int> const& key_val) { return key_val.second == 2; });
+    NGRAPH_CHECK(are_pairs,
+                 "The ngraph function is incorrect,"
+                 " Assign and ReadValue operations must be represented on the network in pairs.");
 }
 
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const

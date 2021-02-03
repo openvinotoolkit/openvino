@@ -23,11 +23,12 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::AssignBase, "AssignBase", 0);
 NGRAPH_RTTI_DEFINITION(op::v3::Assign, "Assign", 3, op::Sink);
 NGRAPH_RTTI_DEFINITION(op::v6::Assign, "Assign", 6, op::Sink);
 
 op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variable_id)
-    : Sink({new_value})
+    : AssignBase({new_value})
     , m_variable_id(variable_id)
 {
     constructor_validate_and_infer_types();
@@ -95,8 +96,8 @@ bool op::v3::Assign::visit_attributes(AttributeVisitor& visitor)
 }
 
 op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Variable>& variable)
-        : Sink({new_value}),
-        m_variable(variable)
+    : AssignBase({new_value})
+    , m_variable(variable)
 {
     constructor_validate_and_infer_types();
 }
@@ -104,7 +105,8 @@ op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Vari
 void op::v6::Assign::validate_and_infer_types()
 {
     m_variable->update({get_input_partial_shape(0),
-                        get_input_element_type(0), m_variable->get_info().variable_id});
+                        get_input_element_type(0),
+                        m_variable->get_info().variable_id});
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
@@ -112,7 +114,8 @@ shared_ptr<Node> op::v6::Assign::clone_with_new_inputs(const OutputVector& new_a
 {
     NGRAPH_OP_SCOPE(v6_Assign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<op::v6::Assign>(new_args.at(0), std::make_shared<Variable>(m_variable->get_info()));
+    return std::make_shared<op::v6::Assign>(new_args.at(0),
+                                            std::make_shared<Variable>(m_variable->get_info()));
 }
 
 bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor)

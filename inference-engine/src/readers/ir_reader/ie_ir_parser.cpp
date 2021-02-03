@@ -282,12 +282,14 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
         if (!getParameters<size_t>(node.child("data"), name, shape)) return;
         std::vector<std::ptrdiff_t> coord_diff(shape.begin(), shape.end());
         static_cast<ngraph::CoordinateDiff&>(*a) = ngraph::CoordinateDiff(coord_diff);
-    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter
+            <std::shared_ptr<ngraph::Variable>>>(&adapter)) {
         std::string variable_id;
         if (!getStrAttribute(node.child("data"), name, variable_id)) return;
         if (!variables.count(variable_id)) {
             variables[variable_id] = std::make_shared<ngraph::Variable>
-                    (ngraph::VariableInfo{ngraph::PartialShape(), ngraph::element::dynamic, variable_id});
+                    (ngraph::VariableInfo{ngraph::PartialShape(),
+                                          ngraph::element::dynamic, variable_id});
         }
         a->set(variables[variable_id]);
     } else {

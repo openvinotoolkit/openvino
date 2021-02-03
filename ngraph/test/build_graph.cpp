@@ -18,8 +18,8 @@
 
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/file_util.hpp"
-#include "ngraph/opsets/opset5.hpp"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "util/test_tools.hpp"
 
 #include <memory>

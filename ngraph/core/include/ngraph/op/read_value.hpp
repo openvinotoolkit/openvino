@@ -23,11 +23,31 @@ namespace ngraph
 {
     namespace op
     {
+        class ReadValueBase : public Op
+        {
+        public:
+            NGRAPH_RTTI_DECLARATION;
+
+            ReadValueBase() = default;
+
+            explicit ReadValueBase(const OutputVector& arguments)
+                : Op(arguments)
+            {
+            }
+
+            virtual void set_variable_id(const std::string& variable_id){};
+
+            virtual std::string get_variable_id() const = 0;
+
+            std::shared_ptr<ngraph::Variable> get_variable() { return m_variable; }
+        protected:
+            std::shared_ptr<ngraph::Variable> m_variable;
+        };
         namespace v3
         {
             /// \brief ReadValue operation creates the variable with `variable_id` and returns value
             /// of this variable.
-            class NGRAPH_API ReadValue : public Op
+            class NGRAPH_API ReadValue : public ReadValueBase
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -46,9 +66,8 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                std::string get_variable_id() { return m_variable_id; }
-                std::shared_ptr<ngraph::Variable> get_variable() { return m_variable; }
-                void set_variable_id(const std::string& variable_id)
+                std::string get_variable_id() const override { return m_variable_id; }
+                void set_variable_id(const std::string& variable_id) override
                 {
                     m_variable_id = variable_id;
                 }
@@ -59,14 +78,13 @@ namespace ngraph
 
             private:
                 std::string m_variable_id;
-                std::shared_ptr<ngraph::Variable> m_variable;
             };
         }
 
         namespace v6
         {
             /// \brief ReadValue operation returns value of this variable.
-            class NGRAPH_API ReadValue : public Op
+            class NGRAPH_API ReadValue : public ReadValueBase
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -76,28 +94,22 @@ namespace ngraph
                 ///
                 /// \param init_value   Node that produces the input tensor.
                 /// \param variable
-                ReadValue(const Output<Node>& init_value, const std::shared_ptr<Variable>& variable);
+                ReadValue(const Output<Node>& init_value,
+                          const std::shared_ptr<Variable>& variable);
 
                 void validate_and_infer_types() override;
 
-                std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                std::string get_variable_id() {
-                    NGRAPH_CHECK(m_variable, "Variable is not initialized. Variable_id is unavailable");
+                std::string get_variable_id() const override
+                {
+                    NGRAPH_CHECK(m_variable,
+                                 "Variable is not initialized. Variable_id is unavailable");
                     return m_variable->get_info().variable_id;
                 }
-
-                std::shared_ptr<ngraph::Variable> get_variable() { return m_variable; }
-
-                void set_variable(const std::shared_ptr<ngraph::Variable>& variable)
-                {
-                    m_variable = variable;
-                }
-
-            private:
-                std::shared_ptr<ngraph::Variable> m_variable;
             };
         }
     }
