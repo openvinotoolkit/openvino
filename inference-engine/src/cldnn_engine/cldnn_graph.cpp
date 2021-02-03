@@ -591,8 +591,9 @@ void CLDNNGraph::UpdateImplementationsMap() {
     }
 }
 
-void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &result) const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::GetPerformanceCounts() const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetPerformanceCounts");
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> result;
     bool combinePrimByIRLayers = false;
     unsigned i = 0;
     auto allIds = GetNetwork()->get_all_primitive_org_ids();
@@ -738,6 +739,7 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
         if (std::find(allIds.begin(), allIds.end(), primId) == allIds.end()) {
             getFromProfiling(primId);
         }
+    return result;
 }
 
 std::shared_ptr<cldnn::network> CLDNNGraph::GetNetwork(size_t idx) const {
