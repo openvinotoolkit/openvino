@@ -17,6 +17,8 @@
 
 using namespace InferenceEngine;
 
+static const char importedNetworkName[] = "__importedExecutableNetworkFromBlobName";
+
 namespace vpu {
 namespace MyriadPlugin {
 
@@ -112,8 +114,7 @@ void ExecutableNetwork::Import(std::istream& strm,
         return;
     }
 
-    // TODO: better name
-    char networkName[1024] = "importedNetwork";
+    std::string networkName = importedNetworkName;
 
     BlobReader blobReader;
     blobReader.parse(_graphBlob);
@@ -186,6 +187,10 @@ InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name)
 
 InferenceEngine::CNNNetwork ExecutableNetwork::GetExecGraphInfo() {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
+    if (_graphDesc._name == importedNetworkName)
+        THROW_IE_EXCEPTION <<
+        "GetExecGraphInfo() can't be called for ExecutableNetwork that was imported from a compiled blob as far getting"
+        " original stage names, types, and topological order from the compiled blob is not implemented for now.";
     return buildRuntimeGraph(_graphMetaData, perfInfo);
 }
 
