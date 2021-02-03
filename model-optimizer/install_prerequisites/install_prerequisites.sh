@@ -91,9 +91,9 @@ find_ie_bindings() {
         #install OpenVINO pip version
         echo "[install_prerequisites] Install IE"
         if [ $2 ]; then
-            sudo -E $1 -m pip install openvino-python
+            sudo -E $1 -m pip install openvino
         else
-            $1 -m pip install openvino-python
+            $1 -m pip install openvino
         fi
 
         echo "[install_prerequisites] Check IE again"
