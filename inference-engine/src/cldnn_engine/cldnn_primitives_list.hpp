@@ -168,7 +168,7 @@ REGISTER_FACTORY(v3, ExtractImagePatches);
 // REGISTER_FACTORY(v3, ReadValue);
 // REGISTER_FACTORY(v3, ScatterElementsUpdate);
 // REGISTER_FACTORY(v3, ScatterUpdate);
-// REGISTER_FACTORY(v3, ScatterNDUpdate);
+REGISTER_FACTORY(v3, ScatterNDUpdate);
 // REGISTER_FACTORY(v3, ShapeOf);
 // REGISTER_FACTORY(v3, TopK);
 
