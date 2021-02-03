@@ -163,15 +163,15 @@ class TestStridedSliceInfer(unittest.TestCase):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_slice_infer_shape_9(self,  # inp[0, :, :, np.newaxis]
-                                 inp=(1, 35, 35, 3), ref_res=(35, 35, 1, 3), is_shape=True,
-                                 begin=(1, 0, 22, 0), end=(1, 34, 20, 2), strides=(1, 1, 1, 1), begin_mask=(0,), end_mask=(0,),
+    def test_slice_infer_shape_9(self,  # inp[0, 0:34, 20:22, new_axis]
+                                 inp=(1, 35, 35, 3), ref_res=(34, 2, 1, 3), is_shape=True,
+                                 begin=(0, 0, 20, 0), end=(1, 34, 22, 2), strides=(1, 1, 1, 1), begin_mask=(0,), end_mask=(0,),
                                  shrink_axis_mask=(1,), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_slice_infer_shape_10(self,  # inp[], since begin_mask is [0], begin can be of any value
-                                  inp=(1, 35, 35, 3), ref_res=(35, 3), is_shape=True,
+    def test_slice_infer_shape_10(self,  # inp[0, :34, 20, :2]
+                                  inp=(1, 35, 35, 3), ref_res=(34, 2), is_shape=True,
                                   begin=(0, 0, 0, 0), end=(1, 34, 20, 2), strides=(1, 1, 1, 1), begin_mask=(0,), end_mask=(0,),
                                   shrink_axis_mask=(1, 0, 1, 0), new_axis_mask=(0,), ellipsis_mask=(0,)):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
