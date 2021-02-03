@@ -59,30 +59,37 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         input_rank = len(input_shape)
         slice_rank = node.in_port(1).data.get_shape()[0]
 
+        slice_mask_names = ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']
+        # allign masks sizes with slice_rank
+        for mask_name in slice_mask_names:
+            num = slice_rank - len(node[mask_name])
+            val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end
+            node[mask_name] = np.append(node[mask_name], [val] * num).astype(int)
+
         if np.any(node.ellipsis_mask):
             idx = np.nonzero(node.ellipsis_mask)
             assert len(idx[0]) == 1, 'only one ellipsis_mask nonzero value is allowed'
             ellipsis_start = idx[0][0]
-            num_inserts = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask[ellipsis_start:])
-
+            # since we don't use begin, end values
             node.begin_mask[ellipsis_start] = 0
             node.end_mask[ellipsis_start] = 0
 
-            # unroll ellipsis for masks
-            for i in range(0, num_inserts):
-                for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
-                    node[mask_name] = np.insert(node[mask_name], ellipsis_start + 1 + i, 0)
-            node.ellipsis_mask[ellipsis_start] = 0
+            num = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask[ellipsis_start:])
 
-            self.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num_inserts)
-        elif slice_rank < input_rank:  # process somehow nonzero
+            # unroll ellipsis for masks
+            node.ellipsis_mask[ellipsis_start] = 0
+            for mask_name in slice_mask_names:
+                node[mask_name] = np.insert(node[mask_name], ellipsis_start + 1, [0] * num).astype(int)
+
+            self.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num)
+        elif slice_rank < input_rank:  # todo: comment that slice_rank is old
             num = input_rank - slice_rank
             self.extend_inputs(node, num)
 
-        # extend masks
-        for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
-            num = input_rank - len(node[mask_name])
-            node[mask_name] = np.append(node[mask_name], [0] * num)
+            # extend masks
+            for mask_name in slice_mask_names:
+                num = input_rank - len(node[mask_name])
+                node[mask_name] = np.append(node[mask_name], [0] * num).astype(int)
 
     @staticmethod
     def unroll_ellipsis_for_inputs(graph: Graph, node: Node, ellipsis_start: int, num_ellipsis_ext: int):

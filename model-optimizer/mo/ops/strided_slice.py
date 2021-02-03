@@ -74,30 +74,31 @@ class StridedSlice(Op):
         if shape is None or any([x < 0 for x in shape]):
             return
 
-        extend_mask = lambda mask: np.append(mask, [0] * (len(begin) - len(mask)))
+        # extend all masks to match initial slice_rank
+        extend_mask = lambda mask, val=0: np.append(mask, [val] * (len(begin) - len(mask))).astype(int)
         new_axis_mask = extend_mask(node.new_axis_mask)
         shrink_axis_mask = extend_mask(node.shrink_axis_mask)
-        begin_mask = extend_mask(node.begin_mask)
-        end_mask = extend_mask(node.end_mask)
+        begin_mask = extend_mask(node.begin_mask, 1)
+        end_mask = extend_mask(node.end_mask, 1)  # todo: differs from case when we unroll ellipsis
 
         # unroll ellipsis
         if np.any(node.ellipsis_mask):
             i = np.nonzero(node.ellipsis_mask)
             assert len(i[0]) == 1, 'only one nonzero value in ellipsis_mask is allowed'
             ellipsis_start = i[0][0]
-            # since we don't use begin, end values
+            # since we don't expect values in begin, end values and take all range of values along ellipsis_start axis
             begin_mask[ellipsis_start] = 0
             end_mask[ellipsis_start] = 0
 
-            num_inserts = input_rank - len(begin) + np.count_nonzero(node.new_axis_mask[ellipsis_start:])
-            unroll_ellipsis = lambda mask, val=0: np.insert(mask, ellipsis_start + 1, [val] * num_inserts)
+            num = input_rank - len(begin) + np.count_nonzero(node.new_axis_mask[ellipsis_start:])
+            unroll_ellipsis = lambda mask, val=0: np.insert(mask, ellipsis_start + 1, [val] * num).astype(int)
 
             new_axis_mask = unroll_ellipsis(new_axis_mask)
             shrink_axis_mask = unroll_ellipsis(shrink_axis_mask)
             begin_mask, end_mask = unroll_ellipsis(begin_mask), unroll_ellipsis(end_mask)
             begin, end, strides = unroll_ellipsis(begin), unroll_ellipsis(end), unroll_ellipsis(strides, 1)
 
-        # from now slices are without ellipsis, slice_rank is after unrolling
+        # from now slices are without ellipsis
         slice_rank = len(begin)
         slices = [[]] * slice_rank
         in_idx = 0  # index along input tensor shapes, note that input_rank not necessary is equal to slice_rank
@@ -107,7 +108,7 @@ class StridedSlice(Op):
             elif shrink_axis_mask[i]:
                 slices[i] = int(begin[i])
                 if slices[i] < 0:
-                    slices += int(shape[in_idx])
+                    slices[i] += int(shape[in_idx])
             else:
                 start, stop = begin[i], end[i]
                 if not begin_mask[i]:  # if begin, and end are not specified take whole range
