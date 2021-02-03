@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "common/cpu_memcpy.h"
 #include <legacy/ie_layers.h>
 #include <vector>
+#include <queue>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include <climits>
@@ -80,7 +81,7 @@ void MKLDNNSplitNode::getSupportedDescriptors() {
 void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     using TensorDescFactory = std::function<TensorDesc(const Precision&, const SizeVector&)>;
     constexpr size_t channelsPos = 1lu;
-    // perform guard checks
+
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
@@ -218,6 +219,16 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
         }
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormats);
     }
+
+    // Special nspc -> ncsp case when splitting channels
+    if (axis == 1 && (dstFirstDims.ndims() == 4 || dstFirstDims.ndims() == 5)) {
+        auto plain = makePdInfo(&makePlainTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref);
+        auto perChannel = makePdInfo(&makePerChannelTensorDesc, inpPrecision, srcDims, outDims, impl_desc_type::ref);
+
+        plain.getConfig().inConfs[0].desc = perChannel.getConfig().inConfs[0].desc;
+
+        supportedPrimitiveDescriptors.push_back(plain);
+    }
 }
 
 void MKLDNNSplitNode::createPrimitive() {
@@ -231,23 +242,49 @@ void MKLDNNSplitNode::createPrimitive() {
     if (getSelectedPrimitiveDescriptor() == nullptr)
         THROW_ERROR << "Preferable primitive descriptor is not set.";
 
-    if (!isOptimized())
-        prepareOptimizedParams();
+    canUseOptimizedNspc2Ncsp = true;
+    if (axis != 1)
+        canUseOptimizedNspc2Ncsp = false;
+
+    if (getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NHWC &&
+        getParentEdgeAt(0)->getBlob()->getTensorDesc().getLayout() != NDHWC)
+        canUseOptimizedNspc2Ncsp = false;
+
+    for (size_t i = 0; i < getChildEdges().size(); i++) {
+        if (getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCHW &&
+            getChildEdgeAt(i)->getBlob()->getTensorDesc().getLayout() != NCDHW)
+            canUseOptimizedNspc2Ncsp = false;
+    }
+
+    if (!isOptimized()) {
+        initializeDstMemPtrs();
+        if (!canUseOptimizedNspc2Ncsp)
+            prepareOptimizedParams();
+    }
 }
 
 void MKLDNNSplitNode::execute(mkldnn::stream strm) {
     if (isOptimized())
         return;
 
+    if (dstMemPtrs.empty())
+        THROW_ERROR << "Output data pointers have not been initialized.";
+
     int MB = batchToProcess();
+
+    if (canUseOptimizedNspc2Ncsp) {
+        optimizedNspc2Ncsp(MB);
+        return;
+    }
+
     uint8_t* srcData = reinterpret_cast<uint8_t*>(this->getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     size_t batch = this->getParentEdgeAt(0)->getDims()[0];
 
     if (batch != MB)
         optimizedParams.countStrides = optimizedParams.countStrides / batch * MB;
 
-    parallel_for2d(this->getChildEdges().size(), optimizedParams.countStrides, [&](size_t i, size_t j) {
-        uint8_t* dstData = optimizedParams.dstMemPtrs[i];
+    parallel_for2d(dstMemPtrs.size(), optimizedParams.countStrides, [&](size_t i, size_t j) {
+        uint8_t* dstData = dstMemPtrs[i];
 
         cpu_memcpy(&dstData[j * optimizedParams.dataSize[i]],
                    &srcData[optimizedParams.srcDataOffsets[i] + j * optimizedParams.srcDataStride],
@@ -346,7 +383,7 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
                 inNum = 0;
             }
             if (MKLDNNExtensionUtils::initTensorsAreEqual(
-                    getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[0].desc,
+                    supportedPrimitiveDescriptors[i].getConfig().inConfs[0].desc,
                     parent_spd->getConfig().outConfs[inNum].desc)) {
                 canSelectPrimitive.push_back(i);
             }
@@ -362,6 +399,46 @@ void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
             selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
             return;
         }
+    }
+
+    // if there are no inPlace, but more than one suitable configurations, select the one that matches the output layout
+    for (auto indx : canSelectPrimitive) {
+        bool outputDescFullMatch = true;
+        for (size_t i = 0; i < getChildEdges().size(); ++i) {
+            auto childEdge = getChildEdgeAt(i);
+            auto childPtr = childEdge->getChild();
+            auto& vecChildSpd = childPtr->getSupportedPrimitiveDescriptors();
+            const auto& outputDesc = supportedPrimitiveDescriptors[indx].getConfig().outConfs[i].desc;
+
+            if (!vecChildSpd.empty()) {
+                int inNum = childEdge->getOutputNum();
+                if (inNum < 0) {
+                    inNum = 0;
+                }
+                bool hasMatchDesc = false;
+                for (auto& childSpd : vecChildSpd) {
+                    if (inNum >= childSpd.getConfig().inConfs.size()) {
+                        inNum = 0;
+                    }
+                    if (MKLDNNExtensionUtils::initTensorsAreEqual(outputDesc, childSpd.getConfig().inConfs[inNum].desc)) {
+                        hasMatchDesc = true;
+                        break;
+                    }
+                }
+                if (!hasMatchDesc) {
+                    outputDescFullMatch = false;
+                    break;
+                }
+            }
+        }
+        if (outputDescFullMatch) {
+            selectPrimitiveDescriptorByIndex(static_cast<int>(indx));
+            return;
+        }
+    }
+    if (!canSelectPrimitive.empty()) {
+        selectPrimitiveDescriptorByIndex(static_cast<int>(canSelectPrimitive.front()));
+        return;
     }
 
     // if there are no matching data layouts, select first optimized implementation
@@ -384,50 +461,119 @@ void MKLDNNSplitNode::setDynamicBatchLim(int lim) {
 
 void MKLDNNSplitNode::prepareOptimizedParams() {
     const auto& inpTensorDesc = this->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
+    const auto outputPortsCount = outDims.size();
 
     //find axis order position
     const auto& order = inpTensorDesc.getBlockingDesc().getOrder();
-    unsigned axisOrderPos = UINT_MAX;
+    unsigned axisOrderPos = std::numeric_limits<unsigned>::max();
     for (size_t i = 0; i < order.size(); ++i) {
         if (order[i] == axis) {
             axisOrderPos = i;
             break;
         }
     }
-    if (UINT_MAX == axisOrderPos) {
+    if (std::numeric_limits<unsigned>::max() == axisOrderPos) {
         THROW_ERROR << "Can't find the axis in the input tensor order list";
     }
 
     uint8_t srcDataSize = inpTensorDesc.getPrecision().size();
     const auto& srcDims = inpTensorDesc.getBlockingDesc().getBlockDims();
-    int nDims = srcDims.size();
+    const auto nDims = srcDims.size();
 
     optimizedParams.countStrides = 1;
     for (int i = 0; i < axisOrderPos; i++)
         optimizedParams.countStrides *= srcDims[i];
 
     optimizedParams.srcDataStride = 0;
-    optimizedParams.dataSize.resize(this->getChildEdges().size());
-    optimizedParams.dstMemPtrs.clear();
-    for (int i = 0; i < this->getChildEdges().size(); i++) {
-        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(this->getChildEdgeAt(i)->getMemoryPtr()->GetPtr())) {
-            optimizedParams.dstMemPtrs.push_back(dstData);
-        } else {
-            THROW_ERROR << "can't get child edge indx " << i << "data.";
-        }
+    optimizedParams.dataSize.resize(outputPortsCount);
 
+    for (size_t i = 0; i < outputPortsCount; i++) {
+        auto outputEdge = this->getChildEdgesAtPort(i).front();
         optimizedParams.dataSize[i] = srcDataSize;
 
-        for (int j = axisOrderPos; j < nDims; j++)
-            optimizedParams.dataSize[i] *= this->getChildEdgeAt(i)->getDesc().getBlockingDesc().getBlockDims()[j];
+        for (size_t j = axisOrderPos; j < nDims; j++)
+            optimizedParams.dataSize[i] *= outputEdge->getDesc().getBlockingDesc().getBlockDims()[j];
 
         optimizedParams.srcDataStride += optimizedParams.dataSize[i];
     }
 
-    optimizedParams.srcDataOffsets.resize(this->getChildEdges().size());
+    optimizedParams.srcDataOffsets.resize(outputPortsCount);
     optimizedParams.srcDataOffsets[0] = 0;
-    for (int i = 1; i < this->getChildEdges().size(); i++) {
+    for (size_t i = 1; i < outputPortsCount; i++) {
         optimizedParams.srcDataOffsets[i] = optimizedParams.srcDataOffsets[i - 1] + optimizedParams.dataSize[i - 1];
     }
 }
+void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
+    auto parentEdge = getParentEdgeAt(0);
+    const int ndims = parentEdge->getDims().ndims();
+    const size_t IC = parentEdge->getDims()[1];
+    const size_t D = ndims == 5 ? parentEdge->getDims()[ndims - 3] : 1;
+    const size_t H = parentEdge->getDims()[ndims - 2];
+    const size_t W = parentEdge->getDims()[ndims - 1];
+
+    auto srcBlob = parentEdge->getBlob();
+    auto srcData = srcBlob->cbuffer().as<const uint8_t*>();
+    const auto dataSize = srcBlob->getTensorDesc().getPrecision().size();
+
+    const size_t DHW = D*H*W;
+    const size_t strideIB = DHW * IC * dataSize;
+    const size_t strideIW = IC*dataSize;
+    const size_t strideOC = DHW * dataSize;
+
+    for (size_t i = 0, sIdx = 0; i < outDims.size(); i++) {
+        auto dstData = dstMemPtrs[i];
+
+        size_t innerSize = 1;
+        auto dims = outDims[i].ToSizeVector();
+
+        for (size_t j = axis; j < dims.size(); j++) {
+            innerSize *= dims[j];
+        }
+        auto srcPtr = srcData + srcBlob->getTensorDesc().offset(sIdx) * dataSize;
+
+        const size_t OC = dims[1];
+        const size_t strideOB = OC * strideOC;
+
+        parallel_for2d(MB, DHW, [&](size_t b, size_t j) {
+            auto localSrcPtr = srcPtr + b*strideIB + j*strideIW;
+            auto localDstPtr = dstData + b*strideOB + j*dataSize;
+            for (size_t c = 0; c < OC; c++) {
+                cpu_memcpy(localDstPtr, localSrcPtr, dataSize);
+                localSrcPtr += dataSize;
+                localDstPtr += strideOC;
+            }
+        });
+
+        sIdx += innerSize;
+    }
+}
+
+void MKLDNNSplitNode::initializeDstMemPtrs() {
+    dstMemPtrs.clear();
+
+    //Here we have to place the output data pointers in the order that reflects the output edges order.
+    //It's important in case when several edges are connected to one port.
+    //This is a naive implementation, an indexed priority queue or modified treap would be a more elegant solution.
+    std::unordered_map<uint8_t*, size_t> mapDstPtrs;
+    using pair_t = std::pair<uint8_t*, size_t>;
+    for (size_t i = 0; i < getChildEdges().size(); ++i) {
+        auto outputEdge = this->getChildEdgeAt(i);
+        if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outputEdge->getMemoryPtr()->GetPtr())) {
+            mapDstPtrs[dstData] = i;
+        } else {
+            THROW_ERROR << "can't get child edge indx " << i << "data.";
+        }
+    }
+
+    std::vector<uint8_t*> vecCountingSort(getChildEdges().size(), nullptr);
+    for (auto& item : mapDstPtrs) {
+        vecCountingSort[item.second] = item.first;
+    }
+
+    dstMemPtrs.reserve(vecCountingSort.size());
+    auto backInserter = std::back_inserter(dstMemPtrs);
+    std::copy_if(vecCountingSort.begin(), vecCountingSort.end(), backInserter, [](const uint8_t* x) {return x;});
+    dstMemPtrs.shrink_to_fit();
+}
+
 REG_MKLDNN_PRIM_FOR(MKLDNNSplitNode, Split);
