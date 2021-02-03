@@ -254,9 +254,17 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-        print('\n[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
-        print('[ SUCCESS ] XML file: {}.xml'.format(os.path.join(output_dir, argv.model_name)))
-        print('[ SUCCESS ] BIN file: {}.bin'.format(os.path.join(output_dir, argv.model_name)))
+        orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
+
+        import subprocess
+        status = subprocess.run([sys.executable, "mo/apply_moc_transformations.py", orig_model_name])
+        if status.returncode != 0:
+            # TODO: implement fallback
+            pass
+
+        print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
+        print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
+        print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))
 
     return 0
 
