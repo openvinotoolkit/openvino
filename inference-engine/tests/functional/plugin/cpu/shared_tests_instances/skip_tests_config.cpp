@@ -58,6 +58,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
         // TODO: Sporadic Issue: 45163
         R"(.*Behavior.*CancellationTests.*canResetAfterCancelAsyncRequest.*)",
+        // TODO: Issue 47556. [NGraph] CTCGreedyDecoderSeqLen. Invalid type transformation i64 to i32.
+        R"(.*(CTCGreedyDecoderSeqLenLayerTest).*(idxPRC=I64).*)"
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
