@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <string>
 
 #include <ie_core.hpp>
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
@@ -18,6 +19,16 @@ using namespace InferenceEngine;
 using namespace ngraph;
 
 namespace LayerTestsUtils {
+
+ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8AndI8() {
+    return ngraph::pass::low_precision::LayerTransformation::Params(
+        true,
+        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        true,
+        { ngraph::element::u8, ngraph::element::i8 },
+        { ngraph::element::i8 });
+}
 
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8() {
     return ngraph::pass::low_precision::LayerTransformation::Params(
@@ -41,6 +52,8 @@ ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationPara
 
 LayerTransformation::LayerTransformation() {
     threshold = 0.05;
+    auto& configuration = GetConfiguration();
+    configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
 }
 
 InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(

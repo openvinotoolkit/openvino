@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,6 +114,31 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
             {{}, {}, {}},
             ngraph::element::u8,
             {{ngraph::element::f32}, {0.32f}, {0.45f}}
+        }
+    },
+    // blockSize = 2
+    {
+        ngraph::Shape{ 1, 4, 3, 3 },
+        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        2,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{0.32f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+                {0.45f}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{0.32f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+                {0.45f}
+            }
         }
     },
     // blockSize = 3

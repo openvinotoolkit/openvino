@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,10 +23,12 @@ void DepthToSpaceTransformation::registerMatcherIn(GraphRewrite& pass, Transform
 }
 
 bool DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
-    const std::shared_ptr<Node> depthToSpace = separateInStandaloneBranch(m.get_match_root());
+    std::shared_ptr<Node> depthToSpace = m.get_match_root();
     if (!canBeTransformed(context, depthToSpace)) {
         return false;
     }
+
+    depthToSpace = NetworkHelper::separateInStandaloneBranch(depthToSpace);
     moveDequantizationAfter(context, depthToSpace, NetworkHelper::getDequantization(depthToSpace), true);
     return true;
 }
@@ -49,8 +51,7 @@ bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& c
     }
 
     if (dequantization.subtract != nullptr) {
-        auto subtractConst = as_type_ptr<opset1::Constant>(dequantization.subtract->get_input_node_shared_ptr(1));
-        if (!NetworkHelper::isScalarLike(subtractConst)) {
+        if (!NetworkHelper::isScalarLike(dequantization.subtractConstant)) {
             return false;
         }
     }

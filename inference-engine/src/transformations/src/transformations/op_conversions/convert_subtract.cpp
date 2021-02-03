@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,8 +18,12 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
     MATCHER_SCOPE(ConvertSubtract);
     auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract> (m.get_match_root());
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
+
+        auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract>(m.get_match_root());
         if (!sub) {
             return false;
         }

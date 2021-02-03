@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -97,7 +97,7 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
     NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, 0));
     NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(op, 1));
 
-    std::shared_ptr<Node> addNode = separateInStandaloneBranch(op);
+    std::shared_ptr<Node> addNode = NetworkHelper::separateInStandaloneBranch(op);
     std::shared_ptr<opset1::Add> add = as_type_ptr<opset1::Add>(addNode);
 
     const int fullPathIndex = getNotEmpty(add);
@@ -107,8 +107,10 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
     if (fullPathIndex == -1) {
         // swap constant multiply and add and possibly fuse to subtract
         const auto multiplyBranch = getMultiplyConstBranch(add);
-
-        if (multiplyBranch.first == -1) {
+        if (multiplyBranch.first != -1) {
+            NetworkHelper::foldDequantization(add, multiplyBranch.first == 0 ? 1 : 0);
+        } else {
+            // constant folding on dequantization ops (for example: Convert on Subtract)
             NetworkHelper::foldDequantization(addNode, 0);
             NetworkHelper::foldDequantization(addNode, 1);
             return false;
@@ -140,15 +142,17 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
             return false;
         }
 
-        std::shared_ptr<Node> subtractEmptyPathValues;
-        std::shared_ptr<Node> multiplyEmptyPathValues;
-        std::tie(subtractEmptyPathValues, multiplyEmptyPathValues) = NetworkHelper::createEmptyValues(dequantizationEmptyPath);
-
         FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::getDequantization(add, fullPathIndex);
         if (updatePrecisions && !dequantizationFullPath.empty() && !dequantizationFullPath.isLowPrecision()) {
             return false;
         }
 
+        dequantizationEmptyPath = NetworkHelper::foldDequantization(addNode, emptyPathIndex);
+        std::shared_ptr<Node> subtractEmptyPathValues;
+        std::shared_ptr<Node> multiplyEmptyPathValues;
+        std::tie(subtractEmptyPathValues, multiplyEmptyPathValues) = NetworkHelper::createEmptyValues(dequantizationEmptyPath);
+
+        dequantizationFullPath = NetworkHelper::foldDequantization(addNode, fullPathIndex);
         std::shared_ptr<Node> subtractFullPathValues;
         std::shared_ptr<Node> multiplyFullPathValues;
         std::tie(subtractFullPathValues, multiplyFullPathValues) = NetworkHelper::createEmptyValues(dequantizationFullPath);

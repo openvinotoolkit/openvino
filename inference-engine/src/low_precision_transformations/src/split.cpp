@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ bool SplitTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    const std::shared_ptr<Node> split = separateInStandaloneBranch(m.get_match_root());
+    const std::shared_ptr<Node> split = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
     auto dequantization = NetworkHelper::getDequantization(split);
 
     OutputVector inputs(split->get_input_size());

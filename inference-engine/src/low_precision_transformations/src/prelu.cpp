@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ bool PReluTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    prelu = separateInStandaloneBranch(prelu);
+    prelu = NetworkHelper::separateInStandaloneBranch(prelu);
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(prelu, 0);
     moveDequantizationAfter(context, prelu, dequantization, false, false);
     return true;

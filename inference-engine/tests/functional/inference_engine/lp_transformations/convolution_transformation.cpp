@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,7 @@ public:
     class Actual {
     public:
         ngraph::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationOnActivations;
         std::shared_ptr<ngraph::opset1::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
@@ -61,7 +61,7 @@ public:
         actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
             testValues.actual.precisionBeforeDequantization,
             inputShape,
-            testValues.actual.dequantization,
+            testValues.actual.dequantizationOnActivations,
             testValues.actual.weights,
             testValues.actual.fakeQuantizeOnWeights);
 
@@ -70,14 +70,14 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
-                testValues.expected.precisionBeforeDequantization,
-                inputShape,
-                testValues.expected.dequantizationBefore,
-                testValues.expected.weights,
-                testValues.expected.fakeQuantizeOnWeights,
-                testValues.expected.precisionAfterOperation,
-                testValues.expected.dequantizationAfter,
-                testValues.expected.precisionAfterDequantization);
+            testValues.expected.precisionBeforeDequantization,
+            inputShape,
+            testValues.expected.dequantizationBefore,
+            testValues.expected.weights,
+            testValues.expected.fakeQuantizeOnWeights,
+            testValues.expected.precisionAfterOperation,
+            testValues.expected.dequantizationAfter,
+            testValues.expected.precisionAfterDequantization);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
@@ -88,7 +88,7 @@ public:
         result << toString(testValues.params) << "_" <<
             inputShape << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
-            testValues.actual.dequantization << "_" << "_weights_" <<
+            testValues.actual.dequantizationOnActivations << "_" << "_weights_" <<
             testValues.actual.weights->get_element_type() << "_" << "{ " <<
             testValues.actual.weights->cast_vector<float>()[0] << " }_" <<
             testValues.actual.fakeQuantizeOnWeights << "_";

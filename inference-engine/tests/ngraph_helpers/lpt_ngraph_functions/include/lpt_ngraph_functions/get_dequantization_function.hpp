@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 #include <low_precision/common/fake_quantize_dequantization.hpp>
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -15,6 +17,18 @@ namespace subgraph {
 
 class GetDequantizationFunction {
 public:
+    static std::shared_ptr<ngraph::Function> get(
+        const ngraph::element::Type& precision,
+        const Shape& shape,
+        const FakeQuantizeOnData& fakeQuantize,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore);
+
+    static std::shared_ptr<ngraph::Function> get(
+        const ngraph::element::Type& precision,
+        const Shape& shape,
+        const FakeQuantizeOnData& fakeQuantize,
+        const ngraph::pass::low_precision::FakeQuantizeDequantization& dequantization);
+
     static std::shared_ptr<ngraph::Function> getOriginal(
         bool isConvert, bool isSubtract, size_t subDataInput, size_t mulDataInput);
 

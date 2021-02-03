@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         return false;
     }
 
-    matMul = as_type_ptr<ngraph::opset1::MatMul>(separateInStandaloneBranch(matMul));
+    matMul = as_type_ptr<ngraph::opset1::MatMul>(NetworkHelper::separateInStandaloneBranch(matMul));
 
     FakeQuantizeDequantization dequantization2 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 1);
     if (dequantization2.empty()) {
@@ -45,6 +45,11 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     }
 
     const FakeQuantizeDequantization dequantization1 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 0);
+
+    if (dequantization2.subtract != nullptr) {
+        NetworkHelper::optimizeSubtract(dequantization2.subtract);
+        dequantization2 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 1);
+    }
 
     const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(
         std::vector<element::Type>({ element::f32, element::f32 }), std::vector<element::Type>({}),

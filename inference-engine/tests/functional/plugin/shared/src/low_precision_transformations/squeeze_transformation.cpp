@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 #include "low_precision_transformations/squeeze_transformation.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "lpt_ngraph_functions/squeeze_function.hpp"
-
-#include <ngraph/pass/visualize_tree.hpp>
 
 namespace LayerTestsDefinitions {
 

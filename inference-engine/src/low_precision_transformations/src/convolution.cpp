@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,12 @@ void ConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
     addPattern(
         pass,
         context,
-        make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>()}));
+        make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Multiply>() }));
+
+    addPattern(
+        pass,
+        context,
+        make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>() }));
 }
 
 bool ConvolutionTransformation::isQuantized(std::shared_ptr<Node> layer) const noexcept {
@@ -51,7 +56,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         return false;
     }
 
-    convolution = separateInStandaloneBranch(convolution);
+    convolution = NetworkHelper::separateInStandaloneBranch(convolution);
     dequantization = NetworkHelper::getDequantization(convolution);
 
     {
@@ -156,6 +161,18 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         decomposeFakeQuantizeForWeightsPath(convolution);
 
         std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolution->input_value(1).get_node_shared_ptr());
+
+        const auto dequantization = reshapeFromWeights == nullptr ?
+            NetworkHelper::getDequantization(convolution, 1ul) :
+            NetworkHelper::getDequantization(reshapeFromWeights);
+        assert(!dequantization.empty());
+        if (is_type<opset1::FakeQuantize>(dequantization.data.get_node())) {
+            const std::shared_ptr<opset1::FakeQuantize> fq = as_type_ptr<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr());
+            std::shared_ptr<ngraph::Node> newFQ = NetworkHelper::fold_fake_quantize(fq, true);
+            NetworkHelper::copyInfo(fq, newFQ);
+            replace_node(fq, newFQ);
+        }
+
         std::shared_ptr<opset1::Multiply> multiplyFromWeights = as_type_ptr<opset1::Multiply>(
             reshapeFromWeights == nullptr ?
             convolution->input_value(1).get_node_shared_ptr() :
@@ -164,8 +181,10 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
         {
             Shape newScaleShape = multiplyFromWeights->get_input_shape(1);
-            // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
-            newScaleShape.pop_back();
+            if (!newScaleShape.empty()) {
+                // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
+                newScaleShape.pop_back();
+            }
 
             if (reshapeFromWeights != nullptr) {
                 reshapeFromWeights = as_type_ptr<opset1::Reshape>(reshapeFromWeights->copy_with_new_inputs({
@@ -189,9 +208,13 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
 
         if (subtractFromWeights != nullptr) {
+            // optimize zero point on weights
             auto optimizedSubtract = NetworkHelper::optimizeSubtract(subtractFromWeights);
+
             // TODO: handle optimizedSubtract == nullptr;
-            if (optimizedSubtract != nullptr) {
+            if (optimizedSubtract == nullptr) {
+                subtractFromWeights = nullptr;
+            } else {
                 subtractFromWeights = as_type_ptr<opset1::Subtract>(optimizedSubtract);
 
                 const Shape weightsShape = subtractFromWeights->input(0).get_shape();
@@ -208,8 +231,8 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         std::shared_ptr<opset1::Convert> convertFromWeights = as_type_ptr<opset1::Convert>(subtractFromWeights == nullptr ?
             multiplyFromWeights->get_input_node_shared_ptr(0) :
             subtractFromWeights->get_input_node_shared_ptr(0));
-
         if (convertFromWeights != nullptr) {
+            // remove Convert on weights
             std::shared_ptr<Node> childNode = reshapeFromWeights == nullptr ? convolution : reshapeFromWeights;
 
             auto newConvolution = convolution->clone_with_new_inputs({
@@ -223,6 +246,7 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
         reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolution->get_input_node_shared_ptr(1));
         if (reshapeFromWeights != nullptr) {
+            // remove Reshape on weights
             const std::shared_ptr<Node> newWeights = fold_reshape<opset1::Reshape>(
                 reshapeFromWeights->input_value(0),
                 reshapeFromWeights->input_value(1),

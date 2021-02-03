@@ -6,12 +6,10 @@
 
 #include <map>
 #include <memory>
-#include <sstream>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
-
-#include <ngraph/pass/visualize_tree.hpp>
 #include <low_precision/fake_quantize.hpp>
 #include <low_precision/transformer.hpp>
 

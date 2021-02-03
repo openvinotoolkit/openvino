@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,9 @@
 // branch specific transformations
 #include "low_precision/concat.hpp"
 #include "low_precision/concat_multi_channels.hpp"
+
+// decomposition transformations
+#include "low_precision/fake_quantize_decomposition.hpp"
 
 // general transformations
 #include "low_precision/add.hpp"
@@ -51,8 +54,8 @@
 #include "low_precision/split.hpp"
 
 // cleanup transformations
-#include "low_precision/convert.hpp"
 #include "low_precision/fuse_convert.hpp"
+#include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
@@ -132,6 +135,7 @@ std::vector<LayerTransformationPtr> LowPrecisionTransformations::find(const std:
 
 void LowPrecisionTransformations::setParamsManager(IParamsManager* paramsManager) noexcept {
     setParamsManager(paramsManager, branchSpecificTransformations);
+    setParamsManager(paramsManager, decompositionTransformations);
     setParamsManager(paramsManager, transformations);
     setParamsManager(paramsManager, cleanupTransformations);
     setParamsManager(paramsManager, standaloneCleanupTransformations);
@@ -139,6 +143,7 @@ void LowPrecisionTransformations::setParamsManager(IParamsManager* paramsManager
 
 void LowPrecisionTransformations::setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept {
     setLayerTransformationsManager(layerTransformationsManager, branchSpecificTransformations);
+    setLayerTransformationsManager(layerTransformationsManager, decompositionTransformations);
     setLayerTransformationsManager(layerTransformationsManager, transformations);
     setLayerTransformationsManager(layerTransformationsManager, cleanupTransformations);
     setLayerTransformationsManager(layerTransformationsManager, standaloneCleanupTransformations);
@@ -202,6 +207,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
     auto transformer = LowPrecisionTransformations().
         addBranchSpecific<pass::low_precision::ConcatMultiChannelsTransformation, opset1::Concat>(params).
 
+        addDecomposition<pass::low_precision::FakeQuantizeDecompositionTransformation, opset1::FakeQuantize>(params).
+
         add<AddTransformation, opset1::Add>(params).
         add<AvgPoolTransformation, opset1::AvgPool>(params).
         add<ClampTransformation, opset1::Clamp>(params).
@@ -224,6 +231,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
         add<InterpolateTransformation, opset4::Interpolate>(params).
 
+        addCleanup<FoldConvertTransformation, opset1::Subtract>(params).
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
 
         addStandaloneCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params).
@@ -357,13 +365,9 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
     }
 
     {
-        // Step #1: FakeQuantize layer transformation execution
-        LayerTransformationPtr fqTransformation = transformations.find<opset1::FakeQuantize>()[0];
-        if (fqTransformation == nullptr) {
-            THROW_TRANSFORMATION_EXCEPTION << "FakeQuantize transformation was not found";
-        }
+        // Step #1: FakeQuantize decomposition transformation execution
         GraphRewrite pass;
-        fqTransformation->registerMatcherIn(pass, context);
+        registerAllMatchers(transformations.decompositionTransformations, pass, context);
         pass.run_on_function(network);
     }
 

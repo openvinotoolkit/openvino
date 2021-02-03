@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -171,7 +171,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
     // },
     // U8 + I8
     {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
         {
             ngraph::element::u8,
             { ngraph::element::f32, { 127.f }, { 0.02f } },
@@ -190,7 +190,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
     },
     // I8 + I8
     {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
         {
             ngraph::element::i8,
             { ngraph::element::f32, { 127.f }, { 0.02f } },
@@ -209,7 +209,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
     },
     // U8 + I8, Subtract with not int
     {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
         {
             ngraph::element::u8,
             { ngraph::element::f32, { 127.5f }, { 0.02f } },
@@ -228,7 +228,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
     },
     // U8 + FP32
     {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
+        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
         {
             ngraph::element::u8,
             { ngraph::element::f32, { 127.f }, { 0.02f } },
@@ -247,34 +247,16 @@ std::vector<MatMullTransformationTestValues> testValues = {
     },
     // FP32 + I8
     {
-        LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(true),
-        {
-            ngraph::element::f32,
-            { {}, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-        },
-        {
-            ngraph::element::f32,
-            { {}, { 127.f }, { 0.02f } },
-            ngraph::element::i8,
-            { ngraph::element::f32, {}, { 0.03f } },
-            ngraph::element::f32,
-            ngraph::element::f32,
-            { },
-        }
-    },
-    {
         LayerTransformation::createParamsU8U8().setSupportAsymmetricQuantization(false),
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
+            ngraph::element::f32,
+            { {}, { 127.f }, { 0.02f } },
             ngraph::element::i8,
             { ngraph::element::f32, {}, { 0.03f } },
         },
         {
-            ngraph::element::u8,
-            { ngraph::element::f32, { 127.f }, { 0.02f } },
+            ngraph::element::f32,
+            { {}, { 127.f }, { 0.02f } },
             ngraph::element::i8,
             { ngraph::element::f32, {}, { 0.03f } },
             ngraph::element::f32,

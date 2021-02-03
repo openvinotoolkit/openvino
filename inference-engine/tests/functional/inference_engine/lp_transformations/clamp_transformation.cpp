@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,9 +79,7 @@ public:
 };
 
 TEST_P(ClampTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
-
     auto res = compare_functions(referenceFunction, actualFunction, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -102,6 +100,31 @@ const std::vector<ClampTransformationTestValues> testValues = {
             {{}, {}, {}},
             ngraph::element::f32,
             {{}, {128.f}, {3.f}}
+        }
+    },
+    // U8 per tensor quantization
+    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+                {3.f}
+            }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::f32,
+            {
+                {},
+                {{128.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true},
+                {3.f}
+            }
         }
     },
     // I8 per tensor quantization
