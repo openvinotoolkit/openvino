@@ -40,9 +40,9 @@ public:
 
     void InferImpl() override;
 
-    void SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) override;
+    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override;
 
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
     void updateInOutIfNeeded();
 

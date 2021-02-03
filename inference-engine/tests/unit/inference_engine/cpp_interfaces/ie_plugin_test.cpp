@@ -80,7 +80,7 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithInCorrectName) {
     ASSERT_EQ(refError, dsc.msg);
 }
 
-TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithNullPtr) {
+TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithEmptyName) {
     Blob::Ptr inBlob = make_shared_blob<float>({ Precision::FP32, {}, NCHW });
     inBlob->allocate();
     string inputName = "not_input";
@@ -88,7 +88,7 @@ TEST_F(InferenceEnginePluginInternalTest, failToSetBlobWithNullPtr) {
     IInferRequest::Ptr inferRequest;
     getInferRequestWithMockImplInside(inferRequest);
 
-    ASSERT_NO_THROW(sts = inferRequest->SetBlob(nullptr, inBlob, &dsc));
+    ASSERT_NO_THROW(sts = inferRequest->SetBlob("", inBlob, &dsc));
     ASSERT_EQ(StatusCode::GENERAL_ERROR, sts);
     dsc.msg[refError.length()] = '\0';
     ASSERT_EQ(refError, dsc.msg);

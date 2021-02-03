@@ -102,7 +102,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void LoadNetwork(InferenceEngine::CNNNetwork &network);
 
     bool Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap);
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts();
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;

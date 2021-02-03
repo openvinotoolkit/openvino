@@ -38,7 +38,7 @@ public:
 
     bool IsLoaded() const;
 
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const;
     void UpdatePerfStatistics();
 
     const Config& getConfig() const { return m_config; }

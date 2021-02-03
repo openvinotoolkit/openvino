@@ -44,7 +44,7 @@ public:
 
     StatusCode GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& perfMap,
                                     ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetPerformanceCounts(perfMap));
+        TO_STATUS(perfMap = _impl->GetPerformanceCounts());
     }
 
     StatusCode SetBlob(const char* name, const Blob::Ptr& data, ResponseDesc* resp) noexcept override {
@@ -56,11 +56,11 @@ public:
     }
 
     StatusCode GetBlob(const char* name, Blob::Ptr& data, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->GetBlob(name, data));
+        TO_STATUS(data = _impl->GetBlob(name));
     }
 
     StatusCode GetPreProcess(const char* name, const PreProcessInfo** info, ResponseDesc *resp) const noexcept override {
-        TO_STATUS(_impl->GetPreProcess(name, info));
+        TO_STATUS(*info = &(_impl->GetPreProcess(name)));
     }
 
     StatusCode StartAsync(ResponseDesc* resp) noexcept override {

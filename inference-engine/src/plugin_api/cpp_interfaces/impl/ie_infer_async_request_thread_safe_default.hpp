@@ -164,28 +164,28 @@ public:
         setIsRequestBusy(false);
     }
 
-    void GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& perfMap) const override {
+    std::map<std::string, InferenceEngineProfileInfo> GetPerformanceCounts() const override {
         CheckBusy();
-        _syncRequest->GetPerformanceCounts(perfMap);
+        return _syncRequest->GetPerformanceCounts();
     }
 
-    void SetBlob(const char* name, const Blob::Ptr& data) override {
+    void SetBlob(const std::string& name, const Blob::Ptr& data) override {
         CheckBusy();
         _syncRequest->SetBlob(name, data);
     }
 
-    void SetBlob(const char* name, const Blob::Ptr& data, const PreProcessInfo& info) override {
+    void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info) override {
         CheckBusy();
         _syncRequest->SetBlob(name, data, info);
     }
 
-    void GetBlob(const char* name, Blob::Ptr& data) override {
+    Blob::Ptr GetBlob(const std::string& name) override {
         CheckBusy();
-        _syncRequest->GetBlob(name, data);
+        return _syncRequest->GetBlob(name);
     }
 
-    void GetPreProcess(const char* name, const PreProcessInfo** info) const override {
-        _syncRequest->GetPreProcess(name, info);
+    const PreProcessInfo& GetPreProcess(const std::string& name) const override {
+        return _syncRequest->GetPreProcess(name);
     }
 
     void SetBatch(int batch) override {

@@ -25,7 +25,7 @@ public:
     explicit MultiDeviceInferRequest(const InferenceEngine::InputsDataMap&  networkInputs,
                                      const InferenceEngine::OutputsDataMap& networkOutputs,
                                      InferenceEngine::InferRequest request_to_share_blobs_with);
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>&) const override {
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override {
         THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
     void InferImpl() override {

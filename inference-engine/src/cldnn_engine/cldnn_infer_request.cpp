@@ -421,8 +421,9 @@ void CLDNNInferRequest::checkBlobs() {
     }
 }
 
-void CLDNNInferRequest::GetBlob(const char *name, Blob::Ptr &data) {
+Blob::Ptr CLDNNInferRequest::GetBlob(const std::string& name) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::GetBlob");
+    Blob::Ptr data;
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
     bool is_input = findInputAndOutputBlobByName(name, foundInput, foundOutput);
@@ -440,13 +441,14 @@ void CLDNNInferRequest::GetBlob(const char *name, Blob::Ptr &data) {
         data = _outputs[name];
         checkOutputBlob(data, name, foundOutput);
     }
+    return data;
 }
 
-void CLDNNInferRequest::SetBlob(const char *name, const Blob::Ptr &data) {
+void CLDNNInferRequest::SetBlob(const std::string& name, const Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::SetBlob");
 
     // perform all common checks first
-    if (name == nullptr) {
+    if (name.empty()) {
         THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
     }
     if (!data)
@@ -884,13 +886,12 @@ void CLDNNInferRequest::InferImpl() {
     }
 }
 
-void CLDNNInferRequest::GetPerformanceCounts(
-        std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+std::map<std::string, InferenceEngineProfileInfo> CLDNNInferRequest::GetPerformanceCounts() const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNInferRequest::GetPerformanceCounts");
     if (!m_useProfiling) {
         THROW_IE_EXCEPTION << "Performance counters were not enabled";
     } else {
-        m_graph->GetPerformanceCounts(perfMap);
+        return m_graph->GetPerformanceCounts();
     }
 }
 

@@ -27,21 +27,11 @@ public:
 
     InferenceEngine::StatusCode Cancel() override;
 
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
-    /**
-     * @brief Given optional implementation of setting blob to avoid need for it to be implemented by plugin
-     * @param name - a name of input or output blob.
-     * @param data - a reference to input or output blob. The type of Blob must correspond to the network input precision and size.
-     */
-    void SetBlob(const char *name, const InferenceEngine::Blob::Ptr &data) override;
+    void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
 
-    /**
-     * @brief Given optional implementation of getting blob to avoid need for it to be implemented by plugin
-     * @param name - a name of input or output blob.
-     * @param data - a reference to input or output blob. The type of Blob must correspond to the network input precision and size.
-     */
-    void GetBlob(const char *name, InferenceEngine::Blob::Ptr &data) override;
+    InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override;
 
     void SetBatch(int batch = -1) override;
 

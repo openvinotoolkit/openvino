@@ -30,13 +30,11 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
         THROW_IE_EXCEPTION << "No graph was found";
     graph = execNetwork->_graphs.begin()->get();
     for (const auto& it : _networkInputs) {
-        InferenceEngine::Blob::Ptr blob;
-        MKLDNNInferRequest::GetBlob(it.first.c_str(), blob);
+        MKLDNNInferRequest::GetBlob(it.first);
     }
     // Allocate all output blobs
     for (const auto& it : _networkOutputs) {
-        InferenceEngine::Blob::Ptr blob;
-        MKLDNNInferRequest::GetBlob(it.first.c_str(), blob);
+        MKLDNNInferRequest::GetBlob(it.first);
     }
 
     // Save all MemoryLayer data tensors. Will use insight about mechanics
@@ -202,18 +200,21 @@ InferenceEngine::StatusCode MKLDNNPlugin::MKLDNNInferRequest::Cancel() {
     return InferenceEngine::OK;
 }
 
-void MKLDNNPlugin::MKLDNNInferRequest::GetPerformanceCounts(
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MKLDNNPlugin::MKLDNNInferRequest::GetPerformanceCounts() const {
     if (!graph || !graph->IsReady())
         THROW_IE_EXCEPTION << "Graph is not ready!";
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
     graph->GetPerfData(perfMap);
+    return perfMap;
 }
 
-void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine::Blob::Ptr &data) {
+InferenceEngine::Blob::Ptr MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const std::string& name) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "GetBlob");
 
     if (!graph || !graph->IsReady())
         THROW_IE_EXCEPTION << "Graph is not ready!";
+
+    InferenceEngine::Blob::Ptr data;
 
     InferenceEngine::BlobMap blobs;
     graph->getInputBlobs(blobs);
@@ -223,13 +224,13 @@ void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine
         auto it = _preProcData.find(name);
         if (it != _preProcData.end()) {
             data = it->second->getRoiBlob();
-            return;
+            return data;
         }
 
         if (_inputs.find(name) != _inputs.end()) {
             data = _inputs[name];
             checkBlob(data, name, true);
-            return;
+            return data;
         }
 
         InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
@@ -250,7 +251,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine
         }
         data = _inputs[name];
         checkBlob(data, name, true);
-        return;
+        return data;
     }
     blobs.clear();
     graph->getOutputBlobs(blobs);
@@ -258,7 +259,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine
         if (_outputs.find(name) != _outputs.end()) {
             data = _outputs[name];
             checkBlob(data, name, false);
-            return;
+            return data;
         }
 
         InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
@@ -277,14 +278,14 @@ void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine
         }
         data = _outputs[name];
         checkBlob(data, name, false);
-        return;
+        return data;
     }
     THROW_IE_EXCEPTION << "Cannot find blob with name: " << name;
 }
 
-void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr &data) {
+void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "SetBlob");
-    if (name == nullptr) {
+    if (name.empty()) {
         THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
     }
 

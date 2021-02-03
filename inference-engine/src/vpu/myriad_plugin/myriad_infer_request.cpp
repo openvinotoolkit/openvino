@@ -280,7 +280,7 @@ void MyriadInferRequest::GetResult() {
     }
 }
 
-void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MyriadInferRequest::GetPerformanceCounts() const {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
 
     if (_log->isActive(LogLevel::Info)) {
@@ -289,7 +289,7 @@ void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
         }
     }
 
-    perfMap = vpu::parsePerformanceReport(
+    return vpu::parsePerformanceReport(
         _stagesMetaData,
         perfInfo.data(), static_cast<int>(perfInfo.size()),
         _config.perfReport(), _config.printReceiveTensorTime());

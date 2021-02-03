@@ -76,9 +76,9 @@ public:
      * @param data - a reference to input or output blob. The type of Blob must correspond to the network input
      * precision and size.
      */
-    void SetBlob(const char* name, const Blob::Ptr& userBlob) override {
+    void SetBlob(const std::string& name, const Blob::Ptr& userBlob) override {
         OV_ITT_SCOPED_TASK(itt::domains::Plugin, "SetBlob");
-        if (name == nullptr) {
+        if (name.empty()) {
             THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
         }
         if (!userBlob) THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
@@ -142,12 +142,13 @@ public:
     /**
      * @brief Given optional implementation of getting blob to avoid need for it to be implemented by plugin
      * @param name - a name of input or output blob.
-     * @param data - a reference to input or output blob. The type of Blob must correspond to the network input
+     * @return Returns input or output blob. The type of Blob must correspond to the network input
      * precision and size.
      * @note if ROI blob was previously set it is returned (without dimensions checks) instead of default blob.
      */
-    void GetBlob(const char* name, Blob::Ptr& data) override {
+    Blob::Ptr GetBlob(const std::string& name) override {
         OV_ITT_SCOPED_TASK(itt::domains::Plugin, "GetBlob");
+        Blob::Ptr data;
         InputInfo::Ptr foundInput;
         DataPtr foundOutput;
         const SizeVector oneVector = { 1 };
@@ -176,6 +177,7 @@ public:
                 ? foundOutput->getTensorDesc().getDims()
                 : oneVector);
         }
+        return data;
     }
 
     /**
@@ -184,7 +186,7 @@ public:
      * @param data - a reference to input or output blob. The type of Blob must correspond to the network input precision and size.
      * @param info Preprocess info for blob.
      */
-    void SetBlob(const char* name, const Blob::Ptr& data, const PreProcessInfo& info) override {
+    void SetBlob(const std::string& name, const Blob::Ptr& data, const PreProcessInfo& info) override {
         InputInfo::Ptr foundInput;
         DataPtr foundOutput;
         if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
@@ -199,13 +201,13 @@ public:
     /**
      * @brief Gets pre-process for input data
      * @param name Name of input blob.
-     * @param info pointer to a pointer to PreProcessInfo structure
+     * @return Returns constant reference to PreProcessInfo structure
      */
-    void GetPreProcess(const char* name, const PreProcessInfo** info) const override {
+    const PreProcessInfo& GetPreProcess(const std::string& name) const override {
         InputInfo::Ptr foundInput;
         DataPtr foundOutput;
         if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-            *info = &foundInput->getPreProcess();
+            return foundInput->getPreProcess();
         } else {
             THROW_IE_EXCEPTION << "Output blob can't have pre-processing";
         }
@@ -283,7 +285,7 @@ protected:
      * @throws [parameter_mismatch] exception if input and output has the same name
      * @throws [not_found] exception if there is no input and output layers with given name
      */
-    bool findInputAndOutputBlobByName(const char* name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const {
+    bool findInputAndOutputBlobByName(const std::string& name, InputInfo::Ptr& foundInput, DataPtr& foundOutput) const {
         foundInput = nullptr;
         foundOutput = nullptr;
         if (_networkOutputs.empty()) {
@@ -412,7 +414,7 @@ protected:
         auto& preproc_ptr = ppDataIt->second;
         preproc_ptr->isApplicable(from,  to);
         // Stores the given blob as ROI blob. It will be used to fill in network input
-        // during pre-processing
+        // during pre-processingstd::map<std::string, InferenceEngineProfileInfo>
         preproc_ptr->setRoiBlob(from);
     }
 };

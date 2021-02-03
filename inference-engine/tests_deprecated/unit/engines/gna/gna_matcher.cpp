@@ -472,8 +472,7 @@ void GNAPropagateMatcher :: match() {
             }
         }
 
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-        plugin.GetPerformanceCounts(perfMap);
+        auto perfMap = plugin.GetPerformanceCounts();
 
         if(_env.is_profiling_enabled != false) {
             ASSERT_NE(perfMap.empty(),true);
