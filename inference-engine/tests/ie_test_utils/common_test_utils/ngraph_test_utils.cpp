@@ -77,10 +77,6 @@ std::string to_str(const T& v) {
     return std::to_string(v);
 }
 
-FunctionsComparator::Result error(std::string s) {
-    return {false, std::move(s)};
-}
-
 std::string typeInfoToStr(const ngraph::Node::type_info_t& typeInfo) {
     return std::string(typeInfo.name) + "/" + to_str(typeInfo.version);
 }
@@ -88,6 +84,17 @@ std::string typeInfoToStr(const ngraph::Node::type_info_t& typeInfo) {
 template <typename Node>
 std::string name(const Node& n) {
     return n->get_friendly_name();
+}
+
+template <typename Tensor>
+std::string tensor_names(const Tensor& t) {
+    std::string n;
+    const char* glue = "";
+    for (const auto& name : t.get_names()) {
+        n.append(glue).append(name);
+        glue = ", ";
+    }
+    return "\"" + n + "\"";
 }
 
 namespace attr_comparison {
@@ -624,7 +631,7 @@ class CompareNodesAttributes {
 public:
     CompareNodesAttributes() : m_compare_attr(m_store_attr) {}
 
-    attr_comparison::ReadAndStoreAttributes& get_ref_reder() {
+    attr_comparison::ReadAndStoreAttributes& get_ref_reader() {
         return m_store_attr;
     }
 
@@ -655,11 +662,46 @@ private:
     attr_comparison::ReadAndCompareAttributes m_compare_attr;
 };
 
+class Comparator {
+public:
+    using CmpValues = FunctionsComparator::CmpValues;
+    using Result = FunctionsComparator::Result;
+    using ComparedNodes = std::pair<ngraph::Node*, ngraph::Node*>;
+
+    explicit Comparator(CmpValues f) : m_comparition_flags(f) {}
+
+    Result compare(
+        const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2);
+
+    Result compare(ngraph::Node* node1, ngraph::Node* node2);
+
+    Comparator recreate() const {
+        return Comparator{m_comparition_flags};
+    }
+
+private:
+    constexpr bool should_compare(CmpValues f) const noexcept {
+        return m_comparition_flags & f;
+    }
+
+    void add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* node2);
+
+    //-- DATA --
+    CmpValues m_comparition_flags;
+
+    std::queue<ComparedNodes> q;
+    std::unordered_set<ngraph::Node*> used;
+};
 }  // namespace
 
 FunctionsComparator::Result FunctionsComparator::compare(
     const std::shared_ptr<ngraph::Function>& f1,
     const std::shared_ptr<ngraph::Function>& f2) const {
+    return Comparator(m_comparition_flags).compare(f1, f2);
+}
+
+Comparator::Result Comparator::compare(
+    const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2) {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
@@ -676,7 +718,7 @@ FunctionsComparator::Result FunctionsComparator::compare(
     std::sort(f2_results.begin(), f2_results.end(), less_by_name);
 
     if (f1_results.size() != f2_results.size()) {
-        return error(
+        return Result::error(
             "Number of results is different: " + to_str(f1_results.size()) + " and " +
             to_str(f2_results.size()));
     }
@@ -684,22 +726,16 @@ FunctionsComparator::Result FunctionsComparator::compare(
     const auto& f1_sinks = f1->get_sinks();
     const auto& f2_sinks = f2->get_sinks();
     if (f1_sinks.size() != f2_sinks.size()) {
-        return error(
+        return Result::error(
             "Number of sinks is different: " + to_str(f1_sinks.size()) + " and " +
             to_str(f2_sinks.size()));
     }
 
-    std::ostringstream err_log;
-
-    using ComparedNodes = std::pair<ngraph::Node*, ngraph::Node*>;
-    std::queue<ComparedNodes> q;
-    std::unordered_set<ngraph::Node*> used;
-
     for (size_t i = 0; i < f1_results.size(); ++i) {
-        if (should_compare(NAMES)) {
+        if (should_compare(CmpValues::NAMES)) {
             if (name(f1_results[i]->get_input_node_shared_ptr(0)) !=
                 name(f2_results[i]->get_input_node_shared_ptr(0))) {
-                return error(
+                return Result::error(
                     "Different output names: " + name(f1_results[i]->get_input_node_shared_ptr(0)) +
                     " and " + name(f2_results[i]->get_input_node_shared_ptr(0)));
             }
@@ -709,157 +745,159 @@ FunctionsComparator::Result FunctionsComparator::compare(
     }
 
     while (!q.empty()) {
-        auto node1 = q.front().first;
-        auto node2 = q.front().second;
+        ngraph::Node* const node1 = q.front().first;
+        ngraph::Node* const node2 = q.front().second;
         q.pop();
 
-        auto type_info1 = node1->get_type_info();
-        auto type_info2 = node2->get_type_info();
-
-        if (!compareTypeInfo(type_info1, type_info2)) {
-            return error(typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
+        const auto result = compare(node1, node2);
+        if (!result.valid) {
+            return result;
         }
 
-        auto subgraph1 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node1);
-        auto subgraph2 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node2);
+        add_nodes_inputs_to_queue(node1, node2);
+    }
+    return Result::ok();
+}
 
-        if (subgraph1 && subgraph2) {
-            auto result = compare(subgraph1->get_function(), subgraph2->get_function());
-            if (!result.valid) {
-                return result;
-            }
-        }
+Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2) {
+    auto type_info1 = node1->get_type_info();
+    auto type_info2 = node2->get_type_info();
 
-        const auto& dependencies_1 = node1->get_control_dependencies();
-        const auto& dependencies_2 = node2->get_control_dependencies();
+    if (!compareTypeInfo(type_info1, type_info2)) {
+        return Result::error(typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
+    }
 
-        if (dependencies_1.size() != dependencies_2.size()) {
-            return error(
-                "Number of dependencies is different: " + to_str(dependencies_1.size()) + " for " +
-                name(node1) + " and " + to_str(dependencies_2.size()) + " for " + name(node2));
-        }
+    auto subgraph1 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node1);
+    auto subgraph2 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node2);
 
-        if (node1->inputs().size() != node2->inputs().size()) {
-            return error(
-                "Number of inputs is different: " + to_str(node1->inputs().size()) + " for " +
-                name(node1) + " and " + to_str(node2->inputs().size()) + " for " + name(node2));
-        }
-
-        if (node1->outputs().size() != node2->outputs().size()) {
-            return error(
-                "Number of outputs is different: " + to_str(node1->inputs().size()) + " for " +
-                name(node1) + " and " + to_str(node2->inputs().size()) + " for " + name(node2));
-        }
-
-        for (int i = 0; i < node1->inputs().size(); ++i) {
-            if (should_compare(CONST_VALUES)) {
-                using Constant = ngraph::opset1::Constant;
-                auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
-                auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
-
-                const auto equal = [](std::shared_ptr<Constant> c1, std::shared_ptr<Constant> c2) {
-                    const auto& c1v = c1->cast_vector<double>();
-                    const auto& c2v = c2->cast_vector<double>();
-
-                    return c1v.size() == c2v.size() && std::equal(
-                                                           begin(c1v), end(c1v), begin(c2v),
-                                                           [](const double& s1, const double& s2) {
-                                                               return std::abs(s1 - s2) < 0.001;
-                                                           });
-                };
-
-                if (const1 && const2 && !equal(const1, const2)) {
-                    err_log << "Different Constant values detected\n"
-                            << node1->description() << " Input(" << i << ") and "
-                            << node2->description() << " Input(" << i << ")" << std::endl;
-                }
-            }
-
-            if (should_compare(PRECISIONS)) {
-                if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
-                    err_log << "Different element type detected\n"
-                            << name(node1) << " Input(" << i << ") "
-                            << node1->input(i).get_element_type() << " and " << name(node2)
-                            << " Input(" << i << ") " << node2->input(i).get_element_type()
-                            << std::endl;
-                }
-            }
-
-            if (!node1->input(i).get_partial_shape().same_scheme(
-                    node2->input(i).get_partial_shape())) {
-                err_log << "Different shape detected\n"
-                        << name(node1) << " Input(" << i << ") "
-                        << node1->input(i).get_partial_shape() << " and " << name(node2)
-                        << " Input(" << i << ") " << node2->input(i).get_partial_shape()
-                        << std::endl;
-            }
-
-            if (node1->get_input_source_output(i).get_index() !=
-                node2->get_input_source_output(i).get_index()) {
-                auto idx1 = node1->get_input_source_output(i).get_index();
-                auto idx2 = node2->get_input_source_output(i).get_index();
-                err_log << "Different ports detected\n"
-                        << name(node1) << " Input(" << i << ") connected to parent port " << idx1
-                        << " and " << name(node2) << " Input(" << i << ") connected to parent port "
-                        << idx2 << std::endl;
-            }
-
-            if (should_compare(RUNTIME_KEYS) && !compare_rt_keys(node1, node2)) {
-                err_log << "Different runtime info detected\n"
-                        << name(node1) << " and " << name(node2) << " not equal runtime info."
-                        << std::endl;
-            }
-
-            if (!used.count(node1->input_value(i).get_node())) {
-                q.push({node1->input_value(i).get_node(), node2->input_value(i).get_node()});
-                used.insert(node1->input_value(i).get_node());
-            }
-        }
-
-        for (int i = 0; i < node1->outputs().size(); ++i) {
-            const auto& tensor1 = node1->output(i).get_tensor();
-            const auto& tensor2 = node2->output(i).get_tensor();
-
-            if (tensor1.get_names() != tensor2.get_names()) {
-                std::string names1 = "";
-                for (const auto& name : tensor1.get_names()) {
-                    if (!names1.empty())
-                        names1 += ", ";
-                    names1 += name;
-                }
-                names1 = "\"" + names1 + "\"";
-                std::string names2 = "";
-                for (const auto& name : tensor2.get_names()) {
-                    if (!names2.empty())
-                        names2 += ", ";
-                    names2 += name;
-                }
-                names2 = "\"" + names2 + "\"";
-                err_log << "Output tensors names " << names1 << " and " << names2 << " are different for nodes: "
-                        << node1->get_friendly_name() << " and " << node2->get_friendly_name() << std::endl;
-            }
-            if (!node1->output(i).get_partial_shape().same_scheme(
-                    node2->output(i).get_partial_shape())) {
-                err_log << "Different shape detected\n"
-                        << name(node1) << " Output(" << i << ") "
-                        << node1->output(i).get_partial_shape() << " and " << name(node2)
-                        << " Output(" << i << ") " << node2->output(i).get_partial_shape()
-                        << std::endl;
-            }
-        }
-
-        if (should_compare(ATTRIBUTES)) {
-            CompareNodesAttributes compare_nodes;
-            node1->visit_attributes(compare_nodes.get_ref_reder());
-            node2->visit_attributes(compare_nodes.get_cmp_reader());
-            if (!compare_nodes.equal()) {
-                return error(
-                    "Comparison of attributes failed for nodes " + name(node1) + ", " +
-                    name(node2) + " [cmp status: " + to_string(compare_nodes) + "]");
-            }
+    if (subgraph1 && subgraph2) {
+        auto result = recreate().compare(subgraph1->get_function(), subgraph2->get_function());
+        if (!result.valid) {
+            return result;
         }
     }
-    return {err_log.str().empty(), err_log.str()};
+
+    const auto& dependencies_1 = node1->get_control_dependencies();
+    const auto& dependencies_2 = node2->get_control_dependencies();
+
+    if (dependencies_1.size() != dependencies_2.size()) {
+        return Result::error(
+            "Number of dependencies is different: " + to_str(dependencies_1.size()) + " for " +
+            name(node1) + " and " + to_str(dependencies_2.size()) + " for " + name(node2));
+    }
+
+    if (node1->inputs().size() != node2->inputs().size()) {
+        return Result::error(
+            "Number of inputs is different: " + to_str(node1->inputs().size()) + " for " +
+            name(node1) + " and " + to_str(node2->inputs().size()) + " for " + name(node2));
+    }
+
+    if (node1->outputs().size() != node2->outputs().size()) {
+        return Result::error(
+            "Number of outputs is different: " + to_str(node1->inputs().size()) + " for " +
+            name(node1) + " and " + to_str(node2->inputs().size()) + " for " + name(node2));
+    }
+
+    std::ostringstream err_log;
+    for (int i = 0; i < node1->inputs().size(); ++i) {
+        if (should_compare(CmpValues::CONST_VALUES)) {
+            using Constant = ngraph::opset1::Constant;
+            auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
+            auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
+
+            const auto equal = [](std::shared_ptr<Constant> c1, std::shared_ptr<Constant> c2) {
+                const auto& c1v = c1->cast_vector<double>();
+                const auto& c2v = c2->cast_vector<double>();
+                const auto float_eq = [](const double& s1, const double& s2) {
+                    return std::abs(s1 - s2) < 0.001;
+                };
+
+                return c1v.size() == c2v.size() &&
+                       std::equal(begin(c1v), end(c1v), begin(c2v), float_eq);
+            };
+
+            if (const1 && const2 && !equal(const1, const2)) {
+                err_log << "Different Constant values detected\n"
+                        << node1->description() << " Input(" << i << ") and "
+                        << node2->description() << " Input(" << i << ")" << std::endl;
+            }
+        }
+
+        if (should_compare(CmpValues::PRECISIONS)) {
+            if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
+                err_log << "Different element type detected\n"
+                        << name(node1) << " Input(" << i << ") "
+                        << node1->input(i).get_element_type() << " and " << name(node2) << " Input("
+                        << i << ") " << node2->input(i).get_element_type() << std::endl;
+            }
+        }
+
+        if (!node1->input(i).get_partial_shape().same_scheme(node2->input(i).get_partial_shape())) {
+            err_log << "Different shape detected\n"
+                    << name(node1) << " Input(" << i << ") " << node1->input(i).get_partial_shape()
+                    << " and " << name(node2) << " Input(" << i << ") "
+                    << node2->input(i).get_partial_shape() << std::endl;
+        }
+
+        if (node1->get_input_source_output(i).get_index() !=
+            node2->get_input_source_output(i).get_index()) {
+            auto idx1 = node1->get_input_source_output(i).get_index();
+            auto idx2 = node2->get_input_source_output(i).get_index();
+            err_log << "Different ports detected\n"
+                    << name(node1) << " Input(" << i << ") connected to parent port " << idx1
+                    << " and " << name(node2) << " Input(" << i << ") connected to parent port "
+                    << idx2 << std::endl;
+        }
+
+        if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1, node2)) {
+            err_log << "Different runtime info detected\n"
+                    << name(node1) << " and " << name(node2) << " not equal runtime info."
+                    << std::endl;
+        }
+    }
+
+    for (int i = 0; i < node1->outputs().size(); ++i) {
+        const auto& tensor1 = node1->output(i).get_tensor();
+        const auto& tensor2 = node2->output(i).get_tensor();
+
+        if (tensor1.get_names() != tensor2.get_names()) {
+            err_log << "Output tensors names " << tensor_names(tensor1) << " and "
+                    << tensor_names(tensor2)
+                    << " are different for nodes: " << node1->get_friendly_name() << " and "
+                    << node2->get_friendly_name() << std::endl;
+        }
+
+        if (!node1->output(i).get_partial_shape().same_scheme(
+                node2->output(i).get_partial_shape())) {
+            err_log << "Different shape detected\n"
+                    << name(node1) << " Output(" << i << ") "
+                    << node1->output(i).get_partial_shape() << " and " << name(node2) << " Output("
+                    << i << ") " << node2->output(i).get_partial_shape() << std::endl;
+        }
+    }
+
+    if (should_compare(CmpValues::ATTRIBUTES)) {
+        CompareNodesAttributes compare_nodes;
+        node1->visit_attributes(compare_nodes.get_ref_reader());
+        node2->visit_attributes(compare_nodes.get_cmp_reader());
+        if (!compare_nodes.equal()) {
+            return Result::error(
+                "Comparison of attributes failed for nodes " + name(node1) + ", " + name(node2) +
+                " [cmp status: " + to_string(compare_nodes) + "]");
+        }
+    }
+    const auto msg = err_log.str();
+
+    return msg.empty() ? Result::ok() : Result::error(msg);
+}
+
+void Comparator::add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* node2) {
+    for (int i = 0; i < node1->inputs().size(); ++i) {
+        if (!used.count(node1->input_value(i).get_node())) {
+            q.push({node1->input_value(i).get_node(), node2->input_value(i).get_node()});
+            used.insert(node1->input_value(i).get_node());
+        }
+    }
 }
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     static const std::vector<std::string> attrs_to_check{"Variant::RuntimeAttribute::FusedNames"};
