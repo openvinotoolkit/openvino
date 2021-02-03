@@ -373,6 +373,17 @@ void op::v1::GroupConvolutionBackpropData::pre_validate_and_infer_types()
         filters_et,
         ").");
 
+    NODE_VALIDATION_CHECK(
+        this,
+        (data_pshape.rank().compatible(5) && filters_pshape.rank().compatible(6)) ||
+            (data_pshape.rank().compatible(4) && filters_pshape.rank().compatible(5)) ||
+            (data_pshape.rank().compatible(3) && filters_pshape.rank().compatible(4)),
+        "Shapes for data batch and filters do not match. (data batch shape: ",
+        data_pshape,
+        ", filters shape: ",
+        filters_pshape,
+        ").");
+
     if (data_pshape.rank().is_static() && filters_pshape.rank().is_static())
     {
         if (filters_pshape[0].is_static() && filters_pshape[1].is_static() &&
@@ -415,6 +426,11 @@ void op::v1::GroupConvolutionBackpropData::pre_validate_and_infer_types()
         const auto num_spatial_dims = data_pshape.rank().get_length() - 2;
 
         NODE_VALIDATION_CHECK(this,
+                              m_pads_begin.size() == num_spatial_dims &&
+                                  m_pads_end.size() == num_spatial_dims,
+                              "Pads should be defined for all and only spatial features.");
+
+        NODE_VALIDATION_CHECK(this,
                               m_strides.size() == num_spatial_dims,
                               "Strides should be defined for all and only spatial features.");
 
@@ -435,6 +451,23 @@ void op::v1::GroupConvolutionBackpropData::pre_validate_and_infer_types()
     // and infer them.
     if (is_output_shape_present)
     {
+        const auto& output_shape_pshape = get_input_partial_shape(2);
+        const element::Type output_shape_et = get_input_element_type(2);
+
+        NODE_VALIDATION_CHECK(this,
+                              output_shape_et.is_integral_number(),
+                              "Element type for output shape should be of integer type ",
+                              "(output_shape element type: ",
+                              output_shape_et,
+                              ").");
+
+        NODE_VALIDATION_CHECK(this,
+                              output_shape_pshape.rank().compatible(1),
+                              "Spatial shape of output input must be of rank 1 ",
+                              "(output_shape shape: ",
+                              output_shape_pshape,
+                              ").");
+
         output_pshape = get_convolution_output_shape();
 
         if (output_pshape.is_static() && data_pshape.is_static() && filters_pshape.is_static())
@@ -483,7 +516,7 @@ void op::v1::GroupConvolutionBackpropData::pre_validate_and_infer_types()
             m_pads_end.assign(m_pads_end.size(), 0);
         }
 
-        if (data_pshape.rank().is_static() && filters_pshape.is_static())
+        if (data_pshape.rank().is_static() && filters_pshape.rank().is_static())
         {
             vector<Dimension> data_shape{data_pshape}, filters_shape{filters_pshape}, output_shape;
 

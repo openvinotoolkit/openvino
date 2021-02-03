@@ -23,9 +23,9 @@ using namespace ngraph;
 
 TEST(type_prop, group_conv_backprop_data)
 {
-    // GROUPS x C_IN x C_OUT x kH x kW
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
     const auto weights = make_shared<op::Parameter>(element::f32, Shape{2, 8, 2, 3, 3});
-    // N x C_IN * GROUPS x H x W
+    // data batch shape: [N, C_IN * GROUPS x H x W]
     const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 6, 6});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
@@ -39,14 +39,13 @@ TEST(type_prop, group_conv_backprop_data)
     EXPECT_EQ(gcbd->get_auto_pad(), op::PadType::EXPLICIT);
 }
 
-TEST(type_prop, group_conv_backprop_data_output_shape)
+TEST(type_prop, group_conv_backprop_data_output_shape_as_const)
 {
-    // N x C_IN * GROUPS x H x W
+    // data batch shape: [N, C_IN * GROUPS x H x W]
     const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
-    // GROUPS x C_IN x C_OUT x kH x kW
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
     const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
     const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
-
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
     EXPECT_EQ(gcbd->get_element_type(), element::f32);
@@ -56,6 +55,20 @@ TEST(type_prop, group_conv_backprop_data_output_shape)
     EXPECT_EQ(gcbd->get_pads_begin(), (CoordinateDiff{2, 2}));
     EXPECT_EQ(gcbd->get_pads_end(), (CoordinateDiff{2, 2}));
     EXPECT_EQ(gcbd->get_output_padding(), (CoordinateDiff{0, 0}));
+    EXPECT_EQ(gcbd->get_auto_pad(), op::PadType::SAME_UPPER);
+}
+
+TEST(type_prop, group_conv_backprop_data_output_shape_as_param)
+{
+    // data batch shape: [N, C_IN * GROUPS x H x W]
+    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+    const auto output_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+    const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+    EXPECT_EQ(gcbd->get_element_type(), element::f32);
+    EXPECT_EQ(gcbd->get_output_partial_shape(0), (PartialShape::dynamic()));
     EXPECT_EQ(gcbd->get_auto_pad(), op::PadType::SAME_UPPER);
 }
 
@@ -80,43 +93,161 @@ TEST(type_prop, group_conv_bprop_data_v1_output_partial_shape_dynamic_static_ran
         PartialShape{Dimension::dynamic(), 8, 447, 447}));
 }
 
-TEST(type_prop, group_conv_backprop_data_invalid_params)
+TEST(type_prop, group_conv_backprop_data_invalid_element_types)
 {
-    // GROUPS x C_IN x C_OUT x kH x kW
-    auto weights = make_shared<op::Parameter>(element::f32, Shape{21, 16, 20, 3, 3});
-    // N x C_IN * GROUPS x H x W
-    const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
+    try
+    {
+        // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+        const auto weights = make_shared<op::Parameter>(element::f32, Shape{2, 8, 2, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto data = make_shared<op::Parameter>(element::f16, Shape{1, 16, 6, 6});
+        const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+            data, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+        // data and weights should be of same element type
+        FAIL() << "Incompatible element types not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Element types for data batch and filters do not match"));
+    }
+    catch (...)
+    {
+        FAIL() << "Element types validation check of inputs failed for unexpected reason";
+    }
 
     try
     {
+        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
+        // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+        const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+        const auto output_shape = op::Constant::create(element::f16, Shape{2}, {3, 3});
+        const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+            data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+        // output shape input element type must be of integer type
+        FAIL() << "Incompatible element types not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Element type for output shape should be of integer type");
+    }
+    catch (...)
+    {
+        FAIL() << "Element types validation check of inputs failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, group_conv_backprop_data_invalid_input_ranks)
+{
+    // data partial shape provided is rank 4 (Conv2D)
+    // filter partial shape provided is rank 6 (Conv3D)
+    try
+    {
+        const auto weights = make_shared<op::Parameter>(
+            element::f32, PartialShape{2, 8, 2, 3, 3, Dimension::dynamic()});
+        const auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 16, 6, 6});
+        const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+            data, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+        // data and weight have incompatible ranks
+        FAIL() << "Incompatible input ranks not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Shapes for data batch and filters do not match."));
+    }
+    catch (...)
+    {
+        FAIL() << "Rank validation check of inputs failed for unexpected reason";
+    }
+
+    // data partial shape provided is rank 5 (Conv3D)
+    // filter partial shape provided is rank 5 (Conv2D)
+    try
+    {
+        const auto weights = make_shared<op::Parameter>(element::f32, PartialShape{2, 8, 2, 3, 3});
+        const auto data = make_shared<op::Parameter>(
+            element::f32, PartialShape{1, Dimension::dynamic(), 16, 6, 6});
+        const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+            data, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+        // data and weight have incompatible ranks
+        FAIL() << "Incompatible input ranks not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Shapes for data batch and filters do not match."));
+    }
+    catch (...)
+    {
+        FAIL() << "Rank validation check of inputs failed for unexpected reason";
+    }
+
+    try
+    {
+        const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
+        const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+        const auto output_shape = op::Constant::create(element::i64, Shape{2, 1}, {3, 3});
+        const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+            data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+        // Output shape optional input must be of rank 1
+        FAIL() << "Incompatible output shape input rank not detected.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             std::string("Spatial shape of output input must be of rank 1"));
+    }
+    catch (...)
+    {
+        FAIL() << "Rank validation check of inputs failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, group_conv_backprop_data_invalid_params)
+{
+    try
+    {
+        // filter shape: [GROUPS, C_IN, C_OUT, kH, kW]
+        const auto weights = make_shared<op::Parameter>(element::f32, Shape{21, 16, 20, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(data,
                                                                             weights,
                                                                             Strides{1, 1},
                                                                             CoordinateDiff{2, 2},
                                                                             CoordinateDiff{2, 2},
                                                                             Strides{1, 1});
-        EXPECT_FALSE(gcbd.get()) << "GroupConvolutionBackpropData:v1 validation did not work. "
-                                    "Node was created with incorrect params.";
+        // data batch shape does not have correct dimension C_IN * GROUPS
+        FAIL() << "Incompatibile input shapes not detected.";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Number of data channels not a multiple of group size."));
     }
-
-    // GROUPS x C_IN x C_OUT x kH x kW
-    weights = make_shared<op::Parameter>(element::f32, Shape{4, 16, 20, 3, 3});
+    catch (...)
+    {
+        FAIL() << "Input shapes validation check failed for unexpected reason.";
+    }
 
     try
     {
+        // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+        const auto weights = make_shared<op::Parameter>(element::f32, Shape{4, 16, 20, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(data,
                                                                             weights,
                                                                             Strides{1, 1},
                                                                             CoordinateDiff{2, 2},
                                                                             CoordinateDiff{2, 2},
                                                                             Strides{1, 1});
-        EXPECT_FALSE(gcbd.get()) << "GroupConvolutionBackpropData:v1 validation did not work. "
-                                    "Node was created with incorrect params.";
+        // filter shape specifies GROUPS = 4 and C_IN = 16, while data batch shape specifies
+        // dimension C_IN * GROUPS = 16
+        FAIL() << "Incompatibile input shapes not detected.";
     }
     catch (const NodeValidationFailure& error)
     {
@@ -124,16 +255,42 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
                              std::string("Data second dimension has incompatible value "
                                          "with number of input channels."));
     }
-
-    // GROUPS x C_IN x C_OUT x kH x kW
-    weights = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
+    catch (...)
+    {
+        FAIL() << "Input shapes validation check failed for unexpected reason.";
+    }
 
     try
     {
+        // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+        const auto weights = make_shared<op::Parameter>(element::f32, Shape{2, 8, 2, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 6, 6});
+        const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+            data, weights, Strides{}, CoordinateDiff{1}, CoordinateDiff{1, 1}, Strides{});
+        // pads_begin and pads_end do not match spatial dimensions
+        FAIL() << "Incompatible pads number of spatial dimensions not detected.";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Pads should be defined for all and only spatial features.");
+    }
+    catch (...)
+    {
+        FAIL() << "Pads validation check failed for unexpected reason.";
+    }
+
+    try
+    {
+        // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+        const auto weights = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
             data, weights, Strides{1}, CoordinateDiff{2, 2}, CoordinateDiff{2, 2}, Strides{1, 1});
-        EXPECT_FALSE(gcbd.get()) << "GroupConvolutionBackpropData:v1 validation did not work. "
-                                    "Node was created with incorrect params.";
+        // Strides have incompatible number of spatial dimensions
+        FAIL() << "Incompatible stride number of spatial dimensions not detected.";
     }
     catch (const NodeValidationFailure& error)
     {
@@ -141,17 +298,25 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
             error.what(),
             std::string("Strides should be defined for all and only spatial features."));
     }
+    catch (...)
+    {
+        FAIL() << "Strides validation check failed for unexpected reason.";
+    }
 
     try
     {
+        // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+        const auto weights = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(data,
                                                                             weights,
                                                                             Strides{1, 1},
                                                                             CoordinateDiff{2, 2},
                                                                             CoordinateDiff{2, 2},
                                                                             Strides{1, 1, 1});
-        EXPECT_FALSE(gcbd.get()) << "GroupConvolutionBackpropData:v1 validation did not work. "
-                                    "Node was created with incorrect params.";
+        // Dilations have incompatible number of spatial dimensions
+        FAIL() << "Incompatible dilations number of spatial dimensions not detected.";
     }
     catch (const NodeValidationFailure& error)
     {
@@ -159,9 +324,17 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
             error.what(),
             std::string("Dilations should be defined for all and only spatial features."));
     }
+    catch (...)
+    {
+        FAIL() << "Dilations validation check failed for unexpected reason.";
+    }
 
     try
     {
+        // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+        const auto weights = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(data,
                                                                             weights,
                                                                             Strides{1, 1},
@@ -170,13 +343,39 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
                                                                             Strides{1, 1},
                                                                             op::PadType::EXPLICIT,
                                                                             CoordinateDiff{0});
-        EXPECT_FALSE(gcbd.get()) << "GroupConvolutionBackpropData:v1 validation did not work. "
-                                    "Node was created with incorrect params.";
+        // Output padding have incompatible number of spatial dimensions
+        FAIL() << "Incompatible output padding number of spatial dimensions not detected.";
     }
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(
             error.what(),
             std::string("Output padding should be defined for all and only spatial features."));
+    }
+    catch (...)
+    {
+        FAIL() << "Output padding validation check failed for unexpected reason.";
+    }
+
+    try
+    {
+        // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+        const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
+        const auto output_shape = op::Constant::create(element::i64, Shape{3}, {3, 3, 3});
+        const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+            data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+        FAIL() << "Incompatible output shape optional input not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(
+            error.what(),
+            std::string("Output shape should be specified only and for all spatial dimensions."));
+    }
+    catch (...)
+    {
+        FAIL() << "Output shape validation check failed for unexpected reason.";
     }
 }
