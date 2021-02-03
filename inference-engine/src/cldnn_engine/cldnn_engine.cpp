@@ -62,6 +62,7 @@
 
 #include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
+#include <low_precision/strided_slice.hpp>
 
 #include "cldnn_engine.h"
 #include "cldnn_executable_network.h"
@@ -286,7 +287,9 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                                                       LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
                                                       true);                                                       // supportAsymmetricQuantization
             LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
+                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false))
+                // INT8 StridedSlice not supported
+                .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
 
             transformer.transform(nGraphFunc);
         }
@@ -442,11 +445,11 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
         auto context = std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
-        #ifdef WIN32
+#ifdef _WIN32
         auto context = std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
-        #else
+#else
         auto context = std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
-        #endif
+#endif
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else {
         THROW_IE_EXCEPTION << "Invalid remote context type" << contextTypeStr;
