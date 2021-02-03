@@ -78,18 +78,11 @@ struct CPUStreamsExecutor::Impl {
                if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
                    if (Config::PreferredCoreType::NONE == _impl->_config._threadPreferredCoreType) {
                        _taskArena.reset(new tbb::task_arena{ concurrency });
-                       // TODO: REMOVE THE DEBUG PRINTF
-                       printf("%s, NO BINDING, StreamId: %d (%d threads) \n",
-                           _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream);
                    } else {
                        const auto selected_core_type = Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
                            ? oneapi::tbb::info::core_types().back() // runing on Big cores only
                            : oneapi::tbb::info::core_types().front(); // runing on Little cores only
                        _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{selected_core_type, concurrency} });
-                       // TODO: REMOVE THE DEBUG PRINTF
-                       printf("%s, EXPLICIT BINDING, StreamId: %d (%d threads) assigned CORE TYPE : %d (CONCURRENCY: %d) \n",
-                           _impl->_config._name.c_str(), _streamId, _impl->_config._threadsPerStream,
-                           static_cast<int>(selected_core_type), concurrency);
                    }
                 } else {
                     // assigning the stream to the core type in the round-robin fashion
@@ -99,26 +92,18 @@ struct CPUStreamsExecutor::Impl {
                     const auto& selected_core_type = std::find_if(_impl->total_streams_on_core_types.cbegin(), _impl->total_streams_on_core_types.cend(),
                         [streamId_wrapped](const decltype(_impl->total_streams_on_core_types)::value_type & p) { return p.second > streamId_wrapped; })->first;
                     _taskArena.reset(new tbb::task_arena{ tbb::task_arena::constraints{selected_core_type, concurrency} });
-                    // TODO: REMOVE THE DEBUG PRINTF
-                    printf("%s StreamId: %d (wrapped %d) assigned CORE TYPE : %d (total #streams: %d) \n",
-                        _impl->_config._name.c_str(), _streamId, streamId_wrapped, static_cast<int>(selected_core_type), total_streams);
                 }
             } else {
             #endif
                 if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-                    // TODO: REMOVE THE DEBUG PRINTF
-                    printf("%s, conventional ThreadBindingType::NUMA codepath \n", _impl->_config._name.c_str());
                     #if TBB_INTERFACE_VERSION >= 11100  // TBB has numa aware task_arena api
                     _taskArena.reset(new tbb::task_arena{tbb::task_arena::constraints{_numaNodeId, concurrency}});
                     #else
                     _taskArena.reset(new tbb::task_arena{concurrency});
                     #endif
                 } else if ((0 != _impl->_config._threadsPerStream) || (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
-                    // TODO: REMOVE THE DEBUG PRINTF
                     _taskArena.reset(new tbb::task_arena{concurrency});
                     if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
-                        // TODO: REMOVE THE DEBUG PRINTF
-                        printf("%s, conventional ThreadBindingType::CORES codepath \n", _impl->_config._name.c_str());
                         CpuSet processMask;
                         int    ncpus = 0;
                         std::tie(processMask, ncpus) = GetProcessMask();
@@ -132,9 +117,6 @@ struct CPUStreamsExecutor::Impl {
                                                          _impl->_config._threadBindingOffset});
                             _observer->observe(true);
                         }
-                    } else {
-                        // TODO: REMOVE THE DEBUG PRINTF
-                        printf("%s, conventional ThreadBindingType::NONE codepath \n", _impl->_config._name.c_str());
                     }
                 }
             #if TBB_INTERFACE_VERSION >= 12010 // TBB with hybrid CPU aware task_arena api
@@ -194,8 +176,6 @@ struct CPUStreamsExecutor::Impl {
         _streams([this] {
             return std::make_shared<Impl::Stream>(this);
         }) {
-        // TODO: REMOVE THE DEBUG PRINTF
-        printf("INIT (%s), STREAMS: %d, THREADS_PER_STREAM: %d \n", _config._name.c_str(), _config._streams, _config._threadsPerStream);
         auto numaNodes = getAvailableNUMANodes();
         if (_config._streams != 0) {
             std::copy_n(std::begin(numaNodes),
@@ -220,10 +200,6 @@ struct CPUStreamsExecutor::Impl {
                 // (notice that the map keeps the elements in the descending order, so the big cores are populated first)
                 total_streams_on_core_types.push_back({type, sum});
             }
-            // TODO: REMOVE THE DEBUG PRINTF
-            printf("%s total_streams_on_core_types: [%d core_type, %d #streams], [%d core_type, %d #streams]) \n",
-                _config._name.c_str(), static_cast<int>(total_streams_on_core_types.front().first), total_streams_on_core_types.front().second,
-                static_cast<int>(total_streams_on_core_types.back().first), total_streams_on_core_types.back().second);
         }
         #endif
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
