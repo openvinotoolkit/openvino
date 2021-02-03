@@ -278,10 +278,12 @@ class Port:
             consumer_ports.append(node.in_port(d['in'], control_flow=self.control_flow))
         return consumer_ports
 
-    def get_tensor_names(self):
+    def get_tensor_names(self, port_renumber: bool = False):
         def get_tensor_names_list(attrs):
             tensor_names_list = []
             if 'fw_tensor_debug_info' in attrs:
+                if attrs['fw_tensor_debug_info'] is None:
+                    return tensor_names_list
                 for attr in attrs['fw_tensor_debug_info']:
                     if len(attr) >= 3:
                         tensor_names_list.append(attr[2].replace(',', '\\,'))
@@ -295,8 +297,13 @@ class Port:
                 out_edge = self.node.out_edge(self.idx)
                 fw_names += get_tensor_names_list(out_edge)
         else:
-            # for non-constant operations out nodes numeration starts from len(node.in_nodes())
-            node_idx = self.idx + len(self.node.in_nodes()) if self.node.type != 'Const' else self.idx
+            # before port renumbering we use sequential numbering
+            node_idx = self.idx
+            if port_renumber:
+                if self.node.type != 'Const':
+                    # after port renumbering port indices start from zero,
+                    # but data node indices remain the same
+                    node_idx = self.idx + len(self.node.in_nodes())
 
             if node_idx in self.node.out_nodes():
                 out_node = self.node.out_node(node_idx)
