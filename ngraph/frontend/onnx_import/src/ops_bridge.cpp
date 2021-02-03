@@ -475,10 +475,8 @@ namespace ngraph
                                           "ExperimentalDetectronGenerateProposalsSingleImage",
                                           1,
                                           experimental_detectron_generate_proposals);
-            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
-                                          "ExperimentalDetectronGroupNorm",
-                                          1,
-                                          group_norm);
+            REGISTER_OPERATOR_WITH_DOMAIN(
+                OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronGroupNorm", 1, group_norm);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
                                           "ExperimentalDetectronPriorGridGenerator",
                                           1,
