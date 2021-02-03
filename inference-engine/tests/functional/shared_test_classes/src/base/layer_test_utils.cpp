@@ -211,7 +211,9 @@ void LayerTestsCommon::Serialize() {
     bool success;
     std::string message;
     std::tie(success, message) =
-            compare_functions(result.getFunction(), function);
+            compare_functions(result.getFunction(), function, false, false, false,
+                              true,     // precision
+                              true);    // attributes
 
     EXPECT_TRUE(success) << message;
 
