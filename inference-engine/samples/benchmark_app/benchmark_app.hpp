@@ -116,17 +116,6 @@ static constexpr char iop_message[] =
 "                                             Notice that quotes are required.\n"
 "                                             Overwrites precision from ip and op options for specified layers.";
 
-static constexpr char inputs_layout_message[] =
-                                             "Optional. Specifies layout for all input layers of the network.";
-
-static constexpr char outputs_layout_message[] =
-                                             "Optional. Specifies layout for all input layers of the network.";
-
-static constexpr char iol_message[] =
-                                             "Optional. Specifies layout for input and output layers by name.\n"
-"                                             Example: -iol \"input:NCHW, output:NHWC\".\n"
-"                                             Notice that quotes are required.\n"
-"                                             Overwrites layout from il and ol options for specified layers.";
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -226,17 +215,6 @@ DEFINE_string(op, "", outputs_precision_message);
 ///        Overwrites layout from ip and op options for specified layers.";
 DEFINE_string(iop, "", iop_message);
 
-/// @brief Specify layout for all input layers of the network
-DEFINE_string(il, "", inputs_layout_message);
-
-/// @brief Specify layout for all output layers of the network
-DEFINE_string(ol, "", outputs_layout_message);
-
-/// @brief Specify layout for input and output layers by name.\n"
-///        Example: -iol \"input:NCHW, output:NHWC\".\n"
-///        Notice that quotes are required.\n"
-///        Overwrites layout from il and ol options for specified layers.";
-DEFINE_string(iol, "", iol_message);
 /**
 * @brief This function show a help message
 */
@@ -278,7 +256,4 @@ static void showUsage() {
     std::cout << "    -ip                          <value>     "   << inputs_precision_message     << std::endl;
     std::cout << "    -op                          <value>     "   << outputs_precision_message    << std::endl;
     std::cout << "    -iop                        \"<value>\"    "   << iop_message                << std::endl;
-    std::cout << "    -il                          <value>     "   << inputs_layout_message        << std::endl;
-    std::cout << "    -ol                          <value>     "   << outputs_layout_message       << std::endl;
-    std::cout << "    -iol                        \"<value>\"    "   << iol_message                << std::endl;
 }

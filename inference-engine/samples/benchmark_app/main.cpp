@@ -69,10 +69,9 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 
     bool isNetworkCompiled = fileExt(FLAGS_m) == "blob";
     bool isPrecisionSet = !(FLAGS_ip.empty() && FLAGS_op.empty() && FLAGS_iop.empty());
-    bool isLayoutSet = !(FLAGS_il.empty() && FLAGS_ol.empty() && FLAGS_iol.empty());
-    if (isNetworkCompiled && (isPrecisionSet || isLayoutSet)) {
-        std::string err = std::string("Cannot set precision and layout for a compiled network. ") +
-                          std::string("Please re-compile your network with required precision and layout using compile_tool");
+    if (isNetworkCompiled && isPrecisionSet) {
+        std::string err = std::string("Cannot set precision for a compiled network. ") +
+                          std::string("Please re-compile your network with required precision using compile_tool");
 
         throw std::logic_error(err);
     }
@@ -387,7 +386,6 @@ int main(int argc, char *argv[]) {
             }
 
             processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
-            processLayout(cnnNetwork, FLAGS_il, FLAGS_ol, FLAGS_iol);
 
             printInputAndOutputsInfo(cnnNetwork);
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
