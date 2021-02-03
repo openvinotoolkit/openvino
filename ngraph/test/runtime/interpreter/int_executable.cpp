@@ -72,38 +72,6 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
             auto concat = std::make_shared<op::Concat>(convs, 1);
             replace_node(node, concat);
         }
-        else if (is_type<op::v1::GroupConvolution>(node))
-        {
-            auto gr_conv = dynamic_pointer_cast<op::v1::GroupConvolution>(node);
-            auto num_groups = gr_conv->input_value(1).get_shape()[0];
-            auto split_filter_axis = std::make_shared<op::Constant>(
-                ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<uint64_t>{0});
-            auto sliced_filter = std::make_shared<op::v1::Split>(
-                gr_conv->input_value(1), split_filter_axis, num_groups);
-            auto split_data_axis = std::make_shared<op::Constant>(
-                ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<uint64_t>{1});
-            auto sliced_data = std::make_shared<op::v1::Split>(
-                gr_conv->input_value(0), split_data_axis, num_groups);
-
-            NodeVector convs;
-            auto squeeze_filter_axis = std::make_shared<op::Constant>(
-                ngraph::element::Type_t::i64, ngraph::Shape{}, std::vector<uint64_t>{0});
-            for (size_t i = 0; i < num_groups; ++i)
-            {
-                auto squeezed_filter = std::make_shared<op::v0::Squeeze>(sliced_filter->output(i),
-                                                                         squeeze_filter_axis);
-                auto conv = std::make_shared<op::v1::Convolution>(sliced_data->output(i),
-                                                                  squeezed_filter,
-                                                                  gr_conv->get_strides(),
-                                                                  gr_conv->get_pads_begin(),
-                                                                  gr_conv->get_pads_end(),
-                                                                  gr_conv->get_dilations(),
-                                                                  gr_conv->get_auto_pad());
-                convs.push_back(conv);
-            }
-            auto concat = std::make_shared<op::Concat>(convs, 1);
-            replace_node(node, concat);
-        }
     }
     for (auto node : m_function->get_ordered_ops())
     {
