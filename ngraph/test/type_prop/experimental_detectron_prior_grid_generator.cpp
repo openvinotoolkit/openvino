@@ -342,10 +342,3 @@ INSTANTIATE_TEST_CASE_P(
                                          {Dimension(0, 150), Dimension(0, 100), Dimension(0, 3), 4},
                                          false}),
     PrintToDummyParamName());
-    struct ShapesAndAttrs
-    {
-        PartialShape priors_shape;
-        PartialShape feature_map_shape;
-        PartialShape ref_out_shape;
-        bool flatten;
-    };
