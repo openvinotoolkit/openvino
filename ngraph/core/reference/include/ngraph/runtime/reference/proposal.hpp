@@ -370,7 +370,6 @@ namespace ngraph
                     }
                 }
 
-                // fucntion here
                 template <typename T>
                 static void proposal_exec(const T* class_probs,
                                           const T* bbox_deltas,
