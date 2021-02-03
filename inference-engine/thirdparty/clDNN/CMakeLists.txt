@@ -965,11 +965,11 @@ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
 
 include_directories(
     ${CLDNN_UTILS__RAPIDJSON_INCDIRS}
-    "${CLDNN__KHR_CLHPP_DIR}"
     "${CLDNN__CODEGEN_INCDIR}"
   )
 
 include_directories(SYSTEM
+   "${CLDNN__KHR_CLHPP_DIR}"
     ${CLDNN__IOCL_ICD_INCDIRS})
 
 add_library(clDNN_OpenCL UNKNOWN IMPORTED)

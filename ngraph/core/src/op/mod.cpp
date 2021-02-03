@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ op::v1::Mod::Mod(const Output<Node>& A,
     : FusedOp({A, B})
     , m_auto_broadcast(auto_broadcast)
 {
+    constructor_validate_and_infer_types();
 }
 
 bool ngraph::op::v1::Mod::visit_attributes(AttributeVisitor& visitor)

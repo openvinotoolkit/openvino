@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,6 +28,12 @@ public:
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantize1,
         const FakeQuantizeOnDataWithConstant& fakeQuantize2);
+
+    static std::shared_ptr<ngraph::Function> getOriginalWithChildAndOutput(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fakeQuantize1,
+        const FakeQuantizeOnData& fakeQuantize2);
 
     static std::shared_ptr<ngraph::Function> getOriginalWithNeighbors(
         const ngraph::element::Type precision,
@@ -83,13 +89,15 @@ public:
         const FakeQuantizeOnData& fakeQuantize2,
         const DequantizationOperations& dequantizationOperations);
 
-    static std::shared_ptr<ngraph::Function> getReference(
+    static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type inputPrecision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantize1,
+        const DequantizationOperations::Convert& convert1,
+        const DequantizationOperations& dequantization1,
         const FakeQuantizeOnDataWithConstant& fakeQuantize2,
-        const ngraph::element::Type precisionBeforeOp,
-        const DequantizationOperations& dequantizationBefore,
+        const DequantizationOperations::Convert& convert2,
+        const DequantizationOperations& dequantization2,
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationAfter);
 

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 #include <memory>
 
+#include "core/null_node.hpp"
 #include "ngraph/op/max_pool.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/op/max_pool.hpp"
-#include "onnx_import/utils/pooling_factory.hpp"
+#include "op/max_pool.hpp"
+#include "utils/pooling_factory.hpp"
 
 namespace ngraph
 {

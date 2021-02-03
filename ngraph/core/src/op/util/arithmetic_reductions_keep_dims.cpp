@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,11 +51,11 @@ void op::util::ArithmeticReductionKeepDims::validate_and_infer_types()
         if (input_rank.is_static())
             result_shape = PartialShape::dynamic(input_rank);
 
-        if (input_rank.is_static() && reduction_axes_constant())
+        const auto& axes = get_constant_from_source(input_value(1));
+        if (input_rank.is_static() && axes)
         {
             AxisSet reduction_axes;
-            auto reduction_axes_val =
-                as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
+            auto reduction_axes_val = axes->cast_vector<int64_t>();
             for (auto axis : reduction_axes_val)
             {
                 try

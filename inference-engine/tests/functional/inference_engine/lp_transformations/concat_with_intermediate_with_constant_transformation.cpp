@@ -116,7 +116,6 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
         const ngraph::Shape shape = std::get<1>(obj.param);
         ConcatTransformationTestValues testValues = std::get<2>(obj.param);
 

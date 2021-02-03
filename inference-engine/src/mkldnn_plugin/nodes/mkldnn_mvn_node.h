@@ -48,6 +48,8 @@ struct jit_uni_mvn_mean_variance_kernel {
     explicit jit_uni_mvn_mean_variance_kernel(jit_mvn_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
     virtual ~jit_uni_mvn_mean_variance_kernel() {}
 
+    virtual void create_ker() = 0;
+
     jit_mvn_config_params jcp_;
 };
 
@@ -61,6 +63,8 @@ struct jit_uni_mvn_kernel {
 
     explicit jit_uni_mvn_kernel(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
     virtual ~jit_uni_mvn_kernel() {}
+
+    virtual void create_ker() = 0;
 
     jit_mvn_config_params jcp_;
     const mkldnn_primitive_attr &attr_;
@@ -80,6 +84,8 @@ public:
         return false;
     }
 
+    static bool checkAxesSuitability(const std::shared_ptr<const ngraph::Node>&);
+
 private:
     template <typename in_data_t, typename out_data_t>
     void mvn_pln(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
@@ -94,6 +100,12 @@ private:
     bool across_channels = false;
     bool normalize_variance = true;
     float eps = 1e-9f;
+    // Defines way to add epsilon: inside sqrt or outside.
+    enum epsType {
+        insideSqrt,
+        outsideSqrt
+    };
+    epsType epsMode_;
 
     InferenceEngine::Precision input_prec, output_prec;
     size_t src_data_size, dst_data_size;

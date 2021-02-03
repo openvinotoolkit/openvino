@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 #include "ngraph/op/constant.hpp"
@@ -63,7 +64,7 @@ void op::PriorBox::validate_and_infer_types()
 
     set_input_is_relevant_to_shape(0);
 
-    if (auto const_shape = as_type_ptr<op::Constant>(input_value(0).get_node_shared_ptr()))
+    if (auto const_shape = get_constant_from_source(input_value(0)))
     {
         NODE_VALIDATION_CHECK(this,
                               shape_size(const_shape->get_shape()) == 2,

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -118,7 +118,6 @@ bool ngraph::op::v0::SpaceToDepth::evaluate_space_to_depth(const HostTensorVecto
 {
     const auto& data = inputs[0];
     const auto& out = outputs[0];
-    const auto& out_shape = out->get_shape();
     size_t elem_size = data->get_element_type().size();
 
     if (data->get_partial_shape().is_dynamic())

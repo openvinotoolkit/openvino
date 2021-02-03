@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,10 +30,12 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_broadcast3.hpp>
 #include <transformations/op_conversions/reduce_l1_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l2_decomposition.hpp>
 #include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
@@ -46,6 +48,7 @@
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
@@ -54,16 +57,21 @@
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_gather_0d.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
+#include <low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
+#include <low_precision/strided_slice.hpp>
+#include <low_precision/network_helper.hpp>
 
 #include "cldnn_engine.h"
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
+#include "cldnn_itt.h"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -122,15 +130,24 @@ static bool disableReduceDecomposition(const std::shared_ptr<const ngraph::Node>
 
 InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::CNNNetwork& network,
                                                                   const CLDNNPlugin::Config& config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::CloneAndTransformNetwork");
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
 
     if (clonedNetwork.getFunction()) {
+        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork");
         auto nGraphFunc = clonedNetwork.getFunction();
         // Disable shape inference (WA for generic operations)
         ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
+        bool enableInt8;
         {
             ngraph::pass::Manager manager;
+            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+            if (enableInt8) {
+                manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
+                    std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+            }
+
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
             manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
@@ -152,6 +169,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
+            manager.register_pass<ngraph::pass::ConvertGather0D>();
 
             std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
                     {ngraph::element::i64, ngraph::element::i32},
@@ -161,7 +179,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                     {ngraph::element::boolean, ngraph::element::u8},
             };
 
-            for (auto & precision : convert_precision_list) {
+            for (auto& precision : convert_precision_list) {
                 manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
             }
 
@@ -260,14 +278,25 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
             pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
             pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
+            pass_config->disable<ngraph::pass::ConvertBroadcast3>();
 
             pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
+
+            if (enableInt8) {
+                pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
+                    return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
+                });
+
+                pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
+                    return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node);
+                });
+            }
 
             manager.run_passes(nGraphFunc);
         }
 
-        bool enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
         if (enableInt8) {
+            OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
             using namespace ngraph::pass::low_precision;
             ngraph::pass::Manager conversion_manager;
             // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
@@ -278,12 +307,15 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                                                       LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
                                                       true);                                                       // supportAsymmetricQuantization
             LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
+                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false))
+                // INT8 StridedSlice not supported
+                .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
 
             transformer.transform(nGraphFunc);
         }
 
         {
+            OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::RunPasses");
             ngraph::pass::Manager manager;
             // This ConstantFolding pass is added to fold reshapes added for constant inputs on NMS internal operation which prevents upper-bound calculation
             // TODO: check why we have these reshapes
@@ -349,6 +381,7 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
 };
 
 void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &params) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::UpdateConfig");
     auto device_info = GetDeviceInfo(params);
     conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
     conf.UpdateFromMap(params);
@@ -359,6 +392,7 @@ void clDNNEngine::UpdateConfig(CLDNNPlugin::Config& conf, const InferenceEngine:
 
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                                const std::map<std::string, std::string> &config) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl");
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
@@ -389,6 +423,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     };
 
     {
+        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl::CreateContext");
         std::lock_guard<std::mutex> lock(engine_mutex);
         if (!canReuseDefaultContext()) {
             m_defaultContext.reset(new CLDNNRemoteCLContext(shared_from_this(), ParamMap(), conf));
@@ -398,7 +433,10 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
     context = m_defaultContext;
 
     auto transformedNetwork = CloneAndTransformNetwork(network, conf);
-    return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::LoadExeNetworkImpl::CreateExeNetwork");
+        return std::make_shared<CLDNNExecNetwork>(transformedNetwork, context, conf);
+    }
 }
 
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
@@ -427,11 +465,11 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
         auto context = std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
-        #ifdef WIN32
+#ifdef _WIN32
         auto context = std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
-        #else
+#else
         auto context = std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
-        #endif
+#endif
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else {
         THROW_IE_EXCEPTION << "Invalid remote context type" << contextTypeStr;
@@ -451,6 +489,7 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
 
 QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
                                              const std::map<std::string, std::string>& config) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::QueryNetwork");
     QueryNetworkResult res;
     CLDNNPlugin::Config conf = _impl->m_config;
     UpdateConfig(conf, network, config);
@@ -664,6 +703,7 @@ QueryNetworkResult clDNNEngine::QueryNetwork(const CNNNetwork& network,
 }
 
 Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetConfig");
     Parameter result;
     auto option = _impl->m_config.key_config_map.find(name);
     if (option != _impl->m_config.key_config_map.end()) {
@@ -692,6 +732,7 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
 };
 
 Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::GetMetric");
     auto device_id = GetConfig(CONFIG_KEY(DEVICE_ID), {});
     if (options.find(CONFIG_KEY(DEVICE_ID)) != options.end())
         device_id = options.at(CONFIG_KEY(DEVICE_ID)).as<std::string>();

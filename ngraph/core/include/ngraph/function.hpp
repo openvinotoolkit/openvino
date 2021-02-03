@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -174,6 +174,8 @@ namespace ngraph
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
         Function& operator=(const Function&) = delete;
+        /// \brief Checks all the Parameter nodes are registered in the list of Function parameters
+        void check_all_parameters_registered() const;
 
         static std::atomic<size_t> m_next_instance_id;
         std::string m_name;

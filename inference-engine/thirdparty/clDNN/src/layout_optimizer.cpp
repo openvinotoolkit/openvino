@@ -630,7 +630,8 @@ bool layout_optimizer::deps_for_convolution_byxf_opt(program_node const& node, u
                                       conv_dep)) {
                 return false;
             }
-        } else if (!dep->is_type<pooling>() && (!dep->is_type<eltwise>() || !is_scale_shift(dep->as<eltwise>()))) {
+        } else if ((!dep->is_type<pooling>() && !dep->is_type<eltwise>()) ||
+                   (dep->is_type<eltwise>() && is_scale_shift(dep->as<eltwise>()))) {
             return false;
         }
 

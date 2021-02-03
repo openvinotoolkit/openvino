@@ -24,6 +24,7 @@ public:
     virtual ~ResampleKernelOpt() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -34,6 +35,7 @@ protected:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::SCALE,
+                 FusedOpType::ELTWISE,
                  FusedOpType::ACTIVATION };
     }
 private:

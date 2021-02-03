@@ -209,6 +209,7 @@ def test_wrong_num_requests(device):
            in str(e.value)
         del ie_core
 
+
 def test_wrong_num_requests_core(device):
     with pytest.raises(ValueError) as e:
         ie_core = ie.IECore()
@@ -217,6 +218,7 @@ def test_wrong_num_requests_core(device):
         assert "Incorrect number of requests specified: -1. Expected positive integer number or zero for auto detection" \
            in str(e.value)
         del ie_core
+
 
 def test_plugin_accessible_after_deletion(device):
     ie_core = ie.IECore()
@@ -229,6 +231,8 @@ def test_plugin_accessible_after_deletion(device):
     del ie_core
 
 
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") == "ARM",
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}")
 def test_exec_graph(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
@@ -245,8 +249,8 @@ def test_exec_graph(device):
     del ie_core
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "MYRIAD", reason="Device specific test. "
-                                                                             "Only MYRIAD plugin implements network export")
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "MYRIAD",
+                    reason="Device specific test. Only MYRIAD plugin implements network export")
 def test_export_import():
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
@@ -264,7 +268,7 @@ def test_export_import():
 
 
 def test_multi_out_data(device):
-    # Regression test CVS-23965
+    # Regression test 23965
     # Check that CDataPtr for all output layers not copied  between outputs map items
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
@@ -282,7 +286,7 @@ def test_multi_out_data(device):
 def test_get_metric(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    exec_net = ie_core.load_network(net, "CPU")
+    exec_net = ie_core.load_network(net, device)
     network_name = exec_net.get_metric("NETWORK_NAME")
     assert network_name == "test_model"
 

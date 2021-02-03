@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -218,6 +218,7 @@ namespace ngraph
                 };
 
                 virtual std::shared_ptr<Function> get_function() { return m_body; };
+                virtual std::shared_ptr<const Function> get_function() const { return m_body; };
                 virtual void set_function(const std::shared_ptr<Function>& func) { m_body = func; };
                 /// \return a reference to the input descriptions.
                 const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const
@@ -318,6 +319,12 @@ namespace ngraph
                                                              int64_t part_size,
                                                              int64_t end,
                                                              int64_t axis);
+
+                SubGraphOp(const SubGraphOp&) = delete;
+                SubGraphOp(SubGraphOp&&) = default;
+
+                SubGraphOp& operator=(const SubGraphOp&) = delete;
+                SubGraphOp& operator=(SubGraphOp&&) = default;
 
             protected:
                 // Find an input corresponding to value, adding one if necessary.

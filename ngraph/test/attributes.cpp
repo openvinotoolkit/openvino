@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -517,8 +517,8 @@ TEST(attributes, max_pool_op)
 TEST(attributes, mod_op)
 {
     NodeBuilder::get_ops().register_factory<opset1::Mod>();
-    auto A = make_shared<op::Parameter>(element::f32, Shape{0, 2});
-    auto B = make_shared<op::Parameter>(element::f32, Shape{2, 0});
+    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2});
+    auto B = make_shared<op::Parameter>(element::f32, Shape{2, 1});
 
     auto auto_broadcast = op::AutoBroadcastType::NUMPY;
 

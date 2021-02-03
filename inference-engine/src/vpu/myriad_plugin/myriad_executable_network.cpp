@@ -51,7 +51,7 @@ ExecutableNetwork::ExecutableNetwork(
 }
 
 ExecutableNetwork::ExecutableNetwork(
-        const ICNNNetwork& network,
+        const ie::CNNNetwork& network,
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
         const MyriadConfig& config,
@@ -180,7 +180,7 @@ InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string &name)
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
         IE_SET_METRIC_RETURN(DEVICE_THERMAL, _executor->GetThermal(_device));
     } else {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 }
 

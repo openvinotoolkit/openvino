@@ -49,7 +49,16 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
     auto strd = desc->stride;
     auto group = desc->groups;
 
-    auto number_of_features = weights_layout.size.batch[0] * static_cast<int32_t>(group);
+    int32_t number_of_features = 0;
+    if (desc->grouped_weights_shape && !format::is_grouped(weights_layout.format)) {
+        number_of_features = weights_layout.size.feature[0] * static_cast<int32_t>(group);
+    } else {
+        if (format::is_grouped(weights_layout.format)) {
+            number_of_features = weights_layout.size.batch[0] * static_cast<int32_t>(group);
+        } else {
+            number_of_features = weights_layout.size.batch[0];
+        }
+    }
 
     if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
@@ -173,6 +182,10 @@ deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_no
     for (decltype(split) j = 0; j < split; j++) {
         auto filter_inst = node.weights(j).get_output_layout();  // deconvolution filter
         auto input_offset = argument.input_offset;
+        auto weights_ifm = filter_inst.size.feature[0];
+        if (argument.grouped_weights_shape && !format::is_grouped(filter_inst.format)) {
+            weights_ifm = filter_inst.size.spatial[filter_inst.format.spatial_num() - 1] * argument.groups;
+        }
 
         if (argument.bias.size() != 0) {
             auto bias_inst = node.bias(j).get_output_layout();
@@ -241,7 +254,7 @@ deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_no
                               "Weights feature maps number",
                               (input_inst.size.feature[0] - input_offset.feature[0]) / split,
                               "input feature maps number",
-                              filter_inst.size.feature[0],
+                              weights_ifm,
                               "Weights/ifm mimsmatch");
     }
 }

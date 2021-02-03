@@ -19,12 +19,13 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*eltwiseOpType=Pow.*netPRC=I64.*)",
             R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
             // TODO: Issue: 43794
-            R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
-            R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
+            R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
+            R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
+            R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
+            R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
+            R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
             // TODO: Issue: 41467 -- "unsupported element type f16 op Convert"
             R"(.*(ConvertLayerTest).*targetPRC=FP16.*)",
-            // TODO: Issue: 41466 -- "Unsupported op 'ConvertLike'"
-            R"(.*(ConvertLikeLayerTest).*)",
             // TODO: Issue: 41462
             R"(.*(SoftMaxLayerTest).*axis=0.*)",
             // TODO: Issue: 41461
@@ -34,6 +35,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*IS=\(1.4.3.2.1.3\).*)",
             R"(.*EltwiseLayerTest.*IS=\(2\).*OpType=Mod.*opType=VECTOR.*)",
             R"(.*EltwiseLayerTest.*OpType=FloorMod.*netPRC=I64.*)",
+            // TODO: Issue: 46841
+            R"(.*(QuantGroupConvBackpropData3D).*)",
 
             // These tests might fail due to accuracy loss a bit bigger than threshold
             R"(.*(GRUCellTest).*)",
@@ -48,6 +51,10 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(LSTMSequence).*mode=CONVERT_TO_TI_RAND_SEQ_LEN.*)",
             R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
-            R"(.*(ScatterUpdateLayerTest).*)",
+
+            // INT8 StridedSlice not supported
+            R"(.*(LPT/StridedSliceTransformation).*)",
+            // TODO: Issue: 47219
+            R"(.*DynamicBatchTest.*)",
     };
 }

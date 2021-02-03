@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include "util/test_tools.hpp"
 
 #include <memory>
+#include <util/type_prop.hpp>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -108,7 +109,7 @@ TEST(build_graph, function_undeclared_parameters)
     }
     catch (const ngraph_error& error)
     {
-        EXPECT_EQ(error.what(), std::string("Function references undeclared parameter"));
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Function references undeclared parameter"));
     }
     catch (...)
     {

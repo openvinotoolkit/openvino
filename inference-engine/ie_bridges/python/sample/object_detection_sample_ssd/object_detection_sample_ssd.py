@@ -63,14 +63,13 @@ def main():
     # ------------- 2. Load Plugin for inference engine and extensions library if specified --------------
     log.info("Device info:")
     versions = ie.get_versions(args.device)
-    print("{}{}".format(" " * 8, args.device))
-    print("{}MKLDNNPlugin version ......... {}.{}".format(" " * 8, versions[args.device].major,
-                                                          versions[args.device].minor))
-    print("{}Build ........... {}".format(" " * 8, versions[args.device].build_number))
+    print(f"{' ' * 8}{args.device}")
+    print(f"{' ' * 8}MKLDNNPlugin version ......... {versions[args.device].major}.{versions[args.device].minor}")
+    print(f"{' ' * 8}Build ........... {versions[args.device].build_number}")
 
     if args.cpu_extension and "CPU" in args.device:
         ie.add_extension(args.cpu_extension, "CPU")
-        log.info("CPU extension loaded: {}".format(args.cpu_extension))
+        log.info(f"CPU extension loaded: {args.cpu_extension}")
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- 3. Read and preprocess input --------------------------------------------
@@ -91,9 +90,9 @@ def main():
         ih, iw = image.shape[:-1]
         images_hw.append((ih, iw))
         log.info("File was added: ")
-        log.info("        {}".format(args.input))
+        log.info(f"        {args.input}")
         if (ih, iw) != (h, w):
-            log.warning("Image {} is resized from {} to {}".format(args.input, image.shape[:-1], (h, w)))
+            log.warning(f"Image {args.input} is resized from {image.shape[:-1]} to {(h, w)}")
             image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
@@ -177,8 +176,8 @@ def main():
             ymin = np.int(ih * proposal[4])
             xmax = np.int(iw * proposal[5])
             ymax = np.int(ih * proposal[6])
-            print("[{},{}] element, prob = {:.6}    ({},{})-({},{}) batch id : {}" \
-                  .format(number, label, confidence, xmin, ymin, xmax, ymax, imid), end="")
+            print(f"[{number},{label}] element, prob = {confidence:.6f}    ({xmin},{ymin})-({xmax},{ymax}) "
+                  f"batch id : {imid}", end="")
             if proposal[2] > 0.5:
                 print(" WILL BE PRINTED!")
                 if not imid in boxes.keys():

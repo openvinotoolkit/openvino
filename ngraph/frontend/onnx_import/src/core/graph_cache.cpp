@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <core/graph_cache.hpp>
 #include <ngraph/except.hpp>
-#include <onnx_import/core/graph_cache.hpp>
 
 namespace ngraph
 {

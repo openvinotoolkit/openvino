@@ -25,11 +25,12 @@ const std::vector<InferenceEngine::Precision> idxPrecisions = {
 
 // map<inputShape, map<indicesShape, axis>>
 std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> axesShapeInShape {
-    {{10, 16, 12, 15}, {{{2, 4}, {0, 1, 2, 3}}, {{8}, {-1, -2, -3, -4}}}},
-    {{10, 9, 10, 9, 10}, {{{8}, {-3, -1, 0, 2, 4}}, {{4, 2}, {-2, 2}}}},
+    {{10, 16, 12, 15}, {{{2, 2, 2}, {0, 1, 2, 3}}, {{2, 4}, {0, 1, 2, 3}}, {{8}, {0, 1, 2, 3}}}},
+    {{10, 9, 10, 9, 10}, {{{8}, {0, 1, 2, 3, 4}}, {{4, 2}, {0, 1, 2, 3, 4}}}},
+    {{10, 9, 10, 9, 10, 12}, {{{8}, {0, 1, 2, 3, 4, 5}}}},
 };
 //indices should not be random value
-const std::vector<std::vector<size_t>> idxValue = {
+const std::vector<std::vector<int64_t>> idxValue = {
         {0, 2, 4, 6, 1, 3, 5, 7}
 };
 

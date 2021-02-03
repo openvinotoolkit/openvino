@@ -90,12 +90,7 @@ template <typename F>
 void allowNotImplemented(F && f) {
     try {
         f();
-    } catch (const details::InferenceEngineException & ex) {
-        std::string message = ex.what();
-        if (message.find(NOT_IMPLEMENTED_str) == std::string::npos) {
-            throw ex;
-        }
-    }
+    } catch (const NotImplemented & ex) { }
 }
 
 }  // namespace

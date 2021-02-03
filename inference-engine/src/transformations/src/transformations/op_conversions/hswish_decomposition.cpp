@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
 
 #include <memory>
@@ -13,6 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishDecomposition, "HSwishDecomposition", 0);
 
 ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
+    MATCHER_SCOPE(HSwishDecomposition);
     // Decomposes HSwish(x) op into sub-graph x * (min(Relu(x + 3), 6) * const(1/6)
     auto hswish = ngraph::pattern::wrap_type<opset4::HSwish>();
 
@@ -41,6 +43,6 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(hswish, "HSwishDecomposition");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(hswish, matcher_name);
     register_matcher(m, callback);
 }

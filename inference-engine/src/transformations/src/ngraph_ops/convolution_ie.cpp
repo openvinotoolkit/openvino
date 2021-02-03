@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/convolution_ie.hpp"
+#include "itt.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -99,10 +100,9 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
 }
 
 void op::ConvolutionIE::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(ConvolutionIE_validate_and_infer_types);
     PartialShape data_batch_shape = get_input_partial_shape(0);
-    element::Type data_batch_et = get_input_element_type(0);
     PartialShape filters_shape = get_input_partial_shape(1);
-    element::Type filters_et = get_input_element_type(1);
 
     PartialShape result_shape{PartialShape::dynamic()};
 
@@ -147,6 +147,7 @@ void op::ConvolutionIE::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVector & new_args) const {
+    INTERNAL_OP_SCOPE(ConvolutionIE_clone_with_new_inputs);
     if (new_args.size() == 2) {
         return make_shared<ConvolutionIE>(new_args.at(0),
                                           new_args.at(1),
@@ -174,6 +175,7 @@ shared_ptr<Node> op::ConvolutionIE::clone_with_new_inputs(const ngraph::OutputVe
 }
 
 bool op::ConvolutionIE::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(ConvolutionIE_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);

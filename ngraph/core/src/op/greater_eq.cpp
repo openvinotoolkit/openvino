@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -87,4 +87,10 @@ bool op::v1::GreaterEqual::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v1_GreaterEqual_evaluate);
     return greater_equalop::evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
+}
+
+bool op::v1::GreaterEqual::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v1_GreaterEqual_visit_attributes);
+    return true;
 }

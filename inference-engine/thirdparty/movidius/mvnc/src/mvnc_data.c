@@ -261,17 +261,15 @@ ncStatus_t bootDevice(deviceDesc_t* deviceDescToBoot,
     }
 
     if(deviceDescToBoot->platform == X_LINK_MYRIAD_X) {
-        if(deviceDescToBoot->protocol != X_LINK_PCIE) {
-            sc = patchSetWdSwitchCommand(&firmware, &length, bootOptions.wdEnable);
-            if(sc) {
-                mvLog(MVLOG_WARN, "Fail to patch \"Set wd switch value\" command for firmware sc = %d", sc);
-            }
+        sc = patchSetWdSwitchCommand(&firmware, &length, bootOptions.wdEnable);
+        if(sc) {
+            mvLog(MVLOG_WARN, "Fail to patch \"Set wd switch value\" command for firmware sc = %d", sc);
+        }
             
-            sc = patchSetMemTypeCommand(&firmware, &length, bootOptions.memType);
-            if(sc) {
-                mvLog(MVLOG_WARN, "Fail to patch \"Set memory type\" command for firmware sc = %d", sc);
-            }
-        }       
+        sc = patchSetMemTypeCommand(&firmware, &length, bootOptions.memType);
+        if(sc) {
+            mvLog(MVLOG_WARN, "Fail to patch \"Set memory type\" command for firmware sc = %d", sc);
+        }
     }
 
     XLinkError_t rc = XLinkBootFirmware(deviceDescToBoot, firmware, (unsigned long)length);

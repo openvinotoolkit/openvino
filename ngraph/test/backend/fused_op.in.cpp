@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1585,7 +1585,6 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__bias_peepholes_clip_input_forge
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
     const float clip_threshold = 3.5f;
-    bool input_forget = true;
 
     const auto X = make_shared<op::Parameter>(element::f32, Shape{batch_size, input_size});
     const auto W =
@@ -1684,7 +1683,6 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_lstm_cell__activaction_functions)
     const size_t hidden_size = 3;
     const size_t gates_count = 4;
     const float clip_threshold = 3.5f;
-    bool input_forget = true;
     vector<string> activations{"sigmoid", "tanh", "hardsigmoid"};
     vector<float> activation_alpha{0.f, 0.f, 1.8345f};
     vector<float> activation_beta{0.f, 0.f, 3.05f};

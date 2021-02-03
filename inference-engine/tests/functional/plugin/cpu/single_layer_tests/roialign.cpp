@@ -104,7 +104,7 @@ protected:
 TEST_P(ROIAlignLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Run();
-    CheckCPUImpl(executableNetwork, "ROIAlign");
+    CheckPluginRelatedResults(executableNetwork, "ROIAlign");
 }
 
 namespace {
@@ -143,6 +143,7 @@ const std::vector<std::string> modeVector = {
 const std::vector<std::vector<size_t>> inputShapeVector = {
         SizeVector({ 2, 18, 20, 20 }),
         SizeVector({ 2, 4, 20, 20 }),
+        SizeVector({ 2, 4, 20, 40 }),
         SizeVector({ 10, 1, 20, 20 })
 };
 

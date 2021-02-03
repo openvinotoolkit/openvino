@@ -118,7 +118,6 @@ void HeteroSyntheticTest::TearDown() {
 }
 
 std::string HeteroSyntheticTest::SetUpAffinity() {
-    int id = 0;
     auto& param = GetParam();
     std::string affinities;
     auto& pluginParameters = std::get<Plugin>(param);
