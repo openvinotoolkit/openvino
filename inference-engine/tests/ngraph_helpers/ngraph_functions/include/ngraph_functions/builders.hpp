@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2019-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,6 +136,16 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           const op::PadType &autoPad,
                                                           bool addBiases = false,
                                                           const std::vector<float> &biasesWeights = {});
+
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
+        const ngraph::Output<Node>& inputData,
+        const bool mergeRepeated);
+
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
+        const ngraph::Output<Node>& inputData,
+        int blankIndex,
+        bool mergeRepeated,
+        const element::Type& idxPrec);
 
 std::shared_ptr<ngraph::Node> makeCTCLoss(
         const ngraph::Output<Node>& logitsNode,
