@@ -4,44 +4,39 @@
 
 #include "template_preprocessing.hpp"
 
-#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph/rt_info.hpp>
+#include <ngraph/opsets/opset3.hpp>
+
+#include "transformations/preprocessing/mean_image_or_value.hpp"
+#include "transformations/preprocessing/std_scale.hpp"
 
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::AddPreprocessingMatcher, "AddPreprocessingMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::AddPreprocessing, "AddPreprocessing", 0);
 
-ngraph::pass::AddPreprocessingMatcher::AddPreprocessingMatcher(const InferenceEngine::InputsDataMap & inputInfoMap) {
-    auto param = ngraph::pattern::wrap_type<ngraph::opset3::Parameter>();
+ngraph::pass::AddPreprocessing::AddPreprocessing(const InferenceEngine::InputsDataMap & inputInfoMap)
+    : m_inputInfoMap(inputInfoMap) { }
 
-    ngraph::matcher_pass_callback callback = [=] (pattern::Matcher& m) {
-        auto param = std::dynamic_pointer_cast<ngraph::opset3::Parameter>(m.get_match_root());
-        if (!param) {
-            return false;
-        }
+bool ngraph::pass::AddPreprocessing::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    ngraph::pass::AddMeanSubtract::MeanMap meanMap;
+    ngraph::pass::AddStdScale::ScaleMap scaleMap;
 
-        auto it = inputInfoMap.find(param->get_friendly_name());
-        NGRAPH_CHECK(it != inputInfoMap.end(),
-                     "Input ", param->get_friendly_name(), " is not found in the network.");
-
-        const InferenceEngine::PreProcessInfo & pInfo = it->second->getPreProcess();
-
+    for (const auto & it : m_inputInfoMap) {
         bool has_scales = false, has_mean_values = false, has_mean_image = false;
+        const InferenceEngine::PreProcessInfo & pInfo = it.second->getPreProcess();
         const size_t cn = pInfo.getNumberOfChannels();
         std::vector<float> meanValues(cn), stdScales(cn);
         InferenceEngine::Blob::Ptr meanImage = nullptr;
 
         for (size_t c = 0; c < cn; ++c) {
-            if (pInfo[c]->stdScale != 1.0f) {
-                stdScales[c] = pInfo[c]->stdScale;
+            if ((stdScales[c] = pInfo[c]->stdScale) != 1.0f) {
                 has_scales = true;
             }
-            if (pInfo[c]->meanValue != 0.0f) {
-                meanValues[c] = pInfo[c]->meanValue;
+
+            if ((meanValues[c] = pInfo[c]->meanValue) != 0.0f) {
                 has_mean_values = true;
             }
+
             if (pInfo[c]->meanData != nullptr) {
                 has_mean_image = true;
                 if (c == 0) {
@@ -55,22 +50,22 @@ ngraph::pass::AddPreprocessingMatcher::AddPreprocessingMatcher(const InferenceEn
             }
         }
 
-        // no preprocessing
+        // no preprocessing for current input
         if (!has_mean_values && !has_scales && !has_mean_image) {
-            return false;
+            continue;
         }
 
         NGRAPH_CHECK(!(has_mean_image && has_scales),
-                     "Only PreProcessChannel::meanData or PreProcessChannel::meanValue can be set.");
+            "Only PreProcessChannel::meanData or PreProcessChannel::meanValue can be set.");
 
-        std::shared_ptr<ngraph::op::Op> mul = nullptr, sub = nullptr;
-        auto copy_param = param->clone_with_new_inputs({});
+        if (has_scales) {
+            scaleMap[it.first] = ngraph::opset3::Constant::create(ngraph::element::f32,
+                ngraph::Shape{1, stdScales.size(), 1, 1}, stdScales);
+        }
 
         if (has_mean_values) {
-            auto mean_values_const = ngraph::opset3::Constant::create(ngraph::element::f32,
+            meanMap[it.first] = ngraph::opset3::Constant::create(ngraph::element::f32,
                 ngraph::Shape{1, meanValues.size(), 1, 1}, meanValues);
-            sub = std::make_shared<ngraph::opset3::Subtract>(copy_param, mean_values_const);
-            sub->set_friendly_name(param->get_friendly_name() + "_mean_values");
         } else if (has_mean_image) {
             ngraph::Shape shape = { 1, cn };
             auto dims = meanImage->getTensorDesc().getDims();
@@ -85,29 +80,22 @@ ngraph::pass::AddPreprocessingMatcher::AddPreprocessingMatcher(const InferenceEn
                 i += meanImage->size();
             }
 
-            auto mean_values_const = ngraph::opset3::Constant::create(ngraph::element::f32,
+            meanMap[it.first] = ngraph::opset3::Constant::create(ngraph::element::f32,
                 shape, meanImageData);
-            sub = std::make_shared<ngraph::opset3::Subtract>(copy_param, mean_values_const);
-            sub->set_friendly_name(param->get_friendly_name() + "_mean_image");
         }
+    }
 
-        if (has_scales) {
-            auto std_scales_const = ngraph::opset3::Constant::create(ngraph::element::f32,
-                ngraph::Shape{1, stdScales.size(), 1, 1}, stdScales);
-            auto parent = sub ? sub : copy_param;
-            mul = std::make_shared<ngraph::opset3::Multiply>(parent, std_scales_const);
-            mul->set_friendly_name(parent->get_friendly_name() + "_scales");
-        }
+    ngraph::pass::Manager manager(get_pass_config());
+    auto preproc = manager.register_pass<ngraph::pass::GraphRewrite>();
 
-        ngraph::replace_node(param, mul ? mul : sub);
-        (sub ? sub: mul)->set_argument(0, param);
+    if (!scaleMap.empty()) {
+        preproc->add_matcher<ngraph::pass::AddStdScale>(scaleMap);
+    }
+    if (!meanMap.empty()) {
+        preproc->add_matcher<ngraph::pass::AddMeanSubtract>(meanMap);
+    }
 
-        // Return true as the root node was changed
-        return true;
-    };
+    manager.run_passes(f);
 
-    // Register pattern with Parameter operation as a pattern root node
-    auto m = std::make_shared<ngraph::pattern::Matcher>(param, "AddPreprocessingMatcher");
-    // Register Matcher
-    register_matcher(m, callback);
+    return false;
 }

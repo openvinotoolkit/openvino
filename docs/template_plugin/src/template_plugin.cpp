@@ -59,7 +59,7 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
     // 2. Perform common optimizations and device-specific transformations
     ngraph::pass::Manager passManager;
     // Example: register transformation to convert preprocessing information to graph nodes
-    passManager.register_pass<ngraph::pass::AddPreprocessingMatcher>(inputInfoMap);
+    passManager.register_pass<ngraph::pass::AddPreprocessing>(inputInfoMap);
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
     // Example: register plugin specific transformation

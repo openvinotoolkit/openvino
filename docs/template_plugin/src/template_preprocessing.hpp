@@ -4,19 +4,23 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <ngraph/pass/pass.hpp>
+
 #include "ie_input_info.hpp"
 
 namespace ngraph {
 namespace pass {
 
-class AddPreprocessingMatcher;
+class AddPreprocessing;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::AddPreprocessingMatcher : public ngraph::pass::MatcherPass {
+class ngraph::pass::AddPreprocessing : public ngraph::pass::FunctionPass {
+    const InferenceEngine::InputsDataMap & m_inputInfoMap;
 public:
     NGRAPH_RTTI_DECLARATION;
-    AddPreprocessingMatcher(const InferenceEngine::InputsDataMap & inputInfoMap);
+    explicit AddPreprocessing(const InferenceEngine::InputsDataMap & inputInfoMap);
+
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
