@@ -284,7 +284,7 @@ int main(int argc, char* argv[]) {
         auto network = ie.ReadNetwork(FLAGS_m);
 
         setDefaultIO(network);
-        processPrecisions(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
+        processPrecision(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
         processLayout(network, FLAGS_il, FLAGS_ol, FLAGS_iol);
 
         printInputAndOutputsInfo(network);

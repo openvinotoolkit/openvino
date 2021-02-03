@@ -377,7 +377,8 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            processPrecisions(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            processPrecision(cnnNetwork, FLAGS_ip, FLAGS_op, FLAGS_iop);
+            processLayout(cnnNetwork, FLAGS_il, FLAGS_ol, FLAGS_iol);
 
             printInputAndOutputsInfo(cnnNetwork);
             // ----------------- 7. Loading the model to the device --------------------------------------------------------

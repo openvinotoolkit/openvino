@@ -1,3 +1,7 @@
+// Copyright (C) 2021 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "samples/args_helper.hpp"
 
 #include <gflags/gflags.h>
@@ -86,7 +90,6 @@ static std::map<std::string, std::string> parseArgMap(std::string argMap) {
     return parsedMap;
 }
 
-
 namespace {
 
 using supported_precisions_t = std::unordered_map<std::string, InferenceEngine::Precision>;
@@ -147,7 +150,7 @@ void setPrecisions(const InferenceEngine::CNNNetwork& network, const std::string
 
 } // namespace
 
-void processPrecisions(InferenceEngine::CNNNetwork& network, const std::string &ip, const std::string &op,
+void processPrecision(InferenceEngine::CNNNetwork& network, const std::string &ip, const std::string &op,
         const std::string &iop) {
     if (!ip.empty()) {
         const auto user_precision = getPrecision(ip);

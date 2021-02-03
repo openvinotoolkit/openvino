@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ void readInputFilesArguments(std::vector<std::string> &files, const std::string&
 */
 void parseInputFilesArguments(std::vector<std::string> &files);
 
-void processPrecisions(InferenceEngine::CNNNetwork& network, const std::string &ip, const std::string &op, const std::string &iop);
+void processPrecision(InferenceEngine::CNNNetwork& network, const std::string &ip, const std::string &op, const std::string &iop);
 
 void processLayout(InferenceEngine::CNNNetwork& network, const std::string& il, const std::string& ol, const std::string& iol);
 
