@@ -50,22 +50,25 @@ else()
     message(FATAL_ERROR "Python was not found!")
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    add_compile_options(-fPIC)
-endif()
-
-if (APPLE)
-    add_link_options(-stdlib=libc++)
-endif()
+# compile options
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    #disable warning: This operator was deprecated and will be removed with v0 operation.
+    # disable warning: This operator was deprecated and will be removed with v0 operation.
     add_compile_options(/wd4996)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wno-deprecated-register)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    add_link_options(-stdlib=libc++)
+    add_compile_options(-Wno-unused-value)
 endif()
 
+# create target
+
 file(GLOB_RECURSE SOURCES src/pyngraph/*.cpp)
+
 pybind11_add_module(_${PROJECT_NAME} MODULE ${SOURCES})
-target_include_directories(_${PROJECT_NAME} PRIVATE src)
+
+target_include_directories(_${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_link_libraries(_${PROJECT_NAME} PRIVATE ngraph::ngraph ngraph::onnx_importer)
 
 if(OpenVINO_MAIN_SOURCE_DIR OR InferenceEngineDeveloperPackage_FOUND)
