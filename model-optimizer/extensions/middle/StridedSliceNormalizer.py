@@ -82,13 +82,13 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                 node[mask_name] = np.insert(node[mask_name], ellipsis_start + 1, [0] * num).astype(int)
 
             self.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num)
-        elif slice_rank < input_rank:  # todo: comment that slice_rank is old
-            num = input_rank - slice_rank
+        elif slice_rank - np.count_nonzero(node.new_axis_mask) < input_rank:  # todo: comment that slice_rank is old
+            num = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
             self.extend_inputs(node, num)
 
             # extend masks
             for mask_name in slice_mask_names:
-                num = input_rank - len(node[mask_name])
+                num = input_rank - len(node[mask_name]) + np.count_nonzero(node.new_axis_mask)
                 node[mask_name] = np.append(node[mask_name], [0] * num).astype(int)
 
     @staticmethod

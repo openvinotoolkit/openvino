@@ -132,14 +132,19 @@ def shape(op_node: Node, port_info: str, input_port: int):
     assert permutation_data_node.has_and_set('permutation'), 'Data node "{}" does not have permutation for node {}, ' \
                                                              'port_info "{}".'.format(permutation_data_node.id,
                                                                                       op_node.id, port_info)
-    permutation = permutation_data_node.permutation
-    if len(permutation.perm) == 0:
+    permute_idx_for_gather = permutation_data_node.permutation.perm
+    if len(permute_idx_for_gather) == 0:
         return
+
+    if op_node.type == 'StridedSlice':
+        from mo.ops.op import PermuteAttrs
+        slice_rank = op_node.in_port(input_port).data.get_shape()[0]
+        permute_idx_for_gather = PermuteAttrs.get_nhwc_to_nchw_permutation(slice_rank).perm
 
     data_node = op_node.in_node(input_port)
 
     gather_name = op_node.soft_get('name', op_node.id) + '/ShapeGather'
-    const = Const(graph, {'value': permutation.perm, 'name': gather_name + '/const',
+    const = Const(graph, {'value': permute_idx_for_gather, 'name': gather_name + '/const',
                           'need_shape_inference': True}).create_node_with_data()
     axis_const = Const(graph, {'value': int64_array(0), 'name': gather_name + '/axis'}).create_node_with_data()
     gather = Gather(graph, {'name': gather_name,
