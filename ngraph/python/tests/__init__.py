@@ -213,4 +213,3 @@ xfail_issue_43213 = xfail_test(reason="RetinaNet Resnet101 - AssertionError: zoo
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
-xfail_issue_30074 = xfail_test(reason="Add new operation MVN-6 to IE MKLDNN plugin")
