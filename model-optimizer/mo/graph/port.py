@@ -285,8 +285,10 @@ class Port:
                 if attrs['fw_tensor_debug_info'] is None:
                     return tensor_names_list
                 for attr in attrs['fw_tensor_debug_info']:
-                    if len(attr) >= 3:
-                        tensor_names_list.append(attr[2].replace(',', '\\,'))
+                    if attr is not None and len(attr) >= 3:
+                        tensor_name = attr[2]
+                        if tensor_name is not None and len(tensor_name) > 0:
+                            tensor_names_list.append(tensor_name.replace(',', '\\,'))
             return tensor_names_list
 
         assert self.type != 'in', "Can't get tensor names for input port at {} node".format(self.node.name)
