@@ -145,7 +145,6 @@ endfunction()
 
 add_subdirectory(thirdparty)
 add_subdirectory(openvino)
-add_subdirectory(thirdparty)
 build_ngraph()
 add_subdirectory(inference-engine)
 add_subdirectory(model-optimizer)
