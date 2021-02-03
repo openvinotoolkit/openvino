@@ -59,8 +59,7 @@ namespace ngraph
                         auto data_index = data_transform.index({seq_ind, batch_ind, 0});
                         auto mask_index = seq_masks_transform.index({seq_ind, batch_ind});
 
-                        // first 0 marks the end of a sequence
-                        if (seq_ind && sequence_masks[mask_index] == T{0})
+                        if (sequence_masks[mask_index] == T{0})
                         {
                             break;
                         }
@@ -69,6 +68,7 @@ namespace ngraph
                         auto class_max_element =
                             std::max_element(class_index, class_index + class_count);
                         unsigned int max_class_ind = std::distance(class_index, class_max_element);
+
                         if (!(previous_class_index == max_class_ind && ctc_merge_repeated) &&
                             max_class_ind < blank_index)
                         {
