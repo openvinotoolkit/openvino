@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 #include <map>
+#include <cctype>
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/check.hpp"
