@@ -27,6 +27,7 @@
 #   --out cc.h            C++ header file to be generated
 
 import argparse, csv
+from glob import glob
 from pathlib import Path
 from abc import ABC, abstractmethod
 
@@ -119,30 +120,31 @@ class Stat:
         return self.modules.get(name)
 
     def read(self, files):
-        for stat in files:
-            with open(str(stat)) as f:
-                reader = csv.reader(f)
-                rows = list(reader)
-                if rows:
-                    # Scopes
-                    scopes = list(filter(lambda row: row[0].startswith(Domain[0]), rows))
-                    for row in scopes:
-                        moduleName = row[0][len(Domain[0]):]
-                        self.module(moduleName).scope(row[1])
+        for stats in files:
+            for stat in glob(str(stats)):
+                with open(str(stat)) as f:
+                    reader = csv.reader(f)
+                    rows = list(reader)
+                    if rows:
+                        # Scopes
+                        scopes = list(filter(lambda row: len(row) and row[0].startswith(Domain[0]), rows))
+                        for row in scopes:
+                            moduleName = row[0][len(Domain[0]):]
+                            self.module(moduleName).scope(row[1])
 
-                    # Switches
-                    switches = list(map(lambda row: [row[0][len(Domain[1]):]] + row[1].strip().split('$'),
-                                        filter(lambda row: row[0].startswith(Domain[1]), rows)))
-                    for switch in switches:
-                        self.module(switch[0]).switch(switch[1]).case(switch[2])
+                        # Switches
+                        switches = list(map(lambda row: [row[0][len(Domain[1]):]] + row[1].strip().split('$'),
+                                            filter(lambda row: len(row) and row[0].startswith(Domain[1]), rows)))
+                        for switch in switches:
+                            self.module(switch[0]).switch(switch[1]).case(switch[2])
 
-                    # Factories
-                    factories = list(map(lambda row: [row[0][len(Domain[2]):]] + row[1].strip().split('$'),
-                                        filter(lambda row: row[0].startswith(Domain[2]), rows)))
-                    for reg in list(filter(lambda row: row[1] == 'REG', factories)):
-                        self.module(reg[0]).factory(reg[2]).register(reg[3], reg[4])
-                    for cre in list(filter(lambda row: row[1] == 'CREATE', factories)):
-                        self.module(cre[0]).factory(cre[2]).create(cre[3])
+                        # Factories
+                        factories = list(map(lambda row: [row[0][len(Domain[2]):]] + row[1].strip().split('$'),
+                                            filter(lambda row: len(row) and row[0].startswith(Domain[2]), rows)))
+                        for reg in list(filter(lambda row: len(row) > 1 and row[1] == 'REG', factories)):
+                            self.module(reg[0]).factory(reg[2]).register(reg[3], reg[4])
+                        for cre in list(filter(lambda row: len(row) > 1 and row[1] == 'CREATE', factories)):
+                            self.module(cre[0]).factory(cre[2]).create(cre[3])
 
     def generate(self, out):
         with open(str(out), 'w') as f:

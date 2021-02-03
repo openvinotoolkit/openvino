@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -143,6 +143,7 @@ function(openvino_developer_export_targets)
 endfunction()
 
 add_subdirectory(openvino)
+add_subdirectory(thirdparty)
 build_ngraph()
 add_subdirectory(inference-engine)
 add_subdirectory(model-optimizer)
