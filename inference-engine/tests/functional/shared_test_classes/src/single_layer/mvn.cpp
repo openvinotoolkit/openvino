@@ -1,12 +1,13 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "shared_test_classes/single_layer/mvn.hpp"
+#include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string MvnLayerTest::getTestCaseName(testing::TestParamInfo<mvnParams> obj) {
+std::string MvnLayerTest::getTestCaseName(const testing::TestParamInfo<mvnParams>& obj) {
     InferenceEngine::SizeVector inputShapes;
     InferenceEngine::Precision inputPrecision;
     bool acrossChannels, normalizeVariance;
@@ -36,4 +37,47 @@ void MvnLayerTest::SetUp() {
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
     function = std::make_shared<ngraph::Function>(results, param, "mvn");
 }
+
+
+std::string Mvn6LayerTest::getTestCaseName(const testing::TestParamInfo<mvn6Params>& obj) {
+    InferenceEngine::SizeVector inputShapes;
+    InferenceEngine::Precision dataPrecision, axesPrecision;
+    std::vector<int> axes;
+    bool normalizeVariance;
+    float eps;
+    std::string epsMode;
+    std::string targetDevice;
+    std::tie(inputShapes, dataPrecision, axesPrecision, axes, normalizeVariance, eps, epsMode, targetDevice) = obj.param;
+    std::ostringstream result;
+    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "DataPrc=" << dataPrecision.name() << "_";
+    result << "AxPrc=" << axesPrecision.name() << "_";
+    result << "Ax=" << CommonTestUtils::vec2str(axes) << "_";
+    result << "NormVariance=" << (normalizeVariance ? "TRUE" : "FALSE") << "_";
+    result << "Eps=" << eps << "_";
+    result << "EM=" << epsMode << "_";
+    result << "TargetDevice=" << targetDevice;
+    return result.str();
+}
+
+void Mvn6LayerTest::SetUp() {
+    InferenceEngine::SizeVector inputShapes;
+    InferenceEngine::Precision dataPrecision, axesPrecision;
+    std::vector<int> axes;
+    bool normalizeVariance;
+    float eps;
+    std::string epsMode;
+    std::tie(inputShapes, dataPrecision, axesPrecision, axes, normalizeVariance, eps, epsMode, targetDevice) = this->GetParam();
+
+    auto dataType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
+    auto axesType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(axesPrecision);
+
+    auto param = ngraph::builder::makeParams(dataType, {inputShapes});
+    auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
+    auto axesNode = ngraph::builder::makeConstant(axesType, ngraph::Shape{axes.size()}, axes);
+    auto mvn = ngraph::builder::makeMVN6(paramOuts[0], axesNode, normalizeVariance, eps, epsMode);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
+    function = std::make_shared<ngraph::Function>(results, param, "MVN6");
+}
+
 }  // namespace LayerTestsDefinitions

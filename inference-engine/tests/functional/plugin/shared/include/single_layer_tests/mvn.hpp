@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,10 @@
 namespace LayerTestsDefinitions {
 
 TEST_P(MvnLayerTest, CompareWithRefs) {
+    Run();
+};
+
+TEST_P(Mvn6LayerTest, CompareWithRefs) {
     Run();
 };
 

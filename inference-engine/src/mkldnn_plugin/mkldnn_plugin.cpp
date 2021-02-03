@@ -39,6 +39,7 @@
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l1_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l2_decomposition.hpp>
 #include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
@@ -73,6 +74,7 @@
 # include <low_precision/group_convolution.hpp>
 # include <low_precision/multiply_to_group_convolution.hpp>
 
+#include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_quantize_node.h"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -106,6 +108,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::ConvertPriorBox>();
+    manager.register_pass<ngraph::pass::MVN6Decomposition>();
     manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
@@ -195,6 +198,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                     return count_rnn != 1;
                 }
                 return true;
+            });
+
+    pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
+            [](const_node_ptr &node) -> bool {
+                return MKLDNNMVNNode::checkAxesSuitability(node);
             });
 
     // List of enabled/disabled transformations

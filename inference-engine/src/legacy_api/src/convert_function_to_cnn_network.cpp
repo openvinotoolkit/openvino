@@ -1311,8 +1311,11 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["normalize_variance"] = params.at("normalize_variance");
         res->params["normalize_variance"] = res->getBoolStrParamAsIntStr("normalize_variance");
         res->params["eps"] = params.at("eps");
-        res->params["across_channels"] = params.at("across_channels");
-        res->params["across_channels"] = res->getBoolStrParamAsIntStr("across_channels");
+        const auto& acrossChannelsIt = params.find("across_channels");
+        if (acrossChannelsIt != params.end()) {
+            res->params["across_channels"] = params.at("across_channels");
+            res->params["across_channels"] = res->getBoolStrParamAsIntStr("across_channels");
+        }
         return res;
     });
 

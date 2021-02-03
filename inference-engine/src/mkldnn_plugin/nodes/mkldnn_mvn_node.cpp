@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,8 @@
 #include <cpu/x64/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/jit_uni_quantization_injector.hpp>
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
+
+#include <ngraph/opsets/opset6.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -477,28 +479,43 @@ private:
 //////////////////////////////////////////////////////////////////////////////////
 
 MKLDNNMVNNode::MKLDNNMVNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+        : MKLDNNNode(layer, eng, cache), epsMode_(insideSqrt) {}
 
 void MKLDNNMVNNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
+    std::string errPrefix = "MVN node with name '" + getName() + "' ";
+
+    auto cnnLayer = getCnnLayer();
+    if (cnnLayer == nullptr)
+        THROW_IE_EXCEPTION << errPrefix << "does not have CNN layer.";
+
+    if (getParentEdges().size() > 2)
+        THROW_IE_EXCEPTION << errPrefix << "has incorrect number of input edges.";
+
+    if (getChildEdges().empty())
+        THROW_IE_EXCEPTION << errPrefix << "has incorrect number of output edges.";
+
     const auto& numOfDims = getParentEdgeAt(0)->getDims().ndims();
     if (numOfDims < 1 || numOfDims > 5)
-        THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support input with size of dimensions: " << numOfDims;
+        THROW_IE_EXCEPTION << errPrefix << "doesn't support input with size of dimensions: " << numOfDims;
 
-    auto * mvnLayer = dynamic_cast<MVNLayer*>(getCnnLayer().get());
-    if (mvnLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert MVN layer.";
-
-    if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
-    if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
-
-    across_channels = mvnLayer->across_channels;
-    normalize_variance = mvnLayer->normalize;
-    eps = mvnLayer->GetParamAsFloat("eps");
+    across_channels = false;
+    if (getParentEdges().size() == 1) {
+        across_channels = cnnLayer->GetParamAsBool("across_channels");
+    } else {
+        if (numOfDims == getParentEdgeAt(1)->getDims().size() + 1 || numOfDims == 1)
+            across_channels = true;
+    }
+    normalize_variance = cnnLayer->GetParamAsBool("normalize_variance", true);
+    eps = cnnLayer->GetParamAsFloat("eps");
+    auto epsMode = cnnLayer->GetParamAsString("eps_mode", "");
+    if (details::CaselessEq<std::string>()(epsMode, "inside_sqrt")) {
+        epsMode_ = insideSqrt;
+    } else if (details::CaselessEq<std::string>()(epsMode, "outside_sqrt")) {
+        epsMode_ = outsideSqrt;
+    }
 }
 
 void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
@@ -509,6 +526,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     Precision inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
     Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
+    const size_t inputsNum = getCnnLayer()->insData.size();
 
     if (!fusedWith.empty()) {
         auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
@@ -544,12 +562,19 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = false;
-    config.inConfs.resize(1);
+    config.inConfs.resize(inputsNum);
     config.outConfs.resize(1);
     config.inConfs[0].constant = false;
     config.outConfs[0].constant = false;
     config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
+    if (inputsNum == 2) {
+        const auto& dims = getCnnLayer()->insData[1].lock()->getTensorDesc().getDims();
+        config.inConfs[1].desc = TensorDesc(Precision::I32,
+            dims,
+            TensorDesc::getLayoutByDims(dims));
+        config.inConfs[1].constant = true;
+    }
 
     auto pushDesc = [&](memory::format_tag format, impl_desc_type impl_type) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, format);
@@ -883,7 +908,11 @@ void MKLDNNMVNNode::mvn_pln(const in_data_t* src_data, out_data_t* dst_data, con
                         return variance_internal;
                     });
                 }
-                float variance = 1.f / sqrtf(variance_temp * C3inv + eps);
+                float variance = 1.f;
+                if (epsMode_ == insideSqrt)
+                    variance /= sqrtf(variance_temp * C3inv + eps);
+                else if (epsMode_ == outsideSqrt)
+                    variance /= sqrtf(variance_temp * C3inv) + eps;
                 // mvn for one instance in batch
                 if (mvn_kernel) {
                     parallel_for(C, [&](int c) {
@@ -970,7 +999,10 @@ void MKLDNNMVNNode::mvn_pln(const in_data_t* src_data, out_data_t* dst_data, con
                         for (size_t tail = tail_per_channel; tail < C2; tail++) {
                             variance += (src_data[cc + tail] - mean) * (src_data[cc + tail] - mean);
                         }
-                        variance = 1.f / sqrtf(variance * C2inv + eps);
+                        if (epsMode_ == insideSqrt)
+                            variance = 1.f / sqrtf(variance * C2inv + eps);
+                        else if (epsMode_ == outsideSqrt)
+                            variance = 1.f / (sqrtf(variance * C2inv) + eps);
 
                         // mvn for this channel
                         (*mvn_kernel)(&arg);
@@ -1003,7 +1035,10 @@ void MKLDNNMVNNode::mvn_pln(const in_data_t* src_data, out_data_t* dst_data, con
                         for (size_t tail = 0lu; tail < C2; tail++) {
                             variance += (src_data[cc + tail] - mean) * (src_data[cc + tail] - mean);
                         }
-                        variance = 1.f / sqrtf(variance * C2inv + eps);
+                        if (epsMode_ == insideSqrt)
+                            variance = 1.f / sqrtf(variance * C2inv + eps);
+                        else if (epsMode_ == outsideSqrt)
+                            variance = 1.f / (sqrtf(variance * C2inv) + eps);
 
                         // mvn for this channel
                         for (size_t tail = 0lu; tail < C2; tail++) {
@@ -1134,7 +1169,11 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                     return variance_internal;
                 });
 
-                float variance = 1.f / sqrtf(variance_temp * C5inv + eps);
+                float variance = 1.f;
+                if (epsMode_ == insideSqrt)
+                    variance /= sqrtf(variance_temp * C5inv + eps);
+                else if (epsMode_ == outsideSqrt)
+                    variance /= sqrtf(variance_temp * C5inv) + eps;
                 // mvn for one instance in batch
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
                     size_t ccbd = ccb + cb * C2 + d * C1 + h * C0;
@@ -1270,8 +1309,12 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                         for (size_t c = 0; c < C; c++)
                             variance_buffer[c] += variance_buffer[c + aux_buffer_size * i];
                     }
-                    for (size_t c = 0; c < C; c++)
-                        variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + eps);
+                    for (size_t c = 0; c < C; c++) {
+                        if (epsMode_ == insideSqrt)
+                            variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + eps);
+                        else if (epsMode_ == outsideSqrt)
+                            variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + eps);
+                    }
                 }
 
                 for (size_t cb = tail_cb_start; cb < tail_cb_end; cb++) {
@@ -1295,7 +1338,10 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                                 }
                             }
                         }
-                        variance_buffer_ptr[c] = 1.f / sqrtf(variance_buffer_ptr[c] * size_inv + eps);
+                        if (epsMode_ == insideSqrt)
+                            variance_buffer_ptr[c] = 1.f / sqrtf(variance_buffer_ptr[c] * size_inv + eps);
+                        else if (epsMode_ == outsideSqrt)
+                            variance_buffer_ptr[c] = 1.f / (sqrtf(variance_buffer_ptr[c] * size_inv) + eps);
                     }
                 }
 
@@ -1446,6 +1492,38 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
 
 bool MKLDNNMVNNode::created() const {
     return getType() == MVN;
+}
+
+// Validates MVN node axes to check whether it can be executed on the current CPU implementation.
+// Supported cases:
+// 1D: axes: [0]
+// 2D: axes: [1]
+// 3D: axes: [1,2], [2]
+// 4D: axes: [1,2,3], [2,3]
+// 5D: axes: [1,2,3,4], [2,3,4]
+bool MKLDNNMVNNode::checkAxesSuitability(const std::shared_ptr<const ngraph::Node>& node) {
+    const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
+    if (mvn != nullptr && node->get_input_size() == 2) {
+        if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
+            auto axesVal = axesNode->cast_vector<int>();
+            auto& mvnShape = mvn->get_output_shape(0);
+            if (mvnShape.size() == 1) {
+                if (axesVal.size() == 1 && axesVal[0] == 0)
+                    return true;
+                else
+                    return false;
+            }
+            if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2))
+                return false;
+            int value = mvnShape.size() - 1;
+            for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
+                if (axesVal[i] != value)
+                    return false;
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNMVNNode, MVN);

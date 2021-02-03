@@ -246,6 +246,12 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool normalizeVariance,
                                       double eps);
 
+std::shared_ptr<ngraph::Node> makeMVN6(const Output<Node>& in,
+                                       const Output<Node>& axesNode,
+                                       bool normalizeVariance,
+                                       float eps,
+                                       std::string& epsMode);
+
 std::shared_ptr<ngraph::Node> makeSqueezeUnsqueeze(const ngraph::Output<Node> &in,
                                                    const element::Type &type,
                                                    const std::vector<int> &squeeze_indices,
