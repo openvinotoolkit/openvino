@@ -109,7 +109,7 @@ jobs:
     displayName: 'nGraph UT'
     continueOnError: false
 
-  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
+  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_filter=-MKLDNNGraphStructureTests.TestNoRedundantReordersBeforeDWConvolution:TestConvolution/MKLDNNGraphConvolutionTests.TestsConvolution/0:TestConvolutionDefaultPrimitivesPriority/MKLDNNGraphConvolutionTests.TestsConvolution/0 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: false
 

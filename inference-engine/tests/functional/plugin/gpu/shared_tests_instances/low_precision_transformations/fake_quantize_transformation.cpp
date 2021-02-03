@@ -33,7 +33,6 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnD
     // { 256ul, { 1ul }, { -1.28f} , { 1.27f } }
 };
 
-// TODO: add something to avoid cleanup and enable
 INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),

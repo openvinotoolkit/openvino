@@ -73,8 +73,12 @@ INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
                         std::make_tuple("conv_with_rt_info.xml", ""),
                         std::make_tuple("loop_2d_add.xml", "loop_2d_add.bin")));
 
+#ifdef NGRAPH_ONNX_IMPORT_ENABLE
+
 INSTANTIATE_TEST_CASE_P(ONNXSerialization, SerializationTest,
         testing::Values(std::make_tuple("add_abc.prototxt", ""),
                         std::make_tuple("split_equal_parts_2d.prototxt", ""),
                         std::make_tuple("addmul_abc.prototxt", ""),
                         std::make_tuple("add_abc_initializers.prototxt", "")));
+
+#endif

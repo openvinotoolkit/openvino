@@ -3,8 +3,8 @@
 //
 
 /* on windows min and max already defined that makes using numeric_limits impossible */
-#if defined(WIN32)
-#define NOMINMAX
+#ifdef _WIN32
+# define NOMINMAX
 #endif
 
 #include <sys/stat.h>

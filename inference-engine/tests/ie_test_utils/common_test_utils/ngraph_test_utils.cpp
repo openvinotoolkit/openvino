@@ -5,16 +5,21 @@
 #include "ngraph_test_utils.hpp"
 
 #include <cassert>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <queue>
+#include <sstream>
 #include <string>
+#include <type_traits>
+#include <typeinfo>
 #include <vector>
 
 #include <ngraph/function.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
 namespace {
@@ -72,7 +77,7 @@ std::string to_str(const T& v) {
     return std::to_string(v);
 }
 
-std::pair<bool, std::string> error(std::string s) {
+FunctionsComparator::Result error(std::string s) {
     return {false, std::move(s)};
 }
 
@@ -118,7 +123,7 @@ using SubGraphOpInputDescription =
 using SubGraphOpOutputDescription =
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>;
 
-using SpecialBodyPorts = ngraph::op::v5::Loop::SpecialBodyPorts;
+using SpecialBodyPorts = ngraph::opset6::Loop::SpecialBodyPorts;
 
 namespace storage {
 
@@ -442,6 +447,55 @@ struct Equal<SpecialBodyPorts> {
 
 }  // namespace equal
 
+namespace str {
+template <typename...>
+struct Void_t {
+    using type = void;
+};
+
+template <typename T, typename = void>
+struct Get {
+    static std::string value(const T&) {
+        return std::string("[Ups can't convert this to value: ") + typeid(T).name() + "]";
+    }
+};
+
+template <typename T>
+struct Get<T, typename Void_t<decltype(std::to_string(std::declval<T>()))>::type> {
+    static std::string value(const T& v) {
+        return "[" + std::to_string(v) + "]";
+    }
+};
+
+template <>
+struct Get<std::string, void> {
+    static std::string value(const std::string& v) {
+        return "[" + v + "]";
+    }
+};
+
+template <typename T>
+struct Get<
+    T,
+    typename Void_t<decltype(begin(std::declval<T>())), decltype(end(std::declval<T>()))>::type> {
+    template <typename Container>
+    static std::string join(const Container& c, const char* glue = ", ") {
+        std::stringstream oss;
+        const char* s = "";
+        for (const auto& v : c) {
+            oss << s << v;
+            s = glue;
+        }
+        return oss.str();
+    }
+
+    static std::string value(const T& v) {
+        return "[" + join(v) + "]";
+    }
+};
+
+}  // namespace str
+
 class ReadAndCompareAttributes : public ngraph::AttributeVisitor {
 public:
     ReadAndCompareAttributes(const ReadAndStoreAttributes& ref)
@@ -476,13 +530,13 @@ public:
         m_visited_attributes.insert(name);
         const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
         if (!ref_value) {
-            m_cmp_result += "missing attribute name: " + name;
+            m_cmp_result += "missing attribute name: '" + name + "'";
             return;
         }
 
         if (adapter.size() != ref_value->size() ||
             std::memcmp(ref_value->data(), adapter.get_ptr(), ref_value->size()) != 0) {
-            m_cmp_result += "mismatch in value: " + name;
+            m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
             return;
         }
     }
@@ -547,13 +601,14 @@ private:
         m_visited_attributes.insert(name);
         const auto ref_value = m_attr_ref.get<AttrValue>(name);
         if (!ref_value) {
-            m_cmp_result += "missing attribute name: " + name;
+            m_cmp_result += "missing attribute name: '" + name + "'";
             return;
         }
 
         if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
-            m_cmp_result += "mismatch in value: " + name;
-            return;
+            m_cmp_result += "mismatch in value: '" + name +
+                            "' : " + str::Get<AttrValue>::value(*ref_value) + " vs " +
+                            str::Get<AttrValue>::value(attr_value);
         }
     }
 
@@ -599,23 +654,19 @@ private:
     attr_comparison::ReadAndStoreAttributes m_store_attr;
     attr_comparison::ReadAndCompareAttributes m_compare_attr;
 };
+
 }  // namespace
 
-std::pair<bool, std::string> compare_functions(
+FunctionsComparator::Result FunctionsComparator::compare(
     const std::shared_ptr<ngraph::Function>& f1,
-    const std::shared_ptr<ngraph::Function>& f2,
-    const bool compareConstValues,
-    const bool compareNames,
-    const bool compareRuntimeKeys,
-    const bool comparePrecisions,
-    const bool compareAttributes) {
+    const std::shared_ptr<ngraph::Function>& f2) const {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
      * + Check number of inputs
      * + Check shapes
      * + Check parent ports
-     * - Do not check nodes attributes (requires visitor mechanism to be completed)
+     * + Check node attributes by Visitor API
      */
 
     auto f1_results = f1->get_results();
@@ -645,7 +696,7 @@ std::pair<bool, std::string> compare_functions(
     std::unordered_set<ngraph::Node*> used;
 
     for (size_t i = 0; i < f1_results.size(); ++i) {
-        if (compareNames) {
+        if (should_compare(NAMES)) {
             if (name(f1_results[i]->get_input_node_shared_ptr(0)) !=
                 name(f2_results[i]->get_input_node_shared_ptr(0))) {
                 return error(
@@ -673,11 +724,9 @@ std::pair<bool, std::string> compare_functions(
         auto subgraph2 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node2);
 
         if (subgraph1 && subgraph2) {
-            auto res = compare_functions(
-                subgraph1->get_function(), subgraph2->get_function(), compareConstValues,
-                compareNames, compareRuntimeKeys, comparePrecisions, compareAttributes);
-            if (!res.first) {
-                return res;
+            auto result = compare(subgraph1->get_function(), subgraph2->get_function());
+            if (!result.valid) {
+                return result;
             }
         }
 
@@ -703,7 +752,7 @@ std::pair<bool, std::string> compare_functions(
         }
 
         for (int i = 0; i < node1->inputs().size(); ++i) {
-            if (compareConstValues) {
+            if (should_compare(CONST_VALUES)) {
                 using Constant = ngraph::opset1::Constant;
                 auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
                 auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
@@ -726,7 +775,7 @@ std::pair<bool, std::string> compare_functions(
                 }
             }
 
-            if (comparePrecisions) {
+            if (should_compare(PRECISIONS)) {
                 if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
                     err_log << "Different element type detected\n"
                             << name(node1) << " Input(" << i << ") "
@@ -755,7 +804,7 @@ std::pair<bool, std::string> compare_functions(
                         << idx2 << std::endl;
             }
 
-            if (compareRuntimeKeys && !compare_rt_keys(node1, node2)) {
+            if (should_compare(RUNTIME_KEYS) && !compare_rt_keys(node1, node2)) {
                 err_log << "Different runtime info detected\n"
                         << name(node1) << " and " << name(node2) << " not equal runtime info."
                         << std::endl;
@@ -773,7 +822,8 @@ std::pair<bool, std::string> compare_functions(
 
             if (tensor1.get_names() != tensor2.get_names()) {
                 err_log << "Output tensors names are different for nodes: "
-                    << node1->get_friendly_name() << " and " << node2->get_friendly_name() << std::endl;
+                        << node1->get_friendly_name() << " and " << node2->get_friendly_name()
+                        << std::endl;
             }
             if (!node1->output(i).get_partial_shape().same_scheme(
                     node2->output(i).get_partial_shape())) {
@@ -785,7 +835,7 @@ std::pair<bool, std::string> compare_functions(
             }
         }
 
-        if (compareAttributes) {
+        if (should_compare(ATTRIBUTES)) {
             CompareNodesAttributes compare_nodes;
             node1->visit_attributes(compare_nodes.get_ref_reder());
             node2->visit_attributes(compare_nodes.get_cmp_reader());
