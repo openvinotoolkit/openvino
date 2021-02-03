@@ -343,7 +343,7 @@ TEST_F(FP32NonQuantizedTest, InputSplitConcatReshapeUnalignedPropagateForward) {
 
 TEST_F(FP32NonQuantizedTest, LSTMCellPropagateForward) {
     std::vector<float> input_data(96, 0.10f);
-    std::vector<float> expected_result(32, 0.27119124f);
+    std::vector<float> expected_result(32, 0.14366889f);
 
     assert_that().onInferModel(LSTMCellOnlyModel()).withWeigthsPattern({0.1f})
             .inNotCompactMode().gna().propagate_forward().onCPU()
