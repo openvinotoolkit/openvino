@@ -461,6 +461,18 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                 case ::ngraph::op::Eltwise::EltwiseType::Prod:
                     type = "prod";
                     break;
+                case ::ngraph::op::Eltwise::EltwiseType::Max:
+                    type = "max";
+                    break;
+                case ::ngraph::op::Eltwise::EltwiseType::Sub:
+                    type = "sub";
+                    break;
+                case ::ngraph::op::Eltwise::EltwiseType::Min:
+                    type = "min";
+                    break;
+                case ::ngraph::op::Eltwise::EltwiseType::Div:
+                    type = "div";
+                    break;
                 default:
                     THROW_IE_EXCEPTION << "Not supported eltwise type!";
                 }
