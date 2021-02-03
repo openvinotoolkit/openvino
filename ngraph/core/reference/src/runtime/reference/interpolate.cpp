@@ -209,6 +209,88 @@ InterpolateEvalHelper::InfoForLinearONNXMode5D
     return result;
 }
 
+InterpolateEvalHelper::InfoForGenericLinearONNXMode get_info_for_generic_linear_onnx()
+{
+    InfoForGenericLinearONNXMode result;
+
+    std::size_t input_rank = m_input_data_shape.size();
+    std::size_t num_of_axes = m_axes.size();
+
+    std::size_t spatial_rank = input_shape.size() - 2;
+    std::vector<float> spatial_scales(spatial_rank);
+
+    Shape input_shape;
+    Shape output_shape
+
+    switch (input_rank)
+    {
+    case 2:
+        input_shape = Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1]};
+        output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1]};
+        spatial_scales[0] = m_scales[0];
+        spatial_scales[1] = m_scales[1];
+        break;
+    case 3:
+        input_shape =
+            Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1], m_input_data_shape[2]};
+        output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1], m_out_shape[2]};
+        spatial_scales[0] = m_scales[0];
+        spatial_scales[1] = m_scales[1];
+        spatial_scales[2] = m_scales[2];
+        break;
+    default:
+        input_shape = m_input_data_shape;
+        output_shape = m_out_shape;
+        for (size_t i = 0; i < spatial_rank; ++i)
+        {
+            spatial_scales[i] = m_scales[i + 2];
+        }
+    }
+
+    int64_t batch_size = input_shape[0];
+    int64_t num_channels = input_shape[1];
+
+    std::vector<int64_t> input_index_multipliers(spatial_rank);
+    std::vector<int64_t> output_index_multipliers(spatial_rank);
+    input_index_multipliers[spatial_rank - 1] = 1;
+    output_index_multipliers[spatial_rank - 1] = 1;
+
+    for (int64_t i = static_cast<int64_t>(spatial_rank) - 2; i >= 0; --i)
+    {
+        input_index_multipliers[i] =
+            input_index_multipliers[i + 1] * static_cast<int64_t>(input_shape[i + 3]);
+        output_index_multipliers[i] =
+            output_index_multipliers[i + 1] * static_cast<int64_t>(output_shape[i + 3]);
+    }
+
+    int64_t input_data_ptr_increment =
+        input_index_multipliers[0] * static_cast<int64_t>(input_shape[2]);
+    int64_t output_data_ptr_increment =
+        output_index_multipliers[0] * static_cast<int64_t>(output_shape[2]);
+
+    std::vector<int64_t> input_spatial_shape(spatial_rank);
+    std::vector<int64_t> output_spatial_shape(spatial_rank);
+
+    for (int64_t i = 0; i < spatial_rank; ++i)
+    {
+        input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + 2]);
+        output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 2]);
+    }
+
+    result.input_data_ptr_increment = input_data_ptr_increment;
+    result.output_data_ptr_increment = output_data_ptr_increment;
+    result.batch_size = batch_size;
+    result.num_channels = num_channels;
+    result.spatial_rank = static_cast<int64_t>(spatial_rank);
+    result.input_index_multipliers = input_index_multipliers;
+    result.output_index_multipliers = output_index_multipliers;
+    result.input_spatial_shape = input_spatial_shape;
+    result.output_spatial_shape = output_spatial_shape;
+    result.spatial_scales = spatial_scales;
+
+    return result;
+}
+
 InterpolateEvalHelper::InfoForLinearONNXMode InterpolateEvalHelper::get_info_for_linear_onnx_mode()
 {
     InfoForLinearONNXMode result;

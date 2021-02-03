@@ -307,8 +307,12 @@ namespace ngraph
                     int64_t output_data_ptr_increment;
                     int64_t batch_size;
                     int64_t num_channels;
-                    std::vector<int64_t> spatial_dims;
-                    std::vector<int64_t> index_multipliers;
+                    int64_t spatial_rank;
+                    std::vector<int64_t> input_index_multipliers;
+                    std::vector<int64_t> output_index_multipliers;
+                    std::vector<int64_t> input_spatial_shape;
+                    std::vector<int64_t> output_spatial_shape;
+                    std::vector<float> spatial_scales;
                 };
 
                 InfoForGenericLinearONNXMode get_info_for_generic_linear_onnx();
@@ -454,6 +458,12 @@ namespace ngraph
                 /// \param out pointer to memory block for output data
                 void linear_onnx5D_func(const T* input_data, T* out);
 
+                /// \brief Calculates interpolation as in ONNX 'linear' mode (generic case)
+                ///
+                /// \param input_data pointer to input data
+                /// \param out pointer to memory block for output data
+                void linear_onnx_generic_func(const T* input_data, T* out);
+
                 /// \brief Calculates cubic interpolation.
                 ///
                 /// \param input_data pointer to input data
@@ -591,6 +601,132 @@ namespace ngraph
             }
 
             template <typename T>
+            void linear_onnx_generic_func(const T* input_data, T* out)
+            {
+                const auto info = helper.get_info_for_generic_linear_onnx();
+
+                int64_t batch_size = info.batch_size;
+                int64_t num_channels = info.num_channels;
+
+                auto& input_index_multipliers = info.input_index_multipliers;
+                auto& output_index_multipliers = info.output_index_multipliers;
+
+                int64_t input_data_ptr_increment = info.input_data_ptr_increment;
+                int64_t output_data_ptr_increment = info.output_data_ptr_increment;
+
+                auto& input_spatial_shape = info.input_spatial_shape
+                auto& output_spatial_shape = info.output_spatial_shape;
+
+                auto& spatial_scales = info.spatial_scales;
+
+                int64_t spatial_rank = info.spatial_rank;
+
+                const T* xdata = input_data;
+                T* ydata = out;
+                for (int64_t n = 0; n < batch_size; ++n)
+                {
+                    for (int64_t c = 0; c < num_channels; ++c)
+                    {
+                        for (int64_t idx = 0; idx < output_data_ptr_increment; ++idx)
+                        {
+                            // 1. Get the current spatial coords vector.
+                            std::vector<int64_t> output_coords(spatial_rank);
+                            int64_t curr = idx;
+                            for (int64_t j = 0; j < spatial_rank - 1; ++j)
+                            {
+                                output_coords[j] = curr / output_index_multipliers[j];
+                                curr %= output_index_multipliers[j];
+                            }
+                            output_coords[spatial_rank - 1] = curr;
+
+                            // 2. Some preliminaries.
+                            std::vector<int64_t> in1(spatial_rank);
+                            std::vector<int64_t> in2(spatial_rank);
+                            std::vector<float> d1(spatial_rank);
+                            std::vector<float> d2(spatial_rank);
+
+                            for (int64_t i = 0; i < spatial_rank; ++i)
+                            {
+                                float out_coord = static_cast<float>(output_coords[i]);
+
+                                float in_coord = m_get_original_coord(out_coord,
+                                                                      spatial_scales[i],
+                                                                      static_cast<float>(output_spatial_shape[i]),
+                                                                      static_cast<float>(input_spatial_shape[i]);
+                                in_coord = std::max(0.0f, std::min(in_coord, static_cast<float>(input_spatial_shape[i] - 1)));
+
+                                const int64_t in_coord1 = std::min(static_cast<int64_t>(in_coord), input_spatial_shape[i] - 1);
+                                const int64_t in_coord2 = std::min(in_coord1 + 1, input_spatial_shape[i] - 1);
+
+                                in1[i] = in_coord1;
+                                in2[i] = in_coord2;
+                                d1[i] = std::fabs(in_coord - in_coord1);
+                                d2[i] = std::fabs(in_coord - in_coord2);
+
+                                if (in_coord1 == in_coord2)
+                                {
+                                    d1[i] = 0.5f;
+                                    d2[i] = 0.5f;
+                                }
+                            }
+
+                            // 3. Get values in all points of a neighborhood.
+                            int64_t points_in_neighbor = 1 << spatial_rank;
+                            std::vector<T> values_of_input_points(points_in_neighbor);
+                            for (int64_t i = 0; i < points_in_neighbor; ++i)
+                            {
+                                int64_t offset = 0;
+                                int64_t k = i;
+                                for (int64_t j = 0; j < spatial_rank; ++j)
+                                {
+                                    int64_t reverted_j = spatial_rank - j;
+                                    if (k & 1)
+                                    {
+                                        offset += in1[reverted_j] * input_index_multipliers[reverted_j];
+                                    }
+                                    else
+                                    {
+                                        offset += in2[reverted_j] * input_index_multipliers[reverted_j];
+                                    }
+                                    k >>= 1;
+                                }
+
+                                values_of_input_points[i] = xdata[offset];
+                            }
+
+                            // 4. Calculate output offset.
+                            int64_t output_offset = 0;
+                            for (int64_t i = 0; i < spatial_rank; ++i)
+                            {
+                                output_offset += output_index_multipliers[i] * output_spatial_shape[i];
+                            }
+
+                            // 5. Interpolation.
+                            float sum = 0.0f;
+                            for (int64_t i = 0; i < points_in_neighbor; ++i)
+                            {
+                                float coeff = 1.0f;
+                                int64_t k = i;
+                                for (int64_t j = 0; j < spatial_rank; ++j)
+                                {
+                                    int64_t reverted_j = spatial_rank - j;
+                                    coeff *= (k & 1) ? d1[reverted_j] : d2[reverted_j];
+                                    k >>= 1;
+                                }
+                                sum += coeff * values_of_input_points(reverted_j);
+                            }
+
+                            // 6. Store result.
+                            ydata[output_offset] = static_cast<T>(sum);
+                        }
+
+                        xdata += input_data_ptr_increment;
+                        ydata += output_data_ptr_increment;
+                    }
+                }
+            }
+
+            template <typename T>
             void InterpolateEval<T>::linear_onnx4D_func(const T* input_data, T* out)
             {
                 size_t input_rank = m_input_data_shape.size();
@@ -657,11 +793,7 @@ namespace ngraph
                 case 4: linear_onnx4D_func(input_data, out); break;
                 case 3:
                 case 5: linear_onnx5D_func(input_data, out); break;
-                default:
-                    throw ngraph_error(
-                        "Mode 'linear_onnx' of the layer Interpolate-4 supports"
-                        " only 2D, 3D, 4D, or 5D input tensors.");
-                    break;
+                default: linear_onnx_generic_func(input_data, out); break;
                 }
             }
 
