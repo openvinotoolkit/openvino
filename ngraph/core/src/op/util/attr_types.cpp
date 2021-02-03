@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-#include <map>
 #include <cctype>
+#include <map>
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/check.hpp"
