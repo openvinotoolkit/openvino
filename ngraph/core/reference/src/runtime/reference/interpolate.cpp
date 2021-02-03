@@ -220,7 +220,7 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode get_info_for_generic_linear_
     std::vector<float> spatial_scales(spatial_rank);
 
     Shape input_shape;
-    Shape output_shape
+    Shape output_shape;
 
     switch (input_rank)
     {

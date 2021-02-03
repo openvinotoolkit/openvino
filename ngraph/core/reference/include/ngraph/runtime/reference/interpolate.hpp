@@ -614,7 +614,7 @@ namespace ngraph
                 int64_t input_data_ptr_increment = info.input_data_ptr_increment;
                 int64_t output_data_ptr_increment = info.output_data_ptr_increment;
 
-                auto& input_spatial_shape = info.input_spatial_shape
+                auto& input_spatial_shape = info.input_spatial_shape;
                 auto& output_spatial_shape = info.output_spatial_shape;
 
                 auto& spatial_scales = info.spatial_scales;
@@ -682,11 +682,13 @@ namespace ngraph
                                     int64_t reverted_j = spatial_rank - j;
                                     if (k & 1)
                                     {
-                                        offset += in1[reverted_j] * input_index_multipliers[reverted_j];
+                                        offset +=
+                                            in1[reverted_j] * input_index_multipliers[reverted_j];
                                     }
                                     else
                                     {
-                                        offset += in2[reverted_j] * input_index_multipliers[reverted_j];
+                                        offset +=
+                                            in2[reverted_j] * input_index_multipliers[reverted_j];
                                     }
                                     k >>= 1;
                                 }
@@ -698,7 +700,8 @@ namespace ngraph
                             int64_t output_offset = 0;
                             for (int64_t i = 0; i < spatial_rank; ++i)
                             {
-                                output_offset += output_index_multipliers[i] * output_spatial_shape[i];
+                                output_offset +=
+                                    output_index_multipliers[i] * output_spatial_shape[i];
                             }
 
                             // 5. Interpolation.
