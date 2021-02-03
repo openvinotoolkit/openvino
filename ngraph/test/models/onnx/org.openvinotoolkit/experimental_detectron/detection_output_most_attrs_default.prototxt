@@ -12,47 +12,14 @@ graph {
     op_type: "ExperimentalDetectronDetectionOutput"
     domain: "org.openvinotoolkit"
     attribute {
-      name: "class_agnostic_box_regression"
-      i: 1
-      type: INT
-    }
-    attribute {
-      name: "deltas_weights"
-      floats: 10
-      floats: 10
-      floats: 5
-      floats: 5
-      type: FLOATS
-    }
-    attribute {
-      name: "max_delta_log_wh"
-      f: 2
-      type: FLOAT
-    }
-    attribute {
-      name: "max_detections_per_image"
-      i: 5
-      type: INT
-    }
-    attribute {
-      name: "nms_threshold"
-      f: 0.2
-      type: FLOAT
-    }
-    attribute {
       name: "num_classes"
       i: 2
       type: INT
     }
     attribute {
-      name: "post_nms_count"
-      i: 500
+      name: "max_detections_per_image"
+      i: 5
       type: INT
-    }
-    attribute {
-      name: "score_threshold"
-      f: 0.01000000074505806
-      type: FLOAT
     }
   }
   input {
