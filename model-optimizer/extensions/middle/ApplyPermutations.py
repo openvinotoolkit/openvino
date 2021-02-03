@@ -142,7 +142,7 @@ class ApplyPermutation(MiddleReplacementPattern):
                 if permutation_data_node.has_and_set('permutation') and \
                         not is_input_data_in_correct_layout(node, in_port) and \
                         (len(port_to_check.data.get_shape()) >= 4 or \
-                            (node['type'] == 'StridedSlice' and len(node.in_port(1).data.get_shape()) >= 4)):
+                            (node['type'] == 'StridedSlice' and node.in_port(in_port).data.get_shape()[0] >= 4)):
                     permutation(node, port_info, in_port)
             if node.has_and_set('need_shape_inference'):
                 node.infer(node)

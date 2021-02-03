@@ -100,46 +100,46 @@ def tf_strided_slice_infer(node):
         begin_mask = np.insert(begin_mask, ellipsis_start + 1, [0] * num_inserts)
         end_mask = np.insert(end_mask, ellipsis_start + 1, [0] * num_inserts)
 
-        begin_id = np.insert(end_id, ellipsis_start + 1, [0] * num_inserts)
+        begin_id = np.insert(begin_id, ellipsis_start + 1, [0] * num_inserts)
         end_id = np.insert(end_id, ellipsis_start + 1, [0] * num_inserts)
         strides = np.insert(strides, ellipsis_start + 1, [1] * num_inserts)
 
     # from now slices are without ellipsis
     dims = len(begin_id)
-    slice_idx = [[]] * dims
+    slices = [[]] * dims
     in_idx = 0
     for i in range(dims):
         if new_axis_mask[i]:
-            slice_idx[i] = np.newaxis
+            slices[i] = np.newaxis
         elif shrink_axis_mask[i]:
-            begin = begin_id[in_idx]
+            begin = begin_id[i]
             if begin < 0:
                 begin += shape[in_idx]
-            slice_idx[i] = int(begin)
+            slices[i] = int(begin)
         else:
-            begin = begin_id[in_idx]
-            end = end_id[in_idx]
+            begin = begin_id[i]
+            end = end_id[i]
             if not begin_mask[i]:
-                begin = 0 if strides[in_idx] > 0 else -1
+                begin = 0 if strides[i] > 0 else -1
             if not end_mask[i]:
-                end = shape[in_idx] if strides[in_idx] > 0 else -shape[in_idx] - 1
-            slice_idx[i] = slice(begin, end, strides[in_idx])
+                end = shape[in_idx] if strides[i] > 0 else -shape[in_idx] - 1
+            slices[i] = slice(begin, end, strides[i])
         in_idx += 1 if not new_axis_mask[i] else 0
 
     if value is not None:
-        node.out_port(0).data.set_value(value[tuple(slice_idx)])
+        node.out_port(0).data.set_value(value[tuple(slices)])
     else:
-        node.out_port(0).data.set_shape(get_shape_from_slice(shape, slice_idx))
+        node.out_port(0).data.set_shape(get_shape_from_slice(shape, slices))
 
     in_idx = 0
     for i in range(dims):
         if new_axis_mask[i]:
-            slice_idx[i] = slice(0, 1, 1)
+            slices[i] = slice(0, 1, 1)
         elif shrink_axis_mask[i]:
-            slice_idx[i] = slice(slice_idx[i], slice_idx[i] + 1, strides[i])
+            slices[i] = slice(slices[i], slices[i] + 1, strides[i])
         if not new_axis_mask[i]:
-            slice_idx[i] = slice(*slice_idx[i].indices(shape[in_idx]))  # will convert negative indices
+            slices[i] = slice(*slices[i].indices(shape[in_idx]))  # will convert negative indices
             in_idx += 1
-    node['slices'] = np.array(slice_idx)
+    node['slices'] = np.array(slices)
 
     node['force_precision_in_ports'] = {port: 'int64' for port in range(1, len(node.in_nodes()))}

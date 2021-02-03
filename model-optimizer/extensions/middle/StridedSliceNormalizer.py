@@ -44,9 +44,15 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                                                            ('begin_mask', 'input:0'),
                                                            ('end_mask', 'input:0')])
 
-            PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
-            PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
-            PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'shape')
+            if len(node.in_port(0).data.get_shape()) < 4 and len(node.out_port(0).data.get_shape()) > 3:
+                # for the cases when we insert new_axis
+                PermuteInputs().set_input_permutation(node.in_node(1), node, 'output:0', 'shape')
+                PermuteInputs().set_input_permutation(node.in_node(2), node, 'output:0', 'shape')
+                PermuteInputs().set_input_permutation(node.in_node(3), node, 'output:0', 'shape')
+            else:
+                PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
+                PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
+                PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'shape')
 
     def normalize_strided_slice(self, graph: Graph, node: Node):
         input_shape = node.in_port(0).data.get_shape()
@@ -71,11 +77,12 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             self.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num_inserts)
         elif slice_rank < input_rank:  # process somehow nonzero
             num = input_rank - slice_rank
-            # extend masks
-            for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
-                node[mask_name] = np.append(node[mask_name], [0] * num)
-
             self.extend_inputs(node, num)
+
+        # extend masks
+        for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
+            num = input_rank - len(node[mask_name])
+            node[mask_name] = np.append(node[mask_name], [0] * num)
 
     @staticmethod
     def unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num_ellipsis_ext):
