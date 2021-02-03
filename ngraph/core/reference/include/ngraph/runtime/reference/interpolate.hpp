@@ -601,7 +601,7 @@ namespace ngraph
             }
 
             template <typename T>
-            void linear_onnx_generic_func(const T* input_data, T* out)
+            void InterpolateEval<T>::linear_onnx_generic_func(const T* input_data, T* out)
             {
                 const auto info = helper.get_info_for_generic_linear_onnx();
 

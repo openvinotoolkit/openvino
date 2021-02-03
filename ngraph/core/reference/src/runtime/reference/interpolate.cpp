@@ -216,9 +216,6 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode get_info_for_generic_linear_
     std::size_t input_rank = m_input_data_shape.size();
     std::size_t num_of_axes = m_axes.size();
 
-    std::size_t spatial_rank = input_shape.size() - 2;
-    std::vector<float> spatial_scales(spatial_rank);
-
     Shape input_shape;
     Shape output_shape;
 
@@ -227,28 +224,21 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode get_info_for_generic_linear_
     case 2:
         input_shape = Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1]};
         output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1]};
-        spatial_scales[0] = m_scales[0];
-        spatial_scales[1] = m_scales[1];
         break;
     case 3:
         input_shape =
             Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1], m_input_data_shape[2]};
         output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1], m_out_shape[2]};
-        spatial_scales[0] = m_scales[0];
-        spatial_scales[1] = m_scales[1];
-        spatial_scales[2] = m_scales[2];
         break;
     default:
         input_shape = m_input_data_shape;
         output_shape = m_out_shape;
-        for (size_t i = 0; i < spatial_rank; ++i)
-        {
-            spatial_scales[i] = m_scales[i + 2];
-        }
     }
 
     int64_t batch_size = input_shape[0];
     int64_t num_channels = input_shape[1];
+
+    std::size_t spatial_rank = input_shape.size() - 2;
 
     std::vector<int64_t> input_index_multipliers(spatial_rank);
     std::vector<int64_t> output_index_multipliers(spatial_rank);
@@ -275,6 +265,17 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode get_info_for_generic_linear_
     {
         input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + 2]);
         output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 2]);
+    }
+
+    std::vector<float> spatial_scales;
+
+    if (input_rank == 2 || input_rank == 3 || num_of_axes == spatial_rank)
+    {
+        spatial_scales = m_scales;
+    }
+    else
+    {
+        spatial_scales.insert(spatial_scales.end(), m_scales.begin() + 2, m_scales.end());
     }
 
     result.input_data_ptr_increment = input_data_ptr_increment;
