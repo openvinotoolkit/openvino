@@ -80,6 +80,16 @@ IF /I "%1%" EQU "" (
 
 pip3 install --user -r ..\requirements%postfix%.txt
 
+:: Check IE Python bindings
+python %~dp0..\mo\utils\find_ie_version.py
+IF %ERRORLEVEL% NEQ 0 (
+   pip3 install openvino
+   python %~dp0..\mo\utils\find_ie_version.py
+   IF %ERRORLEVEL% NEQ 0 (
+      echo [ WARNING ] No compatible OpenVINO python version was found
+   )
+)
+
 echo *****************************************************************************************
 echo Optional: To speed up model conversion process, install protobuf-*.egg located in the
 echo "model-optimizer\install_prerequisites" folder or building protobuf library from sources.
