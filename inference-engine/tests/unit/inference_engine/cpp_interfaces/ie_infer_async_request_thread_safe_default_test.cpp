@@ -208,8 +208,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, callbackTakesOKIfAsyncRequestWasOK) {
     testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
 
     IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferRequestBase<TestAsyncInferRequestThreadSafeDefault>(
-            testRequest), [](IInferRequest *p) { p->Release(); });
+    asyncRequest.reset(new InferRequestBase(testRequest), [](IInferRequest *p) { p->Release(); });
     testRequest->SetPointerToPublicInterface(asyncRequest);
 
     testRequest->SetCompletionCallback([](InferenceEngine::IInferRequest::Ptr request, StatusCode status) {
@@ -225,8 +224,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, callbackIsCalledIfAsyncRequestFailed)
     auto taskExecutor = std::make_shared<CPUStreamsExecutor>();
     testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferRequestBase<TestAsyncInferRequestThreadSafeDefault>(
-            testRequest), [](IInferRequest *p) { p->Release(); });
+    asyncRequest.reset(new InferRequestBase(testRequest), [](IInferRequest *p) { p->Release(); });
     testRequest->SetPointerToPublicInterface(asyncRequest);
 
     bool wasCalled = false;
@@ -248,8 +246,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, canCatchExceptionIfAsyncRequestFailed
     auto taskExecutor = std::make_shared<CPUStreamsExecutor>();
     testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferRequestBase<TestAsyncInferRequestThreadSafeDefault>(
-            testRequest), [](IInferRequest *p) { p->Release(); });
+    asyncRequest.reset(new InferRequestBase(testRequest), [](IInferRequest *p) { p->Release(); });
     testRequest->SetPointerToPublicInterface(asyncRequest);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::exception()));
