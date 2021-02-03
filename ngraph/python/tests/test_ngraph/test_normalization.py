@@ -129,7 +129,7 @@ def test_mvn_no_variance():
                          -4, -3, -2, -1, 0, 1, 2, 3, 4,
                          -4, -3, -2, -1, 0, 1, 2, 3, 4], dtype=np.float32).reshape([1, 3, 3, 3])
 
-    result = run_op_node([data, axes], ng.mvn, normalize_variance, epsilon, eps_mode)
+    result = run_op_node([data], ng.mvn, axes, normalize_variance, epsilon, eps_mode)
 
     assert np.allclose(result, excepted)
 
@@ -152,6 +152,6 @@ def test_mvn():
                          -0.38729835, 0., 0.38729835,
                          0.7745967, 1.161895, 1.5491934], dtype=np.float32).reshape([1, 3, 3, 3])
 
-    result = run_op_node([data, axes], ng.mvn, normalize_variance, epsilon, eps_mode)
+    result = run_op_node([data], ng.mvn, axes, normalize_variance, epsilon, eps_mode)
 
     assert np.allclose(result, excepted)
