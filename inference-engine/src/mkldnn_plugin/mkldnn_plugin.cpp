@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,12 +33,14 @@
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l1_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l2_decomposition.hpp>
 #include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
@@ -46,6 +48,7 @@
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
@@ -57,6 +60,8 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/op_conversions/fq_decomposition.hpp>
+#include <transformations/utils/utils.hpp>
 
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -66,19 +71,23 @@
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
-# include <low_precision/transformer.hpp>
-# include <low_precision/convolution.hpp>
-# include <low_precision/group_convolution.hpp>
-# include <low_precision/multiply_to_group_convolution.hpp>
+#include <low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <low_precision/transformer.hpp>
+#include <low_precision/convolution.hpp>
+#include <low_precision/group_convolution.hpp>
+#include <low_precision/multiply_to_group_convolution.hpp>
+#include <low_precision/network_helper.hpp>
+
+#include "nodes/mkldnn_mvn_node.h"
+#include "nodes/mkldnn_quantize_node.h"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#if defined(_WIN32) || defined(WIN32)
-#include <intrin.h>
-#include <windows.h>
-#else
-#include <cpuid.h>
-
-#endif
+# ifdef _WIN32
+#  include <intrin.h>
+#  include <windows.h>
+# else
+#  include <cpuid.h>
+# endif
 #endif
 
 using namespace MKLDNNPlugin;
@@ -101,8 +110,18 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+
+    const bool useLpt =
+        (conf.lpTransformsMode == Config::LPTransformsMode::On) &&
+        ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+    if (useLpt) {
+        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
+            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+    }
+
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::ConvertPriorBox>();
+    manager.register_pass<ngraph::pass::MVN6Decomposition>();
     manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
@@ -194,6 +213,11 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
                 return true;
             });
 
+    pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
+            [](const_node_ptr &node) -> bool {
+                return MKLDNNMVNNode::checkAxesSuitability(node);
+            });
+
     // List of enabled/disabled transformations
     pass_config->disable<ngraph::pass::ConvertGELU>();
     pass_config->disable<ngraph::pass::HSwishDecomposition>();
@@ -207,10 +231,21 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
+    if (useLpt) {
+        pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
+            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
+        });
+
+        pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
+            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node);
+        });
+    }
+
     manager.run_passes(nGraphFunc);
 
     using namespace ngraph::pass::low_precision;
-    if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
+    if (useLpt) {
+        OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
         auto params = LayerTransformation::Params(
             true,  // updatePrecisions
             LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
@@ -227,13 +262,22 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         transformer.transform(nGraphFunc);
     }
 
+    bool has_fake_quantize = ::ngraph::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc);
+
     ngraph::pass::Manager legacyManager;
+
+    legacyManager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     legacyManager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
     // not legacy actually, but it should be the last transformation in the transformation pipeline
     legacyManager.register_pass<ngraph::pass::UnrollTensorIterator>();
 
     auto legacyPassConfig = legacyManager.get_pass_config();
+
+    legacyPassConfig->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
+        return !MKLDNNQuantizeNode::isNeedToDecompose(node);
+    });
+
     legacyPassConfig->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
         if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
             auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(mul_op->get_input_node_shared_ptr(0));
@@ -248,15 +292,16 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         return false;
     });
 
-    legacyManager.get_pass_config()->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
+    legacyPassConfig->set_callback<ngraph::pass::UnrollTensorIterator>([](const_node_ptr &node) -> bool {
         // UnrollTI transformation is disabled by default, is turned on by LowLatency transformation
         return node->get_rt_info().count("UNROLL_TI") == 0;
     });
+
     legacyManager.run_passes(nGraphFunc);
 
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "Transformation", "convertFunctionToICNNNetwork");
 
-    clonedNetwork = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork));
+    clonedNetwork = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, clonedNetwork, has_fake_quantize));
 
     OV_ITT_TASK_NEXT(taskChain, "ConvertIOPrecision");
 
@@ -352,7 +397,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 static bool hasAVX512() {
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
     unsigned int regs[4] = {7, 0, 0, 0};
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
     __cpuid(reinterpret_cast<int*>(regs), regs[0]);
 #else
     __cpuid_count(regs[0], regs[1], regs[0], regs[1], regs[2], regs[3]);
@@ -381,7 +426,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         unsigned int regs[4];
         for (auto addr : addr_list) {
             regs[0] = addr;
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
             __cpuid(reinterpret_cast<int*>(regs), regs[0]);
 #else
             __get_cpuid(regs[0], &regs[0], &regs[1], &regs[2], &regs[3]);
