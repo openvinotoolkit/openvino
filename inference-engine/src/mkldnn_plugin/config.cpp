@@ -37,11 +37,8 @@ Config::Config() {
 
         #if TBB_INTERFACE_VERSION >= 12010 // hybrid-aware TBB
         const auto core_types = oneapi::tbb::info::core_types();
-        if (core_types.size() > 1 /*Hybrid CPU*/) {
+        if (core_types.size() > 1 /*Hybrid CPU*/)
             streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::HYBRID_AWARE;
-            // TODO: REMOVE THE DEBUG PRINTF
-            printf("%s stream get the HYBRID_AWARE as default! \n", streamExecutorConfig._name.c_str());
-        }
         #endif
     #endif
 
