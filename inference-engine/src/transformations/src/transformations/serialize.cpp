@@ -507,12 +507,12 @@ bool is_exec_graph(const ngraph::Function& f) {
 }
 
 bool has_dynamic_output(std::shared_ptr<Node> n) {
-  for (size_t i = 0; i < n->get_output_size(); i++) {
-    if (n->get_output_partial_shape(i).is_dynamic()) {
-      return true;
+    for (size_t i = 0; i < n->get_output_size(); i++) {
+        if (n->get_output_partial_shape(i).is_dynamic()) {
+            return true;
+        }
     }
-  }
-  return false;
+    return false;
 }
 
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
