@@ -2,17 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 set(WHEEL_PACKAGE_NAME "openvino" CACHE STRING "Name of the package")
-set(WHEEL_LICENCE_TYPE "OSI Approved :: Apache Software License" CACHE STRING "License for the package")
+set(WHEEL_LICENCE_TYPE "OSI Approved :: Apache Software License" CACHE STRING "License type for the package")
 set(WHEEL_AUTHOR "Intel Corporation" CACHE STRING "Package author’s name")
 set(WHEEL_AUTHOR_EMAIL "openvino_pushbot@intel.com" CACHE STRING "Email address of the package author")
 set(WHEEL_DESC "Inference Engine Python* API" CACHE STRING "Short, summary description of the package")
 set(WHEEL_VERSION "0.0.0" CACHE STRING "Version of this release")
 set(WHEEL_BUILD "000" CACHE STRING "Build number of this release")
+set(WHEEL_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE" CACHE STRING "Wheel license file")
+set(WHEEL_REQUIREMENTS "${CMAKE_CURRENT_SOURCE_DIR}/meta/openvino.requirements.txt" CACHE STRING "Wheel requirements.txt file")
+set(WHEEL_OVERVIEW "${CMAKE_CURRENT_SOURCE_DIR}/meta/pypi_overview.md" CACHE STRING "WHEEL_AUTHOR detailed description")
 set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
 set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
-set(OVERVIEW_IN "${CMAKE_CURRENT_SOURCE_DIR}/meta/pypi_overview.md")
-set(LICENSE_IN "${CMAKE_SOURCE_DIR}/LICENSE")
-set(REQUIREMENTS_IN "${CMAKE_CURRENT_SOURCE_DIR}/meta/openvino.requirements.txt")
 
 
 if(APPLE)
@@ -32,9 +32,9 @@ endif()
 
 # prepare setup.py
 configure_file("${SETUP_PY_IN}" "${SETUP_PY}")
-configure_file("${OVERVIEW_IN}" "${CMAKE_CURRENT_BINARY_DIR}/pypi_overview.md" COPYONLY)
-configure_file("${REQUIREMENTS_IN}" "${CMAKE_CURRENT_BINARY_DIR}/requirements.txt" COPYONLY)
-configure_file("${LICENSE_IN}" "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.txt" COPYONLY)
+configure_file("${WHEEL_OVERVIEW}" "${CMAKE_CURRENT_BINARY_DIR}/pypi_overview.md" COPYONLY)
+configure_file("${WHEEL_REQUIREMENTS}" "${CMAKE_CURRENT_BINARY_DIR}/requirements.txt" COPYONLY)
+configure_file("${WHEEL_LICENSE}" "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.txt" COPYONLY)
 
 add_custom_target(ie_wheel ALL DEPENDS ie_libraries ie_plugins ie_api _pyngraph)
 
