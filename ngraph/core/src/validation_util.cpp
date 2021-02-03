@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <ngraph/ops.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
@@ -30,7 +29,6 @@
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/unsqueeze.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
@@ -1574,4 +1572,13 @@ shared_ptr<op::Constant> ngraph::get_constant_from_source(const Output<Node>& so
     if (const auto& c = as_type_ptr<op::Constant>(source.get_node_shared_ptr()))
         return c;
     return std::make_shared<op::Constant>(source.get_tensor().get_upper_value());
+}
+
+bool validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size)
+{
+    if (tensor_vector.size() != size)
+        return false;
+    return std::all_of(tensor_vector.begin(), tensor_vector.end(), [](const HostTensorPtr& t) {
+        return t != nullptr;
+    });
 }
