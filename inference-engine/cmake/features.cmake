@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-#these options are aimed to optimize build time on development system
+# these options are aimed to optimize build time on development system
 
-ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE;NOT ANDROID;X86 OR X86_64" OFF)
+ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE;NOT ANDROID;X86_64" OFF)
 
 ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
 
@@ -26,7 +26,7 @@ if (ENABLE_MKL_DNN)
 endif()
 
 # "MKL-DNN library based on OMP or TBB or Sequential implementation: TBB|OMP|SEQ"
-if(ARM OR (MSVC AND (ARM OR AARCH64)) )
+if(X86 OR ARM OR (MSVC AND (ARM OR AARCH64)) )
     set(THREADING_DEFAULT "SEQ")
 else()
     set(THREADING_DEFAULT "TBB")

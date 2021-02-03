@@ -51,7 +51,11 @@ TEST_F(ParameterTests, ParameterAsInt) {
 TEST_F(ParameterTests, ParameterAsUInt) {
     Parameter p = 4u;
     ASSERT_TRUE(p.is<unsigned int>());
+#ifdef __i386__
+    ASSERT_TRUE(p.is<size_t>());
+#else
     ASSERT_FALSE(p.is<size_t>());
+#endif
     unsigned int test = p;
     ASSERT_EQ(4, test);
 }
