@@ -29,18 +29,22 @@ public:
         const ngraph::Shape& inputShape,
         ngraph::element::Type precision,
         ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData,
+        ngraph::builder::subgraph::DequantizationOperations dequantization,
         bool isCrorrect);
+
+    static std::shared_ptr<ngraph::Function> getOriginalWithIncorrectWeights(
+        const ngraph::Shape& inputShape,
+        ngraph::element::Type precision,
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData,
+        bool isCorrect);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithIncorrectWeights(
         const ngraph::Shape& inputShape,
-        ngraph::element::Type precision,
-        ngraph::element::Type dataPrecision,
-        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData,
+        ngraph::element::Type inputPrecision,
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore,
         ngraph::element::Type weightsPrecision,
         std::vector<float> weightsValues,
-        ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter,
         bool isCorrect);
 

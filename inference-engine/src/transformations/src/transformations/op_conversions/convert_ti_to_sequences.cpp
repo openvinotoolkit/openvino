@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTensorIteratorToGRUSequence, "Conver
 
 ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequence() {
     MATCHER_SCOPE(ConvertTensorIteratorToLSTMSequence);
-    auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
-                                                                        ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
+    auto tensor_iterator = pattern::wrap_type<ngraph::opset5::TensorIterator>();
+
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
@@ -180,7 +180,9 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
                     input.replace_source_output(outputs[i]->output(0));
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 outputs[i]->get_output_tensor(0).set_name(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         }
 
@@ -199,8 +201,8 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
 
 ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequence() {
     MATCHER_SCOPE(ConvertTensorIteratorToRNNSequence);
-    auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
-                                                                        ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
+    auto tensor_iterator = pattern::wrap_type<ngraph::opset5::TensorIterator>();
+
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
@@ -334,7 +336,9 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
                     input.replace_source_output(outputs[i]->output(0));
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 outputs[i]->get_output_tensor(0).set_name(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         }
 
@@ -353,8 +357,8 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
 
 ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence() {
     MATCHER_SCOPE(ConvertTensorIteratorToGRUSequence);
-    auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
-                                                                        ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
+    auto tensor_iterator = pattern::wrap_type<ngraph::opset5::TensorIterator>();
+
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
         if (!ti || transformation_callback(ti))
@@ -489,7 +493,9 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
                 for (const auto &input : ti->output(ordered_out_descs[i]->m_output_index).get_target_inputs()) {
                     input.replace_source_output(outputs[i]->output(0));
                 }
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 outputs[i]->get_output_tensor(0).set_name(op::util::create_ie_output_name(ti->output(ordered_out_descs[i]->m_output_index)));
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
         }
 
