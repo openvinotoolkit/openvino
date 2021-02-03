@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace ngraph;
 
@@ -18,8 +19,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShuffleChannels3, "ConvertShuffleCha
 
 ngraph::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
     MATCHER_SCOPE(ConvertShuffleChannels3);
-    auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto shuffle_channels = std::make_shared<::opset3::ShuffleChannels>(input);
+    auto shuffle_channels = pattern::wrap_type<opset3::ShuffleChannels>();
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto shuffle_channels = std::dynamic_pointer_cast<::opset3::ShuffleChannels>(m.get_match_root());

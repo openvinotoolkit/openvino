@@ -18,7 +18,9 @@ void CreateResultOp(Program& p, const std::shared_ptr<ngraph::op::v0::Result>& o
     p.ValidateInputs(op, {1});
 
     auto prev = op->get_input_node_shared_ptr(0);
+    NGRAPH_SUPPRESS_DEPRECATED_START
     auto inputID = op->get_input_source_output(0).get_tensor().get_name();
+    NGRAPH_SUPPRESS_DEPRECATED_END
     if (inputID.empty()) {
         inputID = prev->get_friendly_name();
         if (prev->get_output_size() > 1) {

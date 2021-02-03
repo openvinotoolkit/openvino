@@ -163,10 +163,10 @@ public:
                     ? foundInput->getTensorDesc().getDims()
                     : oneVector);
 
-                if (auto devBlob = _deviceInputs[name]) {
-                    if (preProcessingRequired(foundInput, data, devBlob)) {
-                        addInputPreProcessingFor(name, data, devBlob);
-                    }
+                auto& devBlob = _deviceInputs[name];
+                if (preProcessingRequired(foundInput, data, devBlob)) {
+                    // if no devBlob, performs inplace
+                    addInputPreProcessingFor(name, data, devBlob ? devBlob : _inputs[name]);
                 }
             }
         } else {

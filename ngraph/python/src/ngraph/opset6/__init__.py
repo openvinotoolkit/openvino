@@ -43,6 +43,7 @@ from ngraph.opset1.ops import convolution_backprop_data
 from ngraph.opset1.ops import cos
 from ngraph.opset1.ops import cosh
 from ngraph.opset1.ops import ctc_greedy_decoder
+from ngraph.opset6.ops import ctc_greedy_decoder_seq_len
 from ngraph.opset4.ops import ctc_loss
 from ngraph.opset3.ops import cum_sum
 from ngraph.opset3.ops import cum_sum as cumsum
