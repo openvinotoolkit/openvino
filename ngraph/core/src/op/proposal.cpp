@@ -40,7 +40,7 @@ void op::v0::Proposal::validate_and_infer_types()
     const auto& class_probs_ps = get_input_partial_shape(0);
     const auto& bbox_deltas_ps = get_input_partial_shape(1);
     const auto& image_shape_ps = get_input_partial_shape(2);
-
+    Dimension out_dim = Dimension::dynamic();
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_real(),
                           "Proposal layer input class_probs should have floating point type (",
@@ -108,11 +108,21 @@ void op::v0::Proposal::validate_and_infer_types()
             ").");
     }
 
+    if (class_probs_ps.rank().is_static() && bbox_deltas_ps.rank().is_static())
+    {
+        out_dim = (class_probs_ps[0] & bbox_deltas_ps[0]);
+    }
+    else if (class_probs_ps.rank().is_static())
+    {
+        out_dim = class_probs_ps[0];
+    }
+    else if (bbox_deltas_ps.rank().is_static())
+    {
+        out_dim = bbox_deltas_ps[0];
+    }
+
     // intersect the batch size
-    set_output_type(
-        0,
-        get_input_element_type(0),
-        PartialShape{(class_probs_ps[0] & bbox_deltas_ps[0]) * m_attrs.post_nms_topn, 5});
+    set_output_type(0, get_input_element_type(0), PartialShape{out_dim * m_attrs.post_nms_topn, 5});
 }
 
 shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
@@ -160,7 +170,7 @@ void op::v4::Proposal::validate_and_infer_types()
     // Output shape was inferred in v0's validate_and_infer_types
     const auto proposals_ps = get_output_partial_shape(0);
     auto out_ps = PartialShape{Dimension::dynamic()};
-    if (proposals_ps.rank().is_static())
+    if (proposals_ps.rank().is_static() && proposals_ps.rank().compatible(2))
     {
         out_ps = PartialShape{proposals_ps[0]};
     }

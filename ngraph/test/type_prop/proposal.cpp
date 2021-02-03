@@ -256,6 +256,32 @@ TEST(type_prop, proposal_v0_everything_dynamic_shape_infer)
               (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
 }
 
+TEST(type_prop, proposal_v0_everything_dynamic_class_probs_dynamic_rank_shape_infer)
+{
+    op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 1;
+    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
+}
+
+TEST(type_prop, proposal_v0_everything_dynamic_class_probs_bbox_deltas_dynamic_rank_shape_infer)
+{
+    op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 1;
+    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v0::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
+}
+
 TEST(type_prop, proposal_v0_invalid_class_probs_dynamic)
 {
     op::ProposalAttrs attrs;
@@ -602,6 +628,36 @@ TEST(type_prop, proposal_v4_everything_dynamic_shape_infer)
     attrs.post_nms_topn = 1;
     auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
     auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
+    ASSERT_EQ(op->get_output_partial_shape(1),
+              (PartialShape{Dimension::dynamic() * attrs.post_nms_topn}));
+}
+
+TEST(type_prop, proposal_v4_everything_dynamic_class_probs_dynamic_rank_shape_infer)
+{
+    op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 1;
+    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
+    auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
+
+    auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
+    ASSERT_EQ(op->get_output_partial_shape(0),
+              (PartialShape{Dimension::dynamic() * attrs.post_nms_topn, 5}));
+    ASSERT_EQ(op->get_output_partial_shape(1),
+              (PartialShape{Dimension::dynamic() * attrs.post_nms_topn}));
+}
+
+TEST(type_prop, proposal_v4_everything_dynamic_class_probs_bbox_deltas_dynamic_rank_shape_infer)
+{
+    op::ProposalAttrs attrs;
+    attrs.post_nms_topn = 1;
+    auto class_probs = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
+    auto class_bbox_deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(Rank::dynamic()));
     auto image_shape = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(1));
 
     auto op = make_shared<op::v4::Proposal>(class_probs, class_bbox_deltas, image_shape, attrs);
