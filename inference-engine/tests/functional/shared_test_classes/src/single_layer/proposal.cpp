@@ -75,7 +75,7 @@ void ProposalLayerTest::Compare(
 
         auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
         IE_ASSERT(memory);
-        const auto lockedMemory = memory->wmap();
+        const auto lockedMemory = memory->rmap();
         const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
 
         const auto &precision = actual->getTensorDesc().getPrecision();

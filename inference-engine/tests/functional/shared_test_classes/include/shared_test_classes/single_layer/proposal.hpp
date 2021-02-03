@@ -78,7 +78,7 @@ public:
 
             const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
             if (absoluteDifference <= threshold) {
-            continue;
+                continue;
             }
 
             const auto max = std::max(CommonTestUtils::ie_abs(res),
