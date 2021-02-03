@@ -257,9 +257,11 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
         import subprocess
-        status = subprocess.run([sys.executable, "mo/apply_moc_transformations.py", orig_model_name])
+        path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'offline_transformations.py')
+        status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name])
         if status.returncode != 0:
             # TODO: implement fallback
+            print("[ WARNING ] ApplyMOCTransformations return code != 0, using fallback")
             pass
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
