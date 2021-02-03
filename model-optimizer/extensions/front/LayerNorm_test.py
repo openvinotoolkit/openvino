@@ -17,7 +17,6 @@
 import unittest
 
 import numpy as np
-from math import sqrt
 
 from extensions.front.LayerNorm import LayerNorm
 from mo.utils.ir_engine.compare_graphs import compare_graphs
@@ -42,7 +41,8 @@ nodes_attributes_mvn = {
 
 nodes_attributes_ref = {
     'inp': {'kind': 'op', 'op': 'AnyOp'},
-    'mvn': {'kind': 'op', 'op': 'MVN'},
+    'mvn': {'kind': 'op', 'op': 'MVN', 'eps': 1e-6, 'normalize_variance': 1, 'eps_mode': 'inside_sqrt'},
+    'mvn_param': {'kind': 'op', 'op': 'Const'},
     'out': {'kind': 'op', 'op': 'AnyOp'},
 }
 
@@ -73,6 +73,7 @@ class TestMVNPatternReplacement(unittest.TestCase):
                             nodes_with_edges_only=True)
         graph_ref = build_graph(nodes_attributes_ref,
                                 [('inp', 'mvn'),
+                                 ('mvn_param', 'mvn'),
                                  ('mvn', 'out')],
                                 {}, nodes_with_edges_only=True)
         graph.stage = 'front'

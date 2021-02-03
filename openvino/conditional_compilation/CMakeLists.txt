@@ -26,25 +26,14 @@ target_include_directories(${TARGET_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/
 
 if(SELECTIVE_BUILD STREQUAL "COLLECT")
     target_compile_definitions(${TARGET_NAME} INTERFACE SELECTIVE_BUILD_ANALYZER)
-    include(FetchContent)
-    FetchContent_Declare(
-        ext_seapi
-        GIT_REPOSITORY  https://github.com/intel/IntelSEAPI.git
-        GIT_TAG         7997a782fd3fa5621e275bd31060f9795564e6ca
-        )
-
-    FetchContent_GetProperties(ext_seapi)
-    if(NOT ext_seapi_POPULATED)
-        FetchContent_Populate(ext_seapi)
-        add_custom_target(build-seapi
-            COMMAND pushd ${ext_seapi_SOURCE_DIR} && python ${ext_seapi_SOURCE_DIR}/buildall.py -i && popd
-            )
-    endif()
-    add_dependencies(${TARGET_NAME} build-seapi)
 elseif(SELECTIVE_BUILD STREQUAL "ON")
     if(NOT DEFINED SELECTIVE_BUILD_STAT)
         message(FATAL_ERROR "In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should contain the path to the collected InelSEAPI statistics.\
  Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv")
+    endif()
+    find_package (Python3 COMPONENTS Interpreter)
+    if (NOT Python3_FOUND)
+        message(FATAL_ERROR " Python3 wasn't found!")
     endif()
 
     file(GLOB STAT_FILES ${SELECTIVE_BUILD_STAT})
@@ -64,7 +53,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
     set(GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ccheader.py)
 
     add_custom_command(OUTPUT ${GENERATED_HEADER}
-                       COMMAND python3 ${GENERATOR} --stat ${SELECTIVE_BUILD_STAT} --out ${GENERATED_HEADER}
+                       COMMAND ${Python3_EXECUTABLE} ${GENERATOR} --stat ${SELECTIVE_BUILD_STAT} --out ${GENERATED_HEADER}
                        DEPENDS ${STAT_FILES})
     add_custom_target(conditional_compilation_gen DEPENDS ${GENERATED_HEADER})
     add_dependencies(${TARGET_NAME} conditional_compilation_gen)

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,7 +21,9 @@ import numpy as np
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul, Add
 from extensions.ops.mvn import MVN
+from extensions.ops.range import Range
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.middle.replacement import MiddleReplacementPattern
@@ -29,7 +31,7 @@ from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
 from mo.utils.shape import node_to_get_spatial_dimensions_value, node_to_get_features_dimension_value, \
-    node_to_get_batch_value, new_shape_node_from_shape_nodes
+    node_to_get_batch_value, new_shape_node_from_shape_nodes, get_shape_and_rank_nodes_by_port
 
 
 class GroupNormToMVN(MiddleReplacementPattern):
@@ -115,10 +117,18 @@ class GroupNormToMVN(MiddleReplacementPattern):
 
         # MVN
         mvn_node = MVN(graph, {'name': group_norm_node.name + '/MVN',
-                               'across_channels': 1,
                                'normalize_variance': 1,
-                               'eps': group_norm_node.eps}).create_node()
+                               'eps': group_norm_node.eps,
+                               'eps_mode': 'inside_sqrt'}).create_node()
         mvn_node.in_port(0).connect(reshape_for_mvn_node.out_port(0))
+
+        # MVN axes
+        _, rank = get_shape_and_rank_nodes_by_port(mvn_node.in_port(0), return_as_a_scalar=True)
+        rng = create_op_with_const_inputs(graph, Range, {0: int64_array(1), 2: int64_array(1)},
+                                          {'name': group_norm_node.name + '/Range', 'output_type': np.int64})
+        mvn_node.in_port(1).connect(rng.out_port(0))
+        rng.in_port(1).connect(rank.out_port(0))
+        mvn_node.in_port(0).get_connection().add_destination(rank.in_port(0))
 
         # reshape to the initial shape before multiplying with gamma and adding beta
         reshape_to_initial_shape_node = Reshape(graph, {}).create_node()
