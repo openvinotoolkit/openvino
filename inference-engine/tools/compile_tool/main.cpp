@@ -206,55 +206,6 @@ IE_SUPPRESS_DEPRECATED_END
     return config;
 }
 
-
-using supported_layouts_t = std::unordered_map<std::string, InferenceEngine::Layout>;
-using matchLayoutToDims_t = std::unordered_map<size_t, size_t>;
-
-static InferenceEngine::Layout getLayout(std::string value,
-                                         const supported_layouts_t& supported_layouts) {
-    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
-
-    const auto layout = supported_layouts.find(value);
-    if (layout == supported_layouts.end()) {
-        throw std::logic_error("\"" + value + "\"" + " is not a valid layout");
-    }
-
-    return layout->second;
-}
-
-static InferenceEngine::Layout getLayout(const std::string& value) {
-    static const supported_layouts_t supported_layouts = {
-            { "NCDHW", InferenceEngine::Layout::NCDHW },
-            { "NDHWC", InferenceEngine::Layout::NDHWC },
-            { "NCHW", InferenceEngine::Layout::NCHW },
-            { "NHWC", InferenceEngine::Layout::NHWC },
-            { "CHW", InferenceEngine::Layout::CHW },
-            { "NC", InferenceEngine::Layout::NC },
-            { "C", InferenceEngine::Layout::C },
-    };
-
-    return getLayout(value, supported_layouts);
-}
-
-static bool isMatchLayoutToDims(InferenceEngine::Layout layout, size_t dimension) {
-    static const matchLayoutToDims_t matchLayoutToDims = {
-        {static_cast<size_t>(InferenceEngine::Layout::NCDHW), 5 },
-        {static_cast<size_t>(InferenceEngine::Layout::NDHWC), 5 },
-        {static_cast<size_t>(InferenceEngine::Layout::NCHW), 4 },
-        {static_cast<size_t>(InferenceEngine::Layout::NHWC), 4 },
-        {static_cast<size_t>(InferenceEngine::Layout::CHW), 3 },
-        {static_cast<size_t>(InferenceEngine::Layout::NC), 2 },
-        {static_cast<size_t>(InferenceEngine::Layout::C), 1 }
-    };
-
-    const auto dims = matchLayoutToDims.find(static_cast<size_t>(layout));
-    if (dims == matchLayoutToDims.end()) {
-        throw std::logic_error("Layout is not valid.");
-    }
-
-    return dimension == dims->second;
-}
-
 bool isFP16(InferenceEngine::Precision precision) {
     return precision == InferenceEngine::Precision::FP16;
 }
@@ -301,61 +252,6 @@ static void setDefaultIO(InferenceEngine::CNNNetwork& network) {
     }
 }
 
-static void setLayouts(const InferenceEngine::CNNNetwork& network) {
-    const auto user_layouts_map = parseArgMap(FLAGS_iol);
-
-    auto inputs = network.getInputsInfo();
-    auto outputs = network.getOutputsInfo();
-
-    for (auto&& item : user_layouts_map) {
-        const auto& layer_name = item.first;
-        const auto& user_layout = getLayout(item.second);
-
-        const auto input = inputs.find(layer_name);
-        const auto output = outputs.find(layer_name);
-
-        if (input != inputs.end()) {
-            if (!isMatchLayoutToDims(user_layout, input->second->getTensorDesc().getDims().size())) {
-                throw std::logic_error(item.second + " layout is not applicable to " + layer_name);
-            }
-
-            input->second->setLayout(user_layout);
-        } else if (output != outputs.end()) {
-            if (!isMatchLayoutToDims(user_layout, output->second->getTensorDesc().getDims().size())) {
-                throw std::logic_error(item.second + " layout is not applicable to " + layer_name);
-            }
-
-            output->second->setLayout(user_layout);
-        } else {
-            throw std::logic_error(layer_name + " is not an input neither output");
-        }
-    }
-}
-
-static void processLayout(InferenceEngine::CNNNetwork& network) {
-    if (!FLAGS_il.empty()) {
-        const auto layout = getLayout(FLAGS_il);
-        for (auto&& layer : network.getInputsInfo()) {
-            if (isMatchLayoutToDims(layout, layer.second->getTensorDesc().getDims().size())) {
-                layer.second->setLayout(layout);
-            }
-        }
-    }
-
-    if (!FLAGS_ol.empty()) {
-        const auto layout = getLayout(FLAGS_ol);
-        for (auto&& layer : network.getOutputsInfo()) {
-            if (isMatchLayoutToDims(layout, layer.second->getTensorDesc().getDims().size())) {
-                layer.second->setLayout(layout);
-            }
-        }
-    }
-
-    if (!FLAGS_iol.empty()) {
-        setLayouts(network);
-    }
-}
-
 std::string getFileNameFromPath(const std::string& path,
 #if defined(_WIN32)
                                 const std::string& sep = "\\") {
@@ -389,7 +285,7 @@ int main(int argc, char* argv[]) {
 
         setDefaultIO(network);
         processPrecisions(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
-        processLayout(network);
+        processLayout(network, FLAGS_il, FLAGS_ol, FLAGS_iol);
 
         printInputAndOutputsInfo(network);
 

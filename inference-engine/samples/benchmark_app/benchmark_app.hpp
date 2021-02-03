@@ -103,21 +103,30 @@ static const char shape_message[] = "Optional. Set shape for input. For example,
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
 
-// @brief TBD
+// TODO: duplicate options from compile_tool
 static constexpr char inputs_precision_message[] =
                                              "Optional. Specifies precision for all input layers of the network.";
 
-// @brief TBD
 static constexpr char outputs_precision_message[] =
                                              "Optional. Specifies precision for all output layers of the network.";
 
-// @brief TBD
 static constexpr char iop_message[] =
                                              "Optional. Specifies precision for input and output layers by name.\n"
 "                                             Example: -iop \"input:FP16, output:FP16\".\n"
 "                                             Notice that quotes are required.\n"
 "                                             Overwrites precision from ip and op options for specified layers.";
 
+static constexpr char inputs_layout_message[] =
+                                             "Optional. Specifies layout for all input layers of the network.";
+
+static constexpr char outputs_layout_message[] =
+                                             "Optional. Specifies layout for all input layers of the network.";
+
+static constexpr char iol_message[] =
+                                             "Optional. Specifies layout for input and output layers by name.\n"
+"                                             Example: -iol \"input:NCHW, output:NHWC\".\n"
+"                                             Notice that quotes are required.\n"
+"                                             Overwrites layout from il and ol options for specified layers.";
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -205,15 +214,29 @@ DEFINE_string(shape, "", shape_message);
 /// @brief Define flag for quantization bits (default 16)
 DEFINE_int32(qb, 16, gna_qb_message);
 
-/// @brief TODO
+/// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);
 
-/// @brief TODO
+/// @brief Specify precision for all ouput layers of the network
 DEFINE_string(op, "", outputs_precision_message);
 
-/// @brief TODO
+/// @brief Specify precision for input and output layers by name.\n"
+///        Example: -iop \"input:FP16, output:FP16\".\n"
+///        Notice that quotes are required.\n"
+///        Overwrites layout from ip and op options for specified layers.";
 DEFINE_string(iop, "", iop_message);
 
+/// @brief Specify layout for all input layers of the network
+DEFINE_string(il, "", inputs_layout_message);
+
+/// @brief Specify layout for all output layers of the network
+DEFINE_string(ol, "", outputs_layout_message);
+
+/// @brief Specify layout for input and output layers by name.\n"
+///        Example: -iol \"input:NCHW, output:NHWC\".\n"
+///        Notice that quotes are required.\n"
+///        Overwrites layout from il and ol options for specified layers.";
+DEFINE_string(iol, "", iol_message);
 /**
 * @brief This function show a help message
 */
@@ -252,4 +275,10 @@ static void showUsage() {
     std::cout << "    -load_config              " << load_config_message << std::endl;
 #endif
     std::cout << "    -qb                       " << gna_qb_message << std::endl;
+    std::cout << "    -ip                          <value>     "   << inputs_precision_message     << std::endl;
+    std::cout << "    -op                          <value>     "   << outputs_precision_message    << std::endl;
+    std::cout << "    -iop                        \"<value>\"    "   << iop_message                << std::endl;
+    std::cout << "    -il                          <value>     "   << inputs_layout_message        << std::endl;
+    std::cout << "    -ol                          <value>     "   << outputs_layout_message       << std::endl;
+    std::cout << "    -iol                        \"<value>\"    "   << iol_message                << std::endl;
 }

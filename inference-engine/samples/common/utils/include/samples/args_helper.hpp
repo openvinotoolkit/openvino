@@ -11,20 +11,8 @@
 
 #include <string>
 #include <vector>
-#include <gflags/gflags.h>
-#include <iostream>
-#include <sys/stat.h>
-
-#include <samples/slog.hpp>
-#include <vpu/utils/string.hpp>
 
 #include <inference_engine.hpp>
-
-#ifdef _WIN32
-#include <os/windows/w_dirent.h>
-#else
-#include <dirent.h>
-#endif
 
 /**
 * @brief This function checks input args and existence of specified files in a given folder
@@ -40,10 +28,9 @@ void readInputFilesArguments(std::vector<std::string> &files, const std::string&
 */
 void parseInputFilesArguments(std::vector<std::string> &files);
 
-void processPrecisions(InferenceEngine::CNNNetwork& network, const std::string &ip, const std::string &op,
-        const std::string &iop);
+void processPrecisions(InferenceEngine::CNNNetwork& network, const std::string &ip, const std::string &op, const std::string &iop);
+
+void processLayout(InferenceEngine::CNNNetwork& network, const std::string& il, const std::string& ol, const std::string& iol);
 
 void printInputAndOutputsInfo(const InferenceEngine::CNNNetwork& network);
 
-// TODO: can be removed from header as layout it put here as well
-std::map<std::string, std::string> parseArgMap(std::string argMap);
