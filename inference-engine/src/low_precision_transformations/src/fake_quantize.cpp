@@ -42,33 +42,44 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     }
 
     // FakeQuantize on weights are used without dequantization ScaleShifts
-    if (NetworkHelper::onWeights(layer)) {
-        return false;
-    }
+    if (NetworkHelper::isConstantPath(layer)) {
+        // fold fq if constant just before fq and child layers aren't supported in LPT
+        if (as_type<opset1::Constant>(layer->get_input_node_ptr(0))) {
+            bool nextOpearionsWillBeNotHandled = true;
+            for (auto output : layer->outputs()) {
+                for (auto input : output.get_target_inputs()) {
+                    const auto node = input.get_node();
 
-    if (as_type<opset1::Constant>(layer->get_input_node_ptr(0))) {
-        bool nextOpearionsWillBeNotHandled = true;
-        for (auto output : layer->outputs()) {
-            for (auto input : output.get_target_inputs()) {
-                auto activations = paramsManager->getPrecisionsOnActivations(*input.get_node());
-                if (paramsManager->getPrecisionsOnActivations(*input.get_node()).size() != 0ul) {
-                    nextOpearionsWillBeNotHandled = false;
+                    if (as_type<ngraph::opset1::Reshape>(node)) {
+                        for (const auto& child : NetworkHelper::consumers(node->shared_from_this())) {
+                            if ((as_type_ptr<ngraph::opset1::GroupConvolution>(child)) &&
+                                (paramsManager->getPrecisionsOnActivations(*child).size() != 0ul)) {
+                                nextOpearionsWillBeNotHandled = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (paramsManager->getPrecisionsOnActivations(*input.get_node()).size() != 0ul) {
+                        nextOpearionsWillBeNotHandled = false;
+                        break;
+                    }
+                }
+
+                if (!nextOpearionsWillBeNotHandled) {
                     break;
                 }
             }
 
-            if (!nextOpearionsWillBeNotHandled) {
-                break;
+            if (nextOpearionsWillBeNotHandled) {
+                const std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(layer);
+                if (as_type_ptr<opset1::Constant>(resultConstant)) {
+                    replace_node(layer, resultConstant);
+                    return true;
+                }
             }
         }
-
-        if (nextOpearionsWillBeNotHandled) {
-            const std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(layer);
-            if (as_type_ptr<opset1::Constant>(resultConstant)) {
-                replace_node(layer, resultConstant);
-                return true;
-            }
-        }
+        return false;
     }
 
     if (!QuantizationDetails::outputLayoutIsSupported(layer)) {

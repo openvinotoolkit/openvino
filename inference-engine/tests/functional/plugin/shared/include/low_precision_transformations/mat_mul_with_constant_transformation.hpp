@@ -17,10 +17,10 @@ namespace LayerTestsDefinitions {
 class MatMulWithConstantTransformationTestValues {
 public:
     ngraph::Shape inputShape;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
     ngraph::Shape weightsConstShape;
     std::vector<float> weightsConstValues;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnWeights;
     std::string layerName;
     std::string expectedKernelType;
 };

@@ -328,6 +328,9 @@ protected:
 
     void addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const;
 
+    //TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
+    bool canBeTransformedSpecialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const;
+
     template <typename Operation>
     void addSingleNodePattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context) const {
         using namespace ngraph;

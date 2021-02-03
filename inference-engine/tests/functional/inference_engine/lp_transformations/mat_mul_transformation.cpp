@@ -180,12 +180,12 @@ std::vector<MatMullTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
+            { ngraph::element::f32, { 127.f }, { 0.02f } },
             ngraph::element::i8,
-            { },
+            { ngraph::element::f32, {}, { 0.03f } },
             ngraph::element::f32,
             ngraph::element::f32,
-            { {}, {}, { 0.0006f } },
+            { {}, {}, {} },
         }
     },
     // I8 + I8
@@ -199,12 +199,12 @@ std::vector<MatMullTransformationTestValues> testValues = {
         },
         {
             ngraph::element::i8,
-            { {}, {{127.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
+            { ngraph::element::f32, { 127.f }, { 0.02f } },
             ngraph::element::i8,
-            { },
+            { ngraph::element::f32, {}, { 0.03f } },
             ngraph::element::f32,
             ngraph::element::f32,
-            { {}, {}, { 0.0006f } },
+            { {}, {}, {} },
         }
     },
     // U8 + I8, Subtract with not int
@@ -218,12 +218,12 @@ std::vector<MatMullTransformationTestValues> testValues = {
         },
         {
             ngraph::element::u8,
-            { {}, {{128.f}, ngraph::element::f32, ngraph::Shape{ }, false}, {} },
+            { ngraph::element::f32, { 127.5f }, { 0.02f } },
             ngraph::element::i8,
-            { },
+            { ngraph::element::f32, {}, { 0.03f } },
             ngraph::element::f32,
             ngraph::element::f32,
-            { {}, {}, { 0.0006f } },
+            { {}, {}, {} },
         }
     },
     // U8 + FP32

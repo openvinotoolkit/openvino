@@ -39,10 +39,10 @@ public:
     // Collect and return a vector with all nodes that consumes any of the `node` output
     static std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node);
 
-    static Shape alignShapeForChannelDim(const Shape& shape, Rank rank);
+    // return true if op is on a constant path
+    static bool isConstantPath(const std::shared_ptr<Node>& op);
 
-    // return true if at least one child uses layer on weights
-    static bool onWeights(std::shared_ptr<Node> layer);
+    static Shape alignShapeForChannelDim(const Shape& shape, Rank rank);
 
     template <typename OperationType>
     static std::shared_ptr<Node> setOutDataPrecisionForTypeRelaxed(std::shared_ptr<OperationType> operation, const element::Type& precision);

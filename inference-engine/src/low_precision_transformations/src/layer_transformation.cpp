@@ -113,6 +113,20 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
     return true;
 }
 
+bool LayerTransformation::canBeTransformedSpecialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    if (!isQuantized(layer)) {
+        return false;
+    }
+
+    for (const auto& output : layer->outputs()) {
+        const size_t size = output.get_shape().size();
+        if ((size < 2ul) || (size > 5ul)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, const size_t parentIndex) const {
     return canSubtractBeHandled(op, NetworkHelper::getDequantization(op, parentIndex));
 }

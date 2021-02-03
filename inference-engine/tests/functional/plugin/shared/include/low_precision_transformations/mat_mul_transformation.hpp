@@ -19,6 +19,8 @@ public:
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData1;
     ngraph::Shape inputShape2;
     ngraph::builder::subgraph::FakeQuantizeOnData fqOnData2;
+    std::string expectedKernelName;
+    std::string expectedRuntimePrecision;
 };
 
 typedef std::tuple<
@@ -36,6 +38,7 @@ public:
 
 protected:
     void SetUp() override;
+    void Run() override;
 
 private:
     void validate();

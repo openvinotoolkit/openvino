@@ -114,18 +114,15 @@ bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQu
         return false;
     }
 
-    std::vector<float> outputLowValues;
-    std::vector<float> outputHighValues;
-    size_t outputIntervalsCount;
-    getOutputIntervals(quantize, outputLowValues, outputHighValues, outputIntervalsCount);
+    const size_t inputLowValuesSize = as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(1))->cast_vector<float>().size();
+    const size_t inputHighValuesSize = as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(2))->cast_vector<float>().size();
+    if (inputLowValuesSize != inputHighValuesSize) {
+        return false;
+    }
 
-    // TODO: FQ on weights - temporary workaround:
-    // if (outputIntervalsCount == quantize->get_output_shape(0)[0]) {
-    //    return true;
-    // }
-
-    const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::onWeights(quantize));
-    if ((outputIntervalsCount != 1ul) && (outputIntervalsCount != outputChannelsCount)) {
+    const size_t outputLowValuesSize = as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(3))->cast_vector<float>().size();
+    const size_t outputHighValuesSize = as_type_ptr<opset1::Constant>(quantize->get_input_node_shared_ptr(4))->cast_vector<float>().size();
+    if (outputLowValuesSize != outputHighValuesSize) {
         return false;
     }
 
@@ -189,7 +186,7 @@ QuantizationDetails QuantizationDetails::getDetails(std::shared_ptr<opset1::Fake
     size_t outputIntervalsCount;
     getOutputIntervals(quantize, outputLowValues, outputHighValues, outputIntervalsCount);
 
-    const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::onWeights(quantize));
+    const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::isConstantPath(quantize));
     if (!outputLayoutIsSupported(quantize)) {
         THROW_IE_LPT_EXCEPTION(*quantize) << "Expected output channels count " << outputIntervalsCount << " but found " << outputChannelsCount;
     }
