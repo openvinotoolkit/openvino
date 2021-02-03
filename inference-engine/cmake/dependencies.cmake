@@ -144,18 +144,27 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
             elseif(DEFINED THIRDPARTY_SERVER_PATH)
                 set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
             else()
-                message(FATAL_ERROR "THIRDPARTY_SERVER_PATH is not set (env or cmake cmd-line define). Pre-production TBB cannot be loaded. Aborting...")
+                message(WARNING "THIRDPARTY_SERVER_PATH is not set (env or cmake cmd-line define). Pre-production TBB (with Hybrid support) cannot be loaded!")
             endif()
             message(STATUS "THIRDPARTY_SERVER_PATH=${IE_PATH_TO_DEPS}")
         endif()
     if (WIN32 AND X86_64)
-        #TODO: add target_path to be platform specific as well, to avoid following if
-        RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.2.0-win_strip.zip"
-                TARGET_PATH "${TEMP}/tbb"
-                ENVIRONMENT "TBBROOT"
-                SHA256 "d346449f6d43293c2562b3d60a0354fcc89e4da243c0b6a08e7a78360527aa8f")
-        log_rpath_from_dir(TBB "${TBB}/redist/intel64/vc14")
+        if (DEFINED IE_PATH_TO_DEPS)
+            # pre-production version
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_WIN "oneapi-tbb-2021.2.0-win_strip.zip"
+                    TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT"
+                    SHA256 "d346449f6d43293c2562b3d60a0354fcc89e4da243c0b6a08e7a78360527aa8f")
+            log_rpath_from_dir(TBB "${TBB}/redist/intel64/vc14")
+        else()
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_WIN "tbb2020_20200415_win.zip"
+                    TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT"
+                    SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
+            log_rpath_from_dir(TBB "${TBB}/bin")
+        endif()
     elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
@@ -164,11 +173,20 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
         log_rpath_from_dir(TBB "${TBB}/lib")
     elseif(LINUX AND X86_64)
-        RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.2.0-lin_strip.tgz"
-                TARGET_PATH "${TEMP}/tbb"
-                SHA256 "511ba7091c1e2e03f6a67bce79bd9b54c5b1c4ce82b7fe0760a1ebf4b4dd4190")
-        log_rpath_from_dir(TBB "${TBB}/lib/intel64/gcc4.8")
+        if (DEFINED IE_PATH_TO_DEPS)
+            # pre-production version
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_LIN "oneapi-tbb-2021.2.0-lin_strip.tgz"
+                    TARGET_PATH "${TEMP}/tbb"
+                    SHA256 "511ba7091c1e2e03f6a67bce79bd9b54c5b1c4ce82b7fe0760a1ebf4b4dd4190")
+            log_rpath_from_dir(TBB "${TBB}/lib/intel64/gcc4.8")
+        else()
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
+                    TARGET_PATH "${TEMP}/tbb"
+                    SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+            log_rpath_from_dir(TBB "${TBB}/lib")
+        endif()
     elseif(LINUX AND AARCH64)
         RESOLVE_DEPENDENCY(TBB
                 ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
@@ -177,11 +195,20 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                 SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b")
         log_rpath_from_dir(TBB "${TBB}/lib")
     elseif(APPLE AND X86_64)
-        RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_MAC "oneapi-tbb-2021.2.0-mac_strip.tgz"
-                TARGET_PATH "${TEMP}/tbb"
-                ENVIRONMENT "TBBROOT"
-                SHA256 "02f1438c7b0f8c83b08a762d23307cd7b6177d044fcda3efd6f0c2f0694b1d20")
+        if (DEFINED IE_PATH_TO_DEPS)
+            # pre-production version
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_MAC "oneapi-tbb-2021.2.0-mac_strip.tgz"
+                    TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT"
+                    SHA256 "02f1438c7b0f8c83b08a762d23307cd7b6177d044fcda3efd6f0c2f0694b1d20")
+        else()
+            RESOLVE_DEPENDENCY(TBB
+                    ARCHIVE_LIN "tbb2020_20200404_mac.tgz"
+                    TARGET_PATH "${TEMP}/tbb"
+                    SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
+            log_rpath_from_dir(TBB "${TBB}/lib")
+        endif()
         log_rpath_from_dir(TBB "${TBB}/lib")
     else()
         message(FATAL_ERROR "TBB is not available on current platform")
@@ -195,6 +222,13 @@ endif ()
 
 if (ENABLE_OPENCV)
     reset_deps_cache(OpenCV_DIR)
+    find_package(TBB PATHS ${TBBROOT}/cmake ${TBBROOT}/lib/cmake/tbb)
+    if (TBB_FOUND)
+        if (TBB_VERSION VERSION_LESS 2021)
+            set(NEED_OCV_COMPILED_WITH_OLD_TBB 1)
+        endif()
+    endif()
+
 
     set(OPENCV_VERSION "4.5.1")
     set(OPENCV_BUILD "044")
@@ -205,7 +239,7 @@ if (ENABLE_OPENCV)
     elseif(DEFINED THIRDPARTY_SERVER_PATH)
         set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
     else()
-        message(WARNING "OpenCV is not found!")
+        message(WARNING "Internal (e.g. pre-production) versions of the OpenCV are not available!")
     endif()
 
     if (AARCH64)
@@ -249,20 +283,33 @@ if (ENABLE_OPENCV)
                 set(OPENCV_SUFFIX "centos7")
                 set(OPENCV_HASH "a79623cd78dd586443924960d7ff654256a91da6566a8f19fed43a5856d88245")
             elseif (LINUX_OS_NAME MATCHES "CentOS 8")
-                set(OPENCV_BUILD "061-try_onetbb")
                 set(OPENCV_SUFFIX "centos8")
-                set(OPENCV_HASH "7bf5db868dd2260e012c58bedcb4071ea57daa3cfb1e0cc1d8b2c71948972e11")
+                #the rest is same as for Ubuntu18
+                if (NEED_OCV_COMPILED_WITH_OLD_TBB OR NOT DEFINED IE_PATH_TO_DEPS)
+                    set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
+                else()
+                    set(OPENCV_BUILD "061-try_onetbb")
+                    set(OPENCV_HASH "7bf5db868dd2260e012c58bedcb4071ea57daa3cfb1e0cc1d8b2c71948972e11")
+                endif()
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04")
                 set(OPENCV_SUFFIX "ubuntu16")
                 set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04")
-                set(OPENCV_BUILD "061-try_onetbb")
                 set(OPENCV_SUFFIX "ubuntu18")
-                set(OPENCV_HASH "7bf5db868dd2260e012c58bedcb4071ea57daa3cfb1e0cc1d8b2c71948972e11")
+                if (NEED_OCV_COMPILED_WITH_OLD_TBB OR NOT DEFINED IE_PATH_TO_DEPS)
+                    set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
+                else()
+                    set(OPENCV_BUILD "061-try_onetbb")
+                    set(OPENCV_HASH "7bf5db868dd2260e012c58bedcb4071ea57daa3cfb1e0cc1d8b2c71948972e11")
+                endif()
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
-                set(OPENCV_BUILD "061-try_onetbb")
                 set(OPENCV_SUFFIX "ubuntu20")
-                set(OPENCV_HASH "192f71031cafcf254a4b6218d59cabbdf9f254ae33033fe2761382dcb1d23e83")
+                if (NEED_OCV_COMPILED_WITH_OLD_TBB OR NOT DEFINED IE_PATH_TO_DEPS)
+                    set(OPENCV_HASH "2b7808d002864acdc5fc0b19cd30dadc31a37cc267931cad605f23f2383bfc21")
+                else()
+                    set(OPENCV_BUILD "061-try_onetbb")
+                    set(OPENCV_HASH "192f71031cafcf254a4b6218d59cabbdf9f254ae33033fe2761382dcb1d23e83")
+                endif()
             else()
                 message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
             endif()
