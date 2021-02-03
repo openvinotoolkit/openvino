@@ -40,7 +40,6 @@ void op::v0::Proposal::validate_and_infer_types()
     const auto& class_probs_ps = get_input_partial_shape(0);
     const auto& bbox_deltas_ps = get_input_partial_shape(1);
     const auto& image_shape_ps = get_input_partial_shape(2);
-    auto out_dimension = Dimension::dynamic();
 
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_real(),
