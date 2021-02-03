@@ -209,7 +209,8 @@ InterpolateEvalHelper::InfoForLinearONNXMode5D
     return result;
 }
 
-InterpolateEvalHelper::InfoForGenericLinearONNXMode get_info_for_generic_linear_onnx()
+InterpolateEvalHelper::InfoForGenericLinearONNXMode
+    InterpolateEvalHelper::get_info_for_generic_linear_onnx()
 {
     InfoForGenericLinearONNXMode result;
 
