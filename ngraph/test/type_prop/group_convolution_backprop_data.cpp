@@ -24,11 +24,11 @@ using namespace ngraph;
 TEST(type_prop, group_conv_backprop_data)
 {
     // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-    const auto weights = make_shared<op::Parameter>(element::f32, Shape{2, 8, 2, 3, 3});
-    // data batch shape: [N, C_IN * GROUPS x H x W]
+    const auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 8, 2, 3, 3});
+    // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 6, 6});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-        data, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+        data, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
     EXPECT_EQ(gcbd->get_element_type(), element::f32);
     EXPECT_EQ(gcbd->get_output_shape(0), (Shape{1, 4, 8, 8}));
     EXPECT_EQ(gcbd->get_strides(), (Strides{1, 1}));
@@ -41,13 +41,13 @@ TEST(type_prop, group_conv_backprop_data)
 
 TEST(type_prop, group_conv_backprop_data_output_shape_as_const)
 {
-    // data batch shape: [N, C_IN * GROUPS x H x W]
+    // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
     // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-    const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+    const auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
     const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-        data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+        data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
     EXPECT_EQ(gcbd->get_element_type(), element::f32);
     EXPECT_EQ(gcbd->get_output_shape(0), (Shape{1, 2, 3, 3}));
     EXPECT_EQ(gcbd->get_strides(), (Strides{1, 1}));
@@ -60,37 +60,207 @@ TEST(type_prop, group_conv_backprop_data_output_shape_as_const)
 
 TEST(type_prop, group_conv_backprop_data_output_shape_as_param)
 {
-    // data batch shape: [N, C_IN * GROUPS x H x W]
+    // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
     // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-    const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+    const auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
     const auto output_shape = make_shared<op::Parameter>(element::i64, Shape{2});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-        data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+        data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
     EXPECT_EQ(gcbd->get_element_type(), element::f32);
-    EXPECT_EQ(gcbd->get_output_partial_shape(0), (PartialShape::dynamic()));
+    EXPECT_EQ(gcbd->get_output_partial_shape(0),
+              (PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
     EXPECT_EQ(gcbd->get_auto_pad(), op::PadType::SAME_UPPER);
 }
 
-TEST(type_prop, group_conv_bprop_data_v1_output_partial_shape_dynamic_static_rank)
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_1)
 {
-    PartialShape shape_filter{4, 5, 2, 3, 3};
-    auto filters = make_shared<op::Parameter>(element::f32, shape_filter);
-    PartialShape shape_data{Dimension(), 20, 224, 224};
-    auto data = make_shared<op::Parameter>(element::f32, shape_data);
+    // data batch shape: [N, C_IN * GROUPS, H, W]
+    const auto data = make_shared<op::Parameter>(
+        element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 5, 5});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    const auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+    const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
+    const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(out_pshape.same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
+}
+
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_2)
+{
+    // data batch shape: [N, C_IN * GROUPS, H, W]
+    const auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 16, 5, 5});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    const auto filters =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 16, 2, 3, 3});
+    const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
+    const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(out_pshape.same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
+}
+
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_3)
+{
+    // data batch shape: [N, C_IN * GROUPS, H, W]
+    const auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 16, 5, 5});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    const auto filters = make_shared<op::Parameter>(
+        element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 2, 3, 3});
+    const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
+    const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(
+        out_pshape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
+}
+
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_4)
+{
+    // data batch shape: [N, C_IN * GROUPS, H, W]
+    const auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 5, 5});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    const auto filters =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 16, 2, 3, 3});
+    const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
+    const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(out_pshape.same_scheme(PartialShape{1, Dimension::dynamic(), 3, 3}));
+}
+
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_5)
+{
+    // data batch shape: [N, C_IN * GROUPS, H, W]
+    const auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 16, 5, 5});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    const auto filters = make_shared<op::Parameter>(
+        element::f32, PartialShape{Dimension::dynamic(), 16, Dimension::dynamic(), 3, 3});
+    const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
+    const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(
+        out_pshape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
+}
+
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_6)
+{
+    // data batch shape: [N, C_IN * GROUPS, H, W]
+    auto data = make_shared<op::Parameter>(
+        element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 224, 224});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    auto filters = make_shared<op::Parameter>(element::f32, PartialShape{4, 5, 2, 3, 3});
     auto strides = Strides{2, 2};
     auto dilations = Strides{1, 1};
     auto padding_begin = CoordinateDiff{1, 1};
     auto padding_end = CoordinateDiff{1, 1};
 
-    auto conv1 = make_shared<op::v1::GroupConvolutionBackpropData>(
+    auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, strides, padding_begin, padding_end, dilations);
 
-    ASSERT_TRUE(conv1->get_output_partial_shape(0).rank().is_static());
-    ASSERT_TRUE(conv1->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    ASSERT_TRUE(conv1->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(conv1->get_output_partial_shape(0).same_scheme(
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
         PartialShape{Dimension::dynamic(), 8, 447, 447}));
+}
+
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_7)
+{
+    // data batch shape: [N, C_IN * GROUPS, H, W]
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 20, 224, 224});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    auto filters =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 5, 2, 3, 3});
+    auto strides = Strides{2, 2};
+    auto dilations = Strides{1, 1};
+    auto padding_begin = CoordinateDiff{1, 1};
+    auto padding_end = CoordinateDiff{1, 1};
+
+    auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, strides, padding_begin, padding_end, dilations);
+
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, 8, 447, 447}));
+}
+
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_8)
+{
+    // data batch shape: [N, C_IN * GROUPS, H, W]
+    auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 20, 224, 224});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    auto filters = make_shared<op::Parameter>(
+        element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 2, 3, 3});
+    auto strides = Strides{2, 2};
+    auto dilations = Strides{1, 1};
+    auto padding_begin = CoordinateDiff{1, 1};
+    auto padding_end = CoordinateDiff{1, 1};
+
+    auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, strides, padding_begin, padding_end, dilations);
+
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
+        PartialShape{Dimension::dynamic(), Dimension::dynamic(), 447, 447}));
+}
+
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_9)
+{
+    // data batch shape: [N, C_IN * GROUPS, H, W]
+    auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 224, 224});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    auto filters =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 5, 2, 3, 3});
+    auto strides = Strides{2, 2};
+    auto dilations = Strides{1, 1};
+    auto padding_begin = CoordinateDiff{1, 1};
+    auto padding_end = CoordinateDiff{1, 1};
+
+    auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, strides, padding_begin, padding_end, dilations);
+
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
+        PartialShape{1, Dimension::dynamic(), 447, 447}));
+}
+
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_10)
+{
+    // data batch shape: [N, C_IN * GROUPS, H, W]
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 20, 224, 224});
+    // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
+    auto filters = make_shared<op::Parameter>(
+        element::f32, PartialShape{Dimension::dynamic(), Dimension::dynamic(), 2, 3, 3});
+    auto strides = Strides{2, 2};
+    auto dilations = Strides{1, 1};
+    auto padding_begin = CoordinateDiff{1, 1};
+    auto padding_end = CoordinateDiff{1, 1};
+
+    auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
+        data, filters, strides, padding_begin, padding_end, dilations);
+
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
+        PartialShape{1, Dimension::dynamic(), 447, 447}));
 }
 
 TEST(type_prop, group_conv_backprop_data_invalid_element_types)
@@ -98,12 +268,12 @@ TEST(type_prop, group_conv_backprop_data_invalid_element_types)
     try
     {
         // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-        const auto weights = make_shared<op::Parameter>(element::f32, Shape{2, 8, 2, 3, 3});
-        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 8, 2, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS, H, W]
         const auto data = make_shared<op::Parameter>(element::f16, Shape{1, 16, 6, 6});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-            data, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
-        // data and weights should be of same element type
+            data, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+        // data and filters should be of same element type
         FAIL() << "Incompatible element types not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -118,13 +288,13 @@ TEST(type_prop, group_conv_backprop_data_invalid_element_types)
 
     try
     {
-        // data batch shape: [N, C_IN * GROUPS x H x W]
+        // data batch shape: [N, C_IN * GROUPS, H, W]
         const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-        const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+        const auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
         const auto output_shape = op::Constant::create(element::f16, Shape{2}, {3, 3});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-            data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+            data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
         // output shape input element type must be of integer type
         FAIL() << "Incompatible element types not detected";
     }
@@ -145,11 +315,11 @@ TEST(type_prop, group_conv_backprop_data_invalid_input_ranks)
     // filter partial shape provided is rank 6 (Conv3D)
     try
     {
-        const auto weights = make_shared<op::Parameter>(
+        const auto filters = make_shared<op::Parameter>(
             element::f32, PartialShape{2, 8, 2, 3, 3, Dimension::dynamic()});
         const auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 16, 6, 6});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-            data, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+            data, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // data and weight have incompatible ranks
         FAIL() << "Incompatible input ranks not detected";
     }
@@ -167,11 +337,11 @@ TEST(type_prop, group_conv_backprop_data_invalid_input_ranks)
     // filter partial shape provided is rank 5 (Conv2D)
     try
     {
-        const auto weights = make_shared<op::Parameter>(element::f32, PartialShape{2, 8, 2, 3, 3});
+        const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{2, 8, 2, 3, 3});
         const auto data = make_shared<op::Parameter>(
             element::f32, PartialShape{1, Dimension::dynamic(), 16, 6, 6});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-            data, weights, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
+            data, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
         // data and weight have incompatible ranks
         FAIL() << "Incompatible input ranks not detected";
     }
@@ -188,10 +358,10 @@ TEST(type_prop, group_conv_backprop_data_invalid_input_ranks)
     try
     {
         const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
-        const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+        const auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
         const auto output_shape = op::Constant::create(element::i64, Shape{2, 1}, {3, 3});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-            data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+            data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
         // Output shape optional input must be of rank 1
         FAIL() << "Incompatible output shape input rank not detected.";
     }
@@ -211,11 +381,11 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
     try
     {
         // filter shape: [GROUPS, C_IN, C_OUT, kH, kW]
-        const auto weights = make_shared<op::Parameter>(element::f32, Shape{21, 16, 20, 3, 3});
-        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto filters = make_shared<op::Parameter>(element::f32, Shape{21, 16, 20, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS, H, W]
         const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(data,
-                                                                            weights,
+                                                                            filters,
                                                                             Strides{1, 1},
                                                                             CoordinateDiff{2, 2},
                                                                             CoordinateDiff{2, 2},
@@ -236,11 +406,11 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
     try
     {
         // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-        const auto weights = make_shared<op::Parameter>(element::f32, Shape{4, 16, 20, 3, 3});
-        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto filters = make_shared<op::Parameter>(element::f32, Shape{4, 16, 20, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS, H, W]
         const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(data,
-                                                                            weights,
+                                                                            filters,
                                                                             Strides{1, 1},
                                                                             CoordinateDiff{2, 2},
                                                                             CoordinateDiff{2, 2},
@@ -263,11 +433,11 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
     try
     {
         // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-        const auto weights = make_shared<op::Parameter>(element::f32, Shape{2, 8, 2, 3, 3});
-        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 8, 2, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS, H, W]
         const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 6, 6});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-            data, weights, Strides{}, CoordinateDiff{1}, CoordinateDiff{1, 1}, Strides{});
+            data, filters, Strides{}, CoordinateDiff{1}, CoordinateDiff{1, 1}, Strides{});
         // pads_begin and pads_end do not match spatial dimensions
         FAIL() << "Incompatible pads number of spatial dimensions not detected.";
     }
@@ -284,11 +454,11 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
     try
     {
         // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-        const auto weights = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
-        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto filters = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS, H, W]
         const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-            data, weights, Strides{1}, CoordinateDiff{2, 2}, CoordinateDiff{2, 2}, Strides{1, 1});
+            data, filters, Strides{1}, CoordinateDiff{2, 2}, CoordinateDiff{2, 2}, Strides{1, 1});
         // Strides have incompatible number of spatial dimensions
         FAIL() << "Incompatible stride number of spatial dimensions not detected.";
     }
@@ -306,11 +476,11 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
     try
     {
         // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-        const auto weights = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
-        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto filters = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS, H, W]
         const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(data,
-                                                                            weights,
+                                                                            filters,
                                                                             Strides{1, 1},
                                                                             CoordinateDiff{2, 2},
                                                                             CoordinateDiff{2, 2},
@@ -332,11 +502,11 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
     try
     {
         // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-        const auto weights = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
-        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto filters = make_shared<op::Parameter>(element::f32, Shape{4, 4, 20, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS, H, W]
         const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(data,
-                                                                            weights,
+                                                                            filters,
                                                                             Strides{1, 1},
                                                                             CoordinateDiff{2, 2},
                                                                             CoordinateDiff{2, 2},
@@ -360,12 +530,12 @@ TEST(type_prop, group_conv_backprop_data_invalid_params)
     try
     {
         // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
-        const auto weights = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
-        // data batch shape: [N, C_IN * GROUPS x H x W]
+        const auto filters = make_shared<op::Parameter>(element::f32, Shape{1, 16, 2, 3, 3});
+        // data batch shape: [N, C_IN * GROUPS, H, W]
         const auto data = make_shared<op::Parameter>(element::f32, Shape{1, 16, 5, 5});
         const auto output_shape = op::Constant::create(element::i64, Shape{3}, {3, 3, 3});
         const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-            data, weights, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
+            data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
         FAIL() << "Incompatible output shape optional input not detected";
     }
     catch (const NodeValidationFailure& error)
