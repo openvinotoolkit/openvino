@@ -54,7 +54,9 @@ namespace ngraph
                 /// \param values A vector of literals for initializing the tensor constant. The
                 ///               size of values must match the size of the shape.
                 template <typename T>
-                Constant(const element::Type& type, Shape shape, const std::vector<T>& values)
+                Constant(const element::Type& type,
+                         const Shape& shape,
+                         const std::vector<T>& values)
                     : Constant(type, shape)
                 {
                     NODE_VALIDATION_CHECK(
@@ -91,7 +93,7 @@ namespace ngraph
                 ///               value is broadcast to the specified shape.
                 template <class T,
                           class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-                Constant(const element::Type& type, Shape shape, T value)
+                Constant(const element::Type& type, const Shape& shape, T value)
                     : Constant(type, shape)
                 {
                     auto size = shape_size(m_shape);
@@ -224,7 +226,7 @@ namespace ngraph
                 /// \param shape The shape of the tensor constant.
                 /// \param values A list of string values to use as the constant data.
                 Constant(const element::Type& type,
-                         Shape shape,
+                         const Shape& shape,
                          const std::vector<std::string>& values);
 
                 /// \brief Constructs a tensor constant with the supplied data
@@ -265,6 +267,8 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
 
                 // Don't constant fold a constant; it would make a copy
                 bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override

@@ -28,7 +28,6 @@ const std::vector<FakeQuantizeAndTwoOutputBranchesWithConvolution> testValues = 
     }
 };
 
-// TODO: add something to avoid cleanup and enable
 INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
