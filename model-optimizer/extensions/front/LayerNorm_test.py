@@ -110,6 +110,7 @@ class TestMVNPatternReplacement(unittest.TestCase):
                             nodes_with_edges_only=True)
         graph_ref = build_graph(nodes_attributes_ref,
                                 [('inp', 'mvn'),
+                                 ('mvn_param', 'mvn'),
                                  ('mvn', 'out')],
                                 {}, nodes_with_edges_only=True)
         graph.stage = 'front'
