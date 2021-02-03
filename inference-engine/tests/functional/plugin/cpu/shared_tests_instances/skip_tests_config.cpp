@@ -34,8 +34,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
 #endif
         // TODO: Issue: 43793
-        R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
-        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
+        R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
+        R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
+        R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
+        R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
+        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
         // TODO: Issue: 40957
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
