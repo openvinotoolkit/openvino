@@ -5,16 +5,21 @@
 #include "ngraph_test_utils.hpp"
 
 #include <cassert>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <queue>
+#include <sstream>
 #include <string>
+#include <type_traits>
+#include <typeinfo>
 #include <vector>
 
 #include <ngraph/function.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
 namespace {
@@ -118,7 +123,7 @@ using SubGraphOpInputDescription =
 using SubGraphOpOutputDescription =
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>;
 
-using SpecialBodyPorts = ngraph::op::v5::Loop::SpecialBodyPorts;
+using SpecialBodyPorts = ngraph::opset6::Loop::SpecialBodyPorts;
 
 namespace storage {
 
@@ -442,6 +447,55 @@ struct Equal<SpecialBodyPorts> {
 
 }  // namespace equal
 
+namespace str {
+template <typename...>
+struct Void_t {
+    using type = void;
+};
+
+template <typename T, typename = void>
+struct Get {
+    static std::string value(const T&) {
+        return std::string("[Ups can't convert this to value: ") + typeid(T).name() + "]";
+    }
+};
+
+template <typename T>
+struct Get<T, typename Void_t<decltype(std::to_string(std::declval<T>()))>::type> {
+    static std::string value(const T& v) {
+        return "[" + std::to_string(v) + "]";
+    }
+};
+
+template <>
+struct Get<std::string, void> {
+    static std::string value(const std::string& v) {
+        return "[" + v + "]";
+    }
+};
+
+template <typename T>
+struct Get<
+    T,
+    typename Void_t<decltype(begin(std::declval<T>())), decltype(end(std::declval<T>()))>::type> {
+    template <typename Container>
+    static std::string join(const Container& c, const char* glue = ", ") {
+        std::stringstream oss;
+        const char* s = "";
+        for (const auto& v : c) {
+            oss << s << v;
+            s = glue;
+        }
+        return oss.str();
+    }
+
+    static std::string value(const T& v) {
+        return "[" + join(v) + "]";
+    }
+};
+
+}  // namespace str
+
 class ReadAndCompareAttributes : public ngraph::AttributeVisitor {
 public:
     ReadAndCompareAttributes(const ReadAndStoreAttributes& ref)
@@ -476,13 +530,13 @@ public:
         m_visited_attributes.insert(name);
         const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
         if (!ref_value) {
-            m_cmp_result += "missing attribute name: " + name;
+            m_cmp_result += "missing attribute name: '" + name + "'";
             return;
         }
 
         if (adapter.size() != ref_value->size() ||
             std::memcmp(ref_value->data(), adapter.get_ptr(), ref_value->size()) != 0) {
-            m_cmp_result += "mismatch in value: " + name;
+            m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
             return;
         }
     }
@@ -547,13 +601,14 @@ private:
         m_visited_attributes.insert(name);
         const auto ref_value = m_attr_ref.get<AttrValue>(name);
         if (!ref_value) {
-            m_cmp_result += "missing attribute name: " + name;
+            m_cmp_result += "missing attribute name: '" + name + "'";
             return;
         }
 
         if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
-            m_cmp_result += "mismatch in value: " + name;
-            return;
+            m_cmp_result += "mismatch in value: '" + name +
+                            "' : " + str::Get<AttrValue>::value(*ref_value) + " vs " +
+                            str::Get<AttrValue>::value(attr_value);
         }
     }
 
@@ -599,6 +654,7 @@ private:
     attr_comparison::ReadAndStoreAttributes m_store_attr;
     attr_comparison::ReadAndCompareAttributes m_compare_attr;
 };
+
 }  // namespace
 
 FunctionsComparator::Result FunctionsComparator::compare(
@@ -766,7 +822,8 @@ FunctionsComparator::Result FunctionsComparator::compare(
 
             if (tensor1.get_names() != tensor2.get_names()) {
                 err_log << "Output tensors names are different for nodes: "
-                    << node1->get_friendly_name() << " and " << node2->get_friendly_name() << std::endl;
+                        << node1->get_friendly_name() << " and " << node2->get_friendly_name()
+                        << std::endl;
             }
             if (!node1->output(i).get_partial_shape().same_scheme(
                     node2->output(i).get_partial_shape())) {

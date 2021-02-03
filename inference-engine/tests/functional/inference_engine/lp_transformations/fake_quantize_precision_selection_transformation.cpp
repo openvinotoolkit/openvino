@@ -1,20 +1,18 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "layer_transformation.hpp"
 
-#include <map>
-#include <memory>
-#include <sstream>
+#include <ostream>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
-#include <ngraph/pass/visualize_tree.hpp>
 #include <low_precision/prelu.hpp>
 #include <low_precision/convolution.hpp>
-#include <low_precision/fake_quantize.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 #include <low_precision/max_pool.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -93,7 +91,7 @@ public:
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::PReluTransformation, ngraph::opset1::AvgPool>(params);
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(precisionLimitedOperationParams);
-        transform.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(params);
+        transform.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(params);
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(params);
         transform.transform(actualFunction);
 
