@@ -59,6 +59,38 @@ _get_node_factory_opset6 = partial(_get_node_factory, "opset6")
 
 
 @nameable_op
+def ctc_greedy_decoder_seq_len(
+        data: NodeInput,
+        sequence_length: NodeInput,
+        blank_index: Optional[NodeInput] = None,
+        merge_repeated: bool = True,
+        classes_index_type: str = "i32",
+        sequence_length_type: str = "i32",
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs CTCGreedyDecoderSeqLen.
+
+    @param data:            The input 3D tensor. Shape: [batch_size, seq_length, num_classes]
+    @param sequence_length: Input 1D tensor with sequence length. Shape: [batch_size]
+    @param blank_index:     Scalar or 1D tensor with specifies the class index to use for the blank class.
+                            Optional parameter. Default value is num_classes-1.
+    @return:                The new node which performs CTCGreedyDecoderSeqLen.
+    """
+    if blank_index is not None:
+        inputs = as_nodes(data, sequence_length, blank_index)
+    else:
+        inputs = as_nodes(data, sequence_length)
+
+    attributes = {
+        "merge_repeated": merge_repeated,
+        "classes_index_type": classes_index_type,
+        "sequence_length_type": sequence_length_type
+    }
+
+    return _get_node_factory_opset6().create("CTCGreedyDecoderSeqLen", inputs, attributes)
+
+
+@nameable_op
 def gather_elements(
     data: NodeInput,
     indices: NodeInput,

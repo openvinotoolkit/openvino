@@ -77,6 +77,46 @@ def test_ctc_greedy_decoder(dtype):
     assert list(node.get_output_shape(0)) == expected_shape
 
 
+@pytest.mark.parametrize("fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index",
+                         [
+                             (np.float32, np.int32, "i32", "i32", True, True),
+                             (np.float32, np.int32, "i64", "i32", True, True),
+                             (np.float32, np.int32, "i32", "i64", True, True),
+                             (np.float32, np.int32, "i64", "i64", True, True),
+                             (np.float64, np.int64, "i32", "i32", False, True),
+                             (np.float64, np.int64, "i64", "i32", False, True),
+                             (np.float64, np.int64, "i32", "i64", False, True),
+                             (np.float64, np.int64, "i64", "i64", False, True),
+                             (np.float32, np.int32, "i32", "i32", True, False),
+                             (np.float32, np.int32, "i64", "i32", True, False),
+                             (np.float32, np.int32, "i32", "i64", True, False),
+                             (np.float32, np.int32, "i64", "i64", True, False),
+                             (np.float64, np.int64, "i32", "i32", False, False),
+                             (np.float64, np.int64, "i64", "i32", False, False),
+                             (np.float64, np.int64, "i32", "i64", False, False),
+                             (np.float64, np.int64, "i64", "i64", False, False)
+                         ],)
+def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index):
+    input0_shape = [8, 20, 128]
+    input1_shape = [8]
+    input2_shape = [1]
+    expected_shape = [8, 20]
+
+    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=fp_dtype)
+    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=int_dtype)
+    parameter_input2 = None
+    if blank_index:
+        parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=int_dtype)
+
+    node = ng.ctc_greedy_decoder_seq_len(
+        parameter_input0, parameter_input1, parameter_input2, merge_repeated, int_ci, int_sl
+    )
+
+    assert node.get_type_name() == "CTCGreedyDecoderSeqLen"
+    assert node.get_output_size() == 2
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
 @pytest.mark.parametrize("dtype", np_types)
 def test_deformable_convolution(dtype):
     strides = np.array([1, 1])
