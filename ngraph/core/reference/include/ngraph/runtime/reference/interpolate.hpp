@@ -716,7 +716,7 @@ namespace ngraph
                                     coeff *= (k & 1) ? d1[reverted_j] : d2[reverted_j];
                                     k >>= 1;
                                 }
-                                sum += coeff * values_of_input_points(reverted_j);
+                                sum += coeff * values_of_input_points(values_of_input_points - i);
                             }
 
                             // 6. Store result.
