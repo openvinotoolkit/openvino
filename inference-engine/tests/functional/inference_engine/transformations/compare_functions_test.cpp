@@ -224,9 +224,10 @@ TEST(TransformationTests, ConstantNegativeDifferentElementType) {
     const auto& f1 = createConstantFunc(ngraph::element::f64);
     const auto& f2 = createConstantFunc(ngraph::element::f32);
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'element_type' : [f64] vs [f32]"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("mismatch in value: 'element_type' : [f64] vs [f32]"));
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentValues) {
@@ -241,9 +242,10 @@ TEST(TransformationTests, ConstantNegativeDifferentValues) {
     const auto& f1 = createConstantFunc(1.0);
     const auto& f2 = createConstantFunc(10.0);
 
-    auto res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'value' : look in to the mem buffer"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("mismatch in value: 'value' : look in to the mem buffer"));
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentShapes) {
@@ -258,9 +260,10 @@ TEST(TransformationTests, ConstantNegativeDifferentShapes) {
     const auto& f1 = createConstantFunc(ngraph::Shape{2});
     const auto& f2 = createConstantFunc(ngraph::Shape{2, 2});
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'shape' : [2] vs [2, 2]"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("mismatch in value: 'shape' : [2] vs [2, 2]"));
 }
 
 TEST(TransformationTests, ClampNegativeDifferentMin) {
@@ -276,9 +279,10 @@ TEST(TransformationTests, ClampNegativeDifferentMin) {
     const auto& f1 = createClampFunc(1.0);
     const auto& f2 = createClampFunc(11.0);
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'min' "));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("mismatch in value: 'min' "));
 }
 
 TEST(TransformationTests, ClampNegativeDifferentMax) {
@@ -294,9 +298,10 @@ TEST(TransformationTests, ClampNegativeDifferentMax) {
     const auto& f1 = createClampFunc(10.1);
     const auto& f2 = createClampFunc(101.1);
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'max' "));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("mismatch in value: 'max' "));
 }
 
 TEST(TransformationTests, ConcatNegativeDifferentMax) {
@@ -313,9 +318,10 @@ TEST(TransformationTests, ConcatNegativeDifferentMax) {
     const auto& f1 = createConcatFunc(1);
     const auto& f2 = createConcatFunc(2);
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'axis' : [1] vs [2]"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("mismatch in value: 'axis' : [1] vs [2]"));
 }
 
 TEST(TransformationTests, GreaterNegativeDifferentMax) {
@@ -332,11 +338,11 @@ TEST(TransformationTests, GreaterNegativeDifferentMax) {
     const auto& f1 = createGreaterFunc(ngraph::op::AutoBroadcastType::NUMPY);
     const auto& f2 = createGreaterFunc(ngraph::op::AutoBroadcastType::PDPD);
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'auto_broadcast' : [numpy] vs [pdpd]"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr(" mismatch in value: 'auto_broadcast' : [numpy] vs [pdpd]"));
 }
-
 
 TEST(TransformationTests, ReadValueNegativeDifferentMax) {
     const auto createReadValueFunc = [](const std::string& variable_id) {
@@ -351,9 +357,10 @@ TEST(TransformationTests, ReadValueNegativeDifferentMax) {
     const auto& f1 = createReadValueFunc("10");
     const auto& f2 = createReadValueFunc("20");
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr("mismatch in value: 'variable_id' : [10] vs [20]"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("mismatch in value: 'variable_id' : [10] vs [20]"));
 }
 
 TEST(TransformationTests, ReorgYoloNegativeDifferentMax) {
@@ -371,9 +378,10 @@ TEST(TransformationTests, ReorgYoloNegativeDifferentMax) {
     const auto& f1 = createReorgYoloFunc({1, 2});
     const auto& f2 = createReorgYoloFunc({2, 2});
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'stride' : [1, 2] vs [2, 2]"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr(" mismatch in value: 'stride' : [1, 2] vs [2, 2]"));
 }
 
 namespace {
@@ -443,34 +451,38 @@ TEST(TransformationTests, DummyOpNegativeDifferentElementType) {
     const auto& f1 = createDummyFunc(element::Type_t::i64);
     const auto& f2 = createDummyFunc(element::Type_t::f64);
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'member' : [i64] vs [f64]"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr(" mismatch in value: 'member' : [i64] vs [f64]"));
 }
 
 TEST(TransformationTests, DummyOpNegativeDifferentIntVector) {
     const auto& f1 = createDummyFunc(std::vector<int>{1, 2, 3});
     const auto& f2 = createDummyFunc(std::vector<int>{3, 2, 1});
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'member' : [1, 2, 3] vs [3, 2, 1]"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr(" mismatch in value: 'member' : [1, 2, 3] vs [3, 2, 1]"));
 }
 
 TEST(TransformationTests, DummyOpNegativeDifferentFloatVector) {
     const auto& f1 = createDummyFunc(std::vector<float>{1., 2., 3.});
     const auto& f2 = createDummyFunc(std::vector<float>{3., 2., 1.});
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'member' : [1, 2, 3] vs [3, 2, 1]"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr(" mismatch in value: 'member' : [1, 2, 3] vs [3, 2, 1]"));
 }
 
 TEST(TransformationTests, DummyOpNegativeDifferentStringVector) {
     const auto& f1 = createDummyFunc(std::vector<std::string>{"a", "ba"});
     const auto& f2 = createDummyFunc(std::vector<std::string>{"b", "ab"});
 
-    const auto& res = compare_functions(f1, f2, false, false, false, true, true);
-    EXPECT_FALSE(res.first);
-    EXPECT_THAT(res.second, HasSubstr(" mismatch in value: 'member' : [a, ba] vs [b, ab]"));
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr(" mismatch in value: 'member' : [a, ba] vs [b, ab]"));
 }
