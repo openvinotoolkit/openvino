@@ -32,7 +32,7 @@
 #include <os/windows/w_dirent.h>
 
 #include <inference_engine.hpp>
-#include <common.hpp>
+#include <samples/common.hpp>
 #include <vpu/vpu_config.hpp>
 
 static char* m_exename = nullptr;
