@@ -83,18 +83,42 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     python3 -m pip install --upgrade pip
 fi
 
+find_ie_bindings() {
+    # check ie dependency
+    echo "[install_prerequisites] Check IE"
+    $1 "$SCRIPTDIR/../mo/utils/find_ie_version.py" $$ error=false || error=true
+    if [ $error ]; then
+        #install OpenVINO pip version
+        echo "[install_prerequisites] Install IE"
+        if [ $2 ]; then
+            sudo -E $1 -m pip install openvino-python
+        else
+            $1 -m pip install openvino-python
+        fi
+
+        echo "[install_prerequisites] Check IE again"
+        $1 "$SCRIPTDIR/../mo/utils/find_ie_version.py" $$ error=false || error=true
+        if [ $error ]; then
+            echo "[WARNING] No compatible OpenVINO python version was found"
+        fi
+    fi
+}
 
 if [[ $V_ENV -eq 1 ]]; then
     "$python_binary" -m venv "$SCRIPTDIR/../venv${postfix}"
     source "$SCRIPTDIR/../venv${postfix}/bin/activate"
-    "$SCRIPTDIR/../venv${postfix}/bin/$python_binary" -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
+    venv_python_binary="$SCRIPTDIR/../venv${postfix}/bin/$python_binary"
+    $venv_python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
+    find_ie_bindings $venv_python_binary
     echo
     echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv${postfix}/bin/activate\""
 else
     if [[ "$OSTYPE" == "darwin"* ]]; then
         python3 -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
+        find_ie_bindings python3
     else
         sudo -E $python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
+        find_ie_bindings $python_binary true
     fi
     echo "[WARNING] All Model Optimizer dependencies are installed globally."
     echo "[WARNING] If you want to keep Model Optimizer in separate sandbox"
