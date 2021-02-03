@@ -45,26 +45,44 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     }
 
     const FakeQuantizeDequantization dequantization1 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 0);
-    std::shared_ptr<opset1::Subtract> subtract;
-    if (dequantization1.subtract != nullptr) {
-        std::shared_ptr<ngraph::Node> layer = dequantization1.subtract;
-        ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(layer);
-
-        auto optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization1.subtract);
-        if (optimizedSubtract == nullptr) {
-            optimizedSubtract = dequantization1.subtract;
-        }
-        subtract = as_type_ptr<opset1::Subtract>(optimizedSubtract);
-    }
 
     const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(
         std::vector<element::Type>({ element::f32, element::f32 }), std::vector<element::Type>({}),
-        ngraph::op::TemporaryReplaceOutputType(dequantization1.subtract != nullptr ? subtract : dequantization1.data, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(dequantization2.subtract != nullptr ? dequantization2.subtract : dequantization2.data, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(dequantization1.data, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(dequantization2.data, element::f32).get(),
         matMul->get_transpose_a(),
         matMul->get_transpose_b());
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMatMul, matMul->get_output_element_type(0));
     NetworkHelper::copyInfo(matMul, newMatMul);
+
+    std::shared_ptr<Node> parent = newMatMul;
+
+    // dequantization with subtract on activations & constant weights
+    if (dequantization1.subtract) {
+        auto broadcastShape = NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(dequantization1.subtract->get_input_node_shared_ptr(1))) ?
+            ngraph::Shape(dequantization1.subtract->get_shape().size(), 1) :
+            dequantization1.subtract->get_input_node_shared_ptr(1)->get_shape();
+        const size_t lastIdx = matMul->get_transpose_a() ? broadcastShape.size() - 2 : broadcastShape.size() - 1;
+        broadcastShape[lastIdx] = dequantization1.subtract->get_shape()[lastIdx];
+
+        // broadcasted sub const to form [1, ..., 1, Y]
+        const auto broadcastedConst = fold<opset1::Broadcast>(
+            dequantization1.subtract->get_input_node_shared_ptr(1),
+            opset1::Constant::create(ngraph::element::i32, { broadcastShape.size() }, broadcastShape));
+
+        // multiply by weights: [1, ..., 1, Y] x [Y, Z] => [1, ..., 1, Z]
+        const auto newSubConst = NetworkHelper::toScalarIfPossible(fold<opset1::MatMul>(
+            broadcastedConst,
+            fold<opset1::Convert>(newMatMul->get_input_node_shared_ptr(1), newMatMul->get_element_type()),
+            newMatMul->get_transpose_a(),
+            newMatMul->get_transpose_b()));
+
+        const auto newSubtract = std::make_shared<DequantizationSubtract>(newMatMul, newSubConst);
+        newSubtract->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationSubtract");
+        ngraph::copy_runtime_info({ newSubtract, matMul }, newSubtract);
+
+        parent = newSubtract;
+    }
 
     auto transpose = [](const std::shared_ptr<Node>& node) -> std::shared_ptr<Node> {
         const Shape outputShape = node->get_output_shape(0);
@@ -81,20 +99,35 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         return transposedConstant;
     };
 
-    const std::shared_ptr<Node> const1 = matMul->get_transpose_a() ?
+    const auto mulConst1 = matMul->get_transpose_a() ?
         transpose(dequantization1.multiply->get_input_node_shared_ptr(1)) :
         dequantization1.multiply->get_input_node_shared_ptr(1);
 
-    const std::shared_ptr<Node> const2 = matMul->get_transpose_b() ?
+    auto mulConst2 = matMul->get_transpose_b() ?
         transpose(dequantization2.multiply->get_input_node_shared_ptr(1)) :
         dequantization2.multiply->get_input_node_shared_ptr(1);
 
-    const std::shared_ptr<opset1::Multiply> newMultiply = std::make_shared<DequantizationMultiply>(
-        newMatMul,
-        NetworkHelper::toScalarIfPossible(
-            fold<ngraph::opset1::Multiply>(
-                NetworkHelper::toScalar(as_type_ptr<opset1::Constant>(const1)),
-                const2)));
+    if (NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(mulConst2))) {
+        mulConst2 = NetworkHelper::toScalar(as_type_ptr<opset1::Constant>(mulConst2));
+    } else {
+        auto constShape = mulConst2->get_shape();
+        auto inputShape = matMul->get_input_shape(0);
+
+        // unsqueeze from the left side to make both shapes of the same rank
+        if (constShape.size() < inputShape.size()) {
+            Shape unsqueezeConstantShape(inputShape.size() - constShape.size());
+            std::iota(unsqueezeConstantShape.begin(), unsqueezeConstantShape.end(), 0ul);
+
+            mulConst2 = fold<opset1::Unsqueeze>(
+                mulConst2,
+                op::Constant::create(ngraph::element::i32, Shape{ unsqueezeConstantShape.size() }, unsqueezeConstantShape));
+        }
+    }
+
+    const auto newMulConst = NetworkHelper::toScalarIfPossible(fold<ngraph::opset1::Multiply>(mulConst1, mulConst2));
+    const std::shared_ptr<opset1::Multiply> newMultiply = std::make_shared<DequantizationMultiply>(parent, newMulConst);
+    newMultiply->set_friendly_name(newMatMul->get_friendly_name() + "/DequantizationMultiply");
+
     replace_node(matMul, newMultiply);
     ngraph::copy_runtime_info({ newMultiply, matMul }, newMultiply);
 
@@ -120,51 +153,79 @@ bool MatMulTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) con
 }
 
 bool MatMulTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!LayerTransformation::canBeTransformed(context, layer)) {
+    if (!LayerTransformation::canBeTransformedSpecialDimension(context, layer)) {
         return false;
     }
 
-    if (!canSubtractBeHandled(layer)) {
+    std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(layer);
+    if (matMul == nullptr) {
         return false;
     }
 
     const auto dequantization1 = ngraph::pass::low_precision::NetworkHelper::getDequantization(layer);
-    if (!NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(dequantization1.multiply->get_input_node_shared_ptr(1)))) {
-        return false;
-    }
-
-    if (updatePrecisions && !dequantization1.empty() && !dequantization1.isLowPrecision()) {
-        return false;
-    }
-
-    if (updatePrecisions) {
-        const auto dequantization2 = ngraph::pass::low_precision::NetworkHelper::getDequantization(layer, 1);
-        if (!dequantization2.empty() && !dequantization2.isLowPrecision()) {
+    if (!dequantization1.empty()) {
+        if (updatePrecisions && !dequantization1.isLowPrecision()) {
             return false;
+        }
+
+        const auto mulConst = as_type_ptr<opset1::Constant>(dequantization1.multiply->get_input_node_shared_ptr(1));
+        if (!NetworkHelper::isScalarLike(mulConst)) {
+            const auto constantShape = mulConst->get_shape();
+            const auto mulShape = dequantization1.multiply->get_shape();
+            const size_t columnsIdx = matMul->get_transpose_a() ? mulShape.size() - 2ul : mulShape.size() - 1ul;
+
+            // dequantization scales by columns in tensor A can't be propagate
+            if ((constantShape.size() == mulShape.size()) && (constantShape[columnsIdx] != 1)) {
+                return false;
+            }
+        }
+    }
+
+    const auto dequantization2 = ngraph::pass::low_precision::NetworkHelper::getDequantization(layer, 1);
+    if (!dequantization2.empty()) {
+        if ((updatePrecisions && !dequantization2.isLowPrecision()) || (dequantization2.subtract)) {
+            return false;
+        }
+
+        const auto mulConst = as_type_ptr<opset1::Constant>(dequantization2.multiply->get_input_node_shared_ptr(1));
+        if (!NetworkHelper::isScalarLike(mulConst)) {
+            const auto constantShape = mulConst->get_shape();
+            const auto mulShape = dequantization2.multiply->get_shape();
+            const size_t rowsIdx = matMul->get_transpose_b() ? mulShape.size() - 1ul : mulShape.size() - 2ul;
+
+            // dequantization scales by rows in tensor B can't be propagate
+            if ((constantShape.size() == mulShape.size()) && (constantShape[rowsIdx] != 1)) {
+                return false;
+            }
         }
     }
 
     const auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
-    if (fakeQuantize != nullptr) {
+    if (fakeQuantize) {
         if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize)) {
             return false;
         }
 
-        std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(layer);
-        if (matMul == nullptr) {
+        const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
+        const DataPrecision dataPrecision = getDataPrecision(fakeQuantize, quantizationDetails, true);
+        if (dataPrecision.hasZeroPoint) {
             return false;
         }
-        const size_t channelIndex1 = matMul->get_transpose_a() ? 0 : 1;
-        const size_t channelIndex2 = matMul->get_transpose_b() ? 1 : 0;
 
-        // for MatMul with 3D input the channel is 3'rd dimension (not 2'nd)
-        const Shape input1 = layer->input(0).get_shape();
-        const Shape input2 = layer->input(1).get_shape();
-        if ((input1[channelIndex1] != input2[channelIndex2]) &&
-            ((shape_size(dequantization1.multiply->input(1).get_shape()) > 1) ||
-            (shape_size(fakeQuantize->input(3).get_shape()) > 1) || (shape_size(fakeQuantize->input(4).get_shape()) > 1))) {
+        const auto outLowShape = fakeQuantize->get_input_node_shared_ptr(3)->get_shape();
+        const auto outHighShape = fakeQuantize->get_input_node_shared_ptr(4)->get_shape();
+        const auto fakeQuantizeShape = fakeQuantize->get_shape();
+        const size_t rowsIdx = matMul->get_transpose_b() ? fakeQuantizeShape.size() - 1 : fakeQuantizeShape.size() - 2;
+
+        // dequantization scales by rows in tensor B can't be propagate
+        if (((outLowShape.size() == fakeQuantizeShape.size()) && (outLowShape[rowsIdx] != 1)) ||
+            ((outHighShape.size() == fakeQuantizeShape.size()) && (outHighShape[rowsIdx] != 1))) {
             return false;
         }
+    }
+
+    if (fakeQuantize == nullptr && dequantization1.subtract) {
+        return false;
     }
 
     return true;
