@@ -87,7 +87,7 @@ private:
 
         // fill the output with off_value
         std::size_t dst_size = prefix_size * depth * suffix_size;
-        std::fill(dst_data, dst_data + dst_size, off_value);
+        std::fill(dst_data, dst_data + dst_size, static_cast<out_type>(off_value));
 
         // set on_value at needed locations
         parallel_for(prefix_size, [&](std::size_t prefix_idx) {
