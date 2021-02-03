@@ -33,6 +33,7 @@
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -47,6 +48,7 @@
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/op_conversions/convert_mod.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
@@ -69,10 +71,12 @@
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
-# include <low_precision/transformer.hpp>
-# include <low_precision/convolution.hpp>
-# include <low_precision/group_convolution.hpp>
-# include <low_precision/multiply_to_group_convolution.hpp>
+#include <low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <low_precision/transformer.hpp>
+#include <low_precision/convolution.hpp>
+#include <low_precision/group_convolution.hpp>
+#include <low_precision/multiply_to_group_convolution.hpp>
+#include <low_precision/network_helper.hpp>
 
 #include "nodes/mkldnn_mvn_node.h"
 #include "nodes/mkldnn_quantize_node.h"
@@ -106,6 +110,15 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+
+    const bool useLpt =
+        (conf.lpTransformsMode == Config::LPTransformsMode::On) &&
+        ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+    if (useLpt) {
+        manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
+            std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+    }
+
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::ConvertPriorBox>();
     manager.register_pass<ngraph::pass::MVN6Decomposition>();
@@ -218,10 +231,21 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
+    if (useLpt) {
+        pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
+            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
+        });
+
+        pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
+            return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node);
+        });
+    }
+
     manager.run_passes(nGraphFunc);
 
     using namespace ngraph::pass::low_precision;
-    if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
+    if (useLpt) {
+        OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
         auto params = LayerTransformation::Params(
             true,  // updatePrecisions
             LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
