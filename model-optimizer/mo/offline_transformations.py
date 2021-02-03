@@ -25,7 +25,7 @@ if __name__ == "__main__":
         print("[ OFFLINE TRANSFORMATIONS ] Failed to find IE Python API")
         exit(1)
 
-    from openvino.inference_engine import IECore
+    from openvino.inference_engine import IECore, get_version
     from openvino.offline_transformations import ApplyMOCTransformations
 
     orig_model_name = sys.argv[1]
