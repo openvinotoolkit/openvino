@@ -40,6 +40,30 @@ class Connection:
             return None
         return self.source.node.out_node(self.source.idx, control_flow=self.control_flow).shape
 
+    @staticmethod
+    def _get_new_tensor_debug_info(attributes_save_mode: str, source_attrs: dict, dest_attrs: dict):
+        source_debug_info = []
+        attr_name = 'fw_tensor_debug_info'
+        if attr_name in source_attrs:
+            source_debug_info = source_attrs[attr_name]
+        dest_debug_info = []
+        if attr_name in dest_attrs:
+            dest_debug_info = dest_attrs[attr_name]
+        if attributes_save_mode == "merge":
+            return source_debug_info + dest_debug_info
+        elif attributes_save_mode == "source":
+            return source_debug_info
+        else:
+            return dest_debug_info
+
+    @staticmethod
+    def _update_tensor_debug_info(attrs: dict, new_value: list):
+        if new_value is not None and len(new_value) > 0:
+            attrs['fw_tensor_debug_info'] = new_value
+        else:
+            if 'fw_tensor_debug_info' in attrs:
+                del attrs['fw_tensor_debug_info']
+
     def get_source(self):
         return self.source
 
@@ -92,33 +116,20 @@ class Connection:
                         source_fw_names += edge_attrs[attr]
             # remove duplicates
             source_fw_names = list(set(source_fw_names))
+            attrs = {'fw_tensor_debug_info': source_fw_names}
 
             # Reconnecting all destinations as consumers to the source port preserving edge attrs
             for dst_port in self.destinations:
                 edge_attrs, u, v, key = dst_port.get_in_edge_attrs(data=True)
                 if u is not None:
                     edge_attrs['out'] = port.idx
-                    attr = "fw_tensor_debug_info"
-                    if attr in edge_attrs:
-                        if attributes_save_mode == "merge":
-                            # Merge attributes from old source edges
-                            edge_attrs[attr] += source_fw_names
-                        elif attributes_save_mode == "source":
-                            # Copy attributes from old source edges
-                            if len(source_fw_names) > 0:
-                                edge_attrs[attr] = source_fw_names
-                            else:
-                                del edge_attrs[attr]
-                        # in case of dest mode attributes on edges are not changed
-                    else:
-                        if attributes_save_mode != "dest":
-                            if len(source_fw_names) > 0:
-                                edge_attrs[attr] = source_fw_names
+
+                    new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, attrs, edge_attrs)
+                    self._update_tensor_debug_info(edge_attrs, new_tensor_info)
 
                     self.graph.remove_edge(u, v, key=key)
                     self.graph.add_edge(scr_node.id, v, **edge_attrs)
                 else:
-                    attrs = {"fw_tensor_debug_info": source_fw_names}
                     if attributes_save_mode == "dest":
                         attrs = {}
                     self.graph.create_edge(scr_node, dst_port.node, port.idx, dst_port.idx, edge_attrs=attrs)
@@ -128,6 +139,7 @@ class Connection:
             port._create_data_if_necessary()
             port_out_data = port.node.out_node(port.idx)
 
+            attrs = {}
             if self.source is not None and self.source.idx in self.source.node.out_nodes():
                 source_out_data = self.source.node.out_node(self.source.idx)
                 # Copy attrs from source_out_data to port_out_data
@@ -136,20 +148,13 @@ class Connection:
                     # Remove debug info
                     if 'fw_tensor_debug_info' in source_out_data.attrs():
                         del self.graph.node[source_out_data.id]['fw_tensor_debug_info']
-
+                # Copy attrs to new data node
                 for attr in attrs:
-                    if attr == 'fw_tensor_debug_info':
-                        if attributes_save_mode == "merge":
-                            # Merge attributes
-                            if 'fw_tensor_debug_info' in port_out_data:
-                                port_out_data[attr] = port_out_data[attr] + attrs[attr]
-                            else:
-                                port_out_data[attr] = attrs[attr]
-                        elif attributes_save_mode == "dest":
-                            port_out_data[attr] = attrs[attr]
-
-                    else:
+                    if attr != 'fw_tensor_debug_info':
                         port_out_data[attr] = attrs[attr]
+
+            new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, port_out_data.attrs(), attrs)
+            self._update_tensor_debug_info(port_out_data.attrs(), new_tensor_info)
 
             for dst_port in self.destinations:
                 edge_attrs, u, v, key = dst_port.get_in_edge_attrs(data=True)
@@ -206,23 +211,13 @@ class Connection:
         if self.graph.stage == 'front':
             if self.source is not None:
                 node = self.source.node
-                sourse_attrs = check_and_remove_edge() or {}
+                source_attrs = check_and_remove_edge() or {}
                 dest_attrs = port.get_in_edge_attrs() or {}
+
                 edge_attrs = {}
-                fw_name_attr = "fw_tensor_debug_info"
-                if attributes_save_mode == "merge":
-                    if fw_name_attr in dest_attrs and fw_name_attr in sourse_attrs:
-                        edge_attrs[fw_name_attr] = sourse_attrs[fw_name_attr] + dest_attrs[fw_name_attr]
-                    elif fw_name_attr in sourse_attrs:
-                        edge_attrs[fw_name_attr] = sourse_attrs[fw_name_attr]
-                    elif fw_name_attr in dest_attrs:
-                        edge_attrs[fw_name_attr] = dest_attrs[fw_name_attr]
-                elif attributes_save_mode == "dest":
-                    if fw_name_attr in dest_attrs:
-                        edge_attrs[fw_name_attr] = dest_attrs[fw_name_attr]
-                else:
-                    if fw_name_attr in sourse_attrs:
-                        edge_attrs[fw_name_attr] = sourse_attrs[fw_name_attr]
+                new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, source_attrs, dest_attrs)
+                self._update_tensor_debug_info(edge_attrs, new_tensor_info)
+
                 self.graph.create_edge(node, port.node, out_port=self.source.idx, in_port=port.idx,
                                        edge_attrs=edge_attrs)
             self.destinations = [port]
@@ -234,17 +229,12 @@ class Connection:
                 edge_attrs = check_and_remove_edge() or {}
                 edge_attrs.update({'in': port.idx})
 
+                dest_attrs = {}
                 if port.idx in port.node.in_nodes():
                     dest_attrs = port.node.in_node(port.idx).attrs()
-                    fw_name_attr = "fw_tensor_debug_info"
-                    if fw_name_attr in dest_attrs:
-                        if attributes_save_mode == "merge":
-                            if fw_name_attr in data_node:
-                                data_node[fw_name_attr] += dest_attrs[fw_name_attr]
-                            else:
-                                data_node[fw_name_attr] = dest_attrs[fw_name_attr]
-                        elif attributes_save_mode == "dest":
-                            data_node[fw_name_attr] = dest_attrs[fw_name_attr]
+
+                new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, data_node.attrs(), dest_attrs)
+                self._update_tensor_debug_info(data_node.attrs(), new_tensor_info)
 
                 self.graph.add_edge(data_node.id, port.node.id, **edge_attrs)
             self.destinations = [port]

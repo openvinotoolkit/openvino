@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,6 +112,8 @@ public:
     InferenceEngine::Precision getOutputPrecision() const { return outputPrecision; }
 
     void appendPostOps(mkldnn::post_ops& ops) override;
+
+    static bool isNeedToDecompose(const std::shared_ptr<const ngraph::Node>& node);
 
 private:
     void init() override;

@@ -288,18 +288,6 @@ class Node:
         return sorted([x for x in self.get_outputs(control_flow=control_flow) if 'out' in x[1]],
                       key=lambda x: x[1]['out'])
 
-    def get_tensor_names(self, out_port_idx: int):
-        fw_names = []
-        if out_port_idx in self.out_nodes():
-            out_node = self.out_node(out_port_idx)
-            if 'fw_tensor_debug_info' in out_node:
-                for attr in out_node['fw_tensor_debug_info']:
-                    if len(attr) >= 3:
-                        fw_names.append(attr[2].replace(',', '\\,'))
-        if len(fw_names) > 0:
-            return ','.join(fw_names)
-        return None
-
     def soft_get(self, k, default='<UNKNOWN>'):
         return self[k] if self.has_valid(k) else default
 
@@ -827,8 +815,8 @@ class Graph(nx.MultiDiGraph):
             if node_attrs.get('type', '') == 'Const':
                 if 'value' not in attrs_to_print and 'value' in node_attrs:
                     if node_attrs['value'] is not None:
-                        label += '\\nvalue=\\"' + ','.join([str(val) for val in node_attrs['value'].flatten()])[
-                                                  :40] + '\\"'
+                        label += '\\nvalue=\\"' + \
+                                 ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
                     else:
                         label += '\\nvalue=None'
             return label
@@ -882,7 +870,6 @@ class Graph(nx.MultiDiGraph):
         string += _dump_edges_attrs()
 
         string += '}'
-        #        log.debug(string)
         log.debug("---- GRAPHVIZ OUTPUT ENDS ----")
 
         if save_to_svg:
@@ -951,8 +938,6 @@ class Graph(nx.MultiDiGraph):
             edge_attrs = edge_attrs.copy()
         edge_attrs.update(
             {'in': in_port, 'out': out_port, 'in_attrs': ['in', 'permutation'], 'out_attrs': ['out', 'permutation'],
-             # as kaldi does not have tensor names, source node id is used instead of tensor name
-             'fw_tensor_debug_info': [(src_node.id, out_port, src_node.id)],
              'data_attrs': ['fw_tensor_debug_info']})
 
         # TODO: in case if in_port do not exists, we should raise an Exception here
@@ -1111,7 +1096,6 @@ def rename_node(node: Node, name):
 def rename_nodes(nodes: List[tuple]):
     for node, name in nodes:
         rename_node(node, name)
-
 
 # All functions below are deprecated and will be removed in next release
 # Please, use methods from Graph/Node classes instead

@@ -60,8 +60,8 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
     for node in nodes:
         node = Node(graph, node)
 
-        if node.kind == 'data' and node.value is not None and any(
-                'bin' in d for u, v, d in graph.out_edges(node.node, data=True)):
+        if node.kind == 'data' and node.value is not None and \
+                any('bin' in d for u, v, d in graph.out_edges(node.node, data=True)):
             # avoid array copying while taking hash
             blob = node.value if node.value.ndim > 0 else node.value.reshape((1))
             blob_hash = hashlib.sha512(np.ascontiguousarray(blob).view(np.uint8)).hexdigest()
@@ -84,8 +84,8 @@ def serialize_constants_recursively(graph: Graph, bin_file, data_type, bin_hashe
                                          'size': graph.node[node.node]['size'], 'blob': blob}
                 update_offset_size_in_const_node(node)
 
-                assert (blob.dtype.itemsize * np.prod(node.shape) == end - start) or node.has_valid(
-                    'force_shape'), node.attrs()
+                assert (blob.dtype.itemsize * np.prod(node.shape) == end - start) or \
+                       node.has_valid('force_shape'), node.attrs()
 
             log.debug(
                 "Detected binary for graph: '{}', node: '{}', id: {}, shape: '{}', offset: '{}', size: '{}'".format(
@@ -173,7 +173,7 @@ def xml_ports(node: Node, element: Element, edges: Element):
             port.set('precision', node.soft_get('force_type', np_data_type_to_precision(data_type)))
             assert node.graph.node[v]['shape'] is not None, 'Output shape is not calculated properly for node {}' \
                                                             ''.format(node.id)
-            tensor_names = node.get_tensor_names(d['out'])
+            tensor_names = node.out_port(port_id).get_tensor_names(port_renumber=True)
             if tensor_names is not None:
                 port.set('names', tensor_names)
             xml_shape(node.graph.node[v]['shape'], port)

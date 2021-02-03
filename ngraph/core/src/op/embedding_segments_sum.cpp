@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/embedding_segments_sum.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/opsets/opset3.hpp"
@@ -161,8 +162,7 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types()
     if (emb_table_shape.rank().is_static())
     {
         result_shape = emb_table_shape;
-        if (auto num_segments_const =
-                as_type<opset3::Constant>(this->get_input_node_ptr(NUM_SEGMENTS)))
+        if (const auto& num_segments_const = get_constant_from_source(input_value(NUM_SEGMENTS)))
         {
             result_shape[0] = num_segments_const->cast_vector<int64_t>()[0];
         }
