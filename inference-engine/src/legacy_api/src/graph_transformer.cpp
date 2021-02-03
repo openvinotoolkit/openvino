@@ -219,7 +219,9 @@ static std::vector<std::string> skipConstInfer = {
     "Convolution", // Const inference function for Convolution is not implemented
     "Eltwise",  // Const inference function for Eltwise is not implemented
     "FullyConnected",
-    "Squeeze"
+    "Squeeze",
+    "TensorIterator",
+    "LSTMSequence",
 };
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {

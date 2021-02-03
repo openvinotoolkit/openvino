@@ -68,7 +68,7 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
         return false;
     }
 
-    const auto stridedSlice = separateInStandaloneBranch(m.get_match_root());
+    const auto stridedSlice = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
     const auto dequantization = NetworkHelper::getDequantization(stridedSlice);
 
     if (dequantization.subtract) {
@@ -85,7 +85,7 @@ bool StridedSliceTransformation::transform(TransformationContext& context, ngrap
     const auto newMulConst = stridedSliceDeqConstant(stridedSlice, mulConst);
     dequantization.multiply->set_argument(mulConstIdx, newMulConst);
 
-    moveDequantizationAfter(context, stridedSlice, dequantization, false);
+    moveDequantizationAfter(context, stridedSlice, NetworkHelper::getDequantization(stridedSlice), false);
     return true;
 }
 
