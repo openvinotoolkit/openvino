@@ -1483,6 +1483,45 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_scale,
                                 bc_test_params{CASE_CONV3D_S8S8_5, 2, 3},
                         }), );
 
+class conv_int8_eltwise : public ConvFusingTest {};
+TEST_P(conv_int8_eltwise, fp16_eltwise_out) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                 eltwise("scale", {"conv_prim", "scale_data"}, eltwise_mode::prod, data_types::f16),
+                 reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_eltwise,
+                        ::testing::ValuesIn(std::vector<bc_test_params>{
+                                bc_test_params{CASE_CONV_U8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_3, 2, 3},
+                                bc_test_params{CASE_CONV_U8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_3, 2, 3},
+                                bc_test_params{CASE_CONV_S8S8_4, 2, 3},
+
+                                bc_test_params{CASE_CONV3D_U8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV3D_U8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV3D_U8S8_3, 2, 3},
+                                bc_test_params{CASE_CONV3D_U8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV3D_U8S8_5, 2, 3},
+                                bc_test_params{CASE_CONV3D_S8S8_1, 2, 3},
+                                bc_test_params{CASE_CONV3D_S8S8_2, 2, 3},
+                                bc_test_params{CASE_CONV3D_S8S8_3, 2, 3},
+                                bc_test_params{CASE_CONV3D_S8S8_4, 2, 3},
+                                bc_test_params{CASE_CONV3D_S8S8_5, 2, 3},
+                        }), );
+
 class conv_int8_scale_shift_swish : public ConvFusingTest {};
 TEST_P(conv_int8_scale_shift_swish, basic) {
     auto p = GetParam();
@@ -6739,7 +6778,7 @@ TEST_P(eltwise_fp32_fused_prims, eltwise_activation) {
     create_topologies(input_layout("input", get_input_layout(p)),
                       input_layout("input2", get_input_layout2(p)),
                       data("eltwise_data", get_mem(get_input_layout2(p), -10, 10)),
-                      eltwise("eltwise1", {"input", "input2"}, p.mode, p.default_type),
+                      eltwise("eltwise1", {"input", "input2"}, p.mode, data_types::f32),
                       eltwise("eltwise2", {"eltwise1", "eltwise_data"}, eltwise_mode::prod, p.default_type),
                       activation("activation", "eltwise2", activation_func::abs),
                       reorder("out", "activation", p.default_format, data_types::f32));
