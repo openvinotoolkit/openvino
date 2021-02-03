@@ -11,11 +11,20 @@
 namespace ngraph {
 namespace pass {
 
-class AddPreprocessing;
+class INFERENCE_ENGINE_API_CLASS(AddPreprocessing);
 
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @brief Converts the following preprocessing information to ngraph operations:
+ *  - InferenceEngine::PreProcessInfo->PreProcessChannel::meanData -> Subtract
+ *  - InferenceEngine::PreProcessInfo->PreProcessChannel::meanValue -> Subtract
+ *  - InferenceEngine::PreProcessInfo->PreProcessChannel::stdScale -> Multiply
+ *
+ * The order of operations is the following:
+ *      (x - mean) * stdScale
+ */
 class ngraph::pass::AddPreprocessing : public ngraph::pass::FunctionPass {
     const InferenceEngine::InputsDataMap & m_inputInfoMap;
 public:

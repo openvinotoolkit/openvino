@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "template_preprocessing.hpp"
-
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset3.hpp>
 
 #include "transformations/preprocessing/mean_image_or_value.hpp"
 #include "transformations/preprocessing/std_scale.hpp"
 
-using namespace ngraph;
+#include "preprocessing.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::AddPreprocessing, "AddPreprocessing", 0);
 
@@ -24,6 +22,7 @@ bool ngraph::pass::AddPreprocessing::run_on_function(std::shared_ptr<ngraph::Fun
     for (const auto & it : m_inputInfoMap) {
         bool has_scales = false, has_mean_values = false, has_mean_image = false;
         const InferenceEngine::PreProcessInfo & pInfo = it.second->getPreProcess();
+        const auto & inputDims = it.second->getTensorDesc().getDims();
         const size_t cn = pInfo.getNumberOfChannels();
         std::vector<float> meanValues(cn), stdScales(cn);
         InferenceEngine::Blob::Ptr meanImage = nullptr;
@@ -59,15 +58,17 @@ bool ngraph::pass::AddPreprocessing::run_on_function(std::shared_ptr<ngraph::Fun
             "Only PreProcessChannel::meanData or PreProcessChannel::meanValue can be set.");
 
         if (has_scales) {
-            scaleMap[it.first] = ngraph::opset3::Constant::create(ngraph::element::f32,
-                ngraph::Shape{1, stdScales.size(), 1, 1}, stdScales);
+            ngraph::Shape shape(inputDims.size(), 1);
+            shape[1] = stdScales.size(); // C
+            scaleMap[it.first] = ngraph::opset3::Constant::create(ngraph::element::f32, shape, stdScales);
         }
 
         if (has_mean_values) {
-            meanMap[it.first] = ngraph::opset3::Constant::create(ngraph::element::f32,
-                ngraph::Shape{1, meanValues.size(), 1, 1}, meanValues);
+            ngraph::Shape shape(inputDims.size(), 1);
+            shape[1] = meanValues.size(); // C
+            meanMap[it.first] = ngraph::opset3::Constant::create(ngraph::element::f32, shape, meanValues);
         } else if (has_mean_image) {
-            ngraph::Shape shape = { 1, cn };
+            ngraph::Shape shape = { cn };
             auto dims = meanImage->getTensorDesc().getDims();
             std::copy(dims.begin(), dims.end(), std::back_inserter(shape));
 

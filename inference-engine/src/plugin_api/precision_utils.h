@@ -28,6 +28,9 @@ namespace InferenceEngine {
  * @{
  * @defgroup ie_dev_api_plugin_api Plugin base classes
  * @brief A set of base and helper classes to implement a plugin class
+ *
+ * @defgroup ie_dev_api_preproc_api Preprocessing API
+ * @brief A set transformations to convert InferenceEngine::PreProcessInfo to ngraph operations
  * 
  * @defgroup ie_dev_api_exec_network_api Executable Network base classes
  * @brief A set of base and helper classes to implement an executable network class
