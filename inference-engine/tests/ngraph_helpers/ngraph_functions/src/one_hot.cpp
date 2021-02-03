@@ -19,7 +19,7 @@ std::shared_ptr<ngraph::Node>  makeOneHot(const ngraph::Output<Node>& indices,
     auto depth_const = std::make_shared<ngraph::op::Constant>(depth_type, ngraph::Shape{ }, depth_val);
     auto on_value_const = std::make_shared<ngraph::op::Constant>(set_type, ngraph::Shape{ }, on_val);
     auto off_value_const = std::make_shared<ngraph::op::Constant>(set_type, ngraph::Shape{ }, off_val);
-    return std::make_shared<ngraph::opset3::OneHot>(indices, depth_const, on_value_const, off_value_const, axis);
+    return std::make_shared<ngraph::opset5::OneHot>(indices, depth_const, on_value_const, off_value_const, axis);
 }
 }  // namespace builder
 }  // namespace ngraph
