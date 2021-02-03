@@ -67,9 +67,8 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
      *  Note: not all plugins may provide meaningful data
      *  @param perfMap - a map of layer names to profiling information for that layer.
      */
-    void GetPerformanceCounts(std::map<std::string,
-                                               InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override {
-        plg->GetPerformanceCounts(perfMap);
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override {
+        return plg->GetPerformanceCounts();
     }
 
     /**
