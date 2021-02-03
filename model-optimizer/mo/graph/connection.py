@@ -116,7 +116,10 @@ class Connection:
                         source_fw_names += edge_attrs[attr]
             # remove duplicates
             source_fw_names = list(set(source_fw_names))
-            attrs = {'fw_tensor_debug_info': source_fw_names}
+            if not source_fw_names:
+                attrs = {}
+            else:
+                attrs = {'fw_tensor_debug_info': source_fw_names}
 
             # Reconnecting all destinations as consumers to the source port preserving edge attrs
             for dst_port in self.destinations:
