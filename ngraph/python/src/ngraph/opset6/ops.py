@@ -101,8 +101,12 @@ def mvn(
     @param name: Optional output node name.
     @return The new node performing a MVN operation on input tensor.
     """
-    return _get_node_factory_opset6().create(
-        "MVN",
-        [data, axes],
-        {"normalize_variance": normalize_variance, "eps": eps, "eps_mode": eps_mode},
-    )
+    inputs = as_nodes(data, axes)
+
+    attributes = {
+        "normalize_variance": normalize_variance,
+        "eps": eps,
+        "eps_mode": eps_mode
+    }
+
+    return _get_node_factory_opset6().create("MVN", inputs, attributes)
