@@ -69,4 +69,4 @@ class CTCGreedyDecoderSeqLenOp(Op):
         batch_size = logits_shape[0]
         time_size = logits_shape[1]
         node.out_port(0).data.set_shape(int64_array([batch_size, time_size]))
-        node.out_port(1).data.set_shape(int64_array([batch_size]))
+        #node.out_port(1).data.set_shape(int64_array([batch_size]))
