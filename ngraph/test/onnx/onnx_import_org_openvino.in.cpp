@@ -280,3 +280,151 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposals_single_image)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/generate_proposals_single_image.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // im_info
+    test_case.add_input<float>({1.0f,1.0f,1.0f});
+    // anchors
+    test_case.add_input<float>({5.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,4.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,8.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               });
+    // deltas
+    test_case.add_input<float>({1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f
+                               });
+    // scores
+    test_case.add_input<float>({1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,
+                               1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f
+                               });
+
+    test_case.add_expected_output<float>(Shape{6, 4}, { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                                        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                                        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                                        0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f });
+    test_case.add_expected_output<float>(Shape{6}, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f });
+    
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/group_norm.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+    Shape shape{2, 8, 2, 2};
+    int size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0);
+    std::vector<float> output = {
+        -0.52752507, -0.09108937, 0.3453464, 0.78178215, 2.4364357, 3.309307,  4.1821785, 5.05505,
+        -1.5825753,  -0.27326822, 1.0360391, 2.3453465,  4.8728714, 6.618614,  8.364357,  10.1101,
+        -2.6376252,  -0.45544672, 1.726732,  3.9089108,  7.309307,  9.927921,  12.546536, 15.165151,
+        -3.6926756,  -0.6376257,  2.4174247, 5.472475,   9.745743,  13.237228, 16.728714, 20.2202,
+        -0.52752507, -0.09108937, 0.3453464, 0.78178215, 2.4364357, 3.309307,  4.1821785, 5.05505,
+        -1.5825753,  -0.27326822, 1.0360391, 2.3453465,  4.8728714, 6.618614,  8.364357,  10.1101,
+        -2.6376252,  -0.45544672, 1.726732,  3.9089108,  7.309307,  9.927921,  12.546536, 15.165151,
+        -3.6926756,  -0.6376257,  2.4174247, 5.472475,   9.745743,  13.237228, 16.728714, 20.2202,
+    };
+
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(shape, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_generator)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/prior_grid_generator.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+
+    
+    std::vector<float> priors(shape_size(Shape{3, 4}));
+    std::iota(priors.begin(), priors.end(), 0);
+
+    std::vector<float> feature_map(shape_size(Shape{1, 1, 1, 3}));
+    std::iota(feature_map.begin(), feature_map.end(), 0);
+
+    std::vector<float> im_data(shape_size(Shape{1, 3, 4, 7}));
+    std::iota(im_data.begin(), im_data.end(), 0);
+
+    test_case.add_input<float>(priors);
+    test_case.add_input<float>(feature_map);
+    test_case.add_input<float>(im_data);
+
+    test_case.add_expected_output<float>(Shape{9, 4}, {2, 3, 4, 5, 6, 7, 8, 9, 10,
+                                                        11, 12, 13, 6, 3, 8, 5, 10, 7, 
+                                                        12, 9, 14, 11, 16, 13, 10, 3, 12,
+                                                        5, 14, 7, 16, 9, 18, 11, 20, 13});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extractor)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+
+    
+    std::vector<float> rois(shape_size(Shape{2, 4}));
+    std::iota(rois.begin(), rois.end(), 0);
+
+    std::vector<float> pyramid_layer_0(shape_size(Shape{1, 2, 2, 3}));
+    std::iota(pyramid_layer_0.begin(), pyramid_layer_0.end(), 0);
+
+    test_case.add_input<float>(rois);
+    test_case.add_input<float>(pyramid_layer_0);
+
+    test_case.add_expected_output<float>(Shape{2, 2, 3, 3}, {
+                                                             1.416666746139526367, 1.750000119209289551, 2.083333492279052734, 2.416666746139526367, 2.75, 3.083333492279052734, 3.166666507720947266, 3.5, 3.833333492279052734, 7.416666507720947266, 7.75, 8.083333015441894531,
+                                                             8.416666984558105469, 8.75, 9.083333969116210938, 9.166666030883789062, 9.5, 9.833333969116210938, 4.166666984558105469, 4.5, 4.833333492279052734, 4.166666984558105469, 4.5, 4.833333492279052734,
+                                                             2.083333492279052734, 2.25, 2.416666746139526367, 10.16666603088378906, 10.5, 10.83333206176757812, 10.16666603088378906, 10.5, 10.83333206176757812, 5.083333015441894531, 5.25, 5.416666507720947266
+                                                             });
+
+    test_case.add_expected_output<float>(Shape{2, 4}, {0, 1, 2, 3, 4, 5, 6, 7});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_topk_rios)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/org.openvinotoolkit/experimental_detectron/topk_rios.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
+
+
+    test_case.add_input<float>({1.0f, 1.0f, 3.0f, 4.0f,
+                                2.0f, 1.0f, 5.0f, 7.0f});
+    test_case.add_input<float>({0.5f, 0.3f});
+
+    test_case.add_expected_output<float>(Shape{1, 4}, {1, 1, 3, 4});
+    test_case.run();
+}
