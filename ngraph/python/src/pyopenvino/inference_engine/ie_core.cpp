@@ -139,7 +139,9 @@ void regclass_IECore(py::module m)
     cls.def(py::init());
     cls.def(py::init<const std::string&>());
 
-    cls.def("set_config", [](InferenceEngine::Core& self, py::dict config, std::string device_name) {
+    cls.def("set_config", [](InferenceEngine::Core& self,
+                             const py::dict& config,
+                             const std::string& device_name) {
         std::map <std::string, std::string> config_map;
         for (auto item : config) {
             config_map[to_string(item.first)] = to_string(item.second);
@@ -148,34 +150,41 @@ void regclass_IECore(py::module m)
     }, py::arg("config"), py::arg("device_name"));
 
     cls.def("load_network", [](InferenceEngine::Core& self,
-            InferenceEngine::CNNNetwork network, std::string device_name, std::map<std::string, std::string> config) {
+                               const InferenceEngine::CNNNetwork& network,
+                               const std::string& device_name,
+                               const std::map<std::string, std::string>& config) {
         return self.LoadNetwork(network, device_name, config);
     }, py::arg("network"), py::arg("device_name"), py::arg("config")=py::dict());
 
-    cls.def("add_extension", [](InferenceEngine::Core& self, std::string extension_path, std::string device_name) {
+    cls.def("add_extension", [](InferenceEngine::Core& self,
+                                const std::string& extension_path,
+                                const std::string& device_name) {
         auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(extension_path);
         auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
         self.AddExtension(extension, device_name);
     }, py::arg("extension_path"), py::arg("device_name"));
 
-    cls.def("get_versions", [](InferenceEngine::Core& self, std::string device_name) {
+    cls.def("get_versions", [](InferenceEngine::Core& self,
+                               const std::string& device_name) {
         return self.GetVersions(device_name);
     }, py::arg("device_name"));
 
-    cls.def("read_network", [](InferenceEngine::Core& self, std::string model, std::string weights) {
+    cls.def("read_network", [](InferenceEngine::Core& self,
+                               const std::string& model,
+                               const std::string& weights) {
         return self.ReadNetwork(model, weights);
     }, py::arg("model"), py::arg("weights")="");
 
     cls.def("import_network", [](InferenceEngine::Core& self,
-                                 std::string model_file,
-                                 std::string device_name,
-                                 std::map<std::string, std::string> config) {
+                                 const std::string& model_file,
+                                 const std::string& device_name,
+                                 const std::map<std::string, std::string>& config) {
         return self.ImportNetwork(model_file, device_name, config);
     }, py::arg("model_file"), py::arg("device_name"), py::arg("config")=py::none());
 
     cls.def("get_config", [](InferenceEngine::Core& self,
-                             std::string device_name,
-                             std::string config_name) -> py::handle {
+                             const std::string& device_name,
+                             const std::string& config_name) -> py::handle {
         return parse_parameter(self.GetConfig(device_name, config_name));
     }, py::arg("device_name"), py::arg("config_name"));
 
