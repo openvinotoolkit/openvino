@@ -207,9 +207,6 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
 
 
 xfail_issue_39704 = xfail_test(reason="ResNet101_DUC_HDC - AssertionError: zoo models results mismatch")
-xfail_issue_43208 = xfail_test(reason="GPT-2 - AssertionError: zoo models results mismatch")
-xfail_issue_43209 = xfail_test(reason="GPT-2-LM-HEAD - AssertionError: zoo models results mismatch")
-xfail_issue_43213 = xfail_test(reason="RetinaNet Resnet101 - AssertionError: zoo models results mismatch")
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
