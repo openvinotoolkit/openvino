@@ -31,7 +31,8 @@ namespace ngraph
         {
             ComparisonResult() = default;
             ComparisonResult(std::string error)
-                : error_message{std::move(error)}
+                : is_ok{false}
+                , error_message{std::move(error)}
             {
             }
             ComparisonResult(ComparisonResult&&) = default;

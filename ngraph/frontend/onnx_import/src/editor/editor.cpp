@@ -244,7 +244,7 @@ void onnx_import::ONNXModelEditor::set_input_shapes(
 }
 
 void onnx_import::ONNXModelEditor::cut_graph_fragment(const std::vector<InputEdge>& inputs,
-                                                      const std::vector<InputEdge>& outputs)
+                                                      const std::vector<OutputEdge>& outputs)
 {
     if (inputs.empty() && outputs.empty())
     {

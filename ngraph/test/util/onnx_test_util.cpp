@@ -111,8 +111,8 @@ namespace
     {
         if (lhs.name() != rhs.name())
         {
-            return ComparisonResult::fail(
-                item_type + " names in the graph don't match: " + lhs.name() + " vs " + rhs.name());
+            return ComparisonResult::fail(item_type + " names in the graph don't match: " +
+                                          lhs.name() + " vs " + rhs.name());
         }
 
         const auto& lhs_tensor = lhs.type().tensor_type();
@@ -143,14 +143,14 @@ namespace
                     (rhs_dim.has_dim_value() && lhs_dim.has_dim_param()))
                 {
                     return ComparisonResult::fail("Dynamic vs static dimension mismatch for " +
-                                                  item_type + " " + lhs.name() +
-                                                  " at index: " + std::to_string(j));
+                                                  item_type + " " + lhs.name() + " at index: " +
+                                                  std::to_string(j));
                 }
                 else if (lhs_dim.has_dim_value() && lhs_dim.dim_value() != rhs_dim.dim_value())
                 {
                     return ComparisonResult::fail("Shape dimensions don't match for " + item_type +
-                                                  " " + lhs.name() +
-                                                  " at index: " + std::to_string(j) + ". " +
+                                                  " " + lhs.name() + " at index: " +
+                                                  std::to_string(j) + ". " +
                                                   std::to_string(lhs_dim.dim_value()) + " vs " +
                                                   std::to_string(rhs_dim.dim_value()));
                 }
@@ -165,7 +165,10 @@ namespace
     {
         if (graph.input_size() != ref_graph.input_size())
         {
-            return ComparisonResult::fail("The number of inputs in compared models doesn't match");
+            return ComparisonResult::fail(
+                "The number of inputs in compared models doesn't match: " +
+                std::to_string(graph.input_size()) + " vs " +
+                std::to_string(ref_graph.input_size()));
         }
         else
         {
@@ -190,7 +193,9 @@ namespace
     {
         if (graph.output_size() != ref_graph.output_size())
         {
-            return ComparisonResult::fail("The number of outputs in compared models doesn't match");
+            return ComparisonResult::fail("The number of outputs in compared models doesn't match" +
+                                          std::to_string(graph.output_size()) + " vs " +
+                                          std::to_string(ref_graph.output_size()));
         }
         else
         {
@@ -216,7 +221,9 @@ namespace
         if (graph.initializer_size() != ref_graph.initializer_size())
         {
             return ComparisonResult::fail(
-                "The number of initializers in compared models doesn't match");
+                "The number of initializers in compared models doesn't match" +
+                std::to_string(graph.initializer_size()) + " vs " +
+                std::to_string(ref_graph.initializer_size()));
         }
         else
         {
