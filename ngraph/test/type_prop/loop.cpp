@@ -108,7 +108,6 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes)
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);
@@ -213,7 +212,6 @@ TEST(type_prop, loop_operation_dowhile_mode_1_iter_static_shapes)
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);
@@ -316,7 +314,6 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_static_shapes
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     Shape out0_shape{1};
@@ -416,7 +413,6 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);
@@ -524,7 +520,6 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_partially_dyn
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);
@@ -586,12 +581,9 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_incorrect_sli
     loop->set_merged_input(M_body, M, Zo);
 
     const auto sliced_output_axis = 4;
-    auto out = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, sliced_output_axis);
-
-    auto result = make_shared<opset5::Result>(out);
     try
     {
-        auto f = make_shared<Function>(ResultVector{result}, ParameterVector{X, Y, M});
+        auto out = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, sliced_output_axis);
         FAIL() << "Loop was created with incorrect axis of concatenated slices output.";
     }
     catch (const std::exception& error)
@@ -690,7 +682,6 @@ TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes)
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);
@@ -796,7 +787,6 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);
@@ -902,7 +892,6 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);
@@ -1009,7 +998,6 @@ TEST(type_prop, loop_operation_10_iter_static_shapes_sliced_inputs)
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);
@@ -1121,7 +1109,6 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_batch_shapes_sliced_inputs_c
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);
@@ -1236,7 +1223,6 @@ TEST(type_prop, loop_operation_dynamic_iter_dynamic_shapes_sliced_inputs_concate
             EXPECT_NE(output_desc, nullptr);
         }
     }
-
     auto result0 = make_shared<opset5::Result>(out0);
     auto result1 = make_shared<opset5::Result>(out1);
     auto result2 = make_shared<opset5::Result>(out2);

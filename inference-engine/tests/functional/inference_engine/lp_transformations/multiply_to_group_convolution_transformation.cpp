@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -150,6 +150,31 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             ngraph::element::u8,
             std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, ngraph::Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
             std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{1, 4, 1, 1}, std::vector<float>{0.77f, -0.8f, -0.1f, -1.5f}),
+            {
+                {},
+                {},
+                {{0.45f, 0.82f, 0.71f, 0.37f}}
+            }
+        }
+    },
+    // subtract + multiply
+    {
+        ngraph::Shape{ 1, 4, 1, 1 },
+        LayerTransformation::createParamsU8I8(),
+        true,
+        false,
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}, true, 1, ngraph::element::u8, true},
+                {{0.45f, 0.82f, 0.71f, 0.37f}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, ngraph::Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{1, 4, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
             {
                 {},
                 {},

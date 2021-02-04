@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/tile.hpp"
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
@@ -51,41 +52,31 @@ void op::v0::Tile::validate_and_infer_types()
 
     auto arg_shape = get_input_partial_shape(0);
     auto repeats_shape = get_input_partial_shape(1);
-    auto repeats_rank = repeats_shape.rank();
-
-    NODE_VALIDATION_CHECK(this, repeats_rank.compatible(1), "Shape of repeats must be of rank 1");
-
-    auto out_shape = PartialShape::dynamic();
-
-    if (auto const_repeats = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
+    NODE_VALIDATION_CHECK(
+        this, repeats_shape.rank().compatible(1), "Shape of repeats must be of rank 1");
+    PartialShape repeats_as_pshape;
+    bool repeats_are_known =
+        evaluate_as_partial_shape(get_input_source_output(1), repeats_as_pshape);
+    std::vector<Dimension> repeats_value(repeats_as_pshape);
+    if (repeats_are_known && !repeats_value.empty() && arg_shape.rank().is_static())
     {
-        if (arg_shape.is_static())
-        {
-            auto data_shape = arg_shape.to_shape();
-            auto data_rank = data_shape.size();
-            auto repeats_val = const_repeats->cast_vector<int64_t>();
-            auto repeats_rank = repeats_val.size();
-            auto output_rank = std::max(data_rank, repeats_rank);
+        std::vector<Dimension> data_shape(arg_shape);
+        auto data_rank = data_shape.size();
+        auto repeats_rank = repeats_value.size();
+        auto output_rank = std::max(data_rank, repeats_rank);
 
-            // expand data shape and repeats to output rank
-            data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
-            repeats_val.insert(repeats_val.begin(), output_rank - repeats_rank, 1);
+        // expand data shape and repeats to output rank
+        data_shape.insert(data_shape.begin(), output_rank - data_rank, 1);
+        repeats_value.insert(repeats_value.begin(), output_rank - repeats_rank, 1);
 
-            Shape output_shape(output_rank);
-            for (size_t i = 0; i < output_rank; i++)
-            {
-                output_shape[i] = data_shape[i] * repeats_val[i];
-            }
-            set_output_type(0, arg_et, output_shape);
-        }
-        else
-        {
-            set_output_type(0, arg_et, out_shape);
-        }
+        auto output_shape = PartialShape::dynamic(output_rank);
+        for (size_t i = 0; i < output_rank; i++)
+            output_shape[i] = data_shape[i] * repeats_value[i];
+        set_output_type(0, arg_et, output_shape);
     }
     else
     {
-        set_output_type(0, arg_et, out_shape);
+        set_output_type(0, arg_et, PartialShape::dynamic());
     }
 
     set_input_is_relevant_to_shape(0);
