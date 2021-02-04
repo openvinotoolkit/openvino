@@ -170,6 +170,33 @@ namespace ngraph
         /// \param result Result node to delete
         void remove_result(const std::shared_ptr<op::Result>& result);
 
+        /// \brief Add new Parameter nodes to the list.
+        ///
+        /// Method doesn't change or validate graph, it should be done manually.
+        /// For example, if you want to replace `ReadValue` node by `Parameter`, you should do the
+        /// following steps:
+        /// * replace node `ReadValue` by `Parameter` in graph
+        /// * call add_parameter() to add new input to the list
+        /// * call graph validation to check correctness of changes
+        ///
+        /// \param params new Parameter nodes
+        void add_parameters(const ParameterVector& params);
+
+        /// \brief Delete Parameter node from the list of parameters. Method will not delete node
+        /// from graph. You need to replace Parameter with other operation manually.
+        /// Attention: Indexing of parameters can be changed.
+        ///
+        /// Possible use of method is to replace input by variable. For it the following steps
+        /// should be done:
+        /// * `Parameter` node should be replaced by `ReadValue`
+        /// * call remove_parameter(param) to remove input from the list
+        /// * check if any parameter indexes are saved/used somewhere, update it for all inputs
+        /// because indexes can be changed
+        /// * call graph validation to check all changes
+        ///
+        /// \param param Parameter node to delete
+        void remove_parameter(const std::shared_ptr<op::Parameter>& param);
+
     private:
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
@@ -205,4 +232,4 @@ namespace ngraph
                                                     0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph
