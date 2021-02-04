@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "ngraph/runtime/reference/convolution.hpp"
+#include "ngraph/runtime/reference/convolution_backprop_data.hpp"
 #include "ngraph/util.hpp"
 
 namespace ngraph
@@ -68,11 +68,7 @@ namespace ngraph
                 }();
                 const size_t group_out_size = shape_size(group_out_shape);
 
-                // TODO: delete in_dilation when Convolution PR (#3922) is merged
-                // in_dilation parameter is needed only for old implementation (CoordinateTransform
-                // based)
-                Strides in_dilation(in_shape.size());
-                std::fill(in_dilation.begin(), in_dilation.end(), 1);
+                Strides in_dilation(in_shape.size(), 1);
                 for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx)
                 {
                     group_filter = f;
