@@ -74,7 +74,7 @@
 
 **Types**
 
-* *T*: `uint64`, `int32`, `int64`, `float16`, `float32`, `bfloat16`.
+* *T*: floating point or integer type.
 
 **Mathematical Formulation**
 Output shape calculation based on `auto_pad` and `rounding_type`:  
