@@ -128,7 +128,7 @@ TEST_F(ExecutableNetworkThreadSafeTests, returnErrorIfInferThrowsException) {
     IInferRequest::Ptr req;
     EXPECT_CALL(*mockExeNetwork.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
     EXPECT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
-    EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::runtime_error("")));
+    EXPECT_CALL(*mockInferRequestInternal.get(), checkBlobs()).WillOnce(Throw(std::runtime_error("")));
     EXPECT_NO_THROW(sts = req->Infer(&dsc));
     ASSERT_EQ(StatusCode::GENERAL_ERROR, sts) << dsc.msg;
 }

@@ -192,8 +192,7 @@ public:
         pugi::xml_node ieNode = xmlDoc.document_element();
         pugi::xml_node devicesNode = ieNode.child("plugins");
 
-        for (auto pluginNode = devicesNode.child("plugin"); !pluginNode.empty();
-             pluginNode = pluginNode.next_sibling("plugin")) {
+        FOREACH_CHILD(pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
             FileUtils::FilePath pluginPath = FileUtils::toFilePath(GetStrAttr(pluginNode, "location").c_str());
 
@@ -212,8 +211,7 @@ public:
             std::map<std::string, std::string> config;
 
             if (propertiesNode) {
-                for (auto propertyNode = propertiesNode.child("property"); !propertyNode.empty();
-                     propertyNode = propertyNode.next_sibling("property")) {
+                FOREACH_CHILD(propertyNode, propertiesNode, "property") {
                     std::string key = GetStrAttr(propertyNode, "key");
                     std::string value = GetStrAttr(propertyNode, "value");
                     config[key] = value;
@@ -225,8 +223,7 @@ public:
             std::vector<FileUtils::FilePath> listOfExtentions;
 
             if (extensionsNode) {
-                for (auto extensionNode = extensionsNode.child("extension"); !extensionNode.empty();
-                     extensionNode = extensionNode.next_sibling("extension")) {
+                FOREACH_CHILD(extensionNode, extensionsNode, "extension") {
                     FileUtils::FilePath extensionLocation = FileUtils::toFilePath(GetStrAttr(extensionNode, "location").c_str());
                     listOfExtentions.push_back(extensionLocation);
                 }

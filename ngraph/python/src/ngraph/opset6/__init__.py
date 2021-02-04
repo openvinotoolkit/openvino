@@ -98,7 +98,7 @@ from ngraph.opset1.ops import minimum
 from ngraph.opset4.ops import mish
 from ngraph.opset1.ops import mod
 from ngraph.opset1.ops import multiply
-from ngraph.opset2.ops import mvn
+from ngraph.opset6.ops import mvn
 from ngraph.opset1.ops import negative
 from ngraph.opset5.ops import non_max_suppression
 from ngraph.opset3.ops import non_zero
