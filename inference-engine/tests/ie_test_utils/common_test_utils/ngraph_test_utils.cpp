@@ -673,16 +673,30 @@ public:
     Result compare(
         const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2);
 
-    Result compare(ngraph::Node* node1, ngraph::Node* node2);
+    Result compare(ngraph::Node* node1, ngraph::Node* node2) {
+        std::stringstream errors;
+        const auto result = compare(node1, node2, errors);
+        if (!result.valid) {
+            return result;
+        }
+        const auto msg = errors.str();
+        return msg.empty() ? Result::ok() : Result::error(msg);
+    }
 
     Comparator recreate() const {
-        return Comparator{m_comparition_flags};
+        return Comparator(m_comparition_flags);
     }
 
 private:
-    constexpr bool should_compare(CmpValues f) const noexcept {
+    bool should_compare(CmpValues f) const noexcept {
         return m_comparition_flags & f;
     }
+
+    ///
+    /// \param err_log - will be fill by minor errors if happen
+    /// \return only fatality error if some minor one appears it will be add to err_log
+    ///
+    Result compare(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
 
     void add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* node2);
 
@@ -744,22 +758,26 @@ Comparator::Result Comparator::compare(
         used.insert(f1_results[i].get());
     }
 
+    std::stringstream errors;
+
     while (!q.empty()) {
         ngraph::Node* const node1 = q.front().first;
         ngraph::Node* const node2 = q.front().second;
         q.pop();
 
-        const auto result = compare(node1, node2);
+        const auto result = compare(node1, node2, errors);
         if (!result.valid) {
             return result;
         }
 
         add_nodes_inputs_to_queue(node1, node2);
     }
-    return Result::ok();
+    const auto msg = errors.str();
+    return msg.empty() ? Result::ok() : Result::error(msg);
 }
 
-Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2) {
+Comparator::Result Comparator::compare(
+    ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log) {
     auto type_info1 = node1->get_type_info();
     auto type_info2 = node2->get_type_info();
 
@@ -798,7 +816,6 @@ Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2)
             name(node1) + " and " + to_str(node2->inputs().size()) + " for " + name(node2));
     }
 
-    std::ostringstream err_log;
     for (int i = 0; i < node1->inputs().size(); ++i) {
         if (should_compare(CmpValues::CONST_VALUES)) {
             using Constant = ngraph::opset1::Constant;
@@ -886,9 +903,8 @@ Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2)
                 " [cmp status: " + to_string(compare_nodes) + "]");
         }
     }
-    const auto msg = err_log.str();
 
-    return msg.empty() ? Result::ok() : Result::error(msg);
+    return Result::ok("Check if any minor error was log in to err_log");
 }
 
 void Comparator::add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* node2) {
