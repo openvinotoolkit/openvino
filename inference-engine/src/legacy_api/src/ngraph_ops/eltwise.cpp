@@ -15,7 +15,7 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::Eltwise::type_info;
 
-op::Eltwise::Eltwise(const Output<Node>& data1, const Output<Node>& data2, const EltwiseType eltwise_type, const element::Type output_type)
+op::Eltwise::Eltwise(const Output<Node>& data1, const Output<Node>& data2, const ELTWISE_TYPE eltwise_type, const element::Type output_type)
     : Op({data1, data2}), eltwise_type(eltwise_type), m_output_type(output_type) {
     constructor_validate_and_infer_types();
 }
@@ -82,23 +82,20 @@ bool op::Eltwise::visit_attributes(AttributeVisitor &visitor) {
 }
 
 namespace ngraph {
-constexpr DiscreteTypeInfo
-    AttributeAdapter<op::Eltwise::EltwiseType>::type_info;
-
-template <>
-EnumNames<op::Eltwise::EltwiseType> &EnumNames<op::Eltwise::EltwiseType>::get() {
-  static auto enum_names = EnumNames<op::Eltwise::EltwiseType>(
-      "op::Eltwise::EltwiseType", {{"sum", op::Eltwise::EltwiseType::Sum},
-                                   {"prod", op::Eltwise::EltwiseType::Prod},
-                                   {"max", op::Eltwise::EltwiseType::Max},
-                                   {"sub", op::Eltwise::EltwiseType::Sub},
-                                   {"min", op::Eltwise::EltwiseType::Min},
-                                   {"div", op::Eltwise::EltwiseType::Div}});
+template <> EnumNames<ELTWISE_TYPE> &EnumNames<ELTWISE_TYPE>::get() {
+  static auto enum_names =
+      EnumNames<ELTWISE_TYPE>("ELTWISE_TYPE", {{"sum", ELTWISE_TYPE::Sum},
+                                               {"prod", ELTWISE_TYPE::Prod},
+                                               {"max", ELTWISE_TYPE::Max},
+                                               {"sub", ELTWISE_TYPE::Sub},
+                                               {"min", ELTWISE_TYPE::Min},
+                                               {"div", ELTWISE_TYPE::Div}});
   return enum_names;
 }
 
-std::ostream &operator<<(std::ostream &s,
-                         const op::Eltwise::EltwiseType &type) {
+constexpr DiscreteTypeInfo AttributeAdapter<ELTWISE_TYPE>::type_info;
+
+std::ostream &operator<<(std::ostream &s, const ELTWISE_TYPE &type) {
   return s << as_string(type);
 }
 } // namespace ngraph

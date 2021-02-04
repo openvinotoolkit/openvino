@@ -109,7 +109,7 @@ public:
                                                                 const MulConstant& mul_const,
                                                                 const AddConstant& add_const) {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto add = std::make_shared<ngraph::op::Eltwise>(input, create_constant(add_const.shape, add_const.value), ngraph::op::Eltwise::EltwiseType::Sum);
+        auto add = std::make_shared<ngraph::op::Eltwise>(input, create_constant(add_const.shape, add_const.value), ELTWISE_TYPE::Sum);
         auto relu = std::make_shared<ngraph::opset1::Relu>(add);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }
@@ -119,7 +119,7 @@ public:
                                                                 const MulConstant& mul_const,
                                                                 const AddConstant& add_const) {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
-        auto mul = std::make_shared<ngraph::op::Eltwise>(input, create_constant(mul_const.shape, mul_const.value), ngraph::op::Eltwise::EltwiseType::Prod);
+        auto mul = std::make_shared<ngraph::op::Eltwise>(input, create_constant(mul_const.shape, mul_const.value), ELTWISE_TYPE::Prod);
         auto relu = std::make_shared<ngraph::opset1::Relu>(mul);
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{relu}, ngraph::ParameterVector{input});
     }

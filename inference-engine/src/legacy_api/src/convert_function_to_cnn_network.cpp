@@ -455,23 +455,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                 if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
                 std::string type;
                 switch (castedLayer->eltwise_type) {
-                case ::ngraph::op::Eltwise::EltwiseType::Sum:
+                case ELTWISE_TYPE::Sum:
                     type = "sum";
                     break;
-                case ::ngraph::op::Eltwise::EltwiseType::Prod:
-                    type = "prod";
-                    break;
-                case ::ngraph::op::Eltwise::EltwiseType::Max:
-                    type = "max";
-                    break;
-                case ::ngraph::op::Eltwise::EltwiseType::Sub:
+                case ELTWISE_TYPE::Sub:
                     type = "sub";
                     break;
-                case ::ngraph::op::Eltwise::EltwiseType::Min:
-                    type = "min";
-                    break;
-                case ::ngraph::op::Eltwise::EltwiseType::Div:
-                    type = "div";
+                case ELTWISE_TYPE::Prod:
+                    type = "prod";
                     break;
                 default:
                     THROW_IE_EXCEPTION << "Not supported eltwise type!";
