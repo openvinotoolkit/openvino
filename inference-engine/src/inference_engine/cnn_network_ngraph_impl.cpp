@@ -333,6 +333,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 
     auto params = _ngraph_function->get_parameters();
 
+    bool parameter_replaced = false;
     for (size_t i = 0; i < params.size(); i++) {
         const auto& param = params[i];
         if (inputShapes.find(param->get_friendly_name()) == inputShapes.end())
@@ -341,23 +342,35 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         auto newParam = std::make_shared<::ngraph::op::Parameter>(param->get_element_type(), shape);
         newParam->set_friendly_name(param->get_friendly_name());
         _ngraph_function->replace_parameter(i, newParam);
+        parameter_replaced = true;
     }
-    _ngraph_function->validate_nodes_and_infer_types();
+    if (parameter_replaced)
+        _ngraph_function->validate_nodes_and_infer_types();
+
+    const auto& results = _ngraph_function->get_results();
+    bool outputs_are_static = all_of(
+            begin(results), end(results),
+            [](const std::shared_ptr<ngraph::Node>& n){ return n->get_output_partial_shape(0).is_static(); });
 
     {
-        auto specialized_ngraph_function = cloneFunction(false);
-        {
-            OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
-            ::ngraph::pass::Manager manager;
-            // resolves dynamism by replacing dynamic operation with static version
-            manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
-            manager.register_pass<::ngraph::pass::ConstantFolding>();
-            // OneHotToLegacy changes output precision
-            manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
-                    specialized_ngraph_function);
-            manager.run_passes(specialized_ngraph_function);
+        shared_ptr<Function> specialized_ngraph_function = nullptr;
+        if (outputs_are_static) {
+            specialized_ngraph_function = _ngraph_function;
+        } else {
+            specialized_ngraph_function = cloneFunction(false);
+            {
+                OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertToLegacy");
+                ::ngraph::pass::Manager manager;
+                // resolves dynamism by replacing dynamic operation with static version
+                manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
+                manager.register_pass<::ngraph::pass::ConstantFolding>();
+                // OneHotToLegacy changes output precision
+                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
+                        specialized_ngraph_function);
+                manager.run_passes(specialized_ngraph_function);
+            }
+            specialized_ngraph_function->validate_nodes_and_infer_types();
         }
-        specialized_ngraph_function->validate_nodes_and_infer_types();
 
 #if 0
         for (const auto &op : specialized_ngraph_function->get_ordered_ops()) {

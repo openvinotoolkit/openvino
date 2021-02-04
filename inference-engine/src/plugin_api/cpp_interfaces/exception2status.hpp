@@ -142,6 +142,12 @@ namespace InferenceEngine {
 #define NOT_ALLOCATED_str std::string("[NOT_ALLOCATED] ")
 
 /**
+ * @def INFER_CANCELLED_str
+ * @brief Defines the `infer cancelled` message
+ */
+#define INFER_CANCELLED_str std::string("[INFER_CANCELLED] ")
+
+/**
  * @}
  */
 
