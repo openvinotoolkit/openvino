@@ -207,9 +207,10 @@ TEST(TransformationTests, CompareFunctoinsTINegative) {
                                                ngraph::ParameterVector{X, Y, Z});
     }
 
-    auto res = compare_functions(f, f_ref);
-    EXPECT_FALSE(res.first);
-    EXPECT_EQ(res.second, "LSTMCell/4 != Relu/0");
+    const auto fc = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    auto res = fc(f, f_ref);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("LSTMCell/4 != Relu/0"));
 }
 
 TEST(TransformationTests, ConstantNegativeDifferentElementType) {
