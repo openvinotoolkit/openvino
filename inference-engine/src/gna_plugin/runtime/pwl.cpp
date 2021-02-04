@@ -14,6 +14,7 @@
 #ifdef _NO_MKL_
 #include <cmath>
 #include <backend/make_pwl.hpp>
+#include "backend/gna_insert_extra_segments.hpp"
 
 #define SCOPY(num, in, inci, out, inco) for (int i_ = 0; i_ < *(num); i_++) *(out + i_ * *(inco)) = *(in + i_ * *(inci));
 #define SSCAL(num, scale, inout, inco)  for (int i_ = 0; i_ < *(num); i_++) *(inout + i_ * *(inco)) = *(scale) * *(inout + i_ * *(inco));
@@ -506,32 +507,40 @@ void PwlDesignOpt16(const DnnActivation activation_type,
         case kActSigmoid:
             pwl = pwl_search(activation_type, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         case kActTanh:
             pwl = pwl_search(activation_type, -TANH_DOMAIN, TANH_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, -TANH_DOMAIN, TANH_DOMAIN, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         case kActSoftSign:
             pwl = pwl_search(activation_type, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         case kActRelu:
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         case kActLeakyRelu:
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         case kActIdentity:
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         case kActKaldiLstmClipping:
             make_gna_pwl(activation_type, pwl, KALDI_LSTM_CLIP_LOWER, KALDI_LSTM_CLIP_UPPER, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         case kActLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
             double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
             pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         }
         case kActNegLog: {
@@ -539,6 +548,7 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
             pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         }
         case kActNegHalfLog: {
@@ -546,6 +556,7 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
             pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         }
         case kActExp: {
@@ -553,10 +564,12 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             double x_max = x_min + log(INT16_MAX);
             pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.5*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         }
         case kActSign:
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         case kActAbs:
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
@@ -580,6 +593,7 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             }
 
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
+            gna_insert_extra_segments(pwl, ptr_segment, scale_in, scale_out);
             break;
         }
         default:
