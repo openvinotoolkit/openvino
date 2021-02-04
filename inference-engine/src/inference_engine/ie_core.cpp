@@ -197,7 +197,7 @@ class Core::Impl : public ICore {
         }
 
         bool isModelCacheEnabled() const { return _isModelCacheEnabled; }
-        std::string getModelCacheRoot() const { return _modelCacheDir; }
+        std::string getModelCacheDir() const { return _modelCacheDir; }
         std::string getBlobFileName() const { return _blobFileName; }
     };
 
@@ -278,9 +278,13 @@ class Core::Impl : public ICore {
         bool modelCacheEnabled = localCoreConfig.isModelCacheEnabled(),
             cachingIsAvailable = false, networkIsImported = false;
         std::string blobFileName = localCoreConfig.getBlobFileName();
+        std::string modelCacheDir = localCoreConfig.getModelCacheDir();
 
         // TEST CODE: FORCE MODEL CACHE
-        modelCacheEnabled = true;
+        {
+            modelCacheEnabled = true;
+            modelCacheDir = getIELibraryPath();
+        }
 
         if (modelCacheEnabled && blobFileName.empty() && deviceSupportsImport(this)) {
             OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::hashing");
@@ -321,13 +325,14 @@ class Core::Impl : public ICore {
 
             copyConfigValue(CONFIG_KEY(DEVICE_ID));
 
+            // TODO: return loadConfig as is
             return importConfig;
         };
 
         ExecutableNetwork execNetwork;
 
         // make a full path
-        blobFileName = FileUtils::makePath(getIELibraryPath(), blobFileName);
+        blobFileName = FileUtils::makePath(modelCacheDir, blobFileName);
 
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
             auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
