@@ -258,16 +258,23 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
         if not find_ie_version():
-            # TODO: implement fallback
             print("[ WARNING ] No IE version was found, using fallback")
         else:
             import subprocess
-            path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'offline_transformations.py')
+            path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)),
+                                                           'offline_transformations.py')
             status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ)
             if status.returncode != 0:
-                # TODO: implement fallback
-                print("[ WARNING ] ApplyMOCTransformations return code != 0, using fallback")
-                pass
+                if not os.path.exists(orig_model_name + ".xml") and not os.path.exists(orig_model_name + ".bin"):
+                    print("[ ERROR ] offline_transformations crashed on serialization step, fallback can't be used")
+                    return 1
+                print("[ WARNING ] offline_transformations return code {}, using fallback".format(status.returncode))
+            else:
+                # offline transformation successfully passed, add meta info and prepossessing to IR
+                append_ir_info(file=orig_model_name,
+                               meta_info=get_meta_info(argv),
+                               mean_data=graph.graph['mf'] if 'mf' in graph.graph else None,
+                               input_names=graph.graph['input_names'] if 'input_names' in graph.graph else [])
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))

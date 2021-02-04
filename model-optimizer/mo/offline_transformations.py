@@ -16,15 +16,20 @@
  limitations under the License.
 """
 
+import os
 import sys
 
 
 if __name__ == "__main__":
-    from openvino.inference_engine import IECore, get_version
+    from openvino.inference_engine import IECore
     from openvino.offline_transformations import ApplyMOCTransformations
 
     orig_model_name = sys.argv[1]
     ie = IECore()
     net = ie.read_network(model=orig_model_name + ".xml", weights=orig_model_name + ".bin")
     ApplyMOCTransformations(net, True)
+
+    # remove old IR version to avoid collisions in case if serialize fails
+    os.remove(orig_model_name + ".xml")
+    os.remove(orig_model_name + ".bin")
     net.serialize(orig_model_name + ".xml", orig_model_name + ".bin")
