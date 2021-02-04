@@ -11,14 +11,16 @@
 
 namespace {
 
-class ParameterResultTest : public testing::WithParamInterface<std::tuple<ngraph::Shape, ngraph::element::Type, std::string>>,
+using DataShape = ngraph::Shape;
+using DataType = ngraph::element::Type;
+
+class ParameterResultTest : public testing::WithParamInterface<std::tuple<DataShape, DataType, std::string>>,
                             virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        const auto& parameters = GetParam();
-        const auto& inShape = std::get<0>(parameters);
-        const auto& inType = std::get<1>(parameters);
-        targetDevice = std::get<2>(parameters);
+        DataShape inShape;
+        DataType inType;
+        std::tie(inShape, inType, targetDevice) = GetParam();
         inPrc = outPrc = InferenceEngine::details::convertPrecision(inType);
         configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
@@ -46,10 +48,9 @@ class ParameterShapeOfResultTest : public testing::WithParamInterface<std::tuple
                                    virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
-        const auto& parameters = GetParam();
-        const auto& inShape = std::get<0>(parameters);
-        const auto& inType = std::get<1>(parameters);
-        targetDevice = std::get<2>(parameters);
+        DataShape inShape;
+        DataType inType;
+        std::tie(inShape, inType, targetDevice) = GetParam();
         configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         const auto param = std::make_shared<ngraph::opset6::Parameter>(inType, inShape);

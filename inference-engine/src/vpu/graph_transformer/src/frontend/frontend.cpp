@@ -381,7 +381,7 @@ void FrontEnd::processTrivialCases(const Model& model) {
 
     for (const auto& data : model->datas()) {
         if (data->usage() == DataUsage::Input || data->usage() == DataUsage::Intermediate || data->usage() == DataUsage::Const) {
-            if (data->numConsumers() == 0 && data->childDataToShapeEdges().size() == 0) {
+            if (!data->isUsed()) {
                 trivialInputs.push_back(data);
             }
         }

@@ -178,6 +178,7 @@ def get_dtype(precision):
     format_map = {
       'FP32' : np.float32,
       'I32'  : np.int32,
+      'I64'  : np.int64,
       'FP16' : np.float16,
       'I16'  : np.int16,
       'U16'  : np.uint16,

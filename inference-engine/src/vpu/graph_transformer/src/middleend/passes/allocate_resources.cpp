@@ -230,7 +230,7 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
             if (input->usage() != DataUsage::Input) {
                 continue;
             }
-            if (input->numConsumers() != 0 || input->childDataToShapeEdges().size() != 0) {
+            if (input->isUsed()) {
                 continue;
             }
 
