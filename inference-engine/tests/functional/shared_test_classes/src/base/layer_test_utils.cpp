@@ -342,7 +342,7 @@ void LayerTestsCommon::Infer() {
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     for (const auto& param : function->get_parameters()) {
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
-        IE_ASSERT(infoIt != inputsInfo.cend());
+        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
 
         const auto& info = infoIt->second;
         auto blob = GenerateInput(*info);

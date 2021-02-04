@@ -153,15 +153,19 @@ namespace squeeze
     {
         const auto data_rank = arg0->get_partial_shape().rank().get_length();
         const auto axes_num = shape_size(arg1->get_shape());
-        auto axes = normalize_axes(
+        auto norm_axes = normalize_axes(
             "",
             std::vector<int64_t>(arg1->get_data_ptr<ET>(), arg1->get_data_ptr<ET>() + axes_num),
             data_rank);
-        std::sort(axes.begin(), axes.end(), [](int64_t a, int64_t b) { return a > b; });
+        set<size_t, greater<size_t>> ordered_axes(norm_axes.begin(), norm_axes.end());
 
         auto out_shape = arg0->get_shape();
-        for (const auto& axis : axes)
+        for (const auto& axis : ordered_axes)
         {
+            if (out_shape[axis] != 1)
+            {
+                throw ngraph_error("Squeeze dimension is not equal to 1");
+            }
             out_shape.erase(out_shape.begin() + axis);
         }
         out->set_shape(out_shape);

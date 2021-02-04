@@ -86,7 +86,7 @@ std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::N
         ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
 }
 
-std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::Node>& shape, std::vector<int64_t> indicesToGather) {
+std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::Node>& shape, const std::vector<int64_t>& indicesToGather) {
     return std::make_shared<ngraph::opset5::Gather>(
             shape,
             ngraph::opset5::Constant::create(ngraph::element::i64, {indicesToGather.size()}, indicesToGather),

@@ -39,104 +39,115 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
 
     const auto m = std::make_shared<ngraph::pattern::Matcher>(transpose, "GatherSqueezeTransposeMatcher");
     for (const auto& node : f->get_ordered_ops()) {
-        if (m->match(node)) {
-            auto& patternMap = m->get_pattern_value_map();
-
-            std::vector<ngraph::Node*> shapeOfs;
-            std::vector<ngraph::Node*> gatherElements;
-
-            const auto& m_transpose = patternMap.at(transpose);
-            const auto& transposeConsumers = m_transpose.get_target_inputs();
-            for (const auto& transposeConsumer : transposeConsumers) {
-                if (transposeConsumer.get_node()->get_type_info() == ngraph::opset6::ShapeOf::type_info) {
-                    shapeOfs.push_back(transposeConsumer.get_node());
-                } else if (transposeConsumer.get_node()->get_type_info() == ngraph::opset6::GatherElements::type_info) {
-                    gatherElements.push_back(transposeConsumer.get_node());
-                }
-            }
-            if (gatherElements.empty() || shapeOfs.size() + gatherElements.size() != transposeConsumers.size()) {
-                continue;
-            }
-
-            const auto& m_transposePerm = patternMap.at(transposePerm);
-            const auto& m_squeezeAxes = patternMap.at(squeezeAxes);
-            const auto& m_squeeze = patternMap.at(squeeze);
-            const auto& m_gatherData = patternMap.at(gatherData);
-            const auto& m_gatherIndices = patternMap.at(gatherIndices);
-            const auto& m_gather = patternMap.at(gather);
-
-            for (const auto& gatherElement : gatherElements) {
-                const auto transposeIndices = std::make_shared<ngraph::opset6::Transpose>(gatherElement->input_value(1), m_transposePerm);
-                const auto unsqueezeIndices = std::make_shared<ngraph::opset6::Unsqueeze>(
-                    transposeIndices,
-                    m_squeezeAxes);
-                const auto expGatherElements = std::make_shared<ngraph::vpu::op::ExpGatherElements>(
-                    m_gatherData,
-                    unsqueezeIndices,
-                    m_gatherIndices,
-                    ngraph::as_type<ngraph::opset6::GatherElements>(gatherElement)->get_axis(),
-                    ngraph::as_type<ngraph::opset6::Gather>(m_gather.get_node())->get_axis());
-                const auto squeezeData = m_squeeze.get_node()->clone_with_new_inputs({expGatherElements, m_squeezeAxes});
-                const auto transposeData = m_transpose.get_node()->clone_with_new_inputs({squeezeData, m_transposePerm});
-                transposeData->set_friendly_name(gatherElement->get_friendly_name());
-                gatherElement->get_default_output().replace(transposeData);
-                wasGraphChanged = true;
-            }
-
-            for (const auto& shapeOf : shapeOfs) {
-                const auto gatherDataShape = std::make_shared<ngraph::opset6::ShapeOf>(
-                    m_gatherData,
-                    ngraph::as_type<ngraph::opset6::ShapeOf>(shapeOf)->get_output_type());
-                const auto gatherIndicesShape = std::make_shared<ngraph::opset6::ShapeOf>(
-                    m_gatherIndices,
-                    ngraph::as_type<ngraph::opset6::ShapeOf>(shapeOf)->get_output_type());
-                const auto axis = ngraph::as_type<ngraph::opset6::Gather>(m_gather.get_node())->get_axis();
-
-                const auto gatherIndicesRank = m_gatherIndices.get_partial_shape().rank().get_length();
-                const auto gatherDataRank = m_gatherData.get_partial_shape().rank().get_length();
-                const auto gatherOutRank = gatherDataRank + gatherIndicesRank - 1;
-
-                std::vector<int64_t> squeezeOutIndices(gatherOutRank);
-                std::iota(squeezeOutIndices.begin(), squeezeOutIndices.end(), 0);
-
-                auto squeezeAxes = ngraph::as_type<ngraph::opset6::Constant>(m_squeezeAxes.get_node())->cast_vector<int64_t>();
-                ngraph::normalize_axes(m_squeezeAxes.get_node()->description(), squeezeAxes, gatherOutRank);
-                std::sort(squeezeAxes.begin(), squeezeAxes.end(), [](int64_t a, int64_t b) { return a > b; });
-                for (const auto& squeezeAxis : squeezeAxes) {
-                    squeezeOutIndices.erase(squeezeOutIndices.begin() + squeezeAxis);
-                }
-
-                std::vector<int64_t> transposeOutIndices(squeezeOutIndices.size());
-                auto transposePerm = ngraph::as_type<ngraph::opset6::Constant>(m_transposePerm.get_node())->cast_vector<int64_t>();
-                for (size_t i = 0; i < transposeOutIndices.size(); i++) {
-                    transposeOutIndices[i] = squeezeOutIndices[transposePerm[i]];
-                }
-
-                ngraph::OutputVector gatherOutDims;
-                if (axis) {
-                    gatherOutDims.push_back(gatherShapeElements(gatherDataShape, 0, axis));
-                }
-                if (m_gatherIndices.get_partial_shape().rank().get_length()) {
-                    gatherOutDims.push_back(gatherIndicesShape);
-                }
-                if (axis + 1 < gatherDataRank) {
-                    gatherOutDims.push_back(gatherShapeElements(gatherDataShape, axis + 1, gatherDataRank - axis - 1));
-                }
-
-                const auto gatherOutShape = std::make_shared<ngraph::opset6::Concat>(gatherOutDims, 0);
-
-                const auto transposeOutShape = std::make_shared<ngraph::opset6::Gather>(
-                    gatherOutShape,
-                    ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{transposeOutIndices.size()}, transposeOutIndices),
-                    ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
-
-                transposeOutShape->set_friendly_name(shapeOf->get_friendly_name());
-                shapeOf->get_default_output().replace(transposeOutShape);
-                wasGraphChanged = true;
-            }
-
-            m->clear_state();
+        if (!m->match(node)) {
+            continue;
         }
+
+        auto& patternMap = m->get_pattern_value_map();
+
+        std::vector<ngraph::Node*> shapeOfs;
+        std::vector<ngraph::Node*> gatherElements;
+
+        const auto& matchedTranspose = patternMap.at(transpose);
+        const auto& transposeConsumers = matchedTranspose.get_target_inputs();
+
+        const auto isShapeOfOrGatherElements = [](const ngraph::Input<ngraph::Node>& consumer) {
+            return consumer.get_node()->get_type_info() == ngraph::opset6::ShapeOf::type_info ||
+                   consumer.get_node()->get_type_info() == ngraph::opset6::GatherElements::type_info;
+        };
+
+        if (!std::all_of(transposeConsumers.cbegin(), transposeConsumers.cend(), isShapeOfOrGatherElements)) {
+            continue;
+        }
+
+        for (const auto& transposeConsumer : transposeConsumers) {
+            if (transposeConsumer.get_node()->get_type_info() == ngraph::opset6::ShapeOf::type_info) {
+                shapeOfs.push_back(transposeConsumer.get_node());
+            } else if (transposeConsumer.get_node()->get_type_info() == ngraph::opset6::GatherElements::type_info) {
+                gatherElements.push_back(transposeConsumer.get_node());
+            }
+        }
+
+        const auto& matchedTransposePerm = patternMap.at(transposePerm);
+        const auto& matchedSqueezeAxes = patternMap.at(squeezeAxes);
+        const auto& matchedSqueeze = patternMap.at(squeeze);
+        const auto& matchedGatherData = patternMap.at(gatherData);
+        const auto& matchedGatherIndices = patternMap.at(gatherIndices);
+        const auto& matchedGather = patternMap.at(gather);
+
+        for (const auto& gatherElement : gatherElements) {
+            const auto transposeIndices = std::make_shared<ngraph::opset6::Transpose>(gatherElement->input_value(1), matchedTransposePerm);
+            const auto unsqueezeIndices = std::make_shared<ngraph::opset6::Unsqueeze>(
+                transposeIndices,
+                matchedSqueezeAxes);
+            const auto expGatherElements = std::make_shared<ngraph::vpu::op::ExpGatherElements>(
+                matchedGatherData,
+                unsqueezeIndices,
+                matchedGatherIndices,
+                ngraph::as_type<ngraph::opset6::GatherElements>(gatherElement)->get_axis(),
+                ngraph::as_type<ngraph::opset6::Gather>(matchedGather.get_node())->get_axis());
+            const auto squeezeData = matchedSqueeze.get_node()->clone_with_new_inputs({expGatherElements, matchedSqueezeAxes});
+            const auto transposeData = matchedTranspose.get_node()->clone_with_new_inputs({squeezeData, matchedTransposePerm});
+            transposeData->set_friendly_name(gatherElement->get_friendly_name());
+            gatherElement->get_default_output().replace(transposeData);
+            wasGraphChanged = true;
+        }
+
+        for (const auto& shapeOf : shapeOfs) {
+            const auto gatherDataShape = std::make_shared<ngraph::opset6::ShapeOf>(
+                matchedGatherData,
+                ngraph::as_type<ngraph::opset6::ShapeOf>(shapeOf)->get_output_type());
+            const auto gatherIndicesShape = std::make_shared<ngraph::opset6::ShapeOf>(
+                matchedGatherIndices,
+                ngraph::as_type<ngraph::opset6::ShapeOf>(shapeOf)->get_output_type());
+            const auto axis = ngraph::as_type<ngraph::opset6::Gather>(matchedGather.get_node())->get_axis();
+
+            const auto gatherIndicesRank = matchedGatherIndices.get_partial_shape().rank().get_length();
+            const auto gatherDataRank = matchedGatherData.get_partial_shape().rank().get_length();
+            const auto gatherOutRank = gatherDataRank + gatherIndicesRank - 1;
+
+            std::vector<int64_t> squeezeOutIndices(gatherOutRank);
+            std::iota(squeezeOutIndices.begin(), squeezeOutIndices.end(), 0);
+
+            const auto normedSqueezeAxes = ngraph::normalize_axes(
+                matchedSqueezeAxes.get_node()->description(),
+                ngraph::as_type<ngraph::opset6::Constant>(matchedSqueezeAxes.get_node())->cast_vector<int64_t>(),
+                gatherOutRank);
+            const std::set<size_t, std::greater<size_t>> orderedSqueezeAxes(normedSqueezeAxes.begin(), normedSqueezeAxes.end());
+            for (const auto& squeezeAxis : orderedSqueezeAxes) {
+                squeezeOutIndices.erase(squeezeOutIndices.begin() + squeezeAxis);
+            }
+
+            std::vector<int64_t> transposeOutIndices(squeezeOutIndices.size());
+            auto transposePerm = ngraph::as_type<ngraph::opset6::Constant>(matchedTransposePerm.get_node())->cast_vector<int64_t>();
+            for (size_t i = 0; i < transposeOutIndices.size(); i++) {
+                transposeOutIndices[i] = squeezeOutIndices[transposePerm[i]];
+            }
+
+            ngraph::OutputVector gatherOutDims;
+            if (axis) {
+                gatherOutDims.push_back(gatherShapeElements(gatherDataShape, 0, axis));
+            }
+            if (matchedGatherIndices.get_partial_shape().rank().get_length()) {
+                gatherOutDims.push_back(gatherIndicesShape);
+            }
+            if (axis + 1 < gatherDataRank) {
+                gatherOutDims.push_back(gatherShapeElements(gatherDataShape, axis + 1, gatherDataRank - axis - 1));
+            }
+
+            const auto gatherOutShape = std::make_shared<ngraph::opset6::Concat>(gatherOutDims, 0);
+
+            const auto transposeOutShape = std::make_shared<ngraph::opset6::Gather>(
+                gatherOutShape,
+                ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{transposeOutIndices.size()}, transposeOutIndices),
+                ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
+
+            transposeOutShape->set_friendly_name(shapeOf->get_friendly_name());
+            shapeOf->get_default_output().replace(transposeOutShape);
+            wasGraphChanged = true;
+        }
+
+        m->clear_state();
     }
 
     return wasGraphChanged;
