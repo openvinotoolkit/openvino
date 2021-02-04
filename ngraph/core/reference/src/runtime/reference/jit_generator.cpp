@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 #include "jit_generator.hpp"
+#include "ngraph/type/float16.hpp"
 
 #include <xbyak/xbyak_util.h>
 
@@ -23,6 +24,8 @@ namespace ngraph
     {
         namespace jit
         {
+            using namespace Xbyak;
+
 #ifdef XBYAK64
             static const Xbyak::Operand::Code abi_save_gpr_regs[] = {
                 Xbyak::Operand::RBX,
@@ -126,6 +129,100 @@ namespace ngraph
                 if (mayiuse(avx) && !mayiuse(avx512_mic))
                     vzeroupper();
                 ret();
+            }
+
+            void Generator::foreach (const Xbyak::Reg64& idx,
+                                     size_t step,
+                                     const Xbyak::Reg64& end,
+                                     std::function<void(const Xbyak::Reg64&)> && fn)
+            {
+                Label loop, exit;
+
+                L(loop);
+                cmp(idx, end);
+                jge(exit);
+
+                fn(idx);
+
+                add(idx, step);
+                jmp(loop);
+                L(exit);
+            }
+
+            template <>
+            void Generator::copy<uint8_t>(const Xbyak::Reg64& dst,
+                                          const Xbyak::Reg64& src,
+                                          const Xbyak::Reg64& size)
+            {
+                push(rsi);
+                push(r15);
+
+                xor_(rsi, rsi);
+
+                foreach (rsi, 1, size, [&, this](const Xbyak::Reg64& idx) {
+                    mov(r15b, byte[src + idx * sizeof(uint8_t)]);
+                    mov(byte[dst + idx * sizeof(uint8_t)], r15b);
+                })
+                    ;
+
+                pop(r15);
+                pop(rsi);
+            }
+
+            template <>
+            void Generator::copy<uint16_t>(const Xbyak::Reg64& dst,
+                                           const Xbyak::Reg64& src,
+                                           const Xbyak::Reg64& size)
+            {
+                push(rsi);
+                push(r15);
+
+                xor_(rsi, rsi);
+
+                foreach (rsi, 1, size, [&, this](const Xbyak::Reg64& idx) {
+                    mov(r15w, word[src + idx * sizeof(uint16_t)]);
+                    mov(word[dst + idx * sizeof(uint16_t)], r15w);
+                })
+                    ;
+
+                pop(r15);
+                pop(rsi);
+            }
+
+            template <>
+            void Generator::copy<uint32_t>(const Xbyak::Reg64& dst,
+                                           const Xbyak::Reg64& src,
+                                           const Xbyak::Reg64& size)
+            {
+                push(rsi);
+                push(r15);
+
+                xor_(rsi, rsi);
+
+                foreach (rsi, 1, size, [&, this](const Xbyak::Reg64& idx) {
+                    mov(r15d, dword[src + idx * sizeof(uint32_t)]);
+                    mov(dword[dst + idx * sizeof(uint32_t)], r15d);
+                })
+                    ;
+
+                pop(r15);
+                pop(rsi);
+            }
+
+            template <>
+            void Generator::copy<float16>(const Xbyak::Reg64& dst,
+                                          const Xbyak::Reg64& src,
+                                          const Xbyak::Reg64& size)
+            {
+                copy<uint16_t>(dst, src, size);
+            }
+
+            template <>
+            void Generator::copy<float>(const Xbyak::Reg64& dst,
+                                        const Xbyak::Reg64& src,
+                                        const Xbyak::Reg64& size)
+            {
+                copy<uint32_t>(dst, src, size);
             }
         }
     }

@@ -15,6 +15,7 @@
 //*****************************************************************************
 #pragma once
 
+#include <functional>
 #include <xbyak/xbyak.h>
 
 namespace ngraph
@@ -65,6 +66,16 @@ namespace ngraph
                 Generator(void* code_ptr = nullptr, size_t code_size = 16 * 1024);
                 void preamble();
                 void postamble();
+
+                void foreach (const Xbyak::Reg64& idx,
+                              size_t step,
+                              const Xbyak::Reg64& end,
+                              std::function<void(const Xbyak::Reg64&)> && fn);
+
+                template <typename T>
+                void copy(const Xbyak::Reg64& dst,
+                          const Xbyak::Reg64& src,
+                          const Xbyak::Reg64& size);
             };
         }
     }
