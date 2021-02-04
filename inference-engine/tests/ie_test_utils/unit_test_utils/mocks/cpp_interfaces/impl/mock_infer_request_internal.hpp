@@ -22,5 +22,6 @@ public:
     using InferRequestInternal::GetBlob;
     MOCK_METHOD0(InferImpl, void());
     MOCK_CONST_METHOD0(GetPerformanceCounts, std::map<std::string, InferenceEngineProfileInfo>());
+    MOCK_METHOD0(checkBlobs, void());
     MOCK_METHOD0(Cancel, InferenceEngine::StatusCode());
 };

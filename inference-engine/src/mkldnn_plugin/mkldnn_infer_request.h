@@ -13,6 +13,7 @@
 namespace MKLDNNPlugin {
 
 class MKLDNNExecNetwork;
+class MKLDNNAsyncInferRequest;
 
 class MKLDNNInferRequest : public InferenceEngine::InferRequestInternal {
 public:
@@ -25,8 +26,6 @@ public:
 
     void InferImpl() override;
 
-    InferenceEngine::StatusCode Cancel() override;
-
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) override;
@@ -36,6 +35,17 @@ public:
     void SetBatch(int batch = -1) override;
 
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
+
+    /**
+     * @brief      Sets the pointer to asynchronous inference request that holds this request
+     * @param[in]  asyncRequest Pointer to asynchronous inference request
+     */
+    void SetAsyncRequest(MKLDNNAsyncInferRequest* asyncRequest);
+
+    /**
+     * @brief If `_asyncRequest` is initialized throw exception with `InferenceEngine::INFER_CANCELLED` status if inference request is canceled
+     */
+    void ThrowIfCanceled() const;
 
 private:
     void PushInputData();
@@ -50,5 +60,6 @@ private:
     std::map<std::string, void*>        externalPtr;
     openvino::itt::handle_t             profilingTask;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
+    MKLDNNAsyncInferRequest*            _asyncRequest = nullptr;
 };
 }  // namespace MKLDNNPlugin

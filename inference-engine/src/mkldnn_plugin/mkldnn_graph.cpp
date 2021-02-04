@@ -20,6 +20,7 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_memory_solver.hpp"
 #include "mkldnn_itt.h"
+#include "mkldnn_infer_request.h"
 #include <nodes/mkldnn_input_node.h>
 #include <nodes/mkldnn_reorder_node.h>
 
@@ -755,7 +756,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
     }
 }
 
-void MKLDNNGraph::Infer(int batch) {
+void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
     if (!IsReady()) {
         THROW_IE_EXCEPTION << "Wrong state. Topology is not ready.";
     }
@@ -763,9 +764,8 @@ void MKLDNNGraph::Infer(int batch) {
     mkldnn::stream stream(eng);
 
     for (int i = 0; i < graphNodes.size(); i++) {
-        if (IsCancellationRequested()) {
-            ResetCancellationRequest();
-            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::INFER_CANCELLED;
+        if (request != nullptr) {
+            request->ThrowIfCanceled();
         }
 
         PERF(graphNodes[i]);

@@ -210,7 +210,7 @@ public:
 
                 PushInputData(input.first, input.second, batch);
             }
-            MKLDNNPlugin::MKLDNNGraph::Infer(batch);
+            MKLDNNPlugin::MKLDNNGraph::Infer(nullptr, batch);
         } catch (const std::exception &e) {
             FAIL() << e.what();
         }
