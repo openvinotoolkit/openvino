@@ -113,8 +113,8 @@ struct NetworkCompilationContext final {
 
         for (const auto & input : m_inputsInfo) {
             InputInfo::Ptr info = input.second;
-            // seed = hash_combine(seed, as_int32_t(info->getPrecision()));
-            // seed = hash_combine(seed, as_int32_t(info->getLayout()));
+            seed = hash_combine(seed, as_int32_t(info->getPrecision()));
+            seed = hash_combine(seed, as_int32_t(info->getLayout()));
 
             const InferenceEngine::PreProcessInfo& preproc = info->getPreProcess();
             // seed = hash_combine(seed, as_int32_t(preproc.getResizeAlgorithm()));

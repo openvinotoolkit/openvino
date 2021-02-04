@@ -384,9 +384,9 @@ DECLARE_CONFIG_KEY(CACHE_DIR);
 DECLARE_CONFIG_KEY(MODEL_CACHE_DIR);
 
 /**
- * @brief This key defines custom model hash which is used to cache the model.
+ * @brief This key defines custom blob file name which is used to cache the compiled model.
  */
-DECLARE_CONFIG_KEY(MODEL_HASH);
+DECLARE_CONFIG_KEY(COMPILED_BLOB);
 
 }  // namespace PluginConfigParams
 }  // namespace InferenceEngine

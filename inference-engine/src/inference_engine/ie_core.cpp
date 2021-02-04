@@ -160,7 +160,7 @@ class Core::Impl : public ICore {
 
     class CoreConfig {
         std::string _modelCacheDir {};
-        std::string _modelHash {};
+        std::string _blobFileName {};
         bool _isModelCacheEnabled = false;
         std::map<std::string, std::string> _config;
 
@@ -186,10 +186,10 @@ class Core::Impl : public ICore {
             }
 
             {
-                auto it = config.find(CONFIG_KEY(MODEL_HASH));
+                auto it = config.find(CONFIG_KEY(COMPILED_BLOB));
                 if (it != config.end()) {
                     _config[it->first] = it->second;
-                    _modelHash = it->second;
+                    _blobFileName = it->second;
                     _isModelCacheEnabled = true;
                     config.erase(it);
                 }
@@ -198,7 +198,7 @@ class Core::Impl : public ICore {
 
         bool isModelCacheEnabled() const { return _isModelCacheEnabled; }
         std::string getModelCacheRoot() const { return _modelCacheDir; }
-        std::string getModelHash() const { return _modelHash; }
+        std::string getBlobFileName() const { return _blobFileName; }
     };
 
     // Core settings for specific devices
@@ -277,12 +277,12 @@ class Core::Impl : public ICore {
         CoreConfig localCoreConfig(config, coreConfig[deviceFamily]);
         bool modelCacheEnabled = localCoreConfig.isModelCacheEnabled(),
             cachingIsAvailable = false, networkIsImported = false;
-        std::string networkHash = localCoreConfig.getModelHash();
+        std::string blobFileName = localCoreConfig.getBlobFileName();
 
         // TEST CODE: FORCE MODEL CACHE
         modelCacheEnabled = true;
 
-        if (modelCacheEnabled && networkHash.empty() && deviceSupportsImport(this)) {
+        if (modelCacheEnabled && blobFileName.empty() && deviceSupportsImport(this)) {
             OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::hashing");
 
             // Note: the following information from remote context is taken into account:
@@ -291,9 +291,9 @@ class Core::Impl : public ICore {
             NetworkCompilationContext context(network, compileConfig);
             cachingIsAvailable = context.isCachingAvailable();
 
-            // auto-hashing since CONFIG_KEY(MODEL_HASH) is not passed
+            // auto-hashing since CONFIG_KEY(COMPILED_BLOB) is not passed
             if (cachingIsAvailable)
-                networkHash = context.computeHash();
+                blobFileName = context.computeHash() + ".blob";
         }
 
         std::cout << (cachingIsAvailable ?
@@ -324,13 +324,10 @@ class Core::Impl : public ICore {
             return importConfig;
         };
 
-        // TODO: add keys to control caching
-        // CONFIG_KEY(CACHE_DIR) to point to cache root
-        // CONFIG_KEY(COMPILATION_CONTEXT_HASH) to specify hash for compilation context hash
-        // CONFIG_VALUE(AUTO_HASH) to force IE to compute hash by itself
-
         ExecutableNetwork execNetwork;
-        std::string blobFileName = FileUtils::makePath(getIELibraryPath(), networkHash + ".ovblob");
+
+        // make a full path
+        blobFileName = FileUtils::makePath(getIELibraryPath(), blobFileName);
 
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
             auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
@@ -359,6 +356,7 @@ class Core::Impl : public ICore {
 
                 if (appleRTTI) { // Apple RTTI
                     std::cout << "Apple RTTI: " << ex.what() << std::endl;
+                    removeCacheEntry(blobFileName);
                 } else { // some issues because of import failed
                     std::cout << "[BUG] Import failed for " << importConfig._deviceName << std::endl;
                     removeCacheEntry(blobFileName);
@@ -383,7 +381,7 @@ class Core::Impl : public ICore {
                         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
                         execNetwork.Export(blobFileName);
                         std::cout << "Network is exported for " << parsed._deviceName
-                            << " as " << networkHash << std::endl;
+                            << " as " << blobFileName << std::endl;
                     }
                     // {
                     //     OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::DesctroyExe");
@@ -408,6 +406,7 @@ class Core::Impl : public ICore {
 
                     if (appleRTTI) { // APPLE RTTI issue
                         std::cout << "Apple RTTI: " << message << std::endl;
+                        removeCacheEntry(blobFileName);
                     } else { // network cannot be exported due to plugin bugs
                         std::cout << "[BUG] Failed to export model " << ex.what() << std::endl;
                         removeCacheEntry(blobFileName);
