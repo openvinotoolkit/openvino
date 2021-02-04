@@ -25,7 +25,8 @@ jit_add_emitter::jit_add_emitter(jit_generator *host, cpu_isa_t host_isa, const 
 size_t jit_add_emitter::get_inputs_num() { return 2; }
 
 void jit_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -59,7 +60,8 @@ jit_mul_add_emitter::jit_mul_add_emitter(jit_generator *host, cpu_isa_t host_isa
 size_t jit_mul_add_emitter::get_inputs_num() { return 3; }
 
 void jit_mul_add_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                    const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                    const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                    const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -118,7 +120,8 @@ jit_subtract_emitter::jit_subtract_emitter(jit_generator *host, cpu_isa_t host_i
 size_t jit_subtract_emitter::get_inputs_num() { return 2; }
 
 void jit_subtract_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -153,7 +156,8 @@ jit_multiply_emitter::jit_multiply_emitter(jit_generator *host, cpu_isa_t host_i
 size_t jit_multiply_emitter::get_inputs_num() { return 2; }
 
 void jit_multiply_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -188,7 +192,8 @@ jit_divide_emitter::jit_divide_emitter(jit_generator *host, cpu_isa_t host_isa, 
 size_t jit_divide_emitter::get_inputs_num() { return 2; }
 
 void jit_divide_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -252,7 +257,8 @@ jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator *host, cpu_isa_t host
 size_t jit_floor_mod_emitter::get_inputs_num() { return 2; }
 
 void jit_floor_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -301,7 +307,8 @@ jit_mod_emitter::jit_mod_emitter(jit_generator *host, cpu_isa_t host_isa, const 
 size_t jit_mod_emitter::get_inputs_num() { return 2; }
 
 void jit_mod_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -350,7 +357,8 @@ jit_maximum_emitter::jit_maximum_emitter(jit_generator *host, cpu_isa_t host_isa
 size_t jit_maximum_emitter::get_inputs_num() { return 2; }
 
 void jit_maximum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -397,7 +405,8 @@ jit_minimum_emitter::jit_minimum_emitter(jit_generator *host, cpu_isa_t host_isa
 size_t jit_minimum_emitter::get_inputs_num() { return 2; }
 
 void jit_minimum_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -444,7 +453,8 @@ jit_squared_difference_emitter::jit_squared_difference_emitter(jit_generator *ho
 size_t jit_squared_difference_emitter::get_inputs_num() { return 2; }
 
 void jit_squared_difference_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -482,7 +492,8 @@ jit_power_dynamic_emitter::jit_power_dynamic_emitter(jit_generator *host, cpu_is
 size_t jit_power_dynamic_emitter::get_inputs_num() { return 2; }
 
 void jit_power_dynamic_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -590,7 +601,8 @@ jit_equal_emitter::jit_equal_emitter(jit_generator *host, cpu_isa_t host_isa, co
 size_t jit_equal_emitter::get_inputs_num() { return 2; }
 
 void jit_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -646,7 +658,8 @@ jit_not_equal_emitter::jit_not_equal_emitter(jit_generator *host, cpu_isa_t host
 size_t jit_not_equal_emitter::get_inputs_num() { return 2; }
 
 void jit_not_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -702,7 +715,8 @@ jit_greater_emitter::jit_greater_emitter(jit_generator *host, cpu_isa_t host_isa
 size_t jit_greater_emitter::get_inputs_num() { return 2; }
 
 void jit_greater_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -758,7 +772,8 @@ jit_greater_equal_emitter::jit_greater_equal_emitter(jit_generator *host, cpu_is
 size_t jit_greater_equal_emitter::get_inputs_num() { return 2; }
 
 void jit_greater_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -814,7 +829,8 @@ jit_less_emitter::jit_less_emitter(jit_generator *host, cpu_isa_t host_isa, cons
 size_t jit_less_emitter::get_inputs_num() { return 2; }
 
 void jit_less_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -870,7 +886,8 @@ jit_less_equal_emitter::jit_less_equal_emitter(jit_generator *host, cpu_isa_t ho
 size_t jit_less_equal_emitter::get_inputs_num() { return 2; }
 
 void jit_less_equal_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -927,7 +944,8 @@ jit_logical_and_emitter::jit_logical_and_emitter(jit_generator *host, cpu_isa_t 
 size_t jit_logical_and_emitter::get_inputs_num() { return 2; }
 
 void jit_logical_and_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1004,7 +1022,8 @@ jit_logical_or_emitter::jit_logical_or_emitter(jit_generator *host, cpu_isa_t ho
 size_t jit_logical_or_emitter::get_inputs_num() { return 2; }
 
 void jit_logical_or_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1080,7 +1099,8 @@ jit_logical_xor_emitter::jit_logical_xor_emitter(jit_generator *host, cpu_isa_t 
 size_t jit_logical_xor_emitter::get_inputs_num() { return 2; }
 
 void jit_logical_xor_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1156,7 +1176,8 @@ jit_logical_not_emitter::jit_logical_not_emitter(jit_generator *host, cpu_isa_t 
 size_t jit_logical_not_emitter::get_inputs_num() { return 1; }
 
 void jit_logical_not_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1211,7 +1232,8 @@ jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_
 size_t jit_power_static_emitter::get_inputs_num() { return 1; }
 
 void jit_power_static_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {
@@ -1399,7 +1421,8 @@ jit_prelu_emitter::jit_prelu_emitter(jit_generator *host, cpu_isa_t host_isa, co
 size_t jit_prelu_emitter::get_inputs_num() { return 2; }
 
 void jit_prelu_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                                const emitter_context *emit_context) {
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
     } else if (host_isa_ == cpu::x64::avx2) {

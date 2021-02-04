@@ -12,15 +12,30 @@
 
 namespace MKLDNNPlugin {
 
+enum emitter_in_out_map {
+    vec_to_vec,
+    vec_to_gpr,
+    gpr_to_vec,
+    gpr_to_gpr,
+};
+
+struct emitter_context {
+    virtual ~emitter_context() = default;
+};
+
 class jit_emitter {
 public:
     jit_emitter(mkldnn::impl::cpu::x64::jit_generator* host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode* node,
-                InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
-        : h(host), host_isa_(host_isa), n(node), exec_prc_(exec_prc) {
+                InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
+        : h(host), host_isa_(host_isa), n(node), exec_prc_(exec_prc), in_out_type_(in_out_type) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
     }
 
-    virtual void emit(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
+    virtual void emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                      const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {});
+
+    virtual void emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                      const std::shared_ptr<const emitter_context> &emit_context,
                       const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {});
     virtual void emit_table();
     virtual size_t get_inputs_num() = 0;
@@ -72,12 +87,15 @@ protected:
         _cmp_gt_os = mkldnn::impl::cpu::x64::jit_generator::_cmp_nle_us,
     };
 
-    virtual void emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                           const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {}
+    virtual void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                           const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
+                           const emitter_context *emit_context) = 0;
 
-    virtual void emitter_preamble(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &pool_vec_idxs,
-                          const std::vector<size_t> &pool_gpr_idxs);
+    virtual void emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                          const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs);
     virtual void emitter_postamble();
+
+    emitter_in_out_map in_out_type_;
 
     std::vector<size_t> aux_vec_idxs;
     std::vector<size_t> aux_gpr_idxs;
