@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,7 +28,7 @@ typedef std::tuple<
     // mulDataInput
     size_t> GetDequantizationTestValues;
 
-class GetDequantizationTransformation : public LayerTransformation, public testing::WithParamInterface<GetDequantizationTestValues> {
+class GetDequantizationTestTransformation : public LayerTransformation, public testing::WithParamInterface<GetDequantizationTestValues> {
 public:
     void SetUp() override {
         bool isConvert;
@@ -70,7 +70,7 @@ std::vector<size_t> subDataInput = { 0ul, 1ul };
 std::vector<size_t> mulDataInput = { 0ul, 1ul };
 
 
-TEST_P(GetDequantizationTransformation, CompareFunctions) {
+TEST_P(GetDequantizationTestTransformation, CompareFunctions) {
     InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
@@ -78,11 +78,11 @@ TEST_P(GetDequantizationTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, GetDequantizationTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, GetDequantizationTestTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(isConvert),
         ::testing::ValuesIn(isSubtract),
         ::testing::ValuesIn(subDataInput),
         ::testing::ValuesIn(mulDataInput)),
-    GetDequantizationTransformation::getTestCaseName);
+    GetDequantizationTestTransformation::getTestCaseName);
 } // namespace
