@@ -114,20 +114,20 @@ public:
         transform.transform(actualFunction);
 
         referenceFunction = AddFunction::getReference(
-                precision,
-                testValues.inputShape,
-                testValues.broadcast,
-                testValues.params,
-                testValues.expected.precision1,
-                testValues.expected.dequantization1,
-                testValues.expected.precision2,
-                testValues.expected.dequantization2,
-                testValues.expected.dequantizationAfter,
-                // Constant operations after transformations are on 1 input only
-                testValues.constInput == -1 ? -1 : 1,
-                testValues.expected.constValues,
-                testValues.additionalLayer,
-                testValues.expected.operationType);
+            precision,
+            testValues.inputShape,
+            testValues.broadcast,
+            testValues.params,
+            testValues.expected.precision1,
+            testValues.expected.dequantization1,
+            testValues.expected.precision2,
+            testValues.expected.dequantization2,
+            testValues.expected.dequantizationAfter,
+            // Constant operations after transformations are on 1 input only
+            testValues.constInput == -1 ? -1 : 1,
+            testValues.expected.constValues,
+            testValues.additionalLayer,
+            testValues.expected.operationType);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AddTransformationParams> obj) {
@@ -158,7 +158,7 @@ TEST_P(AddTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> netPrecision = {
     element::f32,
-    //element::f16
+    element::f16
 };
 
 const std::vector<AddTransformationTestValues> addTransformationTestValues = {
@@ -662,125 +662,125 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         "group_convolution"
     },
 
-    //// Actual:
-    ////
-    //// Parameter          Parameter Constant
-    ////  |U8                 |U8      |U8
-    ////  |                   |        |
-    //// Convert Constant    Convert  Convert
-    ////  \FP32  /FP32        \FP32   /FP32
-    ////   \    /              \     /
-    ////  Subtract  Constant  Subtract  Constant
-    ////     \FP32   /FP32       \FP32  /FP32
-    ////      \     /             \    /
-    ////      Multiply           Multiply
-    ////             \FP32      /FP32
-    ////              \        /
-    ////                 Add
-    //// Transformed:
-    ////
-    //// Parameter
-    ////   |U8
-    ////   |
-    //// Convert  Constant
-    ////   \FP32   /FP32
-    ////    \     /
-    ////   Subtract    Constant
-    ////      \FP32    /FP32
-    ////       \      /
-    ////      Multiply
-    //{
-    //    ngraph::element::f32,
-    //    ngraph::Shape{1, 4, 16, 16},
-    //    false,
-    //    1,
-    //    LayerTransformation::createParamsU8I8(),
-    //    {
-    //        ngraph::element::u8,
-    //        {
-    //            {ngraph::element::f32},
-    //            {7.f},
-    //            { 10.f }
-    //        },
-    //        ngraph::element::u8,
-    //        {
-    //            {ngraph::element::f32},
-    //            { {3.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true },
-    //            { 5.f }
-    //        },
-    //        {10.f}
-    //    },
-    //    {
-    //        ngraph::element::u8,
-    //        { {ngraph::element::f32}, {}, {}},
-    //        ngraph::element::u8,
-    //        { },
-    //        { {},  {}, {10.f} },
-    //        {3.5f},
-    //        "Subtract"
-    //    },
-    //    ""
-    //},
+    // Actual:
+    //
+    // Parameter          Parameter Constant
+    //  |U8                 |U8      |U8
+    //  |                   |        |
+    // Convert Constant    Convert  Convert
+    //  \FP32  /FP32        \FP32   /FP32
+    //   \    /              \     /
+    //  Subtract  Constant  Subtract  Constant
+    //     \FP32   /FP32       \FP32  /FP32
+    //      \     /             \    /
+    //      Multiply           Multiply
+    //             \FP32      /FP32
+    //              \        /
+    //                 Add
+    // Transformed:
+    //
+    // Parameter
+    //   |U8
+    //   |
+    // Convert  Constant
+    //   \FP32   /FP32
+    //    \     /
+    //   Subtract    Constant
+    //      \FP32    /FP32
+    //       \      /
+    //      Multiply
+    {
+        ngraph::element::f32,
+        ngraph::Shape{1, 4, 16, 16},
+        false,
+        1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {7.f},
+                { 10.f }
+            },
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                { {3.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true },
+                { 5.f }
+            },
+            {10.f}
+        },
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32}, {}, {}},
+            ngraph::element::u8,
+            { },
+            { {},  {}, {10.f} },
+            {3.5f},
+            "Subtract"
+        },
+        ""
+    },
 
-    //// Actual:
-    ////
-    //// Constant Constant   Parameter
-    ////  |U8      |U8        |U8
-    ////  |        |          |
-    //// Convert Convert    Convert  Constant
-    ////  \FP32  /FP32        \FP32   /FP32
-    ////   \    /              \     /
-    ////  Subtract  Constant  Subtract  Constant
-    ////     \FP32   /FP32       \FP32  /FP32
-    ////      \     /             \    /
-    ////      Multiply           Multiply
-    ////             \FP32      /FP32
-    ////              \        /
-    ////                 Add
-    //// Transformed:
-    ////
-    //// Parameter
-    ////   |U8
-    ////   |
-    //// Convert  Constant
-    ////   \FP32   /FP32
-    ////    \     /
-    ////   Subtract    Constant
-    ////      \FP32    /FP32
-    ////       \      /
-    ////      Multiply
-    //{
-    //    ngraph::element::f32,
-    //    ngraph::Shape{1, 4, 16, 16},
-    //    false,
-    //    0,
-    //    LayerTransformation::createParamsU8I8(),
-    //    {
-    //        ngraph::element::u8,
-    //        {
-    //            {ngraph::element::f32},
-    //            { {7.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true },
-    //            { 10.f }
-    //        },
-    //        ngraph::element::u8,
-    //        {
-    //            {ngraph::element::f32},
-    //            { 3.f },
-    //            { 5.f }
-    //        },
-    //        { 10.f }
-    //    },
-    //    {
-    //        ngraph::element::u8,
-    //        { {ngraph::element::f32}, {}, {}},
-    //        ngraph::element::u8,
-    //        { },
-    //        { {},  {}, { 5.f } },
-    //        { -3.f },
-    //        "Subtract"
-    //    },
-    //    ""
-    //},
+    // Actual:
+    //
+    // Constant Constant   Parameter
+    //  |U8      |U8        |U8
+    //  |        |          |
+    // Convert Convert    Convert  Constant
+    //  \FP32  /FP32        \FP32   /FP32
+    //   \    /              \     /
+    //  Subtract  Constant  Subtract  Constant
+    //     \FP32   /FP32       \FP32  /FP32
+    //      \     /             \    /
+    //      Multiply           Multiply
+    //             \FP32      /FP32
+    //              \        /
+    //                 Add
+    // Transformed:
+    //
+    // Parameter
+    //   |U8
+    //   |
+    // Convert  Constant
+    //   \FP32   /FP32
+    //    \     /
+    //   Subtract    Constant
+    //      \FP32    /FP32
+    //       \      /
+    //      Multiply
+    {
+        ngraph::element::f32,
+        ngraph::Shape{1, 4, 16, 16},
+        false,
+        0,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                { {7.f}, ngraph::element::f32, {}, false, 1, ngraph::element::u8, true },
+                { 10.f }
+            },
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                { 3.f },
+                { 5.f }
+            },
+            { 10.f }
+        },
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32}, {}, {}},
+            ngraph::element::u8,
+            { },
+            { {},  {}, { 5.f } },
+            { -3.f },
+            "Subtract"
+        },
+        ""
+    }
 };
 
 INSTANTIATE_TEST_CASE_P(

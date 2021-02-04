@@ -47,19 +47,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
         dequantizationStructure1.subtract.outPrecision = precision;
     }
 
-    //std::shared_ptr<ngraph::Node> dequantizationOp1;
-    //if (dequantization1.empty()) {
-    //    dequantizationOp1 = input1;
-    //} else  {
-    //    auto dequantizationStructure1 = dequantization1;
-    //    dequantizationStructure1.multiply.outPrecision = precision;
-    //    if (dequantizationStructure1.multiply.empty()) {
-    //        dequantizationStructure1.subtract.outPrecision = precision;
-    //    }
-    //    dequantizationOp1 = is_type<ngraph::opset1::Constant>(input1) ? input1 : makeDequantization(input1, dequantizationStructure1);
-    //}
-
-    const auto dequantizationOp1 = is_type<ngraph::opset1::Constant>(input1) ? input1 : makeDequantization(input1, dequantizationStructure1);
+    const auto dequantizationOp1 = dequantization1.empty() ? input1 : makeDequantization(input1, dequantizationStructure1);
 
     std::shared_ptr<ngraph::Node> input2;
     if (constInput == 1) {
@@ -103,14 +91,14 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
             parent,
             std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>{1.f}));
         parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
-                parent,
-                precision,
-                {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
+            parent,
+            precision,
+            {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
     }
 
     auto dequantizationStructure2 = dequantization2;
     dequantizationStructure2.multiply.outPrecision = precision;
-    const auto dequantizationOp2 = is_type<ngraph::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantizationStructure2);
+    const auto dequantizationOp2 = dequantization2.empty() ? parent : makeDequantization(parent, dequantizationStructure2);
 
     const auto add = std::make_shared<ngraph::opset1::Add>(dequantizationOp1, dequantizationOp2);
     add->set_friendly_name("output");
@@ -241,9 +229,9 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
             parent,
             std::make_shared<ngraph::opset1::Constant>(precision, Shape{ 1, 1, 1, 1 }, std::vector<float>{1.f}));
         parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
-                parent,
-                precision,
-                {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
+            parent,
+            precision,
+            {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
     }
 
     auto dequantizationStructure2 = dequantization2;

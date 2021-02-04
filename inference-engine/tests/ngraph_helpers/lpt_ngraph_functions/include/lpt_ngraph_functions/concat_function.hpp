@@ -109,17 +109,6 @@ public:
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationAfter);
 
-    // TODO: migrate to get
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type inputPrecision,
-        const ngraph::Shape& inputShape,
-        const FakeQuantizeOnDataWithConstant& fakeQuantize1,
-        const FakeQuantizeOnDataWithConstant& fakeQuantize2,
-        const ngraph::element::Type precisionBeforeOp,
-        const DequantizationOperations& dequantizationBefore,
-        const ngraph::element::Type precisionAfterOperation,
-        const DequantizationOperations& dequantizationAfter);
-
     static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,

@@ -95,6 +95,15 @@ public:
         const ngraph::Shape shape = std::get<1>(GetParam());
         ConcatTransformationTestValues testValues = std::get<2>(GetParam());
 
+        // dequantization output precision depends on input precision
+        // to avoid huge amount of tests cases let's define dequantization output precision as input precision
+        if (!testValues.actual.dequantization1.multiply.empty()) {
+            testValues.actual.dequantization1.multiply.outPrecision = precision;
+        }
+        if (!testValues.actual.dequantization2.multiply.empty()) {
+            testValues.actual.dequantization2.multiply.outPrecision = precision;
+        }
+
         actualFunction = ngraph::builder::subgraph::ConcatFunction::get(
             precision,
             shape,
@@ -115,6 +124,18 @@ public:
         }
         transform.transform(actualFunction);
 
+        // dequantization output precision depends on input precision
+        // to avoid huge amount of tests cases let's define dequantization output precision as input precision
+        if (!testValues.result.dequantizationAfter.multiply.empty()) {
+            testValues.result.dequantizationAfter.multiply.outPrecision = precision;
+        }
+
+        if (!testValues.params.updatePrecisions &&
+            (precision == ngraph::element::f32) &&
+            !testValues.result.dequantizationAfter.convert.empty()) {
+            testValues.result.dequantizationAfter.convert = {};
+        }
+
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::get(
             precision,
             shape,
@@ -126,16 +147,6 @@ public:
             testValues.result.dequantization2,
             testValues.result.precisionAfterOperation,
             testValues.result.dequantizationAfter);
-
-        //referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReference(
-        //    precision,
-        //    shape,
-        //    testValues.result.fakeQuantize1,
-        //    testValues.result.fakeQuantize2,
-        //    testValues.result.precisionBeforeOp,
-        //    testValues.result.dequantizationOperations1,
-        //    testValues.result.precisionAfterOperation,
-        //    testValues.result.dequantizationOperations2);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
@@ -161,7 +172,7 @@ TEST_P(ConcatTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    //ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<ConcatTransformationTestValues> testValues = {
@@ -402,16 +413,14 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {
                 256ul,
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-                {0.f, 0.f, 0.f}, {2.55f, 2.55f, 2.55f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f},
-                ngraph::element::f32
+                {0.f, 0.f, 0.f}, {2.55f, 2.55f, 2.55f}, {0.f, 0.f, 0.f}, {2.55f / 1.f, 2.55f / 2.f, 2.55f / 3.f}
             },
             {},
             {},
             {
                 256ul,
                 {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
-                {0.f, 0.f, 0.f}, {1.275f, 1.275f, 1.275f}, {0.f, 0.f, 0.f}, {1.275f / 1.f, 1.275f / 2.f, 1.275f / 3.f},
-                ngraph::element::f32
+                {0.f, 0.f, 0.f}, {1.275f, 1.275f, 1.275f}, {0.f, 0.f, 0.f}, {1.275f / 1.f, 1.275f / 2.f, 1.275f / 3.f}
             },
             {},
             {}
@@ -592,14 +601,14 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             {}
         },
         {
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::f32 },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
             {},
             {},
-            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::f32 },
+            { 256ul, {}, {0.f}, {2.55f}, {0.f}, {255.f} },
             {},
             {},
             ngraph::element::f32,
-            { {}, {}, { 0.01f } },
+            { {element::f32}, {}, { 0.01f } },
         }
     }
 };

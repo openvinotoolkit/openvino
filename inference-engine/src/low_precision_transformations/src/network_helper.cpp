@@ -684,14 +684,36 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const s
     }
 
     if (dequantization.multiply != nullptr) {
+        // multiply different precision constants (value1 & value2) and convert result to first argument precision (value1)
+        auto multiply = [](
+            const std::shared_ptr<ngraph::Node>& value1,
+            const std::shared_ptr<ngraph::Node>& value2) -> std::shared_ptr<ngraph::Node> {
+            const ngraph::element::Type precision1 = value1->output(0).get_element_type();
+            const ngraph::element::Type precision2 = value2->output(0).get_element_type();
+            // 1) precision1 & precision2 are not equal but similar
+            // 2) precision2 >= precision1
+            assert((precision2.is_real() == precision1.is_real()) && (precision2.bitwidth() >= precision1.bitwidth()));
+
+            auto output = fold<opset1::Multiply>(
+                precision2 != precision1 ? fold<opset1::Convert>(value1, precision2) : value1,
+                value2);
+
+            if (output->output(0).get_element_type() != precision1) {
+                output = fold<opset1::Convert>(output, precision1);
+            }
+
+            return output;
+        };
+
         const std::shared_ptr<opset1::FakeQuantize> replacement = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
-            newFakeQuantize->input_value(0),
-            newFakeQuantize->input_value(1),
-            newFakeQuantize->input_value(2),
-            fold<opset1::Multiply>(newFakeQuantize->get_input_node_shared_ptr(3), dequantization.multiply->get_input_node_shared_ptr(1)),
-            fold<opset1::Multiply>(newFakeQuantize->get_input_node_shared_ptr(4), dequantization.multiply->get_input_node_shared_ptr(1)),
+            newFakeQuantize->input_value(0ul),
+            newFakeQuantize->input_value(1ul),
+            newFakeQuantize->input_value(2ul),
+            multiply(newFakeQuantize->get_input_node_shared_ptr(3ul), dequantization.multiplyConstant),
+            multiply(newFakeQuantize->get_input_node_shared_ptr(4ul), dequantization.multiplyConstant),
             newFakeQuantize->get_levels(),
             newFakeQuantize->get_auto_broadcast());
+
         replace_node(dequantization.multiply, replacement);
         replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
         newFakeQuantize = replacement;
