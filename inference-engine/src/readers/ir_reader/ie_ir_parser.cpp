@@ -608,7 +608,7 @@ V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(con
 
         port.portId = GetIntAttr(parentNode, "id");
 
-        for (auto node = parentNode.child("dim"); !node.empty(); node = node.next_sibling("dim")) {
+        FOREACH_CHILD(node, parentNode, "dim") {
             size_t dim = 0;
             const pugi::char_t* dimVal = node.child_value();
             std::stringstream ss(dimVal);
