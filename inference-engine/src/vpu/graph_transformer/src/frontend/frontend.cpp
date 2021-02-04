@@ -377,40 +377,44 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
 }
 
 void FrontEnd::processTrivialCases(const Model& model) {
-    DataVector trivialInputs, trivialOutputs;
+    std::map<ie::DataPtr, DataVector> ieToVpuDataVector;
+    std::for_each(model->datas().begin(), model->datas().end(), [&ieToVpuDataVector](const Data& data) {
+        ieToVpuDataVector[data->origData()].push_back(data);
+    });
 
-    for (const auto& data : model->datas()) {
-        if (data->usage() == DataUsage::Input || data->usage() == DataUsage::Intermediate || data->usage() == DataUsage::Const) {
-            if (!data->isUsed()) {
-                trivialInputs.push_back(data);
+    std::vector<DataVector> trivialCases;
+    std::for_each(ieToVpuDataVector.begin(), ieToVpuDataVector.end(),
+            [&trivialCases](const std::pair<ie::DataPtr, DataVector>& ieToDataVector) {
+        if (ieToDataVector.second.size() > 1) {
+            trivialCases.push_back(ieToDataVector.second);
+        }
+    });
+
+    for (const auto& trivialCase : trivialCases) {
+        Data trivialInput, trivialOutput;
+        for (const auto& data : trivialCase) {
+            if (data->usage() == DataUsage::Input || data->usage() == DataUsage::Intermediate || data->usage() == DataUsage::Const) {
+                if (!data->isUsed()) {
+                    trivialInput = data;
+                }
+            }
+            if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Intermediate) {
+                if (data->producer() == nullptr && data->childDataToShapeEdges().size() == 0) {
+                    trivialOutput = data;
+                }
             }
         }
-        if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Intermediate) {
-            if (data->producer() == nullptr && data->childDataToShapeEdges().size() == 0) {
-                trivialOutputs.push_back(data);
-            }
+
+        if (!trivialInput || !trivialOutput) {
+            continue;
         }
-    }
-
-    VPU_THROW_UNLESS(trivialOutputs.size() <= trivialInputs.size(),
-                     "Number of trivial outputs should not be more than number of trivial input/const data objects,"
-                     "but got {} and {} respectively", trivialOutputs.size(), trivialInputs.size());
-
-    for (size_t i = 0; i < trivialOutputs.size(); i++) {
-        const auto trivialInputIt = std::find_if(trivialInputs.cbegin(), trivialInputs.cend(), [&trivialOutputs, i](const Data& trivialInput) {
-            return trivialInput->origData() == trivialOutputs[i]->origData();
-        });
-
-        VPU_THROW_UNLESS(trivialInputIt != trivialInputs.end(), "For trivial output {} hasn't been found any trivial input", trivialOutputs[i]->name());
-
-        const auto& trivialInput = *trivialInputIt;
 
         _stageBuilder->addCopyStage(
             model,
             trivialInput->name() + "@copy",
             nullptr,
             {trivialInput},
-            {trivialOutputs[i]},
+            {trivialOutput},
             "processTrivialCase");
     }
 }
