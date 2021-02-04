@@ -16,6 +16,7 @@
 
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
+#include <numeric>
 
 using namespace ngraph::runtime::reference;
 
