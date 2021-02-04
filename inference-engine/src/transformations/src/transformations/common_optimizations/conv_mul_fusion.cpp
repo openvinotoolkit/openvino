@@ -95,7 +95,6 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
 
         auto m_weights = pattern_to_output.at(weights);
         const auto & m_const = pattern_to_output.at(mul_const);
-        const auto & m_input = pattern_to_output.at(input);
         const auto & m_conv = pattern_to_output.at(conv).get_node_shared_ptr();
         const auto & m_mul = pattern_to_output.at(mul).get_node_shared_ptr();
 
@@ -146,21 +145,15 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         }
 
         // Multiply convolution weights with aligned Constant values
-        std::shared_ptr<Node> new_weights = std::make_shared<opset4::Multiply>(m_weights, final_const);
-        std::shared_ptr<Node> new_conv;
+        auto new_weights = std::make_shared<opset4::Multiply>(m_weights, final_const);
         if (are_weights_reshaped) {
-            auto new_reshape = reshape->clone_with_new_inputs({new_weights, reshape->input_value(1)});
-            new_reshape->set_friendly_name(reshape->get_friendly_name());
-            new_conv = m_conv->copy_with_new_inputs({m_input, new_reshape});
-            copy_runtime_info({reshape, m_conv, m_mul}, {final_const.get_node_shared_ptr(), new_weights, new_reshape, new_conv});
+            reshape->input(0).replace_source_output(new_weights);
         } else {
-            new_conv = m_conv->copy_with_new_inputs({m_input, new_weights});
-            copy_runtime_info({m_conv, m_mul}, {final_const.get_node_shared_ptr(), new_weights, new_conv});
+            m_conv->input(1).replace_source_output(new_weights);
         }
-
-        // Replace Convolution->Multiply with Convolution with new inputs
-        new_conv->set_friendly_name(m_mul->get_friendly_name());
-        replace_node(m_mul, new_conv);
+        m_conv->set_friendly_name(m_mul->get_friendly_name());
+        m_mul->output(0).replace(m_conv->output(0));
+        copy_runtime_info(m_mul, {m_conv, new_weights});
 
         return true;
     };
