@@ -11,7 +11,10 @@ enable_warnings_as_errors(${TARGET_NAME} WIN_STRICT)
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/include")
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    PRIVATE
+        # for os/windows/w_dirent.h
+        "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
