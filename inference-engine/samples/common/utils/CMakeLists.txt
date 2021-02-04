@@ -13,11 +13,12 @@ target_include_directories(${TARGET_NAME}
     PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
     PRIVATE
+        "${IE_MAIN_SOURCE_DIR}/src/vpu/common/include"
+        "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
         # for os/windows/w_dirent.h
         "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         IE::inference_engine
-        gflags
-        vpu_common_lib)
+        gflags)
