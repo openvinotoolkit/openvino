@@ -205,10 +205,10 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
                     SHA256 "02f1438c7b0f8c83b08a762d23307cd7b6177d044fcda3efd6f0c2f0694b1d20")
         else()
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "tbb2020_20200404_mac.tgz"
+                    ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
                     TARGET_PATH "${TEMP}/tbb"
+                    ENVIRONMENT "TBBROOT"
                     SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
-            log_rpath_from_dir(TBB "${TBB}/lib")
         endif()
         log_rpath_from_dir(TBB "${TBB}/lib")
     else()
