@@ -165,8 +165,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnGetPerformanceCoun
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
     ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() {
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
-        testRequest->GetPerformanceCounts(info);
+        auto info = testRequest->GetPerformanceCounts();
     }, REQUEST_BUSY_str));
     taskExecutor->executeAll();
 }
@@ -178,8 +177,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnGetBlob) {
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
     ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() {
-        Blob::Ptr data;
-        testRequest->GetBlob(nullptr, data);
+        auto data = testRequest->GetBlob({});
     }, REQUEST_BUSY_str));
     taskExecutor->executeAll();
 }
@@ -190,7 +188,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnSetBlob) {
     testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
-    ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() { testRequest->SetBlob(nullptr, nullptr); }, REQUEST_BUSY_str));
+    ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() { testRequest->SetBlob({}, {}); }, REQUEST_BUSY_str));
     taskExecutor->executeAll();
 }
 
