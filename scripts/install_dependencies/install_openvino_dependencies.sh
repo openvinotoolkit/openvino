@@ -19,7 +19,7 @@ set -e
 #===================================================================================================
 # Option parsing
 
-all_comp=(opencv_req opencv_opt python dev myriad dlstreamer installer pot)
+all_comp=(opencv_req opencv_opt python dev myriad dlstreamer installer pot cl_compiler)
 os=${os:-auto}
 
 # public options
@@ -106,17 +106,19 @@ extra_repos=()
 
 if [ "$os" == "ubuntu18.04" ] ; then
 
-    pkgs_opencv_req=(libgtk-3-0)
+    pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
     pkgs_dev=(cmake g++ gcc libc6-dev make curl)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
     pkgs_pot=()
+    pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
         gstreamer1.0-plugins-bad
         gstreamer1.0-plugins-base
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
+        gstreamer1.0-tools
         libavcodec57
         libavformat57
         libavresample3
@@ -133,6 +135,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
         gstreamer1.0-vaapi
+        gstreamer1.0-tools
         libfaac0
         libfluidsynth1
         libgl-dev
@@ -141,21 +144,24 @@ if [ "$os" == "ubuntu18.04" ] ; then
         libnettle6
         libtag-extras1
         python3-gi
+        vainfo
     )
 
 elif [ "$os" == "ubuntu20.04" ] ; then
 
-    pkgs_opencv_req=(libgtk-3-0)
+    pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
     pkgs_dev=(cmake g++ gcc libc6-dev make curl)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
     pkgs_pot=(libblas-dev liblapack-dev gfortran)
+    pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
         gstreamer1.0-plugins-bad
         gstreamer1.0-plugins-base
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
+        gstreamer1.0-tools
         libavcodec58
         libavformat58
         libavresample4
@@ -173,6 +179,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
         gstreamer1.0-vaapi
+        gstreamer1.0-tools
         libfaac0
         libfluidsynth2
         libgl-dev
@@ -185,6 +192,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         libtag-extras1
         python3-gi
         python3-gst-1.0
+        vainfo
     )
 
 elif [ "$os" == "centos7" ] ; then
@@ -197,6 +205,7 @@ elif [ "$os" == "centos7" ] ; then
     pkgs_myriad=(libusbx)
     pkgs_installer=()
     pkgs_pot=()
+    pkgs_cl_compiler=()
     pkgs_opencv_opt=(
         gstreamer1
         gstreamer1-plugins-bad-free
