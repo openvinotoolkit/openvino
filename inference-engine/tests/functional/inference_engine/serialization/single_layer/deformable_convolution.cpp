@@ -22,18 +22,22 @@ const std::vector<std::vector<size_t>> strides = {{1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 3}};
 const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 3}};
 const std::vector<std::vector<size_t>> dilations = {{3, 1}};
+const std::vector<size_t> groups = {1, 2};
+const std::vector<size_t> defor_groups = {1, 2};
 const std::vector<size_t> numOutChannels = {5};
 
 const auto conv2DParams_ExplicitPadding = ::testing::Combine(
     ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
     ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds),
-    ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels),
+    ::testing::ValuesIn(dilations), ::testing::ValuesIn(groups),
+    ::testing::ValuesIn(defor_groups), ::testing::ValuesIn(numOutChannels),
     ::testing::Values(ngraph::op::PadType::EXPLICIT));
 const auto conv2DParams_AutoPadValid = ::testing::Combine(
     ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
     ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
     ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
-    ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutChannels),
+    ::testing::ValuesIn(dilations), ::testing::ValuesIn(groups),
+    ::testing::ValuesIn(defor_groups), ::testing::ValuesIn(numOutChannels),
     ::testing::Values(ngraph::op::PadType::VALID));
 
 INSTANTIATE_TEST_CASE_P(
