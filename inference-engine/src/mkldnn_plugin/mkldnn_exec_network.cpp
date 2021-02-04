@@ -12,7 +12,6 @@
 #include "mkldnn_memory_state.h"
 #include "mkldnn_itt.h"
 #include "nodes/mkldnn_memory_node.hpp"
-#include "bf16transformer.h"
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_tools.hpp>
 #include <threading/ie_executor_manager.hpp>
@@ -54,25 +53,55 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
         // BF16 + INT8 or BF16 + BIN.
         bool isFloatModel = true;
-        CNNNetworkIterator i(network);
-        while (i != CNNNetworkIterator()) {
-            if (CaselessEq<std::string>()((*i)->type, "FakeQuantize")) {
+        CNNNetworkIterator iter(network);
+        while (iter != CNNNetworkIterator()) {
+            if (CaselessEq<std::string>()((*iter)->type, "FakeQuantize")) {
                 isFloatModel = false;
                 break;
             }
-            i++;
+            iter++;
         }
 
         if (with_cpu_x86_avx512_core() && isFloatModel) {
-            BF16Transformer bf16Transformer;
             // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
-            // Otherwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
+            // Otherwise, only layers marked as BF16 in '_clonedNetwork' will be performed in bfloat16 mode.
             // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
-            if (cfg.enforceBF16 == true)
-                bf16Transformer.convertToBFloat16(_clonedNetwork);
+            if (cfg.enforceBF16 == true) {
+                InputsDataMap inputs = _clonedNetwork.getInputsInfo();
+                OutputsDataMap outputs = _clonedNetwork.getOutputsInfo();
+                CNNNetworkIterator iter(_clonedNetwork);
+                while (iter != CNNNetworkIterator()) {
+                    //  check, if memory output node needs to be transformed
+                    if ((*iter)->type == "Memory" && (*iter)->outData.size() == 0 &&
+                        (*iter)->insData[0].lock()->getPrecision() == Precision::FP32) {
+                        (*iter)->insData[0].lock()->setPrecision(Precision::BF16);
+                    }
+
+                    for (size_t o = 0; o < (*iter)->outData.size(); o++) {
+                        if (inputs.find((*iter)->outData[o]->getName()) == inputs.end()
+                            && outputs.find((*iter)->outData[o]->getName()) == outputs.end()
+                            && !CaselessEq<std::string>()((*iter)->type, "const")
+                            && (*iter)->outData[o]->getPrecision() == Precision::FP32) {
+                            (*iter)->outData[o]->setPrecision(Precision::BF16);
+                        }
+                    }
+                    iter++;
+                }
+            }
         } else {
-            BF16Transformer bf16Transformer;
-            bf16Transformer.convertToFloat(_clonedNetwork);
+            InputsDataMap inputs = _clonedNetwork.getInputsInfo();
+            OutputsDataMap outputs = _clonedNetwork.getOutputsInfo();
+            CNNNetworkIterator iter(_clonedNetwork);
+            while (iter != CNNNetworkIterator()) {
+                for (size_t o = 0; o < (*iter)->outData.size(); o++) {
+                    if (inputs.find((*iter)->outData[o]->getName()) == inputs.end()
+                        && outputs.find((*iter)->outData[o]->getName()) == outputs.end()
+                        && (*iter)->outData[o]->getPrecision() == Precision::BF16) {
+                        (*iter)->outData[o]->setPrecision(Precision::FP32);
+                    }
+                }
+                iter++;
+            }
         }
     }
 

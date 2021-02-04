@@ -15,7 +15,6 @@
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
 #include <cpu/x64/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/jit_uni_quantization_injector.hpp>
-#include "bf16transformer.h"
 #include "common/cpu_memcpy.h"
 #include <mkldnn_selective_build.h>
 
@@ -725,6 +724,20 @@ MKLDNNNormalizeNode::MKLDNNNormalizeNode(const InferenceEngine::CNNLayerPtr& lay
         : MKLDNNNode(layer, eng, cache), src_data_size(0lu), dst_data_size(0lu), weights_data_size(0lu),
         input_prec(Precision::UNSPECIFIED), output_prec(Precision::UNSPECIFIED), weights_prec(Precision::UNSPECIFIED) {}
 
+InferenceEngine::MemoryBlob::Ptr convertBF16ToFloat(InferenceEngine::MemoryBlob::Ptr tweights) {
+    TensorDesc td(Precision::FP32, tweights->getTensorDesc().getDims(), tweights->getTensorDesc().getLayout());
+    MemoryBlob::Ptr weightsFP32 = make_shared_blob<float>(td);
+    weightsFP32->allocate();
+    auto lmbf16 = tweights->rmap();
+    short* bf16data = lmbf16.as<short*>();
+    auto lmfp32 = weightsFP32->wmap();
+    float* fp32data = lmfp32.as<float*>();
+    for (size_t i = 0; i < weightsFP32->size(); i++) {
+        fp32data[i] = ngraph::bfloat16::from_bits(bf16data[i]);
+    }
+    return weightsFP32;
+}
+
 void MKLDNNNormalizeNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
@@ -778,8 +791,7 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
         float* dst = weights_blob->wmap();
         cpu_memcpy(dst, src, layer->blobs.at("weights")->byteSize());
     } else if (weights_prec == Precision::BF16) {
-        MKLDNNPlugin::BF16Transformer transformer;
-        weights_blob = transformer.convertBF16ToFloat(tweights);
+        weights_blob = convertBF16ToFloat(tweights);
     } else {
         // Unknown non supported data type, return an error
         THROW_IE_EXCEPTION << layer->name << "Weights for layer Normalize with name '" << layer->name <<
