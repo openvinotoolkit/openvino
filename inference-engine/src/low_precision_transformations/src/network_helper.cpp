@@ -408,7 +408,9 @@ FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_p
             return dequantization;
         }
 
-        std::shared_ptr<Node> result = fold<opset1::Multiply>(dequantization.multiply->get_input_node_shared_ptr(0), dequantization.multiply->get_input_node_shared_ptr(1));
+        std::shared_ptr<Node> result = fold<opset1::Multiply>(
+                dequantization.multiply->get_input_node_shared_ptr(0),
+                dequantization.multiply->get_input_node_shared_ptr(1));
         if (!is_type<opset1::Constant>(result)) {
             return dequantization;
         }
