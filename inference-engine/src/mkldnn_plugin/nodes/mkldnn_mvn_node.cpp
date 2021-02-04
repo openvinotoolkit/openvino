@@ -10,10 +10,6 @@
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
-<<<<<<< 31d1d939d2e0bfc7143cb062397df88cd415c3c6
-=======
->>>>>>> review comments fix - part2
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "utils/bfloat16.hpp"
@@ -21,7 +17,6 @@
 #include "ie_parallel.hpp"
 #include <algorithm>
 #include "common/jit_load_store_emitters.h"
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
 
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise.hpp>
@@ -30,295 +25,6 @@
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
 
 #include <ngraph/opsets/opset6.hpp>
-
-using namespace mkldnn;
-using namespace MKLDNNPlugin;
-using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu::x64;
-using namespace mkldnn::impl::utils;
-using namespace Xbyak;
-
-#define GET_OFF(field) offsetof(jit_mvn_call_args, field)
-
-// some utility functions
-static inline bool isFloatCompatible(Precision prc) {
-    return Precision::FP32 == prc || Precision::BF16 == prc;
-}
-
-static inline bool isFloatCompatible(memory::data_type type) {
-    return memory::data_type::f32 == type || memory::data_type::bf16 == type;
-}
-
-// normalize_variance = false : src->mean
-// normalize_variance = true : src+mean->variance:sqr(x-mean)
-template <cpu_isa_t isa>
-struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_kernel, public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_mean_kernel_f32)
-
-    explicit jit_uni_mvn_mean_variance_kernel_f32(jit_mvn_config_params jcp) : jit_uni_mvn_mean_variance_kernel(jcp), jit_generator() {}
-
-    void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
-    }
-
-    void generate() override {
-        load_emitter.reset(new jit_load_emitter(this, isa, nullptr));
-
-        this->preamble();
-        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
-        if (jcp_.normalize_variance) {
-            mov(reg_mean, ptr[reg_params + GET_OFF(mean)]);
-            mov(reg_variance, ptr[reg_params + GET_OFF(variance)]);
-            uni_vpxor(vmm_variance, vmm_variance, vmm_variance);
-        } else {
-            mov(reg_sum, ptr[reg_params + GET_OFF(sum)]);
-            uni_vpxor(vmm_sum, vmm_sum, vmm_sum);
-        }
-        mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-        mov(reg_stride, ptr[reg_params + GET_OFF(src_stride)]);
-        mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
-
-        if (jcp_.normalize_variance) {
-            if (jcp_.planar_layout || jcp_.across_channels) {
-                uni_vbroadcastss(vmm_mean, ptr[reg_mean]);
-            } else {
-                uni_vmovups(vmm_mean, ptr[reg_mean]);
-            }
-        }
-
-        tail_num = jcp_.planar_layout ? (jcp_.D * jcp_.H * jcp_.W) - ((jcp_.D * jcp_.H * jcp_.W) / step) * step :
-                                        jcp_.C - (jcp_.C / step) * step;
-
-        load_pool_gpr_idxs = {reg_load_table.getIdx(), reg_load_store_mask.getIdx()};
-
-        if (jcp_.planar_layout) {
-            worker_unroll();
-            if (tail_num != 0) {
-                worker_tail_planar();
-            }
-
-            // hsum+store
-            if (!jcp_.normalize_variance && !isFloatCompatible(jcp_.src_prc))
-                uni_vcvtdq2ps(vmm_sum, vmm_sum);
-            Vmm vmm_dst = jcp_.normalize_variance ? vmm_variance : vmm_sum;
-            if (isa == cpu::x64::sse41) {
-                hsum_store(vmm_dst);
-            } else if (isa == cpu::x64::avx2) {
-                Xbyak::Ymm ymm_sum = Xbyak::Ymm(vmm_dst.getIdx());
-                vextractf128(xmm_aux1, ymm_sum, 0);
-                vextractf128(xmm_aux2, ymm_sum, 1);
-                addps(xmm_aux1, xmm_aux2);
-                hsum_store(xmm_aux1);
-            } else {
-                Xbyak::Zmm zmm_sum = Xbyak::Zmm(vmm_dst.getIdx());
-                vextractf32x4(xmm_aux1, zmm_sum, 0);
-                vextractf32x4(xmm_aux2, zmm_sum, 1);
-                addps(xmm_aux1, xmm_aux2);
-                vextractf32x4(xmm_aux2, zmm_sum, 2);
-                vextractf32x4(xmm_aux3, zmm_sum, 3);
-                addps(xmm_aux2, xmm_aux3);
-                addps(xmm_aux1, xmm_aux2);
-                hsum_store(xmm_aux1);
-            }
-        } else {
-            // blk+nspc
-            int repeats = (isa == cpu::x64::sse41) ? 2 : 1; // block size is also 8 on cpu::x64::sse41 with two step process
-            int sse42_step = 4;
-            for (int i = 0; i < repeats; i++) {
-                int offset_sse42 = i * sse42_step;
-                if (i > 0) {
-                    mov(reg_src, ptr[reg_params + GET_OFF(src)]);
-                    mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-
-                    add(reg_src, offset_sse42 * jcp_.src_data_size);
-
-                    if (jcp_.normalize_variance) {
-                        // mean and vaiance for variance kernel
-                        if (!jcp_.across_channels) {
-                            // mean is bc when across_channel, no need shift
-                            add(reg_mean, offset_sse42 * sizeof(float));
-                            uni_vmovups(vmm_mean, ptr[reg_mean]);
-                        }
-                        add(reg_variance, offset_sse42 * sizeof(float));
-                        uni_vpxor(vmm_variance, vmm_variance, vmm_variance);
-                    } else {
-                        // sum for mean kernel
-                        add(reg_sum, offset_sse42 * sizeof(float));
-                        uni_vpxor(vmm_sum, vmm_sum, vmm_sum);
-                    }
-                    add(reg_oc_off, offset_sse42 * sizeof(float));
-                }
-
-                Xbyak::Label label_empty_2half_sse42;
-                if (tail_num == 0) {
-                    cmp(reg_oc_off, static_cast<int>(jcp_.C * sizeof(float)));
-                    jae(label_empty_2half_sse42, T_NEAR);
-
-                    worker_unroll();
-                } else {
-                    // maybe tail blk
-                    cmp(reg_oc_off, static_cast<int>(jcp_.C * sizeof(float)));
-                    jae(label_empty_2half_sse42, T_NEAR);
-
-                    Xbyak::Label label_full_size;
-                    Xbyak::Label label_size_end;
-                    cmp(reg_oc_off, static_cast<int>((jcp_.C - step) * sizeof(float)));
-                    jle(label_full_size, T_NEAR);
-
-                    // no need care and fill rest
-                    // for per_channel, do not use tail mean(variance), do not store computed tail values.
-                    // for across_channel, partial sum for tail one time out of kernel from perf.
-                    worker_unroll(true);
-
-                    jmp(label_size_end, T_NEAR);
-                    L(label_full_size);
-                    {
-                        worker_unroll();
-                    }
-                    L(label_size_end);
-                }
-
-                // add input_base value and store for per_channel
-                // store for across_channels
-                if (jcp_.normalize_variance) {
-                    if (!jcp_.across_channels) {
-                        uni_vmovups(vmm_val, ptr[reg_variance]);
-                        uni_vaddps(vmm_variance, vmm_variance, vmm_val);
-                    }
-                    uni_vmovups(ptr[reg_variance], vmm_variance);
-                } else {
-                    if (!isFloatCompatible(jcp_.src_prc))  // add with int for int-family data type, other compute go with float
-                        uni_vcvtdq2ps(vmm_sum, vmm_sum);
-
-                    if (!jcp_.across_channels) {
-                        uni_vmovups(vmm_val, ptr[reg_sum]);
-                        uni_vaddps(vmm_sum, vmm_sum, vmm_val);
-                    }
-                    uni_vmovups(ptr[reg_sum], vmm_sum);
-                }
-
-                L(label_empty_2half_sse42);
-            }
-        }
-
-        this->postamble();
-
-        load_emitter->emit_table();
-    }
-
-private:
-    using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2,
-            Xbyak::Ymm, Xbyak::Zmm>::type;
-
-    const int vlen = cpu_isa_traits<isa>::vlen;
-    const int step = vlen / sizeof(float);
-    int tail_num = 0;
-
-    Xbyak::Reg64 reg_src = r8;
-    Xbyak::Reg64 reg_mean = r9;
-    Xbyak::Reg64 reg_variance = r10;
-    Xbyak::Reg64 reg_work_amount = r11;
-    Xbyak::Reg64 reg_stride = r12;
-    Xbyak::Reg64 reg_sum = reg_mean;
-    Xbyak::Reg64 reg_params = abi_param1;
-    Xbyak::Reg64 reg_load_table = r13;
-    Xbyak::Reg64 reg_load_store_mask = r14;
-    Xbyak::Reg64 reg_aux = r15;
-
-    Xbyak::Reg64 reg_oc_off = rax;
-
-    Vmm vmm_val = Vmm(0);
-    Vmm vmm_mean = Vmm(1);
-    Vmm vmm_variance = Vmm(2);
-    Vmm vmm_sum = vmm_mean;
-    Xbyak::Xmm xmm_aux1 = Xbyak::Xmm(3);
-    Xbyak::Xmm xmm_aux2 = Xbyak::Xmm(4);
-    Xbyak::Xmm xmm_aux3 = Xbyak::Xmm(5);
-    Vmm vmm_zero = Vmm(6);
-
-    Xbyak::Opmask k_mask = Xbyak::Opmask(7);
-
-    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
-
-    std::vector<int> load_pool_gpr_idxs;
-
-    inline void worker_full_size() {
-        Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({reg_src.getIdx()}, {vmm_val.getIdx()},
-                            {}, {load_pool_gpr_idxs},
-                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, step));
-
-        if (jcp_.normalize_variance) {
-            // all with float
-            if (!isFloatCompatible(jcp_.src_prc))
-                uni_vcvtdq2ps(vmm_val, vmm_val);
-
-            uni_vsubps(vmm_val, vmm_val, vmm_mean);
-            uni_vfmadd231ps(vmm_variance, vmm_val, vmm_val);
-        } else {
-            // for sum, int execute prc for int-family data type
-            if (!isFloatCompatible(jcp_.src_prc))
-                uni_vpaddd(vmm_sum, vmm_sum, vmm_val);
-            else
-                uni_vaddps(vmm_sum, vmm_sum, vmm_val);
-        }
-    }
-
-    inline void worker_tail_blk() {
-        Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({reg_src.getIdx()}, {vmm_val.getIdx()},
-                            {}, {load_pool_gpr_idxs},
-                            std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num));
-
-        if (jcp_.normalize_variance) {
-            // all with float
-            if (!isFloatCompatible(jcp_.src_prc))
-                uni_vcvtdq2ps(vmm_val, vmm_val);
-
-            uni_vsubps(vmm_val, vmm_val, vmm_mean);
-            uni_vfmadd231ps(vmm_variance, vmm_val, vmm_val);
-        } else {
-            // for sum, int execute prc for int-family data type
-            if (!isFloatCompatible(jcp_.src_prc))
-                uni_vpaddd(vmm_sum, vmm_sum, vmm_val);
-            else
-                uni_vaddps(vmm_sum, vmm_sum, vmm_val);
-        }
-    }
-
-    inline void worker_unroll(bool is_tail = false) {
-        Xbyak::Label loop_label;
-        Xbyak::Label loop_end_label;
-        L(loop_label);
-        {
-            cmp(reg_work_amount, 0);
-            jle(loop_end_label, T_NEAR);
-=======
-#include <tuple>
-
-namespace MKLDNNPlugin {
-
-struct jit_mvn_config_params {
-    bool planar_layout;
-    bool across_channels;
-    bool normalize_variance;
-    InferenceEngine::Precision src_prc;
-    InferenceEngine::Precision dst_prc;
-    int src_data_size;
-    int dst_data_size;
-    int C, D, H, W;
-};
->>>>>>> fix comments, clean ref, remove in_out_map in emitter API, exception check, default p_table, clear comments
-=======
->>>>>>> review comments fix - part2
-
-#include <cpu/x64/jit_generator.hpp>
-#include <cpu/x64/jit_uni_eltwise.hpp>
-#include <cpu/x64/jit_uni_depthwise_injector.hpp>
-#include <cpu/x64/jit_uni_quantization_injector.hpp>
-#include <cpu/x64/jit_uni_eltwise_injector.hpp>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -896,24 +602,15 @@ private:
         }
     }
 };
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
-<<<<<<< 31d1d939d2e0bfc7143cb062397df88cd415c3c6
 //////////////////////////////////////////////////////////////////////////////////
 
 MKLDNNMVNNode::MKLDNNMVNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(layer, eng, cache), epsMode_(insideSqrt) {}
-=======
-//////////////////////////////////////////////////////////////////////////////////
-
-MKLDNNMVNNode::MKLDNNMVNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
->>>>>>> review comments fix - part2
 
 void MKLDNNMVNNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
     std::string errPrefix = "MVN node with name '" + getName() + "' ";
 
     auto cnnLayer = getCnnLayer();
@@ -945,24 +642,6 @@ void MKLDNNMVNNode::getSupportedDescriptors() {
     } else if (details::CaselessEq<std::string>()(epsMode, "outside_sqrt")) {
         epsMode_ = outsideSqrt;
     }
-=======
-    const auto& numOfDims = getParentEdgeAt(0)->getDims().ndims();
-    if (numOfDims < 1 || numOfDims > 5)
-        THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support input with size of dimensions: " << numOfDims;
-
-    auto * mvnLayer = dynamic_cast<MVNLayer*>(getCnnLayer().get());
-    if (mvnLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert MVN layer.";
-
-    if (getParentEdges().size() != 1)
-        THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
-    if (getChildEdges().empty())
-        THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
-
-    across_channels = mvnLayer->across_channels;
-    normalize_variance = mvnLayer->normalize;
-    eps = mvnLayer->GetParamAsFloat("eps");
->>>>>>> review comments fix - part2
 }
 
 void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
@@ -972,27 +651,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     setPostOps(attr, true);
 
     Precision inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
-<<<<<<< c5552707875fff3fae27a28ee976692091479d43
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
-<<<<<<< d1b410794020115566f9dae54371a233b74b709d
-    Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
-    const size_t inputsNum = getCnnLayer()->insData.size();
-
-    if (!fusedWith.empty()) {
-        auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
-        if (lastFusedLayer) {
-            outputPrecision = lastFusedLayer->outData[0]->getPrecision();
-        }
-    }
-
-=======
->>>>>>> apply load/store emitters to MVN(vector part)
-=======
->>>>>>> review comments fix - part2
-    if (getParentEdgeAt(0)->getDims().ndims() < 4 || getParentEdgeAt(0)->getDims().ndims() > 5
-=======
     if (getParentEdgeAt(0)->getDims().ndims() < 3 || getParentEdgeAt(0)->getDims().ndims() > 5
->>>>>>> an overloaded emit() and size_t index
         || across_channels != 0 || normalize_variance != 1) {
         if (!isFloatCompatible(inputPrecision)) {
             inputPrecision = Precision::FP32;
@@ -1024,21 +683,19 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     src_data_size = MKLDNNExtensionUtils::sizeOfDataType(inputDataType);
     dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(outputDataType);
 
-    bool canBeInplace = src_data_size == dst_data_size && getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1;
+    bool canBeInplace = (src_data_size == dst_data_size) &&
+                        (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&
+                        !getParentEdgeAt(0)->getParent()->isConstant();
 
+    const size_t inputsNum = getCnnLayer()->insData.size();
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = false;
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
     config.inConfs.resize(inputsNum);
-=======
-    config.inConfs.resize(1);
->>>>>>> review comments fix - part2
     config.outConfs.resize(1);
     config.inConfs[0].constant = false;
     config.outConfs[0].constant = false;
     config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
     if (inputsNum == 2) {
         const auto& dims = getCnnLayer()->insData[1].lock()->getTensorDesc().getDims();
         config.inConfs[1].desc = TensorDesc(Precision::I32,
@@ -1046,8 +703,6 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
             TensorDesc::getLayoutByDims(dims));
         config.inConfs[1].constant = true;
     }
-=======
->>>>>>> review comments fix - part2
 
     auto pushDesc = [&](memory::format_tag format, impl_desc_type impl_type) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, format);
@@ -1257,34 +912,6 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
             // parallel sum for each channel
             if (normalize_variance) {
                 float variance_temp = 0.0f;
-<<<<<<< 8e85d025bf3c53d3e893bf54f633f97bb7c9038d
-                if (mvn_variance_kernel) {
-                    variance_temp = parallel_sum(C, variance_temp, [&](size_t c)->float {
-                        float variance_internal = 0.0f;
-                        size_t cc = cb + c * C2;
-                        auto arg = jit_mvn_call_args();
-                        arg.src = src_data + cc * src_data_size;
-                        arg.mean = static_cast<float*>(&mean);
-                        arg.variance = static_cast<float*>(&variance_internal);
-                        arg.src_stride = src_stride_size;
-                        arg.work_amount = static_cast<size_t>(C2 / blk_size);  // vector part
-                        (*mvn_variance_kernel)(&arg);
-                        return variance_internal;
-                    });
-                }
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
-<<<<<<< d1b410794020115566f9dae54371a233b74b709d
-                float variance = 1.f;
-                if (epsMode_ == insideSqrt)
-                    variance /= sqrtf(variance_temp * C3inv + eps);
-                else if (epsMode_ == outsideSqrt)
-                    variance /= sqrtf(variance_temp * C3inv) + eps;
-=======
-
-                float variance = 1.f / sqrtf(variance_temp * C3inv + eps);
->>>>>>> apply load/store emitters to MVN(vector part)
-=======
-=======
                 variance_temp = parallel_sum(C, variance_temp, [&](size_t c)->float {
                     float variance_internal = 0.0f;
                     size_t cc = cb + c * C2;
@@ -1297,10 +924,12 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                     (*mvn_variance_kernel)(&arg);
                     return variance_internal;
                 });
->>>>>>> model validation bug fix
 
-                float variance = 1.f / sqrtf(variance_temp * C3inv + eps);
->>>>>>> review comments fix - part2
+                float variance = 1.f;
+                if (epsMode_ == insideSqrt)
+                    variance /= sqrtf(variance_temp * C3inv + eps);
+                else if (epsMode_ == outsideSqrt)
+                    variance /= sqrtf(variance_temp * C3inv) + eps;
                 // mvn for one instance in batch
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
@@ -1356,25 +985,10 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                     arg.variance = static_cast<float*>(&variance);
                     (*mvn_variance_kernel)(&arg);
 
-<<<<<<< 8e85d025bf3c53d3e893bf54f633f97bb7c9038d
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
-<<<<<<< d1b410794020115566f9dae54371a233b74b709d
-                        for (size_t tail = tail_per_channel; tail < C2; tail++) {
-                            variance += (src_data[cc + tail] - mean) * (src_data[cc + tail] - mean);
-                        }
-                        if (epsMode_ == insideSqrt)
-                            variance = 1.f / sqrtf(variance * C2inv + eps);
-                        else if (epsMode_ == outsideSqrt)
-                            variance = 1.f / (sqrtf(variance * C2inv) + eps);
-=======
+                    if (epsMode_ == insideSqrt)
                         variance = 1.f / sqrtf(variance * C2inv + eps);
->>>>>>> apply load/store emitters to MVN(vector part)
-=======
-                        variance = 1.f / sqrtf(variance * C2inv + eps);
->>>>>>> review comments fix - part2
-=======
-                    variance = 1.f / sqrtf(variance * C2inv + eps);
->>>>>>> model validation bug fix
+                    else if (epsMode_ == outsideSqrt)
+                        variance = 1.f / (sqrtf(variance * C2inv) + eps);
 
                     // mvn for this channel
                     (*mvn_kernel)(&arg);
@@ -1428,7 +1042,12 @@ void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const Si
                     return variance_internal;
                 });
 
-                float variance = 1.f / sqrtf(variance_temp * C3inv + eps);
+                float variance = 1.f;
+                if (epsMode_ == insideSqrt)
+                    variance = 1.f / sqrtf(variance_temp * C3inv + eps);
+                else if (epsMode_ == outsideSqrt)
+                    variance = 1.f / (sqrtf(variance_temp * C3inv) + eps);
+
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
                     for (size_t sp = 0lu; sp < C2; sp++) {
@@ -1456,29 +1075,15 @@ void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const Si
 
                 if (normalize_variance) {
                     // variance for this channel
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
-<<<<<<< d1b410794020115566f9dae54371a233b74b709d
-                    if (normalize_variance) {
-                        float variance = 0.f;
-                        for (size_t tail = 0lu; tail < C2; tail++) {
-                            variance += (src_data[cc + tail] - mean) * (src_data[cc + tail] - mean);
-                        }
-                        if (epsMode_ == insideSqrt)
-                            variance = 1.f / sqrtf(variance * C2inv + eps);
-                        else if (epsMode_ == outsideSqrt)
-                            variance = 1.f / (sqrtf(variance * C2inv) + eps);
-=======
-=======
->>>>>>> review comments fix - part2
                     float variance = 0.f;
                     for (size_t sp = 0lu; sp < C2; sp++) {
                         variance += (src_data_ptr[cc + sp] - mean) * (src_data_ptr[cc + sp] - mean);
                     }
-                    variance = 1.f / sqrtf(variance * C2inv + eps);
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
->>>>>>> apply load/store emitters to MVN(vector part)
-=======
->>>>>>> review comments fix - part2
+
+                    if (epsMode_ == insideSqrt)
+                        variance = 1.f / sqrtf(variance * C2inv + eps);
+                    else if (epsMode_ == outsideSqrt)
+                        variance = 1.f / (sqrtf(variance * C2inv) + eps);
 
                     // mvn for this channel
                     for (size_t sp = 0lu; sp < C2; sp++) {
@@ -1593,15 +1198,11 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                     return variance_internal;
                 });
 
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
                 float variance = 1.f;
                 if (epsMode_ == insideSqrt)
                     variance /= sqrtf(variance_temp * C5inv + eps);
                 else if (epsMode_ == outsideSqrt)
                     variance /= sqrtf(variance_temp * C5inv) + eps;
-=======
-                float variance = 1.f / sqrtf(variance_temp * C5inv + eps);
->>>>>>> review comments fix - part2
                 // mvn for one instance in batch
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
                     size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
@@ -1688,8 +1289,12 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                     for (size_t c = 0; c < C; c++)
                         variance_buffer[c] += variance_buffer[c + aux_buffer_size * i];
                 }
-                for (size_t c = 0; c < C; c++)
-                    variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + eps);
+                for (size_t c = 0; c < C; c++) {
+                    if (epsMode_ == insideSqrt)
+                        variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + eps);
+                    else if (epsMode_ == outsideSqrt)
+                        variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + eps);
+                }
 
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
@@ -1709,78 +1314,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                         arg.oc_off = cb * blk_size * sizeof(float);
                         (*mvn_kernel)(&arg);
                     }
-<<<<<<< 8e85d025bf3c53d3e893bf54f633f97bb7c9038d
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
-                    for (size_t c = 0; c < C; c++) {
-                        if (epsMode_ == insideSqrt)
-                            variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + eps);
-                        else if (epsMode_ == outsideSqrt)
-                            variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + eps);
-                    }
-                }
-
-<<<<<<< d1b410794020115566f9dae54371a233b74b709d
-                for (size_t cb = tail_cb_start; cb < tail_cb_end; cb++) {
-                    size_t src_off = is_nhwc ? ccb + cb * blk_size : ccb + cb * C2;
-                    size_t min_cb = (std::min)(blk_size, C - cb * blk_size);
-                    auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
-                    auto variance_buffer_ptr = &variance_buffer[blk_size * cb];
-
-                    for (size_t c = 0lu; c < min_cb; c++) {
-                        size_t cc = src_off + c;
-
-                        variance_buffer_ptr[c] = 0.0f;
-                        for (size_t d = 0lu; d < D; d++) {
-                            size_t cd = cc + d * C1;
-                            for (size_t h = 0lu; h < H; h++) {
-                                size_t ch = cd + h * C0;
-                                for (size_t w = 0lu; w < W; w++) {
-                                    variance_buffer_ptr[c] +=
-                                            (src_data[ch + w * src_stride] - mean_buffer_ptr[c]) *
-                                            (src_data[ch + w * src_stride] - mean_buffer_ptr[c]);
-                                }
-                            }
-                        }
-                        if (epsMode_ == insideSqrt)
-                            variance_buffer_ptr[c] = 1.f / sqrtf(variance_buffer_ptr[c] * size_inv + eps);
-                        else if (epsMode_ == outsideSqrt)
-                            variance_buffer_ptr[c] = 1.f / (sqrtf(variance_buffer_ptr[c] * size_inv) + eps);
-                    }
-                }
-
-                tail_cb_start = 0;
-=======
->>>>>>> apply load/store emitters to MVN(vector part)
-=======
-                    for (size_t c = 0; c < C; c++)
-                        variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + eps);
-                }
-
->>>>>>> review comments fix - part2
-                if (mvn_kernel) {
-                    parallel_for2d(D, H, [&](size_t d, size_t h) {
-                        for (size_t cb = 0; cb < CB; cb++) {
-                            size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
-                                                        : b_offset + cb * C2 + d * C1 + h * C0;
-                            auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
-                            auto variance_buffer_ptr = &variance_buffer[blk_size * cb];
-
-                            auto arg = jit_mvn_call_args();
-                            arg.src = src_data + src_offset * src_data_size;
-                            arg.dst = dst_data + src_offset * dst_data_size;
-                            arg.mean = mean_buffer_ptr;
-                            arg.variance = variance_buffer_ptr;
-                            arg.src_stride = src_stride_size;
-                            arg.dst_stride = dst_stride_size;
-                            arg.work_amount = static_cast<size_t>(W);
-                            arg.oc_off = cb * blk_size * sizeof(float);
-                            (*mvn_kernel)(&arg);
-                        }
-                    });
-                }
-=======
                 });
->>>>>>> model validation bug fix
             } else {
                 // normalize_variance == false
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
@@ -1804,18 +1338,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
         }
     }
 }
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
-=======
->>>>>>> fix comments, clean ref, remove in_out_map in emitter API, exception check, default p_table, clear comments
-=======
->>>>>>> review comments fix - part2
 
-bool MKLDNNMVNNode::created() const {
-    return getType() == MVN;
-}
-
-<<<<<<< d73040e14e62eb8058240d608b11cfcd80bfe247
-<<<<<<< 31d1d939d2e0bfc7143cb062397df88cd415c3c6
 // Validates MVN node axes to check whether it can be executed on the current CPU implementation.
 // Supported cases:
 // 1D: axes: [0]
@@ -1848,9 +1371,8 @@ bool MKLDNNMVNNode::checkAxesSuitability(const std::shared_ptr<const ngraph::Nod
     return false;
 }
 
+bool MKLDNNMVNNode::created() const {
+    return getType() == MVN;
+}
+
 REG_MKLDNN_PRIM_FOR(MKLDNNMVNNode, MVN);
-=======
->>>>>>> fix comments, clean ref, remove in_out_map in emitter API, exception check, default p_table, clear comments
-=======
-REG_MKLDNN_PRIM_FOR(MKLDNNMVNNode, MVN);
->>>>>>> review comments fix - part2
