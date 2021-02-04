@@ -51,5 +51,5 @@ class Extender(object):
     def const_shape_infer(node: Node):
         i = len(node.in_nodes())
         for num in node.out_nodes():
-            node.out_node(num).shape = int64_array(node.ports[i])
+            node.out_node(num).shape = int64_array(node.ports[i][0])
             i += 1
