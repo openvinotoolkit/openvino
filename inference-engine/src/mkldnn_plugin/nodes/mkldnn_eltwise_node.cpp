@@ -652,17 +652,29 @@ private:
                 break;
             case Precision::I16:
                 if (isa == x64::avx512_common) {
-                    vmaxps(vmm_dst, vmm_zero, vmm_dst);
-                    vpmovusdw(op, vmm_dst);
+                    vpmovsdw(op, vmm_dst);
                 } else {
-                    uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
+                    uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
+                    if (isa != x64::sse41) {
+                        vpermq(ymm_dst, ymm_dst, 0x08);
+                        uni_vmovdqu(op, xmm_dst);
+                    } else {
+                        movq(op, xmm_dst);
+                    }
                 }
                 break;
             case Precision::U16:
                 if (isa == x64::avx512_common) {
-                    vpmovsdw(op, vmm_dst);
+                    vmaxsd(vmm_dst, vmm_zero, vmm_dst);
+                    vpmovusdw(op, vmm_dst);
                 } else {
-                    uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
+                    uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
+                    if (isa != x64::sse41) {
+                        vpermq(ymm_dst, ymm_dst, 0x08);
+                        uni_vmovdqu(op, xmm_dst);
+                    } else {
+                        movq(op, xmm_dst);
+                    }
                 }
                 break;
             case Precision::I8:

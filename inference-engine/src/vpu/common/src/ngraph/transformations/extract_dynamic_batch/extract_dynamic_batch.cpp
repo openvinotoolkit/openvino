@@ -342,6 +342,7 @@ std::shared_ptr<ngraph::opset5::Loop> makeLoop(ngraph::Node* root, ngraph::Node*
     results.emplace_back(std::make_shared<ngraph::opset5::Result>(iterationCondition));
     auto body = std::make_shared<ngraph::Function>(results, parameters, "body");
     loop->set_function(body);
+    loop->set_special_body_ports({-1, static_cast<std::int64_t>(results.size()) - 1});
     for (const auto& entry : slicedInputs) {
         loop->set_sliced_input(entry.first, entry.second, 0, 1, 1, -1, 0);
     }
@@ -358,7 +359,6 @@ std::shared_ptr<ngraph::opset5::Loop> makeLoop(ngraph::Node* root, ngraph::Node*
         loop->get_concatenated_slices(entry, 0, 1, 1, -1, 0);
     }
 
-    loop->set_special_body_ports({-1, static_cast<std::int64_t>(results.size()) - 1});
     loop->validate_and_infer_types();
     return loop;
 }
@@ -377,6 +377,30 @@ bool updateExternals(const ngraph::Node* source, const Nodes& allForward, const 
         }
     }
     return updated;
+}
+
+template<class NextTop, class NextBottom>
+bool removeExternalConnections(ngraph::Node* source, SubGraph& topSubGraph, SubGraph& bottomSubGraph, Nodes& topExternals, Nodes& bottomExternals,
+                               NextTop&& getNextTop, NextBottom&& getNextBottom) {
+    bool hasBeenUpdated = false;
+
+    bool hasNewTopExternals = false;
+    bool hasNewBottomExternals = false;
+    do {
+        hasNewTopExternals = updateExternals(source, topSubGraph.all, bottomSubGraph.all, topExternals, getNextBottom);
+        if (hasNewTopExternals) {
+            topSubGraph = getLeaves(source, topExternals, getNextTop);
+            hasBeenUpdated = true;
+        }
+
+        hasNewBottomExternals = updateExternals(source, bottomSubGraph.all, topSubGraph.all, bottomExternals, getNextTop);
+        if (hasNewBottomExternals) {
+            bottomSubGraph = getLeaves(source, bottomExternals, getNextBottom);
+            hasBeenUpdated = true;
+        }
+    } while (hasNewTopExternals || hasNewBottomExternals);
+
+    return hasBeenUpdated;
 }
 
 }  // namespace
@@ -434,32 +458,14 @@ bool ExtractBatch::run_on_function(std::shared_ptr<ngraph::Function> functionPoi
         auto topSubGraph = getLeaves(source, topExternals, getNextTop);
         auto bottomSubGraph = getLeaves(source, bottomExternals, getNextBottom);
 
-        auto hasNewTopExternals = updateExternals(source, topSubGraph.all, bottomSubGraph.all, topExternals, getNextBottom);
-        if (hasNewTopExternals) {
-            topSubGraph = getLeaves(source, topExternals, getNextTop);
-        }
-
-        bool hasNewBottomExternals = updateExternals(source, bottomSubGraph.all, topSubGraph.all, bottomExternals, getNextTop);
-        if (hasNewBottomExternals) {
-            bottomSubGraph = getLeaves(source, bottomExternals, getNextBottom);
-        }
+        removeExternalConnections(source, topSubGraph, bottomSubGraph, topExternals, bottomExternals, getNextTop, getNextBottom);
 
         ngraph::Node* top = nullptr;
         ngraph::Node* bottom = nullptr;
         do {
             getLeavesLCA(source, top, topSubGraph.all, topSubGraph.leaves, bottomSubGraph.all, getNextTop, getNextBottom);
             getLeavesLCA(source, bottom, bottomSubGraph.all, bottomSubGraph.leaves, topSubGraph.all, getNextBottom, getNextTop);
-
-            hasNewTopExternals = updateExternals(source, topSubGraph.all, bottomSubGraph.all, topExternals, getNextBottom);
-            if (hasNewTopExternals) {
-                topSubGraph = getLeaves(source, topExternals, getNextTop);
-            }
-
-            hasNewBottomExternals = updateExternals(source, bottomSubGraph.all, topSubGraph.all, bottomExternals, getNextTop);
-            if (hasNewBottomExternals) {
-                bottomSubGraph = getLeaves(source, bottomExternals, getNextBottom);
-            }
-        } while (hasNewTopExternals || hasNewBottomExternals);
+        } while (removeExternalConnections(source, topSubGraph, bottomSubGraph, topExternals, bottomExternals, getNextTop, getNextBottom));
 
         for (const auto& node : topSubGraph.all) {
             if (sources.count(node)) {

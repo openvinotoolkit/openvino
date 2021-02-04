@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +29,8 @@ std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<Co
     std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) <<
-        param.fakeQuantizeOnData <<
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
+        param.fakeQuantizeOnData << "_" <<
         param.fakeQuantizeOnWeights;
     return result.str();
 }
@@ -44,7 +44,7 @@ void ConvolutionTransformation::SetUp() {
     ConvolutionTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::getOriginal(
+    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
         inputShape,
         // TODO: pass from test parameters
@@ -78,7 +78,12 @@ void ConvolutionTransformation::validate() {
     ASSERT_FALSE(parent == nullptr);
 
     const std::string typeName = parent->get_type_name();
-    if (param.fakeQuantizeOnData.empty() || param.fakeQuantizeOnWeights.empty()) {
+    const auto isQuantizationSupported = [](const ngraph::builder::subgraph::FakeQuantizeOnData& fq) {
+        return (fq.quantizationLevel == 255) || (fq.quantizationLevel == 256);
+    };
+
+    if (param.fakeQuantizeOnData.empty() || (!isQuantizationSupported(param.fakeQuantizeOnData)) ||
+        param.fakeQuantizeOnWeights.empty() || (!isQuantizationSupported(param.fakeQuantizeOnWeights))) {
         ASSERT_EQ("ConvolutionIE", typeName);
     } else {
         ASSERT_EQ("ScaleShiftIE", typeName);
