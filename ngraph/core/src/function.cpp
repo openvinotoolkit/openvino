@@ -24,7 +24,6 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -43,7 +42,7 @@ Function::Function(const ResultVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    validate_nodes_and_infer_types();
+    check_all_parameters_registered();
 }
 
 Function::Function(const OutputVector& results,
@@ -55,7 +54,7 @@ Function::Function(const OutputVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    validate_nodes_and_infer_types();
+    check_all_parameters_registered();
 }
 
 Function::Function(const NodeVector& results,
@@ -67,7 +66,7 @@ Function::Function(const NodeVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    validate_nodes_and_infer_types();
+    check_all_parameters_registered();
 }
 
 Function::Function(const std::shared_ptr<Node>& result,
@@ -88,7 +87,7 @@ Function::Function(const ResultVector& results,
     , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
     , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
 {
-    validate_nodes_and_infer_types();
+    check_all_parameters_registered();
 }
 
 Function::Function(const OutputVector& results,
@@ -99,41 +98,38 @@ Function::Function(const OutputVector& results,
 {
 }
 
+void Function::check_all_parameters_registered() const
+{
+    OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
+                       "Function::check_all_parameters_registered");
+    std::stringstream unregistered_parameters;
+    for (auto& node : get_ordered_ops())
+    {
+        if (op::is_parameter(node) &&
+            std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
+            unregistered_parameters << node << std::endl;
+    }
+    if (!unregistered_parameters.str().empty())
+        throw ngraph_error("Function references undeclared parameters: " +
+                           unregistered_parameters.str());
+}
+
 void Function::validate_nodes_and_infer_types() const
 {
     OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
                        "Function::validate_nodes_and_infer_types");
-    std::map<Variable*, int> pair_checker;
-    for (const auto& node : get_ordered_ops())
+
+    std::stringstream unregistered_parameters;
+    for (auto& node : get_ordered_ops())
     {
         node->revalidate_and_infer_types();
-        if (const auto& assign = std::dynamic_pointer_cast<ngraph::op::AssignBase>(node))
-        {
-            pair_checker[assign->get_variable().get()]++;
-        }
-        else if (const auto& read_value =
-                     std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(node))
-        {
-            pair_checker[read_value->get_variable().get()]++;
-        }
-        // If we find a parameter make sure it is in the list of parameters of the function
-        if (op::is_parameter(node))
-        {
-            auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
-            if (it == m_parameters.end())
-            {
-                throw ngraph_error("Function references undeclared parameter");
-            }
-        }
+        if (op::is_parameter(node) &&
+            std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
+            unregistered_parameters << node << std::endl;
     }
-
-    bool are_pairs =
-        std::all_of(pair_checker.begin(),
-                    pair_checker.end(),
-                    [](std::pair<Variable*, int> const& key_val) { return key_val.second == 2; });
-    NGRAPH_CHECK(are_pairs,
-                 "The ngraph function is incorrect,"
-                 " Assign and ReadValue operations must be represented on the network in pairs.");
+    if (!unregistered_parameters.str().empty())
+        throw ngraph_error("Function references undeclared parameters: " +
+                           unregistered_parameters.str());
 }
 
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const
@@ -420,6 +416,31 @@ void Function::remove_result(const std::shared_ptr<op::Result>& result)
                        m_results.end(),
                        [&result](std::shared_ptr<op::v0::Result>& r) { return r == result; }),
         m_results.end());
+}
+
+void Function::add_parameters(const ParameterVector& params)
+{
+    for (int i = 0; i < params.size(); i++)
+    {
+        for (int j = 0; j < m_parameters.size(); j++)
+        {
+            NGRAPH_CHECK(params[i] != m_parameters[j],
+                         "add_parameters(): Tried to add parameter (index in array ",
+                         i,
+                         ") but function already have the same parameter with index ",
+                         j);
+        }
+    }
+    m_parameters.insert(m_parameters.end(), params.begin(), params.end());
+}
+
+void Function::remove_parameter(const std::shared_ptr<op::Parameter>& param)
+{
+    m_parameters.erase(
+        std::remove_if(m_parameters.begin(),
+                       m_parameters.end(),
+                       [&param](std::shared_ptr<op::v0::Parameter>& r) { return r == param; }),
+        m_parameters.end());
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;

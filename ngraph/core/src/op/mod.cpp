@@ -43,6 +43,7 @@ op::v1::Mod::Mod(const Output<Node>& A,
     : FusedOp({A, B})
     , m_auto_broadcast(auto_broadcast)
 {
+    constructor_validate_and_infer_types();
 }
 
 bool ngraph::op::v1::Mod::visit_attributes(AttributeVisitor& visitor)

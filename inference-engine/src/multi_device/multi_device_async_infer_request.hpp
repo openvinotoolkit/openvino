@@ -26,7 +26,7 @@ public:
                                           const MultiDeviceExecutableNetwork::Ptr&      multiDeviceExecutableNetwork,
                                           const InferenceEngine::ITaskExecutor::Ptr&    callbackExecutor);
     void Infer_ThreadUnsafe() override;
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &_perfMap) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
     ~MultiDeviceAsyncInferRequest() override;
 
 protected:

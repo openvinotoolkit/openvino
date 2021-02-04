@@ -383,6 +383,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             if (itClonedInput != clonedInputs.end() && nullptr != itClonedInput->second) {
                 itClonedInput->second->getPreProcess() = externalInput.second->getPreProcess();
                 itClonedInput->second->setPrecision(externalInput.second->getPrecision());
+                itClonedInput->second->setLayout(externalInput.second->getLayout());
             }
         }
         isInputSubnetwork[id] = std::any_of(std::begin(subgraph._parameters),
@@ -440,28 +441,24 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
     std::unordered_set<std::string> networkInputs;
     pugi::xml_node inputsNode = heteroNode.child("inputs");
-    for (auto inputNode = inputsNode.child("input"); !inputNode.empty();
-            inputNode = inputNode.next_sibling("input")) {
+    FOREACH_CHILD(inputNode, inputsNode, "input")  {
         networkInputs.insert(GetStrAttr(inputNode, "name"));
     }
 
     std::unordered_set<std::string> networkOutputs;
     pugi::xml_node outputsNode = heteroNode.child("outputs");
-    for (auto outputNode = outputsNode.child("output"); !outputNode.empty();
-            outputNode = outputNode.next_sibling("output")) {
+    FOREACH_CHILD(outputNode, outputsNode, "output") {
         networkOutputs.insert(GetStrAttr(outputNode, "name"));
     }
 
     Engine::Configs importedConfigs;
     auto configsNode = heteroNode.child("configs");
-    for (auto configNode = configsNode.child("config"); !configNode.empty();
-            configNode = configNode.next_sibling("config")) {
+    FOREACH_CHILD(configNode, configsNode, "config") {
         importedConfigs.emplace(GetStrAttr(configNode, "key"), GetStrAttr(configNode, "value"));
     }
 
     auto blobNamesNode = heteroNode.child("blob_names_map");
-    for (auto blobNameNode = blobNamesNode.child("blob_name_map"); !blobNameNode.empty();
-            blobNameNode = blobNameNode.next_sibling("blob_name_map")) {
+    FOREACH_CHILD(blobNameNode, blobNamesNode, "blob_name_map") {
         _blobNameMap.emplace(GetStrAttr(blobNameNode, "key"), GetStrAttr(blobNameNode, "value"));
     }
 
@@ -471,8 +468,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
 
     std::vector<NetworkDesc> descs;
     pugi::xml_node subnetworksNode = heteroNode.child("subnetworks");
-    for (auto subnetworkNode = subnetworksNode.child("subnetwork"); !subnetworkNode.empty();
-            subnetworkNode = subnetworkNode.next_sibling("subnetwork")) {
+    FOREACH_CHILD(subnetworkNode, subnetworksNode, "subnetwork") {
         auto deviceName = GetStrAttr(subnetworkNode, "device");
 
         auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, importedConfigs);
@@ -507,16 +503,14 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
             cnnnetwork = _heteroPlugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
             auto inputs = cnnnetwork.getInputsInfo();
             auto inputsNode = subnetworkNode.child("inputs");
-            for (auto inputNode = inputsNode.child("input"); !inputNode.empty();
-                inputNode = inputNode.next_sibling("input")) {
+            FOREACH_CHILD(inputNode, inputsNode, "input") {
                 auto inputName = GetStrAttr(inputNode, "name");
                 inputs[inputName]->setPrecision(Precision::FromStr(GetStrAttr(inputNode, "precision")));
             }
 
             auto outputs = cnnnetwork.getOutputsInfo();
             auto outputsNode = subnetworkNode.child("outputs");
-            for (auto outputNode = outputsNode.child("output"); !outputNode.empty();
-                outputNode = outputNode.next_sibling("output")) {
+            FOREACH_CHILD(outputNode, outputsNode, "output") {
                 auto outputName = GetStrAttr(outputNode, "name");
                 outputs[outputName]->setPrecision(Precision::FromStr(GetStrAttr(outputNode, "precision")));
             }
