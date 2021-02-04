@@ -277,6 +277,12 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
         spatial_scales.insert(spatial_scales.end(), m_scales.begin() + 2, m_scales.end());
     }
 
+    std::vector<int64_t> spatial_axes_indices(spatial_rank);
+
+    std::iota(spatial_axes_indices.begin(),
+              spatial_axes_indices.end(),
+              ((num_of_axes == input_rank) && (input_rank >= 4)) ? 2 : 0);
+
     result.input_data_ptr_increment = input_data_ptr_increment;
     result.output_data_ptr_increment = output_data_ptr_increment;
     result.batch_size = batch_size;
@@ -287,6 +293,7 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
     result.input_spatial_shape = input_spatial_shape;
     result.output_spatial_shape = output_spatial_shape;
     result.spatial_scales = spatial_scales;
+    result.spatial_axes_indices = spatial_axes_indices;
 
     return result;
 }

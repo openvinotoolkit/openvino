@@ -313,6 +313,7 @@ namespace ngraph
                     std::vector<int64_t> input_spatial_shape;
                     std::vector<int64_t> output_spatial_shape;
                     std::vector<float> spatial_scales;
+                    std::vector<int64_t> spatial_axes_indices;
                 };
 
                 InfoForGenericLinearONNXMode get_info_for_generic_linear_onnx();
@@ -617,7 +618,7 @@ namespace ngraph
                 auto& input_spatial_shape = info.input_spatial_shape;
                 auto& output_spatial_shape = info.output_spatial_shape;
 
-                auto& spatial_scales = info.spatial_scales;
+                auto& spatial_axes_indices = info.spatial_axes_indices;
 
                 int64_t spatial_rank = info.spatial_rank;
 
@@ -649,11 +650,8 @@ namespace ngraph
                             {
                                 float out_coord = static_cast<float>(output_coords[i]);
 
-                                float in_coord = m_get_original_coord(
-                                    out_coord,
-                                    spatial_scales[i],
-                                    static_cast<float>(output_spatial_shape[i]),
-                                    static_cast<float>(input_spatial_shape[i]));
+                                float in_coord =
+                                    helper.get_in_coord(out_coord, spatial_axes_indices[i]);
                                 in_coord = std::max(
                                     0.0f,
                                     std::min(in_coord,
