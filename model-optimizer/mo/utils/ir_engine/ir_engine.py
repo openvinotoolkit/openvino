@@ -17,6 +17,7 @@
 import hashlib
 import logging as log
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET
 from argparse import Namespace
@@ -125,8 +126,7 @@ class IREngine(object):
                 data = self.graph.unique_id(prefix='data_')
                 self.graph.add_node(data, **{'kind': 'data', 'shape': self.graph.node[node]['ports'][port][0],
                                              'value': None})
-                self.graph.create_edge(Node(self.graph, node), Node(self.graph, data), edge_attrs={'out': port})
-                # self.graph.add_edges_from([(node, data, {'out': port})])
+                self.graph.add_edges_from([(node, data, {'out': port})])
                 data_nodes.update({port: data})
 
             for out_node, edge_attrs in out_edges:
