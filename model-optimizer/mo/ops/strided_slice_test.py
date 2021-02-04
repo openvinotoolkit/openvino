@@ -58,10 +58,12 @@ class TestStridedSliceInfer(unittest.TestCase):
         res = node.out_port(0).data.get_shape() if is_shape else node.out_port(0).data.get_value()
         self.assertTrue(np.array_equal(res, ref_res))
 
-    def test_slice_infer_value_1(self,  # inp[:4:1] = inp
-                                 inp=(1, 34, 34, 62), ref_res=(1, 34, 34, 62), is_shape=False,
-                                 begin=(0,), end=(4,), strides=(1,), begin_mask=(0,), end_mask=(1,),
-                                 shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)):
+    def test_slice_infer_value_1(
+            self,  # inp[:4:1] = inp
+            inp=(1, 34, 34, 62), ref_res=(1, 34, 34, 62), is_shape=False,
+            begin=(0,), end=(4,), strides=(1,), begin_mask=(0,), end_mask=(1,),
+            shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)
+    ):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
@@ -142,10 +144,12 @@ class TestStridedSliceInfer(unittest.TestCase):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    def test_slice_infer_shape_7(self,  # inp[:, :, :, :] since all begin and end masks are zero
-                                 inp=(1, 35, 35, 3), ref_res=(1, 35, 35, 3), is_shape=True,
-                                 begin=(1, 10, 10, 0), end=(1, 34, 20, 2), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-                                 shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)):
+    def test_slice_infer_shape_7(
+        self,  # inp[:, :, :, :] since all begin and end masks are zero
+        inp=(1, 35, 35, 3), ref_res=(1, 35, 35, 3), is_shape=True,
+        begin=(1, 10, 10, 0), end=(1, 34, 20, 2), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+        shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(0,)
+    ):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 

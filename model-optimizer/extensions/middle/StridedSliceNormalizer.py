@@ -27,6 +27,35 @@ from mo.ops.op import Op, PermuteAttrs
 
 
 class StridedSliceNormalizer(MiddleReplacementPattern):
+    """Inserts
+
+    BEFORE:                           |                |                     |
+            input                   begin             end                 strides
+   shape=[16, 100, 100, 3]     value=[0, 0, 0]   value=[4, 25, 50]    value=[1, 1, 1]
+      \                                /               /                     /
+       \          ____________________/               /                     /
+        \        /  _________________________________/                     /
+         \      /  /   ___________________________________________________/
+          \    /  /  /
+        strided_slice
+      shape=[4, 25, 50, 3]
+
+    AFTER:
+
+
+
+                input                   begin             end                 strides
+       shape=[16, 100, 100, 3]     value=[0, 0, 0]   value=[4, 25, 50]    value=[1, 1, 1]
+          \                                /               /                     /
+           \          ____________________/               /                     /
+            \        /  _________________________________/                     /
+             \      /  /   ___________________________________________________/
+              \    /  /  /
+            strided_slice
+          shape=[4, 25, 50, 3]
+
+
+    """
     enabled = True
 
     def run_before(self):

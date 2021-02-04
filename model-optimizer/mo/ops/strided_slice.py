@@ -80,6 +80,7 @@ class StridedSlice(Op):
         shrink_axis_mask = extend_mask(node.shrink_axis_mask)
         begin_mask = extend_mask(node.begin_mask, 1)
         end_mask = extend_mask(node.end_mask, 1)  # todo: differs from case when we unroll ellipsis
+        # no need to extend ellipsis
 
         # unroll ellipsis
         if np.any(node.ellipsis_mask):
