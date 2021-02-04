@@ -100,6 +100,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/emitter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/jit_load_store_emitters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_eltwise_emitters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_mkldnn_emitters.cpp
 
