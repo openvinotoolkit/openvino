@@ -83,6 +83,7 @@ enum Layout : uint8_t {
 
     // Single image layouts
     CHW = 128,  //!< A single image layout (e.g. for mean image)
+    HWC = 129,  //!< A single image layout (e.g. for mean image)
 
     // 2D
     HW = 192,  //!< HW 2D layout
@@ -113,6 +114,7 @@ inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
         PRINT_LAYOUT(OIHW);
         PRINT_LAYOUT(C);
         PRINT_LAYOUT(CHW);
+        PRINT_LAYOUT(HWC);
         PRINT_LAYOUT(HW);
         PRINT_LAYOUT(NC);
         PRINT_LAYOUT(CN);
