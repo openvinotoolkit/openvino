@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/min.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -82,4 +83,18 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
 {
     NGRAPH_OP_SCOPE(v1_ReduceMin_evaluate);
     return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+}
+
+bool op::v1::ReduceMin::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::ReduceMin::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }

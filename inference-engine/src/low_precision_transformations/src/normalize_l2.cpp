@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -94,7 +94,7 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         return false;
     }
 
-    auto normalize = as_type_ptr<opset1::NormalizeL2>(separateInStandaloneBranch(operation));
+    auto normalize = as_type_ptr<opset1::NormalizeL2>(NetworkHelper::separateInStandaloneBranch(operation));
 
     const auto axes = as_type_ptr<opset1::Constant>(normalize->get_input_node_shared_ptr(1));
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize);

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,11 +17,11 @@ class TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransforma
 public:
     WeightableLayerTransformation(const Params& params);
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
-    bool isQuantized(std::shared_ptr<Node> layer, bool isReshape) const noexcept;
+    bool isQuantized(std::shared_ptr<Node> layer, bool reshapeIsRequired) const noexcept;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
 protected:
-    DataPrecision decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> weightableLayer) const;
+    void decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> weightableLayer) const;
     static bool isGroup(const std::shared_ptr<Node>& node);
     static bool isDepthwise(const std::shared_ptr<Node>& node);
 
