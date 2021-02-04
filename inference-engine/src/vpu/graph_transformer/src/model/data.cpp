@@ -31,7 +31,7 @@ namespace vpu {
 // DataNode
 //
 
-bool DataNode::isUsed() const {
+bool DataNode::isConsumed() const {
     return numConsumers() > 0 || !childDataToShapeEdges().empty();
 }
 

@@ -215,7 +215,7 @@ public:
 
     Data getTopParentData() const;
 
-    bool isUsed() const;
+    bool isConsumed() const;
 
     //
     // DataDesc

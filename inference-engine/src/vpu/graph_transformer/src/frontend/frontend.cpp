@@ -394,7 +394,7 @@ void FrontEnd::processTrivialCases(const Model& model) {
         Data trivialInput, trivialOutput;
         for (const auto& data : trivialCase) {
             if (data->usage() == DataUsage::Input || data->usage() == DataUsage::Intermediate || data->usage() == DataUsage::Const) {
-                if (!data->isUsed()) {
+                if (!data->isConsumed()) {
                     trivialInput = data;
                 }
             }

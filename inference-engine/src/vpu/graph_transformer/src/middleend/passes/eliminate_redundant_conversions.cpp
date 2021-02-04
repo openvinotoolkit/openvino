@@ -30,7 +30,7 @@ void PassImpl::runForStage(const Model& model, const Stage& convert) {
     const auto output = convert->output(0);
 
     // Remove converts added to unused inputs
-    if (output->usage() == DataUsage::Intermediate && !output->isUsed()) {
+    if (output->usage() == DataUsage::Intermediate && !output->isConsumed()) {
         model->removeStage(convert);
         model->removeUnusedData(output);
         return;
