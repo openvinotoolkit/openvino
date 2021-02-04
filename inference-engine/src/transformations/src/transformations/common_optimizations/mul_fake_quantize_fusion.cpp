@@ -33,10 +33,12 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         if (!mul)
             return false;
         auto mul_data = mul->input_value(0).get_node_shared_ptr();
-        auto mul_2nd_input = mul->input_value(1).get_node_shared_ptr();
-        auto mul_const = std::dynamic_pointer_cast<opset5::Constant>(mul_2nd_input);
+        auto mul_const = std::dynamic_pointer_cast<opset5::Constant>(mul->input_value(1).get_node_shared_ptr());
         if (!mul_const) {
-            return false;
+            mul_const = std::dynamic_pointer_cast<opset5::Constant>(mul->input_value(0).get_node_shared_ptr());
+            if (!mul_const)
+                return false;
+            mul_data = mul->input_value(1).get_node_shared_ptr();
         }
 
         auto shape = mul_const->get_shape();
@@ -49,15 +51,16 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             }
         }
 
+        std::shared_ptr<Node> mul_const_node = mul_const;
         if (const_shape_size > 1 &&
             static_cast<Dimension::value_type>(shape.size()) < fq->get_input_partial_shape(0).rank().get_length()) {
             // Reshape constants like (C, 1, 1) to (1, C, 1, 1)
             shape.insert(shape.begin(), fq->get_input_partial_shape(0).rank().get_length() - shape.size(), 1);
-            mul_2nd_input = std::make_shared<opset5::Reshape>(mul_2nd_input, op::Constant::create(element::u64, Shape{shape.size()}, shape), false);
+            mul_const_node = std::make_shared<opset5::Reshape>(mul_const_node, op::Constant::create(element::u64, Shape{shape.size()}, shape), false);
         }
 
-        auto new_input_low = std::make_shared<opset5::Divide>(fq->input_value(1), mul_2nd_input);
-        auto new_input_high = std::make_shared<opset5::Divide>(fq->input_value(2), mul_2nd_input);
+        auto new_input_low = std::make_shared<opset5::Divide>(fq->input_value(1), mul_const_node);
+        auto new_input_high = std::make_shared<opset5::Divide>(fq->input_value(2), mul_const_node);
         auto new_output_low = fq->input_value(3).get_node_shared_ptr();
         auto new_output_high = fq->input_value(4).get_node_shared_ptr();
 
@@ -68,13 +71,13 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             new_output_high = fq->input_value(3).get_node_shared_ptr();
             new_fq = register_new_node<opset5::FakeQuantize>(mul_data, new_input_low, new_input_high,
                     fq->input_value(4), fq->input_value(3), fq->get_levels());
-            copy_runtime_info({mul, fq}, {mul_2nd_input, new_input_low, new_input_high, new_fq});
+            copy_runtime_info({mul, fq}, {mul_const_node, new_input_low, new_input_high, new_fq});
         } else if (std::any_of(mul_const_value.begin(), mul_const_value.end(), [] (float f) -> bool { return f < 0.0f; })) {
             auto zero = op::Constant::create(element::f32, Shape{}, {0.0f});
             auto minus_one = op::Constant::create(element::f32, Shape{}, {-1.0f});
-            auto less_than_zero = std::make_shared<opset5::Less>(mul_2nd_input, zero);
+            auto less_than_zero = std::make_shared<opset5::Less>(mul_const_node, zero);
             auto less_than_zero_convert = std::make_shared<opset5::Convert>(less_than_zero, element::f32);
-            auto greater_eq_zero = std::make_shared<opset5::GreaterEqual>(mul_2nd_input, zero);
+            auto greater_eq_zero = std::make_shared<opset5::GreaterEqual>(mul_const_node, zero);
             auto greater_eq_zero_convert = std::make_shared<opset5::Convert>(greater_eq_zero, element::f32);
             auto neg_mask = std::make_shared<opset5::Multiply>(minus_one, less_than_zero_convert);
             auto out_low_times_neg_mask = std::make_shared<opset5::Multiply>(neg_mask, fq->input_value(3));
@@ -86,14 +89,14 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             new_fq = register_new_node<opset5::FakeQuantize>(mul_data, new_input_low,
                     new_input_high, new_output_low, new_output_high, fq->get_levels());
             copy_runtime_info({mul, fq},
-                              {mul_2nd_input, new_input_low, new_input_high,
+                              {mul_const_node, new_input_low, new_input_high,
                                less_than_zero, less_than_zero_convert, greater_eq_zero, greater_eq_zero_convert,
                                neg_mask, out_low_times_neg_mask, out_low_times_pos_mask, new_output_low,
                                out_high_times_neg_mask, out_high_times_pos_mask, new_output_high, new_fq});
         } else {
             new_fq = register_new_node<opset5::FakeQuantize>(mul_data, new_input_low, new_input_high,
                     fq->input_value(3), fq->input_value(4), fq->get_levels());
-            copy_runtime_info({mul, fq}, {mul_2nd_input, new_input_low, new_input_high, new_fq});
+            copy_runtime_info({mul, fq}, {mul_const_node, new_input_low, new_input_high, new_fq});
         }
 
         new_fq->set_friendly_name(fq->get_friendly_name());

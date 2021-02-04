@@ -35,7 +35,10 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         std::shared_ptr<Node> add_data = add->input_value(0).get_node_shared_ptr();
         std::shared_ptr<Node> add_const = std::dynamic_pointer_cast<opset5::Constant>(add->input_value(1).get_node_shared_ptr());
         if (!add_const) {
-            return false;
+            add_const = std::dynamic_pointer_cast<opset5::Constant>(add->input_value(0).get_node_shared_ptr());
+            if (!add_const)
+                return false;
+            add_data = add->input_value(1).get_node_shared_ptr();
         }
         auto const_shape = add_const->get_shape();
         size_t const_shape_size = shape_size(const_shape);
