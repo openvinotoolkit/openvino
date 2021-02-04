@@ -517,10 +517,20 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
+bool has_dynamic_output(std::shared_ptr<Node> n) {
+    for (size_t i = 0; i < n->get_output_size(); i++) {
+        if (n->get_output_partial_shape(i).is_dynamic()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
     const auto & f_ops = f.get_ordered_ops();
     if (std::all_of(f_ops.begin(), f_ops.end(),
-            [](std::shared_ptr<Node> results) { return !results->is_dynamic(); })) {
+            [](std::shared_ptr<Node> results) {
+                return !results->is_dynamic() && !has_dynamic_output(results); })) {
         return false;
     }
 
