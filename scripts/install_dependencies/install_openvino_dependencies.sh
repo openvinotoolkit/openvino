@@ -200,7 +200,7 @@ elif [ "$os" == "centos7" ] ; then
     # find -name *.so -exec objdump -p {} \; | grep NEEDED | sort -u | cut -c 23- | xargs -t -n1 yum -q whatprovides
 
     pkgs_opencv_req=(gtk2)
-    pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
+    pkgs_python=(python3 python3-devel python3-setuptools python3-pip python36-gi python36-gobject python36-gobject-devel)
     pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl)
     pkgs_myriad=(libusbx)
     pkgs_installer=()
