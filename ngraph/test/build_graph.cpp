@@ -364,3 +364,91 @@ TEST(build_graph, build_graph_with_remove_result)
     nodes = f->get_ops();
     EXPECT_EQ(nodes.size(), 5);
 }
+
+TEST(build_graph, build_graph_with_add_parameter)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    std::vector<shared_ptr<Node>> args = {arg, read};
+    auto pattern = make_shared<op::Concat>(args, 1);
+    auto res = make_shared<op::Result>(pattern);
+    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
+    auto res2 = make_shared<op::Result>(crop, "v0");
+
+    auto f = make_shared<Function>(ResultVector({res, res2}), ParameterVector{arg});
+
+    NodeVector nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 8);
+    ParameterVector params = f->get_parameters();
+    EXPECT_EQ(params.size(), 1);
+
+    pattern->input(1).replace_source_output(arg2->output(0));
+
+    f->add_parameters(ParameterVector({arg2}));
+    params = f->get_parameters();
+    EXPECT_EQ(params.size(), 2);
+    EXPECT_EQ(params[1], arg2);
+    nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 7);
+}
+
+TEST(build_graph, build_graph_with_remove_parameter)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    std::vector<shared_ptr<Node>> args = {arg, arg2};
+    auto pattern = make_shared<op::Concat>(args, 1);
+    auto res = make_shared<op::Result>(pattern);
+    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
+    auto res2 = make_shared<op::Result>(crop, "v0");
+
+    auto f = make_shared<Function>(ResultVector({res, res2}), ParameterVector{arg, arg2});
+
+    NodeVector nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 7);
+    ParameterVector params = f->get_parameters();
+    EXPECT_EQ(params.size(), 2);
+
+    pattern->input(1).replace_source_output(read->output(0));
+    f->remove_parameter(arg2);
+    params = f->get_parameters();
+    EXPECT_EQ(params.size(), 1);
+    nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 8);
+}
+
+TEST(build_graph, build_graph_with_remove_parameter_indexing)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
+    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    std::vector<shared_ptr<Node>> args = {arg2, arg};
+    auto pattern = make_shared<op::Concat>(args, 1);
+    auto res = make_shared<op::Result>(pattern);
+    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    auto crop = make_shared<op::v1::Split>(pattern, axis, 3);
+    auto res2 = make_shared<op::Result>(crop, "v0");
+
+    auto f = make_shared<Function>(ResultVector({res, res2}), ParameterVector{arg2, arg});
+
+    NodeVector nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 7);
+    ParameterVector params = f->get_parameters();
+    EXPECT_EQ(params.size(), 2);
+
+    pattern->input(0).replace_source_output(read->output(0));
+    f->remove_parameter(arg2);
+    params = f->get_parameters();
+    EXPECT_EQ(params.size(), 1);
+    nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 8);
+
+    f->validate_nodes_and_infer_types();
+}
