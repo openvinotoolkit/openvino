@@ -652,7 +652,7 @@ namespace ngraph
                                 float in_coord = m_get_original_coord(out_coord,
                                                                       spatial_scales[i],
                                                                       static_cast<float>(output_spatial_shape[i]),
-                                                                      static_cast<float>(input_spatial_shape[i]);
+                                                                      static_cast<float>(input_spatial_shape[i]));
                                 in_coord = std::max(0.0f, std::min(in_coord, static_cast<float>(input_spatial_shape[i] - 1)));
 
                                 const int64_t in_coord1 = std::min(static_cast<int64_t>(in_coord), input_spatial_shape[i] - 1);
