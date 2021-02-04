@@ -231,9 +231,7 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
             Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1], m_input_data_shape[2]};
         output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1], m_out_shape[2]};
         break;
-    default:
-        input_shape = m_input_data_shape;
-        output_shape = m_out_shape;
+    default: input_shape = m_input_data_shape; output_shape = m_out_shape;
     }
 
     int64_t batch_size = input_shape[0];
