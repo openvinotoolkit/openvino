@@ -16,7 +16,8 @@ ngraph::pass::LowLatency::LowLatency()
 {
     auto tensor_iterator = ngraph::pattern::wrap_type<op::util::SubGraphOp>();
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
-        const auto& sub_graph_op = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(m.get_match_root());
+        const auto& sub_graph_op =
+            std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(m.get_match_root());
         if (!sub_graph_op)
         {
             return false;
@@ -32,8 +33,9 @@ ngraph::pass::LowLatency::LowLatency()
         for (const auto& in : sub_graph_op->get_input_descriptions())
         {
             // Process all back edges
-            if (const auto& merged_in = std::dynamic_pointer_cast<
-                    ngraph::op::util::SubGraphOp::MergedInputDescription>(in))
+            if (const auto& merged_in =
+                    std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp::MergedInputDescription>(
+                        in))
             {
                 // Insert ReadValue nodes: Parameter -> (new ReadValue) -> consumers
                 const auto& inputs_to = func->get_parameters()
