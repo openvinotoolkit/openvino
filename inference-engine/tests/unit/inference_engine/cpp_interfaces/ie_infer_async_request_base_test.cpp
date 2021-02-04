@@ -131,42 +131,41 @@ TEST_F(InferRequestBaseTests, canCatchUnknownErrorInInfer) {
 // GetPerformanceCounts
 TEST_F(InferRequestBaseTests, canForwardGetPerformanceCounts) {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
-    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts(Ref(info))).Times(1);
-    ASSERT_EQ(OK, request->GetPerformanceCounts(info, &dsc));
+    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts()).WillOnce(Return(std::map<std::string, InferenceEngineProfileInfo>{}));
+    ASSERT_EQ(OK, request->GetPerformanceCounts(info, &dsc)) << dsc.msg;
 }
 
 TEST_F(InferRequestBaseTests, canReportErrorInGetPerformanceCounts) {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
-    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts(_)).WillOnce(Throw(std::runtime_error("compare")));
+    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts()).WillOnce(Throw(std::runtime_error("compare")));
     ASSERT_NE(request->GetPerformanceCounts(info, &dsc), OK);
     ASSERT_STREQ(dsc.msg, "compare");
 }
 
 TEST_F(InferRequestBaseTests, canCatchUnknownErrorInGetPerformanceCounts) {
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
-    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts(_)).WillOnce(Throw(5));
+    EXPECT_CALL(*mock_impl.get(), GetPerformanceCounts()).WillOnce(Throw(5));
     ASSERT_EQ(UNEXPECTED, request->GetPerformanceCounts(info, nullptr));
 }
 
 // GetBlob
 TEST_F(InferRequestBaseTests, canForwardGetBlob) {
     Blob::Ptr data;
-    const char *name = "";
-    EXPECT_CALL(*mock_impl.get(), GetBlob(name, Ref(data))).Times(1);
-    ASSERT_EQ(OK, request->GetBlob(name, data, &dsc));
+    EXPECT_CALL(*mock_impl.get(), GetBlob(_)).WillOnce(Return(Blob::Ptr{}));
+    ASSERT_EQ(OK, request->GetBlob("", data, &dsc)) << dsc.msg;
 }
 
 TEST_F(InferRequestBaseTests, canReportErrorInGetBlob) {
-    EXPECT_CALL(*mock_impl.get(), GetBlob(_, _)).WillOnce(Throw(std::runtime_error("compare")));
+    EXPECT_CALL(*mock_impl.get(), GetBlob(_)).WillOnce(Throw(std::runtime_error("compare")));
     Blob::Ptr data;
-    ASSERT_NE(request->GetBlob(nullptr, data, &dsc), OK);
+    ASSERT_NE(request->GetBlob("", data, &dsc), OK);
     ASSERT_STREQ(dsc.msg, "compare");
 }
 
 TEST_F(InferRequestBaseTests, canCatchUnknownErrorInGetBlob) {
     Blob::Ptr data;
-    EXPECT_CALL(*mock_impl.get(), GetBlob(_, _)).WillOnce(Throw(5));
-    ASSERT_EQ(UNEXPECTED, request->GetBlob(nullptr, data, nullptr));
+    EXPECT_CALL(*mock_impl.get(), GetBlob(_)).WillOnce(Throw(5));
+    ASSERT_EQ(UNEXPECTED, request->GetBlob("notEmpty", data, nullptr));
 }
 
 // SetBlob
@@ -180,14 +179,14 @@ TEST_F(InferRequestBaseTests, canForwardSetBlob) {
 TEST_F(InferRequestBaseTests, canReportErrorInSetBlob) {
     EXPECT_CALL(*mock_impl.get(), SetBlob(_, _)).WillOnce(Throw(std::runtime_error("compare")));
     Blob::Ptr data;
-    ASSERT_NE(request->SetBlob(nullptr, data, &dsc), OK);
+    ASSERT_NE(request->SetBlob("", data, &dsc), OK);
     ASSERT_STREQ(dsc.msg, "compare");
 }
 
 TEST_F(InferRequestBaseTests, canCatchUnknownErrorInSetBlob) {
     Blob::Ptr data;
     EXPECT_CALL(*mock_impl.get(), SetBlob(_, _)).WillOnce(Throw(5));
-    ASSERT_EQ(UNEXPECTED, request->SetBlob(nullptr, data, nullptr));
+    ASSERT_EQ(UNEXPECTED, request->SetBlob("notEmpty", data, nullptr));
 }
 
 // SetCompletionCallback
