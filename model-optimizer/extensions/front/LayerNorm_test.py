@@ -22,34 +22,34 @@ from extensions.front.LayerNorm import LayerNorm
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph
 
-nodes_attributes_mvn = {
-    'inp': {'kind': 'op', 'op': 'AnyOp'},
-    'pool0': {'kind': 'op', 'op': 'ReduceMean'},
-    'pool1': {'kind': 'op', 'op': 'ReduceMean'},
-    'cast': {'kind': 'op', 'op': 'Cast'},
-    'pow': {'kind': 'op', 'op': 'Pow'},
-    'div': {'kind': 'op', 'op': 'Div'},
-    'sqrt': {'kind': 'op', 'op': 'Pow'},
-    'add': {'kind': 'op', 'op': 'Add'},
-    'sub': {'kind': 'op', 'op': 'Sub'},
-    'add_param': {'kind': 'op', 'op': 'Const'},
-    'pow_param': {'kind': 'op', 'op': 'Const'},
-    'pool0_param': {'kind': 'op', 'op': 'Const'},
-    'pool1_param': {'kind': 'op', 'op': 'Const'},
-    'out': {'kind': 'op', 'op': 'AnyOp'},
-}
-
-nodes_attributes_ref = {
-    'inp': {'kind': 'op', 'op': 'AnyOp'},
-    'mvn': {'kind': 'op', 'op': 'MVN', 'eps': 1e-6, 'normalize_variance': 1, 'eps_mode': 'inside_sqrt'},
-    'mvn_param': {'kind': 'op', 'op': 'Const'},
-    'out': {'kind': 'op', 'op': 'AnyOp'},
-}
-
 
 class TestMVNPatternReplacement(unittest.TestCase):
+    nodes_attributes_mvn = {
+        'inp': {'kind': 'op', 'op': 'AnyOp'},
+        'pool0': {'kind': 'op', 'op': 'ReduceMean'},
+        'pool1': {'kind': 'op', 'op': 'ReduceMean'},
+        'cast': {'kind': 'op', 'op': 'Cast'},
+        'pow': {'kind': 'op', 'op': 'Pow'},
+        'div': {'kind': 'op', 'op': 'Div'},
+        'sqrt': {'kind': 'op', 'op': 'Pow'},
+        'add': {'kind': 'op', 'op': 'Add'},
+        'sub': {'kind': 'op', 'op': 'Sub'},
+        'add_param': {'kind': 'op', 'op': 'Const', 'shape': np.array([1]), 'value': np.array(1e-06, dtype=np.float32)},
+        'pow_param': {'kind': 'op', 'op': 'Const', 'shape': np.array([1]), 'value': np.array(0.5, dtype=np.float32)},
+        'pool0_param': {'kind': 'op', 'op': 'Const', 'shape': np.array([1]), 'value': np.array(-1, dtype=np.int32)},
+        'pool1_param': {'kind': 'op', 'op': 'Const', 'shape': np.array([1]), 'value': np.array(-1, dtype=np.int32)},
+        'out': {'kind': 'op', 'op': 'AnyOp'},
+    }
+
+    nodes_attributes_ref = {
+        'inp': {'kind': 'op', 'op': 'AnyOp'},
+        'mvn': {'kind': 'op', 'op': 'MVN', 'eps': 1e-6, 'normalize_variance': 1, 'eps_mode': 'inside_sqrt'},
+        'mvn_param': {'kind': 'op', 'op': 'Const', 'shape': np.array([]), 'value': np.array(-1, dtype=np.int32)},
+        'out': {'kind': 'op', 'op': 'AnyOp'},
+    }
+
     def test_MVNPatternReplacement_test_1(self):
-        graph = build_graph(nodes_attributes_mvn,
+        graph = build_graph(self.nodes_attributes_mvn,
                             [('inp', 'pool0', {'out': 0}),
                              ('inp', 'sub', {'out': 0}),
                              ('pool0', 'sub'),
@@ -65,17 +65,12 @@ class TestMVNPatternReplacement(unittest.TestCase):
                              ('pool0_param', 'pool0'),
                              ('pool1_param', 'pool1'),
                              ],
-                            {'pow_param': {'shape': np.array([1]), 'value': np.array(0.5)},
-                             'add_param': {'shape': np.array([1]), 'value': np.array(1e-06)},
-                             'pool0_param': {'shape': np.array([1]), 'value': np.array(-1)},
-                             'pool1_param': {'shape': np.array([1]), 'value': np.array(-1)},
-                             },
                             nodes_with_edges_only=True)
-        graph_ref = build_graph(nodes_attributes_ref,
+        graph_ref = build_graph(self.nodes_attributes_ref,
                                 [('inp', 'mvn'),
                                  ('mvn_param', 'mvn'),
                                  ('mvn', 'out')],
-                                {}, nodes_with_edges_only=True)
+                                nodes_with_edges_only=True)
         graph.stage = 'front'
 
         replacer = LayerNorm()
@@ -85,7 +80,7 @@ class TestMVNPatternReplacement(unittest.TestCase):
         self.assertTrue(flag, resp)
 
     def test_MVNPatternReplacement_test_2(self):
-        graph = build_graph(nodes_attributes_mvn,
+        graph = build_graph(self.nodes_attributes_mvn,
                             [('inp', 'pool0', {'out': 0}),
                              ('inp', 'sub', {'out': 0}),
                              ('pool0', 'sub'),
@@ -102,17 +97,12 @@ class TestMVNPatternReplacement(unittest.TestCase):
                              ('pool0_param', 'pool0'),
                              ('pool1_param', 'pool1'),
                              ],
-                            {'pow_param': {'shape': np.array([1]), 'value': np.array(0.5)},
-                             'add_param': {'shape': np.array([1]), 'value': np.array(1e-06)},
-                             'pool0_param': {'shape': np.array([1]), 'value': np.array(-1)},
-                             'pool1_param': {'shape': np.array([1]), 'value': np.array(-1)},
-                             },
                             nodes_with_edges_only=True)
-        graph_ref = build_graph(nodes_attributes_ref,
+        graph_ref = build_graph(self.nodes_attributes_ref,
                                 [('inp', 'mvn'),
                                  ('mvn_param', 'mvn'),
                                  ('mvn', 'out')],
-                                {}, nodes_with_edges_only=True)
+                                nodes_with_edges_only=True)
         graph.stage = 'front'
 
         replacer = LayerNorm()
