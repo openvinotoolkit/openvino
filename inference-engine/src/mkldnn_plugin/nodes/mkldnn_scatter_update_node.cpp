@@ -167,7 +167,8 @@ void MKLDNNScatterUpdateNode::initSupportedPrimitiveDescriptors() {
     auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(dataPrec);
     dataSize = MKLDNNExtensionUtils::sizeOfDataType(dataType);
 
-    bool canBeInplace = getParentEdgeAt(DATA_ID)->getParent()->getChildEdges().size() == 1;
+    bool canBeInplace = getParentEdgeAt(DATA_ID)->getParent()->getChildEdges().size() == 1 &&
+            !getParentEdgeAt(DATA_ID)->getParent()->isConstant();
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = false;
