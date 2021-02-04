@@ -82,6 +82,17 @@ class L2NormToNorm(MiddleReplacementPattern):
             log.debug('The value of the "maximum_y_data" is not defined or is not constant')
             return
 
+        # We need to check axes which performed reduction because IE supports reduction only along HW and HWC axes.
+        axes = match['sum'].in_port(1).data.get_value()
+        axes = int64_array(axes)
+        if axes.shape == ():
+            axes = int64_array([axes])
+        axes.sort()
+        if not (np.array_equal(axes, int64_array([1, 2])) or np.array_equal(axes, int64_array([1, 2, 3]))):
+            log.debug('IE doesn\'t support l2 normalization with reduction along axes {}, skip fusing transformation.'
+                      ''.format(axes))
+            return
+
         # rename l2_normalize node since it will be no longer output after the transformation
         output_name = match['l2_normalize'].soft_get('name', match['l2_normalize'].id)
         normalizel2_name = output_name + '/normalizel2'

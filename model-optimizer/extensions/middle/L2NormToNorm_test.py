@@ -19,6 +19,8 @@ import unittest
 import numpy as np
 
 from extensions.middle.L2NormToNorm import L2NormToNorm
+from mo.front.common.partial_infer.utils import int64_array
+from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph_with_attrs
 
@@ -44,6 +46,8 @@ nodes = [
     ('square_data', dict(kind='data')),
     ('sum', dict(kind='op', op='ReduceSum')),
     ('sum_data', dict(kind='data')),
+    ('sum_axes', dict(kind='op', op='Const', value=int64_array([1, 2]))),
+    ('sum_axes_data', dict(kind='data', value=int64_array([1, 2]))),
     # nodes added after replacement
     ('normalize_node', dict(kind='op', op='Normalize')),
     ('weights_node', dict(kind='op', op='Const', shape=weights_value.shape, value=weights_value)),
@@ -58,6 +62,8 @@ edges = [
     ('square_pow_data', 'square', {'in': 1}),
     ('square', 'square_data'),
     ('square_data', 'sum'),
+    ('sum_axes', 'sum_axes_data'),
+    ('sum_axes_data', 'sum'),
     ('sum', 'sum_data'),
     ('maximum_y_const', 'maximum_y_data'),
     ('maximum_y_data', 'maximum'),
@@ -106,4 +112,92 @@ class L2NormToNormTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
 
         self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='Normalize')[0]]['name'] == 'l2_norm_name')
+        self.assertTrue(flag, resp)
+
+
+    def test_negative_1(self):
+        graph = build_graph_with_attrs(nodes, edges, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+
+        axes = int64_array([0, 1, 2])
+        sum_axes = Node(graph, 'sum_axes')
+        sum_axes_data = Node(graph, 'sum_axes_data')
+        sum_axes.value = axes
+        sum_axes_data.value = axes
+
+        L2NormToNorm().find_and_replace_pattern(graph)
+
+        graph_ref = build_graph_with_attrs(nodes, edges, nodes_with_edges_only=True)
+        ref_sum_axes = Node(graph_ref, 'sum_axes')
+        ref_sum_axes_data = Node(graph_ref, 'sum_axes_data')
+        ref_sum_axes.value = int64_array([0, 1, 2])
+        ref_sum_axes_data.value = int64_array([0, 1, 2])
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_negative_2(self):
+        graph = build_graph_with_attrs(nodes, edges, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+
+        axes = int64_array([2, 0])
+
+        sum_axes = Node(graph, 'sum_axes')
+        sum_axes_data = Node(graph, 'sum_axes_data')
+        sum_axes.value = axes
+        sum_axes_data.value = axes
+
+        L2NormToNorm().find_and_replace_pattern(graph)
+
+        graph_ref = build_graph_with_attrs(nodes, edges, nodes_with_edges_only=True)
+        ref_sum_axes = Node(graph_ref, 'sum_axes')
+        ref_sum_axes_data = Node(graph_ref, 'sum_axes_data')
+        ref_sum_axes.value = axes
+        ref_sum_axes_data.value = axes
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_negative_3(self):
+        graph = build_graph_with_attrs(nodes, edges, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+
+        axes = int64_array([1])
+
+        sum_axes = Node(graph, 'sum_axes')
+        sum_axes_data = Node(graph, 'sum_axes_data')
+        sum_axes.value = axes
+        sum_axes_data.value = axes
+
+        L2NormToNorm().find_and_replace_pattern(graph)
+
+        graph_ref = build_graph_with_attrs(nodes, edges, nodes_with_edges_only=True)
+        ref_sum_axes = Node(graph_ref, 'sum_axes')
+        ref_sum_axes_data = Node(graph_ref, 'sum_axes_data')
+        ref_sum_axes.value = axes
+        ref_sum_axes_data.value = axes
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_negative_4(self):
+        graph = build_graph_with_attrs(nodes, edges, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+
+        axes = int64_array(1)
+
+        sum_axes = Node(graph, 'sum_axes')
+        sum_axes_data = Node(graph, 'sum_axes_data')
+        sum_axes.value = axes
+        sum_axes_data.value = axes
+
+        L2NormToNorm().find_and_replace_pattern(graph)
+
+        graph_ref = build_graph_with_attrs(nodes, edges, nodes_with_edges_only=True)
+        ref_sum_axes = Node(graph_ref, 'sum_axes')
+        ref_sum_axes_data = Node(graph_ref, 'sum_axes_data')
+        ref_sum_axes.value = axes
+        ref_sum_axes_data.value = axes
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
