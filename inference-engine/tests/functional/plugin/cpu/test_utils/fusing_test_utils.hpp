@@ -127,6 +127,25 @@ const auto fusingReluScaleShift = fusingSpecificParams{std::make_shared<postNode
                 auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, newShape, {}, true);
                 return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
             }, "Add(PerChannel)"}}), {"Relu", "Add"}};
+const auto fusingScaleShift = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                 auto shape = inpNode->get_shape();
+                 if (shape.size() == 1)
+                     THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
+                 ngraph::Shape newShape(shape.size(), 1);
+                 newShape[1] = shape[1];
+                 auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, newShape, {}, true);
+                 return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+            }, "Multiply(PerChannel)"},
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                auto shape = inpNode->get_shape();
+                if (shape.size() == 1)
+                 THROW_IE_EXCEPTION << "If shape.size() == 1 then Granularity can be PerTensor only";
+                ngraph::Shape newShape(shape.size(), 1);
+                newShape[1] = shape[1];
+                auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, newShape, {}, true);
+                return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
+            }, "Add(PerChannel)"}}), {"Add"} };
 const auto fusingFakeQuantizePerChannelRelu = fusingSpecificParams{std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
             {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params){
                 auto localPrc = inpNode->get_element_type();

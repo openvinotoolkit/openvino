@@ -29,13 +29,15 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
+    if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
         precision = InferenceEngine::Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
+    if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
         precision = InferenceEngine::Precision::FP32;
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
+    if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16)
+       inputDataType = outputDataType = memory::data_type::bf16;
 
     if (getParentEdges().empty() || getParentEdges().size() > 3)
         THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();

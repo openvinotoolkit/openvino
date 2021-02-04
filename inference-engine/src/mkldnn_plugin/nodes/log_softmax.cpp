@@ -26,9 +26,6 @@ public:
             if (layer->insData.size() != 1)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
 
-            if (layer->insData[0].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input data tensor precision. Only FP32 is supported!";
-
             SizeVector dims = layer->insData[0].lock()->getTensorDesc().getDims();
             if (!dims.size())
                 dims = SizeVector(1, 1);
