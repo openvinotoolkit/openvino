@@ -821,9 +821,22 @@ FunctionsComparator::Result FunctionsComparator::compare(
             const auto& tensor2 = node2->output(i).get_tensor();
 
             if (tensor1.get_names() != tensor2.get_names()) {
-                err_log << "Output tensors names are different for nodes: "
-                        << node1->get_friendly_name() << " and " << node2->get_friendly_name()
-                        << std::endl;
+                std::string names1 = "";
+                for (const auto& name : tensor1.get_names()) {
+                    if (!names1.empty())
+                        names1 += ", ";
+                    names1 += name;
+                }
+                names1 = "\"" + names1 + "\"";
+                std::string names2 = "";
+                for (const auto& name : tensor2.get_names()) {
+                    if (!names2.empty())
+                        names2 += ", ";
+                    names2 += name;
+                }
+                names2 = "\"" + names2 + "\"";
+                err_log << "Output tensors names " << names1 << " and " << names2 << " are different for nodes: "
+                        << node1->get_friendly_name() << " and " << node2->get_friendly_name() << std::endl;
             }
             if (!node1->output(i).get_partial_shape().same_scheme(
                     node2->output(i).get_partial_shape())) {

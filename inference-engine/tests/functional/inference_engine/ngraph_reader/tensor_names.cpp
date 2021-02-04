@@ -30,7 +30,7 @@ TEST_F(NGraphReaderTests, ReadNetworkWithTensorNames) {
                 </port>
             </input>
             <output>
-                <port id="2" precision="FP32" names="relu_t, identity_t">
+                <port id="2" precision="FP32" names="relu\,t, identity_t">
                     <dim>1</dim>
                     <dim>3</dim>
                     <dim>22</dim>
@@ -86,4 +86,5 @@ TEST_F(NGraphReaderTests, ReadNetworkWithTensorNames) {
         for (const auto& name : result->get_input_tensor(0).get_names())
             ASSERT_TRUE(outNames.count(network.getOVNameForTensor(name)));
     }
+    ASSERT_NO_THROW(network.getOVNameForTensor("relu,t"));
 }

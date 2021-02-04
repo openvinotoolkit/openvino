@@ -38,7 +38,7 @@ TEST_F(TensorNameSerializationTest, SerializeFunctionWithTensorNames) {
         relu_prev->get_output_tensor(0).set_names({"relu_prev_t", "identity_prev_t"});
         auto relu = std::make_shared<ngraph::opset6::Relu>(relu_prev);
         relu->set_friendly_name("relu");
-        relu->get_output_tensor(0).set_names({"relu_t", "identity"});
+        relu->get_output_tensor(0).set_names({"relu,t", "identity"});
         const ngraph::ResultVector results{std::make_shared<ngraph::opset6::Result>(relu)};
         results[0]->set_friendly_name("out");
         ngraph::ParameterVector params{parameter};
