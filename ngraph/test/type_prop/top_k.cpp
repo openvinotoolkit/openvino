@@ -111,7 +111,7 @@ TYPED_TEST_P(topk_type_prop, topk_rank_static_k_unknown)
         const auto convert_k = make_shared<op::v0::Convert>(k, element::i32);
         const auto topk = make_shared<TypeParam>(data, convert_k, axis, "max", "value");
 
-        const PartialShape ranged_dynamic_axis_shape{1, Dimension{5, 10}, 100};
+        const PartialShape ranged_dynamic_axis_shape{1, Dimension{5}, 100};
         EXPECT_EQ(topk->get_output_partial_shape(0), ranged_dynamic_axis_shape);
     }
 }
