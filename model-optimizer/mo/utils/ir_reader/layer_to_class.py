@@ -347,12 +347,21 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
         debug_dict = {}
         for out_port in op.ports:
             out_tensor_names = op.ports[out_port][1]
+
+            # handle Constant operations with old style output port numbering
+            if op.soft_get('type') == 'Const':
+                assert len(op.ports) == 1, 'Something wrong with Constant node: {}, ' \
+                                            'wrong number of output ports: {}!'.format(op.soft_get('name'), len(op.ports))
+                if out_port == 1:
+                    out_port = 0
+
             debug_dict[out_port] = []
             if out_tensor_names is not None:
                 if out_tensor_names.find(',') >= 0:
-                    out_tensor_names = out_tensor_names.split(',')
+                    out_tensor_names = (out_tensor_names.replace('\\,', '<comma_in_tensor_name>')).split(',')
                     for out_tensor_name in out_tensor_names:
-                        debug_dict[out_port].append(('dummy_input_name', out_port, out_tensor_name))
+                        debug_dict[out_port].append(('dummy_input_name', out_port,
+                                                     out_tensor_name.replace('<comma_in_tensor_name>', ',')))
                 else:
                     debug_dict[out_port].append(('dummy_input_name', out_port, out_tensor_names))
             else:
