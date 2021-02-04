@@ -82,16 +82,7 @@ private:
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         const auto mergeRepeated = attrs().get<bool>("mergeRepeated");
-
-        const auto blankIndex = [&] {
-            if (numInputs() == 3) {
-                const auto& input = inputEdge(2)->input()->content()->get<int32_t>();
-                return input[0];
-            }
-
-            const auto classes = inputEdge(0)->input()->desc().dim(Dim::W);
-            return classes - 1;
-        }();
+        const auto blankIndex = attrs().get<int32_t>("blankIndex");
 
         serializer.append(static_cast<uint32_t>(mergeRepeated));
         serializer.append(static_cast<uint32_t>(blankIndex));
@@ -117,11 +108,13 @@ Stage StageBuilder::addCTCGreedyDecoderSeqLenStage(const Model& model,
                                                    const ie::CNNLayerPtr& layer,
                                                    const DataVector& inputs,
                                                    const DataVector& outputs,
-                                                   bool mergeRepeated) {
+                                                   bool mergeRepeated,
+                                                   int32_t blankIndex) {
     auto stage = model->addNewStage<CTCGreedyDecoderSeqLenStage>(name,
                                                                  StageType::CTCGreedyDecoderSeqLen,
                                                                  layer, inputs, outputs);
     stage->attrs().set<bool>("mergeRepeated", mergeRepeated);
+    stage->attrs().set<int32_t>("blankIndex", blankIndex);
 
     return stage;
 }
@@ -138,6 +131,19 @@ void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLaye
                      "provided {} outputs",
                      layer->type, layer->name, outputs.size());
 
+    const auto mergeRepeated = layer->GetParamAsBool("merge_repeated");
+    const auto blankIndex = [&] {
+        if (inputs.size() == 3) {
+            VPU_THROW_UNLESS(inputs[2]->desc().totalDimSize() == 1,
+                             "Input 3 should have only one element.");
+
+            return *inputs[2]->content()->get<int32_t>();
+        }
+
+        const auto classes = inputs[0]->desc().dim(Dim::W);
+        return classes - 1;
+    }();
+
     const auto toUpper = [](const std::string& str) {
         std::string result;
         result.reserve(str.size());
@@ -146,7 +152,6 @@ void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLaye
         return result;
     };
 
-    const auto mergeRepeated = layer->GetParamAsBool("merge_repeated");
     const auto classesIndexType = toUpper(layer->GetParamAsString("classes_index_type"));
     const auto sequenceLengthType = toUpper(layer->GetParamAsString("sequence_length_type"));
 
@@ -157,7 +162,7 @@ void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLaye
                      sequenceLengthType);
 
     _stageBuilder->addCTCGreedyDecoderSeqLenStage(model, layer->name, layer,
-                                                  inputs, outputs, mergeRepeated);
+                                                  inputs, outputs, mergeRepeated, blankIndex);
 }
 
 }  // namespace vpu
