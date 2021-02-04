@@ -21,8 +21,12 @@ import sys
 
 
 if __name__ == "__main__":
-    from openvino.inference_engine import IECore
-    from openvino.offline_transformations import ApplyMOCTransformations
+    try:
+        from openvino.inference_engine import IECore
+        from openvino.offline_transformations import ApplyMOCTransformations
+    except ImportError as e:
+        print("[ WARNING ] offline_transformations import error: {}".format(e))
+        exit(1)
 
     orig_model_name = sys.argv[1]
     ie = IECore()
