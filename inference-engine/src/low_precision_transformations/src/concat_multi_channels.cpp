@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,18 +76,33 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
         }
     }
 
+    for (size_t i = 0; i < subgraph.quantizationLayers.size(); ++i) {
+        const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(subgraph.quantizationLayers[i]);
+        if (fq == nullptr) {
+            return false;
+        }
+
+        if (!NetworkHelper::isQuantizeSupported(fq)) {
+            return false;
+        }
+    }
+
     std::unordered_map<std::string, ngraph::pass::low_precision::FakeQuantizeDequantization> dequantizations;
 
     for (size_t i = 0; i < subgraph.quantizationLayers.size(); ++i) {
         const std::shared_ptr<ngraph::Node>& fakeQuantizeLayer = subgraph.quantizationLayers[i];
-        const ngraph::Shape shape = fakeQuantizeLayer->get_output_shape(0);
-        if (shape.size() < 4ul) {
-            return false;
+
+        std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(fakeQuantizeLayer->shared_from_this());
+        assert(fq);
+
+        auto newFakeQuantize = NetworkHelper::fuseConvert(fq);
+        if (newFakeQuantize != nullptr) {
+            fq = newFakeQuantize;
         }
 
-        const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(fakeQuantizeLayer->shared_from_this());
-        if (fq == nullptr) {
-            return false;
+        newFakeQuantize = NetworkHelper::composeFakeQuantize(fq);
+        if (newFakeQuantize != nullptr) {
+            fq = newFakeQuantize;
         }
 
         const DataPrecision currentDataPrecision = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false);
@@ -201,8 +216,7 @@ void ConcatMultiChannelsTransformation::updateDequantizationShapesIfNecessary(
             FakeQuantizeDequantization replacedDequantization = dequantizationByFakeQuantize[fakeQuantizes[i]->get_friendly_name()];
 
             const float scale = as_type_ptr<ngraph::opset1::Constant>(replacedDequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
-            const float shift = replacedDequantization.subtract ?
-                as_type_ptr<ngraph::opset1::Constant>(replacedDequantization.subtract->get_input_node_shared_ptr(1))->cast_vector<float>()[0] : 0.f;
+            const float shift = replacedDequantization.subtract ? replacedDequantization.subtractConstant->cast_vector<float>()[0] : 0.f;
             const auto precisionBefore = replacedDequantization.data.get_element_type();
             const auto precisionAfter = replacedDequantization.multiply->get_element_type();
 
