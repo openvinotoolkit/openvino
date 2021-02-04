@@ -98,6 +98,13 @@ class Connection:
         #                              ,--->Op3(in_port:0)
         #               Op5(out_port:0)--->Op2(in_port:0)
         #
+        # attributes_save_mode defines which attributes with tensor debug information should be
+        # transferred to resulting connection.
+        # 'source' - attributes are transferred from the outgoing edge (front phase) or
+        # outgoing data node (middle/back phase) of the source of resulting connection.
+        # 'dest' - attributes are transferred from the incoming edge (front phase) or
+        # incoming data node (middle/back phase) of the destination of resulting connection.
+        # 'merge' - attributes from source and destination are merged.
 
         if port.type == 'in':
             raise Error("Wrong port type in set_source method. Should be 'out' but given 'in'")
@@ -188,6 +195,13 @@ class Connection:
         #
         #               Op1(out_port:0)--->Op3(in_port:0)
         #
+        # attributes_save_mode defines which attributes with tensor debug information should be
+        # transferred to resulting connection.
+        # 'source' - attributes are transferred from the outgoing edge (front phase) or
+        # outgoing data node (middle/back phase) of the source of resulting connection.
+        # 'dest' - attributes are transferred from the incoming edge (front phase) or
+        # incoming data node (middle/back phase) of the destination of resulting connection.
+        # 'merge' - attributes from source and destination are merged.
 
         def check_and_remove_edge():
             if self.destinations:
