@@ -472,6 +472,17 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
     }
 }
 
+std::string escape_delim(const std::string& name, const char delim = ',') {
+    std::string result_name = name;
+    const std::string escaped_delim = std::string("\\") + delim;
+    size_t index = result_name.find(delim, 0);
+    while (index != std::string::npos) {
+        result_name.replace(index, 1, escaped_delim);
+        index = result_name.find(delim, index + 2);
+    }
+    return result_name;
+}
+
 std::string generate_unique_name(
     const std::unordered_set<std::string>& unique_names, std::string base_name,
     int suffix) {
@@ -666,7 +677,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 for (const auto& name : o.get_tensor().get_names()) {
                     if (!names.empty())
                         names += ", ";
-                    names += name;
+                    names += escape_delim(name);
                 }
                 if (!names.empty()) {
                     port.append_attribute("names").set_value(names.c_str());
