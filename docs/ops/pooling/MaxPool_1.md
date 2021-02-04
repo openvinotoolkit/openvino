@@ -74,7 +74,7 @@
 
 **Types**
 
-* *T*: `uint64`, `int32`, `int64`, `float16`, `float32`.
+* *T*: `uint64`, `int32`, `int64`, `float16`, `float32`, `bfloat16`.
 
 **Mathematical Formulation**
 Output shape calculation based on `auto_pad` and `rounding_type`:  
@@ -193,7 +193,7 @@ output = [[[[5, 3],
 
 ```xml
 <layer ... type="MaxPool" ... >
-    <data auto_pad="same_upper" kernel="2,2" strides="2,2"/>
+    <data auto_pad="same_upper" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
     <input> 
         <port id="0">
             <dim>1</dim>
@@ -233,7 +233,7 @@ output = [[[[5, 3],
 </layer>
 
 <layer ... type="MaxPool" ... >
-    <data auto_pad="valid" kernel="2,2" strides="2,2"/>
+    <data auto_pad="valid" kernel="2,2" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
     <input> 
         <port id="0">
             <dim>1</dim>
