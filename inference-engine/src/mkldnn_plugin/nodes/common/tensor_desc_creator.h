@@ -10,9 +10,9 @@ namespace MKLDNNPlugin {
 
 enum class TensorDescCreatorTypes : unsigned {
     nspc,       // general per channels format
+    ncsp,        // general planar
     nCsp8c,     // general channels blocked by 8
-    nCsp16c,    // general channels blocked by 16
-    ncsp        // general planar
+    nCsp16c    // general channels blocked by 16
 };
 
 class CreatorsMapFilterConstIterator;
