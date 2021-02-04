@@ -49,6 +49,12 @@ def pytest_addoption(parser):
         help="Path to the benchmark_app tool",
     )
     parser.addoption(
+        "--collector_dir",
+        required=True,
+        type=Path,
+        help="Path to a directory with a collector binary",
+    )
+    parser.addoption(
         "-A",
         "--artifacts",
         required=True,
@@ -87,6 +93,12 @@ def sea_runtool(request):
 def benchmark_app(request):
     """Fixture function for command-line option."""
     return request.config.getoption("benchmark_app")
+
+
+@pytest.fixture(scope="session")
+def collector_dir(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption("collector_dir")
 
 
 @pytest.fixture(scope="session")
