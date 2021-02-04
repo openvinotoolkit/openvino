@@ -146,7 +146,9 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
         in_shape = input_port.data.get_shape()
         node_t = abs(node.t)
 
-        init_value_memory_out = create_zero_value_with_batch_from_input(input_port, in_shape[1]*node_t)
+        params = node.graph.get_op_nodes(op="Parameter")
+
+        init_value_memory_out = create_zero_value_with_batch_from_input(params[0].out_port(0), in_shape[1]*node_t)
         memory_out = ReadValue(graph, {'name': pair_name, 'variable_id': node_name+pair_name}).create_node()
         init_value_memory_out.out_port(0).connect(memory_out.in_port(0))
 
@@ -175,13 +177,13 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
             memory_in.out_port(0).connect(out.in_port(0))
             out_port.get_connection().set_source(memory_out.out_port(0))
 
-        if not graph.graph['cmd_params'].static_shape:
-            log.error(
-                "Model can not be translated in a reshape-able way.\n"
-                "Model Optimizer key static_shape was turned on to prevent related errors.\n"
-                "There will be no success changing input shapes of the model with the help of "
-                "InferenceEngine reshape method", extra={'is_warning': True})
-            graph.graph['cmd_params'].static_shape = True
+        #if not graph.graph['cmd_params'].static_shape:
+        #    log.error(
+        #        "Model can not be translated in a reshape-able way.\n"
+        #        "Model Optimizer key static_shape was turned on to prevent related errors.\n"
+        #        "There will be no success changing input shapes of the model with the help of "
+        #        "InferenceEngine reshape method", extra={'is_warning': True})
+        #    graph.graph['cmd_params'].static_shape = True
 
         graph.remove_node(op_output_id)
         graph.remove_node(node.id)
