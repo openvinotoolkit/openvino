@@ -90,13 +90,14 @@ private:
         std::fill(dst_data, dst_data + dst_size, static_cast<out_type>(off_value));
 
         // set on_value at needed locations
+        auto on_val = static_cast<out_type>(on_value);
         parallel_for(prefix_size, [&](std::size_t prefix_idx) {
-            for (std::size_t suffix_idx = 0; suffix_idx < suffix_size; ++suffix_idx) {
-                auto src_index = prefix_idx * suffix_size + suffix_idx;
-                auto v = static_cast<std::size_t>(src_data[src_index]);
+            const in_type* src_dataPtr = &src_data[prefix_idx * suffix_size];
+            out_type* dst_dataPtr = &dst_data[prefix_idx * depth * suffix_size];
+            for (std::size_t suffix_idx = 0; suffix_idx < suffix_size; ++suffix_idx, ++src_dataPtr, ++dst_dataPtr) {
+                auto v = static_cast<std::size_t>(*src_dataPtr);
                 if (v < depth) {
-                    std::size_t dst_offset = prefix_idx * depth * suffix_size + v * suffix_size + suffix_idx;
-                    dst_data[dst_offset] = on_value;
+                    dst_dataPtr[v * suffix_size] = on_val;
                 }
             }
         });
