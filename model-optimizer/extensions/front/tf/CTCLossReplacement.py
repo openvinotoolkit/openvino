@@ -18,7 +18,7 @@ import numpy as np
 import logging as log
 
 from extensions.ops.Cast import Cast
-from extensions.ops.ctc_greedy_decoder import CTCGreedyDecoderOp
+from extensions.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
 from extensions.ops.ctc_loss import CTCLoss
 from extensions.ops.elementwise import Equal
 from extensions.ops.parameter import Parameter
@@ -80,20 +80,26 @@ class CTCLossReplacement(FrontReplacementSubgraph):
     def replace_sub_graph(self, graph: Graph, match: dict):
         seq_len_tf = match['seq_len']
         transpose_tf = match['transpose']
-        ctc_greedy_decoder = match['ctc_greedy_decoder']
+        ctc_greedy_decoder_tf = match['ctc_greedy_decoder']
         cast_tf = match['cast']
         ctc_loss_tf = match['ctc_loss']
         sparse_to_dense_tf = match['sparse_to_dense']
         output_sparse_to_dense_name = sparse_to_dense_tf.soft_get('name', sparse_to_dense_tf.id)
 
         ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
-                                                       {'name': ctc_greedy_decoder.name + '/ctc_data_permute'})
+                                                       {'name': ctc_greedy_decoder_tf.name + '/ctc_data_permute'})
         ctc_data_permute.in_port(0).get_connection().set_source(transpose_tf.out_port(0))
-        ctc_greedy_decoder.in_port(0).get_connection().set_source(ctc_data_permute.out_port(0))
+        #ctc_greedy_decoder_tf.in_port(0).get_connection().set_source(ctc_data_permute.out_port(0))
+
+        merge_repeated_tf = ctc_greedy_decoder_tf.merge_repeated
+        ctc_greedy_decoder = CTCGreedyDecoderSeqLenOp(graph, {'name': ctc_greedy_decoder_tf.name,
+                                                              'cmerge_repeated': merge_repeated_tf}).create_node()
+        ctc_greedy_decoder.in_port(0).connect(ctc_data_permute.out_port(0))
+        ctc_greedy_decoder.in_port(1).connect(seq_len_tf.out_port(0))
 
 
         # set output of the new sub-graph as a source for SparseToDense consumer
-        sparse_to_dense_tf.out_port(0).get_connection().set_source(ctc_greedy_decoder.out_port(0))
+        #sparse_to_dense_tf.out_port(0).get_connection().set_source(ctc_greedy_decoder_tf.out_port(0))
 
         output_ctc_loss_name = ctc_loss_tf.soft_get('name', ctc_loss_tf.id)
         ctc_merge_repeated = ctc_loss_tf.ctc_merge_repeated
@@ -108,34 +114,37 @@ class CTCLossReplacement(FrontReplacementSubgraph):
         ctc_loss.in_port(1).connect(seq_len_tf.out_port(0))
 
         # # connect labels to ctc_loss
-        cast_labels_op = Cast(graph, {'name': output_sparse_to_dense_name + '/CastLabels', 'dst_type': np.int32}).create_node()
-        cast_labels_op.in_port(0).connect(ctc_greedy_decoder.out_port(0))
-        ctc_loss.in_port(2).connect(cast_labels_op.out_port(0))
+        # cast_labels_op = Cast(graph, {'name': output_sparse_to_dense_name + '/CastLabels', 'dst_type': np.int32}).create_node()
+        # cast_labels_op.in_port(0).connect(ctc_greedy_decoder.out_port(0))
+        # ctc_loss.in_port(2).connect(cast_labels_op.out_port(0))
+        ctc_loss.in_port(2).connect(ctc_greedy_decoder.out_port(0))
 
         # # connect label lengths
-        equal_op = create_op_with_const_inputs(graph, Equal, {1: np.array([-1], dtype=np.int32)},
-                                               {'name': output_sparse_to_dense_name + '/Equal'})
-        equal_op.in_port(0).connect(cast_labels_op.out_port(0))
-        labels_shape_op = Shape(graph, {'name': output_sparse_to_dense_name + '/ShapeOf'}).create_node()
-        labels_shape_op.in_port(0).connect(equal_op.out_port(0))
-        broadcast_one = create_op_with_const_inputs(graph, Broadcast, {0: np.array([1], dtype=np.int32)},
-                                                    {'mode': 'numpy',
-                                                     'name': output_sparse_to_dense_name + '/One'})
-        broadcast_one.in_port(1).connect(labels_shape_op.out_port(0))
-        broadcast_zero = create_op_with_const_inputs(graph, Broadcast, {0: np.array([0], dtype=np.int32)},
-                                                     {'mode': 'numpy',
-                                                      'name': output_sparse_to_dense_name + '/Zero'})
-        broadcast_zero.in_port(1).connect(labels_shape_op.out_port(0))
+        # equal_op = create_op_with_const_inputs(graph, Equal, {1: np.array([-1], dtype=np.int32)},
+        #                                        {'name': output_sparse_to_dense_name + '/Equal'})
+        # equal_op.in_port(0).connect(cast_labels_op.out_port(0))
+        # labels_shape_op = Shape(graph, {'name': output_sparse_to_dense_name + '/ShapeOf'}).create_node()
+        # labels_shape_op.in_port(0).connect(equal_op.out_port(0))
+        # broadcast_one = create_op_with_const_inputs(graph, Broadcast, {0: np.array([1], dtype=np.int32)},
+        #                                             {'mode': 'numpy',
+        #                                              'name': output_sparse_to_dense_name + '/One'})
+        # broadcast_one.in_port(1).connect(labels_shape_op.out_port(0))
+        # broadcast_zero = create_op_with_const_inputs(graph, Broadcast, {0: np.array([0], dtype=np.int32)},
+        #                                              {'mode': 'numpy',
+        #                                               'name': output_sparse_to_dense_name + '/Zero'})
+        # broadcast_zero.in_port(1).connect(labels_shape_op.out_port(0))
+        #
+        # select_node = Select(graph, {'name': output_sparse_to_dense_name + '/Select'}).create_node()
+        # select_node.in_port(0).connect(equal_op.out_port(0))
+        # select_node.in_port(1).connect(broadcast_zero.out_port(0))
+        # select_node.in_port(2).connect(broadcast_one.out_port(0))
+        # label_length_node = create_op_with_const_inputs(graph, ReduceSum, {1: int64_array([1])},
+        #                                                 op_attrs={'name': output_sparse_to_dense_name + '/LabelLength',
+        #                                                           'keep_dims': False})
+        # label_length_node.in_port(0).connect(select_node.out_port(0))
+        # ctc_loss.in_port(3).connect(label_length_node.out_port(0))
 
-        select_node = Select(graph, {'name': output_sparse_to_dense_name + '/Select'}).create_node()
-        select_node.in_port(0).connect(equal_op.out_port(0))
-        select_node.in_port(1).connect(broadcast_zero.out_port(0))
-        select_node.in_port(2).connect(broadcast_one.out_port(0))
-        label_length_node = create_op_with_const_inputs(graph, ReduceSum, {1: int64_array([1])},
-                                                        op_attrs={'name': output_sparse_to_dense_name + '/LabelLength',
-                                                                  'keep_dims': False})
-        label_length_node.in_port(0).connect(select_node.out_port(0))
-        ctc_loss.in_port(3).connect(label_length_node.out_port(0))
+        ctc_loss.in_port(3).connect(ctc_greedy_decoder.out_port(1))
 
         # remove no longer needed nodes
-        graph.remove_nodes_from([sparse_to_dense_tf.id, cast_tf.id, ctc_loss_tf.id])
+        graph.remove_nodes_from([sparse_to_dense_tf.id, cast_tf.id, ctc_loss_tf.id, ctc_greedy_decoder_tf.id])

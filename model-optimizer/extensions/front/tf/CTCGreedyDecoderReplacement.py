@@ -22,6 +22,8 @@ from extensions.front.FillToBroadcast import FillToBroadcast
 from extensions.front.Pack import Pack
 from extensions.ops.Cast import Cast
 from extensions.ops.transpose import Transpose
+from extensions.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
+from mo.ops.result import Result
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -69,20 +71,31 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         # TODO: Once Inference Engine's CTCGreedyDecoder starts to support sequence length format like in TensorFlow,
         # CTCGreedyDecoderReplacement2 needs to be removed and CTCGreedyDecoderReplacement, a more generic
         # transformation, needs to be adopted for all cases
-        ctc_greedy_decoder = match['decoder']
+        ctc_greedy_decoder_tf = match['decoder']
         cast = match['cast']
         sparse_to_dense = match['sparse_to_dense']
 
         ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
-                                                            {'name': ctc_greedy_decoder.name + '/ctc_data_permute'})
-        ctc_greedy_decoder.in_port(0).get_source().connect(ctc_data_permute.in_port(0))
-        ctc_greedy_decoder.in_port(0).get_connection().set_source(ctc_data_permute.out_port(0))
+                                                            {'name': ctc_greedy_decoder_tf.name + '/ctc_data_permute'})
 
+        ctc_greedy_decoder_tf.in_port(0).get_source().connect(ctc_data_permute.in_port(0))
+        #ctc_greedy_decoder_tf.in_port(0).get_connection().set_source(ctc_data_permute.out_port(0))
+
+        merge_repeated_tf = ctc_greedy_decoder_tf.soft_get('merge_repeated', ctc_greedy_decoder_tf.id)
+        ctc_greedy_decoder = CTCGreedyDecoderSeqLenOp(graph, {'name': ctc_greedy_decoder_tf.name,
+                                                              'cmerge_repeated': merge_repeated_tf}).create_node()
+        ctc_greedy_decoder.in_port(0).connect(ctc_data_permute.out_port(0))
+        ctc_greedy_decoder_tf.in_port(1).get_source().connect(ctc_greedy_decoder.in_port(1))
+        #ctc_greedy_decoder.in_port(1).connect(ctc_greedy_decoder_tf.in_port(1))
+        #ctc_greedy_decoder.in_port(1).get_connection().set_destination(ctc_greedy_decoder_tf.in_port(1))
+
+        ctc_res1 = Result(graph, {'name': ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id) + '/Result'}).create_node()
         # set output of the new sub-graph as a source for SparseToDense consumer
         sparse_to_dense.out_port(0).get_connection().set_source(ctc_greedy_decoder.out_port(0))
+        ctc_res1.in_port(0).get_connection().set_source(ctc_greedy_decoder.out_port(1))
 
         # remove no longer needed nodes
-        graph.remove_nodes_from([sparse_to_dense.id, cast.id])
+        graph.remove_nodes_from([sparse_to_dense.id, cast.id, ctc_greedy_decoder_tf.id])
 
         # unless the second input of CTCGreedyDecoder is a parameter, it enforces MO to use --static-shape
         # to try getting the second input with a value

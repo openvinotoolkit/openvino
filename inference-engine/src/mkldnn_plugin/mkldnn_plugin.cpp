@@ -34,7 +34,7 @@
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
-#include <transformations/op_conversions/convert_ctc_greedy_decoder_v6_to_v1.hpp.hpp>
+#include <transformations/op_conversions/convert_ctc_greedy_decoder_v6_to_v1.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>

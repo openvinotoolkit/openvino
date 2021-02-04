@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
@@ -30,6 +32,9 @@ class CTCGreedyDecoderSeqLenOp(Op):
 
             'infer': self.infer,
             'reinterp_shape': True,
+            'type_infer': self.type_infer,
+            'classes_index_type': np.int32,
+            'sequence_length_type': np.int32,
 
             'in_ports_count': 3,
             'out_ports_count': 2
@@ -42,6 +47,13 @@ class CTCGreedyDecoderSeqLenOp(Op):
             'classes_index_type',
             'sequence_length_type'
         ]
+
+    @staticmethod
+    def type_infer(node):
+        opset = node.get_opset()
+        if opset == 'opset6':
+            node.out_port(0).set_data_type(node.classes_index_type)
+            node.out_port(1).set_data_type(node.sequence_length_type)
 
     @staticmethod
     def infer(node: Node):
@@ -66,7 +78,9 @@ class CTCGreedyDecoderSeqLenOp(Op):
         assert logits_shape[0] == sequence_len_shape[0], \
             'Batch dimensions of input tensors must be the same for {} node'.format(node_name)
 
+        # classes_index_type = node.soft_get('classes_index_type', node.id)
+        # sequence_length_type = node.soft_get('sequence_length_type', node.id)
         batch_size = logits_shape[0]
         time_size = logits_shape[1]
         node.out_port(0).data.set_shape(int64_array([batch_size, time_size]))
-        #node.out_port(1).data.set_shape(int64_array([batch_size]))
+        node.out_port(1).data.set_shape(int64_array([batch_size]))
