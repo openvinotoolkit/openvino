@@ -20,11 +20,6 @@ import sys
 
 
 if __name__ == "__main__":
-    from utils.find_ie_version import find_ie_version
-    if not find_ie_version():
-        print("[ OFFLINE TRANSFORMATIONS ] Failed to find IE Python API")
-        exit(1)
-
     from openvino.inference_engine import IECore, get_version
     from openvino.offline_transformations import ApplyMOCTransformations
 

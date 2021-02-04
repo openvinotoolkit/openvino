@@ -42,6 +42,7 @@ from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 from mo.utils.versions_checker import check_requirements
+from mo.utils.find_ie_version import find_ie_version
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -256,13 +257,17 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
-        import subprocess
-        path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'offline_transformations.py')
-        status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name])
-        if status.returncode != 0:
+        if not find_ie_version():
             # TODO: implement fallback
-            print("[ WARNING ] ApplyMOCTransformations return code != 0, using fallback")
-            pass
+            print("[ WARNING ] No IE version was found, using fallback")
+        else:
+            import subprocess
+            path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'offline_transformations.py')
+            status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ)
+            if status.returncode != 0:
+                # TODO: implement fallback
+                print("[ WARNING ] ApplyMOCTransformations return code != 0, using fallback")
+                pass
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
