@@ -160,11 +160,11 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
     if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
         const auto core_types = oneapi::tbb::info::core_types();
         const auto num_little_cores = oneapi::tbb::info::default_concurrency(core_types.front());
-        const auto num_big_cores = oneapi::tbb::info::default_concurrency(core_types.back());
+        const auto num_big_cores_phys = getNumberOfCPUCores(true);
         const int int8_threshold = 4; // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
         const int fp32_threshold = 2; // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
         // by default the latency case uses (faster) Big cores only, depending on the compute ratio
-        const bool bLatencyCaseBigOnly = num_big_cores > (num_little_cores / (fp_intesive ? fp32_threshold : int8_threshold));
+        const bool bLatencyCaseBigOnly = num_big_cores_phys > (num_little_cores / (fp_intesive ? fp32_threshold : int8_threshold));
         // selecting the preferred core type
         streamExecutorConfig._threadPreferredCoreType =
             bLatencyCase
@@ -174,8 +174,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
                 : IStreamsExecutor::Config::PreferredCoreType::ROUND_ROBIN;
         // additionally selecting the #cores to use in the "Big-only" case
         if (bLatencyCaseBigOnly) {
-            const auto num_big_cores_phys = getNumberOfCPUCores(true);
             const int hyper_threading_threshold = 2; // min #cores, for which the hyper-threading becomes useful for the latency case
+            const auto num_big_cores = oneapi::tbb::info::default_concurrency(core_types.back());
             num_cores_default = (num_big_cores_phys <= hyper_threading_threshold) ? num_big_cores : num_big_cores_phys;
         }
     }
