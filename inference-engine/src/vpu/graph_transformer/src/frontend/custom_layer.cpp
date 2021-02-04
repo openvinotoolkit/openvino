@@ -160,7 +160,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
     assertOneOrMoreOccurrence(customLayer, {"Kernel"});
     auto kernelNodes = [&] {
         auto nodes = SmallVector<pugi::xml_node>{};
-        for (auto kernel = customLayer.child("Kernel"); !kernel.empty(); kernel = kernel.next_sibling("Kernel")) {
+        FOREACH_CHILD(kernel, customLayer, "Kernel") {
             assertExactlyOneOccurrence(kernel, {"Parameters", "WorkSizes"});
             assertOneOrMoreOccurrence(kernel, {"Source"});
             nodes.push_back(kernel);
