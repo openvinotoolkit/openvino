@@ -14,4 +14,5 @@
 # limitations under the License.
 # ******************************************************************************
 
+add_subdirectory(ittapi)
 add_subdirectory(itt_collector)
