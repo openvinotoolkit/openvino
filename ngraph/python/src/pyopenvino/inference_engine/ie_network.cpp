@@ -52,7 +52,7 @@ void regclass_IENetwork(py::module m)
 
     cls.def("reshape",
             [](InferenceEngine::CNNNetwork& self,
-               std::map<std::string, std::vector<size_t>>& input_shapes) {
+               const std::map<std::string, std::vector<size_t>>& input_shapes) {
                 self.reshape(input_shapes);
             });
 
