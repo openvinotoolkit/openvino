@@ -34,7 +34,7 @@ protected:
     virtual void SetUp() {
         mockExeNetwork = make_shared<MockExecutableNetworkThreadSafeAsyncOnly>();
         exeNetwork = details::shared_from_irelease(
-                new ExecutableNetworkBase<MockExecutableNetworkThreadSafeAsyncOnly>(mockExeNetwork));
+                new ExecutableNetworkBase(mockExeNetwork));
         InputsDataMap networkInputs;
         OutputsDataMap networkOutputs;
         mockAsyncInferRequestInternal = make_shared<MockAsyncInferRequestInternal>(networkInputs, networkOutputs);
@@ -46,7 +46,7 @@ TEST_F(ExecutableNetworkThreadSafeAsyncOnlyTests, createAsyncInferRequestCallsTh
     EXPECT_CALL(*mockExeNetwork.get(), CreateAsyncInferRequestImpl(_, _)).WillOnce(
             Return(mockAsyncInferRequestInternal));
     EXPECT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
-    auto threadSafeReq = dynamic_pointer_cast<InferRequestBase<AsyncInferRequestInternal>>(req);
+    auto threadSafeReq = dynamic_pointer_cast<InferRequestBase>(req);
     ASSERT_NE(threadSafeReq, nullptr);
 }
 
@@ -109,7 +109,7 @@ protected:
     virtual void SetUp() {
         mockExeNetwork = make_shared<MockExecutableNetworkThreadSafe>();
         exeNetwork = details::shared_from_irelease(
-                new ExecutableNetworkBase<MockExecutableNetworkThreadSafe>(mockExeNetwork));
+                new ExecutableNetworkBase(mockExeNetwork));
         InputsDataMap networkInputs;
         OutputsDataMap networkOutputs;
         mockInferRequestInternal = make_shared<MockInferRequestInternal>(networkInputs, networkOutputs);
@@ -120,7 +120,7 @@ TEST_F(ExecutableNetworkThreadSafeTests, createInferRequestCallsThreadSafeImplAn
     IInferRequest::Ptr req;
     EXPECT_CALL(*mockExeNetwork.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
     EXPECT_NO_THROW(exeNetwork->CreateInferRequest(req, &dsc));
-    auto threadSafeReq = dynamic_pointer_cast<InferRequestBase<AsyncInferRequestThreadSafeDefault>>(req);
+    auto threadSafeReq = dynamic_pointer_cast<InferRequestBase>(req);
     ASSERT_NE(threadSafeReq, nullptr);
 }
 

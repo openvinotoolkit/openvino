@@ -39,7 +39,7 @@ public:
         auto asyncRequestImpl = this->CreateAsyncInferRequestImpl(_networkInputs, _networkOutputs);
         asyncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
-        asyncRequest.reset(new InferRequestBase<AsyncInferRequestInternal>(asyncRequestImpl), [](IInferRequest* p) {
+        asyncRequest.reset(new InferRequestBase(asyncRequestImpl), [](IInferRequest* p) {
             p->Release();
         });
         asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);

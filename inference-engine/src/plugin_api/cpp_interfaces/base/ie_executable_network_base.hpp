@@ -12,6 +12,7 @@
 #include <cpp/ie_executable_network.hpp>
 #include <cpp_interfaces/base/ie_variable_state_base.hpp>
 #include <cpp_interfaces/interface/ie_ivariable_state_internal.hpp>
+#include <cpp_interfaces/interface/ie_iexecutable_network_internal.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -24,18 +25,17 @@ namespace InferenceEngine {
 /**
  * @brief Executable network `noexcept` wrapper which accepts IExecutableNetworkInternal derived instance which can throw exceptions
  * @ingroup ie_dev_api_exec_network_api
- * @tparam T Minimal CPP implementation of IExecutableNetworkInternal (e.g. ExecutableNetworkInternal)
- */
-template <class T>
+  */
 class ExecutableNetworkBase : public IExecutableNetwork {
-    std::shared_ptr<T> _impl;
+protected:
+    std::shared_ptr<IExecutableNetworkInternal> _impl;
 
 public:
     /**
      * @brief Constructor with actual underlying implementation.
      * @param impl Underlying implementation of type IExecutableNetworkInternal
      */
-    explicit ExecutableNetworkBase(std::shared_ptr<T> impl) {
+    explicit ExecutableNetworkBase(std::shared_ptr<IExecutableNetworkInternal> impl) {
         if (impl.get() == nullptr) {
             THROW_IE_EXCEPTION << "implementation not defined";
         }
@@ -77,7 +77,7 @@ public:
             if (idx >= v.size()) {
                 return OUT_OF_BOUNDS;
             }
-            pState = std::make_shared<VariableStateBase<IVariableStateInternal>>(v[idx]);
+            pState = std::make_shared<VariableStateBase>(v[idx]);
             return OK;
         } catch (const std::exception& ex) {
             return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
@@ -89,11 +89,6 @@ public:
 
     void Release() noexcept override {
         delete this;
-    }
-
-    /// @private Need for unit tests only - TODO: unit tests should test using public API, non having details
-    const std::shared_ptr<T> getImpl() const {
-        return _impl;
     }
 
     StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) noexcept override {
@@ -112,8 +107,8 @@ public:
         TO_STATUS(pContext = _impl->GetContext());
     }
 
-private:
-    ~ExecutableNetworkBase() = default;
+protected:
+    ~ExecutableNetworkBase() override = default;
 };
 
 /**
@@ -127,7 +122,7 @@ template <class T>
 inline typename InferenceEngine::ExecutableNetwork make_executable_network(std::shared_ptr<T> impl) {
     // to suppress warning about deprecated QueryState
     IE_SUPPRESS_DEPRECATED_START
-    typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {
+    typename ExecutableNetworkBase::Ptr net(new ExecutableNetworkBase(impl), [](IExecutableNetwork* p) {
         p->Release();
     });
     IE_SUPPRESS_DEPRECATED_END

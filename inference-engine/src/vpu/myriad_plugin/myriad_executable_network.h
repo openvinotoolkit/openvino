@@ -88,8 +88,7 @@ public:
         auto taskExecutorGetResult = getNextTaskExecutor();
         auto asyncThreadSafeImpl = std::make_shared<MyriadAsyncInferRequest>(
                 syncRequestImpl, _taskExecutor, _callbackExecutor, taskExecutorGetResult);
-        asyncRequest.reset(new ie::InferRequestBase<ie::AsyncInferRequestThreadSafeDefault>(
-                           asyncThreadSafeImpl),
+        asyncRequest.reset(new ie::InferRequestBase(asyncThreadSafeImpl),
                            [](ie::IInferRequest *p) { p->Release(); });
         asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
         return asyncRequest;

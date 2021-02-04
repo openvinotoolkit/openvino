@@ -143,7 +143,7 @@ InferenceEngine::IInferRequest::Ptr TemplatePlugin::ExecutableNetwork::CreateInf
     auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     auto asyncThreadSafeImpl = std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
                                                                            _taskExecutor, _plugin->_waitExecutor, _callbackExecutor);
-    asyncRequest.reset(new InferenceEngine::InferRequestBase<TemplateAsyncInferRequest>(asyncThreadSafeImpl),
+    asyncRequest.reset(new InferenceEngine::InferRequestBase(asyncThreadSafeImpl),
                        [](InferenceEngine::IInferRequest *p) { p->Release(); });
     asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     return asyncRequest;
