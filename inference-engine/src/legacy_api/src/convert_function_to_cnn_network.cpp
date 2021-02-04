@@ -1866,8 +1866,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 bool all_to_read_value = !layer->output(i).get_target_inputs().empty();
                 for (const auto &output_input : layer->output(i).get_target_inputs()) {
                     all_to_read_value
-                            &= dynamic_cast<ngraph::op::v3::ReadValue *>(output_input.get_node()) != nullptr ||
-                            dynamic_cast<ngraph::op::v6::ReadValue *>(output_input.get_node()) != nullptr;
+                            &= dynamic_cast<ngraph::op::ReadValueBase *>(output_input.get_node()) != nullptr;
                 }
                 if (all_to_read_value)
                     continue;

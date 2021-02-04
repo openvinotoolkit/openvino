@@ -419,11 +419,10 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
             sink_nodes.emplace_back(sink);
         }
 
-        if (auto read_value_v5 = std::dynamic_pointer_cast<ngraph::opset5::ReadValue>(node)) {
-            variable_id_to_read_value[read_value_v5->get_variable_id()] = read_value_v5;
-        } else if (auto read_value_v6 = std::dynamic_pointer_cast<ngraph::opset6::ReadValue>(node)) {
-            variable_id_to_read_value[read_value_v6->get_variable_id()] = read_value_v6;
+        if (auto read_value = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(node)) {
+            variable_id_to_read_value[read_value->get_variable_id()] = read_value;
         }
+
         allNodes.emplace_back(node);
     }
 
@@ -431,13 +430,9 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
 
     ::ngraph::op::GenericIE::DisableReshape noReshape(allNodes);
     auto function = std::make_shared<ngraph::Function>(result_nodes, sink_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
-    for (const auto& assign : sink_nodes) {
-        if (const auto& assign_v5 = std::dynamic_pointer_cast<ngraph::opset5::Assign>(assign)) {
-            assign_v5->add_control_dependency(
-                    variable_id_to_read_value.at(assign_v5->get_variable_id()));
-        } else if (const auto& assign_v6 = std::dynamic_pointer_cast<ngraph::opset6::Assign>(assign)) {
-            assign_v6->add_control_dependency(
-                    variable_id_to_read_value.at(assign_v6->get_variable_id()));
+    for (const auto& sink : sink_nodes) {
+        if (const auto& assign = std::dynamic_pointer_cast<ngraph::op::AssignBase>(sink)) {
+            assign->add_control_dependency(variable_id_to_read_value.at(assign->get_variable_id()));
         }
     }
 
