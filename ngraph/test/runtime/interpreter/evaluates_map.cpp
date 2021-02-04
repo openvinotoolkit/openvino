@@ -241,6 +241,15 @@ namespace
         return true;
     }
 
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::DeformableConvolution>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        
+        return true;
+    }
+
     namespace cum_sum_v0
     {
         template <element::Type_t t1, element::Type_t t2>
