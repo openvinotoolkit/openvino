@@ -68,12 +68,12 @@ TEST(type_prop, group_conv_backprop_data_output_shape_as_param)
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
     EXPECT_EQ(gcbd->get_element_type(), element::f32);
-    EXPECT_EQ(gcbd->get_output_partial_shape(0),
-              (PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
     EXPECT_EQ(gcbd->get_auto_pad(), op::PadType::SAME_UPPER);
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
+        PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_1)
+TEST(type_prop, group_conv_backprop_data_with_output_shape_dyn_static_ranks_shape_inference_1)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data = make_shared<op::Parameter>(
@@ -83,11 +83,14 @@ TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_1)
     const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
-    ASSERT_TRUE(out_pshape.same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(
+        gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_2)
+TEST(type_prop, group_conv_backprop_data_with_output_shape_dyn_static_ranks_shape_inference_2)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data =
@@ -98,11 +101,14 @@ TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_2)
     const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
-    ASSERT_TRUE(out_pshape.same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(
+        gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_3)
+TEST(type_prop, group_conv_backprop_data_with_output_shape_dyn_static_ranks_shape_inference_3)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data =
@@ -113,12 +119,14 @@ TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_3)
     const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
-    ASSERT_TRUE(
-        out_pshape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
+        PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_4)
+TEST(type_prop, group_conv_backprop_data_with_output_shape_dyn_static_ranks_shape_inference_4)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data =
@@ -129,11 +137,14 @@ TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_4)
     const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
-    ASSERT_TRUE(out_pshape.same_scheme(PartialShape{1, Dimension::dynamic(), 3, 3}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(
+        gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 3, 3}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_5)
+TEST(type_prop, group_conv_backprop_data_with_output_shape_dyn_static_ranks_shape_inference_5)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data =
@@ -144,12 +155,14 @@ TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_5)
     const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
-    ASSERT_TRUE(
-        out_pshape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
+        PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_6)
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_1)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     auto data = make_shared<op::Parameter>(
@@ -167,12 +180,11 @@ TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_6)
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
         PartialShape{Dimension::dynamic(), 8, 447, 447}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_7)
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_2)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 20, 224, 224});
@@ -189,11 +201,11 @@ TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_7)
 
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_static());
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, 8, 447, 447}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_8)
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_3)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     auto data =
@@ -212,12 +224,11 @@ TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_8)
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
         PartialShape{Dimension::dynamic(), Dimension::dynamic(), 447, 447}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_9)
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_4)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     auto data =
@@ -235,12 +246,12 @@ TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_9)
 
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
         PartialShape{1, Dimension::dynamic(), 447, 447}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_10)
+TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_5)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 20, 224, 224});
@@ -258,12 +269,11 @@ TEST(type_prop, group_conv_backprop_data_dyn_static_ranks_shape_inference_10)
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
         PartialShape{1, Dimension::dynamic(), 447, 447}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_data_batch_1)
+TEST(type_prop, group_conv_backprop_data_with_output_shape_dyn_data_batch)
 {
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
@@ -271,32 +281,29 @@ TEST(type_prop, group_conv_backprop_data_dyn_data_batch_1)
     const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
-    ASSERT_TRUE(out_pshape.same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(
+        gcbd->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 2, 3, 3}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_data_batch_2)
+TEST(type_prop, group_conv_backprop_data_shape_dyn_data_batch)
 {
     auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     // filters shape: [GROUPS, C_IN, C_OUT, kH, kW]
     auto filters = make_shared<op::Parameter>(element::f32, PartialShape{4, 5, 2, 3, 3});
-    auto strides = Strides{2, 2};
-    auto dilations = Strides{1, 1};
-    auto padding_begin = CoordinateDiff{1, 1};
-    auto padding_end = CoordinateDiff{1, 1};
-
     auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-        data, filters, strides, padding_begin, padding_end, dilations);
+        data, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
 
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
         PartialShape{Dimension::dynamic(), 8, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_filters_1)
+TEST(type_prop, group_conv_backprop_data_with_output_shape_dyn_filters)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data = make_shared<op::Parameter>(
@@ -305,32 +312,29 @@ TEST(type_prop, group_conv_backprop_data_dyn_filters_1)
     const auto output_shape = op::Constant::create(element::i64, Shape{2}, {3, 3});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
-    ASSERT_TRUE(out_pshape.same_scheme(PartialShape{1, Dimension::dynamic(), 3, 3}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(
+        gcbd->get_output_partial_shape(0).same_scheme(PartialShape{1, Dimension::dynamic(), 3, 3}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_filters_2)
+TEST(type_prop, group_conv_backprop_data_shape_dyn_filters)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 8, 224, 224});
     auto filters = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto strides = Strides{2, 2};
-    auto dilations = Strides{1, 1};
-    auto padding_begin = CoordinateDiff{1, 1};
-    auto padding_end = CoordinateDiff{1, 1};
-
     auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-        data, filters, strides, padding_begin, padding_end, dilations);
+        data, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
 
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
         PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_data_and_filters_1)
+TEST(type_prop, group_conv_backprop_data_with_output_shape_dyn_data_and_filters_1)
 {
     // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
@@ -338,38 +342,34 @@ TEST(type_prop, group_conv_backprop_data_dyn_data_and_filters_1)
     const auto output_shape = op::Constant::create(element::i64, Shape{3}, {3, 3, 3});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
-    ASSERT_TRUE(
-        out_pshape.same_scheme(PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3, 3}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_static());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().same_scheme(Rank{5}));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(
+        PartialShape{Dimension::dynamic(), Dimension::dynamic(), 3, 3, 3}));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_data_and_filters_2)
+TEST(type_prop, group_conv_backprop_data_with_output_shape_dyn_data_and_filters_2)
 {
-    // data batch shape: [N, C_IN * GROUPS, H, W]
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     const auto filters = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     const auto output_shape = make_shared<op::Parameter>(element::i64, Shape{3});
     const auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
         data, filters, output_shape, Strides{}, Strides{}, op::PadType::SAME_UPPER);
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
-    ASSERT_TRUE(out_pshape.same_scheme(PartialShape::dynamic()));
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_dynamic());
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
-TEST(type_prop, group_conv_backprop_data_dyn_data_and_filters_3)
+TEST(type_prop, group_conv_backprop_data_dyn_data_and_filters)
 {
-    // data batch shape: [N, C_IN * GROUPS, H, W]
     auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto filters = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto strides = Strides{2, 2};
-    auto dilations = Strides{1, 1};
-    auto padding_begin = CoordinateDiff{1, 1};
-    auto padding_end = CoordinateDiff{1, 1};
-
     auto gcbd = make_shared<op::v1::GroupConvolutionBackpropData>(
-        data, filters, strides, padding_begin, padding_end, dilations);
+        data, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{});
 
+    ASSERT_TRUE(gcbd->get_output_partial_shape(0).rank().is_dynamic());
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).is_dynamic());
-    const auto out_pshape = gcbd->get_output_partial_shape(0);
     ASSERT_TRUE(gcbd->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
