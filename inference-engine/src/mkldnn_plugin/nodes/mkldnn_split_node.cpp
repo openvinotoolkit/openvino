@@ -555,7 +555,6 @@ void MKLDNNSplitNode::initializeDstMemPtrs() {
     //It's important in case when several edges are connected to one port.
     //This is a naive implementation, an indexed priority queue or modified treap would be a more elegant solution.
     std::unordered_map<uint8_t*, size_t> mapDstPtrs;
-    using pair_t = std::pair<uint8_t*, size_t>;
     for (size_t i = 0; i < getChildEdges().size(); ++i) {
         auto outputEdge = this->getChildEdgeAt(i);
         if (uint8_t* dstData = reinterpret_cast<uint8_t*>(outputEdge->getMemoryPtr()->GetPtr())) {

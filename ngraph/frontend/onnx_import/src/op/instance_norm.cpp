@@ -93,7 +93,8 @@ namespace ngraph
                     const auto reduction_axes =
                         common::get_monotonic_range_along_node_rank(data, 2);
 
-                    auto mvn = std::make_shared<default_opset::MVN>(data, false, true, epsilon);
+                    auto mvn = std::make_shared<default_opset::MVN>(
+                        data, reduction_axes, true, epsilon, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
                     std::shared_ptr<ngraph::Node> data_shape_node;
                     if (data_pshape.is_static())

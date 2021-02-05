@@ -104,6 +104,7 @@ namespace ngraph
                 auto parameter =
                     std::make_shared<ngraph::op::Parameter>(get_element_type(), get_shape());
                 parameter->set_friendly_name(get_name());
+                parameter->get_output_tensor(0).set_names({get_name()});
                 return parameter;
             }
 
