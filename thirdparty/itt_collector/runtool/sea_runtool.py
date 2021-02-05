@@ -1781,7 +1781,7 @@ def resolve_cmd(args, path, load_addr, ptr, cache={}):
         del env["INTEL_SEA_VERBOSE"]
 
     try:
-        proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+        proc = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         (symbol, err) = proc.communicate()
     except IOError:
         err = traceback.format_exc()
@@ -2152,7 +2152,7 @@ class Collector:
         if sys.version[0] == '3':
             kwargs['encoding'] = 'utf8'
 
-        (out, err) = subprocess.Popen(cmd, shell=True, **kwargs).communicate()
+        (out, err) = subprocess.Popen(cmd, shell=False, **kwargs).communicate()
         if log:
             cls.log("\ncmd:\t%s:\nout:\t%s\nerr:\t%s\ntime: %s" % (cmd, str(out).strip(), str(err).strip(), str(timedelta(seconds=(time.time() - start_time)))), stack=True if err else False)
         if verbose_level() == verbose_level('info'):
@@ -2173,9 +2173,9 @@ class Collector:
             info = subprocess.STARTUPINFO()
             info.dwFlags = subprocess.STARTF_USESHOWWINDOW
             info.wShowWindow = 0  # SW_HIDE
-            subprocess.Popen(cmd, shell=True, startupinfo=info, stdin=None, stdout=None, stderr=None, creationflags=(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP), **kwargs)
+            subprocess.Popen(cmd, shell=False, startupinfo=info, stdin=None, stdout=None, stderr=None, creationflags=(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP), **kwargs)
         else:
-            subprocess.Popen(cmd, shell=True, stdin=None, stdout=None, stderr=None, **kwargs)
+            subprocess.Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, **kwargs)
 
     def start(self):
         raise NotImplementedError('Collector.start is not implemented!')
