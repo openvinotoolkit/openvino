@@ -87,8 +87,10 @@ KernelsData ReorderKernelBinary::GetKernelsData(const Params& params, const opti
         orgParams.output.GetLayout() != DataLayout::b_fs_yx_32fp)
         return {};
 
-    auto estimatedTime = FORCE_PRIORITY_6;
+    return GetCommonKernelsData(orgParams, options);
+}
 
-    return GetCommonKernelsData(orgParams, options, estimatedTime);
+KernelsPriority ReorderKernelBinary::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 }  // namespace kernel_selector

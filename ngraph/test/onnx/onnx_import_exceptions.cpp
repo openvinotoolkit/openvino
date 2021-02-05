@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 #include <exception>
 
+#include "exceptions.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/ngraph.hpp"
-#include "onnx_import/exceptions.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/type_prop.hpp"
 
@@ -87,13 +87,14 @@ TEST(onnx_importer, exception_msg_std_err_wrapped)
     try
     {
         onnx_import::import_onnx_model(file_util::path_join(
-            SERIALIZED_ZOO, "onnx/dynamic_shapes/add_opset6_dyn_shape.prototxt"));
+            SERIALIZED_ZOO, "onnx/dynamic_shapes/eye_link_dyn_shape.prototxt"));
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     }
     catch (const std::exception& e)
     {
-        EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(Add)"));
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("While validating ONNX node '<Node(EyeLike): y"));
     }
     catch (...)
     {

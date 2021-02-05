@@ -61,9 +61,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b8::SetDefault(c
 
     dispatchData.gws[0] = filterOfmNum * batchSize / ofmPerWorkItem;
 
-    dispatchData.efficiency = FORCE_PRIORITY_9;
-
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_yxfb_yxio_b8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 
 bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p, const optional_params& o) const {

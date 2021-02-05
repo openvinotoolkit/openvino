@@ -37,11 +37,11 @@ class must not exceed `max_output_boxes_per_class`.
 * *sort_result_descending*
 
   * **Description**: *sort_result_descending* is a flag that specifies whenever it is necessary to sort selected boxes across batches or not.
-  * **Range of values**: True of False
-    * *True* - sort selected boxes across batches.
-    * *False* - do not sort selected boxes across batches (boxes are sorted per class).
+  * **Range of values**: true of false
+    * *true* - sort selected boxes across batches.
+    * *false* - do not sort selected boxes across batches (boxes are sorted per class).
   * **Type**: boolean
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 * *output_type*
@@ -72,7 +72,9 @@ class must not exceed `max_output_boxes_per_class`.
 
 *   **2**: `selected_scores` - tensor of type *T_THRESHOLDS* and shape `[number of selected boxes, 3]` containing information about scores for each selected box as triplets `[batch_index, class_index, box_score]`.
 
-*   **3**: `valid_outputs` - 1D tensor with 1 element of type *T_IND* representing the total number of selected boxes. Optional.
+*   **3**: `valid_outputs` - 1D tensor with 1 element of type *T_IND* representing the total number of selected boxes.
+
+Plugins which do not support dynamic output tensors produce `selected_indices` and `selected_scores` tensors of shape `[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]` which is an upper bound for the number of possible selected boxes. Output tensor elements following the really selected boxes are filled with value -1.
 
 **Types**
 

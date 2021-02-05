@@ -352,14 +352,13 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
-void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork & network) {
+void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork & network) {
     // fp32 emulation mode dont need any modifications to configuration
     if (config.gnaFlags.sw_fp32) return;
 
     // search for FQ layers
     // only supports cases of int16 or int8
-    auto it = details::CNNNetworkIterator(&network);
-    auto end = details::CNNNetworkIterator();
+    auto it = details::CNNNetworkIterator(network), end = details::CNNNetworkIterator();
     for (; it != end; it++) {
         if (!LayerInfo(*it).isFakeQuantize()) {
             continue;
@@ -388,14 +387,13 @@ void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork & net
     }
 }
 
-void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & network) {
+void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & network) {
     // fp32 emulation mode dont need any modifications to configuration
     if (config.gnaFlags.sw_fp32) return;
 
     // search for FQ layers
     // only supports cases of int16 or int8
-    InputsDataMap  inputs;
-    network.getInputsInfo(inputs);
+    InputsDataMap inputs = network.getInputsInfo();
     for (auto && input : inputs) {
         auto data = input.second->getInputData();
         size_t inputIdx = 0;
@@ -433,11 +431,11 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & netwo
     }
 }
 
-void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
+void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
-        std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(_network);
-        const auto& graph = clonedNetwork->getFunction();
+        CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
+        const auto& graph = clonedNetwork.getFunction();
         // Disable shape inference (WA for generic operations)
         ngraph::op::GenericIE::DisableReshape noReshape(graph);
         ngraph::pass::Manager manager;
@@ -458,9 +456,9 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
                     return node->get_rt_info().count("UNROLL_TI") == 0;
             });
         manager.run_passes(graph);
-        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *clonedNetwork);
+        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, clonedNetwork);
     }
-    InferenceEngine::ICNNNetwork &network = convertedNetwork ? *convertedNetwork : _network;
+    InferenceEngine::CNNNetwork network = convertedNetwork ? InferenceEngine::CNNNetwork{convertedNetwork} : _network;
 
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
@@ -478,7 +476,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
 
     // network optimisation phases
     int passIdx = 0;
-    auto run_passes = [&] (const CNNNetPtr& network, bool runBeforeCopy) {
+    auto run_passes = [&] (const CNNNetwork& network, bool runBeforeCopy) {
         auto passes = make_shared<PassManager>(PassManagerSettings{policy, runBeforeCopy}, network);
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
@@ -498,7 +496,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        passes->registerPass<Concat4Dto2DPass>();
+        passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
         if (policy.PermutePolicy != Policy::Permute::DISABLED) {
@@ -521,7 +519,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passIdx = passes->run(passIdx);
     };
 
-    ICNNNetwork::Ptr newNet;
+    InferenceEngine::CNNNetwork newNet;
     if (gnaFlags->sw_fp32) {
         auto visitor = [&](InferenceEngine::CNNLayerPtr lp) {
             transformLayer(lp, WeightsConverter());
@@ -559,7 +557,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         }
     }
 
-    auto inputLayers = CNNNetGetAllInputLayers(*newNet);
+    auto inputLayers = CNNNetGetAllInputLayers(newNet);
 
 #ifdef PLOT
     std::ofstream file("gna_passes.dot");
@@ -576,7 +574,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     });
 #endif
 
-    auto sortedNet = CNNNetSortTopologicallyEx(*newNet, make_fuzed_order);
+    auto sortedNet = CNNNetSortTopologicallyEx(newNet, make_fuzed_order);
 
     // passing policy to compiler
     graphCompiler.setPolicy(policy);
@@ -624,13 +622,13 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     }
 
     // keep inputs information and create input primitives
-    newNet->getInputsInfo(inputsDataMap);
+    inputsDataMap = newNet.getInputsInfo();
     if (inputsDataMap.empty()) {
         THROW_GNA_EXCEPTION << " No inputs for the topology";
     }
 
     // keep output dims
-    newNet->getOutputsInfo(outputsDataMap);
+    outputsDataMap = newNet.getOutputsInfo();
     if (outputsDataMap.empty()) {
         THROW_GNA_EXCEPTION << "No outputs for the topology";
     }
@@ -879,6 +877,10 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     num_rotate_rows = dnn->num_rotate_rows;
     num_rotate_columns = dnn->num_rotate_columns;
 
+    do_rotate_output = dnn->do_rotate_output;
+    num_rotate_output_rows = dnn->num_rotate_output_rows;
+    num_rotate_output_columns = dnn->num_rotate_output_columns;
+
     DumpXNNToFile();
 
 #ifdef PLOT
@@ -1041,8 +1043,8 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             THROW_GNA_EXCEPTION << "network not loaded : input pointer for (" << input.first << " at inferRequest #"
                                 << idx << " not set";
         }
-
-        if (inputsDesc->getOrientation(input.first) == kDnnUnknownOrientation) {
+        const auto inputOrientation = inputsDesc->getOrientation(input.first);
+        if (inputOrientation == kDnnUnknownOrientation) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
             THROW_GNA_EXCEPTION << "network not loaded : input orientation for " << input.first << " not set";
         }
@@ -1071,27 +1073,40 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                      input.second->cbuffer().as<float *>(),
                      input.second->getTensorDesc().getPrecision(),
                      gnaFlags->sw_fp32 ? 1.0f : inputsDesc->getScaleFactor(inputNum),
-                     inputsDesc->getOrientation(input.first),
+                     inputOrientation,
                      importedFrames,
                      targetGroups,
                      importedElements,
                      importedElements);
 
+        bool CNN2DAtInput = input.second->getTensorDesc().getLayout() == Layout::NCHW && inputOrientation == kDnnNonInterleavedOrientation;
         bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
-        if (do_rotate_input && ((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
-            != (inputsDesc->getOrientation(input.first) == kDnnInterleavedOrientation))
-            && !isOneChannel) {
+        if (do_rotate_input && ((inputLayout == Layout::NC)
+            != (inputOrientation == kDnnInterleavedOrientation))
+            && !isOneChannel
+            && !CNN2DAtInput) {
             RotateFeatures(reinterpret_cast<uint8_t *>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
                            gnadevice ? 2 : 4,
                            // TODO: only works for cnn4a and google command so far
                            dims[0],
-                           is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 3],  // num_feature_vectors looks batch should be there
+                           InferenceEngine::details::product(dims) / dims[0],
                            num_rotate_rows,
                            num_rotate_columns);
         }
+        if (CNN2DAtInput) {
+            auto dims = input.second->getTensorDesc().getDims();
+            auto hwDim = dims[2] * dims[3];
+            auto chanelsDim = dims[1];
+            RotateFeatures(reinterpret_cast<uint8_t*>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
+                gnadevice ? 2 : 4,
+                dims[0],
+                chanelsDim* hwDim,
+                chanelsDim,
+                hwDim);
+        }
         ++inputNum;
     }
-
+    // If there is no gnadevice infer using reference FP32 transforamtions
     if (!gnadevice) {
         auto runtime = runtime::FP(dnn);
         runtime.infer();
@@ -1166,29 +1181,35 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         auto & outputDesc = outputsDesc[output_idx];
         if (outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN
             || outputBlob->getTensorDesc().getLayout() == Layout::NCHW || outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
-            // TODO: rotate can be incorporated with exporting - used only in unit tests so far
-            // TODO: restore:
-//        if (orientation_out != kDnnInterleavedOrientation) {
-//            if (inputs.size() != 1) {
-//                THROW_GNA_EXCEPTION << "Invalid number of inputs for  for deinterleave " << inputs.size()
-//                                    << ", only 1 supported";
-//            }
-//            auto dims = inputs.begin()->second->dims();
-//            RotateFeatures(reinterpret_cast<uint8_t*>(ptr_outputs_global),
-//                           gnadevice ? 2 : 4,
-//                           dims[dims.size() - 1],
-//                           dims[0],  // num_feature_vectors looks batch should be there
-//                           dims[0],
-//                           dims[dims.size() - 1]);
-//        }
+            auto dims = outputBlob->getTensorDesc().getDims();
             auto is2D = outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN;
             auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
             auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
             auto batchSize = is3D ? 1 : exportOutputDims[0];
             auto elementsPerBatch = is2D ? exportOutputDims[exportOutputDims.size() - 1]
                 : exportOutputDims[exportOutputDims.size() - 1]
-                  * exportOutputDims[exportOutputDims.size() - 2]
-                  * exportOutputDims[exportOutputDims.size() - 3];
+                * exportOutputDims[exportOutputDims.size() - 2]
+                * exportOutputDims[exportOutputDims.size() - 3];
+
+            if (do_rotate_output) {
+                if (batchSize * elementsPerBatch != num_rotate_output_columns * num_rotate_output_rows) {
+                    THROW_GNA_EXCEPTION << "Rotate output dimensions (" << num_rotate_output_rows << "," << num_rotate_output_columns
+                                        << ") do not match output buffer length of " << batchSize * elementsPerBatch;
+                }
+                uint32_t element_size = outputDesc.num_bytes_per_element;
+                std::vector<uint8_t> temp(num_rotate_output_columns * num_rotate_output_rows * element_size);
+                for (uint32_t k = 0; k < num_rotate_output_columns; ++k) {
+                    uint8_t* ptr_in = reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]) + k * element_size;
+                    for (uint32_t i = 0; i < num_rotate_output_rows; ++i) {
+                        ie_memcpy(&temp.front() + (k *num_rotate_output_rows + i) * element_size,
+                                  element_size,
+                                  ptr_in + (i * num_rotate_output_columns) * element_size,
+                                  element_size);
+                    }
+                }
+                ie_memcpy(outputDesc.ptrs[request_idx], num_rotate_output_columns * num_rotate_output_rows * element_size,
+                    &temp.front(), num_rotate_output_columns * num_rotate_output_rows * element_size);
+            }
 
             ExportScores(outputBlob->buffer(),
                          outputDesc.ptrs[request_idx],
@@ -1366,6 +1387,10 @@ InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networ
     num_rotate_rows = header.nRotateRows;
     num_rotate_columns = header.nRotateColumns;
 
+    do_rotate_output = header.doRotateOutput;
+    num_rotate_output_rows = header.nRotateOutputRows;
+    num_rotate_output_columns = header.nRotateOutputColumns;
+
     for (auto && memory : mt) {
         GNAMemoryLayer memoryLayer(nullptr, nullptr, gnaFlags->sw_fp32 ? 4 : 2);
         memoryLayer.gna_ptr = memory.first;
@@ -1416,7 +1441,8 @@ void GNAPlugin::Export(const std::string &fileName) {
                                  outputsDesc,
                                  inputsDataMap,
                                  outputsDataMap)
-                    .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns, dnn->do_rotate_input);
+                    .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns, dnn->do_rotate_input)
+                    .SetOutputRotation(dnn->num_rotate_output_rows, dnn->num_rotate_output_columns, dnn->do_rotate_output);
 
     for (auto && memoryConnection : graphCompiler.memory_connection) {
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size);
@@ -1425,9 +1451,13 @@ void GNAPlugin::Export(const std::string &fileName) {
     serial.Export(gnamem->getBasePtr(), gnamem->getTotalBytes(), outStream);
 }
 
-void GNAPlugin::GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAPlugin::GetPerformanceCounts() {
     if (gnaFlags->performance_counting) {
+        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
         gnadevice->getGnaPerfCounters(perfMap);
+        return perfMap;
+    } else {
+        return {};
     }
 }
 
@@ -1443,7 +1473,7 @@ void GNAPlugin::UpdateFieldsFromConfig() {
     *gnaFlags = config.gnaFlags;
 }
 
-InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                             const std::map<std::string, std::string>& config) const {
     InferenceEngine::QueryNetworkResult res;
 
@@ -1452,9 +1482,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngin
     }
 
     std::unordered_set<CNNLayer *> allLayers;
-    InferenceEngine::InputsDataMap inputs;
-
-    network.getInputsInfo(inputs);
+    InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
 
     if (inputs.empty()) {

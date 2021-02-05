@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
+from mo.front.extractor import bool_to_str
 
 
 class Pooling(Op):
@@ -44,11 +45,10 @@ class Pooling(Op):
             ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0)))),
             ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1)))),
 
-            ('pool-method', 'pool_method'),
-            ('exclude-pad', 'exclude_pad'),
+            ('exclude-pad', lambda node: bool_to_str(node, 'exclude_pad')),
 
             'rounding_type',
-            'auto_pad',
+            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
         ]
 
     @staticmethod
@@ -80,7 +80,7 @@ class Pooling(Op):
         stride_spatial = node.stride[node.spatial_dims]
         assert any(stride_spatial), 'Stride can not be zero in node {}'.format(node.id)
 
-        if node.has_valid('auto_pad'):
+        if node.has_valid('auto_pad') and node.auto_pad != 'explicit':
             node.pad_spatial_shape, node.output_spatial_shape = tf_window_op_pad_infer(input_spatial_shape,
                                                                                        window_spatial_shape,
                                                                                        stride_spatial, node.auto_pad)

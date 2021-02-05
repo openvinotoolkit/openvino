@@ -59,7 +59,6 @@ public:
                                                    const optional_params &options,
                                                    DataLayout dl,
                                                    WeightsLayout wl,
-                                                   float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                    const int autoTuneIndex = -1) const;
 
 protected:
@@ -69,7 +68,6 @@ protected:
                                      const optional_params &options,
                                      DataLayout dl,
                                      WeightsLayout wl,
-                                     float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                      const std::string exeMode = DEFAULT,
                                      int autoTuneIndex = -1) const;
 

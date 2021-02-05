@@ -24,10 +24,10 @@ For example, if the first input tensor is `[[3, 50], [10, -1]]` and the second i
 
   * **Description**: indicates whether bucket includes the right or the left edge of interval.
   * **Range of values**:
-    * True - bucket includes the right interval edge
-    * False - bucket includes the left interval edge
+    * true - bucket includes the right interval edge
+    * false - bucket includes the left interval edge
   * **Type**: `boolean`
-  * **Default value**: True
+  * **Default value**: true 
   * **Required**: *no*
 
 **Inputs**:

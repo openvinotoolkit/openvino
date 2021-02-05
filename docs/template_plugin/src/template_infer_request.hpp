@@ -38,7 +38,9 @@ public:
     ~TemplateInferRequest() override;
 
     void InferImpl() override;
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
+
+    InferenceEngine::StatusCode Cancel() override;
 
     // pipeline methods-stages which are used in async infer request implementation and assigned to particular executor
     void inferPreprocess();
@@ -63,7 +65,6 @@ private:
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages>   _durations;
 
-    InferenceEngine::BlobMap                                _networkInputBlobs;
     InferenceEngine::BlobMap                                _networkOutputBlobs;
     ngraph::ParameterVector                                 _parameters;
     ngraph::ResultVector                                    _results;

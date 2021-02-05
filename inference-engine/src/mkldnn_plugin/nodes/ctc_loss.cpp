@@ -27,13 +27,10 @@ public:
         auto logitsData = layer->insData[0].lock();
         if (logitsData == nullptr)
             THROW_IE_EXCEPTION << _logPrefix << " has nullable logits data";
-        auto logitsPrecision = logitsData->getTensorDesc().getPrecision();
-        if (logitsPrecision == Precision::BF16)
-            logitsPrecision = Precision::FP32;
 
         LayerConfig config;
         config.inConfs.resize(layer->insData.size());
-        config.inConfs[0].desc = TensorDesc(logitsPrecision,
+        config.inConfs[0].desc = TensorDesc(Precision::FP32,
             logitsData->getTensorDesc().getDims(),
             TensorDesc::getLayoutByDims(logitsData->getTensorDesc().getDims()));
         auto intPrecision = Precision::I32;
@@ -48,7 +45,7 @@ public:
 
         DataConfig outConfig;
         auto& outDims = layer->outData[0]->getTensorDesc().getDims();
-        outConfig.desc = TensorDesc(logitsPrecision,
+        outConfig.desc = TensorDesc(Precision::FP32,
             outDims,
             TensorDesc::getLayoutByDims(outDims));
         config.outConfs.push_back(outConfig);

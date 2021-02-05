@@ -8,7 +8,7 @@
 
 namespace vpu {
 
-class MergeSubsequentDSROperations : public ngraph::pass::GraphRewrite {
+class MergeSubsequentDSROperations : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     MergeSubsequentDSROperations();

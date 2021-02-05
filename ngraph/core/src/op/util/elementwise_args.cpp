@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "elementwise_args.hpp"
-#include "binary_elementwise_arithmetic.hpp"
+#include "ngraph/op/util/elementwise_args.hpp"
+#include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
 using namespace ngraph;
 

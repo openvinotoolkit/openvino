@@ -58,7 +58,7 @@ protected:
     ParamsKey GetSupportedKey() const override;
     virtual JitConstants GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const cum_sum_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     bool Validate(const Params&, const optional_params&) const override;
     Datatype GetActivationType(const cum_sum_params& params) const;
 };

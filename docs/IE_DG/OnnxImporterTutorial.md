@@ -18,7 +18,7 @@ Two categories of API functions:
 To list all supported ONNX ops in a specific version and domain, use the `get_supported_operators` 
 as shown in the example below:
 
-@snippet openvino/docs/snippets/OnnxImporterTutorial0.cpp part0
+@snippet snippets/OnnxImporterTutorial0.cpp part0
 
 The above code produces a list of all the supported operators for the `version` and `domain` you specified and outputs a list similar to this:
 ```cpp
@@ -30,7 +30,7 @@ Xor
 
 To determine whether a specific ONNX operator in a particular version and domain is supported by the importer, use the `is_operator_supported` function as shown in the example below:
 
-@snippet openvino/docs/snippets/OnnxImporterTutorial1.cpp part1
+@snippet snippets/OnnxImporterTutorial1.cpp part1
 
 ## Import ONNX Model
 
@@ -55,13 +55,13 @@ As it was shown in [Build a Model with nGraph Library](../nGraph_DG/build_functi
 
 The code below shows how to convert the ONNX ResNet50 model to the nGraph function using `import_onnx_model` with the stream as an input:
 
-@snippet openvino/docs/snippets/OnnxImporterTutorial2.cpp part2
+@snippet snippets/OnnxImporterTutorial2.cpp part2
 
 ### <a name="path">Filepath as Input</a>
 
 The code below shows how to convert the ONNX ResNet50 model to the nGraph function using `import_onnx_model` with the filepath as an input:
 
-@snippet openvino/docs/snippets/OnnxImporterTutorial3.cpp part3
+@snippet snippets/OnnxImporterTutorial3.cpp part3
 
 [onnx_header]: https://github.com/NervanaSystems/ngraph/blob/master/src/ngraph/frontend/onnx_import/onnx.hpp
 [onnx_model_zoo]: https://github.com/onnx/models

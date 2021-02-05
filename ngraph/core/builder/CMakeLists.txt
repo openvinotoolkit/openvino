@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ set(TARGET_NAME "ngraph_builders")
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-set(BUILDER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ CACHE INTERNAL "")
+set(BUILDER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -38,14 +38,12 @@ if(COMMAND ie_faster_build)
 endif()
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(${TARGET_NAME} PUBLIC ${BUILDER_INCLUDE_DIR})
-target_include_directories(${TARGET_NAME} PRIVATE ${NGRAPH_INCLUDE_PATH}
-                                                  ${BUILDER_INCLUDE_DIR}/ngraph/
-                                                  ${BUILDER_INCLUDE_DIR}/ngraph/builder)
+target_include_directories(${TARGET_NAME} PUBLIC ${BUILDER_INCLUDE_DIR}
+                                          PRIVATE ${NGRAPH_INCLUDE_PATH})
 
-#Add an alias so that library can be used inside the build tree, e.g. when testing
+# Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::builder ALIAS ${TARGET_NAME})
 
 # developer package
 
-openvino_developer_export_targets(ngraph::builder)
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph::builder)

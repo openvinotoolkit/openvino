@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@
 //*****************************************************************************
 
 #include "ngraph/op/assign.hpp"
-#include <ops.hpp>
+#include "itt.hpp"
 #include "ngraph/op/read_value.hpp"
+#include "ngraph/ops.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -32,6 +33,7 @@ op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variabl
 
 void op::v3::Assign::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_Assign_validate_and_infer_types);
     auto value = input_value(0);
     auto arg_t = get_input_element_type(0);
     auto output_shape = get_input_partial_shape(0);
@@ -78,12 +80,14 @@ void op::v3::Assign::validate_and_infer_types()
 
 shared_ptr<Node> op::v3::Assign::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_Assign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Assign>(new_args.at(0), m_variable_id);
 }
 
 bool op::v3::Assign::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_Assign_visit_attributes);
     visitor.on_attribute("variable_id", m_variable_id);
     return true;
 }

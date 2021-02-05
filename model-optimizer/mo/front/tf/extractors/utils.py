@@ -72,7 +72,17 @@ def tf_tensor_content(tf_dtype, shape, pb_tensor):
         value = np.array(np.frombuffer(pb_tensor.tensor_content, type_helper[0]))
     else:
         # load typed value
-        value = np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
+        if type_helper[0] != np.str:
+            value = np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
+        else:
+            try:
+                value = np.array(type_helper[1](pb_tensor), dtype=type_helper[0])
+            except UnicodeDecodeError:
+                log.error(
+                    'Failed to parse a tensor with Unicode characters. Note that Inference Engine does not support '
+                    'string literals, so the string constant should be eliminated from the graph.',
+                    extra={'is_warning': True})
+                value = np.array(type_helper[1](pb_tensor))
 
     if len(shape) == 0 or shape.prod() == 0:
         if len(value) == 1:

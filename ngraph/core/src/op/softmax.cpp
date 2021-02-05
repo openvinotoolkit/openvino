@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,23 +35,29 @@ using namespace ngraph;
 namespace
 {
     template <element::Type_t ET>
-    inline bool try_evaluate_softmax(const HostTensorPtr& arg,
-                                     const HostTensorPtr& out,
-                                     const Shape& shape,
-                                     const AxisSet& axes)
+    inline bool evaluate(const HostTensorPtr& arg,
+                         const HostTensorPtr& out,
+                         const Shape& shape,
+                         const AxisSet& axes)
     {
-        return (ET == arg->get_element_type()) &&
-               (runtime::reference::softmax(
-                    arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape, axes),
-                true);
+        runtime::reference::softmax(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape, axes);
+        return true;
     }
 
     bool evaluate_softmax(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
     {
         auto shape = out->get_shape();
-        return try_evaluate_softmax<element::Type_t::f16>(arg, out, shape, axes) ||
-               try_evaluate_softmax<element::Type_t::f32>(arg, out, shape, axes) ||
-               try_evaluate_softmax<element::Type_t::f64>(arg, out, shape, axes);
+        bool rc = true;
+
+        switch (arg->get_element_type())
+        {
+            NGRAPH_TYPE_CASE(evaluate_softmax, bf16, arg, out, shape, axes);
+            NGRAPH_TYPE_CASE(evaluate_softmax, f16, arg, out, shape, axes);
+            NGRAPH_TYPE_CASE(evaluate_softmax, f32, arg, out, shape, axes);
+            NGRAPH_TYPE_CASE(evaluate_softmax, f64, arg, out, shape, axes);
+        default: rc = false; break;
+        }
+        return rc;
     }
 }
 
@@ -67,12 +73,14 @@ op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis)
 
 bool ngraph::op::v1::Softmax::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Softmax_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
 void op::v1::Softmax::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Softmax_validate_and_infer_types);
     const PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
@@ -88,6 +96,7 @@ void op::v1::Softmax::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Softmax_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Softmax>(new_args.at(0), m_axis);
 }
@@ -95,7 +104,7 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Softmax::evaluate");
+    NGRAPH_OP_SCOPE(v1_Softmax_evaluate);
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
 }

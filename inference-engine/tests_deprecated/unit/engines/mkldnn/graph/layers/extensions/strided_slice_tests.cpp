@@ -349,33 +349,39 @@ protected:
 
             // Input Begin
             InferenceEngine::Blob::Ptr beginIdx;
-            InferenceEngine::SizeVector begin_dim(1, p.begin.size());
+            InferenceEngine::SizeVector begin_dim(1, p.dim_size);
             beginIdx = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, begin_dim, InferenceEngine::TensorDesc::getLayoutByDims(begin_dim) });
             beginIdx->allocate();
             if (p.begin.size())
                 memcpy(static_cast<int32_t*>(beginIdx->buffer()), &p.begin[0], sizeof(int32_t)*p.begin.size());
+            else
+                memset(static_cast<int32_t*>(beginIdx->buffer()), 0, sizeof(int32_t)*p.begin.size());
             auto * beginIdxPtr = dynamic_cast<InferenceEngine::TBlob<int>*>(beginIdx.get());
             if (beginIdxPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<int32_t>.";
 
             // Input End
             InferenceEngine::Blob::Ptr endIdx;
-            InferenceEngine::SizeVector end_dim(1, p.end.size());
+            InferenceEngine::SizeVector end_dim(1, p.dim_size);
             endIdx = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, end_dim, InferenceEngine::TensorDesc::getLayoutByDims(end_dim) });
             endIdx->allocate();
             if (p.end.size())
                 memcpy(static_cast<int32_t*>(endIdx->buffer()), &p.end[0], sizeof(int32_t)*p.end.size());
+            else
+                memset(static_cast<int32_t*>(endIdx->buffer()), 0, sizeof(int32_t)*p.end.size());
             auto * endIdxPtr = dynamic_cast<InferenceEngine::TBlob<int32_t>*>(endIdx.get());
             if (endIdxPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<int32_t>.";
 
             // Input Stride
             InferenceEngine::Blob::Ptr stridesIdx;
-            InferenceEngine::SizeVector strides_dim(1, p.stride.size());
+            InferenceEngine::SizeVector strides_dim(1, p.dim_size);
             stridesIdx = InferenceEngine::make_shared_blob<int32_t>({ InferenceEngine::Precision::I32, strides_dim, InferenceEngine::TensorDesc::getLayoutByDims(strides_dim) });
             stridesIdx->allocate();
             if (p.stride.size())
                 memcpy(static_cast<int32_t*>(stridesIdx->buffer()), &p.stride[0], sizeof(int32_t)*p.stride.size());
+            else
+                memset(static_cast<int32_t*>(stridesIdx->buffer()), 0, sizeof(int32_t)*p.stride.size());
             auto * stridesIdxPtr = dynamic_cast<InferenceEngine::TBlob<int32_t>*>(stridesIdx.get());
             if (stridesIdxPtr == nullptr)
                 FAIL() << "Cannot cast blob to TBlob<int32_t>.";
@@ -451,7 +457,7 @@ std::vector<float> test20 = { 4.f, 5.f, 6.f, 7.f };
 21. [[[0,1,2],[3,4,5]]], shape=[1,1,2]
 */
 
-TEST_P(MKLDNNCPUExtStridedSliceTests, TestsStridedSlice) {}
+TEST_P(MKLDNNCPUExtStridedSliceTests, DISABLED_TestsStridedSlice) {}
 INSTANTIATE_TEST_CASE_P(
     TestsStridedSlice, MKLDNNCPUExtStridedSliceTests,
             ::testing::Values(

@@ -75,9 +75,9 @@ protected:
     Strides m_dilations;
     CoordinateDiff m_pads_begin;
     CoordinateDiff m_pads_end;
-    CoordinateDiff m_output_padding;
     PadType m_auto_pad;
     size_t m_group;
+    CoordinateDiff m_output_padding;
     std::shared_ptr<Node> m_output_shape;
 };
 

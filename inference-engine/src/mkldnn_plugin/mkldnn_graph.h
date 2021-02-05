@@ -16,9 +16,10 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <atomic>
 
 namespace MKLDNNPlugin {
-
+class MKLDNNInferRequest;
 class MKLDNNGraph {
 public:
     typedef std::shared_ptr<MKLDNNGraph> Ptr;
@@ -29,7 +30,7 @@ public:
         Ready = 1,
     };
 
-    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)) {}
+    MKLDNNGraph(mkldnn::engine eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0)) : status(NotReady), eng(eng) {}
 
     Status GetStatus() {
         return status;
@@ -58,7 +59,7 @@ public:
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
     void PullOutputData(InferenceEngine::BlobMap &out);
 
-    void Infer(int batch = -1);
+    void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
 
     std::vector<MKLDNNNodePtr>& GetNodes() {
         return graphNodes;
@@ -109,10 +110,10 @@ public:
      * optimization flag; if isOptimized is true then Reorder node does nothing
      * @param scales
      * pointer to the blob containing scales
-     * @return none.
+     * @return pointer to the new Reorder node.
      */
-    void InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc, const InferenceEngine::TensorDesc& outDesc,
-                       bool isOptimized = false, InferenceEngine::Blob::Ptr scales = nullptr);
+    MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc,
+            const InferenceEngine::TensorDesc& outDesc, bool isOptimized = false, InferenceEngine::Blob::Ptr scales = nullptr);
 
     InferenceEngine::CNNNetwork dump() const;
 
@@ -157,7 +158,7 @@ protected:
 
     mkldnn::engine eng;
 
-    void Replicate(const InferenceEngine::ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
     void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();

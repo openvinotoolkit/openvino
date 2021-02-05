@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,17 +33,20 @@ op::v4::SoftPlus::SoftPlus(const Output<Node>& arg)
 
 bool op::v4::SoftPlus::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v4_SoftPlus_visit_attributes);
     return true;
 }
 
 void op::v4::SoftPlus::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v4_SoftPlus_validate_and_infer_types);
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
 shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_SoftPlus_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v4::SoftPlus>(new_args.at(0));
 }
@@ -65,12 +68,9 @@ namespace softplus
 
         switch (arg->get_element_type())
         {
-            TYPE_CASE(bf16)(arg, out, count);
-            break;
-            TYPE_CASE(f16)(arg, out, count);
-            break;
-            TYPE_CASE(f32)(arg, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_softplus, bf16, arg, out, count);
+            NGRAPH_TYPE_CASE(evaluate_softplus, f16, arg, out, count);
+            NGRAPH_TYPE_CASE(evaluate_softplus, f32, arg, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -80,6 +80,6 @@ namespace softplus
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::SoftPlus::evaluate");
+    NGRAPH_OP_SCOPE(v4_SoftPlus_evaluate);
     return softplus::evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

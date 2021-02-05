@@ -179,8 +179,7 @@ MVNKernel_b_fs_yx_fsv16_imad::MultiDispatchData MVNKernel_b_fs_yx_fsv16_imad::Se
 }
 
 KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_params& params,
-                                                                   const optional_params& options,
-                                                                   float estimated_time) const {
+                                                                   const optional_params& options) const {
     if (!Validate(params, options))
         return {};
 
@@ -313,7 +312,6 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetMultiStageKernelsData(const mvn_par
         }
     }
     kd.internalBufferDataType = Datatype::F32;
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }
@@ -331,8 +329,12 @@ KernelsData MVNKernel_b_fs_yx_fsv16_imad::GetKernelsData(const Params& params, c
     auto enough_items = items_num >= max_lws / simd * simd * pref_work_groups;
 
     if (enough_slm && enough_lws && enough_items)
-        return GetMultiStageKernelsData(orgParams, optParams, FORCE_PRIORITY_4);
+        return GetMultiStageKernelsData(orgParams, optParams);
     else
-        return GetCommonKernelsData(params, optParams, FORCE_PRIORITY_4);
+        return GetCommonKernelsData(params, optParams);
+}
+
+KernelsPriority MVNKernel_b_fs_yx_fsv16_imad::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_4;
 }
 }  // namespace kernel_selector

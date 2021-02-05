@@ -5,7 +5,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "gna/gna_config.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     std::vector<InferenceEngine::Precision> netPrecisions = { InferenceEngine::Precision::FP32,

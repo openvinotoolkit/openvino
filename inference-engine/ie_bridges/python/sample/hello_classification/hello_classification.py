@@ -75,7 +75,7 @@ def main():
     for i in range(n):
         image = cv2.imread(args.input)
         if image.shape[:-1] != (h, w):
-            log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
+            log.warning(f"Image {args.input} is resized from {image.shape[:-1]} to {(h, w)}")
             image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
@@ -91,7 +91,7 @@ def main():
     # Processing output blob
     log.info("Processing output blob")
     res = res[out_blob]
-    log.info("Top {} results: ".format(args.number_top))
+    log.info(f"Top {args.number_top} results: ")
     if args.labels:
         with open(args.labels, 'r') as f:
             labels_map = [x.split(sep=' ', maxsplit=1)[-1].strip() for x in f]
@@ -102,18 +102,16 @@ def main():
     for i, probs in enumerate(res):
         probs = np.squeeze(probs)
         top_ind = np.argsort(probs)[-args.number_top:][::-1]
-        print("Image {}\n".format(args.input[i]))
+        print(f"Image {args.input}\n")
         print(classid_str, probability_str)
-        print("{} {}".format('-' * len(classid_str), '-' * len(probability_str)))
+        print(f"{'-' * len(classid_str)} {'-' * len(probability_str)}")
         for id in top_ind:
-            det_label = labels_map[id] if labels_map else "{}".format(id)
+            det_label = labels_map[id] if labels_map else f"{id}"
             label_length = len(det_label)
             space_num_before = (len(classid_str) - label_length) // 2
             space_num_after = len(classid_str) - (space_num_before + label_length) + 2
-            space_num_before_prob = (len(probability_str) - len(str(probs[id]))) // 2
-            print("{}{}{}{}{:.7f}".format(' ' * space_num_before, det_label,
-                                          ' ' * space_num_after, ' ' * space_num_before_prob,
-                                          probs[id]))
+            print(f"{' ' * space_num_before}{det_label}"
+                  f"{' ' * space_num_after}{probs[id]:.7f}")
         print("\n")
     log.info("This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n")
 

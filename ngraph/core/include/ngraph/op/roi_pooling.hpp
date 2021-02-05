@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ namespace ngraph
                 ROIPooling() = default;
                 /// \brief Constructs a ROIPooling operation
                 ///
-                /// \param input          Input feature map {N, C, ...}
+                /// \param input          Input feature map {N, C, H, W}
                 /// \param coords         Coordinates of bounding boxes
                 /// \param output_size    Height/Width of ROI output features
                 /// \param spatial_scale  Ratio of input feature map over input image size
@@ -41,7 +41,7 @@ namespace ngraph
                            const Output<Node>& coords,
                            const Shape& output_size,
                            const float spatial_scale,
-                           const std::string& method);
+                           const std::string& method = "max");
 
                 void validate_and_infer_types() override;
 
@@ -54,11 +54,14 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
             private:
-                Shape m_output_size;
+                Shape m_output_size{0, 0};
                 float m_spatial_scale;
-                std::string m_method;
+                std::string m_method = "max";
             };
-        }
+
+        } // namespace v0
         using v0::ROIPooling;
-    }
-}
+
+    } // namespace op
+
+} // namespace ngraph

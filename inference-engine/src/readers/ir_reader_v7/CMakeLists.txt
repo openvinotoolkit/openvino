@@ -14,9 +14,9 @@ list(APPEND LIBRARY_SRC ${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader/ie_ir_reader
 
 source_group("src" FILES ${LIBRARY_SRC})
 
-# Create shared library
+# Create module library
 
-add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC})
+add_library(${TARGET_NAME} MODULE ${LIBRARY_SRC})
 
 ie_faster_build(${TARGET_NAME}
     UNITY
@@ -37,6 +37,10 @@ target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api inferen
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+if(WIN32)
+    set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
+endif()
 
 # code style
 

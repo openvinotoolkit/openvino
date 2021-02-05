@@ -1,4 +1,4 @@
-# Add Custom nGraph Operations {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
+# Custom nGraph Operation {#openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps}
 
 Inference Engine Extension API allows to register operation sets (opsets) with custom nGraph operations, it allows to support Networks with unknown operations.
 
@@ -20,7 +20,7 @@ To add your custom nGraph operation, create a new class that extends `ngraph::Op
 
 Based on that, declaration of a operation class can look as follows:
 
-@snippet op.hpp op:header
+@snippet template_extension/op.hpp op:header
 
 ### Class Fields
 
@@ -33,37 +33,37 @@ The provided implementation has several fields:
 
 nGraph operation contains two constructors: a default constructor, which allows to create operation without attributes and a constructor that creates and validates operation with specified inputs and attributes.
 
-@snippet op.cpp op:ctor
+@snippet template_extension/op.cpp op:ctor
 
 ### `validate_and_infer_types()`
 
 `ngraph::Node::validate_and_infer_types` method validates operation attributes and calculates output shapes using attributes of operation.
 
-@snippet op.cpp op:validate
+@snippet template_extension/op.cpp op:validate
 
 ### `clone_with_new_inputs()`
 
 `ngraph::Node::clone_with_new_inputs` method creates a copy of nGraph operation with new inputs.
 
-@snippet op.cpp op:copy
+@snippet template_extension/op.cpp op:copy
 
 ### `visit_attributes()`
 
 `ngraph::Node::visit_attributes` method allows to visit all operation attributes.
 
-@snippet op.cpp op:visit_attributes
+@snippet template_extension/op.cpp op:visit_attributes
 
 ### `evaluate()`
 
 `ngraph::Node::evaluate` method allows to apply constant folding to an operation.
 
-@snippet op.cpp op:evaluate
+@snippet template_extension/op.cpp op:evaluate
 
 ## Register Custom Operations in Extension Class
 
 To add custom operations to the [Extension](Extension.md) class, create an operation set with custom operations and implement the `InferenceEngine::IExtension::getOpSets` method:
 
-@snippet extension.cpp extension:getOpSets
+@snippet template_extension/extension.cpp extension:getOpSets
 
 This method returns a map of opsets that exist in the extension library.
 
@@ -71,10 +71,9 @@ nGraph provides opsets mechanism for operation versioning. Different opsets dist
 
 When specifying opset names, follow the rules below:
 * Use unique opset names.
-* Do not use the following built-in opset names: `extension`, `experimental`, `opset1`, `opest2`.
+* Do not use the following built-in opset names: `extension`, `experimental`, `opset1`, `opset2`, `opset3`, ... , `opsetN`.
 * Make sure that the Model Optimizer and your extension use the same opset names.
-* IR v10 layers have the mandatory `version` attribute  specifying the opset. 
-* `opset1` is the name of default operations set.
+* IR v10 operations have the mandatory `version` attribute specifying the opset.
 Operations from the default opset cannot be redefined.
 
 Use a custom opset to create a new operation or extend functionality of an existing operation from another opset.

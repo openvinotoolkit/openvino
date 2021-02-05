@@ -107,6 +107,7 @@ InferenceEngine::Blob::Ptr make_blob_with_precision(InferenceEngine::Precision p
 
     switch (precision) {
         USE_FACTORY(FP32);
+        USE_FACTORY(FP64);
         USE_FACTORY(FP16);
         USE_FACTORY(Q78);
         USE_FACTORY(I8);

@@ -56,10 +56,10 @@
 
   * **Description**: *antialias* is a flag that specifies whether to perform anti-aliasing.
   * **Range of values**:
-    * False - do not perform anti-aliasing
-    * True - perform anti-aliasing
+    * false - do not perform anti-aliasing
+    * true - perform anti-aliasing
   * **Type**: boolean
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *pads_begin*
@@ -80,7 +80,7 @@
 
 * *cube_coeff*
 
-* **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g.  [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is used only when `mode == cubic`.
+  * **Description**: *cube_coeff* specifies the parameter *a* for cubic interpolation (see, e.g.  [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is used only when `mode == cubic`.
   * **Range of values**: floating point number
   * **Type**: any of supported floating point type
   * **Default value**: `-0.75`

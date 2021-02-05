@@ -2,19 +2,22 @@
 
 Inference Engine Extensibility API allows to add support of custom operations to the Inference Engine.
 Extension should contain operation sets with custom operations and execution kernels for custom operations.
-Physically, an extension library can be represented as a dynamic library exporting the single `CreateExtension` function that allows to create a new extension instance.
+Physically, an extension library can be represented as a dynamic library exporting the single `CreateExtension` function
+that allows to create a new extension instance.
 
-Extensibility library can be loaded to the InferenceEngine::Core object using the InferenceEngine::Core::AddExtension method.
+Extensibility library can be loaded to the `InferenceEngine::Core` object using the
+`InferenceEngine::Core::AddExtension` method.
 
 ## Inference Engine Extension Library
 
-Inference Engine Extension dynamic library contains several main components:
+Inference Engine Extension dynamic library contains several components:
 
- * [Extension class](Extension.md):
+ * [Extension Library](Extension.md):
     - Contains custom operation sets
     - Provides CPU implementations for custom operations
- * [Custom operations](Intro.md):
-    - Allows to use InferenceEngine::Core::ReadNetwork to read Intermediate Representation (IR) with unsupported operations 
+ * [Custom nGraph Operation](AddingNGraphOps.md):
+    - Allows to use `InferenceEngine::Core::ReadNetwork` to read Intermediate Representation (IR) with unsupported
+    operations
     - Allows to create `ngraph::Function` with unsupported operations
     - Provides shape inference mechanism for custom operations
 
@@ -26,13 +29,13 @@ at `<dldt source tree>/docs/template_extension`.
 
 The Inference Engine workflow involves the creation of custom kernels and either custom or existing operations.
 
-An _Operation_ is a Network building block implemented in the training framework, for example, `Convolution` in Caffe*.
+An _Operation_ is a network building block implemented in the training framework, for example, `Convolution` in Caffe*.
 A _Kernel_ is defined as the corresponding implementation in the Inference Engine.
 
-Refer to the [Custom Layers in the Model Optimizer](../../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) section for details on how
-mapping between framework layers and Inference Engine kernels is registered.
+Refer to the [Model Optimizer Extensibility](../../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md)
+for details on how a mapping between framework operations and Inference Engine kernels is registered.
 
-In short, you can plug your own kernel implementations into the Inference Engine and map them to the layers in the original framework.
+In short, you can plug your own kernel implementations into the Inference Engine and map them to the operations in the original framework.
 
 The following pages describe how to integrate custom _kernels_ into the Inference Engine:
 

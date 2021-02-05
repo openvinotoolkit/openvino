@@ -4,6 +4,12 @@ This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learn
 
 > **NOTE:** This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../tools/benchmark_tool/README.md).
 
+> **TIP**: You also can work with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare 
+> performance of deep learning models on various Intel® architecture
+> configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components.
+> <br>
+> Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
 
 ## How It Works
 
@@ -43,6 +49,7 @@ The application also saves executable graph information serialized to an XML fil
 
 
 ## Run the Tool
+
 Note that the benchmark_app usually produces optimal performance for any device out of the box.
 
 **So in most cases you don't need to play the app options explicitly and the plain device name is enough**, for example, for CPU:
@@ -87,11 +94,13 @@ Options:
     -shape                    Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
 
   CPU-specific performance options:
-    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU or/and GPU in throughput mode
+    -nstreams "<integer>"     Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices
                               (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
                               Default value is determined automatically for a device. 
                               Please note that although the automatic selection usually provides a reasonable performance, 
                               it still may be non-optimal for some cases, especially for very small networks.
+                              Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency 
+                              estimations the number of streams should be set to 1.
     -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
     -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision on platforms with native bfloat16 support. By default, this key sets "true" on platforms with native bfloat16 support and "false" for other platforms. Use "-enforcebf16=false" to disable this feature.
     -pin "YES"/"NO"/"NUMA"    Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
@@ -113,7 +122,7 @@ If a model has only image input(s), please provide a folder with images or a pat
 If a model has some specific input(s) (not images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to them as input.
 If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-To run the tool, you can use public or Intel's pre-trained models. To download the models, use the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the tool, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
 
 > **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 > 

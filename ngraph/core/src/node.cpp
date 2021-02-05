@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <memory>
+#include <ngraph/validation_util.hpp>
 #include <sstream>
 #include <typeindex>
 #include <typeinfo>
@@ -143,6 +144,10 @@ std::shared_ptr<Node>
     {
         clone->add_control_dependency(cdep);
     }
+    for (size_t i = 0; i < get_output_size(); i++)
+    {
+        clone->get_output_tensor(i).set_names(get_output_tensor(i).get_names());
+    }
     return clone;
 }
 
@@ -240,6 +245,12 @@ void Node::set_output_size(size_t n)
         // create the descriptors
         get_output_descriptor(i);
     }
+}
+
+void Node::invalidate_values()
+{
+    for (const auto& output : outputs())
+        output.get_tensor().invalidate_values();
 }
 
 void Node::validate_and_infer_types()
@@ -658,13 +669,6 @@ descriptor::Tensor& Node::get_input_tensor(size_t i) const
     return input.get_tensor();
 }
 
-const string& Node::get_output_tensor_name(size_t i) const
-{
-    NGRAPH_CHECK(
-        i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
-    return m_outputs[i].get_tensor().get_name();
-}
-
 size_t Node::get_input_size() const
 {
     return m_inputs.size();
@@ -690,12 +694,21 @@ const PartialShape& Node::get_input_partial_shape(size_t i) const
     return m_inputs[i].get_partial_shape();
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 const string& Node::get_input_tensor_name(size_t i) const
 {
     NGRAPH_CHECK(
         i < m_inputs.size(), "index '", i, "' out of range in get_input_tensor_name(size_t i)");
     return m_inputs[i].get_tensor().get_name();
 }
+
+const string& Node::get_output_tensor_name(size_t i) const
+{
+    NGRAPH_CHECK(
+        i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
+    return m_outputs[i].get_tensor().get_name();
+}
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 bool Node::has_same_type(std::shared_ptr<const Node> node) const
 {
@@ -950,6 +963,28 @@ bool Node::evaluate(const HostTensorVector& output_values,
     return false;
 }
 
+bool Node::evaluate_lower(const HostTensorVector& output_values) const
+{
+    const auto& inputs = input_values();
+    bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
+        return !output.get_tensor().has_and_set_bound();
+    });
+    if (dyn_inputs)
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool Node::evaluate_upper(const HostTensorVector& output_values) const
+{
+    const auto& inputs = input_values();
+    bool dyn_inputs = std::any_of(inputs.begin(), inputs.end(), [](const Output<Node>& output) {
+        return !output.get_tensor().has_and_set_bound();
+    });
+    if (dyn_inputs)
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
+}
+
 bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Node::constant_fold");
@@ -960,22 +995,23 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
     }
 
     // If all the inputs are constants, try to evaluate the outputs
+    bool all_constants =
+        std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
+            return as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr());
+        });
+    if (!all_constants)
+        return false;
+
     HostTensorVector input_tensors;
-    for (auto input : input_values)
+    for (const auto& input : input_values)
     {
-        if (auto constant = as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr()))
-        {
-            auto host_tensor = make_shared<runtime::HostTensor>(constant);
-            input_tensors.push_back(host_tensor);
-        }
-        else
-        {
-            return false;
-        }
+        auto host_tensor = make_shared<runtime::HostTensor>(
+            as_type_ptr<op::v0::Constant>(input.get_node_shared_ptr()));
+        input_tensors.push_back(host_tensor);
     }
     HostTensorVector output_tensors;
     OutputVector output_constants;
-    for (auto output : outputs())
+    for (const auto& output : outputs())
     {
         auto tensor =
             make_shared<HostTensor>(output.get_element_type(), output.get_partial_shape());

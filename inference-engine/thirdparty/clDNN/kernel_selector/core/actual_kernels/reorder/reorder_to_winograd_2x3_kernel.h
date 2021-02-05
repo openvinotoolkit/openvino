@@ -23,6 +23,7 @@ public:
     ReorderToWinograd2x3Kernel() : ReorderKernelBase("reorder_to_winograd_2x3_s1") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     JitConstants GetJitConstants(const reorder_params& params) const override;
     DispatchData SetDefault(const reorder_params& arg) const override;
