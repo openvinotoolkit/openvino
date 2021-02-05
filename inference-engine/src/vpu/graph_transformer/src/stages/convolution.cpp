@@ -377,7 +377,7 @@ void parseConvND(const Model      & model,
     VPU_THROW_UNLESS(output_channels > 0, "invalid number of output channels: %d", output_channels);
 
     int groups = convLayer->_group;
-    VPU_THROW_UNLESS(groups > 0, "number of groups=%d, but grouped 3D convolution is not supported", groups);
+    VPU_THROW_UNLESS(groups == 1, "number of groups=%d, but grouped 3D convolution is not supported", groups);
 
     int inputNDims = input->desc().numDims();
     int outputNDims = output->desc().numDims();
