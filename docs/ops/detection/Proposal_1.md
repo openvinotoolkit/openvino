@@ -19,7 +19,7 @@
 5.  Takes top *pre_nms_topn* proposals
 6.  Calculates intersections for boxes and filter out all boxes with \f$intersection/union > nms\_thresh\f$
 7.  Takes top *post_nms_topn* proposals
-8.  Returns top proposals, if there is not enoguh proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
+8.  Returns top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
 
 **Attributes**:
 
