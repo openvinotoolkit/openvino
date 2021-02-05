@@ -86,8 +86,7 @@ std::string name(const Node& n) {
     return n->get_friendly_name();
 }
 
-template <typename Tensor>
-std::string tensor_names(const Tensor& t) {
+std::string tensor_names(const ngraph::descriptor::Tensor& t) {
     std::string n;
     const char* glue = "";
     for (const auto& name : t.get_names()) {
