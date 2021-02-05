@@ -85,13 +85,12 @@ namespace BehaviorTestsDefinitions {
             std::shared_ptr<ngraph::Function> function) {
         InferenceEngine::CNNNetwork cnnNet(function);
         InferenceEngine::Core core;
-        std::string blobFileName { "compiled_blob.blob" };
+        std::stringstream stream;
         {
             auto exe_net = core.LoadNetwork(cnnNet, deviceName);
-            std::ofstream file(blobFileName, std::ios::binary);
-            exe_net.Export(file);
+            exe_net.Export(stream);
         }
-        auto exe_net = core.ImportNetwork(blobFileName, deviceName);
+        auto exe_net = core.ImportNetwork(stream, deviceName);
         auto request = exe_net.CreateInferRequest();
 
         auto release = [&](int i) {
@@ -112,8 +111,6 @@ namespace BehaviorTestsDefinitions {
 
         for (auto i : order)
             release(i);
-
-        std::remove(blobFileName.c_str());
     }
 
     TEST_P(HoldersTest, Orders) {
@@ -146,17 +143,13 @@ namespace BehaviorTestsDefinitions {
     TEST_P(HoldersTestOnImportedNetwork, CreateRequestWithCoreRemoved) {
         InferenceEngine::CNNNetwork cnnNet(function);
         InferenceEngine::Core core;
-        std::string blobFileName { "compiled_blob.blob" };
+        std::stringstream stream;
         {
             auto exe_net = core.LoadNetwork(cnnNet, targetDevice);
-            std::ofstream file(blobFileName, std::ios::binary);
-            exe_net.Export(file);
+            exe_net.Export(stream);
         }
-        std::ifstream file(blobFileName, std::ios::binary);
-        auto exe_net = core.ImportNetwork(file, targetDevice);
+        auto exe_net = core.ImportNetwork(stream, targetDevice);
         core = InferenceEngine::Core{};
         auto request = exe_net.CreateInferRequest();
-
-        std::remove(blobFileName.c_str());
     }
 }  // namespace BehaviorTestsDefinitions
