@@ -46,9 +46,9 @@
  *    additional information to std output.
  *
  *****************************************************/
-// #define BLOB_DUMP_PATH "mkldnn_dump"
+ #define BLOB_DUMP_PATH "/localdisk/tmp/dumps/gather"
 // #define PRINT_GRAPH_INFO
-// #define DUMP_AS_TEXT
+ #define DUMP_AS_TEXT
 // #define DUMP_INTERNAL_BLOBS
 
 #ifdef BLOB_DUMP_PATH
@@ -1146,6 +1146,10 @@ void MKLDNNGraph::dumpToDotFile(std::string file) const {
 }
 
 void MKLDNNGraph::do_before(const std::string &dir, const MKLDNNNodePtr &node) {
+//if (node->name.find("Gather_207248") == std::string::npos
+//        && node->name.find("Gather_217290") == std::string::npos) {
+//    return;
+//}
     auto exec_order = std::to_string(node->execIndex);
     std::string nodeName = node->name;
     std::replace(nodeName.begin(), nodeName.end(), '\\', '_');
@@ -1197,6 +1201,10 @@ void MKLDNNGraph::do_before(const std::string &dir, const MKLDNNNodePtr &node) {
 }
 
 void MKLDNNGraph::do_after(const std::string &dir, const MKLDNNNodePtr &node) {
+//if (node->name.find("Gather_207248") == std::string::npos
+//        && node->name.find("Gather_217290") == std::string::npos) {
+//    return;
+//}
     auto exec_order = std::to_string(node->execIndex);
     auto nodeName = node->name;
     std::replace(nodeName.begin(), nodeName.end(), '\\', '_');

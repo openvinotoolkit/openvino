@@ -57,9 +57,9 @@ protected:
         auto ngIPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iPrecision);
 
         auto params = ngraph::builder::makeParams(ngDPrc, {dataShape});
-        auto activation = ngraph::builder::makeGatherElements(params[0], indicesShape, ngIPrc, axis);
-        activation->get_rt_info() = getCPUInfo();
-        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "GatherElements");
+        auto gatherNode = ngraph::builder::makeGatherElements(params[0], indicesShape, ngIPrc, axis);
+        gatherNode->get_rt_info() = getCPUInfo();
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gatherNode}, params, "GatherElements");
     }
 };
 
