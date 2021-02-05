@@ -1673,10 +1673,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"PowerIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
                                        const std::map<std::string, std::string> &params) -> CNNLayerPtr {
-    LayerParams attrs = {node->get_friendly_name(), "Power", details::convertPrecision(node->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::PowerLayer>(attrs);
-    res->params = params;
-    return res;
+        LayerParams attrs = {node->get_friendly_name(), "Power", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::PowerLayer>(attrs);
+
+        auto castedLayer = ngraph::as_type_ptr<ngraph::op::PowerIE>(node);
+        if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+        res->params = params;
+        // This is needed as scale parameter requires high precision
+        res->params["scale"] = Builder::asString(castedLayer->scale);
+        return res;
     });
 }
 
