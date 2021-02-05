@@ -95,7 +95,8 @@ namespace ngraph
                 /// \brief Constructs a ReadValue operation.
                 ///
                 /// \param init_value Node that produces the input tensor.
-                /// \param variable Class for storing and synchronizing element types, shapes and identifiers
+                /// \param variable Class for storing and synchronizing element types, shapes and
+                /// identifiers
                 /// between pairs of Assign/ReadValue nodes.
                 ReadValue(const Output<Node>& init_value,
                           const std::shared_ptr<Variable>& variable);

@@ -89,7 +89,8 @@ namespace ngraph
                 /// \brief Constructs an Assign operation.
                 ///
                 /// \param new_value Node that produces the input tensor.
-                /// \param variable Class for storing and synchronizing element types, shapes and identifiers
+                /// \param variable Class for storing and synchronizing element types, shapes and
+                /// identifiers
                 /// between pairs of Assign/ReadValue nodes.
                 Assign(const Output<Node>& new_value, const std::shared_ptr<Variable>& variable);
 
