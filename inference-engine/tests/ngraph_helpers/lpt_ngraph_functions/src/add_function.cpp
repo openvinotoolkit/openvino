@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
             broadcast ? ngraph::Shape({ inputShape[0], inputShape[1], 1, 1 }) : ngraph::Shape(inputShape));
     }
 
-    const auto dequantizationOp1 = is_type<ngraph::opset1::Constant>(input1) ? input1 : makeDequantization(input1, dequantization1);
+    const auto dequantizationOp1 = dequantization1.empty() ? input1 : makeDequantization(input1, dequantization1);
 
     std::shared_ptr<ngraph::Node> input2;
     if (constInput == 1) {
@@ -85,11 +85,11 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
             parent,
             std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{ 1, 1, 1, 1 }, std::vector<float>{1.f}));
         parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
-                parent,
-                ngraph::element::f32,
-                {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
+            parent,
+            ngraph::element::f32,
+            FakeQuantizeOnData{256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
     }
-    const auto dequantizationOp2 = is_type<ngraph::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantization2);
+    const auto dequantizationOp2 = dequantization2.empty() ? parent : makeDequantization(parent, dequantization2);
 
     const auto add = std::make_shared<ngraph::opset1::Add>(dequantizationOp1, dequantizationOp2);
     add->set_friendly_name("output");
@@ -218,9 +218,9 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
             parent,
             std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{ 1, 1, 1, 1 }, std::vector<float>{1.f}));
         parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
-                parent,
-                ngraph::element::f32,
-                {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
+            parent,
+            ngraph::element::f32,
+            FakeQuantizeOnData{256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
     }
     const auto dequantizationOp2 = is_type<ngraph::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantization2);
 

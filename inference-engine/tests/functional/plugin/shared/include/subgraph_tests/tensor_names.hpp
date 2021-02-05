@@ -115,7 +115,7 @@ TEST_P(TensorNamesTest, CheckAddOutput) {
 
     // Check that relu_prev doesn't exist in output and input maps
     ASSERT_THROW(cnnNetwork.getOVNameForOperation("relu_prev"), InferenceEngine::NotFound);
-    for (const std::string& tensor_name : {"relu_prev_t", "identity_prev_t"}) {
+    for (const std::string& tensor_name : {"relu,prev_t", "identity_prev_t"}) {
         ASSERT_THROW(cnnNetwork.getOVNameForOperation(tensor_name), InferenceEngine::NotFound);
     }
 
@@ -137,11 +137,11 @@ TEST_P(TensorNamesTest, CheckAddOutput) {
 
     // Check that relu_prev exists in output map
     ASSERT_FALSE(inNames.count(cnnNetwork.getOVNameForOperation("relu_prev")));
-    for (const std::string& tensor_name : {"relu_prev_t", "identity_prev_t"}) {
+    for (const std::string& tensor_name : {"relu,prev_t", "identity_prev_t"}) {
         ASSERT_FALSE(inNames.count(cnnNetwork.getOVNameForTensor(tensor_name)));
     }
     ASSERT_TRUE(outNames.count(cnnNetwork.getOVNameForOperation("relu_prev")));
-    for (const std::string& tensor_name : {"relu_prev_t", "identity_prev_t"}) {
+    for (const std::string& tensor_name : {"relu,prev_t", "identity_prev_t"}) {
         ASSERT_TRUE(outNames.count(cnnNetwork.getOVNameForTensor(tensor_name)));
     }
 
