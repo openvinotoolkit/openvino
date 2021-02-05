@@ -643,7 +643,6 @@ namespace ngraph
                 int64_t output_data_ptr_increment = info.output_data_ptr_increment;
 
                 auto& input_spatial_shape = info.input_spatial_shape;
-                auto& output_spatial_shape = info.output_spatial_shape;
 
                 auto& spatial_axes_indices = info.spatial_axes_indices;
 
