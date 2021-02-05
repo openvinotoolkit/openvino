@@ -60,11 +60,11 @@ NGRAPH_TEST(${BACKEND_NAME}, binary_convolution_2D_1batch_1channel)
                                    0, 0};
 
     
-    const op::PadType auto_pad{op::PadType::VALID};
+    const op::PadType auto_pad{op::PadType::EXPLICIT};
     float pad_value = 0;
 
-    auto inputs_param = make_shared<op::Parameter>(element::boolean, inputs_shape);
-    auto filters_param = make_shared<op::Parameter>(element::boolean, filter_shape);
+    auto inputs_param = make_shared<op::Parameter>(element::u1, inputs_shape);
+    auto filters_param = make_shared<op::Parameter>(element::u1, filter_shape);
     auto conv = make_shared<op::v1::BinaryConvolution>(
         inputs_param,
         filters_param,
@@ -76,11 +76,14 @@ NGRAPH_TEST(${BACKEND_NAME}, binary_convolution_2D_1batch_1channel)
         pad_value,
         auto_pad);
     auto f = make_shared<Function>(conv, ParameterVector{inputs_param, filters_param});
-
+#if 1
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input(inputs);
     test_case.add_input(filters);
     test_case.add_expected_output(outputs_shape, outputs);
     test_case.run();
+#else
+
+#endif    
 }
 // clang-format on
