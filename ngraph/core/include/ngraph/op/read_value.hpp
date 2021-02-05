@@ -23,7 +23,7 @@ namespace ngraph
 {
     namespace op
     {
-        class ReadValueBase : public Op
+        class NGRAPH_API ReadValueBase : public Op
         {
         public:
             NGRAPH_RTTI_DECLARATION;
@@ -39,7 +39,7 @@ namespace ngraph
 
             virtual std::string get_variable_id() const = 0;
 
-            std::shared_ptr<ngraph::Variable> get_variable() { return m_variable; }
+            virtual std::shared_ptr<ngraph::Variable> get_variable() const { return m_variable; }
         protected:
             std::shared_ptr<ngraph::Variable> m_variable;
         };

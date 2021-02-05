@@ -32,7 +32,7 @@ namespace ngraph
                 : Sink(arguments)
             {
             }
-            virtual std::shared_ptr<ngraph::Variable> get_variable() { return m_variable; }
+            virtual std::shared_ptr<ngraph::Variable> get_variable() const { return m_variable; }
             virtual void set_variable(const std::shared_ptr<ngraph::Variable>& variable)
             {
                 m_variable = variable;
@@ -104,9 +104,6 @@ namespace ngraph
                                  "Variable is not initialized. Variable_id is unavailable");
                     return m_variable->get_info().variable_id;
                 }
-
-            private:
-                std::shared_ptr<ngraph::Variable> m_variable;
             };
         }
     }

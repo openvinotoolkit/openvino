@@ -97,8 +97,8 @@ bool op::v3::Assign::visit_attributes(AttributeVisitor& visitor)
 
 op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Variable>& variable)
     : AssignBase({new_value})
-    , m_variable(variable)
 {
+    m_variable = variable;
     constructor_validate_and_infer_types();
 }
 
@@ -114,8 +114,7 @@ shared_ptr<Node> op::v6::Assign::clone_with_new_inputs(const OutputVector& new_a
 {
     NGRAPH_OP_SCOPE(v6_Assign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<op::v6::Assign>(new_args.at(0),
-                                            std::make_shared<Variable>(m_variable->get_info()));
+    return std::make_shared<op::v6::Assign>(new_args.at(0), m_variable);
 }
 
 bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor)

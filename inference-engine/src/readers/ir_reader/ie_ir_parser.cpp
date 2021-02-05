@@ -407,19 +407,19 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
         //            }
         //        }
 
-        if (auto parameter_node = std::dynamic_pointer_cast<ngraph::op::Parameter>(node)) {
+        if (const auto& parameter_node = std::dynamic_pointer_cast<ngraph::op::Parameter>(node)) {
             parameter_nodes.emplace_back(parameter_node);
         }
 
-        if (auto result_node = std::dynamic_pointer_cast<ngraph::op::Result>(node)) {
+        if (const auto& result_node = std::dynamic_pointer_cast<ngraph::op::Result>(node)) {
             result_nodes.emplace_back(result_node);
         }
 
-        if (auto sink = std::dynamic_pointer_cast<ngraph::op::Sink>(node)) {
+        if (const auto& sink = std::dynamic_pointer_cast<ngraph::op::Sink>(node)) {
             sink_nodes.emplace_back(sink);
         }
 
-        if (auto read_value = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(node)) {
+        if (const auto& read_value = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(node)) {
             variable_id_to_read_value[read_value->get_variable_id()] = read_value;
         }
 
@@ -477,7 +477,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
 
 std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
     std::shared_ptr<ngraph::Function> function;
-    XmlDeserializer visitor(root, weights, opsets);
+    XmlDeserializer visitor(root, weights, opsets, variables);
     visitor.on_attribute("net", function);
 
     OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
@@ -740,7 +740,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
         ngraphNode->set_arguments(inputs);
-        XmlDeserializer visitor(node, weights, opsets);
+        XmlDeserializer visitor(node, weights, opsets, variables);
         if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
         }

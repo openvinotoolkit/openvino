@@ -77,10 +77,10 @@ void op::v6::ReadValue::validate_and_infer_types()
         this,
         element::Type::merge(var_info.data_type, m_variable->get_info().data_type, arg_t),
         "Variables types are inconsistent.");
-    NODE_VALIDATION_CHECK(
-        this,
-        PartialShape::merge_into(var_info.data_shape, m_variable->get_info().data_shape),
-        "Variable shape and output shape are inconsistent.");
+    /*    NODE_VALIDATION_CHECK(
+            this,
+            PartialShape::merge_into(var_info.data_shape, m_variable->get_info().data_shape),
+            "Variable shape and output shape are inconsistent.");*/
     m_variable->update(var_info);
     set_output_type(0, arg_t, output_shape);
 }
@@ -89,8 +89,7 @@ shared_ptr<Node> op::v6::ReadValue::clone_with_new_inputs(const OutputVector& ne
 {
     NGRAPH_OP_SCOPE(v6_ReadValue_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<ReadValue>(new_args.at(0),
-                                  std::make_shared<Variable>(m_variable->get_info()));
+    return make_shared<ReadValue>(new_args.at(0), m_variable);
 }
 
 bool op::v6::ReadValue::visit_attributes(AttributeVisitor& visitor)
