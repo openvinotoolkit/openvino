@@ -175,7 +175,7 @@ namespace ngraph
                                         body_inputs[0]); // current iteration body input
                     const auto body = std::make_shared<ngraph::Function>(body_outputs, body_params);
                     auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
-                    ngraph::opset5::Loop::SpecialBodyPorts spec_ports{0, 0};
+                    default_opset::Loop::SpecialBodyPorts spec_ports{0, 0};
                     loop->set_special_body_ports(spec_ports);
                     loop->set_function(body);
 

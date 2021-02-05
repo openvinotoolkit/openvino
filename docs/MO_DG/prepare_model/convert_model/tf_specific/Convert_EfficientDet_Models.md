@@ -38,6 +38,8 @@ python3 model_inspect.py --runmode=saved_model --model_name=efficientdet-d4  --c
 ```
 As a result the frozen model file `savedmodeldir/efficientdet-d4_frozen.pb` will be generated.
 
+> **NOTE**: For custom trained models, specify `--hparams` flag to `config.yaml` which was used during training.
+
 > **NOTE:** If you see an error `AttributeError: module 'tensorflow_core.python.keras.api._v2.keras.initializers' has no attribute 'variance_scaling'` apply the fix from the [patch](https://github.com/google/automl/pull/846).
 
 ### Convert EfficientDet TensorFlow Model to the IR
