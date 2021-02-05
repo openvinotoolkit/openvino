@@ -19,21 +19,11 @@ set(TARGET_NAME sea_itt_lib)
 set(CMAKE_DEBUG_POSTFIX "")
 set(CMAKE_RELEASE_POSTFIX "")
 
-if (WIN32)
-    add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/IntelSEAPI.rc" "${PROJECT_BINARY_DIR}/IntelSEAPI.h"
-        PRE_BUILD
-        COMMAND mc -um ${CMAKE_CURRENT_SOURCE_DIR}/IntelSEAPI.man -h ${PROJECT_BINARY_DIR} -r ${PROJECT_BINARY_DIR}
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/IntelSEAPI.man
-        MAIN_DEPENDENCY IttNotifyStdSrc.h
-        COMMENT "Generating ${PROJECT_BINARY_DIR}/IntelSEAPI.rc ${PROJECT_BINARY_DIR}/IntelSEAPI.h"
-    )
-endif()
 file(GLOB_RECURSE SOURCES "*.cpp" "*.h")
 
 add_library(${TARGET_NAME} SHARED ${SOURCES})
 
-target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
-                                                  ${PROJECT_BINARY_DIR})
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME IntelSEAPI)
 
 target_link_libraries(${TARGET_NAME} PRIVATE ittnotify)
