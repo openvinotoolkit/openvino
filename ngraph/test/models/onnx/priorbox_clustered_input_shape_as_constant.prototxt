@@ -1,0 +1,90 @@
+ir_version: 3
+producer_name: "nGraph ONNX Importer"
+graph {
+  node {
+    output: "input_shape"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 2
+        data_type: 7
+        int64_data: 2
+        int64_data: 2
+        name: "const_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
+    domain: "org.openvinotoolkit"
+    input: "input_shape"
+    input: "image_shape"
+    output: "out"
+    op_type: "PriorBoxClustered"
+    attribute {
+      name: "width"
+      floats: 2.12
+      floats: 1.6
+      type: FLOATS
+    }
+    attribute {
+      name: "height"
+      floats: 5.12
+      floats: 5.6
+      type: FLOATS
+    }
+    attribute {
+      name: "step_w"
+      f: 0.0
+      type: FLOAT
+    }
+    attribute {
+      name: "step_h"
+      f: 0.0
+      type: FLOAT
+    }
+    attribute {
+      name: "offset"
+      f: 0.5
+      type: FLOAT
+    }
+    attribute {
+      name: "variances"
+      floats: 0.1
+      floats: 0.2
+      floats: 0.2
+      type: FLOATS
+    }
+  }
+  name: "compute_graph"
+  input {
+    name: "image_shape"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 1
+}
