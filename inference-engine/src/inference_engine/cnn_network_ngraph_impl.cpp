@@ -65,7 +65,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
         case 2:
             return l == Layout::CN || l == Layout::HW || l == Layout::NC;
         case 3:
-            return l == Layout::CHW;
+            return l == Layout::CHW || l == Layout::HWC;
         case 4:
             return l == Layout::NCHW || l == Layout::NHWC;
         case 5:

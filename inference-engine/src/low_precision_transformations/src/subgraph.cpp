@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,6 +112,19 @@ bool Subgraph::atLeastOneIsIntermediate(const std::shared_ptr<ngraph::Node>& nod
     return false;
 }
 
+std::shared_ptr<ngraph::opset1::FakeQuantize> getFakeQuantize(const FakeQuantizeDequantization& dequantization) {
+    std::shared_ptr<Node> node = dequantization.data.get_node_shared_ptr();
+    std::shared_ptr<opset1::FakeQuantize> fakeQuantize = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(node);
+    if (fakeQuantize != nullptr) {
+        return fakeQuantize;
+    }
+
+    if (is_type<opset1::Convert>(node)) {
+        fakeQuantize = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(node->get_input_node_shared_ptr(0));
+    }
+    return fakeQuantize;
+}
+
 bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_set<std::string>& handledLayers) {
     // if at least one parent is handled incorrectly then subgraph is not in low precision
     for (size_t index = 0; index < layer->get_input_size(); ++index) {
@@ -126,7 +139,14 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 return false;
             }
         } else {
-            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeParent = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
+            // WA: issue #46906
+            if (parent->get_output_size() != 1ul) {
+                return false;
+            }
+            const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(parent, 0, true);
+            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeParent = dequantization.empty() ?
+                ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(parent) :
+                getFakeQuantize(dequantization);
             if (fakeQuantizeParent != nullptr) {
                 if (!fillSubgraphForQuantization(fakeQuantizeParent, handledLayers)) {
                     //

@@ -115,3 +115,43 @@ def test_batch_norm_inference():
     result = run_op_node([data, gamma, beta, mean, variance], ng.batch_norm_inference, epsilon)
 
     assert np.allclose(result, excepted)
+
+
+def test_mvn_no_variance():
+    data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9,
+                     1, 2, 3, 4, 5, 6, 7, 8, 9,
+                     1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=np.float32).reshape([1, 3, 3, 3])
+    axes = np.array([2, 3], dtype=np.int64)
+    epsilon = 1e-9
+    normalize_variance = False
+    eps_mode = "outside_sqrt"
+    excepted = np.array([-4, -3, -2, -1, 0, 1, 2, 3, 4,
+                         -4, -3, -2, -1, 0, 1, 2, 3, 4,
+                         -4, -3, -2, -1, 0, 1, 2, 3, 4], dtype=np.float32).reshape([1, 3, 3, 3])
+
+    result = run_op_node([data], ng.mvn, axes, normalize_variance, epsilon, eps_mode)
+
+    assert np.allclose(result, excepted)
+
+
+def test_mvn():
+    data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9,
+                     1, 2, 3, 4, 5, 6, 7, 8, 9,
+                     1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=np.float32).reshape([1, 3, 3, 3])
+    axes = np.array([2, 3], dtype=np.int64)
+    epsilon = 1e-9
+    normalize_variance = True
+    eps_mode = "outside_sqrt"
+    excepted = np.array([-1.5491934, -1.161895, -0.7745967,
+                         -0.38729835, 0., 0.38729835,
+                         0.7745967, 1.161895, 1.5491934,
+                         -1.5491934, -1.161895, -0.7745967,
+                         -0.38729835, 0., 0.38729835,
+                         0.7745967, 1.161895, 1.5491934,
+                         -1.5491934, -1.161895, -0.7745967,
+                         -0.38729835, 0., 0.38729835,
+                         0.7745967, 1.161895, 1.5491934], dtype=np.float32).reshape([1, 3, 3, 3])
+
+    result = run_op_node([data], ng.mvn, axes, normalize_variance, epsilon, eps_mode)
+
+    assert np.allclose(result, excepted)
