@@ -35,7 +35,7 @@ if sys.platform == "win32":
     openvino_dlls = os.path.join(os.path.dirname(__file__), "..", "..", "openvino.libs")
     # If you're using a custom installation of openvino,
     # add the location of openvino dlls to your system PATH.
-    os.environ["PATH"] = os.path.abspath(openvino_dll) + ";" + os.path.abspath(ngraph_dll) + ";" + os.environ["PATH"]
+    os.environ["PATH"] = os.path.abspath(openvino_dlls) + ";" + os.path.abspath(ngraph_dll) + ";" + os.environ["PATH"]
 
 from _pyngraph import Dimension
 from _pyngraph import Function
