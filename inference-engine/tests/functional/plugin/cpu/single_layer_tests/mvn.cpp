@@ -5,6 +5,7 @@
 #include <shared_test_classes/single_layer/mvn.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
+#include "test_utils/fusing_test_utils.hpp"
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -14,18 +15,20 @@ namespace CPULayerTestsDefinitions {
 typedef std::tuple<
         LayerTestsDefinitions::mvnParams,
         CPUSpecificParams,
+        fusingSpecificParams,
         Precision, // CNNNetwork input precision
         Precision> // CNNNetwork output precision
 MvnLayerCPUTestParamSet;
 
 class MvnLayerCPUTest : public testing::WithParamInterface<MvnLayerCPUTestParamSet>,
-                        virtual public LayerTestsUtils::LayerTestsCommon, public CPUTestsBase {
+                        virtual public LayerTestsUtils::LayerTestsCommon, public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MvnLayerCPUTestParamSet> obj) {
         LayerTestsDefinitions::mvnParams basicParamsSet;
         CPUSpecificParams cpuParams;
+        fusingSpecificParams fusingParams;
         Precision inputPrecision, outputPrecision;
-        std::tie(basicParamsSet, cpuParams, inputPrecision, outputPrecision) = obj.param;
+        std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision) = obj.param;
 
         std::ostringstream result;
         result << LayerTestsDefinitions::MvnLayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::mvnParams>(
@@ -36,15 +39,19 @@ public:
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
+        result << CpuTestWithFusing::getTestCaseName(fusingParams);
+
         return result.str();
     }
 protected:
     void SetUp() override {
         LayerTestsDefinitions::mvnParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams, inPrc, outPrc) = this->GetParam();
+        fusingSpecificParams fusingParams;
+        std::tie(basicParamsSet, cpuParams, fusingParams, inPrc, outPrc) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
         InferenceEngine::SizeVector inputShapes;
         InferenceEngine::Precision netPrecision;
@@ -55,15 +62,11 @@ protected:
         auto param = ngraph::builder::makeParams(netPrc, {inputShapes});
         auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(param));
         auto mvn = ngraph::builder::makeMVN(paramOuts[0], acrossChanels, normalizeVariance, eps);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(mvn)};
 
         selectedType = getPrimitiveType() + "_" + inPrc.name();
 
         threshold = 0.015f;
-
-        mvn->get_rt_info() = getCPUInfo();
-
-        function = std::make_shared<ngraph::Function>(results, param, "mvn");
+        function = makeNgraphFunction(netPrc, param, mvn, "mvn");
     }
 };
 
@@ -116,6 +119,22 @@ const std::vector<double> epsilon = {
 
 std::vector<Precision> inpOutPrc = {Precision::BF16, Precision::FP32};
 
+std::vector<fusingSpecificParams> fusingParamsSet {
+        emptyFusingSpec,
+        // activations:
+        fusingRelu,
+        fusingElu,
+        fusingSigmoid,
+        fusingClamp,
+        fusingSwish,
+        // fusingPRelu,
+        // other patterns:
+        // fusingScaleShift,
+        fusingFakeQuantizePerChannel,
+        fusingFakeQuantizePerChannelRelu,
+        fusingFakeQuantizePerTensorRelu,
+};
+
 std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
         CPUSpecificParams({nChw16c}, {nChw16c}, {}, {}),
@@ -137,6 +156,7 @@ const auto Mvn3D = ::testing::Combine(
             ::testing::ValuesIn(epsilon),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::Values(emptyCPUSpec),
+        ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc));
 
@@ -151,6 +171,7 @@ const auto Mvn4D = ::testing::Combine(
                 ::testing::ValuesIn(epsilon),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)),
+        ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc));
 
@@ -165,6 +186,7 @@ const auto Mvn5D = ::testing::Combine(
                 ::testing::ValuesIn(epsilon),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)),
+        ::testing::ValuesIn(fusingParamsSet),
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc));
 

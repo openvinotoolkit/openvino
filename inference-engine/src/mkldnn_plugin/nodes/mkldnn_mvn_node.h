@@ -84,6 +84,7 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
+    bool canFuse(const MKLDNNNodePtr& node) const;
 
     static bool checkAxesSuitability(const std::shared_ptr<const ngraph::Node>&);
 

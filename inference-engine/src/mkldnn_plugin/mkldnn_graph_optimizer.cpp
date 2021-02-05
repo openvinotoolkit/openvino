@@ -1392,39 +1392,33 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     auto& graphNodes = graph.GetNodes();
 
     auto isSutableParentNode = [](MKLDNNNodePtr node) {
-        bool isSutableMVN = (node->getType() == MVN) && (node->inDims[0].ndims() == 4 || node->inDims[0].ndims() == 5);
+        bool isSutableMVN = (node->getType() == MVN);
 
         if (isSutableMVN) {
             auto *mvnLayer = dynamic_cast<MVNLayer *>(node->getCnnLayer().get());
             if (mvnLayer == nullptr)
                 IE_THROW() << "Cannot get MVN layer " << node->getName();
 
-            return node->getChildEdges().size() == 1 && mvnLayer->across_channels == 0 && mvnLayer->normalize == 1;
+            return node->getChildEdges().size() == 1;
         } else {
             return false;
         }
     };
 
-    auto isSutableChildNode = [](MKLDNNNodePtr node) {
-        if (!node->getCnnLayer())
+    auto isSutableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+        if (!parentNode->getCnnLayer() || !childNode->getCnnLayer())
             return false;
-
-        if (node->getType() == Quantize) {
-            auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
-            if (quantizeNode == nullptr)
-                IE_THROW() << "Cannot get quantize layer " << node->getName();
-            return !quantizeNode->isBinarization();
-        } else if (node->getType() == Eltwise) {
-            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-            if (eltwiseNode == nullptr)
-                IE_THROW() << "Cannot get eltwise node " << node->getName();
-
-            return ((eltwiseNode->getOpType() == MulAdd) ||
-                    (eltwiseNode->getOpType() == Prelu) ||
-                     eltwiseNode->getOpType() == Relu);
+        // Avoid cycle dependencies
+        for (auto &childParentEdge : childNode->getParentEdges()) {
+            for (auto &parentParentEdge : parentNode->getParentEdges()) {
+                if (childParentEdge.lock()->getParent() == parentParentEdge.lock()->getParent())
+                    return false;
+            }
         }
-
-        return false;
+        if (!childNode->getFusedWith().empty())
+            return false;
+        auto mvnNode = dynamic_cast<MKLDNNMVNNode*>(parentNode.get());
+        return mvnNode->canFuse(childNode);
     };
 
     auto parent = graphNodes.begin();
@@ -1436,7 +1430,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
         }
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        if (!isSutableChildNode(childNode)) {
+        if (!isSutableChildNode(parentNode, childNode)) {
             parent++;
             continue;
         }

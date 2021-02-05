@@ -1375,6 +1375,37 @@ bool MKLDNNMVNNode::checkAxesSuitability(const std::shared_ptr<const ngraph::Nod
     return false;
 }
 
+bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
+    auto isOneOf = [&](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
+        for (auto a : algs) {
+            if (alg == a) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (!mayiuse(cpu::x64::sse41))
+        return false;
+
+    std::string errPrefix = "MVN node with name '" + getName() + "' ";
+    if (node->getType() == Quantize) {
+        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
+        if (quantizeNode == nullptr)
+            THROW_IE_EXCEPTION << errPrefix << "cannot get quantize node to fuse with.";
+        return !quantizeNode->isBinarization();
+    } else if (node->getType() == Eltwise) {
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
+        if (eltwiseNode == nullptr)
+            THROW_IE_EXCEPTION << errPrefix << "cannot get eltwise node to fuse with.";
+        return isOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp, Tanh, Swish,
+                                                  Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt}) ||
+                      (eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
+                      (eltwiseNode->getOpType() == Prelu);
+    }
+    return false;
+}
+
 bool MKLDNNMVNNode::created() const {
     return getType() == MVN;
 }
