@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "default_opset.hpp"
 #include "ngraph/output_vector.hpp"
 
 namespace ngraph
@@ -33,7 +34,7 @@ namespace ngraph
                     auto indices = ng_inputs.at(1);
                     auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
-                    return {std::make_shared<ngraph::op::v6::GatherElements>(data, indices, axis)};
+                    return {std::make_shared<default_opset::GatherElements>(data, indices, axis)};
                 }
             } // namespace set_1
         }     // namespace op
