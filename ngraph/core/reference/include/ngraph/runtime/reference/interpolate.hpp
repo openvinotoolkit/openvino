@@ -312,7 +312,6 @@ namespace ngraph
                     std::vector<int64_t> output_index_multipliers;
                     std::vector<int64_t> input_spatial_shape;
                     std::vector<int64_t> output_spatial_shape;
-                    std::vector<float> spatial_scales;
                     std::vector<int64_t> spatial_axes_indices;
                 };
 
@@ -605,6 +604,7 @@ namespace ngraph
             void InterpolateEval<T>::linear_onnx_generic_func(const T* input_data, T* out)
             {
                 size_t input_rank = m_input_data_shape.size();
+
                 size_t num_of_axes = m_axes.size();
 
                 bool correct_axes = ((input_rank == 2) && (num_of_axes == 2) && (m_axes[0] == 0) && (m_axes[1] == 1)) ||
@@ -622,9 +622,8 @@ namespace ngraph
                         axes_without_batch_and_channels.push_back(i);
                     }
 
-                    correct_axes = correct_axes ||
-                                   (((num_of_axes == input_rank) && (m_axes == all_axes)) ||
-                                    ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels)));
+                    correct_axes = ((num_of_axes == input_rank) && (m_axes == all_axes)) ||
+                                   ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels));
                 }
 
                 assert(correct_axes);
@@ -729,8 +728,7 @@ namespace ngraph
                             int64_t output_offset = 0;
                             for (int64_t i = 0; i < spatial_rank; ++i)
                             {
-                                output_offset +=
-                                    output_index_multipliers[i] * output_spatial_shape[i];
+                                output_offset += output_index_multipliers[i] * output_coords[i];
                             }
 
                             // 5. Interpolation.
@@ -819,12 +817,13 @@ namespace ngraph
             void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
             {
                 size_t input_rank = m_input_data_shape.size();
+
+                assert(input_rank > 1);
+
                 switch (input_rank)
                 {
                 case 2:
                 case 4: linear_onnx4D_func(input_data, out); break;
-                case 3:
-                case 5: linear_onnx5D_func(input_data, out); break;
                 default: linear_onnx_generic_func(input_data, out); break;
                 }
             }

@@ -267,17 +267,6 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
         output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 2]);
     }
 
-    std::vector<float> spatial_scales;
-
-    if (input_rank == 2 || input_rank == 3 || num_of_axes == spatial_rank)
-    {
-        spatial_scales = m_scales;
-    }
-    else
-    {
-        spatial_scales.insert(spatial_scales.end(), m_scales.begin() + 2, m_scales.end());
-    }
-
     std::vector<int64_t> spatial_axes_indices(spatial_rank);
 
     std::iota(spatial_axes_indices.begin(),
@@ -293,7 +282,6 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
     result.output_index_multipliers = output_index_multipliers;
     result.input_spatial_shape = input_spatial_shape;
     result.output_spatial_shape = output_spatial_shape;
-    result.spatial_scales = spatial_scales;
     result.spatial_axes_indices = spatial_axes_indices;
 
     return result;
