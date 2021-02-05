@@ -245,10 +245,8 @@ public:
                     exec_output.append_attribute("purpose").set_value("execution_condition");
                 }
             }
-        } else {
-            if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
                 m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
-            }
         }
     }
 

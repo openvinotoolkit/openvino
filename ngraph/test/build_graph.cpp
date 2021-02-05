@@ -371,7 +371,7 @@ TEST(build_graph, build_graph_with_add_parameter)
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
-    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg, read};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
@@ -401,7 +401,7 @@ TEST(build_graph, build_graph_with_remove_parameter)
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
-    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg, arg2};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
@@ -429,7 +429,7 @@ TEST(build_graph, build_graph_with_remove_parameter_indexing)
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
-    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    auto read = make_shared<opset5::ReadValue>(init_const, "v0");
     std::vector<shared_ptr<Node>> args = {arg2, arg};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
