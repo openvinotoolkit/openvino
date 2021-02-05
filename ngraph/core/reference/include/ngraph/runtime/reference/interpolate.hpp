@@ -607,8 +607,10 @@ namespace ngraph
 
                 size_t num_of_axes = m_axes.size();
 
-                bool correct_axes = ((input_rank == 2) && (num_of_axes == 2) && (m_axes[0] == 0) && (m_axes[1] == 1)) ||
-                                    ((input_rank == 3) && (num_of_axes == 3) && (m_axes[0] == 0) && (m_axes[1] == 1) && (m_axes[2] == 2));
+                bool correct_axes = ((input_rank == 2) && (num_of_axes == 2) && (m_axes[0] == 0) &&
+                                     (m_axes[1] == 1)) ||
+                                    ((input_rank == 3) && (num_of_axes == 3) && (m_axes[0] == 0) &&
+                                     (m_axes[1] == 1) && (m_axes[2] == 2));
 
                 if (input_rank >= 4)
                 {
@@ -623,7 +625,8 @@ namespace ngraph
                     }
 
                     correct_axes = ((num_of_axes == input_rank) && (m_axes == all_axes)) ||
-                                   ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels));
+                                   ((num_of_axes == input_rank - 2) &&
+                                    (m_axes == axes_without_batch_and_channels));
                 }
 
                 assert(correct_axes);
