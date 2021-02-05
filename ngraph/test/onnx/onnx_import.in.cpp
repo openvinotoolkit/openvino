@@ -4029,6 +4029,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_return_mask)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_traning_no_const_rato)
+{
+    try
+    {
+        auto function = onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/dropout12_no_traning_no_const_rato.prototxt"));
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(
+            e.what(), std::string("Not constant (or omitted) ratio input is not supported."));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception was not thrown";
+    }
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_training_mode)
 {
     try
