@@ -3,15 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/skip_tests_config.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
-#include "single_layer_tests/roi_align.hpp"
+#include "shared_test_classes/single_layer/roi_align.hpp"
 
 using namespace InferenceEngine;
 using namespace FuncTestUtils::PrecisionUtils;
@@ -128,9 +120,5 @@ void ROIAlignLayerTest::SetUp() {
                                                     poolingMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(roiAlign)};
     function = std::make_shared<ngraph::Function>(results, params, "roi_align");
-}
-
-TEST_P(ROIAlignLayerTest, CompareWithRefs) {
-    Run();
 }
 }  // namespace LayerTestsDefinitions
