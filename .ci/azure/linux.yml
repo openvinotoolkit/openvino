@@ -38,11 +38,10 @@ jobs:
       curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
       whoami
       uname -a
-      which python3
-      python3 --version
-      which java
-      java -version
-      gcc --version
+      echo Python3 info ; which python3 ; python3 --version
+      echo Python info ; which python ; python --version
+      echo Java info ; which java ; java -version
+      echo gcc info ; which gcc ; gcc --version
       lsb_release
       env
       cat /proc/cpuinfo
@@ -51,6 +50,7 @@ jobs:
       vmstat -s
       df
       lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
+      free -h
     displayName: 'System info'
 
   - script: |
