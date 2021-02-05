@@ -263,7 +263,6 @@ def main():
     ensure_dir(args.output, clean=True)
     launch(args, victim)
     Collector.log('Started with arguments: %s' % str(sys.argv))
-    save_domains()
 
 
 def os_lib_ext():
@@ -971,10 +970,7 @@ class Callbacks(TaskCombinerCommon):
             if not type:
                 return False
 
-        if not is_domain_enabled(data['domain']):
-            return False
-
-        if data.get('internal_name', None) and not is_domain_enabled('%s.%s' % (data['domain'], data['internal_name'])):
+        if data.get('internal_name', None):
             return False
 
         self.__call__(type, data)
@@ -987,9 +983,6 @@ class Callbacks(TaskCombinerCommon):
                 return False
         if self.handle_special(type, begin, end):  # returns True if event is consumed and doesn't require processing
             return True
-
-        if not is_domain_enabled(begin['domain']):
-            return False
 
         if end:
             # copy here as handler can change the data for own good - this shall not affect other handlers
@@ -1980,45 +1973,6 @@ def get_name(begin):
         return "func<" + to_hex(begin['pointer']) + ">"
     else:
         return "<unknown>"
-
-
-def get_filter_path():
-    filter = os.environ.get('INTEL_SEA_FILTER')
-    if filter:
-        filter = subst_env_vars(filter)
-    else:
-        filter = os.path.join(UserProfile, '.isea_domains.fltr')
-    return filter
-
-
-def is_domain_enabled(domain, default=True):
-    domains = global_storage('sea.is_domain_enabled', {})
-    if not domains:
-        filter = get_filter_path()
-        try:
-            with open(filter) as file:
-                for line in file:
-                    enabled = not line.startswith('#')
-                    name = line.strip(' #\n\r')
-                    domains[name] = enabled
-                    if not enabled:
-                        message('warning', 'The domain "%s" is disabled in %s' % (name, filter))
-        except IOError:
-            pass
-    if domain not in domains:
-        domains[domain] = default
-    return domains[domain]
-
-
-def save_domains():
-    domains = global_storage('sea.is_domain_enabled', {})
-
-    filter = get_filter_path()
-    print("Saving domains:", filter)
-
-    with open(filter, 'w') as file:
-        for key, value in domains.items():
-            file.write('%s%s\n' % ('#' if not value else '', key))
 
 
 class GraphCombiner(TaskCombiner):
