@@ -96,6 +96,51 @@ std::string tensor_names(const ngraph::descriptor::Tensor& t) {
     return "\"" + n + "\"";
 }
 
+class Comparator {
+public:
+    using CmpValues = FunctionsComparator::CmpValues;
+    using Result = FunctionsComparator::Result;
+    using ComparedNodes = std::pair<ngraph::Node*, ngraph::Node*>;
+
+    explicit Comparator(CmpValues f) : m_comparition_flags(f) {}
+
+    Result compare(
+        const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2);
+
+    Result compare(ngraph::Node* node1, ngraph::Node* node2) {
+        std::stringstream errors;
+        const auto result = compare(node1, node2, errors);
+        if (!result.valid) {
+            return result;
+        }
+        const auto msg = errors.str();
+        return msg.empty() ? Result::ok() : Result::error(msg);
+    }
+
+    Comparator recreate() const {
+        return Comparator(m_comparition_flags);
+    }
+
+private:
+    bool should_compare(CmpValues f) const noexcept {
+        return m_comparition_flags & f;
+    }
+
+    ///
+    /// \param err_log - will be fill by minor errors if happen
+    /// \return only fatality error if some minor one appears it will be add to err_log
+    ///
+    Result compare(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
+
+    void add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* node2);
+
+    //-- DATA --
+    CmpValues m_comparition_flags;
+
+    std::queue<ComparedNodes> q;
+    std::unordered_set<ngraph::Node*> used;
+};
+
 namespace attr_comparison {
 
 using AttrName = std::string;
@@ -661,58 +706,6 @@ private:
     attr_comparison::ReadAndCompareAttributes m_compare_attr;
 };
 
-class Comparator {
-public:
-    using CmpValues = FunctionsComparator::CmpValues;
-    using Result = FunctionsComparator::Result;
-    using ComparedNodes = std::pair<ngraph::Node*, ngraph::Node*>;
-
-    explicit Comparator(CmpValues f) : m_comparition_flags(f) {}
-
-    Result compare(
-        const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2);
-
-    Result compare(ngraph::Node* node1, ngraph::Node* node2) {
-        std::stringstream errors;
-        const auto result = compare(node1, node2, errors);
-        if (!result.valid) {
-            return result;
-        }
-        const auto msg = errors.str();
-        return msg.empty() ? Result::ok() : Result::error(msg);
-    }
-
-    Comparator recreate() const {
-        return Comparator(m_comparition_flags);
-    }
-
-private:
-    bool should_compare(CmpValues f) const noexcept {
-        return m_comparition_flags & f;
-    }
-
-    ///
-    /// \param err_log - will be fill by minor errors if happen
-    /// \return only fatality error if some minor one appears it will be add to err_log
-    ///
-    Result compare(ngraph::Node* node1, ngraph::Node* node2, std::ostream& err_log);
-
-    void add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* node2);
-
-    //-- DATA --
-    CmpValues m_comparition_flags;
-
-    std::queue<ComparedNodes> q;
-    std::unordered_set<ngraph::Node*> used;
-};
-}  // namespace
-
-FunctionsComparator::Result FunctionsComparator::compare(
-    const std::shared_ptr<ngraph::Function>& f1,
-    const std::shared_ptr<ngraph::Function>& f2) const {
-    return Comparator(m_comparition_flags).compare(f1, f2);
-}
-
 Comparator::Result Comparator::compare(
     const std::shared_ptr<ngraph::Function>& f1, const std::shared_ptr<ngraph::Function>& f2) {
     /*
@@ -914,6 +907,15 @@ void Comparator::add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* no
         }
     }
 }
+
+}  // namespace
+
+FunctionsComparator::Result FunctionsComparator::compare(
+    const std::shared_ptr<ngraph::Function>& f1,
+    const std::shared_ptr<ngraph::Function>& f2) const {
+    return Comparator(m_comparition_flags).compare(f1, f2);
+}
+
 void check_rt_info(const std::shared_ptr<ngraph::Function>& f) {
     static const std::vector<std::string> attrs_to_check{"Variant::RuntimeAttribute::FusedNames"};
 
