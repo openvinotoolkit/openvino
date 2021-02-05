@@ -681,7 +681,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_squeeze_cpu",
         "OnnxBackendNodeModelTest.test_squeeze_negative_axes_cpu",),
     (xfail_issue_44976,
-        "OnnxBackendNodeModelTest.test_quantizelinear_axis_cpu",)
+        "OnnxBackendNodeModelTest.test_quantizelinear_axis_cpu",),
 ]
 
 for test_group in tests_expected_to_fail:
