@@ -19,42 +19,72 @@ from extensions.ops.split import VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
+from mo.graph.perm_inputs import PermuteInputs
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
 from mo.ops.const import Const
-from mo.graph.perm_inputs import PermuteInputs
-from mo.ops.op import Op, PermuteAttrs
+from mo.ops.op import PermuteAttrs
 
 
 class StridedSliceNormalizer(MiddleReplacementPattern):
-    """Inserts
+    """
+    This transformation normalizes StridedSlice by inserting blank colons ':' in slice expression so that it can be
+     correctly permuted from NHWC to NCHW layout. It changes mask values and inserts blank begin, end and strides values
+      of StridedSlice. Need to do by inserting nodes not by just rewritting constants in order to successfully run in ShapeOf subgraphs.
+      StridedSlice is not in normal in 2 cases:
+      1. rank of a slice expression is less than rank of input tensor
+      2. there is an ellipsis
 
-    BEFORE:                           |                |                     |
-            input                   begin             end                 strides
-   shape=[16, 100, 100, 3]     value=[0, 0, 0]   value=[4, 25, 50]    value=[1, 1, 1]
-      \                                /               /                     /
-       \          ____________________/               /                     /
-        \        /  _________________________________/                     /
-         \      /  /   ___________________________________________________/
-          \    /  /  /
-        strided_slice
-      shape=[4, 25, 50, 3]
+    1st case example
+    BEFORE:
+                  |
+                begin
+           value=[0, 0]
+                  |
 
     AFTER:
+                  |
+                begin          Const
+           value=[0, 0]     value=[0, 0]
+                  \             /
+                   \           /
+                      Concat
+                 value=[0, 0, 0, 0]
+                        |
 
+    Input of a shape [16, 100, 100, 3] in NHWC layout, output = input[:, 0:50] will be extended to input[:, 0:50, :, :]
+    after permutation to NCHW output = input[:, :, 0:50, :]. Above is show only for begin input, for end and strides
+    changes are analogously.
 
+    2nd case example
+    BEFORE:
+                  |
+                begin
+           value=[1, 50]
+                  |
 
-                input                   begin             end                 strides
-       shape=[16, 100, 100, 3]     value=[0, 0, 0]   value=[4, 25, 50]    value=[1, 1, 1]
-          \                                /               /                     /
-           \          ____________________/               /                     /
-            \        /  _________________________________/                     /
-             \      /  /   ___________________________________________________/
-              \    /  /  /
-            strided_slice
-          shape=[4, 25, 50, 3]
+    AFTER:
+                  |
+                begin
+           value=[1, 1, 1]
+                  |
+             VariadicSplit
+           /              \
+          /                \
+         /       Const      \
+         \     val=[0, 0]   /
+          \       |        /
+           \      |       /
+               Concat
+           value=[1, 0, 0, 1, 1]
+                  |
 
-
+    Input of a shape [16, 10, 100, 100, 3] in NDHWC layout output = input[1:4, ..., 1:51, 1:3], output_shape = [3, 10, 100, 50, 2].
+    In order to do correctly layout permutation in slice expression
+    input[1:4, ..., 1:51, 1:3] ellipsis should be exended => input[1:4, :, :, 1:51, 1:3].
+    after layour permutation [1:4, 1:3, :, : 1:5]. In the places of colons blank zero begin, end and strides values
+    should be inserted. In order to do that we split begin, and concatenate with the blank zeros in the middle. Above
+    is show only for begin input, for end and strides changes are analogously.
     """
     enabled = True
 
@@ -89,7 +119,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         slice_rank = node.in_port(1).data.get_shape()[0]
 
         slice_mask_names = ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']
-        # allign masks sizes with slice_rank
+        # allign masks sizes with slice_rank (not confuse with extending mask_alligment != mask_extending)
         for mask_name in slice_mask_names:
             num = slice_rank - len(node[mask_name])
             val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end
@@ -111,7 +141,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                 node[mask_name] = np.insert(node[mask_name], ellipsis_start + 1, [0] * num).astype(int)
 
             self.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num)
-        elif slice_rank - np.count_nonzero(node.new_axis_mask) < input_rank:  # todo: comment that slice_rank is old
+        elif slice_rank - np.count_nonzero(node.new_axis_mask) < input_rank:
             num = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
             self.extend_inputs(node, num)
 
@@ -148,14 +178,12 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
 
     @staticmethod
     def extend_inputs(node: Node, num: int):
-        int32_array = lambda x: np.array(x, dtype=np.int32)
         graph = node.graph
 
         for i, slice_name in enumerate(('begin', 'end', 'strides')):
             i += 1
             placeholder_arr = np.zeros(num) if i != 3 else np.ones(num)
             placeholder_node = Const(graph, {'name': node.name + '/extend_{}_const'.format(slice_name),
-                                             # 'value': int32_array(placeholder_arr)}).create_node()
                                              'value': int64_array(placeholder_arr)}).create_node()
 
             if node.in_port(i).get_source().node.type == 'Concat':

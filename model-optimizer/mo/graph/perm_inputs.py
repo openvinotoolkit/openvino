@@ -136,6 +136,8 @@ def shape(op_node: Node, port_info: str, input_port: int):
     if len(permute_idx_for_gather) == 0:
         return
 
+    # Kludge, 'it ain't much honest, but it works' since StridedSlice need to be permuted even inputs
+    # have rank lesser than 4, e.g. input_shape = (1, 10, 10) input[..., newaxis]
     if op_node.type == 'StridedSlice':
         from mo.ops.op import PermuteAttrs
         slice_rank = op_node.in_port(input_port).data.get_shape()[0]

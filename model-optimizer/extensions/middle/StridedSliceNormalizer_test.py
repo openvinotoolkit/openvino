@@ -16,19 +16,17 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
+from extensions.middle.StridedSliceNormalizer import StridedSliceNormalizer
+from extensions.ops.split import VariadicSplit
+from mo.front.common.partial_infer.concat import concat_infer
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.ops.strided_slice import StridedSlice
-from mo.front.common.partial_infer.concat import concat_infer
-from extensions.ops.split import VariadicSplit
-from extensions.middle.StridedSliceNormalizer import StridedSliceNormalizer
 from mo.middle.passes.infer import partial_infer
-from mo.utils.error import Error
-from mo.utils.unittest.graph import build_graph, valued_const_with_data, valued_data, regular_op_with_empty_data, \
-    connect, shaped_data, shaped_const_with_data, result, build_graph_with_attrs, regular_op, empty_data
+from mo.ops.strided_slice import StridedSlice
 from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph, valued_const_with_data, regular_op_with_empty_data, \
+    connect, regular_op, empty_data
 
 # extended with existing concat
 

@@ -74,12 +74,12 @@ class StridedSlice(Op):
         if shape is None or any([x < 0 for x in shape]):
             return
 
-        # extend all masks to match initial slice_rank
+        # masks alligment all masks should initial slice_rank (mask_alligment != mask_extending)
         extend_mask = lambda mask, val=0: np.append(mask, [val] * (len(begin) - len(mask))).astype(int)
         new_axis_mask = extend_mask(node.new_axis_mask)
         shrink_axis_mask = extend_mask(node.shrink_axis_mask)
-        begin_mask = extend_mask(node.begin_mask, 1)
-        end_mask = extend_mask(node.end_mask, 1)  # todo: differs from case when we unroll ellipsis
+        begin_mask = extend_mask(node.begin_mask, 1)  # differs from the case when we unroll ellipsis
+        end_mask = extend_mask(node.end_mask, 1)  # when we unroll ellipsis zeros should be inserted
         # no need to extend ellipsis
 
         # unroll ellipsis

@@ -143,6 +143,8 @@ class ApplyPermutation(MiddleReplacementPattern):
                         not is_input_data_in_correct_layout(node, in_port) and \
                         (len(port_to_check.data.get_shape()) >= 4 or \
                             (node['type'] == 'StridedSlice' and node.in_port(in_port).data.get_shape()[0] >= 4)):
+                    # Kludge, 'it ain't much honest, but it works' since StridedSlice need to be permuted even inputs
+                    # have rank lesser than 4, e.g. input_shape = (1, 10, 10) input[..., newaxis]
                     permutation(node, port_info, in_port)
             if node.has_and_set('need_shape_inference'):
                 node.infer(node)
