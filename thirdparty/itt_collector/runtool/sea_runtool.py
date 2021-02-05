@@ -169,14 +169,6 @@ def parse_args(args):
             sys.exit(-1)
         victim = args[separator + 1:]
         victim[-1] = victim[-1].strip()  # removal of trailing '\r' - when launched from .sh
-        if not parsed_args.output:
-            if sys.platform != 'win32':
-                parsed_args.output = '/tmp/isea_collection'
-                print('Collection will be written into:' , parsed_args.output)
-            else:
-                parser.print_help()
-                print("Error: No output (-o) given in launch mode")
-                sys.exit(-1)
         handle_args(parsed_args)
         return parsed_args, victim
     else:  # nothing to launch, transformation mode
@@ -184,18 +176,6 @@ def parse_args(args):
             args[-1] = args[-1].strip()  # removal of trailing '\r' - when launched from .sh
         parsed_args = parser.parse_args(args)
         handle_args(parsed_args)
-        if not parsed_args.input:
-            if sys.platform != 'win32':
-                parsed_args.input = '/tmp/isea_collection'
-                if os.path.exists(parsed_args.input):
-                    print('Collection will be read from:', parsed_args.input)
-                else:
-                    parser.print_help()
-                    sys.exit(-1)
-            else:
-                print("--input argument is required for transformation mode.")
-                parser.print_help()
-                sys.exit(-1)
         if not parsed_args.format:
             parsed_args.format = ['gt']
         setattr(parsed_args, 'user_input', parsed_args.input)
@@ -234,7 +214,8 @@ def verbose_level(level=None, statics={}):
 
 
 def message(level, txt, statics={}):
-    assert isinstance(statics, dict)
+    if not isinstance(statics, dict):
+        return False
     if level and verbose_level(level) > verbose_level():  # see default in "parse_args"
         return False
 
@@ -272,29 +253,7 @@ def os_lib_ext():
         return '.dylib'
     elif 'linux' in sys.platform:
         return '.so'
-    assert (not "Unsupported platform")
-
-
-def get_pids(victim, tracer):
-    assert len(victim) == 1  # one wildcard is supported yet
-    assert sys.platform != 'win32'  # no Windows support yet
-    out, err = tracer.execute('ps -o pid,ppid,command -ax', log=False)
-    if err:
-        tracer.log(err)
-        return []
-
-    parsed = {}
-    for line in out.split('\n'):
-        if not line:
-            continue
-        parts = line.split()
-        if len(parts) < 3:
-            continue
-        cmd = ' '.join(parts[2:])
-        if fnmatch.fnmatch(cmd.lower(), victim[0].lower()) and __file__ not in cmd:  # get matching cmd
-            parsed[parts[0]] = cmd
-            print("Matching cmd:\t", parts[0], cmd)
-    return set(parsed.keys())
+    raise "Unsupported platform"
 
 
 def launch(args, victim):
@@ -355,7 +314,8 @@ def launch(args, victim):
     environ = global_storage('sea_env')
     for key, val in env.items():
         if key in environ and val != environ[key]:
-            assert key in ['LD_PRELOAD', 'DYLD_INSERT_LIBRARIES']
+            if key not in ['LD_PRELOAD', 'DYLD_INSERT_LIBRARIES']:
+                raise key + ' wasn\'t found!'
             environ[key] += ':' + val
         else:
             environ[key] = val
@@ -437,7 +397,6 @@ PermanentCache = os.path.join(UserProfile, '.isea_cache.dict')
 
 def ensure_dir(path, clean, statics={}):
     if path in statics:
-        assert(statics[path] or not clean)
         return
     statics[path] = clean
     if os.path.exists(path):
@@ -774,7 +733,6 @@ class TaskCombinerCommon:
                     else:
                         message('warning', 'Negative length task: %s => %s' % (str(item), str(data)))
             else:
-                assert (self.tree["ring_buffer"] or self.tree['cuts'])
                 if 'str' in data:  # nothing to show without name
                     self.no_begin.append(data)
         elif fn == "frame_begin":
@@ -785,8 +743,6 @@ class TaskCombinerCommon:
             if index is not None:
                 item = frames.pop(index)
                 self.complete_task("frame", item, data)
-            else:
-                assert (self.tree["ring_buffer"] or self.tree['cuts'])
         elif fn == "metadata_add":
             if 'id' in data:
                 task = get_task(data['id'])
@@ -833,7 +789,7 @@ class TaskCombinerCommon:
                 get_task(data['parent']) or find_task(data['parent'])
             )
         else:
-            assert (not "Unsupported type:" + fn)
+            raise "Unsupported type:" + fn
 
     def compress_counter(self, cache, data):
         values = cache['values']
@@ -1209,7 +1165,8 @@ class Callbacks(TaskCombinerCommon):
                     return args
 
                 def end(self, time_stamp):
-                    assert self.data  # expected to be initialized in self.begin call
+                    if not self.data:
+                        return
                     if time_stamp:
                         end_data = self.data.copy()
                         end_data.update({'time': time_stamp, 'type': self.event_type + 1})
@@ -1605,7 +1562,8 @@ class FileWrapper:
             return None
         call["time"] = tuple[0]
 
-        assert (tuple[1] < len(TaskTypes))  # sanity check
+        if tuple[1] >= len(TaskTypes):
+            return None
         call["type"] = tuple[1]
 
         flags = tuple[2]
@@ -1774,7 +1732,7 @@ def resolve_cmd(args, path, load_addr, ptr, cache={}):
     elif 'linux' in sys.platform:
         cmd = 'addr2line %s -e "%s" -i -p -f -C' % (to_hex(ptr), path)
     else:
-        assert (not "Unsupported platform!")
+        raise "Unsupported platform!"
 
     env = dict(os.environ)
     if "INTEL_SEA_VERBOSE" in env:
@@ -2132,7 +2090,8 @@ class Collector:
 
     @classmethod
     def log(cls, msg, stack=False):
-        assert type(stack) is bool  # to avoid "log" function being misused as "print" where comma allows more args
+        if not type(stack) is bool:
+            stack = False
         msg = msg.strip()
         cut = '\n' + '-' * 100 + '\n'
         msg = cut + msg + '\n\n' + (''.join(traceback.format_stack()[:-1]) if stack else '') + cut
