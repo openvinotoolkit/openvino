@@ -1451,9 +1451,13 @@ void GNAPlugin::Export(const std::string &fileName) {
     serial.Export(gnamem->getBasePtr(), gnamem->getTotalBytes(), outStream);
 }
 
-void GNAPlugin::GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAPlugin::GetPerformanceCounts() {
     if (gnaFlags->performance_counting) {
+        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
         gnadevice->getGnaPerfCounters(perfMap);
+        return perfMap;
+    } else {
+        return {};
     }
 }
 

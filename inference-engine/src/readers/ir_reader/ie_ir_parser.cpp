@@ -608,7 +608,7 @@ V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(con
 
         port.portId = GetIntAttr(parentNode, "id");
 
-        for (auto node = parentNode.child("dim"); !node.empty(); node = node.next_sibling("dim")) {
+        FOREACH_CHILD(node, parentNode, "dim") {
             size_t dim = 0;
             const pugi::char_t* dimVal = node.child_value();
             std::stringstream ss(dimVal);
@@ -628,7 +628,16 @@ V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(con
         port.precision = type;
         std::vector<std::string> names;
         if (getParameters<std::string>(parentNode, "names", names)) {
-            for (const auto& name : names) {
+            for (size_t i = 0; i < names.size(); i++) {
+                std::string name = names[i];
+                // Restore original name if it contains delimiter
+                // getParameters(...) returns the vector of names which were split by delimiter ','
+                // but some names can contain ',' as a part of name, in this case we use '\' to escape delimiter
+                // the cycle below is needed in order to find names which contained delimiter and restore the original name
+                while (i < names.size() && names[i].at(names[i].length() - 1) == '\\') {
+                    name.replace(names[i].length() - 1, 1, ",");
+                    name += names[++i];
+                }
                 port.names.emplace(name);
             }
         }
@@ -684,7 +693,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     auto opsetIt = opsets.find(params.version);
 
     // Try to create operation from loaded opsets
-    auto version = params.version;
     static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
                                                                             "ExperimentalDetectronGenerateProposalsSingleImage",
                                                                             "ExperimentalDetectronPriorGridGenerator",
@@ -692,11 +700,10 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                                             "ExperimentalDetectronTopKROIs"};
 
     if (experimental_detectrons.count(params.type)) {
-        version = "opset6";
+        opsetIt = opsets.find("opset6");
     }
 
-    if (!ngraphNode && opsets.count(version)) {
-        auto opset = opsets.at(version);
+    if (!ngraphNode && opsetIt != opsets.end()) {
         auto const & type = params.type == "Const"
                                 ? "Constant"
                                 : params.type;
@@ -709,9 +716,10 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
                         << " from unsupported opset: " << params.version;
                 }
-                opset = opsetIt->second;
             }
         }
+
+        auto const& opset = opsetIt->second;
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
         if (!ngraphNode) {
