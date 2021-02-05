@@ -5,6 +5,7 @@
 
 #include <ngraph/opsets/opset3.hpp>
 
+#include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/single_layer/roi_align.hpp"
 
 using namespace InferenceEngine;
