@@ -30,6 +30,7 @@ namespace ngraph
 
             ReadValueBase() = default;
 
+            /// \brief Constructs an AssignBase operation.
             explicit ReadValueBase(const OutputVector& arguments)
                 : Op(arguments)
             {
@@ -83,7 +84,8 @@ namespace ngraph
 
         namespace v6
         {
-            /// \brief ReadValue operation returns value of this variable.
+            /// \brief ReadValue operation gets an input value from the variable with `variable_id`
+            /// and returns it as an output.
             class NGRAPH_API ReadValue : public ReadValueBase
             {
             public:
@@ -92,8 +94,9 @@ namespace ngraph
 
                 /// \brief Constructs a ReadValue operation.
                 ///
-                /// \param init_value   Node that produces the input tensor.
-                /// \param variable
+                /// \param init_value Node that produces the input tensor.
+                /// \param variable Class for storing and synchronizing element types, shapes and identifiers
+                /// between pairs of Assign/ReadValue nodes.
                 ReadValue(const Output<Node>& init_value,
                           const std::shared_ptr<Variable>& variable);
 

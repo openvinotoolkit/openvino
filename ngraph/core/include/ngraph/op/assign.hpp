@@ -28,6 +28,7 @@ namespace ngraph
         public:
             NGRAPH_RTTI_DECLARATION;
             AssignBase() = default;
+            /// \brief Constructs an AssignBase operation.
             explicit AssignBase(const OutputVector& arguments)
                 : Sink(arguments)
             {
@@ -57,7 +58,7 @@ namespace ngraph
                 /// \brief Constructs an Assign operation.
                 ///
                 /// \param new_value   Node that produces the input tensor.
-                /// \param variable_id identificator of the variable to be updated.
+                /// \param variable_id identifier of the variable to be updated.
                 Assign(const Output<Node>& new_value, const std::string& variable_id);
 
                 void validate_and_infer_types() override;
@@ -87,8 +88,9 @@ namespace ngraph
 
                 /// \brief Constructs an Assign operation.
                 ///
-                /// \param new_value   Node that produces the input tensor.
-                /// \param variable identificator of the variable to be updated.
+                /// \param new_value Node that produces the input tensor.
+                /// \param variable Class for storing and synchronizing element types, shapes and identifiers
+                /// between pairs of Assign/ReadValue nodes.
                 Assign(const Output<Node>& new_value, const std::shared_ptr<Variable>& variable);
 
                 void validate_and_infer_types() override;
