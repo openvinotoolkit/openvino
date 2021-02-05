@@ -335,12 +335,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_the_proper_opset_in_subgraph)
             return std::string{op->get_type_name()} == "Loop";
         });
     const auto body_ops =
-        ngraph::as_type_ptr<ngraph::opset5::Loop>(*loop_node_it)->get_function()->get_ops();
+        ngraph::as_type_ptr<default_opset::Loop>(*loop_node_it)->get_function()->get_ops();
     const auto body_mul_node_it =
         std::find_if(body_ops.begin(), body_ops.end(), [](const std::shared_ptr<Node>& op) {
             return std::string{op->get_type_name()} == "Multiply";
         });
-    const auto body_mul_node = ngraph::as_type_ptr<ngraph::opset5::Multiply>(*body_mul_node_it);
+    const auto body_mul_node = ngraph::as_type_ptr<default_opset::Multiply>(*body_mul_node_it);
     EXPECT_TRUE(body_mul_node);
     EXPECT_EQ(
         body_mul_node->get_autob().m_type,
