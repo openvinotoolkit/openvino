@@ -577,13 +577,13 @@ public:
     /**
      *@brief Virtual destructor.
      */
-#ifdef __clang__
-    virtual ~TBlob();
-#else
+//#ifdef __clang__
+//    virtual ~TBlob();
+//#else
     virtual ~TBlob() {
         free();
     }
-#endif  // __clang__
+//#endif  // __clang__
 
     /**
      * @brief Gets the size of the given type.
@@ -805,7 +805,7 @@ protected:
         _handle = origBlob._handle;
     }
 };
-
+/*
 #ifdef __clang__
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
@@ -820,7 +820,7 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long lon
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
 #endif  // __clang__
-
+*/
 /**
  * @brief Creates a blob with the given tensor descriptor.
  *
