@@ -2,7 +2,7 @@ jobs:
 - job: nGraph_ONNX_Lin
 
   # About 150% of total time
-  timeoutInMinutes: 240
+  timeoutInMinutes: 45
 
   pool:
     name: LIN_VMSS_VENV_EPHEMERAL_WU2
