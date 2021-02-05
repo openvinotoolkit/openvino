@@ -12,7 +12,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/op_conversions/convert_ctc_greedy_decoder_v6_to_v1.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
@@ -20,7 +20,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertCTCGreedyDecoderV6ToV1Test) {
+TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 3 });
@@ -32,7 +32,7 @@ TEST(TransformationTests, ConvertCTCGreedyDecoderV6ToV1Test) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::ConvertCTCGreedyDecoderV6ToV1>();
+        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoder>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -53,7 +53,7 @@ TEST(TransformationTests, ConvertCTCGreedyDecoderV6ToV1Test) {
         auto start = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t >({1}));
         auto step = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t >({1}));
         auto range1T = std::make_shared<ngraph::opset6::Range>(start, T, step,
-                                                               ngraph::element::i32);
+                                                               ngraph::element::i64);
 
         auto constUnsqueeze1 = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
         auto tT = std::make_shared<ngraph::opset6::Unsqueeze>(T, constUnsqueeze1);
@@ -70,7 +70,6 @@ TEST(TransformationTests, ConvertCTCGreedyDecoderV6ToV1Test) {
         auto seq_mask = std::make_shared<ngraph::opset6::Select>(bool_seq_mask, const_1f, const_0f);
 
         auto decoder_v1 = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(data1, seq_mask, true);
-
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ decoder_v1 }, ngraph::ParameterVector{ data1, seq_len1 });
     }

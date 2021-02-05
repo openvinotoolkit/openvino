@@ -1558,15 +1558,6 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"CTCGreedyDecoderSeqLen"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                                                const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "CTCGreedyDecoderSeqLen", details::convertPrecision(node->get_output_element_type(0))};
-        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
-        res->params = params;
-        res->params["merge_repeated"] = res->getBoolStrParamAsIntStr("merge_repeated");
-        return res;
-    });
-
     addSpecificCreator({"TensorIterator"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                               const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         auto res = createSubGraphLayer(node);

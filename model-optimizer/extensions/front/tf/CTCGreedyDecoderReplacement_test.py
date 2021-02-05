@@ -14,8 +14,9 @@
  limitations under the License.
 """
 
-import numpy as np
 import unittest
+
+import numpy as np
 
 from extensions.front.tf.CTCGreedyDecoderReplacement import CTCGreedyDecoderReplacement, CTCGreedyDecoderReplacement2
 from mo.front.common.partial_infer.utils import int64_array

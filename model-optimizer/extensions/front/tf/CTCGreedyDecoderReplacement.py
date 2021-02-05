@@ -21,15 +21,15 @@ import numpy as np
 from extensions.front.FillToBroadcast import FillToBroadcast
 from extensions.front.Pack import Pack
 from extensions.ops.Cast import Cast
-from extensions.ops.transpose import Transpose
 from extensions.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
-from mo.ops.result import Result
+from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
 from mo.ops.broadcast import Broadcast
 from mo.ops.concat import Concat
+from mo.ops.result import Result
 from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
 
@@ -77,18 +77,12 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
 
         ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
                                                             {'name': ctc_greedy_decoder_tf.name + '/ctc_data_permute'})
-
         ctc_greedy_decoder_tf.in_port(0).get_source().connect(ctc_data_permute.in_port(0))
-        #ctc_greedy_decoder_tf.in_port(0).get_connection().set_source(ctc_data_permute.out_port(0))
-
         merge_repeated_tf = ctc_greedy_decoder_tf.soft_get('merge_repeated', ctc_greedy_decoder_tf.id)
         ctc_greedy_decoder = CTCGreedyDecoderSeqLenOp(graph, {'name': ctc_greedy_decoder_tf.name,
                                                               'cmerge_repeated': merge_repeated_tf}).create_node()
         ctc_greedy_decoder.in_port(0).connect(ctc_data_permute.out_port(0))
         ctc_greedy_decoder_tf.in_port(1).get_source().connect(ctc_greedy_decoder.in_port(1))
-        #ctc_greedy_decoder.in_port(1).connect(ctc_greedy_decoder_tf.in_port(1))
-        #ctc_greedy_decoder.in_port(1).get_connection().set_destination(ctc_greedy_decoder_tf.in_port(1))
-
         ctc_res1 = Result(graph, {'name': ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id) + '/Result'}).create_node()
         # set output of the new sub-graph as a source for SparseToDense consumer
         sparse_to_dense.out_port(0).get_connection().set_source(ctc_greedy_decoder.out_port(0))

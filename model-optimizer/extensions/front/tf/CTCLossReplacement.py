@@ -55,7 +55,7 @@ class CTCLossReplacement(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('seq_len', dict(op='Const')),
+                #('seq_len', dict(op='Const')),
                 ('transpose', dict(op='Transpose')),
                 ('ctc_greedy_decoder', dict(op='CTCGreedyDecoderSeqLen')),
                 ('cast', dict(op='Cast')),
@@ -66,8 +66,8 @@ class CTCLossReplacement(FrontReplacementSubgraph):
             edges=[
                 ('transpose', 'ctc_greedy_decoder', {'out': 0, 'in': 0}),
                 ('transpose', 'ctc_loss', {'out': 0, 'in': 0}),
-                ('seq_len', 'ctc_greedy_decoder', {'out': 0, 'in': 1}),
-                ('seq_len', 'ctc_loss', {'out': 0, 'in': 3}),
+                #('seq_len', 'ctc_greedy_decoder', {'out': 0, 'in': 1}),
+                #('seq_len', 'ctc_loss', {'out': 0, 'in': 3}),
                 ('ctc_greedy_decoder', 'sparse_to_dense', {'out': 0, 'in': 0}),
                 ('ctc_greedy_decoder', 'sparse_to_dense', {'out': 2, 'in': 1}),
                 ('ctc_greedy_decoder', 'sparse_to_dense', {'out': 1, 'in': 2}),
@@ -78,7 +78,7 @@ class CTCLossReplacement(FrontReplacementSubgraph):
             ])
 
     def replace_sub_graph(self, graph: Graph, match: dict):
-        seq_len_tf = match['seq_len']
+        #seq_len_tf = match['seq_len']
         transpose_tf = match['transpose']
         ctc_greedy_decoder_tf = match['ctc_greedy_decoder']
         cast_tf = match['cast']
@@ -95,7 +95,8 @@ class CTCLossReplacement(FrontReplacementSubgraph):
         ctc_greedy_decoder = CTCGreedyDecoderSeqLenOp(graph, {'name': ctc_greedy_decoder_tf.name,
                                                               'cmerge_repeated': merge_repeated_tf}).create_node()
         ctc_greedy_decoder.in_port(0).connect(ctc_data_permute.out_port(0))
-        ctc_greedy_decoder.in_port(1).connect(seq_len_tf.out_port(0))
+        #ctc_greedy_decoder.in_port(1).connect(seq_len_tf.out_port(0))
+        ctc_greedy_decoder.in_port(1).connect(ctc_greedy_decoder_tf.in_port(1).get_connection().get_source())
 
 
         # set output of the new sub-graph as a source for SparseToDense consumer
@@ -111,7 +112,8 @@ class CTCLossReplacement(FrontReplacementSubgraph):
                                    'unique': unique}).create_node()
         ctc_loss_tf.out_port(0).get_connection().set_source(ctc_loss.out_port(0))
         ctc_loss.in_port(0).connect(ctc_data_permute.out_port(0))
-        ctc_loss.in_port(1).connect(seq_len_tf.out_port(0))
+        #ctc_loss.in_port(1).connect(seq_len_tf.out_port(0))
+        ctc_loss.in_port(1).connect(ctc_greedy_decoder_tf.in_port(1).get_connection().get_source())
 
         # # connect labels to ctc_loss
         # cast_labels_op = Cast(graph, {'name': output_sparse_to_dense_name + '/CastLabels', 'dst_type': np.int32}).create_node()

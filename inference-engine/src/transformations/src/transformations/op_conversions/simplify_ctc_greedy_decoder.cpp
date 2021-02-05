@@ -4,23 +4,21 @@
 
 #include "itt.hpp"
 
-#include "transformations/op_conversions/convert_ctc_greedy_decoder_v6_to_v1.hpp"
+#include "transformations/op_conversions/simplify_ctc_greedy_decoder.hpp"
 
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/rt_info.hpp>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertCTCGreedyDecoderV6ToV1, "ConvertCTCGreedyDecoderV6ToV1", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoder, "SimplifyCTCGreedyDecoder", 0);
 
-ngraph::pass::ConvertCTCGreedyDecoderV6ToV1::ConvertCTCGreedyDecoderV6ToV1() {
-    MATCHER_SCOPE(ConvertCTCGreedyDecoderV6ToV1);
+ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
+    MATCHER_SCOPE(SimplifyCTCGreedyDecoder);
     auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto & pattern_value = m.get_pattern_value_map();
-        const auto & m_decoder = pattern_value.at(decoder);
-        auto decoder_v6 = std::dynamic_pointer_cast<ngraph::opset6::CTCGreedyDecoderSeqLen> (m_decoder.get_node_shared_ptr());
+        auto decoder_v6 = std::dynamic_pointer_cast<opset6::CTCGreedyDecoderSeqLen> (m.get_match_root());
         if (!decoder_v6) {
             return false;
         }
@@ -36,14 +34,14 @@ ngraph::pass::ConvertCTCGreedyDecoderV6ToV1::ConvertCTCGreedyDecoderV6ToV1() {
         auto constN_1 = ngraph::opset6::Constant::create(element::i64, Shape{}, {-1});
         auto N = std::make_shared<ngraph::opset6::Gather>(data_shape, constN_0, constN_0);
 
-        auto start = opset6::Constant::create(element::i64, Shape{}, std::vector<int64_t >({1}));
-        auto step = opset6::Constant::create(element::i64, Shape{}, std::vector<int64_t >({1}));
+        auto start = opset6::Constant::create(element::i64, Shape{}, {1});
+        auto step = opset6::Constant::create(element::i64, Shape{}, {1});
         auto range1T = std::make_shared<ngraph::opset6::Range>(start, T, step,
                                                                decoder_v6->input(1).get_element_type());
 
-        auto constUnsqueeze1 = ngraph::opset6::Constant::create(element::i64, Shape{}, {0});
+        auto constUnsqueeze1 = ngraph::opset6::Constant::create(element::i64, Shape{1}, {0});
         auto tT = std::make_shared<ngraph::opset6::Unsqueeze>(T, constUnsqueeze1);
-        auto constUnsqueeze2 = ngraph::opset6::Constant::create(element::i64, Shape{}, {0});
+        auto constUnsqueeze2 = ngraph::opset6::Constant::create(element::i64, Shape{1}, {0});
         auto tN = std::make_shared<ngraph::opset6::Unsqueeze>(N, constUnsqueeze2);
         auto mask_shape = std::make_shared<ngraph::opset6::Concat>(
                 OutputVector{tT->output(0), tN->output(0)}, 0);

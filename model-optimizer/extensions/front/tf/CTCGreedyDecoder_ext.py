@@ -24,7 +24,7 @@ class CTCCGreedyDecoderFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         attrs = {
-            'merge_repeated': int(node.pb.attr['merge_repeated'].b),
+            'merge_repeated': bool(node.pb.attr['merge_repeated'].b),
         }
         CTCGreedyDecoderSeqLenOp.update_node_stat(node, attrs)
         return cls.enabled

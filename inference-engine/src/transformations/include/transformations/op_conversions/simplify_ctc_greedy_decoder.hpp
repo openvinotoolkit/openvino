@@ -13,17 +13,17 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertCTCGreedyDecoderV6ToV1;
+class TRANSFORMATIONS_API SimplifyCTCGreedyDecoder;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief ConvertCTCGreedyDecoderV6ToV1 covert v6:CTCGreedyDecoderSeqLen into v0::CTCGreedyDecoder.
+ * @brief SimplifyCTCGreedyDecoder covert v6:CTCGreedyDecoderSeqLen into v0::CTCGreedyDecoder.
  */
-class ngraph::pass::ConvertCTCGreedyDecoderV6ToV1: public ngraph::pass::MatcherPass {
+class ngraph::pass::SimplifyCTCGreedyDecoder: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertCTCGreedyDecoderV6ToV1();
+    SimplifyCTCGreedyDecoder();
 };

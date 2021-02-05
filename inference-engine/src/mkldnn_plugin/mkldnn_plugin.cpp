@@ -35,7 +35,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
-#include <transformations/op_conversions/convert_ctc_greedy_decoder_v6_to_v1.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -231,7 +231,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->disable<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
-    pass_config->enable<ngraph::pass::ConvertCTCGreedyDecoderV6ToV1>();
+    pass_config->enable<ngraph::pass::SimplifyCTCGreedyDecoder>();
 
     if (useLpt) {
         pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
