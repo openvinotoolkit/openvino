@@ -16,13 +16,14 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(testing::TestParamIn
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) =
         obj.param;
     ngraph::op::PadType padType;
-    InferenceEngine::SizeVector kernel, stride, dilation;
+    InferenceEngine::SizeVector deformable_vals, kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t groups, deformable_groups, convOutChannels;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType) = convParams;
+    std::tie(deformable_vals, kernel, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType) = convParams;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
+    result << "DV" << CommonTestUtils::vec2str(deformable_vals) << "_";
     result << "K" << CommonTestUtils::vec2str(kernel) << "_";
     result << "S" << CommonTestUtils::vec2str(stride) << "_";
     result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
@@ -60,17 +61,17 @@ void DeformableConvolutionLayerTest::SetUp() {
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) =
         this->GetParam();
     ngraph::op::PadType padType;
-    InferenceEngine::SizeVector kernel, stride, dilation;
+    InferenceEngine::SizeVector deformable_vals, kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t groups, deformable_groups, convOutChannels;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType) = convParams;
+    std::tie(deformable_vals, kernel, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType) = convParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape, deformable_vals, kernel});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto deformable_values = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(kernel));
-    deformable_values->set_friendly_name("data");
-    auto deformable_conv = std::make_shared<ngraph::opset1::DeformableConvolution>(paramOuts[0], deformable_values, paramOuts[2],
+    //auto deformable_values = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(kernel));
+    //deformable_values->set_friendly_name("data");
+    auto deformable_conv = std::make_shared<ngraph::opset1::DeformableConvolution>(paramOuts[0], paramOuts[1], paramOuts[2],
                                                               stride, padBegin, padEnd, dilation, padType, groups, deformable_groups);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(deformable_conv)};
     function = std::make_shared<ngraph::Function>(results, params, "deformable_convolution");

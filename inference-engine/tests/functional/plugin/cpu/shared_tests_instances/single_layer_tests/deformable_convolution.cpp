@@ -15,6 +15,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
 
 /* ============= 2D DeformableConvolution ============= */
+const std::vector<std::vector<size_t>> deformable_vals = {{3, 3}, {3, 5}};
 const std::vector<std::vector<size_t>> kernels = {{3, 3}, {3, 5}};
 const std::vector<std::vector<size_t>> strides = {{1, 1}, {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}, {0, 3}};
@@ -25,12 +26,14 @@ const std::vector<size_t> defor_groups = {1, 2};
 const std::vector<size_t> numOutChannels = {1, 5};
 
 const auto deformableConv2DParams_ExplicitPadding = ::testing::Combine(
+    ::testing::ValuesIn(deformable_vals),
     ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
     ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds),
     ::testing::ValuesIn(dilations), ::testing::ValuesIn(groups),
     ::testing::ValuesIn(defor_groups), ::testing::ValuesIn(numOutChannels),
     ::testing::Values(ngraph::op::PadType::EXPLICIT));
 const auto deformableConv2DParams_AutoPadValid = ::testing::Combine(
+    ::testing::ValuesIn(deformable_vals),
     ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
     ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
     ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
@@ -63,6 +66,7 @@ INSTANTIATE_TEST_CASE_P(
     DeformableConvolutionLayerTest::getTestCaseName);
 
 /* ============= 3D DeformableConvolution ============= */
+const std::vector<std::vector<size_t>> deformable_vals3d = {{3, 3, 3}, {3, 5, 3}};
 const std::vector<std::vector<size_t>> kernels3d = {{3, 3, 3}, {3, 5, 3}};
 const std::vector<std::vector<ptrdiff_t>> paddings3d = {{0, 0, 0}, {0, 2, 0}};
 const std::vector<std::vector<size_t>> strides3d = {{1, 1, 1}, {1, 2, 1}};
@@ -70,12 +74,14 @@ const std::vector<std::vector<size_t>> dilations3d = {{1, 1, 1}, {1, 2, 1}};
 const std::vector<size_t> numOutChannels3D = {1, 5};
 
 const auto deformableConv3DParams_ExplicitPadding = ::testing::Combine(
+    ::testing::ValuesIn(deformable_vals3d),
     ::testing::ValuesIn(kernels3d), ::testing::ValuesIn(strides3d),
     ::testing::ValuesIn(paddings3d), ::testing::ValuesIn(paddings3d),
     ::testing::ValuesIn(dilations3d), ::testing::ValuesIn(groups),
     ::testing::ValuesIn(defor_groups), ::testing::ValuesIn(numOutChannels3D),
     ::testing::Values(ngraph::op::PadType::EXPLICIT));
 const auto deformableConv3DParams_AutoPadValid = ::testing::Combine(
+    ::testing::ValuesIn(deformable_vals3d),
     ::testing::ValuesIn(kernels3d), ::testing::ValuesIn(strides3d),
     ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
     ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),

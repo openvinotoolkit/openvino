@@ -17,6 +17,7 @@ namespace LayerTestsDefinitions {
 
 // ! [test_convolution:definition]
 typedef std::tuple<
+        InferenceEngine::SizeVector,    // Deformable values size
         InferenceEngine::SizeVector,    // Kernel size
         InferenceEngine::SizeVector,    // Strides
         std::vector<ptrdiff_t>,         // Pad begin
