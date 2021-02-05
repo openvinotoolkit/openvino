@@ -21,7 +21,7 @@ Operating Systems:
    ```
 2. Install the Intel® distribution of OpenVINO™ toolkit:
    ```sh
-   pip install openvino-python
+   pip install openvino
    ```
 
 3. Verify that the package is installed:
