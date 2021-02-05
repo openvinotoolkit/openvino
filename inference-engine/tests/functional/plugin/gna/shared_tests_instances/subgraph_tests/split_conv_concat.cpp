@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,14 +9,20 @@
 
 using namespace SubgraphTestsDefinitions;
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16
 };
-// TODO: Issue:  26421 (Concat issue)
-INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeNoReshape, SplitConvConcat,
+
+std::vector<std::vector<size_t>> inputShapes = {
+    {1, 32, 1, 130},
+    {1, 64, 1, 170},
+    {1, 32, 1, 1026}
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_SplitConvConcat, SplitConvConcat,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(std::vector<size_t >({1, 6, 40, 40})),
+                                ::testing::ValuesIn(inputShapes),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         SplitConvConcat::getTestCaseName);
 

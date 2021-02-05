@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,6 +19,14 @@
 
 #define FROM_IR_DIM(mem, idx)\
 ((mem->getTensorDesc().getDims().size() > (idx) - 1) ? mem->getTensorDesc().getDims()[mem->getTensorDesc().getDims().size() - (idx)] : 1)
+
+struct TranspositionInfo {
+    bool transpose;
+    size_t num_transpose_rows;
+    size_t num_transpose_columns;
+};
+
+using TranspositionInfoMap = std::map<std::string, std::vector<TranspositionInfo>>;
 
 namespace GNAPluginNS {
 #if  GNA_LIB_VER == 2

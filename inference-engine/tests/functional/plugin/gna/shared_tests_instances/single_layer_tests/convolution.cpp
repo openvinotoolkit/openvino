@@ -29,8 +29,8 @@ const std::vector<std::vector<size_t >> dilationsH1 = {{1, 1},
                                                        {1, 3}};
 // TODO: Currently C != 1 is not supported for graphs with native NCHW layout (will be fixed in 40496)
 const std::vector<std::vector<size_t>> inputShapesH1 = {{1, 1, 1, 32},
-                                                        {1, 1, 1, 160},
-                                                        {1, 1, 1, 64}};
+                                                        {1, 32, 1, 160},
+                                                        {1, 8, 1, 64}};
 const std::vector<std::vector<size_t >> kernelsW1 = {{3, 1},
                                                      {5, 1}};
 const std::vector<std::vector<size_t >> stridesW1 = {{1, 1},
@@ -43,8 +43,8 @@ const std::vector<std::vector<size_t >> dilationsW1 = {{1, 1},
                                                        {3, 1}};
 // TODO: Currently C != 1 is not supported for graphs with native NCHW layout (will be fixed in 40496)
 const std::vector<std::vector<size_t>> inputShapesW1 = {{1, 1, 32, 1},
-                                                        {1, 1, 160, 1},
-                                                        {1, 1, 64, 1}};
+                                                        {1, 32, 160, 1},
+                                                        {1, 8, 64, 1}};
 const std::vector<size_t> numOutCannels = {4, 8, 12};
 
 const std::vector<std::vector<size_t >> kernels2D = {
