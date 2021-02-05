@@ -128,10 +128,6 @@ def get_exporters():
     return get_extensions('exporter')
 
 
-def get_collectors():
-    return get_extensions('collector')
-
-
 verbose_choices = ['fatal', 'error', 'warning', 'info']
 
 
@@ -157,7 +153,6 @@ def parse_args(args):
     parser.add_argument("--target", help='Pid of target')
     parser.add_argument("--stacks", action="store_true", help='Collect stacks')
     parser.add_argument("--profile", action="store_true", help='Internal: profile runtool execution')
-    parser.add_argument("--collector", choices=list(get_collectors().keys()) + ['default'])
 
     separators = ['!', '?', '%']
     separator = None
@@ -265,12 +260,8 @@ def main():
     (args, victim) = parse_args(sys.argv[1:])  # skipping the script name
     reset_global('arguments', args)
 
-    if victim:
-        ensure_dir(args.output, clean=True)
-        launch(args, victim)
-    else:
-        ext = os.path.splitext(args.input)[1] if not os.path.isdir(args.input) else None
-        transform_all(args)
+    ensure_dir(args.output, clean=True)
+    launch(args, victim)
     Collector.log('Started with arguments: %s' % str(sys.argv))
     save_domains()
 
@@ -373,19 +364,6 @@ def launch(args, victim):
     if 'kernelshark' in args.format:
         victim = 'trace-cmd record -e IntelSEAPI/* ' + victim
 
-    tracer = None
-
-    if args.collector:
-        tracer = get_collectors()[args.collector]
-    elif not tracer:  # using default collector per system
-        if 'linux' in sys.platform:
-            tracer = get_collectors()['ftrace']
-        elif 'win32' == sys.platform:
-            tracer = get_collectors()['etw']
-        elif 'darwin' in sys.platform:
-            tracer = get_collectors()['dtrace']
-    run_suspended = False
-
     if args.dir:
         full_victim = os.path.join(args.dir, victim[0])
         if os.path.exists(full_victim):
@@ -393,27 +371,14 @@ def launch(args, victim):
 
     setattr(args, 'victim', victim[0])
 
-    tracer = tracer(args) if tracer else None  # turning class into instance
     if '!' in sys.argv[1:]:
-        assert tracer
+        proc = subprocess.Popen(victim, env=environ, shell=False, cwd=args.dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        if hasattr(tracer, 'launch_victim'):
-            victim[0] = victim[0].replace(' ', r'\ ')
-            proc = tracer.launch_victim(victim, env=environ)
-        else:
-            if run_suspended:  # might consider using preload of SEA lib and do the suspend there. Or allow tracers to run it.
-                suspended = '(cd "%s"; kill -STOP $$; exec %s )' % (args.dir or '.', ' '.join(victim))
-                proc = subprocess.Popen(suspended, env=environ, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            else:
-                proc = subprocess.Popen(victim, env=environ, shell=False, cwd=args.dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            if sys.platform != 'win32' and not run_suspended:  # FIXME: implement suspended start on Windows!
-                if not args.ring:
-                    proc.send_signal(signal.SIGSTOP)
+        if sys.platform != 'win32':  # FIXME: implement suspended start on Windows!
+            if not args.ring:
+                proc.send_signal(signal.SIGSTOP)
 
         args.target = proc.pid
-
-        tracer.start()
 
         if sys.platform != 'win32':  # collector start may be long, so we freeze victim during this time
             print("PID:", proc.pid)
@@ -436,39 +401,12 @@ def launch(args, victim):
             print("\n", "-" * 50, "\n")
             print(err.decode().strip())
             print("\n}\n\n")
-    elif '?' in sys.argv[1:]:
-        print("Attach to:", victim)
-        pids = get_pids(victim, tracer)
-        if not pids:
-            print("Error: nothing found...")
-            return
-        if tracer:
-            args.target = list(pids)
-            tracer.start()
-
-        print("Waiting for CTRL+C...")
-        global_storage('collection')['time']['before'] = time.time()
-
-        def is_running(pid):
-            try:
-                os.kill(int(pid), 0)
-                return True
-            except OSError:
-                return False
-
-        try:
-            while any(is_running(pid) for pid in pids):
-                time.sleep(0.5)
-        except KeyboardInterrupt:
-            pass
     else:
         message('error', 'unsupported separator')
         return -1
 
     global_storage('collection')['time']['after'] = time.time()
     print("Stopping collectors...")
-    if tracer:
-        args.trace = tracer.stop()
 
     if not args.output:
         return []
