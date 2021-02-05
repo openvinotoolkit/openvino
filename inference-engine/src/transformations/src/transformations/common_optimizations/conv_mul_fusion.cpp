@@ -122,6 +122,11 @@ ngraph::pass::GroupConvolutionMultiplyFusion::GroupConvolutionMultiplyFusion() {
         bool are_weights_reshaped = reshape != nullptr;
         if (are_weights_reshaped) {
             m_weights = reshape->input_value(0);
+            if (!is_scalar_multiplier) {
+                const auto& pshape = m_weights.get_partial_shape();
+                if (pshape[0].get_length() != G * O)
+                    return false;
+            }
         }
 
         // Reshape constant to [G, O, 1, 1, 1, ..] or [G * O, 1, 1, ...]
