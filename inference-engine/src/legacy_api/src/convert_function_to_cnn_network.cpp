@@ -1944,8 +1944,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
     // Set input data
     for (const auto &layer : graph->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<::ngraph::op::v3::ReadValue>(layer) ||
-                std::dynamic_pointer_cast<::ngraph::op::v6::ReadValue>(layer))
+        if (std::dynamic_pointer_cast<::ngraph::op::ReadValueBase>(layer))
             continue;
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
