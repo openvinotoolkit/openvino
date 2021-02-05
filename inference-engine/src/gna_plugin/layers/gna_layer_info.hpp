@@ -135,6 +135,9 @@ class LayerInfo {
     bool isPower() const noexcept {
         return isOfType("power");
     }
+    bool isClamp() const noexcept {
+        return isOfType("clamp");
+    }
     bool has32BInput() const noexcept {
         IS_VALID();
         return isActivation() || isPooling();

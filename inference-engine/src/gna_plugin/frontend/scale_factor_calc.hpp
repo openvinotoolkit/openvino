@@ -134,6 +134,20 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             if (!std::isinf(scale_val)) {
                 result = scale_val;
             }
+        } else if (layer.isClamp()) {
+            auto clampLayer = dynamic_cast<InferenceEngine::ClampLayer const*>(cnnLayer);
+            if (!clampLayer) {
+                THROW_IE_EXCEPTION << "Incorrect Clamp Layer pointer \n";
+            }
+            if (clampLayer->min_value < -16 || clampLayer->max_value > 16) {
+                auto output_max_value = static_cast<double>(std::numeric_limits<int16_t>::max());
+                auto abs_val = std::max(std::abs(clampLayer->min_value), std::abs(clampLayer->max_value));
+                auto scale_val = output_max_value / abs_val;
+
+                if (!std::isinf(scale_val)) {
+                    result = scale_val;
+                }
+            }
         }
 
         if (!quantizedParams->_dst_quant.GetMaxValues().empty()) {
