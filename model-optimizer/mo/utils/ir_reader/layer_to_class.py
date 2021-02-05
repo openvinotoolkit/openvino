@@ -360,12 +360,12 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
                 if out_tensor_names.find(',') >= 0:
                     out_tensor_names = (out_tensor_names.replace('\\,', '<comma_in_tensor_name>')).split(',')
                     for out_tensor_name in out_tensor_names:
-                        debug_dict[out_port].append(('dummy_input_name', out_port,
+                        debug_dict[out_port].append(('<UNKNOWN>', out_port,
                                                      out_tensor_name.replace('<comma_in_tensor_name>', ',')))
                 else:
-                    debug_dict[out_port].append(('dummy_input_name', out_port, out_tensor_names))
+                    debug_dict[out_port].append(('<UNKNOWN>', out_port, out_tensor_names))
             else:
-                debug_dict[out_port].append(('dummy_input_name', out_port, out_tensor_names))
+                debug_dict[out_port].append(('<UNKNOWN>', out_port, out_tensor_names))
         # provide tensor names to data nodes
         if len(debug_dict) > 0:
             for out in op.out_nodes():
