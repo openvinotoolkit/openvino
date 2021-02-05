@@ -377,40 +377,27 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
 }
 
 void FrontEnd::processTrivialCases(const Model& model) {
-    std::map<ie::DataPtr, DataVector> vpuDataObjectsSortedByOrigData;
+    std::unordered_map<ie::DataPtr, DataVector> ieToVpuDataVector;
     for (const auto& data : model->datas()) {
-        vpuDataObjectsSortedByOrigData[data->origData()].push_back(data);
+        const auto& origData = data->origData();
+        if (origData != nullptr) {
+            ieToVpuDataVector[origData].push_back(data);
+        }
     }
 
     std::vector<DataVector> trivialCases;
-    for (const auto& dataObjectsWithTheSameOrigData : vpuDataObjectsSortedByOrigData) {
+    for (const auto& dataObjectsWithTheSameOrigData : ieToVpuDataVector) {
         if (dataObjectsWithTheSameOrigData.second.size() > 1) {
+            VPU_THROW_UNLESS(dataObjectsWithTheSameOrigData.second.size() == 2,
+                             "There can't be more than two data objects connected with the same origData {}",
+                             dataObjectsWithTheSameOrigData.first->getName());
             trivialCases.push_back(dataObjectsWithTheSameOrigData.second);
         }
     }
 
     for (const auto& trivialCase : trivialCases) {
-        Data unconnectedInput, unconnectedOutput;
-        for (const auto& data : trivialCase) {
-            if (data->usage() == DataUsage::Input || data->usage() == DataUsage::Intermediate || data->usage() == DataUsage::Const) {
-                if (!data->isConsumed()) {
-                    VPU_THROW_UNLESS(unconnectedInput == nullptr, "There can't be more than one unconnected inputs with the same origData, but got:"
-                                     "{} and {}", unconnectedInput->name(), data->name());
-                    unconnectedInput = data;
-                }
-            }
-            if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Intermediate) {
-                if (data->producer() == nullptr && data->childDataToShapeEdges().size() == 0) {
-                    VPU_THROW_UNLESS(unconnectedOutput == nullptr, "There can't be more than one unconnected outputs with the same origData, but got:"
-                                     "{} and {}", unconnectedOutput->name(), data->name());
-                    unconnectedOutput = data;
-                }
-            }
-        }
-
-        if (!unconnectedInput || !unconnectedOutput) {
-            continue;
-        }
+        Data unconnectedOutput = trivialCase.front()->usage() == DataUsage::Output ? trivialCase.front() : trivialCase.back();
+        Data unconnectedInput = unconnectedOutput == trivialCase.front() ? trivialCase.back() : trivialCase.front();
 
         _stageBuilder->addCopyStage(
             model,
@@ -519,6 +506,12 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         parseInputAndOutputData(model);
 
+        //
+        // Process trivial cases like `input->output`, `const->output`
+        //
+
+        processTrivialCases(model);
+
         if (!CompileEnv::get().config.disableConvertStages) {
             addDataTypeConvertStages(model);
         }
@@ -549,12 +542,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
 
         parseLayer(model, layer, inputs, outputs, unsupportedLayer, supportedLayer);
     }
-
-    //
-    // Process trivial cases like `input->output`, `const->output`
-    //
-
-    processTrivialCases(model);
 
     //
     // Clean up internal VPU Model
