@@ -1558,8 +1558,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"TensorIterator"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                                              const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+    addSpecificCreator({"TensorIterator", "StaticShapeLoop"},
+        [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         auto res = createSubGraphLayer(node);
         res->type = "TensorIterator";
         return res;
