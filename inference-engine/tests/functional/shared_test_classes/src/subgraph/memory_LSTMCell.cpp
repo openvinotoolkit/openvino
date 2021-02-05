@@ -110,7 +110,8 @@ namespace SubgraphTestsDefinitions {
         auto cell_memory_write = std::make_shared<ngraph::opset5::Assign>(out_cell, "cell_memory");
         auto hidden_memory_write = std::make_shared<ngraph::opset5::Assign>(out_hidden, "hidden_memory");
 
-        auto final_reshape_pattern = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
+        auto final_reshape_pattern = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{4},
+                                                                                std::vector<size_t>({1, 1, 1, hiddenSize}));
         auto final_reshape = std::make_shared<ngraph::opset5::Reshape>(out_unsqueeze, final_reshape_pattern, false);
 
         cell_memory_write->add_control_dependency(cell_memory_read);
@@ -236,7 +237,8 @@ namespace SubgraphTestsDefinitions {
         out_hidden.get_tensor().set_element_type(ngPrc);
         out_cell.get_tensor().set_element_type(ngPrc);
 
-        auto final_reshape_pattern = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<size_t>({1, 1, 1, hiddenSize}));
+        auto final_reshape_pattern = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{4},
+                                                                                std::vector<size_t>({1, 1, 1, hiddenSize}));
         auto final_reshape = std::make_shared<ngraph::opset5::Reshape>(out_unsqueeze, final_reshape_pattern, false);
 
         function = std::make_shared<ngraph::Function>(final_reshape, input_parameter, "PureTI");
