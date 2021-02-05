@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -82,13 +82,23 @@ class L2NormToNorm(MiddleReplacementPattern):
             log.debug('The value of the "maximum_y_data" is not defined or is not constant')
             return
 
-        # We need to check axes which performed reduction because IE supports reduction only along HW and HWC axes.
+        # We need to check axes which performed reduction because IE supports only 2D, 3D, 4D inputs and
+        # reduction only along spatial dimensions.
+        input_shape = match['sum'].in_port(0).data.get_shape().size
+        if input_shape not in [2, 3, 4]:
+            log.debug('IE supports L2 normalization only for 2D, 3D and 4D tensors, skip fusing transformation.')
+            return
+
         axes = match['sum'].in_port(1).data.get_value()
         axes = int64_array(axes)
         if axes.shape == ():
             axes = int64_array([axes])
         axes.sort()
-        if not (np.array_equal(axes, int64_array([1, 2])) or np.array_equal(axes, int64_array([1, 2, 3]))):
+
+        across_spatial = False
+        if np.array_equal(axes, int64_array(np.arange(start=1, stop=input_shape))):
+            across_spatial = True
+        else:
             log.debug('IE doesn\'t support l2 normalization with reduction along axes {}, skip fusing transformation.'
                       ''.format(axes))
             return
@@ -102,7 +112,7 @@ class L2NormToNorm(MiddleReplacementPattern):
                                                           np.ones(shape=int64_array([match['input'].shape[-1]]),
                                                                   dtype=match['input'].data_type),
                                                           {'name': output_name, 'eps': y,
-                                                           'across_spatial': 0, 'channel_shared': 0})
+                                                           'across_spatial': across_spatial, 'channel_shared': False})
         rename_node(normalize_node, output_name)
 
         match['square'].in_port(0).get_source().connect(normalize_node.in_port(0))
