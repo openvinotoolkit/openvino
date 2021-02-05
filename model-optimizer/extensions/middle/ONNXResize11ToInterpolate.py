@@ -84,7 +84,7 @@ def replace_resize(graph: Graph, resize: Node):
                                              'shrink_axis_mask': int64_array([0]),
                                              'ellipsis_mask': int64_array([0])})
     axes_node = Const(graph,
-                      {'name': resize_name + '/axis_',
+                      {'name': resize_name + '/axis',
                        'value': int64_array(np.arange(begin_dim, end_dim))}).create_node()
 
     shape_calculation_mode = 'scales' if num_of_inputs == 3 else 'sizes'
@@ -101,21 +101,21 @@ def replace_resize(graph: Graph, resize: Node):
                                            'in_ports_count': 4}).create_node()
 
     axes_node.out_port(0).connect(interpolate_node.in_port(3))
-    shape_of = Shape(graph, {'name': resize_name + '/ShapeOf_'}).create_node()
+    shape_of = Shape(graph, {'name': resize_name + '/ShapeOf'}).create_node()
 
     add_node = create_op_with_const_inputs(graph, Add,
                                            {1: float_array([1.0e-5])},
-                                           {'name': resize_name + '/Add_'})
+                                           {'name': resize_name + '/Add'})
 
     input_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
     if num_of_inputs == 3:
         cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
-        mul_node = Mul(graph, {'name': resize_name + '/Mul_'}).create_node()
+        mul_node = Mul(graph, {'name': resize_name + '/Mul'}).create_node()
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
         cast_shape_to_float.out_port(0).connect(mul_node.in_port(0))
         cast_add_result_to_int = Cast(graph, {'dst_type': np.int64}).create_node()
-        floor_node = Floor(graph, {'name': resize_name + '/Floor_'}).create_node()
+        floor_node = Floor(graph, {'name': resize_name + '/Floor'}).create_node()
         mul_node.out_port(0).connect(add_node.in_port(0))
         add_node.out_port(0).connect(floor_node.in_port(0))
         floor_node.out_port(0).connect(cast_add_result_to_int.in_port(0))
@@ -134,7 +134,7 @@ def replace_resize(graph: Graph, resize: Node):
     else:
         cast_shape_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
         cast_sizes_to_float = Cast(graph, {'dst_type': input_data_type}).create_node()
-        div_node = Div(graph, {'name': resize_name + '/Div_'}).create_node()
+        div_node = Div(graph, {'name': resize_name + '/Div'}).create_node()
         cast_sizes_to_float.out_port(0).connect(div_node.in_port(0))
         cast_shape_to_float.out_port(0).connect(div_node.in_port(1))
         shape_of.out_port(0).connect(cast_shape_to_float.in_port(0))
@@ -156,7 +156,7 @@ def replace_resize(graph: Graph, resize: Node):
     resize.out_port(0).get_connection().set_source(interpolate_node.out_port(0))
 
 
-class ONNXResize11ToInterpolate4(MiddleReplacementPattern):
+class ONNXResize11ToInterpolate(MiddleReplacementPattern):
     """
     The transformation replaces ONNX Resize 11 with Interpolate-4.
     """

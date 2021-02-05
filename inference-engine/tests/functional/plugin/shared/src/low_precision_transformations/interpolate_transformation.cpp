@@ -85,7 +85,7 @@ void InterpolateTransformation::validate() {
     if (attributes.mode == "nearest") {
         ASSERT_EQ("ScaleShiftIE", typeName);
     } else {
-        ASSERT_EQ("Interp", typeName);
+        ASSERT_TRUE("Interp" == typeName || "Interpolate" == typeName);
     }
 }
 

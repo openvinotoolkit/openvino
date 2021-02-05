@@ -144,6 +144,7 @@ extensions/front/input_cut.py
 extensions/front/instance_normalization.py
 extensions/front/interpolate_reshape.py
 extensions/front/InterpolateNormalizer.py
+extensions/front/InterpolateV1ToInterpolate.py
 extensions/front/kaldi/__init__.py
 extensions/front/kaldi/add_permute_after_convolution.py
 extensions/front/kaldi/add_reshape_around_convolution.py
@@ -298,6 +299,7 @@ extensions/front/onnx/normalize_ext.py
 extensions/front/onnx/normalize_l2_normalize.py
 extensions/front/onnx/one_hot_ext.py
 extensions/front/onnx/one_hot_normalize.py
+extensions/front/onnx/ONNXResize10ToInterpolate.py
 extensions/front/onnx/pad_converter.py
 extensions/front/onnx/pad_ext.py
 extensions/front/onnx/parameter_ext.py
@@ -317,7 +319,6 @@ extensions/front/onnx/reduce_ext.py
 extensions/front/onnx/remove_filtering_boxes_by_size.py
 extensions/front/onnx/reshape_ext.py
 extensions/front/onnx/resize_ext.py
-extensions/front/onnx/resize_to_interpolate.py
 extensions/front/onnx/reverse_sequence_ext.py
 extensions/front/onnx/rnn_ext.py
 extensions/front/onnx/roialign_ext.py
@@ -483,6 +484,7 @@ extensions/front/tf/SwitchMergeOptimization.py
 extensions/front/tf/TensorArrayExtractors.py
 extensions/front/tf/TensorArrayGatherV3.py
 extensions/front/tf/tensorflow_custom_operations_config_update.py
+extensions/front/tf/TFResizeToInterpolate.py
 extensions/front/tf/TFSliceToSlice.py
 extensions/front/tf/tile_ext.py
 extensions/front/tf/topk_ext.py
@@ -571,7 +573,7 @@ extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
 extensions/middle/MXTileReplacer.py
-extensions/middle/ONNXResize11ToInterpolateV4.py
+extensions/middle/ONNXResize11ToInterpolate.py
 extensions/middle/ONNXRNNSequenceNormalize.py
 extensions/middle/PartialInfer.py
 extensions/middle/pass_separator.py
@@ -677,6 +679,7 @@ extensions/ops/non_zero.py
 extensions/ops/normalize.py
 extensions/ops/normalize_l2.py
 extensions/ops/one_hot.py
+extensions/ops/ONNXResize10.py
 extensions/ops/ONNXResize11.py
 extensions/ops/pack.py
 extensions/ops/parameter.py
@@ -697,7 +700,6 @@ extensions/ops/rank.py
 extensions/ops/ReduceOps.py
 extensions/ops/regionyolo.py
 extensions/ops/reorgyolo.py
-extensions/ops/resample.py
 extensions/ops/resize.py
 extensions/ops/resize_factor_utils.py
 extensions/ops/Reverse.py
@@ -733,6 +735,7 @@ extensions/ops/TensorArrayScatter.py
 extensions/ops/TensorArraySize.py
 extensions/ops/TensorArrayWrite.py
 extensions/ops/TensorIterator_ops.py
+extensions/ops/TFResize.py
 extensions/ops/topk.py
 extensions/ops/topkrois_onnx.py
 extensions/ops/transpose.py

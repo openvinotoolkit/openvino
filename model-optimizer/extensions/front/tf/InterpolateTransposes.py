@@ -15,6 +15,7 @@
 """
 import numpy as np
 
+from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
@@ -35,8 +36,7 @@ class InterpolateTranspose(FrontReplacementSubgraph):
                 ('interpolate',
                  {
                      'kind': 'op',
-                     'op': 'Interpolate',
-                     'axes': lambda axes: axes is not None and np.array_equal(axes, int64_array([1, 2]))
+                     'op': 'Interpolate'
                  }),
                 ('transpose_1', {'kind': 'op', 'op': 'Transpose'}),
                 ('transpose_1_order',
@@ -70,8 +70,18 @@ class InterpolateTranspose(FrontReplacementSubgraph):
         transpose_1 = match['transpose_1']
         transpose_2 = match['transpose_2']
 
+        axes = Interpolate.get_axes(interpolate)
+        if axes is None or not np.array_equal(axes, int64_array([1, 2])):
+            return
+
         # because we remove Transpose layers the ResizeNearestNeighbor should be updated for NCHW layout
-        interpolate.axes = int64_array([2, 3])
+        opset = interpolate.get_opset()
+        assert opset in ['opset1', 'opset4'], \
+            'Interpolate node with name {} has unsupported opset'.format(interpolate.soft_get('name', interpolate.id))
+        if opset == 'opset1':
+            interpolate.axes = int64_array([2, 3])
+        else:
+            interpolate.in_port(3).data.set_value(int64_array([2, 3]))
 
         transpose_1.in_port(0).get_connection().set_destination(interpolate.in_port(0))
         transpose_2.out_port(0).get_connection().set_source(interpolate.out_port(0))

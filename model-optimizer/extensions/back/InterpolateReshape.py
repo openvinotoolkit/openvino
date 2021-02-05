@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 import numpy as np
 
 from extensions.ops.elementwise import Mul
@@ -54,7 +55,6 @@ class InterpolateConcat(BackReplacementPattern):
                         \                   /
                            Concat(axis=1)
                         shape=[1, 7, 60, 160]
-
     """
     enabled = True
     graph_condition = [lambda graph: not graph.graph['cmd_params'].static_shape]
@@ -89,7 +89,7 @@ class InterpolateConcat(BackReplacementPattern):
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
+        for interpolate in graph.get_op_nodes(type='Interpolate'):
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
                 continue
             dsts = interpolate.out_port(0).get_destinations()
@@ -101,14 +101,12 @@ class InterpolateReshapeWA(BackReplacementPattern):
     """
     Replaces hard-coded 1-port input of Interpolate with reshape-able sub-graph.
     WARNING: Could cause troubles if model has hard-coded Interpolate intentionally -- rare situation
-
     BEFORE:
         input                   Const
     shape=[1, 3, 30, 40]      value=[60, 160]
             \                   /
            Interpolate(axes=(2, 3))
             shape=[1, 3, 60, 160]
-
     AFTER:
             input
     shape=[1, 3, 30, 40]
@@ -151,6 +149,6 @@ class InterpolateReshapeWA(BackReplacementPattern):
         interpolate.in_port(1).get_connection().set_source(mul.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
+        for interpolate in graph.get_op_nodes(type='Interpolate'):
             if interpolate.in_port(1).get_source().node.soft_get('type') == 'Const':
                 self.make_interpolate_reshapeable(interpolate)
