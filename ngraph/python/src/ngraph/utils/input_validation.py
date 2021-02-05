@@ -14,7 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-"""! Helper functions for validating user input."""
+"""Helper functions for validating user input."""
 
 import logging
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 
 def assert_list_of_ints(value_list: Iterable[int], message: str) -> None:
-    """! Verify that the provided value is an iterable of integers."""
+    """Verify that the provided value is an iterable of integers."""
     try:
         for value in value_list:
             if not isinstance(value, int):
@@ -39,7 +39,7 @@ def assert_list_of_ints(value_list: Iterable[int], message: str) -> None:
 
 def _check_value(op_name, attr_key, value, val_type, cond=None):
     # type: (str, str, Any, Type, Optional[Callable[[Any], bool]]) -> bool
-    """! Check whether provided value satisfies specified criteria.
+    """Check whether provided value satisfies specified criteria.
 
     @param      op_name:        The operator name which attributes are checked.
     @param      attr_key:       The attribute name.
@@ -67,7 +67,7 @@ def _check_value(op_name, attr_key, value, val_type, cond=None):
 
 def check_valid_attribute(op_name, attr_dict, attr_key, val_type, cond=None, required=False):
     # type: (str, dict, str, Type, Optional[Callable[[Any], bool]], Optional[bool]) -> bool
-    """! Check whether specified attribute satisfies given criteria.
+    """Check whether specified attribute satisfies given criteria.
 
     @param  op_name:    The operator name which attributes are checked.
     @param attr_dict:   Dictionary containing key-value attributes to check.
@@ -110,7 +110,7 @@ def check_valid_attributes(
     requirements,  # type: List[Tuple[str, bool, Type, Optional[Callable]]]
 ):
     # type: (...) -> bool
-    """! Perform attributes validation according to specified type, value criteria.
+    """Perform attributes validation according to specified type, value criteria.
 
     @param  op_name:        The operator name which attributes are checked.
     @param  attributes:     The dictionary with user provided attributes to check.
@@ -130,7 +130,7 @@ def check_valid_attributes(
 
 
 def is_positive_value(x):  # type: (Any) -> bool
-    """! Determine whether the specified x is positive value.
+    """Determine whether the specified x is positive value.
 
     @param      x:    The value to check.
 
@@ -140,7 +140,7 @@ def is_positive_value(x):  # type: (Any) -> bool
 
 
 def is_non_negative_value(x):  # type: (Any) -> bool
-    """! Determine whether the specified x is non-negative value.
+    """Determine whether the specified x is non-negative value.
 
     @param      x:    The value to check.
 

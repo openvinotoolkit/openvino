@@ -51,7 +51,8 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/broadcast.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/convert.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy_decoder.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_greedy_decoder_seq_len.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/ctc_loss.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/depth_to_space.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/detectionoutput.cpp
@@ -99,6 +100,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/emitter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/jit_load_store_emitters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_eltwise_emitters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_mkldnn_emitters.cpp
 
@@ -160,6 +162,14 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS})
 
 set_ie_threading_interface_for(${TARGET_NAME})
+
+if(SELECTIVE_BUILD STREQUAL "ON")
+    # After disabling a block of code, some variables might be unused.
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+        OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
+    endif()
+endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
                                              inference_engine_transformations inference_engine_lp_transformations openvino::conditional_compilation)

@@ -90,8 +90,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_target_shape_as_concat_with_node)
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().same_scheme(Rank{4}));
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
-    ASSERT_TRUE(bc->get_output_partial_shape(0).same_scheme(
-        PartialShape{Dimension::dynamic(), 16, 50, 50}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), PartialShape({Dimension::dynamic(), 16, 50, 50}));
 }
 
 TYPED_TEST_P(BroadcastTests, broadcast_fail_rank)

@@ -235,8 +235,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_argmin_negative_axis_keepdims_random_select_last_index_cpu",
         "OnnxBackendNodeModelTest.test_argmin_no_keepdims_random_select_last_index_cpu"),
     (xfail_issue_38091,
-        "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu",
-        "OnnxBackendNodeModelTest.test_mvn_cpu",),
+        "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu"),
     (xfail_issue_47317,
         "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_broadcast_cpu",
         "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_singleton_broadcast_cpu",),
@@ -682,7 +681,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_squeeze_cpu",
         "OnnxBackendNodeModelTest.test_squeeze_negative_axes_cpu",),
     (xfail_issue_44976,
-        "OnnxBackendNodeModelTest.test_quantizelinear_axis_cpu",)
+        "OnnxBackendNodeModelTest.test_quantizelinear_axis_cpu",),
 ]
 
 for test_group in tests_expected_to_fail:

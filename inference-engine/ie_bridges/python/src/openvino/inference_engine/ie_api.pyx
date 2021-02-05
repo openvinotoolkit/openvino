@@ -173,7 +173,8 @@ cdef class Blob:
                 fp64_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[double](c_tensor_desc, &fp64_array_memview[0], fp64_array_memview.shape[0])
             elif precision == "FP16":
-                raise RuntimeError("Currently, it's impossible to set_blob with FP16 precision")
+                I16_array_memview = self._array_data.view(dtype=np.int16)
+                self._ptr = C.make_shared_blob[int16_t](c_tensor_desc, &I16_array_memview[0], I16_array_memview.shape[0])
             elif precision == "I16":
                 I16_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[int16_t](c_tensor_desc, &I16_array_memview[0], I16_array_memview.shape[0])
@@ -1222,7 +1223,10 @@ cdef class InferRequest:
     def _fill_inputs(self, inputs):
         for k, v in inputs.items():
             assert k in self._inputs_list, f"No input with name {k} found in network"
-            self.input_blobs[k].buffer[:] = v
+            if self.input_blobs[k].tensor_desc.precision == "FP16":
+                self.input_blobs[k].buffer[:] = v.view(dtype=np.int16)
+            else:
+                self.input_blobs[k].buffer[:] = v
 
 
 ## This class contains the information about the network model read from IR and allows you to manipulate with
