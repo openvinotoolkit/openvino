@@ -430,6 +430,8 @@ TEST(build_graph, build_graph_with_remove_parameter_indexing)
     auto arg2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
     auto init_const = op::Constant::create(element::f32, Shape{2, 2}, {0, 0, 0, 0});
     auto read = make_shared<opset5::ReadValue>(init_const, "v0");
+    auto assign = make_shared<opset5::Assign>(read, "v0");
+    assign->add_control_dependency(read);
     std::vector<shared_ptr<Node>> args = {arg2, arg};
     auto pattern = make_shared<op::Concat>(args, 1);
     auto res = make_shared<op::Result>(pattern);
@@ -446,10 +448,11 @@ TEST(build_graph, build_graph_with_remove_parameter_indexing)
 
     pattern->input(0).replace_source_output(read->output(0));
     f->remove_parameter(arg2);
+    f->add_sinks(SinkVector{assign});
     params = f->get_parameters();
     EXPECT_EQ(params.size(), 1);
     nodes = f->get_ops();
-    EXPECT_EQ(nodes.size(), 8);
+    EXPECT_EQ(nodes.size(), 9);
 
     f->validate_nodes_and_infer_types();
 }

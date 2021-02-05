@@ -14,7 +14,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::LowLatency, "LowLatency", 0);
 
 ngraph::pass::LowLatency::LowLatency()
 {
-    auto tensor_iterator = ngraph::pattern::wrap_type<op::util::SubGraphOp>();
+    auto tensor_iterator = ngraph::pattern::wrap_type<opset6::TensorIterator, opset6::Loop>();
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
         const auto& sub_graph_op =
             std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(m.get_match_root());
