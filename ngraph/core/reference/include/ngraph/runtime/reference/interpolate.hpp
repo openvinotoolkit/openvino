@@ -604,6 +604,31 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::linear_onnx_generic_func(const T* input_data, T* out)
             {
+                size_t input_rank = m_input_data_shape.size();
+                size_t num_of_axes = m_axes.size();
+
+                bool correct_axes = ((input_rank == 2) && (num_of_axes == 2) && (m_axes[0] == 0) && (m_axes[1] == 1)) ||
+                                    ((input_rank == 3) && (num_of_axes == 3) && (m_axes[0] == 0) && (m_axes[1] == 1) && (m_axes[2] == 2));
+
+                if (input_rank >= 4)
+                {
+                    std::vector<int64_t> all_axes;
+                    std::vector<int64_t> axes_without_batch_and_channels;
+                    all_axes.push_back(0);
+                    all_axes.push_back(1);
+                    for (int64_t i = 2; i < static_cast<int64_t>(input_rank); ++i)
+                    {
+                        all_axes.push_back(i);
+                        axes_without_batch_and_channels.push_back(i);
+                    }
+
+                    correct_axes = correct_axes ||
+                                   (((num_of_axes == input_rank) && (m_axes == all_axes)) ||
+                                    ((num_of_axes == input_rank - 2) && (m_axes == axes_without_batch_and_channels)));
+                }
+
+                assert(correct_axes);
+
                 const auto info = helper.get_info_for_generic_linear_onnx();
 
                 int64_t batch_size = info.batch_size;
