@@ -38,7 +38,7 @@ public:
     ~TemplateInferRequest() override;
 
     void InferImpl() override;
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
 
     InferenceEngine::StatusCode Cancel() override;
 
