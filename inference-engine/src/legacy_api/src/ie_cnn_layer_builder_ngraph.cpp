@@ -358,31 +358,31 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_
     return res;
 }
 
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::ResampleV2>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Resample", details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::ResampleV2>(layer);
-    if (castedLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
+// template <>
+// CNNLayer::Ptr NodeConverter<ngraph::op::ResampleV2>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+//     LayerParams params = {layer->get_friendly_name(), "Resample", details::convertPrecision(layer->get_output_element_type(0))};
+//     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
+//     auto castedLayer = ngraph::as_type_ptr<ngraph::op::ResampleV2>(layer);
+//     if (castedLayer == nullptr)
+//         THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
-    auto attrs = castedLayer->get_attrs();
+//     auto attrs = castedLayer->get_attrs();
 
-    res->params["antialias"] = attrs.antialias ? "1" : "0";
-    if (attrs.mode == "nearest") {
-        res->params["type"] = "caffe.ResampleParameter.NEAREST";
-    } else if (attrs.mode == "cubic") {
-        res->params["type"] = "caffe.ResampleParameter.CUBIC";
-    } else if (attrs.mode == "area") {
-        res->params["type"] = "caffe.ResampleParameter.AREA";
-    } else if (attrs.mode == "linear") {
-        res->params["type"] = "caffe.ResampleParameter.LINEAR";
-    }
+//     res->params["antialias"] = attrs.antialias ? "1" : "0";
+//     if (attrs.mode == "nearest") {
+//         res->params["type"] = "caffe.ResampleParameter.NEAREST";
+//     } else if (attrs.mode == "cubic") {
+//         res->params["type"] = "caffe.ResampleParameter.CUBIC";
+//     } else if (attrs.mode == "area") {
+//         res->params["type"] = "caffe.ResampleParameter.AREA";
+//     } else if (attrs.mode == "linear") {
+//         res->params["type"] = "caffe.ResampleParameter.LINEAR";
+//     }
 
-    res->params["factor"] = asString(attrs.factor);
+//     res->params["factor"] = asString(attrs.factor);
 
-    return res;
-}
+//     return res;
+// }
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
