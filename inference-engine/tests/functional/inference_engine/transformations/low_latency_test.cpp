@@ -161,7 +161,7 @@ TEST(TransformationTests, LowLatencyGRU) {
 
         const std::string variable_name_H("GRUTensorIterator/variable0");
         auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape(), element::dynamic, variable_name_H});
-        auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_name_H);
+        auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_H);
         // Body
         auto axis = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
         auto squeeze = std::make_shared<opset6::Squeeze>(Xi, axis);
@@ -239,7 +239,7 @@ TEST(TransformationTests, LowLatencyRNN) {
 
         const std::string variable_name_H("RNNTensorIterator/variable0");
         auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape(), element::dynamic, variable_name_H});
-        auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_name_H);
+        auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_H);
         // Body
         auto axis = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
         auto squeeze = std::make_shared<opset6::Squeeze>(Xi, axis);
