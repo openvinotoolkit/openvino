@@ -49,39 +49,11 @@ jobs:
     submodules: recursive
     path: openvino
 
-  - task: CMake@1
-    inputs:
-      # CMake must get Python 3.x version by default
-      cmakeArgs: -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_VPU=OFF -DENABLE_GNA=OFF -DENABLE_OPENCV=OFF -DENABLE_CPPLINT=OFF -DENABLE_TESTS=OFF -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=OFF -DENABLE_PROFILING_ITT=OFF -DENABLE_SAMPLES=OFF -DENABLE_SPEECH_DEMO=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DNGRAPH_ONNX_IMPORT_ENABLE=ON -DNGRAPH_INTERPRETER_ENABLE=ON -DNGRAPH_DEBUG_ENABLE=OFF -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
-    enabled: false
-
-  - script: |
-      rm -rf $(MODELS_DIR)/onnx_model_zoo
-      cp -rf $(TMP_DIR)/model_zoo/onnx_model_zoo/ $(MODELS_DIR)/onnx_model_zoo/
-    displayName: 'Copy ONNX models'
-    enabled: false
-
-  - script: |
-      wget -O "$(TMP_DIR)/msft.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
-      unzip "$(TMP_DIR)/msft.zip" -d "$(TMP_DIR)/msft"
-    displayName: 'Get MSFT models'
-    enabled: false
-
-  - script: |
-      rm -rf $(MODELS_DIR)/msft
-      cp -rf $(TMP_DIR)/msft/ $(MODELS_DIR)/msft/20191107/
-    displayName: 'Copy MSFT models'
-    enabled: false
-
-
-  - script: |
-      #ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(TMP_DIR) -c -f
-      ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o
-    displayName: 'Get models'
-
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
     displayName: 'Docker build'
+
+  - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o
+    displayName: 'Get models'
 
   - script: |
       ls -alR $(MODELS_DIR)
@@ -93,7 +65,6 @@ jobs:
     displayName: 'Create swap'
 
   - script: |
-      #docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR):/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
       docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
     displayName: 'Docker run'
 
