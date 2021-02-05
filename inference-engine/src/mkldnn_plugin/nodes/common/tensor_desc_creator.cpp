@@ -60,7 +60,7 @@ public:
 
         return TensorDesc(precision, srcDims, {blkDims, order});
     }
-    virtual size_t getMinimalRank() const { return 2lu; }
+    virtual size_t getMinimalRank() const { return 3lu; }
 
 private:
     size_t _blockSize;
