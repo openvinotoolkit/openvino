@@ -358,31 +358,31 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_
     return res;
 }
 
-// template <>
-// CNNLayer::Ptr NodeConverter<ngraph::op::ResampleV2>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-//     LayerParams params = {layer->get_friendly_name(), "Resample", details::convertPrecision(layer->get_output_element_type(0))};
-//     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-//     auto castedLayer = ngraph::as_type_ptr<ngraph::op::ResampleV2>(layer);
-//     if (castedLayer == nullptr)
-//         THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
+ template <>
+ CNNLayer::Ptr NodeConverter<ngraph::op::ResampleV2>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+     LayerParams params = {layer->get_friendly_name(), "Resample", details::convertPrecision(layer->get_output_element_type(0))};
+     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
+     auto castedLayer = ngraph::as_type_ptr<ngraph::op::ResampleV2>(layer);
+     if (castedLayer == nullptr)
+         THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
-//     auto attrs = castedLayer->get_attrs();
+     auto attrs = castedLayer->get_attrs();
 
-//     res->params["antialias"] = attrs.antialias ? "1" : "0";
-//     if (attrs.mode == "nearest") {
-//         res->params["type"] = "caffe.ResampleParameter.NEAREST";
-//     } else if (attrs.mode == "cubic") {
-//         res->params["type"] = "caffe.ResampleParameter.CUBIC";
-//     } else if (attrs.mode == "area") {
-//         res->params["type"] = "caffe.ResampleParameter.AREA";
-//     } else if (attrs.mode == "linear") {
-//         res->params["type"] = "caffe.ResampleParameter.LINEAR";
-//     }
+     res->params["antialias"] = attrs.antialias ? "1" : "0";
+     if (attrs.mode == "nearest") {
+         res->params["type"] = "caffe.ResampleParameter.NEAREST";
+     } else if (attrs.mode == "cubic") {
+         res->params["type"] = "caffe.ResampleParameter.CUBIC";
+     } else if (attrs.mode == "area") {
+         res->params["type"] = "caffe.ResampleParameter.AREA";
+     } else if (attrs.mode == "linear") {
+         res->params["type"] = "caffe.ResampleParameter.LINEAR";
+     }
 
-//     res->params["factor"] = asString(attrs.factor);
+     res->params["factor"] = asString(attrs.factor);
 
-//     return res;
-// }
+     return res;
+}
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
@@ -405,40 +405,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::
     if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
         const auto biasNode = layer->input_value(2).get_node_shared_ptr();
         InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
-    }
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ExecGraphInfoSerialization::ExecutionNode>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    auto castedLayer = ngraph::as_type_ptr<ExecGraphInfoSerialization::ExecutionNode>(layer);
-    if (castedLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert " << layer->get_friendly_name() << " layer ";
-
-    auto & rtInfo = castedLayer->get_rt_info();
-    if (rtInfo.count(ExecGraphInfoSerialization::LAYER_TYPE) == 0) {
-        THROW_IE_EXCEPTION << "No " << ExecGraphInfoSerialization::LAYER_TYPE
-            << " attribute is set in " << layer->get_friendly_name() << " node";
-    }
-
-    auto getStringValue = [] (const std::shared_ptr<ngraph::Variant> & variant) {
-        auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(variant);
-        IE_ASSERT(castedVariant != nullptr);
-        return castedVariant->get();
-    };
-
-    LayerParams params = { layer->get_friendly_name(),
-                           getStringValue(rtInfo[ExecGraphInfoSerialization::LAYER_TYPE]),
-                           details::convertPrecision(layer->get_output_element_type(0)) };
-    rtInfo.erase(ExecGraphInfoSerialization::LAYER_TYPE);
-
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    for (const auto & kvp : rtInfo) {
-        auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(kvp.second);
-        // skip RT info which holds fusedNames, etc
-        if (castedVariant)
-            res->params[kvp.first] = getStringValue(castedVariant);
     }
 
     return res;

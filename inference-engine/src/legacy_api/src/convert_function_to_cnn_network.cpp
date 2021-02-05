@@ -1630,6 +1630,39 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
         return res;
     });
+
+    addSpecificCreator({"ExecutionNode"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        auto& rtInfo = node->get_rt_info();
+
+        if (rtInfo.count(ExecGraphInfoSerialization::LAYER_TYPE) == 0) {
+            THROW_IE_EXCEPTION << "No " << ExecGraphInfoSerialization::LAYER_TYPE
+                << " attribute is set in " << node->get_friendly_name() << " node";
+        }
+
+        auto getStringValue = [] (const std::shared_ptr<ngraph::Variant> & variant) {
+            auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(variant);
+            IE_ASSERT(castedVariant != nullptr);
+            return castedVariant->get();
+        };
+
+        LayerParams attrs = {node->get_friendly_name(),
+                            getStringValue(rtInfo[ExecGraphInfoSerialization::LAYER_TYPE]),
+                            details::convertPrecision(node->get_output_element_type(0))};
+        rtInfo.erase(ExecGraphInfoSerialization::LAYER_TYPE);
+
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+
+        for (const auto & kvp : rtInfo) {
+            auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(kvp.second);
+            // skip RT info which holds fusedNames, etc
+            if (castedVariant)
+                res->params[kvp.first] = getStringValue(castedVariant);
+        }
+
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -1664,9 +1697,8 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GenericIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
-                // std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
-                std::make_shared<Builder::NodeConverter<::ExecGraphInfoSerialization::ExecutionNode>>(),
         };
         CNNLayerPtr result;
 
