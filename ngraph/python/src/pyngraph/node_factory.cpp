@@ -60,13 +60,6 @@ namespace
                          "Currently NodeFactory doesn't support Constant node: ",
                          op_type_name);
 
-            if (op_type_name == "TensorIterator")
-            {
-                // XXX: How to differentiate opsets?
-                return util::TensorIteratorBuilder(as_node_vector(arguments), attributes)
-                    .configure(std::static_pointer_cast<ngraph::op::TensorIterator>(op_node));
-            }
-
             util::DictAttributeDeserializer visitor(attributes);
 
             op_node->set_arguments(arguments);
