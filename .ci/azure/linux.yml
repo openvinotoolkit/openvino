@@ -16,13 +16,13 @@ jobs:
   timeoutInMinutes: 90
 
   pool:
-    name: LIN_VMSS_VENV_F8S_WU2
+    name: LIN_VMSS_VENV_F16S_WU2
 
   variables:
     system.debug: true
     VSTS_HTTP_RETRY: 5
     VSTS_HTTP_TIMEOUT: 200
-    WORKERS_NUMBER: 8
+    WORKERS_NUMBER: 16
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
