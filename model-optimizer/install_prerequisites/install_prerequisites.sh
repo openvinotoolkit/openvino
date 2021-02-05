@@ -109,7 +109,7 @@ if [[ $V_ENV -eq 1 ]]; then
     source "$SCRIPTDIR/../venv${postfix}/bin/activate"
     venv_python_binary="$SCRIPTDIR/../venv${postfix}/bin/$python_binary"
     $venv_python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
-    find_ie_bindings $venv_python_binary
+    find_ie_bindings "$venv_python_binary"
     echo
     echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv${postfix}/bin/activate\""
 else

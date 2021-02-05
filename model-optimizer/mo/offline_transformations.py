@@ -32,8 +32,4 @@ if __name__ == "__main__":
     ie = IECore()
     net = ie.read_network(model=orig_model_name + ".xml", weights=orig_model_name + ".bin")
     ApplyMOCTransformations(net, True)
-
-    # remove old IR version to avoid collisions in case if serialize fails
-    os.remove(orig_model_name + ".xml")
-    os.remove(orig_model_name + ".bin")
-    net.serialize(orig_model_name + ".xml", orig_model_name + ".bin")
+    # TODO: call validation pass to check IE components
