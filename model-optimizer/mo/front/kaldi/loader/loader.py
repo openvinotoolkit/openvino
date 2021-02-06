@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     variadic_split_node = AttributedVariadicSplit(graph, attrs).create_node()
     prev_layer_node = Node(graph, prev_layer_id)
     prev_layer_node.add_output_port(0)
-    graph.create_edge(prev_layer_node, variadic_split_node, 0, 0)
+    graph.create_edge(prev_layer_node, variadic_split_node, 0, 0, create_edge_attrs(prev_layer_id, variadic_split_node.id, prev_layer_id))
 
     concat_id = graph.unique_id(prefix='Concat')
     graph.add_node(concat_id, parameters=None, op='concat', kind='op')
@@ -91,8 +91,8 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     for i, (input_node, output_node) in enumerate(zip(inputs, outputs)):
         output_node.add_output_port(0)
         concat_node.add_input_port(i)
-        graph.create_edge(output_node, concat_node, 0, i)
-        graph.create_edge(variadic_split_node, input_node, i, 0)
+        graph.create_edge(output_node, concat_node, 0, i, create_edge_attrs(output_node.id, concat_id, output_node.id, i, 0))
+        graph.create_edge(variadic_split_node, input_node, i, 0, create_edge_attrs(variadic_split_node.id, input_node.id, variadic_split_node.id, 0, i))
     return concat_id
 
 
@@ -168,7 +168,7 @@ def load_kalid_nnet1_model(graph, file_descr, name):
 
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
-        graph.create_edge(prev_node, Node(graph, layer_id), 0, 0)
+        graph.create_edge(prev_node, Node(graph, layer_id), 0, 0, create_edge_attrs(prev_layer_id, layer_id, prev_layer_id))
         prev_layer_id = layer_id
         log.debug('{} (type is {}) was loaded'.format(prev_layer_id, component_type))
 
@@ -189,7 +189,7 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
             prev_node['shape'] = np.array([1, input_dim], dtype=np.int64)
         prev_node.add_output_port(0)
         Node(graph, layer_id).add_input_port(0)
-        graph.create_edge(prev_node, Node(graph, layer_id), 0, 0)
+        graph.create_edge(prev_node, Node(graph, layer_id), 0, 0, create_edge_attrs(prev_layer_id, layer_id, prev_layer_id))
         prev_layer_id = layer_id
         log.debug('{} and {} were connected'.format(prev_layer_id, layer_id))
 
@@ -324,7 +324,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         Node(graph, node_name).add_input_port(in_port)
         Node(graph, in_node_id).add_output_port(out_port)
 
-        graph.add_edge(in_node_id, node_name, **create_edge_attrs(in_node_id, node_name, in_port, out_port))
+        graph.add_edge(in_node_id, node_name, **create_edge_attrs(in_node_id, node_name, in_node_id, in_port, out_port))
     elif tokens[0] == b'output-node':
         layer_name = s[s.find(b'name=') + len(b'name='):].split(b' ')[0]
         layer_name = str(layer_name).strip('b').replace('\'', "")
@@ -341,14 +341,14 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         Node(graph, node_name).add_input_port(0)
         Node(graph, node_name).add_output_port(0)
         Node(graph, out_name).add_input_port(0)
-        graph.add_edge(node_name, out_name, **create_edge_attrs(node_name, out_name))
+        graph.add_edge(node_name, out_name, **create_edge_attrs(node_name, out_name, node_name))
 
         # parse input
         in_node_id = parse_input_for_node(s[s.find(b'input=') + len(b'input='):], graph, layer_node_map)
 
         out_port = len(Node(graph, in_node_id).out_nodes())
         Node(graph, in_node_id).add_output_port(out_port)
-        graph.create_edge(Node(graph, in_node_id), Node(graph, node_name), out_port, 0)
+        graph.create_edge(Node(graph, in_node_id), Node(graph, node_name), out_port, 0, create_edge_attrs(in_node_id, node_name, in_node_id, 0, out_port))
 
         objective_type = s[s.find(b'objective=') + 10:].split(b' ')[0].split(b'\n')[0]
         if objective_type != b'linear':
@@ -380,7 +380,7 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         node.add_input_port(in_port)
         Node(graph, in_node_id).add_output_port(out_port)
 
-        graph.create_edge(Node(graph, in_node_id), node, out_port, in_port)
+        graph.create_edge(Node(graph, in_node_id), node, out_port, in_port, create_edge_attrs(in_node_id, node_name, in_node_id, in_port, out_port))
 
         # read dim info where possible to simplify shape calculation for MemoryOffset
         # shape calculation for MemoryOffset can't be done through shape of previous layer because
@@ -434,7 +434,7 @@ def parse_specifier(string, graph, layer_node_map):
             for node in nodes:
                 out_port = len(Node(graph, node).out_nodes())
                 Node(graph, node).add_output_port(out_port)
-                graph.create_edge(Node(graph, node), Node(graph, concat_name), out_port, i)
+                graph.create_edge(Node(graph, node), Node(graph, concat_name), out_port, i, create_edge_attrs(node, concat_name, node, i, out_port))
                 i = i + 1
         else:
             concat_name = layer_node_map[layer_name]
@@ -462,7 +462,7 @@ def parse_specifier(string, graph, layer_node_map):
             in_port = len(Node(graph, memory_name).in_nodes())
             Node(graph, memory_name).add_input_port(in_port)
             Node(graph, node).add_output_port(out_port, skip_if_exist=True)
-            graph.create_edge(Node(graph, node), Node(graph, memory_name), out_port, in_port)
+            graph.create_edge(Node(graph, node), Node(graph, memory_name), out_port, in_port, create_edge_attrs(node, memory_name, node, in_port, out_port))
         else:
             memory_name = layer_node_map[layer_name]
         return memory_name
@@ -486,7 +486,7 @@ def parse_specifier(string, graph, layer_node_map):
             out_port = len(Node(graph, node).out_nodes())
             Node(graph, node).add_output_port(out_port, skip_if_exist=True)
             Node(graph, sum_name).add_input_port(i)
-            graph.add_edge(node, sum_name, **create_edge_attrs(node, sum_name, i))
+            graph.add_edge(node, sum_name, **create_edge_attrs(node, sum_name, node, i))
 
         return sum_name
     elif spec == b'IfDefined':
@@ -513,9 +513,9 @@ def parse_specifier(string, graph, layer_node_map):
             const_node = Const(graph, {'name': scale_const_name, 'value': float_array([scale_value])}).create_node()
 
             node = Node(graph, node_name)
-            graph.create_edge(const_node, scale_node, 0, 0)
+            graph.create_edge(const_node, scale_node, 0, 0, create_edge_attrs(const_node.id, scale_name.id, const_node.id))
             out_port = len(node.out_nodes())
-            graph.create_edge(node, scale_node, out_port, 1)
+            graph.create_edge(node, scale_node, out_port, 1, create_edge_attrs(node_name, scale_node.id, node_name, 1, out_port))
         else:
             scale_name = layer_node_map[layer_name]
 
