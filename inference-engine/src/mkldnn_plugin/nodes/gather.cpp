@@ -23,7 +23,6 @@ struct jGatherConfParams {
     int32_t beforeAxisSize;
     int32_t indicesSize;
     uint32_t dictTypeSize;
-//    uint32_t indicesSize;
 };
 
 struct jGatherArgs {
@@ -35,8 +34,8 @@ struct jGatherArgs {
     const int* axDimSum;
     size_t idxStart;
     size_t workAmount;
-    int* tmp;
-    int* retVal;
+    int* tmp; // remove
+    int* retVal; // remove
 };
 
 struct jitUniGatherKernel {
@@ -73,27 +72,25 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
         mov(regDst, ptr[regParams + GET_OFF(dst)]);
         mov(regIndices, ptr[regParams + GET_OFF(indices)]);
 
-//        mov(regIdxShifted, regIndices);
         mov(regIdxIter, ptr[regParams + GET_OFF(idxStart)]);
-//        add(regIdxShifted, regIdxIter);
 
-        mov(regTmp, ptr[regParams + GET_OFF(dictTypeSize)]);
-        uni_vpbroadcastd(vmmDictTypeSize, ptr[regTmp]);
+        mov(regAux1, ptr[regParams + GET_OFF(dictTypeSize)]);
+        uni_vpbroadcastd(vmmDictTypeSize, ptr[regAux1]);
 
-        mov(regAxisDim, ptr[regParams + GET_OFF(axisDim)]);
-        uni_vpbroadcastd(vmmAxDim, ptr[regAxisDim]);
+        mov(regAux1, ptr[regParams + GET_OFF(axisDim)]);
+        uni_vpbroadcastd(vmmAxDim, ptr[regAux1]);
 
-        mov(regTmp, ptr[regParams + GET_OFF(axDimSum)]);
-        uni_vpbroadcastd(vmmAxDimSum, ptr[regTmp]);
+        mov(regAux1, ptr[regParams + GET_OFF(axDimSum)]);
+        uni_vpbroadcastd(vmmAxDimSum, ptr[regAux1]);
 
         mov(regWorkAmount, ptr[regParams + GET_OFF(workAmount)]);
 
-        mov(regTmp, ptr[regParams + GET_OFF(tmp)]);
-//        mov(regTmp, ptr[regParams + GET_OFF(retVal)]);
+//        mov(regAux1, ptr[regParams + GET_OFF(tmp)]);
+//        mov(regAux2, ptr[regParams + GET_OFF(retVal)]);
 
         elPerVec = vlen / jcp_.dictTypeSize;
 
-        uni_vxorps(vmmZero, vmmZero, vmmZero);
+//        uni_vxorps(vmmZero, vmmZero, vmmZero);
 
         if (jcp_.dictTypeSize == 4) {
             Xbyak::Label lDstIdxLoop, lTail, lFinish;
@@ -102,12 +99,12 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
                 cmp(regWorkAmount, elPerVec);
                 jl(lTail, T_NEAR);
 
-                fillIndicies(vmmSrcIdx);
+                fillIndicies(vmmSrcShifts);
+//uni_vmovups(ptr[regAux1], vmmSrcShifts);
 
                 uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
-                vpgatherdd(vmmDst, ptr[regSrc + vmmSrcIdx], vmmOnesBit);
+                vpgatherdd(vmmDst, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
                 uni_vmovups(ptr[regDst], vmmDst);
-//                uni_vmovups(ptr[regTmp], vmmDst);
 
                 add(regDst, vlen);
                 sub(regWorkAmount, elPerVec);
@@ -115,41 +112,41 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
                 jmp(lDstIdxLoop, T_NEAR);
             }
             L(lTail);
+            Xbyak::Label lTailLoop, lCalc;
+            mov(regAux1, 0);
+            mov(regAux2, 0);
+            Xbyak::Reg32 regDictTypeSize32(regAux1.getIdx());
+            Xbyak::Reg32 regAxDimSum32(regAux2.getIdx());
+            uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 1);
+            uni_vpextrd(regAxDimSum32, xmmAxDimSum, 1);
+//uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 1);
+mov(regAux3, ptr[regParams + GET_OFF(retVal)]);
+mov(ptr[regAux3], regAux2);
+            L(lTailLoop);
             {
                 cmp(regWorkAmount, 0);
                 je(lFinish, T_NEAR);
 
                 cmp(regIdxIter, jcp_.indicesSize);
-                jl(insertLabel, T_NEAR);
+                jl(lCalc, T_NEAR);
+                mov(regIdxIter, 0);
+                uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
+                uni_vpextrd(regAxDimSum32, xmmAxDimSum, 1);
 
-//                mov(regTmp, ptr[regIndices]);
-//                sub(regTmp, regIdxIter);
-//                mov(rax, regTmp);
-//                mul(regRetVal);
-//                vextractps(regTmp32, Xbyak::Xmm(vmmDstShift0.getIdx()), 0);
-//                add(regTmp, eax);
-//                mov(rdx, ptr[regSrc]);
-//                mov(ptr[regDst], rdx);
+                L(lCalc);
+                mov(rax, 0);
+                mov(eax, ptr[regIndices + regIdxIter]);
+                mul(regDictTypeSize32);
+                add(eax, regAxDimSum32);
+                mov(regAux3, ptr[regSrc + rax]);
+                mov(ptr[regDst], regAux3);
 
-//                add(regSrc, jcp.dictTypeSize);
-//                add(regDst, jcp.dictTypeSize);
-//                add(regIndices, sizeof(int));
+                add(regIdxIter, sizeof(int));
+                add(regDst, jcp_.dictTypeSize);
                 sub(regWorkAmount, 1);
-                jmp(lTail, T_NEAR);
+                jmp(lTailLoop, T_NEAR);
             }
-//
-////            L(strideFinish);
-////            mov(regIdxIter, 0);
-////            uni_vpaddd(vmmDictTypeSize, vmmDictTypeSize, vmmOnes);
-////            inc(regIdxShifted);
-////            cmp(regIdxShifted, jcp.dstAxDim);
-////            jl(lDstIdxLoop, T_NEAR);
-////            mov(regIdxShifted, 0);
-////            uni_movaps(vmmDictTypeSize, vmmZero);
-////            uni_vpaddd(vmmDstShift0, vmmDstShift0, vmmStrideAx1Diff);
-////
-////            jmp(lDstIdxLoop, T_NEAR);
-////        }
+
             L(lFinish);
         } else if (jcp_.dictTypeSize == 2) {
         } else if (jcp_.dictTypeSize == 1) {
@@ -183,24 +180,32 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
     }
 
     void fillIndicies(Xbyak::Xmm& dst) {
-        uni_vmovups(vmmAux1, ptr[regIndices + regIdxIter]);
-        uni_vpmulld(vmmAux1, vmmAux1, vmmDictTypeSize);
-        uni_vpaddd(vmmAux1, vmmAux1, vmmAxDimSum);
-        for (int i = 0; i < 4; i++) {
-            Xbyak::Label insertLabel, incLabel;
+        uni_vmovups(xmmAux1, ptr[regIndices + regIdxIter]);
+        uni_vpmulld(xmmAux1, xmmAux1, xmmDictTypeSize);
+        uni_vpaddd(xmmAux1, xmmAux1, xmmAxDimSum);
+        for (uint8_t i = 0; i < 4; i++) {
+            Xbyak::Label insertLabel;
 
             cmp(regIdxIter, jcp_.indicesSize);
             jl(insertLabel, T_NEAR);
             mov(regIdxIter, 0);
-            uni_vmovups(vmmAux1, ptr[regIndices]);
             uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
-            uni_vpmulld(vmmAux1, vmmAux1, vmmDictTypeSize);
-            uni_vpaddd(vmmAux1, vmmAux1, vmmAxDimSum);
+            uni_vmovups(xmmAux1, ptr[regIndices]);
+//            uint8_t imm = i | (i << 2) | (i << 4) | (i << 6);
+//            uint8_t imm = 228 << i * 2;
+            vpshufd(xmmAux1, xmmAux1, 0xE4 << i * 2);
+//mov(regAux3, imm);
+//mov(ptr[regAux2], regAux3);
+//uni_vmovups(ptr[regAux1], xmmAux1);
+            uni_vpmulld(xmmAux1, xmmAux1, xmmDictTypeSize);
+            uni_vpaddd(xmmAux1, xmmAux1, xmmAxDimSum);
+//uni_vmovups(ptr[regAux1], xmmAux1);
 
             L(insertLabel);
-            uni_insertps(dst, xmmAux1, xmmAux1, i << 6);
+            uni_insertps(dst, dst, xmmAux1, (i << 6) | (i << 4));
             add(regIdxIter, sizeof(int));
         }
+//uni_vmovups(ptr[regAux1], dst);
     }
 
     void fillIndicies(Xbyak::Ymm& dst) {
@@ -209,6 +214,8 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
         cmp(regIdxIter, jcp_.indicesSize - vlen);
         jg(lPerElement, T_NEAR);
             uni_vmovups(dst, ptr[regIndices + regIdxIter]);
+//mov(ptr[regAux2], regIdxIter);
+//uni_vmovups(ptr[regAux1], dst);
             uni_vpmulld(dst, dst, vmmDictTypeSize);
             uni_vpaddd(dst, dst, vmmAxDimSum); //check +*
             add(regIdxIter, vlen);
@@ -218,8 +225,20 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
             mov(regIdxIter, 0);
         jmp(lExit, T_NEAR);
         L(lPerElement);
+//uni_vmovups(vmmAux1, ptr[regIndices + regIdxIter]);
+//uni_vmovups(ptr[regAux1], vmmAux1);
             for (int i = 0; i < 2; i++) {
+//if (i == 0) {
+//mov(regAux3, jcp_.indicesSize);
+//mov(ptr[regAux2], regAux3);
+////mov(ptr[regAux2], regIdxIter);
+////uni_vmovups(ptr[regAux1], xmmAux0);
+//}
                 fillIndicies(xmmAux0);
+//if (i == 0) {
+////mov(ptr[regAux2], regIdxIter);
+//uni_vmovups(ptr[regAux1], xmmAux0);
+//}
                 vinsertf128(dst, dst, xmmAux0, i);
             }
         L(lExit);
@@ -241,38 +260,34 @@ private:
     Xbyak::Reg64 regDst = r9;
     Xbyak::Reg64 regIndices = r10;
     Xbyak::Reg64 regIdxIter = r11;
-    Xbyak::Reg64 regIdxShifted = r12;
-    Xbyak::Reg64 regAxisDim = r13;
-    Xbyak::Reg64 regWorkAmount = r14;
-    Xbyak::Reg64 regTmp = r15;
-    Xbyak::Reg32 regTmp32 = r15d;
+    Xbyak::Reg64 regWorkAmount = r12;
+    Xbyak::Reg64 regAux1 = r13;
+    Xbyak::Reg64 regAux2 = r14;
+    Xbyak::Reg64 regAux3 = r15;
 
     Xbyak::Reg64 regParams = x64::abi_param1;
 
     Xbyak::Xmm xmmAux0 = Xbyak::Xmm(0);
     Xbyak::Xmm xmmAux1 = Xbyak::Xmm(1);
+    Xbyak::Xmm xmmAux2 = Xbyak::Xmm(2);
     Xbyak::Ymm ymmDstAxIdx = Xbyak::Ymm(0);
-//    Xbyak::Ymm ymmDstShift0 = Xbyak::Ymm(1);
-    Vmm vmmDictTypeSize = Vmm(8);
-    Vmm vmmDstShift0 = Vmm(9);
 
-//    Xbyak::Xmm xmmDstAxIdxAux = Xbyak::Xmm(2);
     Xbyak::Xmm xmmAxDimSum = Xbyak::Xmm(3);
     Xbyak::Xmm xmmAxDim = Xbyak::Xmm(4);
-//    Xbyak::Xmm xmmZero = Xbyak::Xmm(5);
-//    Xbyak::Xmm xmmOnes = Xbyak::Xmm(6);
+    Xbyak::Xmm xmmDictTypeSize = Xbyak::Xmm(8);
 
     Vmm vmmAux0 = Vmm(0);
     Vmm vmmAux1 = Vmm(1);
     Vmm vmmAxDimSum = Vmm(3);
     Vmm vmmAxDim = Vmm(4);
-    Vmm vmmZero = Vmm(5);
-    Vmm vmmOnes = Vmm(6);
-    Vmm vmmIncVec = Vmm(7);
-    Vmm vmmIndicies = Vmm(10);
-    Vmm vmmSrcIdx = Vmm(11);
-    Vmm vmmStrideAx1Diff = Vmm(12);
-    Vmm vmmStrideAxSrc = Vmm(13);
+//    Vmm vmmZero = Vmm(5);
+//    Vmm vmmOnes = Vmm(6);
+//    Vmm vmmIncVec = Vmm(7);
+    Vmm vmmDictTypeSize = Vmm(8);
+//    Vmm vmmIndicies = Vmm(10);
+    Vmm vmmSrcShifts = Vmm(11);
+//    Vmm vmmStrideAx1Diff = Vmm(12);
+//    Vmm vmmStrideAxSrc = Vmm(13);
     Vmm vmmOnesBit = Vmm(14);
     Vmm vmmDst = Vmm(15);
 };
@@ -480,8 +495,13 @@ auto start1 = std::chrono::steady_clock::now();
 //                    if (ithr > 0)
 //                        return;
 printf("[%d] start: %lu; end: %lu; basStart: %lu; idxStart: %lu\n", ithr, start, end, basStart, idxStart);
-int tmp[8];
+int tmp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 int retVal = 0;
+
+//int imm = 1;
+//imm = imm | (imm << 2) | (imm << 4) | (imm << 6);
+//imm = ~((imm << 3) - imm);
+
                     const int dictTypeSize = dictTypeSize_;
                     const int axisDimB = axisDim_ * dictTypeSize_;
                     const int axDimSumB = axisDimB * basStart;
