@@ -17,8 +17,10 @@
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include <ngraph/pass/visualize_tree.hpp>
 
 using namespace testing;
+using namespace ngraph;
 
 TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
@@ -27,51 +29,82 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::Shape{ 1 });
 
         auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, true);
+        auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
+        auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ decoder_v6 }, ngraph::ParameterVector{ data, seq_len });
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
 
         ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::VisualizeTree>("C:\\projects\\pycharm\\before.svg");
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoder>();
+        manager.register_pass<ngraph::pass::VisualizeTree>("C:\\projects\\pycharm\\after.svg");
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
     {
-        auto data1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 3 });
+        auto data1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 7 });
         auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::Shape{ 1 });
 
+        element::Type seq_len_type = seq_len1->get_element_type();
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(data1,
+                                                                     ngraph::opset6::Constant::create(element::i32,
+                                                                                                      Shape({3}), {1, 0, 2}));
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(data1);
-        auto constT_0 = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {-1});
-        auto constT_1 = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {1});
-        auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, constT_1, constT_0);
+        auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
+        auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
 
-        auto constN_0 = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-        auto constN_1 = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {-1});
-        auto N = std::make_shared<ngraph::opset6::Gather>(data_shape, constN_0, constN_0);
+        auto axisN = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
+        auto indexN = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {0});
+        auto N = std::make_shared<ngraph::opset6::Gather>(data_shape, indexN, axisN);
 
-        auto start = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t >({1}));
-        auto step = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, std::vector<int64_t >({1}));
-        auto range1T = std::make_shared<ngraph::opset6::Range>(start, T, step,
-                                                               ngraph::element::i64);
+        auto start = opset6::Constant::create(seq_len_type, Shape{}, {1});
+        auto step = opset6::Constant::create(seq_len_type, Shape{}, {1});
+        auto plus1 = opset6::Constant::create(element::i64, Shape{1}, {1});
+        auto plusT = std::make_shared<ngraph::opset6::Add>(T, plus1);
+        auto const_plusT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {0});
+        auto plusT_scalar = std::make_shared<ngraph::opset6::Squeeze>(plusT, const_plusT);
+        auto range1T = std::make_shared<ngraph::opset6::Range>(start, plusT_scalar, step, seq_len_type);
 
-        auto constUnsqueeze1 = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-        auto tT = std::make_shared<ngraph::opset6::Unsqueeze>(T, constUnsqueeze1);
-        auto constUnsqueeze2 = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
-        auto tN = std::make_shared<ngraph::opset6::Unsqueeze>(N, constUnsqueeze2);
         auto mask_shape = std::make_shared<ngraph::opset6::Concat>(
-                ngraph::OutputVector{tT->output(0), tN->output(0)}, 0);
+                OutputVector{T->output(0), N->output(0)}, 0);
+
         auto upper_bounds = std::make_shared<ngraph::opset6::Broadcast>(
                 seq_len1, mask_shape->output(0));
-        auto bool_seq_mask = std::make_shared<ngraph::opset6::GreaterEqual>(upper_bounds->output(0),
+        auto transpose_upper_bounds = std::make_shared<ngraph::opset6::Transpose>(upper_bounds->output(0),
+                                                                                  ngraph::opset6::Constant::create(seq_len_type,
+                                                                                                                   Shape({2}), {1, 0}));
+        auto bool_seq_mask = std::make_shared<ngraph::opset6::GreaterEqual>(transpose_upper_bounds->output(0),
                                                                             range1T->output(0));
-        auto const_0f = ngraph::opset6::Constant::create(ngraph::element::f64, ngraph::Shape{}, {0.0});
-        auto const_1f = ngraph::opset6::Constant::create(ngraph::element::f64, ngraph::Shape{}, {1.0});
-        auto seq_mask = std::make_shared<ngraph::opset6::Select>(bool_seq_mask, const_1f, const_0f);
 
-        auto decoder_v1 = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(data1, seq_mask, true);
+        auto mask_val_true = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {1});
+        auto mask_val_false = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
+        auto seq_mask = std::make_shared<ngraph::opset6::Select>(bool_seq_mask, mask_val_true, mask_val_false);
+        auto transpose_seq_mask = std::make_shared<ngraph::opset6::Transpose>(seq_mask->output(0),
+                                                                              ngraph::opset6::Constant::create(seq_len_type,
+                                                                                                               Shape({2}), {1, 0}));
+        auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
+                                                                                     transpose_seq_mask->output(0),
+                                                                                     true);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ decoder_v1 }, ngraph::ParameterVector{ data1, seq_len1 });
+        auto squeeze2_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {3});
+        auto squeeze2_output_f = std::make_shared<ngraph::opset6::Squeeze>(simplified_decoder->output(0), squeeze2_axis);
+        auto squeeze1_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {2});
+        auto squeeze1_output_f = std::make_shared<ngraph::opset6::Squeeze>(squeeze2_output_f->output(0), squeeze1_axis);
+
+        auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), element::i32);
+        auto minus1 = opset6::Constant::create(seq_len_type, Shape{}, {-1});
+        auto where_equal_minus1 = std::make_shared<ngraph::opset6::Equal>(output_i, minus1);
+
+        auto seq_mask_const0 = opset6::Constant::create(seq_len_type, Shape{1}, {0});
+        auto seq_mask_const1 = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto output_seq_mask = std::make_shared<ngraph::opset6::Select>(where_equal_minus1, seq_mask_const0, seq_mask_const1);
+        auto seq_mask_axis = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len }, ngraph::ParameterVector{ data1, seq_len1 });
     }
 
     auto res = compare_functions(f, f_ref, false, false, false, false);
