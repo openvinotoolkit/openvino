@@ -647,8 +647,6 @@ namespace ngraph
 
                 int64_t axis_idx_offset = (input_rank == num_of_axes) * 2;
 
-                auto& spatial_axes_indices = info.spatial_axes_indices;
-
                 int64_t spatial_rank = info.spatial_rank;
 
                 std::cout << "Spatial rank:    " << spatial_rank << "\n";
