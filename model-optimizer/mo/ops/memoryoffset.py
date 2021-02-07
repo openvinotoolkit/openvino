@@ -40,7 +40,9 @@ class MemoryOffset(Op):
     def infer(node: Node):
         if node.has_valid('element_size'):
             # element_size should be set by Kaldi loader or by MemoryOffsetAdjustment
-            node.out_port(0).data.set_shape([1, node['element_size']])
+            # batch added to Kaldi by MO and is not changing in graph
+            batch = node.graph.get_op_nodes(op="Parameter")[0].shape[0]
+            node.out_port(0).data.set_shape([batch, node['element_size']])
         else:
             # for TDNN blocks
             copy_shape_infer(node)

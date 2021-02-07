@@ -133,7 +133,9 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             cut_first = Crop(graph, {'name': 'cut_first', 'axis': int64_array([1]),
                                      'offset': int64_array([1]), 'dim': int64_array([context_len-1])}).create_node()
             cut_first.in_port(0).connect(mem_out.out_port(0))
-            ones = Const(graph, {'name': 'ones', 'value': np.ones([1, 1], dtype=np.int32)}).create_node()
+            # batch added to Kaldi by MO and is not changing in graph
+            batch = node.graph.get_op_nodes(op="Parameter")[0].shape[0]
+            ones = Const(graph, {'name': 'ones', 'value': np.ones([batch, 1], dtype=np.int32)}).create_node()
             concat = Concat(graph, {'name': 'concat_ones', 'in_ports_count': 2, 'axis': 1}).create_node()
             concat.in_port(0).connect(cut_first.out_port(0))
             concat.in_port(1).connect(ones.out_port(0))
