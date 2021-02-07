@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,342 +10,68 @@
 #include <string>
 #include <utility>
 #include <algorithm>
+
 #include "ie_parallel.hpp"
 
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
-template <typename T>
-static bool SortScorePairDescend(const std::pair<float, T>& pair1,
-                                 const std::pair<float, T>& pair2) {
-    return pair1.first > pair2.first;
-}
-
 class DetectionOutputImpl: public ExtLayerBase {
 public:
-    explicit DetectionOutputImpl(const CNNLayer* layer) {
-        try {
-            if (layer->insData.size() != 3 && layer->insData.size() != 5)
-                THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << layer->name;
-            if (layer->outData.empty())
-                THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << layer->name;
-
-            _num_classes = layer->GetParamAsInt("num_classes");
-            _background_label_id = layer->GetParamAsInt("background_label_id", 0);
-            _top_k = layer->GetParamAsInt("top_k", -1);
-            _variance_encoded_in_target = layer->GetParamAsBool("variance_encoded_in_target", false);
-            _keep_top_k = layer->GetParamAsInt("keep_top_k", -1);
-            _nms_threshold = layer->GetParamAsFloat("nms_threshold");
-            _confidence_threshold = layer->GetParamAsFloat("confidence_threshold", -FLT_MAX);
-            _share_location = layer->GetParamAsBool("share_location", true);
-            _clip_before_nms = layer->GetParamAsBool("clip_before_nms", false) ||
-                               layer->GetParamAsBool("clip", false);  // for backward compatibility
-            _clip_after_nms = layer->GetParamAsBool("clip_after_nms", false);
-            _decrease_label_id = layer->GetParamAsBool("decrease_label_id", false);
-            _normalized = layer->GetParamAsBool("normalized", true);
-            _image_height = layer->GetParamAsInt("input_height", 1);
-            _image_width = layer->GetParamAsInt("input_width", 1);
-            _prior_size = _normalized ? 4 : 5;
-            _offset = _normalized ? 0 : 1;
-            _num_loc_classes = _share_location ? 1 : _num_classes;
-
-            with_add_box_pred = layer->insData.size() == 5;
-            _objectness_score = layer->GetParamAsFloat("objectness_score", 0.0f);
-
-            std::string code_type_str = layer->GetParamAsString("code_type", "caffe.PriorBoxParameter.CORNER");
-            _code_type = (code_type_str == "caffe.PriorBoxParameter.CENTER_SIZE" ? CodeType::CENTER_SIZE
-                                                                                 : CodeType::CORNER);
-
-            _num_priors = static_cast<int>(layer->insData[idx_priors].lock()->getDims().back() / _prior_size);
-            _priors_batches = layer->insData[idx_priors].lock()->getDims().front() != 1;
-
-            if (_num_priors * _num_loc_classes * 4 != static_cast<int>(layer->insData[idx_location].lock()->getDims()[1]))
-                THROW_IE_EXCEPTION << "Number of priors must match number of location predictions ("
-                                   << _num_priors * _num_loc_classes * 4 << " vs "
-                                   << layer->insData[idx_location].lock()->getDims()[1] << ")";
-
-            if (_num_priors * _num_classes != static_cast<int>(layer->insData[idx_confidence].lock()->getTensorDesc().getDims().back()))
-                THROW_IE_EXCEPTION << "Number of priors must match number of confidence predictions.";
-
-            if (_decrease_label_id && _background_label_id != 0)
-                THROW_IE_EXCEPTION << "Cannot use decrease_label_id and background_label_id parameter simultaneously.";
-
-            _num = static_cast<int>(layer->insData[idx_confidence].lock()->getTensorDesc().getDims()[0]);
-
-            InferenceEngine::SizeVector bboxes_size{static_cast<size_t>(_num),
-                                                    static_cast<size_t>(_num_classes),
-                                                    static_cast<size_t>(_num_priors),
-                                                    4};
-            _decoded_bboxes = InferenceEngine::make_shared_blob<float>({Precision::FP32, bboxes_size, NCHW});
-            _decoded_bboxes->allocate();
-
-            InferenceEngine::SizeVector buf_size{static_cast<size_t>(_num),
-                                                 static_cast<size_t>(_num_classes),
-                                                 static_cast<size_t>(_num_priors)};
-            _buffer = InferenceEngine::make_shared_blob<int>({Precision::I32, buf_size, {buf_size, {0, 1, 2}}});
-            _buffer->allocate();
-
-            InferenceEngine::SizeVector indices_size{static_cast<size_t>(_num),
-                                                     static_cast<size_t>(_num_classes),
-                                                     static_cast<size_t>(_num_priors)};
-            _indices = InferenceEngine::make_shared_blob<int>(
-                    {Precision::I32, indices_size, {indices_size, {0, 1, 2}}});
-            _indices->allocate();
-
-            InferenceEngine::SizeVector detections_size{static_cast<size_t>((size_t)(_num) * _num_classes)};
-            _detections_count = InferenceEngine::make_shared_blob<int>({Precision::I32, detections_size, C});
-            _detections_count->allocate();
-
-            const InferenceEngine::SizeVector &conf_size = layer->insData[idx_confidence].lock()->getTensorDesc().getDims();
-            _reordered_conf = InferenceEngine::make_shared_blob<float>({Precision::FP32, conf_size, ANY});
-            _reordered_conf->allocate();
-
-            InferenceEngine::SizeVector decoded_bboxes_size{static_cast<size_t>(_num),
-                                                            static_cast<size_t>(_num_priors),
-                                                            static_cast<size_t>(_num_classes)};
-            _bbox_sizes = InferenceEngine::make_shared_blob<float>(
-                    {Precision::FP32, decoded_bboxes_size, {decoded_bboxes_size, {0, 1, 2}}});
-            _bbox_sizes->allocate();
-
-            InferenceEngine::SizeVector num_priors_actual_size{static_cast<size_t>(_num)};
-            _num_priors_actual = InferenceEngine::make_shared_blob<int>({Precision::I32, num_priors_actual_size, C});
-            _num_priors_actual->allocate();
-
-            std::vector<DataConfigurator> in_data_conf(layer->insData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
-            addConfig(layer, in_data_conf, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
-        } catch (InferenceEngine::details::InferenceEngineException &ex) {
-            errorMsg = ex.what();
-        }
-    }
+    explicit DetectionOutputImpl(const CNNLayer* layer);
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
-                       ResponseDesc *resp) noexcept override {
-        float *dst_data = outputs[0]->buffer();
-
-        const float *loc_data    = inputs[idx_location]->buffer().as<const float *>();
-        const float *conf_data   = inputs[idx_confidence]->buffer().as<const float *>();
-        const float *prior_data  = inputs[idx_priors]->buffer().as<const float *>();
-        const float *arm_conf_data = inputs.size() > 3 ? inputs[idx_arm_confidence]->buffer().as<const float *>() : nullptr;
-        const float *arm_loc_data = inputs.size() > 4 ? inputs[idx_arm_location]->buffer().as<const float *>() : nullptr;
-
-        const int N = inputs[idx_confidence]->getTensorDesc().getDims()[0];
-
-        float *decoded_bboxes_data = _decoded_bboxes->buffer().as<float *>();
-        float *reordered_conf_data = _reordered_conf->buffer().as<float *>();
-        float *bbox_sizes_data     = _bbox_sizes->buffer().as<float *>();
-        int *detections_data       = _detections_count->buffer().as<int *>();
-        int *buffer_data           = _buffer->buffer().as<int *>();
-        int *indices_data          = _indices->buffer().as<int *>();
-        int *num_priors_actual     = _num_priors_actual->buffer().as<int *>();
-
-        for (int n = 0; n < N; ++n) {
-            const float *ppriors = prior_data;
-            const float *prior_variances = prior_data + _num_priors*_prior_size;
-            if (_priors_batches) {
-                ppriors += _variance_encoded_in_target ? n*_num_priors*_prior_size : 2*n*_num_priors*_prior_size;
-                prior_variances += _variance_encoded_in_target ? 0 : 2*n*_num_priors*_prior_size;
-            }
-
-            if (_share_location) {
-                const float *ploc = loc_data + n*4*_num_priors;
-                float *pboxes = decoded_bboxes_data + n*4*_num_priors;
-                float *psizes = bbox_sizes_data + n*_num_priors;
-
-                if (with_add_box_pred) {
-                    const float *p_arm_loc = arm_loc_data + n*4*_num_priors;
-                    decodeBBoxes(ppriors, p_arm_loc, prior_variances, pboxes, psizes, num_priors_actual, n, _offset, _prior_size);
-                    decodeBBoxes(pboxes, ploc, prior_variances, pboxes, psizes, num_priors_actual, n, 0, 4, false);
-                } else {
-                    decodeBBoxes(ppriors, ploc, prior_variances, pboxes, psizes, num_priors_actual, n, _offset, _prior_size);
-                }
-            } else {
-                for (int c = 0; c < _num_loc_classes; ++c) {
-                    if (c == _background_label_id) {
-                        continue;
-                    }
-                    const float *ploc = loc_data + n*4*_num_loc_classes*_num_priors + c*4;
-                    float *pboxes = decoded_bboxes_data + n*4*_num_loc_classes*_num_priors + c*4*_num_priors;
-                    float *psizes = bbox_sizes_data + n*_num_loc_classes*_num_priors + c*_num_priors;
-                    if (with_add_box_pred) {
-                        const float *p_arm_loc = arm_loc_data + n*4*_num_loc_classes*_num_priors + c*4;
-                        decodeBBoxes(ppriors, p_arm_loc, prior_variances, pboxes, psizes, num_priors_actual, n, _offset, _prior_size);
-                        decodeBBoxes(pboxes, ploc, prior_variances, pboxes, psizes, num_priors_actual, n, 0, 4, false);
-                    } else {
-                        decodeBBoxes(ppriors, ploc, prior_variances, pboxes, psizes, num_priors_actual, n, _offset, _prior_size);
-                    }
-                }
-            }
-        }
-
-        if (with_add_box_pred) {
-            for (int n = 0; n < N; ++n) {
-                for (int p = 0; p < _num_priors; ++p) {
-                    if (arm_conf_data[n*_num_priors*2 + p * 2 + 1] < _objectness_score) {
-                        for (int c = 0; c < _num_classes; ++c) {
-                            reordered_conf_data[n*_num_priors*_num_classes + c*_num_priors + p] = c == _background_label_id ? 1.0f : 0.0f;
-                        }
-                    } else {
-                        for (int c = 0; c < _num_classes; ++c) {
-                            reordered_conf_data[n*_num_priors*_num_classes + c*_num_priors + p] = conf_data[n*_num_priors*_num_classes + p*_num_classes + c];
-                        }
-                    }
-                }
-            }
-        } else {
-            for (int n = 0; n < N; ++n) {
-                for (int c = 0; c < _num_classes; ++c) {
-                    for (int p = 0; p < _num_priors; ++p) {
-                        reordered_conf_data[n*_num_priors*_num_classes + c*_num_priors + p] = conf_data[n*_num_priors*_num_classes + p*_num_classes + c];
-                    }
-                }
-            }
-        }
-
-        memset(detections_data, 0, N*_num_classes*sizeof(int));
-
-        for (int n = 0; n < N; ++n) {
-            int detections_total = 0;
-
-            if (!_decrease_label_id) {
-                // Caffe style
-                parallel_for(_num_classes, [&](int c) {
-                    if (c != _background_label_id) {  // Ignore background class
-                        int *pindices    = indices_data + n*_num_classes*_num_priors + c*_num_priors;
-                        int *pbuffer     = buffer_data + c*_num_priors;
-                        int *pdetections = detections_data + n*_num_classes + c;
-
-                        const float *pconf = reordered_conf_data + n*_num_classes*_num_priors + c*_num_priors;
-                        const float *pboxes;
-                        const float *psizes;
-                        if (_share_location) {
-                            pboxes = decoded_bboxes_data + n*4*_num_priors;
-                            psizes = bbox_sizes_data + n*_num_priors;
-                        } else {
-                            pboxes = decoded_bboxes_data + n*4*_num_classes*_num_priors + c*4*_num_priors;
-                            psizes = bbox_sizes_data + n*_num_classes*_num_priors + c*_num_priors;
-                        }
-
-                        nms_cf(pconf, pboxes, psizes, pbuffer, pindices, *pdetections, num_priors_actual[n]);
-                    }
-                });
-            } else {
-                // MXNet style
-                int *pindices = indices_data + n*_num_classes*_num_priors;
-                int *pbuffer = buffer_data;
-                int *pdetections = detections_data + n*_num_classes;
-
-                const float *pconf = reordered_conf_data + n*_num_classes*_num_priors;
-                const float *pboxes = decoded_bboxes_data + n*4*_num_loc_classes*_num_priors;
-                const float *psizes = bbox_sizes_data + n*_num_loc_classes*_num_priors;
-
-                nms_mx(pconf, pboxes, psizes, pbuffer, pindices, pdetections, _num_priors);
-            }
-
-            for (int c = 0; c < _num_classes; ++c) {
-                detections_total += detections_data[n*_num_classes + c];
-            }
-
-            if (_keep_top_k > -1 && detections_total > _keep_top_k) {
-                std::vector<std::pair<float, std::pair<int, int>>> conf_index_class_map;
-
-                for (int c = 0; c < _num_classes; ++c) {
-                    int detections = detections_data[n*_num_classes + c];
-                    int *pindices = indices_data + n*_num_classes*_num_priors + c*_num_priors;
-
-                    float *pconf  = reordered_conf_data + n*_num_classes*_num_priors + c*_num_priors;
-
-                    for (int i = 0; i < detections; ++i) {
-                        int idx = pindices[i];
-                        conf_index_class_map.push_back(std::make_pair(pconf[idx], std::make_pair(c, idx)));
-                    }
-                }
-
-                std::sort(conf_index_class_map.begin(), conf_index_class_map.end(),
-                          SortScorePairDescend<std::pair<int, int>>);
-                conf_index_class_map.resize(_keep_top_k);
-
-                // Store the new indices.
-                memset(detections_data + n*_num_classes, 0, _num_classes * sizeof(int));
-
-                for (size_t j = 0; j < conf_index_class_map.size(); ++j) {
-                    int label = conf_index_class_map[j].second.first;
-                    int idx = conf_index_class_map[j].second.second;
-                    int *pindices = indices_data + n * _num_classes * _num_priors + label * _num_priors;
-                    pindices[detections_data[n*_num_classes + label]] = idx;
-                    detections_data[n*_num_classes + label]++;
-                }
-            }
-        }
-
-        const int num_results = outputs[0]->getTensorDesc().getDims()[2];
-        const int DETECTION_SIZE = outputs[0]->getTensorDesc().getDims()[3];
-        if (DETECTION_SIZE != 7) {
-            return NOT_IMPLEMENTED;
-        }
-
-        int dst_data_size = 0;
-        if (_keep_top_k > 0)
-            dst_data_size = N * _keep_top_k * DETECTION_SIZE * sizeof(float);
-        else if (_top_k > 0)
-            dst_data_size = N * _top_k * _num_classes * DETECTION_SIZE * sizeof(float);
-        else
-            dst_data_size = N * _num_classes * _num_priors * DETECTION_SIZE * sizeof(float);
-
-        if (dst_data_size > outputs[0]->byteSize()) {
-            return OUT_OF_BOUNDS;
-        }
-        memset(dst_data, 0, dst_data_size);
-
-        int count = 0;
-        for (int n = 0; n < N; ++n) {
-            const float *pconf   = reordered_conf_data + n * _num_priors * _num_classes;
-            const float *pboxes  = decoded_bboxes_data + n*_num_priors*4*_num_loc_classes;
-            const int *pindices  = indices_data + n*_num_classes*_num_priors;
-
-            for (int c = 0; c < _num_classes; ++c) {
-                for (int i = 0; i < detections_data[n*_num_classes + c]; ++i) {
-                    int idx = pindices[c*_num_priors + i];
-
-                    dst_data[count * DETECTION_SIZE + 0] = static_cast<float>(n);
-                    dst_data[count * DETECTION_SIZE + 1] = static_cast<float>(_decrease_label_id ? c-1 : c);
-                    dst_data[count * DETECTION_SIZE + 2] = pconf[c*_num_priors + idx];
-
-                    float xmin = _share_location ? pboxes[idx*4 + 0] :
-                                 pboxes[c*4*_num_priors + idx*4 + 0];
-                    float ymin = _share_location ? pboxes[idx*4 + 1] :
-                                 pboxes[c*4*_num_priors + idx*4 + 1];
-                    float xmax = _share_location ? pboxes[idx*4 + 2] :
-                                 pboxes[c*4*_num_priors + idx*4 + 2];
-                    float ymax = _share_location ? pboxes[idx*4 + 3] :
-                                 pboxes[c*4*_num_priors + idx*4 + 3];
-
-                    if (_clip_after_nms) {
-                        xmin = (std::max)(0.0f, (std::min)(1.0f, xmin));
-                        ymin = (std::max)(0.0f, (std::min)(1.0f, ymin));
-                        xmax = (std::max)(0.0f, (std::min)(1.0f, xmax));
-                        ymax = (std::max)(0.0f, (std::min)(1.0f, ymax));
-                    }
-
-                    dst_data[count * DETECTION_SIZE + 3] = xmin;
-                    dst_data[count * DETECTION_SIZE + 4] = ymin;
-                    dst_data[count * DETECTION_SIZE + 5] = xmax;
-                    dst_data[count * DETECTION_SIZE + 6] = ymax;
-
-                    ++count;
-                }
-            }
-        }
-
-        if (count < num_results) {
-            // marker at end of boxes list
-            dst_data[count * DETECTION_SIZE + 0] = -1;
-        }
-
-        return OK;
-    }
+                       ResponseDesc *resp) noexcept override;
 
 private:
+    enum CodeType {
+        CORNER = 1,
+        CENTER_SIZE = 2,
+    };
+
+    template<typename DType>
+    struct  DCoord {
+        float xmin;
+        float ymin;
+        float xmax;
+        float ymax;
+    };
+
+    template<typename DType>
+    struct DBox {
+        int prior;
+        DType batch = -1;
+        DType label = -1;
+        DType score = -1;
+
+        union {
+            DCoord<DType> coord = { -1.0, -1.0, -1.0, -1.0 };
+            float c[4];
+        };
+    };
+
+    template<typename DType>
+    struct SortElemDescend {
+        DBox<DType> box;
+
+        SortElemDescend(const DBox<DType>& b) {
+            box = b;
+        }
+
+        SortElemDescend() {
+        }
+
+        bool operator<(const SortElemDescend& other) const {
+            if (box.label == other.box.label && box.score == other.box.score) {
+                return (box.prior < other.box.prior);
+            } else {
+                return (box.label < other.box.label) ||
+                       (box.label == other.box.label && box.score >= other.box.score);
+            }
+        }
+    };
+
     const int idx_location = 0;
     const int idx_confidence = 1;
     const int idx_priors = 2;
@@ -357,14 +83,14 @@ private:
     int _top_k = 0;
     int _variance_encoded_in_target = 0;
     int _keep_top_k = 0;
-    int _code_type = 0;
+    CodeType _code_type = CORNER;
 
     bool _share_location    = false;
     bool _clip_before_nms   = false;  // clip bounding boxes before nms step
     bool _clip_after_nms    = false;  // clip bounding boxes after nms step
     bool _decrease_label_id = false;
 
-    bool with_add_box_pred = false;
+    bool _with_add_box_pred = false;
 
     int _image_width = 0;
     int _image_height = 0;
@@ -376,282 +102,421 @@ private:
     float _confidence_threshold = 0.0f;
     float _objectness_score = 0.0f;
 
-    int _num = 0;
     int _num_loc_classes = 0;
     int _num_priors = 0;
     bool _priors_batches = false;
 
-    enum CodeType {
-        CORNER = 1,
-        CENTER_SIZE = 2,
-    };
+    template<typename DType>
+        inline void ExtractLocation(DType* out, const DType* p_prior_data,
+                                    const DType* p_loc_data, const DType* p_loc_var_data,
+                                    const DType* p_arm_data,
+                                    int prior, int label);
 
-    void decodeBBoxes(const float *prior_data, const float *loc_data, const float *variance_data,
-                      float *decoded_bboxes, float *decoded_bbox_sizes, int* num_priors_actual, int n, const int& offs, const int& pr_size,
-                      bool decodeType = true); // after ARM = false
+    template<typename DType>
+        inline void TransformLocations(DType* out, const DType* prior_data,
+                                       const DType* loc_data, const DType* var);
 
-    void nms_cf(const float *conf_data, const float *bboxes, const float *sizes,
-                int *buffer, int *indices, int &detections, int num_priors_actual);
-
-    void nms_mx(const float *conf_data, const float *bboxes, const float *sizes,
-                int *buffer, int *indices, int *detections, int num_priors_actual);
-
-    InferenceEngine::Blob::Ptr _decoded_bboxes;
-    InferenceEngine::Blob::Ptr _buffer;
-    InferenceEngine::Blob::Ptr _indices;
-    InferenceEngine::Blob::Ptr _detections_count;
-    InferenceEngine::Blob::Ptr _reordered_conf;
-    InferenceEngine::Blob::Ptr _bbox_sizes;
-    InferenceEngine::Blob::Ptr _num_priors_actual;
+    template<typename DType>
+        inline DType CalculateOverlap(const DType *a, const DType *b);
 };
 
-struct ConfidenceComparator {
-    explicit ConfidenceComparator(const float* conf_data) : _conf_data(conf_data) {}
+DetectionOutputImpl::DetectionOutputImpl(const CNNLayer* layer) {
+    try {
+        if (layer->insData.size() != 3 && layer->insData.size() != 5)
+            THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << layer->name;
+        if (layer->outData.empty())
+            THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << layer->name;
 
-    bool operator()(int idx1, int idx2) {
-        if (_conf_data[idx1] > _conf_data[idx2]) return true;
-        if (_conf_data[idx1] < _conf_data[idx2]) return false;
-        return idx1 < idx2;
-    }
+        _num_classes = layer->GetParamAsInt("num_classes");
+        _background_label_id = layer->GetParamAsInt("background_label_id", 0);
+        _top_k = layer->GetParamAsInt("top_k", -1);
+        _variance_encoded_in_target = layer->GetParamAsBool("variance_encoded_in_target", false);
+        _keep_top_k = layer->GetParamAsInt("keep_top_k", -1);
+        _nms_threshold = layer->GetParamAsFloat("nms_threshold");
+        _confidence_threshold = layer->GetParamAsFloat("confidence_threshold", -FLT_MAX);
+        _share_location = layer->GetParamAsBool("share_location", true);
+        _clip_before_nms = layer->GetParamAsBool("clip_before_nms", false) ||
+                           layer->GetParamAsBool("clip", false);  // for backward compatibility
+        _clip_after_nms = layer->GetParamAsBool("clip_after_nms", false);
+        _decrease_label_id = layer->GetParamAsBool("decrease_label_id", false);
+        _normalized = layer->GetParamAsBool("normalized", true);
+        _image_height = layer->GetParamAsInt("input_height", 1);
+        _image_width = layer->GetParamAsInt("input_width", 1);
+        _prior_size = _normalized ? 4 : 5;
+        _offset = _normalized ? 0 : 1;
+        _num_loc_classes = _share_location ? 1 : _num_classes;
 
-    const float* _conf_data;
-};
+        _with_add_box_pred = layer->insData.size() == 5;
+        _objectness_score = layer->GetParamAsFloat("objectness_score", 0.0f);
 
-static inline float JaccardOverlap(const float *decoded_bbox,
-                                   const float *bbox_sizes,
-                                   const int idx1,
-                                   const int idx2) {
-    float xmin1 = decoded_bbox[idx1*4 + 0];
-    float ymin1 = decoded_bbox[idx1*4 + 1];
-    float xmax1 = decoded_bbox[idx1*4 + 2];
-    float ymax1 = decoded_bbox[idx1*4 + 3];
+        std::string code_type_str = layer->GetParamAsString("code_type", "caffe.PriorBoxParameter.CORNER");
+        _code_type = (code_type_str == "caffe.PriorBoxParameter.CENTER_SIZE" ? CodeType::CENTER_SIZE
+                                                                             : CodeType::CORNER);
 
-    float xmin2 = decoded_bbox[idx2*4 + 0];
-    float ymin2 = decoded_bbox[idx2*4 + 1];
-    float xmax2 = decoded_bbox[idx2*4 + 2];
-    float ymax2 = decoded_bbox[idx2*4 + 3];
+        _num_priors = static_cast<int>(layer->insData[idx_priors].lock()->getDims().back() / _prior_size);
+        _priors_batches = layer->insData[idx_priors].lock()->getDims().front() != 1;
 
-    if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1) {
-        return 0.0f;
-    }
+        if (_num_priors * _num_loc_classes * 4 != static_cast<int>(layer->insData[idx_location].lock()->getDims()[1]))
+            THROW_IE_EXCEPTION << "Number of priors must match number of location predictions ("
+                               << _num_priors * _num_loc_classes * 4 << " vs "
+                               << layer->insData[idx_location].lock()->getDims()[1] << ")";
 
-    float intersect_xmin = (std::max)(xmin1, xmin2);
-    float intersect_ymin = (std::max)(ymin1, ymin2);
-    float intersect_xmax = (std::min)(xmax1, xmax2);
-    float intersect_ymax = (std::min)(ymax1, ymax2);
+        if (_num_priors * _num_classes != static_cast<int>(layer->insData[idx_confidence].lock()->getTensorDesc().getDims().back()))
+            THROW_IE_EXCEPTION << "Number of priors must match number of confidence predictions.";
 
-    float intersect_width  = intersect_xmax - intersect_xmin;
-    float intersect_height = intersect_ymax - intersect_ymin;
+        if (_decrease_label_id && _background_label_id != 0)
+            THROW_IE_EXCEPTION << "Cannot use decrease_label_id and background_label_id parameter simultaneously.";
 
-    if (intersect_width <= 0 || intersect_height <= 0) {
-        return 0.0f;
-    }
-
-    float intersect_size = intersect_width * intersect_height;
-    float bbox1_size = bbox_sizes[idx1];
-    float bbox2_size = bbox_sizes[idx2];
-
-    return intersect_size / (bbox1_size + bbox2_size - intersect_size);
-}
-
-void DetectionOutputImpl::decodeBBoxes(const float *prior_data,
-                                       const float *loc_data,
-                                       const float *variance_data,
-                                       float *decoded_bboxes,
-                                       float *decoded_bbox_sizes,
-                                       int* num_priors_actual,
-                                       int n,
-                                       const int& offs,
-                                       const int& pr_size,
-                                       bool decodeType) {
-    num_priors_actual[n] = _num_priors;
-    if (!_normalized && decodeType) {
-        int num = 0;
-        for (; num < _num_priors; ++num) {
-            float batch_id = prior_data[num * pr_size + 0];
-            if (batch_id == -1.f) {
-                num_priors_actual[n] = num;
-                break;
-            }
-        }
-    }
-    parallel_for(num_priors_actual[n], [&](int p) {
-        float new_xmin = 0.0f;
-        float new_ymin = 0.0f;
-        float new_xmax = 0.0f;
-        float new_ymax = 0.0f;
-
-        float prior_xmin = prior_data[p*pr_size + 0 + offs];
-        float prior_ymin = prior_data[p*pr_size + 1 + offs];
-        float prior_xmax = prior_data[p*pr_size + 2 + offs];
-        float prior_ymax = prior_data[p*pr_size + 3 + offs];
-
-        float loc_xmin = loc_data[4*p*_num_loc_classes + 0];
-        float loc_ymin = loc_data[4*p*_num_loc_classes + 1];
-        float loc_xmax = loc_data[4*p*_num_loc_classes + 2];
-        float loc_ymax = loc_data[4*p*_num_loc_classes + 3];
-
-        if (!_normalized) {
-            prior_xmin /= _image_width;
-            prior_ymin /= _image_height;
-            prior_xmax /= _image_width;
-            prior_ymax /= _image_height;
-        }
-
-        if (_code_type == CodeType::CORNER) {
-            if (_variance_encoded_in_target) {
-                // variance is encoded in target, we simply need to add the offset predictions.
-                new_xmin = prior_xmin + loc_xmin;
-                new_ymin = prior_ymin + loc_ymin;
-                new_xmax = prior_xmax + loc_xmax;
-                new_ymax = prior_ymax + loc_ymax;
-            } else {
-                new_xmin = prior_xmin + variance_data[p*4 + 0] * loc_xmin;
-                new_ymin = prior_ymin + variance_data[p*4 + 1] * loc_ymin;
-                new_xmax = prior_xmax + variance_data[p*4 + 2] * loc_xmax;
-                new_ymax = prior_ymax + variance_data[p*4 + 3] * loc_ymax;
-            }
-        } else if (_code_type == CodeType::CENTER_SIZE) {
-            float prior_width    =  prior_xmax - prior_xmin;
-            float prior_height   =  prior_ymax - prior_ymin;
-            float prior_center_x = (prior_xmin + prior_xmax) / 2.0f;
-            float prior_center_y = (prior_ymin + prior_ymax) / 2.0f;
-
-            float decode_bbox_center_x, decode_bbox_center_y;
-            float decode_bbox_width, decode_bbox_height;
-
-            if (_variance_encoded_in_target) {
-                // variance is encoded in target, we simply need to restore the offset predictions.
-                decode_bbox_center_x = loc_xmin * prior_width  + prior_center_x;
-                decode_bbox_center_y = loc_ymin * prior_height + prior_center_y;
-                decode_bbox_width  = std::exp(loc_xmax) * prior_width;
-                decode_bbox_height = std::exp(loc_ymax) * prior_height;
-            } else {
-                // variance is encoded in bbox, we need to scale the offset accordingly.
-                decode_bbox_center_x = variance_data[p*4 + 0] * loc_xmin * prior_width + prior_center_x;
-                decode_bbox_center_y = variance_data[p*4 + 1] * loc_ymin * prior_height + prior_center_y;
-                decode_bbox_width    = std::exp(variance_data[p*4 + 2] * loc_xmax) * prior_width;
-                decode_bbox_height   = std::exp(variance_data[p*4 + 3] * loc_ymax) * prior_height;
-            }
-
-            new_xmin = decode_bbox_center_x - decode_bbox_width  / 2.0f;
-            new_ymin = decode_bbox_center_y - decode_bbox_height / 2.0f;
-            new_xmax = decode_bbox_center_x + decode_bbox_width  / 2.0f;
-            new_ymax = decode_bbox_center_y + decode_bbox_height / 2.0f;
-        }
-
-        if (_clip_before_nms) {
-            new_xmin = (std::max)(0.0f, (std::min)(1.0f, new_xmin));
-            new_ymin = (std::max)(0.0f, (std::min)(1.0f, new_ymin));
-            new_xmax = (std::max)(0.0f, (std::min)(1.0f, new_xmax));
-            new_ymax = (std::max)(0.0f, (std::min)(1.0f, new_ymax));
-        }
-
-        decoded_bboxes[p*4 + 0] = new_xmin;
-        decoded_bboxes[p*4 + 1] = new_ymin;
-        decoded_bboxes[p*4 + 2] = new_xmax;
-        decoded_bboxes[p*4 + 3] = new_ymax;
-
-        decoded_bbox_sizes[p] = (new_xmax - new_xmin) * (new_ymax - new_ymin);
-    });
-}
-
-void DetectionOutputImpl::nms_cf(const float* conf_data,
-                          const float* bboxes,
-                          const float* sizes,
-                          int* buffer,
-                          int* indices,
-                          int& detections,
-                          int num_priors_actual) {
-    int count = 0;
-    for (int i = 0; i < num_priors_actual; ++i) {
-        if (conf_data[i] > _confidence_threshold) {
-            indices[count] = i;
-            count++;
-        }
-    }
-
-    int num_output_scores = (_top_k == -1 ? count : (std::min)(_top_k, count));
-
-    std::partial_sort_copy(indices, indices + count,
-                           buffer, buffer + num_output_scores,
-                           ConfidenceComparator(conf_data));
-
-    for (int i = 0; i < num_output_scores; ++i) {
-        const int idx = buffer[i];
-
-        bool keep = true;
-        for (int k = 0; k < detections; ++k) {
-            const int kept_idx = indices[k];
-            float overlap = JaccardOverlap(bboxes, sizes, idx, kept_idx);
-            if (overlap > _nms_threshold) {
-                keep = false;
-                break;
-            }
-        }
-        if (keep) {
-            indices[detections] = idx;
-            detections++;
-        }
+        std::vector<DataConfigurator> in_data_conf(layer->insData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
+        addConfig(layer, in_data_conf, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
+    } catch (InferenceEngine::details::InferenceEngineException &ex) {
+        errorMsg = ex.what();
     }
 }
 
-void DetectionOutputImpl::nms_mx(const float* conf_data,
-                          const float* bboxes,
-                          const float* sizes,
-                          int* buffer,
-                          int* indices,
-                          int* detections,
-                          int num_priors_actual) {
-    int count = 0;
-    for (int i = 0; i < num_priors_actual; ++i) {
-        float conf = -1;
-        int id = 0;
-        for (int c = 1; c < _num_classes; ++c) {
-            float temp = conf_data[c*_num_priors + i];
-            if (temp > conf) {
-                conf = temp;
-                id = c;
+StatusCode DetectionOutputImpl::execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs,
+                   ResponseDesc *resp) noexcept {
+    float *dst_data = outputs[0]->buffer();
+
+    const float *loc_data       = inputs[idx_location]->buffer().as<const float *>();
+    const float *conf_data      = inputs[idx_confidence]->buffer().as<const float *>();
+    const float *prior_data     = inputs[idx_priors]->buffer().as<const float *>();
+    const float *arm_conf_data  = inputs.size() > 3 ? inputs[idx_arm_confidence]->buffer().as<const float *>() : nullptr;
+    const float *arm_loc_data   = inputs.size() > 4 ? inputs[idx_arm_location]->buffer().as<const float *>() : nullptr;
+
+    const int MB = inputs[idx_confidence]->getTensorDesc().getDims()[0];
+    const int DETECTION_SIZE = outputs[0]->getTensorDesc().getDims()[3];
+    const int num_results = outputs[0]->getTensorDesc().getDims()[2];
+
+    if (DETECTION_SIZE != 7) {
+        return NOT_IMPLEMENTED;
+    }
+
+    int dst_data_size = 0;
+
+    if (_keep_top_k > 0) {
+        dst_data_size = MB * _keep_top_k * DETECTION_SIZE * sizeof(float);
+    } else if (_top_k > 0) {
+        dst_data_size = MB * _top_k * _num_classes * DETECTION_SIZE * sizeof(float);
+    } else {
+        dst_data_size = MB * _num_classes * _num_priors * DETECTION_SIZE * sizeof(float);
+    }
+
+    if (dst_data_size > outputs[0]->byteSize()) {
+        return OUT_OF_BOUNDS;
+    }
+
+    memset(dst_data, 0, dst_data_size);
+
+    DBox<float> box;
+    DBox<float> empty_box;
+
+    std::vector<SortElemDescend<float>> boxes;
+    std::vector<SortElemDescend<float>> output_boxes;
+
+    int class_start_from = (_background_label_id == 0 ? 1 : 0);
+
+    float* p_dst_data = dst_data;
+    int results_count = 0;
+
+    const float* p_loc_data = nullptr;
+    const float* p_arm_data = nullptr;
+
+    for (int mb = 0; mb < MB; ++mb) {
+        const float* p_conf_data = conf_data + (mb * _num_classes * _num_priors);
+
+        if (_share_location) {
+            size_t offt = (mb * _num_priors * 4);
+            if (_with_add_box_pred) {
+                p_arm_data = arm_loc_data + offt;
+            }
+            p_loc_data = loc_data + offt;
+        } else {
+            size_t offt = (mb * _num_priors * _num_loc_classes * 4);
+            if (_with_add_box_pred) {
+                p_arm_data = arm_loc_data + offt;
+            }
+            p_loc_data = loc_data + offt;
+        }
+
+        const float* p_prior_data = prior_data;
+        const float* p_var_data = prior_data + _num_priors * _prior_size;
+
+        if (_priors_batches) {
+            p_prior_data += _variance_encoded_in_target ? mb * _num_priors * _prior_size : 2 * mb * _num_priors * _prior_size;
+            p_var_data += _variance_encoded_in_target ? 0 : 2 * mb * _num_priors * _prior_size;
+        }
+
+        boxes.clear();
+
+        box.batch = mb;
+
+        if (_decrease_label_id) {
+            for (int p = 0; p < _num_priors; ++p) {
+                const float* pprior_data = p_prior_data + p * 4 + _offset * (p + 1);
+                const float* ploc_var_data = p_var_data + p *  4;
+
+                float score = -1.0f;
+                int label = -1;
+
+                for (int c = class_start_from; c < _num_classes; ++c) {
+                    if (c == _background_label_id) {
+                        continue;
+                    }
+
+                    float temp = p_conf_data[p * _num_classes + c];
+
+                    if (_with_add_box_pred) {
+                        if (arm_conf_data[mb * _num_priors * 2 + p * 2 + 1] < _objectness_score) {
+                            temp = 0.0;
+                        }
+                    }
+
+                    if (temp > score) {
+                        score = temp;
+                        label = c;
+                    }
+                }
+
+                if (score >= _confidence_threshold && label != -1) {
+                    box.label = static_cast<float>(label - 1);
+                    box.score = score;
+                    box.prior = p;
+
+                    ExtractLocation(box.c, pprior_data, p_loc_data, ploc_var_data, p_arm_data, p, label);
+
+                    boxes.push_back(box);
+                }
+            }
+        } else {
+            for (int p = 0; p < _num_priors; ++p) {
+                const float* pprior_data = p_prior_data + p * 4 + _offset * (p + 1);
+                const float* ploc_var_data = p_var_data + p *  4;
+
+                for (int c = class_start_from; c < _num_classes; ++c) {
+                    if (c == _background_label_id) {
+                        continue;
+                    }
+
+                    float score = p_conf_data[p * _num_classes + c];
+
+                    if (_with_add_box_pred) {
+                        if (arm_conf_data[mb * _num_priors * 2 + p * 2 + 1] < _objectness_score) {
+                            score = 0.0;
+                        }
+                    }
+
+                    if (score > _confidence_threshold) {
+                        box.label = static_cast<float>(c);
+                        box.score = score;
+                        box.prior = p;
+
+                        ExtractLocation(box.c, pprior_data, p_loc_data, ploc_var_data, p_arm_data, p, c);
+
+                        boxes.push_back(box);
+                    }
+                }
             }
         }
 
-        if (id > 0 && conf >= _confidence_threshold) {
-            indices[count++] = id*_num_priors + i;
+        if (boxes.empty()) {
+            continue;
+        }
+
+        std::stable_sort(boxes.begin(), boxes.end());
+
+        int detections_total = static_cast<int>(boxes.size());
+        int to_keep = std::max<int>(_top_k, _keep_top_k);
+
+        if (to_keep > -1 && detections_total > to_keep) {
+            std::sort(boxes.begin(), boxes.end(),
+                      [](const SortElemDescend<float>& box1, const SortElemDescend<float>& box2) {
+                          return (box1.box.score > box2.box.score);
+                      });
+
+            boxes.resize(to_keep);
+            std::stable_sort(boxes.begin(), boxes.end());
+            detections_total = static_cast<int>(boxes.size());
+        }
+
+        for (int i = 0; i < detections_total; i++) {
+            const DBox<float>& iBox = boxes[i].box;
+
+            if (iBox.batch == -1) {
+                continue;
+            }
+
+            for (int j = i + 1; j < detections_total; ++j) {
+                DBox<float>& jBox = boxes[j].box;
+
+                if (jBox.batch == -1) {
+                    continue;
+                }
+
+                if (iBox.label != jBox.label) {
+                    continue;
+                }
+
+                float iou = CalculateOverlap(iBox.c, jBox.c);
+
+                if (iou >= _nms_threshold) {
+                    jBox.batch = -1;
+                }
+            }
+        }
+
+        boxes.erase(std::remove_if(boxes.begin(), boxes.end(),
+            [](const SortElemDescend<float>& box) {
+                return (box.box.batch == -1);
+            }), boxes.end());
+
+        detections_total = static_cast<int>(boxes.size());
+
+        if (_keep_top_k > -1 && detections_total > _keep_top_k) {
+            std::sort(boxes.begin(), boxes.end(),
+                      [](const SortElemDescend<float>& box1, const SortElemDescend<float>& box2) {
+                          return (box1.box.score > box2.box.score);
+                      });
+
+            boxes.resize(_keep_top_k);
+            std::stable_sort(boxes.begin(), boxes.end());
+            detections_total = static_cast<int>(boxes.size());
+        }
+
+        if (_clip_after_nms) {
+            std::for_each(boxes.begin(), boxes.end(), [](SortElemDescend<float>& box) {
+                box.box.coord.xmin = (std::max)(0.0f, (std::min)(1.0f, box.box.coord.xmin));
+                box.box.coord.ymin = (std::max)(0.0f, (std::min)(1.0f, box.box.coord.ymin));
+                box.box.coord.xmax = (std::max)(0.0f, (std::min)(1.0f, box.box.coord.xmax));
+                box.box.coord.ymax = (std::max)(0.0f, (std::min)(1.0f, box.box.coord.ymax));
+            });
+        }
+
+        for (int i = 0; i < detections_total; i++, results_count++, p_dst_data += DETECTION_SIZE) {
+            memcpy(p_dst_data, &boxes[i].box.batch, sizeof(box));
         }
     }
 
-    int num_output_scores = (_top_k == -1 ? count : (std::min)(_top_k, count));
-
-    std::partial_sort_copy(indices, indices + count,
-                           buffer, buffer + num_output_scores,
-                           ConfidenceComparator(conf_data));
-
-    for (int i = 0; i < num_output_scores; ++i) {
-        const int idx = buffer[i];
-        const int cls = idx/_num_priors;
-        const int prior = idx%_num_priors;
-
-        int &ndetection = detections[cls];
-        int *pindices = indices + cls*_num_priors;
-
-        bool keep = true;
-        for (int k = 0; k < ndetection; ++k) {
-            const int kept_idx = pindices[k];
-            float overlap = 0.0f;
-            if (_share_location) {
-                overlap = JaccardOverlap(bboxes, sizes, prior, kept_idx);
-            } else {
-                overlap = JaccardOverlap(bboxes, sizes, cls*_num_priors + prior, cls*_num_priors + kept_idx);
-            }
-            if (overlap > _nms_threshold) {
-                keep = false;
-                break;
-            }
-        }
-        if (keep) {
-            pindices[ndetection++] = prior;
-        }
+    if (results_count < num_results) {
+        // marker at end of boxes list
+        *p_dst_data = -1;
     }
+
+    return OK;
+}
+
+template<typename DType>
+DType DetectionOutputImpl::CalculateOverlap(const DType* a, const DType* b) {
+    DType w = std::max(DType(0), std::min(a[2], b[2]) - std::max(a[0], b[0]));
+    DType h = std::max(DType(0), std::min(a[3], b[3]) - std::max(a[1], b[1]));
+    DType i = w * h;
+    DType u = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - i;
+    return (u <= 0.0f) ? static_cast<DType>(0) : static_cast<DType>(i / u);
+}
+
+template<typename DType>
+void DetectionOutputImpl::ExtractLocation(DType* out, const DType* p_prior_data,
+                                          const DType* p_loc_data, const DType* p_loc_var_data,
+                                          const DType* p_arm_data,
+                                          int prior, int label) {
+    const DType* parm_data;
+    const DType* ploc_data;
+
+    if (_share_location) {
+        size_t offt = prior * 4;
+        if (_with_add_box_pred) {
+            parm_data = p_arm_data + offt;
+        }
+        ploc_data = p_loc_data + offt;
+    } else {
+        size_t offt = (label + prior * _num_loc_classes) * 4;
+        if (_with_add_box_pred) {
+            parm_data = p_arm_data + offt;
+        }
+        ploc_data = p_loc_data + offt;
+    }
+
+    if (_with_add_box_pred) {
+        TransformLocations(out, p_prior_data, parm_data, p_loc_var_data);
+        TransformLocations(out, out, ploc_data, p_loc_var_data);
+    } else {
+        TransformLocations(out, p_prior_data, ploc_data, p_loc_var_data);
+    }
+}
+
+template<typename DType>
+void DetectionOutputImpl::TransformLocations(DType* out, const DType* prior_data,
+                                            const DType* loc_data, const DType* var) {
+    DType prior_xmin = prior_data[0];
+    DType prior_ymin = prior_data[1];
+    DType prior_xmax = prior_data[2];
+    DType prior_ymax = prior_data[3];
+
+    DType loc_xmin = loc_data[0];
+    DType loc_ymin = loc_data[1];
+    DType loc_xmax = loc_data[2];
+    DType loc_ymax = loc_data[3];
+
+    if (!_variance_encoded_in_target) {
+        loc_xmin *= var[0];
+        loc_ymin *= var[1];
+        loc_xmax *= var[2];
+        loc_ymax *= var[3];
+    }
+
+    if (!_normalized) {
+        prior_xmin /= _image_width;
+        prior_ymin /= _image_height;
+        prior_xmax /= _image_width;
+        prior_ymax /= _image_height;
+    }
+
+    DType prior_w = prior_xmax - prior_xmin;
+    DType prior_h = prior_ymax - prior_ymin;
+
+    DType xmin;
+    DType ymin;
+    DType xmax;
+    DType ymax;
+
+    switch (_code_type) {
+        case CORNER: {
+            xmin = prior_xmin + loc_xmin;
+            ymin = prior_ymin + loc_ymin;
+            xmax = prior_xmax + loc_xmax;
+            ymax = prior_ymax + loc_ymax;
+        }
+        break;
+
+        case CENTER_SIZE: {
+            DType prior_center_x = static_cast<DType>((prior_xmin + prior_xmax) / 2.f);
+            DType prior_center_y = static_cast<DType>((prior_ymin + prior_ymax) / 2.f);
+
+            DType box_center_x = loc_xmin * prior_w + prior_center_x;
+            DType box_center_y = loc_ymin * prior_h + prior_center_y;
+
+            DType box_width = static_cast<DType>(exp(loc_xmax) * prior_w / 2.0f);
+            DType box_height = static_cast<DType>(exp(loc_ymax) * prior_h / 2.0f);
+
+            xmin = box_center_x - box_width;
+            ymin = box_center_y - box_height;
+            xmax = box_center_x + box_width;
+            ymax = box_center_y + box_height;
+        }
+        break;
+    }
+
+    if (_clip_before_nms) {
+        xmin = (std::max)(0.0f, (std::min)(1.0f, xmin));
+        ymin = (std::max)(0.0f, (std::min)(1.0f, ymin));
+        xmax = (std::max)(0.0f, (std::min)(1.0f, xmax));
+        ymax = (std::max)(0.0f, (std::min)(1.0f, ymax));
+    }
+
+    out[0] = xmin;
+    out[1] = ymin;
+    out[2] = xmax;
+    out[3] = ymax;
 }
 
 REG_FACTORY_FOR(DetectionOutputImpl, DetectionOutput);
