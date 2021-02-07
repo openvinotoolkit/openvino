@@ -32,7 +32,9 @@ struct jGatherArgs {
     const int* dictTypeSize;
     const int* axisDim;
     const int* axDimSum;
-    size_t idxStart;
+    const int* int8ShufMask;
+    const int* int8PermMask;
+    size_t idxStartB;
     size_t workAmount;
     int* tmp; // remove
     int* retVal; // remove
@@ -72,7 +74,7 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
         mov(regDst, ptr[regParams + GET_OFF(dst)]);
         mov(regIndices, ptr[regParams + GET_OFF(indices)]);
 
-        mov(regIdxIter, ptr[regParams + GET_OFF(idxStart)]);
+        mov(regIdxIter, ptr[regParams + GET_OFF(idxStartB)]);
 
         mov(regAux1, ptr[regParams + GET_OFF(dictTypeSize)]);
         uni_vpbroadcastd(vmmDictTypeSize, ptr[regAux1]);
@@ -100,7 +102,6 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
                 jl(lTail, T_NEAR);
 
                 fillIndicies(vmmSrcShifts);
-//uni_vmovups(ptr[regAux1], vmmSrcShifts);
 
                 uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
                 vpgatherdd(vmmDst, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
@@ -113,15 +114,11 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
             }
             L(lTail);
             Xbyak::Label lTailLoop, lCalc;
-            mov(regAux1, 0);
-            mov(regAux2, 0);
             Xbyak::Reg32 regDictTypeSize32(regAux1.getIdx());
             Xbyak::Reg32 regAxDimSum32(regAux2.getIdx());
-            uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 1);
-            uni_vpextrd(regAxDimSum32, xmmAxDimSum, 1);
-//uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 1);
-mov(regAux3, ptr[regParams + GET_OFF(retVal)]);
-mov(ptr[regAux3], regAux2);
+            Xbyak::Reg32 regAux3_32(regAux3.getIdx());
+            uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 0);
+            uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
             L(lTailLoop);
             {
                 cmp(regWorkAmount, 0);
@@ -131,15 +128,14 @@ mov(ptr[regAux3], regAux2);
                 jl(lCalc, T_NEAR);
                 mov(regIdxIter, 0);
                 uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
-                uni_vpextrd(regAxDimSum32, xmmAxDimSum, 1);
+                uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
 
                 L(lCalc);
-                mov(rax, 0);
                 mov(eax, ptr[regIndices + regIdxIter]);
                 mul(regDictTypeSize32);
                 add(eax, regAxDimSum32);
-                mov(regAux3, ptr[regSrc + rax]);
-                mov(ptr[regDst], regAux3);
+                mov(regAux3_32, ptr[regSrc + rax]);
+                mov(ptr[regDst], regAux3_32);
 
                 add(regIdxIter, sizeof(int));
                 add(regDst, jcp_.dictTypeSize);
@@ -150,9 +146,108 @@ mov(ptr[regAux3], regAux2);
             L(lFinish);
         } else if (jcp_.dictTypeSize == 2) {
         } else if (jcp_.dictTypeSize == 1) {
+            int gatherVecInVlen = vlen / 8;
+            if (isa == x64::avx512_common) {
+                gatherVecInVlen = vlen / 16;
+            }
+
+            auto vmmShufMask = vmmAux8;
+            mov(regAux1, ptr[regParams + GET_OFF(int8ShufMask)]);
+            uni_vmovups(vmmShufMask, ptr[regAux1]);
+
+            auto vmmPermMask = vmmAux9;
+            mov(regAux1, ptr[regParams + GET_OFF(int8PermMask)]);
+            uni_vmovups(vmmPermMask, ptr[regAux1]);
+
+//mov(regAux1, ptr[regParams + GET_OFF(tmp)]);
+//mov(regAux2, ptr[regParams + GET_OFF(retVal)]);
+
+            Xbyak::Label lDstIdxLoop, lTail, lFinish;
+            L(lDstIdxLoop);
+            {
+                cmp(regWorkAmount, elPerVec);
+                jl(lTail, T_NEAR);
+
+//mov(ptr[regAux2], regIdxIter);
+                fillIndicies(vmmSrcShifts);
+//uni_vmovups(ptr[regAux1], vmmSrcShifts);
+                uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
+                vpgatherdd(vmmAux3, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
+//Xbyak::Reg32 regAux3_32(regAux3.getIdx());
+//mov(regAux3_32, ptr[regSrc + 1]);
+//mov(ptr[regAux2], regAux3_32);
+//uni_vmovups(ptr[regAux1], vmmAux3);
+                vpshufb(vmmAux3, vmmAux3, vmmShufMask);
+//uni_vmovups(ptr[regAux1], vmmAux3);
+
+                fillIndicies(vmmSrcShifts);
+                uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
+                vpgatherdd(vmmAux4, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
+                vpshufb(vmmAux4, vmmAux4, vmmShufMask);
+
+                vshufps(vmmAux3, vmmAux3, vmmAux4, 0);
+//uni_vmovups(ptr[regAux1], vmmAux3);
+
+                fillIndicies(vmmSrcShifts);
+                uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
+                vpgatherdd(vmmAux4, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
+                vpshufb(vmmAux4, vmmAux4, vmmShufMask);
+
+                fillIndicies(vmmSrcShifts);
+                uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
+                vpgatherdd(vmmAux5, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
+                vpshufb(vmmAux5, vmmAux5, vmmShufMask);
+
+                vshufps(vmmAux4, vmmAux4, vmmAux5, 0);
+//uni_vmovups(ptr[regAux1], vmmAux4);
+
+                vshufps(vmmAux3, vmmAux3, vmmAux4, 0x88);
+                vpermd(vmmAux3, vmmPermMask, vmmAux3);
+//uni_vmovups(ptr[regAux1], vmmAux3);
+
+                uni_vmovups(ptr[regDst], vmmAux3);
+
+                add(regDst, vlen);
+                sub(regWorkAmount, elPerVec);
+
+                jmp(lDstIdxLoop, T_NEAR);
+            }
+            L(lTail);
+            Xbyak::Label lTailLoop, lCalc;
+            L(lTailLoop);
+            {
+                cmp(regWorkAmount, 0);
+                je(lFinish, T_NEAR);
+
+//                cmp(regIdxIter, jcp_.indicesSize);
+//                jl(lCalc, T_NEAR);
+//                mov(regIdxIter, 0);
+//                uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
+//                uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
+//
+//                L(lCalc);
+//                mov(eax, ptr[regIndices + regIdxIter]);
+//                mul(regDictTypeSize32);
+//                add(eax, regAxDimSum32);
+//                mov(regAux3_32, ptr[regSrc + rax]);
+//                mov(ptr[regDst], regAux3_32);
+//
+//                add(regIdxIter, sizeof(int));
+//                add(regDst, jcp_.dictTypeSize);
+                sub(regWorkAmount, 1);
+                jmp(lTailLoop, T_NEAR);
+            }
+            L(lFinish);
         }
 
         this->postamble();
+    }
+
+    void int8GatherAndShift(const Vmm& dst, const Vmm& vmmShufMask) {
+        fillIndicies(vmmSrcShifts);
+        uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
+        vpgatherdd(dst, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
+        vpshufb(dst, dst, vmmShufMask);
     }
 
     inline void uni_insertps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& op, uint8_t imm) {
@@ -180,51 +275,58 @@ mov(ptr[regAux3], regAux2);
     }
 
     void fillIndicies(Xbyak::Xmm& dst) {
-        uni_vmovups(xmmAux1, ptr[regIndices + regIdxIter]);
-        uni_vpmulld(xmmAux1, xmmAux1, xmmDictTypeSize);
-        uni_vpaddd(xmmAux1, xmmAux1, xmmAxDimSum);
-        for (uint8_t i = 0; i < 4; i++) {
-            Xbyak::Label insertLabel;
+        Xbyak::Label lPerElements, lExit;
 
-            cmp(regIdxIter, jcp_.indicesSize);
-            jl(insertLabel, T_NEAR);
-            mov(regIdxIter, 0);
-            uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
-            uni_vmovups(xmmAux1, ptr[regIndices]);
-//            uint8_t imm = i | (i << 2) | (i << 4) | (i << 6);
-//            uint8_t imm = 228 << i * 2;
-            vpshufd(xmmAux1, xmmAux1, 0xE4 << i * 2);
-//mov(regAux3, imm);
-//mov(ptr[regAux2], regAux3);
-//uni_vmovups(ptr[regAux1], xmmAux1);
-            uni_vpmulld(xmmAux1, xmmAux1, xmmDictTypeSize);
-            uni_vpaddd(xmmAux1, xmmAux1, xmmAxDimSum);
-//uni_vmovups(ptr[regAux1], xmmAux1);
-
-            L(insertLabel);
-            uni_insertps(dst, dst, xmmAux1, (i << 6) | (i << 4));
-            add(regIdxIter, sizeof(int));
-        }
-//uni_vmovups(ptr[regAux1], dst);
-    }
-
-    void fillIndicies(Xbyak::Ymm& dst) {
-        Xbyak::Label lPerElement, lExit;
-
-        cmp(regIdxIter, jcp_.indicesSize - vlen);
-        jg(lPerElement, T_NEAR);
+        cmp(regIdxIter, jcp_.indicesSize - 16);
+        jg(lPerElements, T_NEAR);
             uni_vmovups(dst, ptr[regIndices + regIdxIter]);
-//mov(ptr[regAux2], regIdxIter);
-//uni_vmovups(ptr[regAux1], dst);
-            uni_vpmulld(dst, dst, vmmDictTypeSize);
-            uni_vpaddd(dst, dst, vmmAxDimSum); //check +*
-            add(regIdxIter, vlen);
+            uni_vpmulld(dst, dst, xmmDictTypeSize);
+            uni_vpaddd(dst, dst, xmmAxDimSum);
+            add(regIdxIter, 16);
         cmp(regIdxIter, jcp_.indicesSize);
         jl(lExit, T_NEAR);
             uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
             mov(regIdxIter, 0);
         jmp(lExit, T_NEAR);
-        L(lPerElement);
+
+        L(lPerElements);
+        for (uint8_t i = 0; i < 4; i++) {
+            Xbyak::Label insertLabel;
+
+            cmp(regIdxIter, jcp_.indicesSize);
+            jl(insertLabel, T_NEAR);
+                mov(regIdxIter, 0);
+                uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
+
+            L(insertLabel);
+            uni_vpbroadcastd(xmmAux1, ptr[regIndices + regIdxIter]);
+            uni_vpmulld(xmmAux1, xmmAux1, xmmDictTypeSize);
+            uni_vpaddd(xmmAux1, xmmAux1, xmmAxDimSum);
+            uni_insertps(dst, dst, xmmAux1, i << 4);
+            add(regIdxIter, sizeof(int));
+        }
+//mov(ptr[regAux2], regAux1);
+//uni_vmovups(ptr[regAux1], dst);
+        L(lExit);
+    }
+
+    void fillIndicies(Xbyak::Ymm& dst) {
+        Xbyak::Label lPerXmm, lExit;
+
+        cmp(regIdxIter, jcp_.indicesSize - 32);
+        jg(lPerXmm, T_NEAR);
+            uni_vmovups(dst, ptr[regIndices + regIdxIter]);
+//mov(ptr[regAux2], regIdxIter);
+//uni_vmovups(ptr[regAux1], dst);
+            uni_vpmulld(dst, dst, vmmDictTypeSize);
+            uni_vpaddd(dst, dst, vmmAxDimSum); //check +*
+            add(regIdxIter, 32);
+        cmp(regIdxIter, jcp_.indicesSize);
+        jl(lExit, T_NEAR);
+            uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
+            mov(regIdxIter, 0);
+        jmp(lExit, T_NEAR);
+        L(lPerXmm);
 //uni_vmovups(vmmAux1, ptr[regIndices + regIdxIter]);
 //uni_vmovups(ptr[regAux1], vmmAux1);
             for (int i = 0; i < 2; i++) {
@@ -269,26 +371,27 @@ private:
 
     Xbyak::Xmm xmmAux0 = Xbyak::Xmm(0);
     Xbyak::Xmm xmmAux1 = Xbyak::Xmm(1);
-    Xbyak::Xmm xmmAux2 = Xbyak::Xmm(2);
-    Xbyak::Ymm ymmDstAxIdx = Xbyak::Ymm(0);
+    Xbyak::Xmm xmmAxDimSum = Xbyak::Xmm(2);
+    Xbyak::Xmm xmmAxDim = Xbyak::Xmm(3);
+    Xbyak::Xmm xmmDictTypeSize = Xbyak::Xmm(4);
 
-    Xbyak::Xmm xmmAxDimSum = Xbyak::Xmm(3);
-    Xbyak::Xmm xmmAxDim = Xbyak::Xmm(4);
-    Xbyak::Xmm xmmDictTypeSize = Xbyak::Xmm(8);
+    Xbyak::Ymm ymmDstAxIdx = Xbyak::Ymm(0);
 
     Vmm vmmAux0 = Vmm(0);
     Vmm vmmAux1 = Vmm(1);
-    Vmm vmmAxDimSum = Vmm(3);
-    Vmm vmmAxDim = Vmm(4);
-//    Vmm vmmZero = Vmm(5);
-//    Vmm vmmOnes = Vmm(6);
-//    Vmm vmmIncVec = Vmm(7);
-    Vmm vmmDictTypeSize = Vmm(8);
-//    Vmm vmmIndicies = Vmm(10);
-    Vmm vmmSrcShifts = Vmm(11);
-//    Vmm vmmStrideAx1Diff = Vmm(12);
-//    Vmm vmmStrideAxSrc = Vmm(13);
-    Vmm vmmOnesBit = Vmm(14);
+    Vmm vmmAxDimSum = Vmm(2);
+    Vmm vmmAxDim = Vmm(3);
+    Vmm vmmDictTypeSize = Vmm(4);
+    Vmm vmmSrcShifts = Vmm(5);
+    Vmm vmmOnesBit = Vmm(6);
+    Vmm vmmAux2 = Vmm(7);
+    Vmm vmmAux3 = Vmm(8);
+    Vmm vmmAux4 = Vmm(9);
+    Vmm vmmAux5 = Vmm(10);
+    Vmm vmmAux6 = Vmm(11);
+    Vmm vmmAux7 = Vmm(12);
+    Vmm vmmAux8 = Vmm(13);
+    Vmm vmmAux9 = Vmm(14);
     Vmm vmmDst = Vmm(15);
 };
 
@@ -359,8 +462,7 @@ public:
         dictTypeSize_ = dictPrecision.size();
 
         // Gather instruction is applicable just for 32 and 64 bit data and is not supported by SSE.
-        if (dictTypeSize_ == sizeof(PrecisionTrait<Precision::I32>::value_type) &&
-                (x64::mayiuse(x64::avx512_common) || x64::mayiuse(x64::avx2)) &&
+        if ((x64::mayiuse(x64::avx512_common) || x64::mayiuse(x64::avx2)) &&
                 afterAxisSize_ == 1) {
             jGatherConfParams jcp;
             jcp.beforeAxisSize = beforeAxisSize_;
@@ -406,45 +508,6 @@ public:
     }
 
 private:
-//    template <typename index_t, class Conversion>
-//    void gather(Blob::Ptr indexes, Blob::Ptr dictionary, Blob::Ptr output) {
-//        size_t indicesSize_ = indexes->size();
-//        const index_t *srcIndices = indexes->cbuffer().as<const index_t *>() + indexes->getTensorDesc().getBlockingDesc().getOffsetPadding();
-//        const uint8_t *srcDictData = dictionary->cbuffer().as<const uint8_t *>() + dictionary->getTensorDesc().getBlockingDesc().getOffsetPadding();
-//        uint8_t *dstData = output->cbuffer().as<uint8_t*>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding();
-//        size_t len = afterAxisSize_ * dictionary->getTensorDesc().getPrecision().size();
-//
-//static unsigned c1 = 0;
-//static double t1 = 0.0;
-//c1++;
-//auto start1 = std::chrono::steady_clock::now();
-//
-//        parallel_for(indicesSize_, [&](size_t i) {
-//            unsigned int idx = Conversion()(srcIndices[i]);
-//
-//            //  Index clipping
-//            if (idx < axisDim_) {
-//                //  Copying data to destination from Dictionary
-//                for (size_t j = 0; j < beforeAxisSize_; j++) {
-//                    cpu_memcpy_s(&dstData[len * (i + j * indicesSize_)],
-//                                output->byteSize() - (len * (i + j * indicesSize_)),
-//                                &srcDictData[len * (idx + j * axisDim_)],
-//                                len);
-//                }
-//            } else {
-//                for (size_t j = 0; j < beforeAxisSize_; j++) {
-//                    memset(&dstData[len * (i + j * indicesSize_)], 0, len);
-//                }
-//            }
-//        });
-//
-//auto end1 = std::chrono::steady_clock::now();
-//t1 += std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1).count();
-//if (c1 % 1000 == 0) {
-//    std::cout << "GE PARALLEL SECTION: " << t1 / c1 << std::endl;
-//}
-//    }
-
     template <typename dataType>
     void gather(Blob::Ptr& indexes, Blob::Ptr& dictionary, Blob::Ptr& output) {
         const int *srcIndices = indexes->cbuffer().as<const int*>() + indexes->getTensorDesc().getBlockingDesc().getOffsetPadding();
@@ -458,31 +521,6 @@ auto start1 = std::chrono::steady_clock::now();
             const dataType* srcDictData = dictionary->cbuffer().as<const dataType *>() + dictionary->getTensorDesc().getBlockingDesc().getOffsetPadding();
             dataType *dstData = output->buffer().as<dataType*>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
-//            parallel_for(indicesSize_, [&](size_t i) {
-//                //  Index clipping
-//                if (srcIndices[i] < axisDim_) {
-//                    //  Copying data to destination from Dictionary
-//                    for (size_t j = 0; j < beforeAxisSize_; j++) {
-//                        dstData[i + j * indicesSize_] = srcDictData[srcIndices[i] + j * axisDim_];
-//                    }
-//                } else {
-//                    for (size_t j = 0; j < beforeAxisSize_; j++) {
-////                        memset(&dstData[len * (i + j * indicesSize_)], 0, len);
-//                        dstData[i + j * indicesSize_] = 0;
-//                    }
-//                }
-//            });
-//            parallel_for(beforeAxisSize_, [&](size_t i) {
-//                const dataType* srcDictDataShifted = srcDictData + i * axisDim_;
-//                dataType* dstDataShifted = dstData + i * indicesSize_;
-//                    for (size_t j = 0; j < indicesSize_; j++) {
-//                        dstDataShifted[j] = srcDictDataShifted[srcIndices[j]];
-//                    }
-//            });
-//            parallel_for2d(beforeAxisSize_, indicesSize_, [&](size_t i, size_t j) {
-//                dstData[j + i * indicesSize_] = srcDictData[srcIndices[j] + i * axisDim_];
-//            });
-
             size_t workAmount = beforeAxisSize_ * indicesSize_;
             if (kernel32_) {
                 auto threadBody = [&](const int ithr, const int nthr) {
@@ -494,9 +532,9 @@ auto start1 = std::chrono::steady_clock::now();
                     parallel_it_init(start, basStart, beforeAxisSize_, idxStart, indicesSize_);
 //                    if (ithr > 0)
 //                        return;
-printf("[%d] start: %lu; end: %lu; basStart: %lu; idxStart: %lu\n", ithr, start, end, basStart, idxStart);
-int tmp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-int retVal = 0;
+//printf("[%d] start: %lu; end: %lu; basStart: %lu; idxStart: %lu\n", ithr, start, end, basStart, idxStart);
+//int tmp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+//int retVal = 0;
 
 //int imm = 1;
 //imm = imm | (imm << 2) | (imm << 4) | (imm << 6);
@@ -513,17 +551,19 @@ int retVal = 0;
                     arg.dictTypeSize = &dictTypeSize;
                     arg.axisDim = &axisDimB;
                     arg.axDimSum = &axDimSumB;
-                    arg.idxStart = idxStart * dictTypeSize_;
+                    arg.idxStartB = idxStart * sizeof(int);
+                    arg.int8ShufMask = int8ShufMask_;
+                    arg.int8PermMask = int8PermMask_;
                     arg.workAmount = end - start;
-                    arg.tmp = tmp;
-                    arg.retVal = &retVal;
+//                    arg.tmp = tmp;
+//                    arg.retVal = &retVal;
                     (*kernel32_)(&arg);
-    std::string tmpStr = "tmp: ";
-for (int s = 0; s < 8; s++) {
-    tmpStr += std::to_string(tmp[s]) + "; ";
-}
-printf("%s\n", tmpStr.c_str());
-printf("retVal: %d\n", retVal);
+//    std::string tmpStr = "tmp: ";
+//for (int s = 0; s < 8; s++) {
+//    tmpStr += std::to_string(tmp[s]) + "; ";
+//}
+//printf("%s\n", tmpStr.c_str());
+//printf("retVal: %d\n", retVal);
                 };
 
                 parallel_nt(0, threadBody);
@@ -584,15 +624,18 @@ if (c1 % 1000 == 0) {
 }
     }
 
+    const size_t GATHER_DICTIONARY = 0;
+    const size_t GATHER_INDEXES = 1;
+    const size_t GATHER_AXIS = 2;
+
     int axis_ = 0;
     size_t beforeAxisSize_ = 1lu;
     size_t axisDim_ = 0lu;
     size_t afterAxisSize_ = 1lu;
     size_t indicesSize_ = 1lu;
     size_t dictTypeSize_ = 1lu;
-    const size_t GATHER_DICTIONARY = 0;
-    const size_t GATHER_INDEXES = 1;
-    const size_t GATHER_AXIS = 2;
+    int int8ShufMask_[8] = {0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080};
+    int int8PermMask_[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     std::shared_ptr<jitUniGatherKernel> kernel32_;
 };
 

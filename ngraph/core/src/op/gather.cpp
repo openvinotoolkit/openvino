@@ -211,6 +211,7 @@ namespace gather
             NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis);
             NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis);
             NGRAPH_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, i8, arg0, arg1, out, axis);
             NGRAPH_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis);
         default: rc = false; break;
         }
