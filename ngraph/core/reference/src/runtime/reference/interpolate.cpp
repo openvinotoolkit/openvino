@@ -58,165 +58,12 @@ Coordinate InterpolateEvalHelper::get_input_coords_for_nearest_mode(const Coordi
     return input_coord;
 }
 
-InterpolateEvalHelper::InfoForLinearONNXMode5D
-    InterpolateEvalHelper::get_info_for_linear_onnx_mode5D()
-{
-    InfoForLinearONNXMode5D result;
-
-    std::size_t input_rank = m_input_data_shape.size();
-    std::size_t num_of_axes = m_axes.size();
-
-    Shape input_shape =
-        Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1], m_input_data_shape[2]};
-    Shape output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1], m_out_shape[2]};
-
-    if (input_rank == 5)
-    {
-        input_shape = m_input_data_shape;
-        output_shape = m_out_shape;
-    }
-
-    int64_t batch_size = input_shape[0];
-    int64_t num_channels = input_shape[1];
-    int64_t input_depth = input_shape[2];
-    int64_t input_height = input_shape[3];
-    int64_t input_width = input_shape[4];
-    int64_t output_depth = output_shape[2];
-    int64_t output_height = output_shape[3];
-    int64_t output_width = output_shape[4];
-
-    float depth_scale = m_scales[0];
-    float height_scale = m_scales[1];
-    float width_scale = m_scales[2];
-
-    if (num_of_axes == 5)
-    {
-        depth_scale = m_scales[2];
-        height_scale = m_scales[3];
-        width_scale = m_scales[4];
-    }
-
-    std::vector<float> z_original(output_depth);
-    std::vector<float> y_original(output_height);
-    std::vector<float> x_original(output_width);
-
-    std::vector<int64_t> input_height_width_mul_z1(output_depth);
-    std::vector<int64_t> input_height_width_mul_z2(output_depth);
-    std::vector<int64_t> input_width_mul_y1(output_height);
-    std::vector<int64_t> input_width_mul_y2(output_height);
-    std::vector<int64_t> in_x1(output_width);
-    std::vector<int64_t> in_x2(output_width);
-
-    std::vector<float> dz1(output_depth);
-    std::vector<float> dz2(output_depth);
-    std::vector<float> dy1(output_height);
-    std::vector<float> dy2(output_height);
-    std::vector<float> dx1(output_width);
-    std::vector<float> dx2(output_width);
-
-    for (int64_t z = 0; z < output_depth; ++z)
-    {
-        float in_z = m_get_original_coord(static_cast<float>(z),
-                                          depth_scale,
-                                          static_cast<float>(output_depth),
-                                          static_cast<float>(input_depth));
-        z_original[z] = in_z;
-        in_z = std::max(0.0f, std::min(in_z, static_cast<float>(input_depth - 1)));
-
-        const int64_t in_z1 = std::min(static_cast<int64_t>(in_z), input_depth - 1);
-        const int64_t in_z2 = std::min(in_z1 + 1, input_depth - 1);
-        dz1[z] = std::fabs(in_z - in_z1);
-        dz2[z] = std::fabs(in_z - in_z2);
-
-        if (in_z1 == in_z2)
-        {
-            dz1[z] = 0.5f;
-            dz2[z] = 0.5f;
-        }
-
-        input_height_width_mul_z1[z] = input_height * input_width * in_z1;
-        input_height_width_mul_z2[z] = input_height * input_width * in_z2;
-    }
-
-    for (int64_t y = 0; y < output_height; ++y)
-    {
-        float in_y = m_get_original_coord(static_cast<float>(y),
-                                          height_scale,
-                                          static_cast<float>(output_height),
-                                          static_cast<float>(input_height));
-        y_original[y] = in_y;
-        in_y = std::max(0.0f, std::min(in_y, static_cast<float>(input_height - 1)));
-
-        const int64_t in_y1 = std::min(static_cast<int64_t>(in_y), input_height - 1);
-        const int64_t in_y2 = std::min(in_y1 + 1, input_height - 1);
-        dy1[y] = std::fabs(in_y - in_y1);
-        dy2[y] = std::fabs(in_y - in_y2);
-
-        if (in_y1 == in_y2)
-        {
-            dy1[y] = 0.5f;
-            dy2[y] = 0.5f;
-        }
-
-        input_width_mul_y1[y] = input_width * in_y1;
-        input_width_mul_y2[y] = input_width * in_y2;
-    }
-
-    for (int64_t x = 0; x < output_width; ++x)
-    {
-        float in_x = m_get_original_coord(static_cast<float>(x),
-                                          width_scale,
-                                          static_cast<float>(output_width),
-                                          static_cast<float>(input_width));
-        x_original[x] = in_x;
-        in_x = std::max(0.0f, std::min(in_x, static_cast<float>(input_width - 1)));
-
-        in_x1[x] = std::min(static_cast<int64_t>(in_x), input_width - 1);
-        in_x2[x] = std::min(in_x1[x] + 1, input_width - 1);
-
-        dx1[x] = std::abs(in_x - in_x1[x]);
-        dx2[x] = std::abs(in_x - in_x2[x]);
-        if (in_x1[x] == in_x2[x])
-        {
-            dx1[x] = 0.5f;
-            dx2[x] = 0.5f;
-        }
-    }
-
-    result.z_original = z_original;
-    result.y_original = y_original;
-    result.x_original = x_original;
-    result.input_height_width_mul_z1 = input_height_width_mul_z1;
-    result.input_height_width_mul_z2 = input_height_width_mul_z2;
-    result.input_width_mul_y1 = input_width_mul_y1;
-    result.input_width_mul_y2 = input_width_mul_y2;
-    result.in_x1 = in_x1;
-    result.in_x2 = in_x2;
-    result.dz1 = dz1;
-    result.dz2 = dz2;
-    result.dy1 = dy1;
-    result.dy2 = dy2;
-    result.dx1 = dx1;
-    result.dx2 = dx2;
-    result.batch_size = batch_size;
-    result.num_channels = num_channels;
-    result.output_depth = output_depth;
-    result.output_height = output_height;
-    result.output_width = output_width;
-    result.input_depth = input_depth;
-    result.input_height = input_height;
-    result.input_width = input_width;
-
-    return result;
-}
-
 InterpolateEvalHelper::InfoForGenericLinearONNXMode
     InterpolateEvalHelper::get_info_for_generic_linear_onnx()
 {
     InfoForGenericLinearONNXMode result;
 
     std::size_t input_rank = m_input_data_shape.size();
-    std::size_t num_of_axes = m_axes.size();
 
     Shape input_shape;
     Shape output_shape;
@@ -267,12 +114,6 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
         output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 2]);
     }
 
-    std::vector<int64_t> spatial_axes_indices(spatial_rank);
-
-    std::iota(spatial_axes_indices.begin(),
-              spatial_axes_indices.end(),
-              ((num_of_axes == input_rank) && (input_rank >= 4)) ? 2 : 0);
-
     result.input_data_ptr_increment = input_data_ptr_increment;
     result.output_data_ptr_increment = output_data_ptr_increment;
     result.batch_size = batch_size;
@@ -282,7 +123,6 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode
     result.output_index_multipliers = output_index_multipliers;
     result.input_spatial_shape = input_spatial_shape;
     result.output_spatial_shape = output_spatial_shape;
-    result.spatial_axes_indices = spatial_axes_indices;
 
     return result;
 }
