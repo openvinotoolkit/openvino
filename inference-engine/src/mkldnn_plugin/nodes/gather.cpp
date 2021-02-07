@@ -32,8 +32,10 @@ struct jGatherArgs {
     const int* dictTypeSize;
     const int* axisDim;
     const int* axDimSum;
-    const int* int8ShufMask;
-    const int* int8PermMask;
+    const int* shufMask8bit;
+    const int* permMask8bit;
+    const int* shufMask16bit;
+    const int* permMask16bit;
     size_t idxStartB;
     size_t workAmount;
     int* tmp; // remove
@@ -92,8 +94,6 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
 
         elPerVec = vlen / jcp_.dictTypeSize;
 
-//        uni_vxorps(vmmZero, vmmZero, vmmZero);
-
         if (jcp_.dictTypeSize == 4) {
             Xbyak::Label lDstIdxLoop, lTail, lFinish;
             L(lDstIdxLoop);
@@ -145,18 +145,12 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
 
             L(lFinish);
         } else if (jcp_.dictTypeSize == 2) {
-        } else if (jcp_.dictTypeSize == 1) {
-            int gatherVecInVlen = vlen / 8;
-            if (isa == x64::avx512_common) {
-                gatherVecInVlen = vlen / 16;
-            }
-
-            auto vmmShufMask = vmmAux8;
-            mov(regAux1, ptr[regParams + GET_OFF(int8ShufMask)]);
+            auto& vmmShufMask = vmmAux8;
+            mov(regAux1, ptr[regParams + GET_OFF(shufMask16bit)]);
             uni_vmovups(vmmShufMask, ptr[regAux1]);
 
-            auto vmmPermMask = vmmAux9;
-            mov(regAux1, ptr[regParams + GET_OFF(int8PermMask)]);
+            auto& vmmPermMask = vmmAux9;
+            mov(regAux1, ptr[regParams + GET_OFF(permMask16bit)]);
             uni_vmovups(vmmPermMask, ptr[regAux1]);
 
 //mov(regAux1, ptr[regParams + GET_OFF(tmp)]);
@@ -168,42 +162,16 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
                 cmp(regWorkAmount, elPerVec);
                 jl(lTail, T_NEAR);
 
-//mov(ptr[regAux2], regIdxIter);
-                fillIndicies(vmmSrcShifts);
-//uni_vmovups(ptr[regAux1], vmmSrcShifts);
-                uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
-                vpgatherdd(vmmAux3, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
-//Xbyak::Reg32 regAux3_32(regAux3.getIdx());
-//mov(regAux3_32, ptr[regSrc + 1]);
-//mov(ptr[regAux2], regAux3_32);
-//uni_vmovups(ptr[regAux1], vmmAux3);
-                vpshufb(vmmAux3, vmmAux3, vmmShufMask);
-//uni_vmovups(ptr[regAux1], vmmAux3);
-
-                fillIndicies(vmmSrcShifts);
-                uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
-                vpgatherdd(vmmAux4, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
-                vpshufb(vmmAux4, vmmAux4, vmmShufMask);
-
+                gatherAndShift(vmmAux3, vmmShufMask);
+                gatherAndShift(vmmAux4, vmmShufMask);
                 vshufps(vmmAux3, vmmAux3, vmmAux4, 0);
-//uni_vmovups(ptr[regAux1], vmmAux3);
 
-                fillIndicies(vmmSrcShifts);
-                uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
-                vpgatherdd(vmmAux4, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
-                vpshufb(vmmAux4, vmmAux4, vmmShufMask);
-
-                fillIndicies(vmmSrcShifts);
-                uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
-                vpgatherdd(vmmAux5, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
-                vpshufb(vmmAux5, vmmAux5, vmmShufMask);
-
+                gatherAndShift(vmmAux4, vmmShufMask);
+                gatherAndShift(vmmAux5, vmmShufMask);
                 vshufps(vmmAux4, vmmAux4, vmmAux5, 0);
-//uni_vmovups(ptr[regAux1], vmmAux4);
 
                 vshufps(vmmAux3, vmmAux3, vmmAux4, 0x88);
                 vpermd(vmmAux3, vmmPermMask, vmmAux3);
-//uni_vmovups(ptr[regAux1], vmmAux3);
 
                 uni_vmovups(ptr[regDst], vmmAux3);
 
@@ -214,26 +182,98 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
             }
             L(lTail);
             Xbyak::Label lTailLoop, lCalc;
+            Xbyak::Reg32 regDictTypeSize32(regAux1.getIdx());
+            Xbyak::Reg32 regAxDimSum32(regAux2.getIdx());
+            Xbyak::Reg16 regAux3_16(regAux3.getIdx());
+            uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 0);
+            uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
             L(lTailLoop);
             {
                 cmp(regWorkAmount, 0);
                 je(lFinish, T_NEAR);
 
-//                cmp(regIdxIter, jcp_.indicesSize);
-//                jl(lCalc, T_NEAR);
-//                mov(regIdxIter, 0);
-//                uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
-//                uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
-//
-//                L(lCalc);
-//                mov(eax, ptr[regIndices + regIdxIter]);
+                cmp(regIdxIter, jcp_.indicesSize);
+                jl(lCalc, T_NEAR);
+                mov(regIdxIter, 0);
+                uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
+                uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
+
+                L(lCalc);
+                mov(eax, ptr[regIndices + regIdxIter]);
+                mul(regDictTypeSize32);
+                add(eax, regAxDimSum32);
+                mov(regAux3_16, ptr[regSrc + rax]);
+                mov(ptr[regDst], regAux3_16);
+
+                add(regIdxIter, sizeof(int));
+                add(regDst, jcp_.dictTypeSize);
+                sub(regWorkAmount, 1);
+                jmp(lTailLoop, T_NEAR);
+            }
+            L(lFinish);
+        } else if (jcp_.dictTypeSize == 1) {
+            auto& vmmShufMask = vmmAux8;
+            mov(regAux1, ptr[regParams + GET_OFF(shufMask8bit)]);
+            uni_vmovups(vmmShufMask, ptr[regAux1]);
+
+            auto& vmmPermMask = vmmAux9;
+            mov(regAux1, ptr[regParams + GET_OFF(permMask8bit)]);
+            uni_vmovups(vmmPermMask, ptr[regAux1]);
+
+//mov(regAux1, ptr[regParams + GET_OFF(tmp)]);
+//mov(regAux2, ptr[regParams + GET_OFF(retVal)]);
+
+            Xbyak::Label lDstIdxLoop, lTail, lFinish;
+            L(lDstIdxLoop);
+            {
+                cmp(regWorkAmount, elPerVec);
+                jl(lTail, T_NEAR);
+
+                gatherAndShift(vmmAux3, vmmShufMask);
+                gatherAndShift(vmmAux4, vmmShufMask);
+                vshufps(vmmAux3, vmmAux3, vmmAux4, 0);
+
+                gatherAndShift(vmmAux4, vmmShufMask);
+                gatherAndShift(vmmAux5, vmmShufMask);
+                vshufps(vmmAux4, vmmAux4, vmmAux5, 0);
+
+                vshufps(vmmAux3, vmmAux3, vmmAux4, 0x88);
+                vpermd(vmmAux3, vmmPermMask, vmmAux3);
+
+                uni_vmovups(ptr[regDst], vmmAux3);
+
+                add(regDst, vlen);
+                sub(regWorkAmount, elPerVec);
+
+                jmp(lDstIdxLoop, T_NEAR);
+            }
+            L(lTail);
+            Xbyak::Label lTailLoop, lCalc;
+            Xbyak::Reg32 regDictTypeSize32(regAux1.getIdx());
+            Xbyak::Reg32 regAxDimSum32(regAux2.getIdx());
+            Xbyak::Reg8 regAux3_8(regAux3.getIdx());
+            uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 0);
+            uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
+            L(lTailLoop);
+            {
+                cmp(regWorkAmount, 0);
+                je(lFinish, T_NEAR);
+
+                cmp(regIdxIter, jcp_.indicesSize);
+                jl(lCalc, T_NEAR);
+                mov(regIdxIter, 0);
+                uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
+                uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
+
+                L(lCalc);
+                mov(eax, ptr[regIndices + regIdxIter]);
 //                mul(regDictTypeSize32);
-//                add(eax, regAxDimSum32);
-//                mov(regAux3_32, ptr[regSrc + rax]);
-//                mov(ptr[regDst], regAux3_32);
-//
-//                add(regIdxIter, sizeof(int));
-//                add(regDst, jcp_.dictTypeSize);
+                add(eax, regAxDimSum32);
+                mov(regAux3_8, ptr[regSrc + rax]);
+                mov(ptr[regDst], regAux3_8);
+
+                add(regIdxIter, sizeof(int));
+                add(regDst, jcp_.dictTypeSize);
                 sub(regWorkAmount, 1);
                 jmp(lTailLoop, T_NEAR);
             }
@@ -243,36 +283,30 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
         this->postamble();
     }
 
-    void int8GatherAndShift(const Vmm& dst, const Vmm& vmmShufMask) {
-        fillIndicies(vmmSrcShifts);
-        uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
-        vpgatherdd(dst, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
-        vpshufb(dst, dst, vmmShufMask);
-    }
+protected:
+//    inline void uni_insertps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& op, uint8_t imm) {
+//        if (isa == x64::avx512_common || isa == x64::avx2) {
+//            vinsertps(x1, x2, op, imm);
+//        } else {
+//            insertps(x1, op, imm);
+//        }
+//    }
 
-    inline void uni_insertps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& op, uint8_t imm) {
-        if (isa == x64::avx512_common || isa == x64::avx2) {
-            vinsertps(x1, x2, op, imm);
-        } else {
-            insertps(x1, op, imm);
-        }
-    }
+//    inline void uni_movaps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2) {
+//        if (isa == x64::avx512_common || isa == x64::avx2) {
+//            vmovaps(x1, x2);
+//        } else {
+//            movaps(x1, x2);
+//        }
+//    }
 
-    inline void uni_movaps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2) {
-        if (isa == x64::avx512_common || isa == x64::avx2) {
-            vmovaps(x1, x2);
-        } else {
-            movaps(x1, x2);
-        }
-    }
-
-    inline void uni_vpmuldq(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& x3) {
-        if (isa == x64::avx512_common || isa == x64::avx2) {
-            vpmuldq(x1, x2, x3);
-        } else {
-            pmuldq(x1, x3);
-        }
-    }
+//    inline void uni_vpmuldq(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& x3) {
+//        if (isa == x64::avx512_common || isa == x64::avx2) {
+//            vpmuldq(x1, x2, x3);
+//        } else {
+//            pmuldq(x1, x3);
+//        }
+//    }
 
     void fillIndicies(Xbyak::Xmm& dst) {
         Xbyak::Label lPerElements, lExit;
@@ -302,7 +336,7 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
             uni_vpbroadcastd(xmmAux1, ptr[regIndices + regIdxIter]);
             uni_vpmulld(xmmAux1, xmmAux1, xmmDictTypeSize);
             uni_vpaddd(xmmAux1, xmmAux1, xmmAxDimSum);
-            uni_insertps(dst, dst, xmmAux1, i << 4);
+            vinsertps(dst, dst, xmmAux1, i << 4);
             add(regIdxIter, sizeof(int));
         }
 //mov(ptr[regAux2], regAux1);
@@ -353,10 +387,17 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
         }
     }
 
-private:
+protected:
     using Vmm = typename mkldnn::impl::utils::conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     uint32_t vlen = x64::cpu_isa_traits<isa>::vlen;
     int elPerVec;
+
+    void gatherAndShift(const Vmm& dst, const Vmm& vmmShufMask) {
+        fillIndicies(vmmSrcShifts);
+        uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
+        vpgatherdd(dst, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
+        vpshufb(dst, dst, vmmShufMask);
+    }
 
     Xbyak::Reg64 regSrc = r8;
     Xbyak::Reg64 regDst = r9;
@@ -479,43 +520,34 @@ public:
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
-//        switch (inputs[GATHER_INDEXES]->getTensorDesc().getPrecision()) {
-//            case Precision::FP32:
-//                gather<float, f32toUi32>(inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
-//                break;
-////            case Precision::FP16:
-////                gather<ie_fp16, f16toUi32>(inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
-////                break;
-//            case Precision::I32:
-//                gather<int32_t, i32toUi32>(inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
-                switch (dictTypeSize_) {
-                    case sizeof(PrecisionTrait<Precision::I32>::value_type):
-                        gather<PrecisionTrait<Precision::I32>::value_type>(inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
-                        break;
-                    case sizeof(PrecisionTrait<Precision::I16>::value_type):
-                        gather<PrecisionTrait<Precision::I16>::value_type>(inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
-                        break;
-                    case sizeof(PrecisionTrait<Precision::I8>::value_type):
-                        gather<PrecisionTrait<Precision::I8>::value_type>(inputs[GATHER_INDEXES], inputs[GATHER_DICTIONARY], outputs[0]);
-                        break;
-                }
-//                break;
-//            default:
-//                return GENERAL_ERROR;
-//        }
-
-        return OK;
+        switch (dictTypeSize_) {
+            case sizeof(PrecisionTrait<Precision::I32>::value_type):
+                return gather<PrecisionTrait<Precision::I32>::value_type>(inputs, outputs, resp);
+            case sizeof(PrecisionTrait<Precision::I16>::value_type):
+                return gather<PrecisionTrait<Precision::I16>::value_type>(inputs, outputs, resp);
+            case sizeof(PrecisionTrait<Precision::I8>::value_type):
+                return gather<PrecisionTrait<Precision::I8>::value_type>(inputs, outputs, resp);
+            default:
+                std::string errMsg = std::string("Gather layer has inputData input with unsupported precision: ") +
+                    inputs[GATHER_DICTIONARY]->getTensorDesc().getPrecision().name();
+                errMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+                return GENERAL_ERROR;
+        }
     }
 
 private:
     template <typename dataType>
-    void gather(Blob::Ptr& indexes, Blob::Ptr& dictionary, Blob::Ptr& output) {
-        const int *srcIndices = indexes->cbuffer().as<const int*>() + indexes->getTensorDesc().getBlockingDesc().getOffsetPadding();
+    StatusCode gather(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) {
+        auto& dictionary = inputs[GATHER_DICTIONARY];
+        const int* srcIndices = inputs[GATHER_INDEXES]->cbuffer().as<const int*>() +
+            inputs[GATHER_INDEXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        auto& output = outputs[0];
+//        const int *srcIndices = indexes->cbuffer().as<const int*>() + indexes->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
-static unsigned c1 = 0;
-static double t1 = 0.0;
-c1++;
-auto start1 = std::chrono::steady_clock::now();
+//static unsigned c1 = 0;
+//static double t1 = 0.0;
+//c1++;
+//auto start1 = std::chrono::steady_clock::now();
 
         if (afterAxisSize_ == 1) {
             const dataType* srcDictData = dictionary->cbuffer().as<const dataType *>() + dictionary->getTensorDesc().getBlockingDesc().getOffsetPadding();
@@ -552,8 +584,10 @@ auto start1 = std::chrono::steady_clock::now();
                     arg.axisDim = &axisDimB;
                     arg.axDimSum = &axDimSumB;
                     arg.idxStartB = idxStart * sizeof(int);
-                    arg.int8ShufMask = int8ShufMask_;
-                    arg.int8PermMask = int8PermMask_;
+                    arg.shufMask8bit = shufMask8bit_;
+                    arg.permMask8bit = permMask8bit_;
+                    arg.shufMask16bit = shufMask16bit_;
+                    arg.permMask16bit = permMask16bit_;
                     arg.workAmount = end - start;
 //                    arg.tmp = tmp;
 //                    arg.retVal = &retVal;
@@ -617,11 +651,13 @@ auto start1 = std::chrono::steady_clock::now();
             });
         }
 
-auto end1 = std::chrono::steady_clock::now();
-t1 += std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1).count();
-if (c1 % 1000 == 0) {
-    std::cout << "GE PARALLEL SECTION: " << t1 / c1 << std::endl;
-}
+//auto end1 = std::chrono::steady_clock::now();
+//t1 += std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1).count();
+//if (c1 % 1000 == 0) {
+//    std::cout << "GE PARALLEL SECTION: " << t1 / c1 << std::endl;
+//}
+
+        return OK;
     }
 
     const size_t GATHER_DICTIONARY = 0;
@@ -634,8 +670,10 @@ if (c1 % 1000 == 0) {
     size_t afterAxisSize_ = 1lu;
     size_t indicesSize_ = 1lu;
     size_t dictTypeSize_ = 1lu;
-    int int8ShufMask_[8] = {0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080};
-    int int8PermMask_[8] = {0, 4, 1, 5, 2, 6, 3, 7};
+    int shufMask8bit_[8] = {0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080};
+    int permMask8bit_[8] = {0, 4, 1, 5, 2, 6, 3, 7};
+    int shufMask16bit_[8] = {0x05040100, 0x0D0C0908, 0x80808080, 0x80808080, 0x05040100, 0x0D0C0908, 0x80808080, 0x80808080};
+    int permMask16bit_[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     std::shared_ptr<jitUniGatherKernel> kernel32_;
 };
 

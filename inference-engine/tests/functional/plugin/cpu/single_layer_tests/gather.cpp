@@ -123,7 +123,7 @@ namespace {
     INSTANTIATE_TEST_CASE_P(smoke_2D, GatherCpuSpecLayerTest,
                 ::testing::Combine(
                     ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 3}, {2, 8}, {3, 16}, {2, 33}, {2, 47}})),  // Data shape
-                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}, {2, 32}, {2, 320000}})),            // Indices shape
+                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}, {2, 32}, /*{2, 320000}*/})),            // Indices shape
                     ::testing::ValuesIn(std::vector<int>({0, 1})),                                                       // Axis
                     ::testing::ValuesIn(precisions),
                     ::testing::ValuesIn(precisions),

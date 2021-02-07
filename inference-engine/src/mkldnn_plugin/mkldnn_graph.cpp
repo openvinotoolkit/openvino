@@ -46,9 +46,9 @@
  *    additional information to std output.
  *
  *****************************************************/
- #define BLOB_DUMP_PATH "/localdisk/tmp/dumps/gather"
+// #define BLOB_DUMP_PATH "/localdisk/tmp/dumps/gather"
 // #define PRINT_GRAPH_INFO
- #define DUMP_AS_TEXT
+// #define DUMP_AS_TEXT
 // #define DUMP_INTERNAL_BLOBS
 
 #ifdef BLOB_DUMP_PATH
