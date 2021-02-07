@@ -4,7 +4,7 @@
 
 **Category**: Convolution
 
-**Short description**: Computes 1D, 2D or 3D deformable convolution of input and kernel tensors.
+**Short description**: Computes 2D deformable convolution of input and kernel tensors.
 
 **Detailed description**: *Deformable Convolution* is similar to regular *Convolution* but its receptive field is deformed because of additional spatial offsets used during input sampling. More thorough explanation can be found in [Deformable Convolutions Demystified](https://towardsdatascience.com/deformable-convolutions-demystified-2a77498699e8) and [Deformable Convolutional Networks](https://arxiv.org/abs/1703.06211).
 
@@ -12,7 +12,7 @@
 
 * *strides*
 
-  * **Description**: *strides* is a distance (in pixels) to slide the filter on the feature map over the `(z, y, x)` axes for 3D convolutions and `(y, x)` axes for 2D convolutions. For example, *strides* equal `4,2,1` means sliding the filter 4 pixel at a time over depth dimension, 2 over height dimension and 1 over width dimension.
+  * **Description**: *strides* is a distance (in pixels) to slide the filter on the feature map over the `(y,x)` axes. For example, *strides* equal `2,1` means sliding the filter 2 pixel at a time over height dimension and 1 over width dimension.
   * **Range of values**: integer values starting from `0`
   * **Type**: `int[]`
   * **Default value**: None
@@ -75,20 +75,16 @@
 
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is `NCZYX` (number of batches, number of channels, spatial axes Z, Y, X). Required.
+*   **1**: Input tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). Required.
 
-*   **2**: Offsets tensor of type *T* and rank 3, 4 or 5. Layout is `NCZYX*`(number of batches, number of channels, spatial axes Z, Y, X). Required.
+*   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). Required.
 
-*   **3**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is `OIZYX` (number of output channels, number of input channels, spatial axes Z, Y, X). Required.
-*   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
-      * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
-      * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X
-      * 3D convolution (input tensors rank 5) means that there are three spatial axes Z, Y, X
+*   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). Required.
 
 
 **Outputs**:
 
-*   **1**: Output tensor of type *T* and rank 3, 4 or 5. Layout is NOZYX (number of batches, number of kernel output channels, spatial axes Z, Y, X).
+*   **1**: Output tensor of type *T* and rank 4. Layout is `NOYX` (number of batches, number of kernel output channels, spatial axes Y and X).
 
 **Types**:
 
@@ -96,31 +92,6 @@
  
 **Example**
 
-1D Convolution
-```xml
-<layer type="DeformableConvolution" ...>
-    <data dilations="1" pads_begin="0" pads_end="0" strides="2" auto_pad="valid" group="1" deformable_group="1"/>
-    <input>
-        <port id="0">
-            <dim>1</dim>
-            <dim>5</dim>
-            <dim>128</dim>
-        </port>
-        <port id="1">
-            <dim>16</dim>
-            <dim>5</dim>
-            <dim>4</dim>
-        </port>
-    </input>
-    <output>
-        <port id="2" precision="FP32">
-            <dim>1</dim>
-            <dim>16</dim>
-            <dim>63</dim>
-        </port>
-    </output>
-</layer>
-```
 2D Convolution
 ```xml
 <layer type="DeformableConvolution" ...>
@@ -145,38 +116,6 @@
             <dim>64</dim>
             <dim>224</dim>
             <dim>224</dim>
-        </port>
-    </output>
-</layer>
-```
-
-3D Convolution
-```xml
-<layer type="DeformableConvolution" ...>
-    <data dilations="2,2,2" pads_begin="0,0,0" pads_end="0,0,0" strides="3,3,3" auto_pad="explicit" group="1" deformable_group="1"/>
-    <input>
-        <port id="0">
-            <dim>1</dim>
-            <dim>7</dim>
-            <dim>320</dim>
-            <dim>320</dim>
-            <dim>320</dim>
-        </port>
-        <port id="1">
-            <dim>32</dim>
-            <dim>7</dim>
-            <dim>3</dim>
-            <dim>3</dim>
-            <dim>3</dim>
-        </port>
-    </input>
-    <output>
-        <port id="2" precision="FP32">
-            <dim>1</dim>
-            <dim>32</dim>
-            <dim>106</dim>
-            <dim>106</dim>
-            <dim>106</dim>
         </port>
     </output>
 </layer>
