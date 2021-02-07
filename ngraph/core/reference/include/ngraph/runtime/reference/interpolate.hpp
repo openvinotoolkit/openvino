@@ -557,7 +557,8 @@ namespace ngraph
                             {
                                 float out_coord = static_cast<float>(output_coords[i]);
 
-                                float in_coord = helper.get_in_coord(out_coord, i + axis_idx_offset);
+                                float in_coord =
+                                    helper.get_in_coord(out_coord, i + axis_idx_offset);
                                 in_coord = std::max(
                                     0.0f,
                                     std::min(in_coord,
