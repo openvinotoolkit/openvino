@@ -36,7 +36,7 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
             { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
         };
-#ifdef WIN32
+#ifdef _WIN32
     case BT_DX_BUF_SHARED:
         return{
             { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER) },
@@ -94,7 +94,7 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
         case BlobType::BT_BUF_SHARED:
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_buffer(*eng, m_layout, m_mem)));
             break;
-#ifdef WIN32
+#ifdef _WIN32
         case BlobType::BT_SURF_SHARED:
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_mem, m_plane)));
             break;
@@ -130,7 +130,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
     case BlobType::BT_BUF_SHARED:
         m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_buffer(*eng, m_layout, m_mem)));
         break;
-#ifdef WIN32
+#ifdef _WIN32
     case BlobType::BT_SURF_SHARED:
         m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_mem, m_plane)));
         break;

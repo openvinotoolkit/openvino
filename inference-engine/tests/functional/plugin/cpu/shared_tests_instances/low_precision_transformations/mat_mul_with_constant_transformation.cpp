@@ -12,13 +12,55 @@ using namespace InferenceEngine::details;
 namespace {
 const std::vector<ngraph::element::Type> precisions = { ngraph::element::f32 };
 
+//transpose_a = false, transpose_b = true
 std::vector<MatMulWithConstantTransformationTestValues> testValues = {
+    // 3D with different values
     {
-        { 1, 32 },
-        { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} },
-        { 32, 10 },
-        std::vector<float>(32 * 10, 1.f),
-        { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
+        { 2, 3, 4 },
+        { 256ul, {{1, 1, 1}, {1, 1, 1}, {1, 3, 1}, {1, 3, 1}}, {0.f}, {255.f}, {0.f, 0.f, 0.f}, {255.f, 25.5f, 255.f} },
+        { 2, 4 },
+        std::vector<float>(4 * 2, 2.f),
+        { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
+        "matMul/FC",
+        "U8"
+    },
+    // 3D with different values
+    {
+        { 1, 3, 4 },
+        { 256ul, {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}}, {-10.5f}, {4.5f}, {-10.5f}, {4.5f} },
+        { 2, 4 },
+        std::vector<float>(4 * 2, 2.f),
+        { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
+        "matMul/FC",
+        "U8"
+    },
+    // 4D with different values
+    {
+        { 1, 1, 3, 4 },
+        { 256ul, {{1, 1, 1}, {1, 1, 1}, {1, 3, 1}, {1, 3, 1}}, {0.f}, {255.f}, {0.f, 0.f, 0.f}, {255.f, 25.5f, 255.f} },
+        { 2, 4 },
+        std::vector<float>(4 * 2, 2.f),
+        { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-128.f}, {127.f}, {-128.f, -12.8f}, {127.f, 12.7f} },
+        "matMul/FC",
+        "U8"
+    },
+    // 3D with the same values
+    {
+        { 1, 3, 4 },
+        { 256ul, {{1}, {1}, {1}, {1}}, {0.f}, {255.f}, {0.f}, {25.5f} },
+        { 4, 4 },
+        std::vector<float>(4 * 4, 2.f),
+        { 256ul, {{1}, {1}, {1}, {1}}, {-128.f}, {127.f}, {-128.f}, {127.f} },
+        "matMul/FC",
+        "U8"
+    },
+    // 2D with subtract on activations
+    {
+        { 2, 3 },
+        { 256ul, {{1}, {1}, {2, 1}, {2, 1}}, {-10.f}, {5.f}, {-10.f, -5.f}, {5.f, 5.f} },
+        { 2, 3 },
+        std::vector<float>{1, 2, 3, 4, 5, 6},
+        { 256ul, {{1}, {1}, {1}, {1}}, {-128.f}, {127.f}, {-12.8f}, {12.7f} },
         "matMul/1",
         "U8"
     }
