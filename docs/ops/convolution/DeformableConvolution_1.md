@@ -92,20 +92,26 @@
  
 **Example**
 
-2D Convolution
+2D DeformableConvolution (deformable_group=1)
 ```xml
 <layer type="DeformableConvolution" ...>
-    <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" auto_pad="explicit"  group="1" deformable_group="1"/>
+    <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="1,1" auto_pad="explicit"  group="1" deformable_group="1"/>
     <input>
         <port id="0">
             <dim>1</dim>
-            <dim>3</dim>
+            <dim>4</dim>
             <dim>224</dim>
             <dim>224</dim>
         </port>
         <port id="1">
+            <dim>1</dim>
+            <dim>50</dim>
+            <dim>220</dim>
+            <dim>220</dim>
+        </port>
+        <port id="2">
             <dim>64</dim>
-            <dim>3</dim>
+            <dim>4</dim>
             <dim>5</dim>
             <dim>5</dim>
         </port>
@@ -114,8 +120,43 @@
         <port id="2" precision="FP32">
             <dim>1</dim>
             <dim>64</dim>
+            <dim>220</dim>
+            <dim>220</dim>
+        </port>
+    </output>
+</layer>
+```
+
+2D DeformableConvolution (deformable_group=4)
+```xml
+<layer type="DeformableConvolution" ...>
+    <data dilations="1,1" pads_begin="0,0" pads_end="0,0" strides="1,1" auto_pad="explicit"  group="1" deformable_group="4"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>4</dim>
             <dim>224</dim>
             <dim>224</dim>
+        </port>
+        <port id="1">
+            <dim>1</dim>
+            <dim>200</dim>
+            <dim>220</dim>
+            <dim>220</dim>
+        </port>
+        <port id="2">
+            <dim>64</dim>
+            <dim>4</dim>
+            <dim>5</dim>
+            <dim>5</dim>
+        </port>
+    </input>
+    <output>
+        <port id="2" precision="FP32">
+            <dim>1</dim>
+            <dim>64</dim>
+            <dim>220</dim>
+            <dim>220</dim>
         </port>
     </output>
 </layer>
