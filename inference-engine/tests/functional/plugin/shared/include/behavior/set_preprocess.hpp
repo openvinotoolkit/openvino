@@ -62,7 +62,7 @@ TEST_P(PreprocessTest, SetPreProcessToInferRequest) {
     }
 }
 
-TEST_P(PreprocessTest, SetMeanImagePreProcess) {
+TEST_P(PreprocessTest, SetMeanImagePreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -129,7 +129,77 @@ TEST_P(PreprocessTest, SetMeanImagePreProcess) {
     }
 }
 
-TEST_P(PreprocessTest, SetMeanValuePreProcess) {
+TEST_P(PreprocessTest, SetMeanImagePreProcessSetBlob) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 10, 10});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("result");
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+
+    auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.init(3);
+    for (size_t i = 0; i < 3; i++) {
+        preProcess[i]->meanData = make_blob_with_precision(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
+                                                                                       {10, 10},
+                                                                                       InferenceEngine::Layout::HW));
+        preProcess[i]->meanData->allocate();
+        auto lockedMem = preProcess[i]->meanData->buffer();
+        auto* data = lockedMem.as<float *>();
+        for (size_t j = 0; j < 100; j++) {
+            data[j] = 0;
+            data[j] -= i * 100 + j;
+        }
+    }
+    preProcess.setVariant(InferenceEngine::MEAN_IMAGE);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    auto req = execNet.CreateInferRequest();
+
+    auto inBlob = make_blob_with_precision(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+    inBlob->allocate();
+    req.SetBlob("param", inBlob);
+
+    // Fill input
+    {
+        auto locketMem = inBlob->buffer();
+        auto *inData = locketMem.as<float*>();
+        for (size_t i = 0; i < inBlob->size(); i++)
+            inData[i] = i;
+    }
+
+    req.Infer();
+
+    // Check output
+    auto outBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
+    {
+        auto inMem = inBlob->cbuffer();
+        const auto* inData = inMem.as<const float*>();
+        auto outMem = outBlob->cbuffer();
+        const auto* outData = outMem.as<const float*>();
+        ASSERT_EQ(inBlob->size(), outBlob->size());
+        for (size_t i = 0; i < inBlob->size(); i++)
+            ASSERT_EQ(inData[i] + inData[i], outData[i]);
+    }
+}
+
+TEST_P(PreprocessTest, SetMeanValuePreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -190,7 +260,72 @@ TEST_P(PreprocessTest, SetMeanValuePreProcess) {
     }
 }
 
-TEST_P(PreprocessTest, ReverseInputChannelsPreProcess) {
+TEST_P(PreprocessTest, SetMeanValuePreProcessSetBlob) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 10, 10});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("result");
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+
+    auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.init(3);
+    preProcess[0]->meanValue = -5;
+    preProcess[1]->meanValue = -5;
+    preProcess[2]->meanValue = -5;
+    preProcess[0]->stdScale = 1;
+    preProcess[1]->stdScale = 1;
+    preProcess[2]->stdScale = 1;
+    preProcess.setVariant(InferenceEngine::MEAN_VALUE);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    auto req = execNet.CreateInferRequest();
+
+    auto inBlob = make_blob_with_precision(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+    inBlob->allocate();
+    req.SetBlob("param", inBlob);
+
+    // Fill input
+    {
+        auto locketMem = inBlob->buffer();
+        auto *inData = locketMem.as<float*>();
+        for (size_t i = 0; i < inBlob->size(); i++)
+            inData[i] = i;
+    }
+
+    req.Infer();
+
+    // Check output
+    auto outBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
+    {
+        auto inMem = inBlob->cbuffer();
+        const auto* inData = inMem.as<const float*>();
+        auto outMem = outBlob->cbuffer();
+        const auto* outData = outMem.as<const float*>();
+        ASSERT_EQ(inBlob->size(), outBlob->size());
+        for (size_t i = 0; i < inBlob->size(); i++)
+            ASSERT_EQ(inData[i]+5, outData[i]);
+    }
+}
+
+
+TEST_P(PreprocessTest, ReverseInputChannelsPreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -253,7 +388,74 @@ TEST_P(PreprocessTest, ReverseInputChannelsPreProcess) {
     }
 }
 
-TEST_P(PreprocessTest, SetScalePreProcess) {
+
+TEST_P(PreprocessTest, ReverseInputChannelsPreProcessSetBlob) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 10, 10});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("result");
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+
+    auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.setColorFormat(InferenceEngine::ColorFormat::RGB);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    auto req = execNet.CreateInferRequest();
+
+    auto inBlob = make_blob_with_precision(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+    inBlob->allocate();
+    req.SetBlob("param", inBlob);
+
+    // Fill input
+    {
+        auto locketMem = inBlob->buffer();
+        auto *inData = locketMem.as<float*>();
+        for (size_t i = 0; i < inBlob->size(); i++)
+            inData[i] = i;
+    }
+
+    req.Infer();
+
+    // Check output
+    auto outBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
+    {
+        auto inMem = inBlob->cbuffer();
+        const auto* inData = inMem.as<const float*>();
+        auto outMem = outBlob->cbuffer();
+        const auto* outData = outMem.as<const float*>();
+        ASSERT_EQ(inBlob->size(), outBlob->size());
+        for (size_t i = 0; i < 3; i++)
+            for (size_t j = 0; j < 100; j++) {
+                // BGR to RGB
+                if (!i) {
+                    ASSERT_EQ(inData[j], outData[200 + j]);
+                } else if (i == j) {
+                    ASSERT_EQ(inData[100 + j], outData[100 + j]);
+                } else {
+                    ASSERT_EQ(inData[200 + j], outData[j]);
+                }
+            }
+    }
+}
+
+TEST_P(PreprocessTest, SetScalePreProcessGetBlob) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> ngraph;
@@ -290,6 +492,71 @@ TEST_P(PreprocessTest, SetScalePreProcess) {
     // Create InferRequest
     auto req = execNet.CreateInferRequest();
     auto inBlob = req.GetBlob("param");
+
+    // Fill input
+    {
+        auto locketMem = inBlob->buffer();
+        auto *inData = locketMem.as<float*>();
+        for (size_t i = 0; i < inBlob->size(); i++)
+            inData[i] = i;
+    }
+
+    req.Infer();
+
+    // Check output
+    auto outBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
+    {
+        auto inMem = inBlob->cbuffer();
+        const auto* inData = inMem.as<const float*>();
+        auto outMem = outBlob->cbuffer();
+        const auto* outData = outMem.as<const float*>();
+        ASSERT_EQ(inBlob->size(), outBlob->size());
+        for (size_t i = 0; i < inBlob->size(); i++)
+            ASSERT_EQ(inData[i]*2, outData[i]);
+    }
+}
+
+
+TEST_P(PreprocessTest, SetScalePreProcessSetBlob) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 10, 10});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("result");
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+
+    auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.init(3);
+    preProcess[0]->stdScale = 2;
+    preProcess[1]->stdScale = 2;
+    preProcess[2]->stdScale = 2;
+    preProcess[0]->meanValue = 0;
+    preProcess[1]->meanValue = 0;
+    preProcess[2]->meanValue = 0;
+    preProcess.setVariant(InferenceEngine::MEAN_VALUE);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    auto req = execNet.CreateInferRequest();
+
+    auto inBlob = make_blob_with_precision(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
+    inBlob->allocate();
+    req.SetBlob("param", inBlob);
 
     // Fill input
     {

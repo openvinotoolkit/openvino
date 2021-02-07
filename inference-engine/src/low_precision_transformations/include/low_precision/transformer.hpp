@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,6 +149,22 @@ public:
     }
 
     /**
+    * Add decomposition transformation. Transformation type and operation type are required.
+    * Operation type is used to find transformation by operation during precision definition.
+    */
+    template <class Transformation, class Operation>
+    LowPrecisionTransformations& addDecomposition(const LayerTransformation::Params& params) {
+        const std::string typeName = getType<Operation>();
+        const auto it = decompositionTransformations.find(typeName);
+        if (it != decompositionTransformations.end()) {
+            decompositionTransformations.erase(it);
+        }
+
+        decompositionTransformations.emplace(typeName, std::make_shared<Transformation>(params));
+        return *this;
+    }
+
+    /**
      * Add transformation. Transformation type and operation type are required.
      * Operation type is used to find transformation by operation during precision definition.
      */
@@ -233,6 +249,7 @@ public:
     // Key is not a layer type, but just a name of transformation
     // Layer type (or a pattern) is defined by transformation itself as an ngraph matcher
     std::map<std::string, LayerTransformationPtr> branchSpecificTransformations;
+    std::map<std::string, LayerTransformationPtr> decompositionTransformations;
     std::map<std::string, LayerTransformationPtr> transformations;
     std::map<std::string, std::vector<std::pair<std::string, LayerTransformationPtr>>> cleanupTransformations;
     std::vector<StandaloneCleanup> standaloneCleanupTransformations;
