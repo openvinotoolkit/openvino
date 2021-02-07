@@ -81,8 +81,7 @@ IF /I "%1%" EQU "" (
 pip3 install --user -r ..\requirements%postfix%.txt
 
 echo *****************************************************************************************
-echo Warning: please expect that Model Optimizer conversion might be slow.
-echo You can boost conversion speed by installing protobuf-*.egg located in the
+echo Optional: To speed up model conversion process, install protobuf-*.egg located in the
 echo "model-optimizer\install_prerequisites" folder or building protobuf library from sources.
 echo For more information please refer to Model Optimizer FAQ, question #80.
 
