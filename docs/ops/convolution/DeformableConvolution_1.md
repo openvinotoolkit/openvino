@@ -67,7 +67,7 @@
 
 * *deformable_group*
 
-  * **Description**: *deformable_group* is the number of groups which deformable values and *output* should be split into along the channel axis. Apply the deformable convolution using the i-th part of the offset part on the i-th out.
+  * **Description**: *deformable_group* is the number of groups in which *offsets* input and *output* should be split into along the channel axis. Apply the deformable convolution using the i-th part of the offsets part on the i-th out.
   * **Range of values**: integer value starting from `1`
   * **Type**: `int`
   * **Default value**: `1`
@@ -77,7 +77,7 @@
 
 *   **1**: Input tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). Required.
 
-*   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, number of channels, spatial axes Y and X). Required.
+*   **2**: Offsets tensor of type *T* and rank 4. Layout is `NCYX` (number of batches, *deformable_group* \* kernel_Y \* kernel_X \* 2, spatial axes Y and X). Required.
 
 *   **3**: Kernel tensor of type *T* and rank 4. Layout is `OIYX` (number of output channels, number of input channels, spatial axes Y and X). Required.
 
