@@ -417,13 +417,11 @@ void MKLDNNGraph::InitDescriptors() {
     OV_ITT_TASK_CHAIN(taskChain, MKLDNNPlugin::itt::domains::MKLDNN_LT, "InitDescriptors", "Prepare");
 
     for (auto &node : graphNodes) {
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
         if (node->getType() == Input && _meanImages.find(node->getName()) != _meanImages.end()) {
             auto *inputNode = dynamic_cast<MKLDNNInputNode *>(node.get());
             if (inputNode)
                 inputNode->withMeanImage();
         }
-#endif
         OV_ITT_TASK_NEXT(taskChain, node->profiling.getSupportedDescriptors);
         node->getSupportedDescriptors();
 
@@ -485,7 +483,6 @@ void MKLDNNGraph::InitEdges() {
 
     for (auto i = 0; i < numberOfEdges; i++) {
         if (graphEdges[i]->needReorder()) {
-#if defined (COMPILED_CPU_MKLDNN_REORDER_NODE)
             auto edge = graphEdges[i];
             bool insertReorder = true;
 
@@ -525,9 +522,6 @@ void MKLDNNGraph::InitEdges() {
             graphEdges.erase(graphEdges.begin() + i);
             i--;
             numberOfEdges--;
-#else
-            THROW_IE_EXCEPTION << "CPU Plugin doesn't contains reorder layer";
-#endif
         }
     }
 }
@@ -956,14 +950,12 @@ Config MKLDNNGraph::getProperty() {
 }
 
 void MKLDNNGraph::getInputBlobs(InferenceEngine::BlobMap &resp) {
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
     for (auto &it : inputNodes) {
         MKLDNNInputNode* node = dynamic_cast<MKLDNNInputNode*>(it.second.get());
         if (!node || node->isConstant())
             continue;
         resp[it.first] = node->getChildEdgeAt(0)->getBlob();
     }
-#endif
 }
 
 void MKLDNNGraph::getOutputBlobs(InferenceEngine::BlobMap &resp) {

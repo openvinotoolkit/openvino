@@ -50,7 +50,6 @@ void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
     inputMemoryNode->storeState(srcMemory);
 }
 
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNInputNode(layer, eng, cache), MKLDNNMemoryNode(layer), dataStore(new MKLDNNMemory{eng}) {
     if (created()) {
@@ -123,7 +122,6 @@ MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerInput(
     }
     return &holder;
 }
-#endif
 
 MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerOutput(MKLDNNMemoryOutputNode * node) {
     std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
@@ -131,13 +129,9 @@ MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerOutput
     auto& holder = MKLDNNMemoryNodeVirtualEdge::getExisted();
     auto sibling = MKLDNNMemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
         auto inputNode = dynamic_cast<MKLDNNMemoryInputNode*>(sibling);
         IE_ASSERT(inputNode != nullptr);
         node->setInputNode(inputNode);
-#else
-        THROW_IE_EXCEPTION << "CPU Plugin doesn't contain Input layer!";
-#endif
     } else {
         holder[node->getId()] = node;
     }
@@ -153,7 +147,5 @@ void MKLDNNMemoryNodeVirtualEdge::remove(MKLDNNMemoryNode * node, Holder* holder
     }
 }
 
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 REG_MKLDNN_PRIM_FOR(MKLDNNMemoryInputNode, MemoryInput);
-#endif
 REG_MKLDNN_PRIM_FOR(MKLDNNMemoryOutputNode, MemoryOutput);

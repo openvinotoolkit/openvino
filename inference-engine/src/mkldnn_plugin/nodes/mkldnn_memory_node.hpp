@@ -30,9 +30,7 @@ class MKLDNNMemoryNode {
     virtual void setInputNode(MKLDNNNode *) = 0;
 };
 class MKLDNNMemoryOutputNode;
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 class MKLDNNMemoryInputNode;
-#endif
 
 /**
  * @brief
@@ -56,9 +54,7 @@ class MKLDNNMemoryNodeVirtualEdge {
     }
 
     static Holder* registerOutput(MKLDNNMemoryOutputNode * node);
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
     static Holder* registerInput(MKLDNNMemoryInputNode * node);
-#endif
     static void remove(MKLDNNMemoryNode * node, Holder* holder);
     static std::mutex holderMutex;
 };
@@ -87,7 +83,6 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
     MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 class MKLDNNMemoryInputNode : public MKLDNNInputNode, public MKLDNNMemoryNode {
 public:
     MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
@@ -107,7 +102,6 @@ public:
     MKLDNNMemoryPtr dataStore;
     MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
-#endif
 
 }  // namespace MKLDNNPlugin
 
