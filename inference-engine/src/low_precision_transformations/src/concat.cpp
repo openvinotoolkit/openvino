@@ -267,6 +267,7 @@ void ConcatTransformation::addDequantizationLayers(
 
                 if (subgraph.layers.find(child.get_friendly_name()) == subgraph.layers.end()) {
                     if (layerDequantizations.size() == 0ul) {
+                        // fill layerDequantizations collection
                         getLayerDequantizationCallback(layer, layer->get_friendly_name(), layerDequantizations);
                     }
 
@@ -276,6 +277,7 @@ void ConcatTransformation::addDequantizationLayers(
                         std::vector<std::shared_ptr<ngraph::Node>> subtractNodes;
                         std::vector<std::shared_ptr<ngraph::Node>> multiplyNodes;
 
+                        // forming nodes for concatenation
                         if (layerDequantizations.size() > 1ul) {
                             auto broadcastElementWiseConst = [](
                                 // FakeQuantize constant shape must be broadcastable to the shape on data.
@@ -312,12 +314,8 @@ void ConcatTransformation::addDequantizationLayers(
                                 }
 
                                 const ngraph::element::Type precision = dequantization.data.get_element_type();
-                                ngraph::Shape targetShape = dequantization.data.get_shape();
-
-                                targetShape[0] = 1ul;
-                                for (size_t i = 2; i < targetShape.size(); ++i) {
-                                    targetShape[i] = 1ul;
-                                }
+                                ngraph::Shape targetShape(dequantization.data.get_shape().size(), 1ul);
+                                targetShape[1] = dequantization.data.get_shape()[1];
 
                                 if (!allDequantizationShiftAreZero) {
                                     subtractNodes.push_back(dequantization.subtract == nullptr ?

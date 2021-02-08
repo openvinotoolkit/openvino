@@ -375,6 +375,121 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalSelectionWithInterm
     return function;
 }
 
+/*
+(SS) - optional
+
+        Input
+          /
+         FQ
+        /  \
+      (SS) Clamp
+        |    |
+        |    FQ
+        \    /
+        Concat
+          /\
+         /  \
+       (SS) MaxPool
+*/
+
+std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithStridedSlice(
+    const ngraph::element::Type precision,
+    const ngraph::Shape inputShape,
+    const FakeQuantizeOnData& fq1,
+    const FakeQuantizeOnData& fq2,
+    const bool ssBeforeConcat,
+    const bool ssAfterConcat) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    input->set_friendly_name("input");
+    const auto fakeQuantize1 = makeFakeQuantize(input, precision, fq1);
+    fakeQuantize1->set_friendly_name("FakeQuantize_1");
+
+    std::shared_ptr<ngraph::Node> parent1 = fakeQuantize1;
+
+    if (ssBeforeConcat) {
+        const auto beginParam = ngraph::op::Constant::create(
+            ngraph::element::i64,
+            ngraph::Shape{ inputShape.size() },
+            std::vector<int64_t>(inputShape.size(), 0));
+
+        const auto endParam = ngraph::op::Constant::create(
+            ngraph::element::i64,
+            ngraph::Shape{ inputShape.size() },
+            std::vector<size_t>{ inputShape[0], inputShape[1] - 2ul, inputShape[2], inputShape[3] });
+
+        const std::vector<int64_t> beginMask{ 1, 0, 1, 1 };
+        const std::vector<int64_t> endMask{ 1, 0, 1, 1 };
+
+        parent1 = std::make_shared<ngraph::opset1::StridedSlice>(parent1, beginParam, endParam, beginMask, endMask);
+        parent1->set_friendly_name("StridedSlice_1");
+    }
+
+    const auto clamp = std::make_shared<ngraph::opset1::Clamp>(fakeQuantize1, 0.0, 6.0);
+    clamp->set_friendly_name("Clamp");
+    const auto fakeQuantize2 = makeFakeQuantize(clamp, precision, fq2);
+    fakeQuantize2->set_friendly_name("FakeQuantize_2");
+
+    const auto concat = std::make_shared<ngraph::opset1::Concat>(NodeVector{ parent1, fakeQuantize2 }, 1);
+    concat->set_friendly_name("Concat");
+
+
+    ngraph::ResultVector results;
+    if (ssAfterConcat) {
+        const auto concatShape = concat->get_output_shape(0);
+        const auto beginParam = ngraph::op::Constant::create(
+            ngraph::element::i64,
+            ngraph::Shape{ concatShape.size() },
+            std::vector<int64_t>(concatShape.size(), 0));
+
+        const auto endParam = ngraph::op::Constant::create(
+            ngraph::element::i64,
+            ngraph::Shape{ concatShape.size() },
+            std::vector<size_t>{ concatShape[0], concatShape[1] - 2ul, concatShape[2], concatShape[3] });
+
+        const std::vector<int64_t> beginMask{ 1, 0, 1, 1 };
+        const std::vector<int64_t> endMask{ 1, 0, 1, 1 };
+
+        const auto stridedSlice = std::make_shared<ngraph::opset1::StridedSlice>(concat, beginParam, endParam, beginMask, endMask);
+        stridedSlice->set_friendly_name("StridedSlice_2");
+
+        const auto result1 = std::make_shared<ngraph::opset1::Result>(stridedSlice);
+        result1->set_friendly_name("Result_1");
+        results.push_back(result1);
+    } else {
+        const auto result1 = std::make_shared<ngraph::opset1::Result>(concat);
+        result1->set_friendly_name("Result_1");
+        results.push_back(result1);
+    }
+
+    const std::vector<size_t> kernel = { 3, 3 };
+    const std::vector<size_t> stride = { 1, 1 };
+    const std::vector<size_t> padBegin = { 0, 0 };
+    const std::vector<size_t> padEnd = { 0, 0 };
+    const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
+    const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
+
+    const auto maxPool = std::make_shared<ngraph::opset1::MaxPool>(
+        concat,
+        stride,
+        padBegin,
+        padEnd,
+        kernel,
+        roundingType,
+        padType);
+    maxPool->set_friendly_name("MaxPool");
+
+    const auto result2 = std::make_shared<ngraph::opset1::Result>(maxPool);
+    result2->set_friendly_name("Result_2");
+    results.push_back(result2);
+
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
+        results,
+        ngraph::ParameterVector{ input },
+        "ConcatWithDifferentChildsTransformation");
+
+    return function;
+}
+
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithDifferentPrecisionOnChilds(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
@@ -981,6 +1096,117 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceSelectionWithInter
         results,
         ngraph::ParameterVector{ input1, input2 },
         "ConcatWithIntermediateTransformation");
+
+    return function;
+}
+
+std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithStridedSlice(
+    const ngraph::element::Type inputPrecision,
+    const ngraph::Shape inputShape,
+    const FakeQuantizeOnData& fq1,
+    const FakeQuantizeOnData& fq2,
+    const DequantizationOperations& deqBefore,
+    const ngraph::element::Type precisionBeforeConcat,
+    const ngraph::element::Type precisionAfterConcat,
+    const bool ssBeforeConcat,
+    const bool ssAfterConcat,
+    const DequantizationOperations& deqAfter1,
+    const DequantizationOperations& deqAfter2) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(inputPrecision, inputShape);
+    input->set_friendly_name("input1");
+
+    const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input, inputPrecision, fq1);
+    low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize1, precisionBeforeConcat);
+    fakeQuantize1->set_friendly_name("FakeQuantize_1");
+
+    std::shared_ptr<ngraph::Node> parent1 = fakeQuantize1;
+
+    if (ssBeforeConcat) {
+        const auto beginParam = ngraph::op::Constant::create(
+            ngraph::element::i64,
+            ngraph::Shape{ inputShape.size() },
+            std::vector<int64_t>(inputShape.size(), 0));
+
+        const auto endParam = ngraph::op::Constant::create(
+            ngraph::element::i64,
+            ngraph::Shape{ inputShape.size() },
+            std::vector<size_t>{ inputShape[0], inputShape[1] - 2ul, inputShape[2], inputShape[3] });
+
+        const std::vector<int64_t> beginMask{ 1, 0, 1, 1 };
+        const std::vector<int64_t> endMask{ 1, 0, 1, 1 };
+
+        parent1 = std::make_shared<ngraph::opset1::StridedSlice>(parent1, beginParam, endParam, beginMask, endMask);
+        parent1->set_friendly_name("StridedSlice_1");
+    }
+
+    const auto dequantizationBefore = makeDequantization(fakeQuantize1, deqBefore);
+    const auto clamp = std::make_shared<ngraph::opset1::Clamp>(dequantizationBefore, 0.0, 6.0);
+    clamp->set_friendly_name("Clamp");
+
+    const auto fakeQuantize2 = makeFakeQuantizeTypeRelaxed(clamp, inputPrecision, fq2);
+    low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantize2, precisionBeforeConcat);
+    fakeQuantize2->set_friendly_name("FakeQuantize_2");
+
+    const auto concat = std::make_shared<ngraph::opset1::Concat>(NodeVector{ parent1, fakeQuantize2 }, 1);
+    concat->set_friendly_name("Concat");
+
+    ngraph::ResultVector results;
+    if (ssAfterConcat) {
+        const auto concatShape = concat->get_output_shape(0);
+        const auto beginParam = ngraph::op::Constant::create(
+            ngraph::element::i64,
+            ngraph::Shape{ concatShape.size() },
+            std::vector<int64_t>(concatShape.size(), 0));
+
+        const auto endParam = ngraph::op::Constant::create(
+            ngraph::element::i64,
+            ngraph::Shape{ concatShape.size() },
+            std::vector<size_t>{ concatShape[0], concatShape[1] - 2ul, concatShape[2], concatShape[3] });
+
+        const std::vector<int64_t> beginMask{ 1, 0, 1, 1 };
+        const std::vector<int64_t> endMask{ 1, 0, 1, 1 };
+
+        const auto stridedSlice = std::make_shared<ngraph::opset1::StridedSlice>(concat, beginParam, endParam, beginMask, endMask);
+        stridedSlice->set_friendly_name("StridedSlice_2");
+
+        const auto dequantizationAfter1 = makeDequantization(stridedSlice, deqAfter1);
+        const auto result1 = std::make_shared<ngraph::opset1::Result>(dequantizationAfter1);
+        result1->set_friendly_name("Result_1");
+        results.push_back(result1);
+    } else {
+        const auto dequantizationAfter1 = makeDequantization(concat, deqAfter1);
+        const auto result1 = std::make_shared<ngraph::opset1::Result>(dequantizationAfter1);
+        result1->set_friendly_name("Result_1");
+        results.push_back(result1);
+    }
+
+    const std::vector<size_t> kernel = { 3, 3 };
+    const std::vector<size_t> stride = { 1, 1 };
+    const std::vector<size_t> padBegin = { 0, 0 };
+    const std::vector<size_t> padEnd = { 0, 0 };
+    const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
+    const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
+
+    const auto maxPool = std::make_shared<ngraph::opset1::MaxPool>(
+        concat,
+        stride,
+        padBegin,
+        padEnd,
+        kernel,
+        roundingType,
+        padType);
+    maxPool->set_friendly_name("MaxPool");
+
+    const auto dequantizationAfter2 = makeDequantization(maxPool, deqAfter2);
+
+    const auto result2 = std::make_shared<ngraph::opset1::Result>(dequantizationAfter2);
+    result2->set_friendly_name("Result_2");
+    results.push_back(result2);
+
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
+        results,
+        ngraph::ParameterVector{ input },
+        "ConcatWithDifferentChildsTransformation");
 
     return function;
 }

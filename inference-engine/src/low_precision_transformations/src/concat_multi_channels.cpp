@@ -14,6 +14,7 @@
 #include <ngraph/opsets/opset1.hpp>
 
 #include "low_precision/common/fake_quantize_dequantization.hpp"
+#include "low_precision/common/dequantization_op.hpp"
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/common/subgraph.hpp"
 #include "low_precision/network_helper.hpp"
@@ -184,61 +185,205 @@ void ConcatMultiChannelsTransformation::fillDequantization(
     std::shared_ptr<ngraph::Node> layer,
     std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
     std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate) {
-    std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>> fakeQuantizes;
     std::shared_ptr<ngraph::opset1::FakeQuantize> currentFakeQuantize = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(layer);
-    if (currentFakeQuantize != nullptr) {
-        fakeQuantizes.push_back(currentFakeQuantize);
-    } else {
-        fillQuantization(layer, fakeQuantizes);
-        if (fakeQuantizes.size() == layer->get_input_size()) {
-            updateDequantizationShapesIfNecessary(layer, fakeQuantizes, dequantizationByFakeQuantize);
-        }
-    }
-
-    for (const auto& fakeQuantize : fakeQuantizes) {
-        const auto it = dequantizationByFakeQuantize.find(fakeQuantize->get_friendly_name());
+    if (currentFakeQuantize) {
+        const auto it = dequantizationByFakeQuantize.find(currentFakeQuantize->get_friendly_name());
         if (it == dequantizationByFakeQuantize.end()) {
-            THROW_IE_LPT_EXCEPTION(*fakeQuantize) << "dequantization scale values are not found";
+            THROW_IE_LPT_EXCEPTION(*currentFakeQuantize) << "dequantization scale values are not found";
         }
         const FakeQuantizeDequantization& fakeQuantizeDequantization = it->second;
-        dequantizationsToConcatenate.push_back(fakeQuantizeDequantization);
-    }
-}
-
-void ConcatMultiChannelsTransformation::updateDequantizationShapesIfNecessary(
-    std::shared_ptr<ngraph::Node> layer,
-    std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>>& fakeQuantizes,
-    std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize) {
-    for (size_t i = 0; i < fakeQuantizes.size(); ++i) {
-        ngraph::Shape inputShape = layer->get_input_shape(i);
-        ngraph::Shape dequantizationShape = fakeQuantizes[i]->get_shape();
-        if (inputShape[1] != dequantizationShape[1]) {
-            FakeQuantizeDequantization replacedDequantization = dequantizationByFakeQuantize[fakeQuantizes[i]->get_friendly_name()];
-
-            const float scale = as_type_ptr<ngraph::opset1::Constant>(replacedDequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<float>()[0];
-            const float shift = replacedDequantization.subtract ? replacedDequantization.subtractConstant->cast_vector<float>()[0] : 0.f;
-            const auto precisionBefore = replacedDequantization.data.get_element_type();
-            const auto precisionAfter = replacedDequantization.multiply->get_element_type();
-
-            auto newDequantization = ngraph::pass::low_precision::NetworkHelper::makeDequantization(
-                scale, shift, precisionBefore, inputShape, precisionAfter, 0.f, 5.f);
-            dequantizationByFakeQuantize[fakeQuantizes[i]->get_friendly_name()] = newDequantization;
-        }
+        dequantizationsToConcatenate.push_back(broadcastDequantiationConstant(fakeQuantizeDequantization));
+    } else {
+        fillQuantization(layer, dequantizationByFakeQuantize, dequantizationsToConcatenate);
     }
 }
 
 void ConcatMultiChannelsTransformation::fillQuantization(
     const std::shared_ptr<ngraph::Node> layer,
-    std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>>& fakeQuantizes) {
+    const std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
+    std::vector<FakeQuantizeDequantization>& dequantization) {
     for (size_t i = 0; i < layer->get_input_size(); ++i) {
         std::shared_ptr<ngraph::Node> parent = layer->get_input_node_shared_ptr(i);
+
         std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
-        if (fakeQuantize != nullptr) {
-            fakeQuantizes.push_back(fakeQuantize);
+        if (fakeQuantize) {
+            const auto it = dequantizationByFakeQuantize.find(fakeQuantize->get_friendly_name());
+            if (it == dequantizationByFakeQuantize.end()) {
+                THROW_IE_LPT_EXCEPTION(*fakeQuantize) << "dequantization scale values are not found";
+            }
+
+            const FakeQuantizeDequantization& fakeQuantizeDequantization = it->second;
+            dequantization.push_back(broadcastDequantiationConstant(fakeQuantizeDequantization));
         } else {
-            fillQuantization(parent, fakeQuantizes);
+            std::shared_ptr<ngraph::opset1::Concat> concat = ngraph::as_type_ptr<ngraph::opset1::Concat>(parent);
+            if (concat) {
+                std::vector<FakeQuantizeDequantization> dequantizationToConcatenate;
+                fillQuantization(concat, dequantizationByFakeQuantize, dequantizationToConcatenate);
+
+                // add concatenated dequantization operations to dequantization collection
+                dequantization.push_back(getConcatenatedDequantization(concat, dequantizationToConcatenate));
+            } else {
+                std::shared_ptr<ngraph::opset1::StridedSlice> stridedSlice = ngraph::as_type_ptr<ngraph::opset1::StridedSlice>(parent);
+                if (stridedSlice) {
+                    std::vector<FakeQuantizeDequantization> dequantizationToPropagate;
+                    fillQuantization(stridedSlice, dequantizationByFakeQuantize, dequantizationToPropagate);
+
+                    const size_t sourceOutputIdx = NetworkHelper::getParentOutputIndex(parent, layer);
+                    // add folded dequantization operations to dequantization colection
+                    dequantization.push_back(getFoldedDequantization(stridedSlice, dequantizationToPropagate[0], sourceOutputIdx));
+                } else {
+                    fillQuantization(parent, dequantizationByFakeQuantize, dequantization);
+                }
+            }
         }
     }
+}
+
+// broadcast of dequantization constants by channels
+FakeQuantizeDequantization ConcatMultiChannelsTransformation::broadcastDequantiationConstant(const FakeQuantizeDequantization& deq) {
+    ngraph::Shape targetShape(deq.data.get_shape().size(), 1ul);
+    targetShape[1] = deq.data.get_shape()[1];
+
+    FakeQuantizeDequantization result;
+    result.data = deq.data;
+    result.convert = deq.convert;
+
+    const auto targetShapeConst = std::make_shared<ngraph::opset1::Constant>(
+        element::i64, ngraph::Shape{ targetShape.size() },
+        targetShape);
+
+    if (deq.subtract) {
+        auto broadcast = ngraph::pass::low_precision::fold<ngraph::opset1::Broadcast>(
+            deq.subtractConstant,
+            targetShapeConst,
+            ngraph::op::AutoBroadcastType::NUMPY);
+
+        result.subtract = deq.subtract;
+        result.subtractConstant = as_type_ptr<ngraph::opset1::Constant>(broadcast);
+    }
+
+    if (deq.multiply) {
+        auto broadcast = ngraph::pass::low_precision::fold<ngraph::opset1::Broadcast>(
+            deq.multiplyConstant,
+            targetShapeConst,
+            ngraph::op::AutoBroadcastType::NUMPY);
+
+        result.multiply = deq.multiply;
+        result.multiplyConstant = as_type_ptr<ngraph::opset1::Constant>(broadcast);
+    }
+
+    return result;
+}
+
+FakeQuantizeDequantization ConcatMultiChannelsTransformation::getConcatenatedDequantization(
+    const std::shared_ptr<ngraph::opset1::Concat> concat,
+    const std::vector<FakeQuantizeDequantization>& dequantization) {
+    bool allDequantizationShiftAreZero = true;
+    bool allDequantizationMultiplyAreZero = true;
+    for (const auto& deq : dequantization) {
+        if (deq.subtract != nullptr) {
+            allDequantizationShiftAreZero = false;
+        }
+        if (deq.multiply != nullptr) {
+            allDequantizationMultiplyAreZero = false;
+        }
+    }
+
+    NodeVector convertNodes;
+    NodeVector subNodes;
+    NodeVector mulNodes;
+    //preparing to concatenate dequantization nodes
+    for (const auto& deq : dequantization) {
+        const ngraph::element::Type precision = deq.data.get_element_type();
+        ngraph::Shape targetShape(deq.data.get_shape().size(), 1ul);
+        targetShape[1] = deq.data.get_shape()[1];
+
+        if (deq.convert != nullptr) {
+            convertNodes.push_back(deq.convert);
+        }
+        if (!allDequantizationShiftAreZero) {
+            subNodes.push_back(deq.subtract == nullptr ?
+                std::make_shared<ngraph::opset1::Constant>(precision, targetShape, std::vector<float>({ 0.f })) :
+                deq.subtractConstant);
+        }
+        if (!allDequantizationMultiplyAreZero) {
+            mulNodes.push_back(deq.multiply == nullptr ?
+                std::make_shared<ngraph::opset1::Constant>(precision, targetShape, std::vector<float>({ 1.0f })) :
+                deq.multiplyConstant);
+        }
+    }
+
+    std::shared_ptr<Node> parent = concat;
+    std::shared_ptr<DequantizationConvert> convert;
+    if (!convertNodes.empty()) {
+        convert = as_type_ptr<DequantizationConvert>(dequantization[0].convert->clone_with_new_inputs({ parent }));
+        parent = convert;
+    }
+
+    std::shared_ptr<DequantizationSubtract> subtract;
+    std::shared_ptr<ngraph::opset1::Constant> subConst;
+    if (!subNodes.empty()) {
+        subConst = as_type_ptr<ngraph::opset1::Constant>(
+            subNodes.size() == 1ul ? subNodes[0] : fold<ngraph::opset1::Concat>(subNodes, 1ul));
+
+        subtract = std::make_shared<DequantizationSubtract>(parent, subConst);
+        parent = subtract;
+    }
+
+    std::shared_ptr<DequantizationMultiply> multiply;
+    std::shared_ptr<ngraph::opset1::Constant> mulConst;
+    if (!mulNodes.empty()) {
+        mulConst = as_type_ptr<ngraph::opset1::Constant>(
+            mulNodes.size() == 1ul ? mulNodes[0] : fold<ngraph::opset1::Concat>(mulNodes, 1ul));
+
+        multiply = std::make_shared<DequantizationMultiply>(parent, mulConst);
+    }
+
+    return FakeQuantizeDequantization(concat, convert, subtract, nullptr, subConst, multiply, mulConst);
+}
+
+FakeQuantizeDequantization ConcatMultiChannelsTransformation::getFoldedDequantization(
+    const std::shared_ptr<ngraph::Node> operation,
+    const FakeQuantizeDequantization& dequantization,
+    const size_t sourceOutputIdx) {
+    OutputVector inputs = operation->input_values();
+    OutputVector outputs(operation->get_output_size());
+
+    std::shared_ptr<Node> parent = operation;
+    std::shared_ptr<DequantizationConvert> convert;
+    if (dequantization.convert) {
+        convert = as_type_ptr<DequantizationConvert>(dequantization.convert->clone_with_new_inputs({ parent }));
+        parent = convert;
+    }
+
+    std::shared_ptr<DequantizationSubtract> subtract;
+    std::shared_ptr<ngraph::opset1::Constant> subConst;
+    if (dequantization.subtract) {
+        inputs[0] = dequantization.subtractConstant;
+        const auto op = operation->clone_with_new_inputs(inputs);
+
+        // constant folding of subtract constant
+        op->constant_fold(outputs, inputs);
+
+        subConst = as_type_ptr<ngraph::opset1::Constant>(outputs[sourceOutputIdx].get_node_shared_ptr());
+        subtract = std::make_shared<DequantizationSubtract>(parent, subConst);
+        parent = subtract;
+    }
+
+    std::shared_ptr<DequantizationMultiply> multiply;
+    std::shared_ptr<ngraph::opset1::Constant> mulConst;
+    if (dequantization.multiply) {
+        inputs[0] = dequantization.multiplyConstant;
+        const auto op = operation->clone_with_new_inputs(inputs);
+
+        // constant folding of multiply constant
+        op->constant_fold(outputs, inputs);
+
+        mulConst = as_type_ptr<ngraph::opset1::Constant>(outputs[sourceOutputIdx].get_node_shared_ptr());
+        multiply = std::make_shared<DequantizationMultiply>(parent, mulConst);
+    }
+
+    return FakeQuantizeDequantization(operation->output(sourceOutputIdx), convert, subtract, nullptr, subConst, multiply, mulConst);
 }
 
 } // namespace low_precision

@@ -62,6 +62,14 @@ public:
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2);
 
+    static std::shared_ptr<ngraph::Function> getOriginalWithStridedSlice(
+        const ngraph::element::Type precision,
+        const ngraph::Shape inputShape,
+        const FakeQuantizeOnData& fq1,
+        const FakeQuantizeOnData& fq2,
+        const bool ssBeforeConcat,
+        const bool ssAfterConcat);
+
     static std::shared_ptr<ngraph::Function> getOriginalWithDifferentPrecisionOnChilds(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
@@ -150,6 +158,19 @@ public:
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2);
+
+    static std::shared_ptr<ngraph::Function> getReferenceWithStridedSlice(
+        const ngraph::element::Type inputPrecision,
+        const ngraph::Shape inputShape,
+        const FakeQuantizeOnData& fq1,
+        const FakeQuantizeOnData& fq2,
+        const DequantizationOperations& deqBefore,
+        const ngraph::element::Type precisionBeforeConcat,
+        const ngraph::element::Type precisionAfterConcat,
+        const bool ssBeforeConcat,
+        const bool ssAfterConcat,
+        const DequantizationOperations& deqAfter1,
+        const DequantizationOperations& deqAfter2);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithDifferentPrecisionOnChilds(
         const ngraph::element::Type precision,
