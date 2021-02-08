@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 jobs:
   Build_Doc:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v2
@@ -13,7 +13,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt --assume-yes install libusb-1.0-0-dev doxygen graphviz texlive
+          sudo apt --assume-yes install libusb-1.0-0-dev doxygen graphviz texlive-full
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
           python3 -m pip install lxml
 
