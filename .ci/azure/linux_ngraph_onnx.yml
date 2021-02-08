@@ -59,8 +59,9 @@ jobs:
     displayName: 'Get models'
 
   - script: |
-      wget -O "$(TMP_DIR)/msft.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
-      unzip "$(TMP_DIR)/msft.zip" -d "$(MODELS_DIR)/msft"
+      #wget -O "$(TMP_DIR)/msft.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
+      #unzip "$(TMP_DIR)/msft.zip" -d "$(MODELS_DIR)/msft"
+      unzip "/mnt/onnxtestdata/models/20191107.zip" -d "$(MODELS_DIR)/msft"
       mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_sorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_0
       mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_unsorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_1
     displayName: 'Get MSFT models'
