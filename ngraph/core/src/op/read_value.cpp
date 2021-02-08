@@ -77,10 +77,10 @@ void op::v6::ReadValue::validate_and_infer_types()
         this,
         element::Type::merge(var_info.data_type, m_variable->get_info().data_type, arg_t),
         "Variables types are inconsistent.");
-    /*    NODE_VALIDATION_CHECK(
+        NODE_VALIDATION_CHECK(
             this,
             PartialShape::merge_into(var_info.data_shape, m_variable->get_info().data_shape),
-            "Variable shape and output shape are inconsistent.");*/
+            "Variable shape and output shape are inconsistent.");
     m_variable->update(var_info);
     set_output_type(0, arg_t, output_shape);
 }

@@ -104,6 +104,7 @@ op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Vari
 
 void op::v6::Assign::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v6_Assign_validate_and_infer_types);
     m_variable->update({get_input_partial_shape(0),
                         get_input_element_type(0),
                         m_variable->get_info().variable_id});

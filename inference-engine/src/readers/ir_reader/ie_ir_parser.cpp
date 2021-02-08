@@ -288,7 +288,7 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
         if (!getStrAttribute(node.child("data"), name, variable_id)) return;
         if (!variables.count(variable_id)) {
             variables[variable_id] = std::make_shared<ngraph::Variable>
-                    (ngraph::VariableInfo{ngraph::PartialShape(),
+                    (ngraph::VariableInfo{ngraph::PartialShape::dynamic(),
                                           ngraph::element::dynamic, variable_id});
         }
         a->set(variables[variable_id]);
