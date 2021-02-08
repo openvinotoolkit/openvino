@@ -35,7 +35,7 @@ jobs:
           cmake -DENABLE_DOCS=ON ..
 
       - name: Build doc
-        run: cmake --build . --target openvino_docs
+        run: cmake --build . --target openvino_docs || exit 0
         working-directory: openvino_doc
 
       - name: 'Upload doc'
