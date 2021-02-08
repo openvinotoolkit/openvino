@@ -25,8 +25,8 @@ from mo.utils.unittest.graph import build_graph_with_attrs
 
 # A list with nodes attributes used to build various graphs.
 nodes = [
-    ('l2_normalize', dict(kind='op', op='Mul', name='l2_norm_name')),
-    ('l2_normalize_data', dict(kind='data')),
+    ('l2_normalize_mul', dict(kind='op', op='Mul', name='l2_norm_name')),
+    ('l2_normalize_mul_data', dict(kind='data')),
     ('maximum', dict(kind='op', op='Maximum')),
     ('maximum_data', dict(kind='data')),
     ('maximum_y_const', dict(kind='op', op='Const', value=np.array(12.e-13, dtype=np.float32))),
@@ -41,7 +41,7 @@ nodes = [
     ('sum_data', dict(kind='data')),
     ('sum_axes', dict(kind='op', op='Const')),
     # nodes added after replacement
-    ('normalize_node', dict(kind='op', op='Normalize')),
+    ('normalize_node', dict(kind='op', op='NormalizeL2')),
     ('weights_node', dict(kind='op', op='Const')),
     ('result', dict(kind='op', op='Result'))
 ]
@@ -63,10 +63,10 @@ edges = [
     ('maximum_data', 'rsqrt', {'in': 0}),
     ('rsqrt_pow', 'rsqrt', {'in': 1}),
     ('rsqrt', 'rsqrt_data'),
-    ('rsqrt_data', 'l2_normalize'),
-    ('input_data', 'l2_normalize'),
-    ('l2_normalize', 'l2_normalize_data'),
-    ('l2_normalize_data', 'result'),
+    ('rsqrt_data', 'l2_normalize_mul'),
+    ('input_data', 'l2_normalize_mul'),
+    ('l2_normalize_mul', 'l2_normalize_mul_data'),
+    ('l2_normalize_mul_data', 'result'),
 ]
 
 edges_after_replacement = [
@@ -74,8 +74,8 @@ edges_after_replacement = [
     ('input_data', 'normalize_node'),
     ('weights_node', 'weights_node_data'),
     ('weights_node_data', 'normalize_node'),
-    ('normalize_node', 'l2_normalize_data'),
-    ('l2_normalize_data', 'result'),
+    ('normalize_node', 'l2_normalize_mul_data'),
+    ('l2_normalize_mul_data', 'result'),
 ]
 
 
@@ -83,13 +83,12 @@ class L2NormToNormTest(unittest.TestCase):
     def test_2D(self):
         input_shape = int64_array([1, 300])
         axes = int64_array([1])
-        weights_value = np.ones(shape=int64_array([input_shape[-1]]), dtype=np.float32)
 
         graph = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
             ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
             ('square_data', dict(kind='data', shape=input_shape)),
-            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
+            ('sum_axes_data', dict(kind='data', value=axes, shape=axes.shape)),
         ], edges, nodes_with_edges_only=True)
         graph.stage = 'middle'
 
@@ -98,17 +97,16 @@ class L2NormToNormTest(unittest.TestCase):
         graph_ref = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
             ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', shape=weights_value.shape, value=weights_value)),
+            ('weights_node_data', dict(kind='data', value=axes.sort())),
         ], edges_after_replacement, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='Normalize')[0]]['name'] == 'l2_norm_name')
+        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
         self.assertTrue(flag, resp)
 
     def test_2D_scalar_axis(self):
         input_shape = int64_array([1, 300])
         axes = int64_array(1)
-        weights_value = np.ones(shape=int64_array([input_shape[-1]]), dtype=np.float32)
 
         graph = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
@@ -123,17 +121,16 @@ class L2NormToNormTest(unittest.TestCase):
         graph_ref = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
             ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', shape=weights_value.shape, value=weights_value)),
+            ('weights_node_data', dict(kind='data', value=int64_array([axes]).sort())),
         ], edges_after_replacement, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='Normalize')[0]]['name'] == 'l2_norm_name')
+        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
         self.assertTrue(flag, resp)
 
     def test_3D(self):
         input_shape = int64_array([1, 300, 300])
         axes = int64_array([1, 2])
-        weights_value = np.ones(shape=int64_array([input_shape[-1]]), dtype=np.float32)
 
         graph = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
@@ -148,17 +145,16 @@ class L2NormToNormTest(unittest.TestCase):
         graph_ref = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
             ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', shape=weights_value.shape, value=weights_value)),
+            ('weights_node_data', dict(kind='data', value=axes.sort())),
         ], edges_after_replacement, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='Normalize')[0]]['name'] == 'l2_norm_name')
+        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
         self.assertTrue(flag, resp)
 
     def test_4D(self):
         input_shape = int64_array([1, 300, 300, 3])
         axes = int64_array([1, 2, 3])
-        weights_value = np.ones(shape=int64_array([input_shape[-1]]), dtype=np.float32)
 
         graph = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
@@ -173,11 +169,35 @@ class L2NormToNormTest(unittest.TestCase):
         graph_ref = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
             ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', shape=weights_value.shape, value=weights_value)),
+            ('weights_node_data', dict(kind='data', value=axes.sort())),
         ], edges_after_replacement, nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='Normalize')[0]]['name'] == 'l2_norm_name')
+        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
+        self.assertTrue(flag, resp)
+
+    def test_4D_mixed_axes(self):
+        input_shape = int64_array([1, 300, 300, 3])
+        axes = int64_array([3, 1, 2])
+
+        graph = build_graph_with_attrs(nodes + [
+            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
+            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
+            ('square_data', dict(kind='data', shape=input_shape)),
+            ('sum_axes_data', dict(kind='data', value=axes, shape=None)),
+        ], edges, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+
+        L2NormToNorm().find_and_replace_pattern(graph)
+
+        graph_ref = build_graph_with_attrs(nodes + [
+            ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
+            ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
+            ('weights_node_data', dict(kind='data', value=axes.sort())),
+        ], edges_after_replacement, nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
         self.assertTrue(flag, resp)
 
     def test_4D_multiple_consumers(self):
@@ -199,12 +219,12 @@ class L2NormToNormTest(unittest.TestCase):
         graph_ref = build_graph_with_attrs(nodes + [
             ('input', dict(kind='op', shape=input_shape, op='Parameter', data_type=np.float32)),
             ('input_data', dict(kind='data', shape=input_shape, data_type=np.float32)),
-            ('weights_node_data', dict(kind='data', shape=weights_value.shape, value=weights_value)),
+            ('weights_node_data', dict(kind='data', value=axes.sort())),
             ('result_2', dict(kind='op', op='Result'))
         ], edges_after_replacement + [('input_data', 'result_2')], nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='Normalize')[0]]['name'] == 'l2_norm_name')
+        self.assertTrue(graph.node[graph.get_nodes_with_attributes(type='NormalizeL2')[0]]['name'] == 'l2_norm_name')
         self.assertTrue(flag, resp)
 
     def test_1D_negative(self):
