@@ -36,13 +36,12 @@ private:
 
         orderInfo.setInput(inputEdge(0), DimsOrder::fromNumDims(input0->desc().numDims()));
         orderInfo.setInput(inputEdge(1), DimsOrder::fromNumDims(input1->desc().numDims()));
-        orderInfo.setOutput(outputEdge(0), DimsOrder::fromNumDims(output0->desc().numDims()));
-        orderInfo.setOutput(outputEdge(1), DimsOrder::fromNumDims(output1->desc().numDims()));
-
         if (numInputs() == 3) {
             auto input2 = inputEdge(2)->input();
             orderInfo.setInput(inputEdge(2), DimsOrder::fromNumDims(input2->desc().numDims()));
         }
+        orderInfo.setOutput(outputEdge(0), DimsOrder::fromNumDims(output0->desc().numDims()));
+        orderInfo.setOutput(outputEdge(1), DimsOrder::fromNumDims(output1->desc().numDims()));
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
@@ -82,10 +81,9 @@ private:
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         const auto mergeRepeated = attrs().get<bool>("mergeRepeated");
-        const auto blankIndex = attrs().get<int32_t>("blankIndex");
 
         serializer.append(static_cast<uint32_t>(mergeRepeated));
-        serializer.append(static_cast<uint32_t>(blankIndex));
+        serializer.append(static_cast<uint32_t>(numInputs()));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -96,6 +94,10 @@ private:
 
         input0->serializeBuffer(serializer);
         input1->serializeBuffer(serializer);
+        if (numInputs() == 3) {
+            auto input2 = inputEdge(2)->input();
+            input2->serializeBuffer(serializer);
+        }
         output0->serializeBuffer(serializer);
         output1->serializeBuffer(serializer);
     }
@@ -108,13 +110,11 @@ Stage StageBuilder::addCTCGreedyDecoderSeqLenStage(const Model& model,
                                                    const ie::CNNLayerPtr& layer,
                                                    const DataVector& inputs,
                                                    const DataVector& outputs,
-                                                   bool mergeRepeated,
-                                                   int32_t blankIndex) {
+                                                   bool mergeRepeated) {
     auto stage = model->addNewStage<CTCGreedyDecoderSeqLenStage>(name,
                                                                  StageType::CTCGreedyDecoderSeqLen,
                                                                  layer, inputs, outputs);
     stage->attrs().set<bool>("mergeRepeated", mergeRepeated);
-    stage->attrs().set<int32_t>("blankIndex", blankIndex);
 
     return stage;
 }
@@ -132,17 +132,6 @@ void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLaye
                      layer->type, layer->name, outputs.size());
 
     const auto mergeRepeated = layer->GetParamAsBool("merge_repeated");
-    const auto blankIndex = [&] {
-        if (inputs.size() == 3) {
-            VPU_THROW_UNLESS(inputs[2]->desc().totalDimSize() == 1,
-                             "Input 3 should have only one element.");
-
-            return *inputs[2]->content()->get<int32_t>();
-        }
-
-        const auto classes = inputs[0]->desc().dim(Dim::W);
-        return classes - 1;
-    }();
 
     const auto toUpper = [](const std::string& str) {
         std::string result;
@@ -162,7 +151,7 @@ void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLaye
                      sequenceLengthType);
 
     _stageBuilder->addCTCGreedyDecoderSeqLenStage(model, layer->name, layer,
-                                                  inputs, outputs, mergeRepeated, blankIndex);
+                                                  inputs, outputs, mergeRepeated);
 }
 
 }  // namespace vpu

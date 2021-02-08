@@ -19,12 +19,12 @@ std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(
     bool mergeRepeated;
     std::string targetDevice;
     std::tie(inputShape,
-             sequenceLengths,
-             dataPrecision,
-             indicesPrecision,
-             blankIndex,
-             mergeRepeated,
-             targetDevice) = obj.param;
+        sequenceLengths,
+        dataPrecision,
+        indicesPrecision,
+        blankIndex,
+        mergeRepeated,
+        targetDevice) = obj.param;
 
     std::ostringstream result;
 
@@ -46,12 +46,12 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
     int blankIndex;
     bool mergeRepeated;
     std::tie(inputShape,
-             sequenceLengths,
-             dataPrecision,
-             indicesPrecision,
-             blankIndex,
-             mergeRepeated,
-             targetDevice) = GetParam();
+        sequenceLengths,
+        dataPrecision,
+        indicesPrecision,
+        blankIndex,
+        mergeRepeated,
+        targetDevice) = GetParam();
 
     auto ngDataPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dataPrecision);
     auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);

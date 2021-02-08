@@ -354,8 +354,7 @@ public:
                                         const ie::CNNLayerPtr& layer,
                                         const DataVector& inputs,
                                         const DataVector& outputs,
-                                        bool mergeRepeated,
-                                        int32_t blankIndex);
+                                        bool mergeRepeated);
 };
 
 }  // namespace vpu
