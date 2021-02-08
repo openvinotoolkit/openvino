@@ -682,16 +682,7 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
             {
-                size_t input_rank = m_input_data_shape.size();
-
-                assert(input_rank > 1);
-
-                switch (input_rank)
-                {
-                case 2:
-                case 4: linear_onnx4D_func(input_data, out); break;
-                default: linear_onnx_generic_func(input_data, out); break;
-                }
+                linear_onnx_generic_func(input_data, out);
             }
 
             template <typename T>
