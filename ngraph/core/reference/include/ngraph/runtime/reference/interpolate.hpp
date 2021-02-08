@@ -382,17 +382,11 @@ namespace ngraph
                 /// \param out pointer to memory block for output data
                 void linear_func(const T* input_data, T* out);
 
-                /// \brief Calculates interpolation as in ONNX 'linear' mode
-                ///
-                /// \param input_data pointer to input data
-                /// \param out pointer to memory block for output data
-                void linear_onnx_func(const T* input_data, T* out);
-
                 /// \brief Calculates interpolation as in ONNX 'linear' mode (generic case)
                 ///
                 /// \param input_data pointer to input data
                 /// \param out pointer to memory block for output data
-                void linear_onnx_generic_func(const T* input_data, T* out);
+                void linear_onnx_func(const T* input_data, T* out);
 
                 /// \brief Calculates cubic interpolation.
                 ///
@@ -450,7 +444,7 @@ namespace ngraph
             }
 
             template <typename T>
-            void InterpolateEval<T>::linear_onnx_generic_func(const T* input_data, T* out)
+            void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
             {
                 const size_t input_rank = m_input_data_shape.size();
 
@@ -600,12 +594,6 @@ namespace ngraph
                         ydata += output_data_ptr_increment;
                     }
                 }
-            }
-
-            template <typename T>
-            void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
-            {
-                linear_onnx_generic_func(input_data, out);
             }
 
             template <typename T>
