@@ -53,8 +53,8 @@ def unique_id(prefix: str = 'id') -> str:
 unique_id.names = []
 
 
-def create_zero_value_with_batch_from_input(input_out_port: Port, second_dim, precision = np.float):
-    # create init_graph connected to ReadValue
+def create_const_with_batch_from_input(input_out_port: Port, second_dim, value=0, precision=np.float):
+    # create const with batch taken from Parameter
     graph = input_out_port.node.graph
     input_name = input_out_port.node.name
     shape_of_input = Shape(graph, {'name': 'shape/' + input_name}).create_node()
@@ -74,7 +74,7 @@ def create_zero_value_with_batch_from_input(input_out_port: Port, second_dim, pr
     mem_shape.in_port(0).connect(get_batch.out_port(0))
     mem_shape.in_port(1).connect(mem_shape_2nd_dim.out_port(0))
     fill_value = Const(graph, {'name': 'fill_value/'+input_name,
-                               'value': np.array([0.0], precision), 'shape': int64_array([1])}).create_node()
+                               'value': np.array([value], dtype=precision), 'shape': int64_array([1])}).create_node()
     init_value_prev_lstm_output = Broadcast(graph, {'name': 'init_value/'+input_name,
                                                     }).create_node()
     init_value_prev_lstm_output.in_port(0).connect(fill_value.out_port(0))
@@ -122,8 +122,8 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         input_as_const(fc_layer_after_input, fc_layer_after_input_attrs, 1, 'weights', node.gifo_x_weights)
         input_as_const(fc_layer_after_input, fc_layer_after_input_attrs, 2, 'biases', node.gifo_biases)
 
-        init_value_prev_lstm_output = create_zero_value_with_batch_from_input(input_out_port,
-                                                                              node.gifo_r_weights_shape[1])
+        init_value_prev_lstm_output = create_const_with_batch_from_input(input_out_port,
+                                                                         node.gifo_r_weights_shape[1])
         prev_lstm_output = ReadValue(graph, {'name': 'prev_memory_output',
                                              'variable_id': memory_pair_input
                                              }).create_node()
@@ -168,8 +168,8 @@ class ReplaceLSTMNodePattern(FrontReplacementOp):
         #                                 'size': 2,
         #                                 'shape': np.array([node.input_gate_weights.shape[0]], dtype=np.int64)
         #                                 }).create_node()
-        init_value_prev_lstm_state = create_zero_value_with_batch_from_input(split_joined_input.out_port(0),
-                                                                             node.input_gate_weights.shape[0])
+        init_value_prev_lstm_state = create_const_with_batch_from_input(split_joined_input.out_port(0),
+                                                                        node.input_gate_weights.shape[0])
         prev_lstm_state = ReadValue(graph, {'name': 'prev_memory_state',
                                             'variable_id': memory_pair_output}).create_node()
         prev_lstm_state.in_port(0).connect(init_value_prev_lstm_state.out_port(0))

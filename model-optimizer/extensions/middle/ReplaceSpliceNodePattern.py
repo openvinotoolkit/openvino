@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.front.kaldi.replace_lstm_node_pattern import unique_id, create_zero_value_with_batch_from_input
+from extensions.front.kaldi.replace_lstm_node_pattern import unique_id, create_const_with_batch_from_input
 from extensions.ops.split import VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
@@ -105,8 +105,8 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
 
             # create separate splice construction for const_dim
             memory_pair_id = unique_id('memory_for_const_dim')
-            init_value_input_memory_const_dim = create_zero_value_with_batch_from_input(split.out_port(1),
-                                                                                        memory_size_constdim)
+            init_value_input_memory_const_dim = create_const_with_batch_from_input(split.out_port(1),
+                                                                                   memory_size_constdim)
             input_memory_const_dim = ReadValue(graph, {'name': 'const_dim_in_memory',
                                                        'variable_id': memory_pair_id}).create_node()
             init_value_input_memory_const_dim.out_port(0).connect(input_memory_const_dim.in_port(0))
@@ -141,14 +141,12 @@ class ReplaceSpliceNodePattern(MiddleReplacementPattern):
             concat_const.in_port(1).connect(crop_first.out_port(0))
             concat_const.in_port(0).connect(concat_node.out_port(0))
 
-            init_value_input_memory = create_zero_value_with_batch_from_input(split.out_port(0),
-                                                                              memory_size)
+            init_value_input_memory = create_const_with_batch_from_input(split.out_port(0), memory_size)
             init_value_input_memory.out_port(0).connect(input_memory.in_port(0))
             node.in_port(0).get_connection().set_destination(split.in_port(0))
             node.out_port(0).get_connection().set_source(concat_const.out_port(0))
         else:
-            init_value_input_memory = create_zero_value_with_batch_from_input(node.in_port(0).get_source(),
-                                                                              memory_size)
+            init_value_input_memory = create_const_with_batch_from_input(node.in_port(0).get_source(), memory_size)
             init_value_input_memory.out_port(0).connect(input_memory.in_port(0))
             node.in_port(0).get_connection().set_destination(concat_node.in_port(1))
             node.out_port(0).get_connection().set_source(concat_node.out_port(0))

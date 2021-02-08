@@ -15,7 +15,7 @@
 """
 import numpy as np
 
-from extensions.front.kaldi.replace_lstm_node_pattern import create_zero_value_with_batch_from_input
+from extensions.front.kaldi.replace_lstm_node_pattern import create_const_with_batch_from_input
 from extensions.ops.elementwise import Equal
 from extensions.ops.select import Select
 from mo.front.common.partial_infer.utils import int64_array
@@ -126,7 +126,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             ones = Node(graph, inverse_dict(counter_match)['const_1'])
             input_port = Node(graph, inverse_dict(counter_match)['crop_out']).out_port(0)
         else:
-            init_value_mem_out = create_zero_value_with_batch_from_input(in_node_port, context_len, np.int32)
+            init_value_mem_out = create_const_with_batch_from_input(in_node_port, context_len, precision=np.int32)
             mem_out = ReadValue(graph, {'name': 'iteration_number',
                                         'variable_id': 'iteration_'+node.name}).create_node()
             mem_out.in_port(0).connect(init_value_mem_out.out_port(0))
@@ -134,8 +134,8 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
                                      'offset': int64_array([1]), 'dim': int64_array([context_len-1])}).create_node()
             cut_first.in_port(0).connect(mem_out.out_port(0))
             # batch added to Kaldi by MO and is not changing in graph
-            batch = node.graph.get_op_nodes(op="Parameter")[0].shape[0]
-            ones = Const(graph, {'name': 'ones', 'value': np.ones([batch, 1], dtype=np.int32)}).create_node()
+            batch_port = node.graph.get_op_nodes(op="Parameter")[0].out_port(0)
+            ones = create_const_with_batch_from_input(batch_port, 1, value=1, precision=np.int32)
             concat = Concat(graph, {'name': 'concat_ones', 'in_ports_count': 2, 'axis': 1}).create_node()
             concat.in_port(0).connect(cut_first.out_port(0))
             concat.in_port(1).connect(ones.out_port(0))
