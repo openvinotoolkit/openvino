@@ -70,9 +70,6 @@ function pull_and_postprocess_onnx_model_zoo() {
     cd "$ONNX_MODELS_DIR/text/machine_comprehension/roberta/model/roberta-sequence-classification-9/roberta-sequence-classification-9"
     mkdir -p test_data_set_0
     mv *.pb test_data_set_0/
-
-    # Save SHA of successfully post processed repository
-    git rev-parse HEAD > "$MODEL_ZOO_DIR/onnx_sha"
 }
 
 function update_onnx_models() {

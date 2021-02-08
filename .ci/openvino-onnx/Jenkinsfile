@@ -100,6 +100,15 @@ def runTests() {
     """
 }
 
+def update_onnx_models_sha() {
+    dir ("${HOME}/ONNX_CI/data/model_zoo/onnx_model_zoo}") {
+        sh  label: "Update ONNX model zoo SHA",
+            script:
+        """
+            git rev-parse HEAD > "${HOME}/ONNX_CI/data/model_zoo/onnx_sha"
+        """
+    }
+}
 
 pipeline {
     agent {
@@ -136,6 +145,7 @@ pipeline {
               }
             steps{
                 runTests()
+                update_onnx_models_sha()
             }
         }
     }
