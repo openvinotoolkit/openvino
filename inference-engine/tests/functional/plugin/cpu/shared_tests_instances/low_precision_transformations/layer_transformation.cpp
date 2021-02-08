@@ -10,7 +10,6 @@
 #include <string>
 
 #include <ie_core.hpp>
-#include "generic_ie.hpp"
 
 #include <legacy/net_pass.h>
 #include <legacy/graph_transformer.h>

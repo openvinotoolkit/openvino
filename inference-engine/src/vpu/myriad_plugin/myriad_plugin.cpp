@@ -21,8 +21,6 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <ngraph/pass/manager.hpp>
 
-#include "generic_ie.hpp"
-
 #include "myriad_plugin.h"
 
 using namespace InferenceEngine;

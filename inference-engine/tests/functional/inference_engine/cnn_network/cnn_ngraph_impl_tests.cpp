@@ -17,7 +17,6 @@
 #include <ie_parameter.hpp>
 #include <ie_core.hpp>
 #include <legacy/net_pass.h>
-#include <generic_ie.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <ngraph/pass/manager.hpp>

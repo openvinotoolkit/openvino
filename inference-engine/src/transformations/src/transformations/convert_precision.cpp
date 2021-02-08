@@ -27,7 +27,6 @@ bool fuse_type_to_nms5(std::shared_ptr<ngraph::Node> & node, ngraph::element::Ty
 bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
-bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
 bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
@@ -276,12 +275,6 @@ bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::elemen
             return true;
         }
     }
-    return false;
-}
-
-bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
-    node->set_output_type(idx, to, node->output(idx).get_partial_shape());
-    // return false as we do not replace original node
     return false;
 }
 
