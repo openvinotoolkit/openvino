@@ -270,6 +270,9 @@ elif [ "$os" == "centos7" ] ; then
         wavpack
         xz-libs
         zlib
+        python36-gi
+        python36-gobject
+        python36-gobject-devel
     )
 
     if [ -n "$extra" ] ; then
