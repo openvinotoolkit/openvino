@@ -1333,7 +1333,7 @@ __itt_event UNICODE_AGNOSTIC(event_create)(const char *name, int namelen) {
     ITT_FUNCTION_STAT();
     __itt_domain* pEvents = get_events_domain();
     __itt_string_handle* pStr = UNICODE_AGNOSTIC(string_handle_create)(name);
-    return intptr_t(pStr) - intptr_t(pEvents);
+    return __itt_event(intptr_t(pStr) - intptr_t(pEvents));
 }
 
 int event_start(__itt_event event) {
@@ -1680,34 +1680,6 @@ void SetRing(uint64_t nanoseconds) {
         }
         return true;
     }
-#endif
-
-#ifdef _WIN32
-
-typedef ULONG(__stdcall* TEtwNotificationRegister)(
-    LPCGUID Guid,
-    ULONG Type,
-    PVOID Callback,
-    PVOID Context,
-    REGHANDLE* RegHandle);
-
-TEtwNotificationRegister g_fnOrigEtwNotificationRegister = nullptr;
-
- ULONG _stdcall MyEtwNotificationRegister(
-    LPCGUID Guid,
-    ULONG Type,
-    PVOID Callback,
-    PVOID Context,
-    REGHANDLE* RegHandle) {
-     WCHAR strGuid[100] = {};
-     StringFromGUID2(*Guid, strGuid, sizeof(strGuid) - 1);
-     char str[100] = {};
-     sprintf_s(str, "%ls", strGuid);
-     VerbosePrint("\nEventRegister, provider: %s\n", str);
-     static __itt_string_handle* pKey = UNICODE_AGNOSTIC(string_handle_create)("EventRegister::Provider");
-     WriteMeta(GetRegularFields(), pKey, str);
-     return g_fnOrigEtwNotificationRegister(Guid, Type, Callback, Context, RegHandle);
-}
 #endif
 
 void InitSEA() {

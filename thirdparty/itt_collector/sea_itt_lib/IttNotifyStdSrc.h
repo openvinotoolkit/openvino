@@ -102,7 +102,6 @@ struct ___itt_counter : public __itt_counter_info_t{};
 
 #ifdef _WIN32
     #include "windows.h"
-    #include "IntelSEAPI.h"
 #elif defined(__linux__)
     #ifndef USE_PROBES
         __thread FILE* stdsrc_trace_info_t::pFile = nullptr;
@@ -125,11 +124,6 @@ struct ___itt_counter : public __itt_counter_info_t{};
         __itt_id from; //d3 is not used, so we fit d1 and d2 into 16 bytes
         GUID to;
     };
-
-    //http://www.geoffchappell.com/studies/windows/win32/ntdll/api/etw/eventwritefull.htm
-    //http://helpdoc-online.com/Microsoft_Platform_SDK_August_2001_Performance_Monitoring_en/Tracing_Event_Instances.php
-    typedef NTSYSAPI NTSTATUS (NTAPI * FZwTraceEvent)(IN ULONG TraceHandle, IN ULONG Flags, IN ULONG TraceHeaderLength, IN PEVENT_TRACE_HEADER TraceHeader);
-
 #else
     #include <cstdio>
     #define _strdup strdup
