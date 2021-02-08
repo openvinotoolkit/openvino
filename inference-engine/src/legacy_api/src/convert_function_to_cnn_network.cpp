@@ -1612,7 +1612,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"Interpolate"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+                                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Interpolate", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
@@ -1620,7 +1620,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"ScaleShiftIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+                                            const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "ScaleShift", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::ScaleShiftLayer>(attrs);
         res->params = params;
@@ -1632,7 +1632,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"ExecutionNode"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         auto& rtInfo = node->get_rt_info();
 
         if (rtInfo.count(ExecGraphInfoSerialization::LAYER_TYPE) == 0) {
@@ -1665,9 +1665,17 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"ResamplV2"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+                                         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "ResampleV2", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"ShuffleChannels"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "ShuffleChannels", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::ShuffleChannelsLayer>(attrs);
         res->params = params;
         return res;
     });
@@ -1705,7 +1713,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::GenericIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
         };
         CNNLayerPtr result;
 
