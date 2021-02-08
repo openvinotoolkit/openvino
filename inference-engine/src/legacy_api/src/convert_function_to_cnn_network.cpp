@@ -458,6 +458,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                 case ELTWISE_TYPE::Sum:
                     type = "sum";
                     break;
+                case ELTWISE_TYPE::Sub:
+                    type = "sub";
+                    break;
                 case ELTWISE_TYPE::Prod:
                     type = "prod";
                     break;
@@ -860,7 +863,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"Relu"},
+    addSpecificCreator({"Relu", "ReLUIE"},
                        [](const std::shared_ptr<::ngraph::Node>& node,
                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "ReLU",
@@ -1610,6 +1613,76 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["axis"] = Builder::asString(axis);
         return res;
     });
+
+    addSpecificCreator({"CropIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
+                                      const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Crop", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CropLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"FullyConnected"}, [](const std::shared_ptr<::ngraph::Node> &node,
+                                              const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "FullyConnected", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::FullyConnectedLayer>(attrs);
+        res->params = params;
+
+        auto & rt_info = node->get_rt_info();
+        bool keep_constants(false);
+        if (auto attr = std::dynamic_pointer_cast<ngraph::VariantWrapper<int64_t>>(rt_info["keep_constants"])) {
+            keep_constants = attr->get();
+        }
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        if (!keep_constants && InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
+            const auto biasNode = node->input_value(2).get_node_shared_ptr();
+            InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
+        }
+        return res;
+    });
+
+    addSpecificCreator({"GenericIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
+                                         const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        auto type = params.at("__generic_ie_type__");
+        auto castedLayer = ngraph::as_type_ptr<ngraph::op::GenericIE>(node);
+        LayerParams attrs = {node->get_friendly_name(), type, details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        if (type == "RNNCell") {
+          res = std::make_shared<InferenceEngine::RNNCell>(attrs);
+        }
+        if (type == "GRUCell") {
+          res = std::make_shared<InferenceEngine::GRUCell>(attrs);
+        }
+
+        auto weightableLayer = std::dynamic_pointer_cast<InferenceEngine::WeightableLayer>(res);
+        for (const auto& param : castedLayer->getParameters()) {
+            if (param.second.is<Blob::Ptr>()) {
+                res->blobs[param.first] = param.second.as<Blob::Ptr>();
+            } else if (param.second.is<Blob::CPtr>()) {
+                res->blobs[param.first] = std::const_pointer_cast<Blob>(param.second.as<Blob::CPtr>());
+            } else if (param.second.is<std::string>()) {
+                res->params[param.first] = param.second.as<std::string>();
+            }
+            if (weightableLayer && param.first == "weights")
+                weightableLayer->_weights = res->blobs[param.first];
+            if (weightableLayer && param.first == "biases")
+                weightableLayer->_biases = res->blobs[param.first];
+        }
+        return res;
+    });
+
+    addSpecificCreator({"PowerIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
+                                       const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Power", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::PowerLayer>(attrs);
+
+        auto castedLayer = ngraph::as_type_ptr<ngraph::op::PowerIE>(node);
+        if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+        res->params = params;
+        // This is needed as scale parameter requires high precision
+        res->params["scale"] = Builder::asString(castedLayer->scale);
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -1637,13 +1710,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
         };
         static const std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
-                std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Eltwise>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Ceiling>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::FullyConnected>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::GenericIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ScaleShiftIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
