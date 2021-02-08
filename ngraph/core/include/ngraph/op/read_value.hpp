@@ -46,7 +46,6 @@ namespace ngraph
 
             /// \brief Returns variable connected to this node.
             virtual std::shared_ptr<ngraph::Variable> get_variable() const { return m_variable; }
-
             /// \brief Sets a new variable to be connected to this node.
             ///
             /// \param variable New variable to be connected to this node.
@@ -54,6 +53,7 @@ namespace ngraph
             {
                 m_variable = variable;
             }
+
         protected:
             std::shared_ptr<ngraph::Variable> m_variable;
         };
