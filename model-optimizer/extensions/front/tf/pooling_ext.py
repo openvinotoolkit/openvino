@@ -99,15 +99,13 @@ def create_pooling_attrs(node, pool_method):
 
     attrs = {
         'auto_pad': convert_tf_padding_to_str(node.pb.attr['padding'].s.decode()),
-        'window': tf_int_list(node.pb.attr['ksize'].list) if hasattr(node.pb.attr, 'ksize') else None,
+        'window': tf_int_list(node.pb.attr['ksize'].list),
         'spatial_dims': tf_data_format_spatial(data_format),
         'pad': None,  # will be inferred when input shape is known
-        'stride': tf_int_list(node.pb.attr['strides'].list) if hasattr(node.pb.attr, 'strides') else None,
+        'stride': tf_int_list(node.pb.attr['strides'].list),
         'pad_spatial_shape': None,
         'output_spatial_shape': None,
         'pool_method': pool_method,
-        # keep behaviour for MaxPool, for MaxPoolV2 type is None
-        'type': 'Pooling' if hasattr(node.pb.attr, 'ksize') and hasattr(node.pb.attr, 'strides') else None,
         'layout': data_format.s.decode(),
         'exclude_pad': True,
     }
