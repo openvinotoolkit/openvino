@@ -59,6 +59,11 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
+set_target_properties(onnx_importer PROPERTIES
+                      CXX_VISIBILITY_PRESET default
+                      C_VISIBILITY_PRESET default
+                      VISIBILITY_INLINES_HIDDEN OFF)
+
 target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} ngraph::builder
                                     PUBLIC ngraph)
 
