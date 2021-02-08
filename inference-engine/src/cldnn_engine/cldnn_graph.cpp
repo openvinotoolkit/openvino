@@ -26,6 +26,7 @@
 #include <exec_graph_info.hpp>
 #include <ie_ngraph_utils.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph/ngraph.hpp>
 #include "cldnn_itt.h"
 
 using namespace InferenceEngine;
