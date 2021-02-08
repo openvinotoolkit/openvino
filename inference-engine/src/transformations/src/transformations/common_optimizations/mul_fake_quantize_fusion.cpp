@@ -18,7 +18,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::MulFakeQuantizeFusion, "MulFakeQuantizeFusi
 
 ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
     MATCHER_SCOPE(MulFakeQuantizeFusion);
-    auto mul_pattern = ngraph::pattern::wrap_type<opset5::Multiply>({ngraph::pattern::any_input(), ngraph::pattern::wrap_type<opset5::Constant>()},
+    auto input_pattern = ngraph::pattern::any_input();
+    auto const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
+    auto mul_pattern = ngraph::pattern::wrap_type<opset5::Multiply>({input_pattern, const_pattern},
                                                                     pattern::consumers_count(1));
     auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({mul_pattern,
                                                                         ngraph::pattern::any_input(),
@@ -26,20 +28,13 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
                                                                         ngraph::pattern::any_input(),
                                                                         ngraph::pattern::any_input()});
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(m.get_match_root());
+        const auto& pattern_value_map = m.get_pattern_value_map();
+        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
             return false;
-        auto mul = std::dynamic_pointer_cast<opset5::Multiply>(fq->input_value(0).get_node_shared_ptr());
-        if (!mul)
+        auto mul_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
+        if (!mul_const)
             return false;
-        auto mul_data = mul->input_value(0).get_node_shared_ptr();
-        auto mul_const = std::dynamic_pointer_cast<opset5::Constant>(mul->input_value(1).get_node_shared_ptr());
-        if (!mul_const) {
-            mul_const = std::dynamic_pointer_cast<opset5::Constant>(mul->input_value(0).get_node_shared_ptr());
-            if (!mul_const)
-                return false;
-            mul_data = mul->input_value(1).get_node_shared_ptr();
-        }
 
         auto const_shape = mul_const->get_shape();
         size_t const_shape_size = shape_size(const_shape);
@@ -63,6 +58,9 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
         auto new_input_low = std::make_shared<opset5::Divide>(fq->input_value(1), mul_const_node);
         auto new_input_high = std::make_shared<opset5::Divide>(fq->input_value(2), mul_const_node);
 
+        auto mul = pattern_value_map.at(mul_pattern).get_node_shared_ptr();
+        const auto& mul_data = pattern_value_map.at(input_pattern);
+
         std::shared_ptr<Node> new_fq;
         auto mul_const_value = mul_const->cast_vector<float>();
         if (std::all_of(mul_const_value.begin(), mul_const_value.end(), [] (float f) -> bool { return f < 0.0f; })) {
@@ -74,9 +72,9 @@ ngraph::pass::MulFakeQuantizeFusion::MulFakeQuantizeFusion() {
             const auto& output_high = fq->input_value(4);
             auto zero = op::Constant::create(element::f32, Shape{}, {0.0f});
             // get the mask of the values from mul_const that are less than zero
-            // and greater or equal to zero
             std::vector<float> less_than_zero;
             less_than_zero.reserve(mul_const_value.size());
+            // and greater or equal to zero
             std::vector<float> greater_eq_zero;
             greater_eq_zero.reserve(mul_const_value.size());
             for (size_t i = 0; i < mul_const_value.size(); i++) {

@@ -18,7 +18,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::AddFakeQuantizeFusion, "AddFakeQuantizeFusi
 
 ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     MATCHER_SCOPE(AddFakeQuantizeFusion);
-    auto add_pattern = ngraph::pattern::wrap_type<opset5::Add>({ngraph::pattern::any_input(), ngraph::pattern::wrap_type<opset5::Constant>()},
+    auto input_pattern = ngraph::pattern::any_input();
+    auto const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
+    auto add_pattern = ngraph::pattern::wrap_type<opset5::Add>({input_pattern, const_pattern},
                                                                pattern::consumers_count(1));
     auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({add_pattern,
                                                                         ngraph::pattern::any_input(),
@@ -26,20 +28,13 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
                                                                         ngraph::pattern::any_input(),
                                                                         ngraph::pattern::any_input()});
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(m.get_match_root());
+        const auto& pattern_value_map = m.get_pattern_value_map();
+        auto fq = std::dynamic_pointer_cast<opset5::FakeQuantize>(pattern_value_map.at(fq_pattern).get_node_shared_ptr());
         if (!fq)
             return false;
-        auto add = std::dynamic_pointer_cast<opset5::Add>(fq->input_value(0).get_node_shared_ptr());
-        if (!add)
+        std::shared_ptr<Node> add_const = std::dynamic_pointer_cast<opset5::Constant>(pattern_value_map.at(const_pattern).get_node_shared_ptr());
+        if (!add_const)
             return false;
-        std::shared_ptr<Node> add_data = add->input_value(0).get_node_shared_ptr();
-        std::shared_ptr<Node> add_const = std::dynamic_pointer_cast<opset5::Constant>(add->input_value(1).get_node_shared_ptr());
-        if (!add_const) {
-            add_const = std::dynamic_pointer_cast<opset5::Constant>(add->input_value(0).get_node_shared_ptr());
-            if (!add_const)
-                return false;
-            add_data = add->input_value(1).get_node_shared_ptr();
-        }
         auto const_shape = add_const->get_shape();
         size_t const_shape_size = shape_size(const_shape);
         if (const_shape_size > 1) {
@@ -58,15 +53,14 @@ ngraph::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
         }
         auto new_input_low = std::make_shared<opset5::Subtract>(fq->input_value(1), add_const);
         auto new_input_high = std::make_shared<opset5::Subtract>(fq->input_value(2), add_const);
-
-        auto new_fq = register_new_node<ngraph::opset5::FakeQuantize>(add_data,
-                                                                      new_input_low,
-                                                                      new_input_high,
-                                                                      fq->input_value(3),
-                                                                      fq->input_value(4),
-                                                                      fq->get_levels());
+        auto new_fq = register_new_node<opset5::FakeQuantize>(pattern_value_map.at(input_pattern),
+                                                              new_input_low,
+                                                              new_input_high,
+                                                              fq->input_value(3),
+                                                              fq->input_value(4),
+                                                              fq->get_levels());
         new_fq->set_friendly_name(fq->get_friendly_name());
-        copy_runtime_info({add, fq}, {new_input_low, new_input_high, new_fq});
+        copy_runtime_info({pattern_value_map.at(add_pattern).get_node_shared_ptr(), fq}, {new_input_low, new_input_high, new_fq});
         replace_node(fq, new_fq);
         return true;
     };
