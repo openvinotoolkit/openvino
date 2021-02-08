@@ -1666,9 +1666,20 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"ResamplV2"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "ResampleV2", details::convertPrecision(node->get_output_element_type(0))};
+        LayerParams attrs = {node->get_friendly_name(), "Resample", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
+
+        res->params["antialias"] = res->getBoolStrParamAsIntStr("antialias");
+        if (res->params["type"] == "nearest") {
+            res->params["type"] = "caffe.ResampleParameter.NEAREST";
+        } else if (res->params["type"] == "cubic") {
+            res->params["type"] = "caffe.ResampleParameter.CUBIC";
+        } else if (res->params["type"] == "area") {
+            res->params["type"] = "caffe.ResampleParameter.AREA";
+        } else if (res->params["type"] == "linear") {
+            res->params["type"] = "caffe.ResampleParameter.LINEAR";
+        }
         return res;
     });
 
