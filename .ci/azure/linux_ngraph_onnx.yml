@@ -2,10 +2,10 @@ jobs:
 - job: nGraph_ONNX_Lin
 
   # About 150% of total time
-  timeoutInMinutes: 60
+  timeoutInMinutes: 45
 
   pool:
-    name: LIN_VMSS_VENV_F8S_WU2
+    name: LIN_VMSS_VENV_ONNX_WU2
 
   variables:
     system.debug: true
@@ -15,81 +15,56 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     WORK_DIR: $(Pipeline.Workspace)/_w
-    BUILD_DIR: $(WORK_DIR)/build
-    BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
-    INSTALL_DIR: $(WORK_DIR)/install
+    MODELS_DIR: /mnt/onnxtestdata/models
+    TMP_DIR: /mnt/tmp
 
   steps:
+  - script: |
+      curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
+      whoami
+      uname -a
+      echo Python3 info ; which python3 ; python3 --version
+      echo Python info ; which python ; python --version
+      echo Java info ; which java ; java -version
+      echo gcc info ; which gcc ; gcc --version
+      lsb_release
+      env
+      cat /proc/cpuinfo
+      cat /proc/meminfo
+      cat /etc/fstab
+      vmstat -s
+      df
+      lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
+      free -h
+    displayName: 'System info'
+
+  - script: |
+      rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
+      sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
+    displayName: 'Make dir'
+
   - checkout: self
     clean: true
     lfs: false
     submodules: recursive
     path: openvino
 
-  - script: |
-      curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
-      whoami
-      uname -a
-      which python3
-      python3 --version
-      gcc --version
-      lsb_release
-      env
-      cat /proc/cpuinfo
-      cat /proc/meminfo
-      vmstat -s
-      df
-    displayName: 'System info'
-
-  - script: |
-      rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
-    displayName: 'Make dir'
-
-  - script: |
-      sudo apt --assume-yes install libusb-1.0-0-dev
-      python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
-      # For running Python API tests
-      python3 -m pip install -r ./inference-engine/ie_bridges/python/src/requirements-dev.txt
-    displayName: 'Install dependencies'
-    enabled: false
-
-  - script: |
-      wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
-      unzip ninja-linux.zip
-      sudo cp -v ninja /usr/local/bin/
-    workingDirectory: $(WORK_DIR)
-    displayName: 'Install Ninja'
-    enabled: false
-
-  - task: CMake@1
-    inputs:
-      # CMake must get Python 3.x version by default
-      cmakeArgs: -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_VPU=OFF -DENABLE_GNA=OFF -DENABLE_OPENCV=OFF -DENABLE_CPPLINT=OFF -DENABLE_TESTS=OFF -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=OFF -DENABLE_PROFILING_ITT=OFF -DENABLE_SAMPLES=OFF -DENABLE_SPEECH_DEMO=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DNGRAPH_ONNX_IMPORT_ENABLE=ON -DNGRAPH_INTERPRETER_ENABLE=ON -DNGRAPH_DEBUG_ENABLE=OFF -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) $(REPO_DIR)
-      workingDirectory: $(BUILD_DIR)
-    enabled: false
-
-  - script: ninja
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Build'
-    enabled: false
-
-  - script: make install
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Install'
-    enabled: false
-
-  - script: |
-      ls -alR $(REPO_DIR)/bin/
-      ls -alR $(INSTALL_DIR)
-    displayName: 'List files'
-    enabled: false
-
-  - script: docker build --tag=openvino-onnx-ci-image --file=$(REPO_DIR)/.ci/openvino-onnx/Dockerfile .
-    workingDirectory: $(BUILD_DIR)
+  - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
     displayName: 'Docker build'
+
+  - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o
+    displayName: 'Get models'
+
+  - script: |
+      ls -alR $(MODELS_DIR)
+      ls -alR $(TMP_DIR)
+    displayName: 'List models'
     enabled: false
 
-  - script: docker run --name openvino-onnx-ci-container openvino-onnx-ci-image
-    workingDirectory: $(BUILD_DIR)
-    displayName: 'Docker run tests'
-    enabled: false
+  - script: sudo fallocate -l 48G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
+    displayName: 'Create swap'
+
+  - script: |
+      docker run --name openvino-onnx-ci-container --volume $(TMP_DIR)/model_zoo:/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
+    displayName: 'Docker run'
+

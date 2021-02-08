@@ -14,6 +14,7 @@ public:
 
     explicit StaticShapeLoop(const Loop& loop);
     void validate_and_infer_types() override;
+    bool visit_attributes(AttributeVisitor&) override;
 };
 
 }  // namespace op
