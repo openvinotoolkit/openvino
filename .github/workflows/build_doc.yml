@@ -1,0 +1,28 @@
+name: Code Style
+on: [push, pull_request]
+
+jobs:
+  Doc:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install ShellCheck
+        run: sudo apt --assume-yes install shellcheck
+
+      - name: Install dependencies
+        run: |
+          sudo apt --assume-yes install libusb-1.0-0-dev
+          python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+
+      - name: CMake
+        run: |
+          mkdir build
+          cd build
+          cmake -DENABLE_DOCS=ON ..
+
+      - name: Build doc
+        run: cmake --build . --target openvino_docs
+        working-directory: build
