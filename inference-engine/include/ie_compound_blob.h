@@ -289,8 +289,8 @@ class INFERENCE_ENGINE_API_CLASS(BatchedBlob) : public CompoundBlob {
      * @brief Constructs a batched blob from a vector of blobs
      * @details All passed blobs should meet following requirements:
      * - all blobs have equal tensor descriptors,
-     * - blobs layouts should be one of: NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW
-     * - batch dimensions should be equal to 1 or not defined (C, CHW).
+     * - blobs layouts should be one of: NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW, HWC
+     * - batch dimensions should be equal to 1 or not defined (C, CHW, HWC).
      * Resulting blob's tensor descriptor is constructed using tensor descriptors
      * of passed blobs by setting batch dimension to blobs.size()
      *
@@ -302,8 +302,8 @@ class INFERENCE_ENGINE_API_CLASS(BatchedBlob) : public CompoundBlob {
      * @brief Constructs a batched blob from a vector of blobs
      * @details All passed blobs should meet following requirements:
      * - all blobs have equal tensor descriptors,
-     * - blobs layouts should be one of: NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW
-     * - batch dimensions should be equal to 1 or not defined (C, CHW).
+     * - blobs layouts should be one of: NCHW, NHWC, NCDHW, NDHWC, NC, CN, C, CHW, HWC
+     * - batch dimensions should be equal to 1 or not defined (C, CHW, HWC).
      * Resulting blob's tensor descriptor is constructed using tensor descriptors
      * of passed blobs by setting batch dimension to blobs.size()
      *

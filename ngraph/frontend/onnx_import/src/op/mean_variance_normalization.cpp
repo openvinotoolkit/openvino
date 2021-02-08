@@ -19,6 +19,7 @@
 #include "default_opset.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/mvn.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "ngraph/validation_util.hpp"
 #include "op/mean_variance_normalization.hpp"
 
@@ -38,7 +39,7 @@ namespace ngraph
                     bool normalize_variance =
                         node.get_attribute_value<std::int64_t>("normalize_variance", 1);
 
-                    return {std::make_shared<default_opset::MVN>(
+                    return {std::make_shared<ngraph::opset5::MVN>(
                         data, across_channels, normalize_variance)};
                 }
 
