@@ -30,16 +30,16 @@ jobs:
 
       - name: CMake doc
         run: |
-          mkdir openvino_doc
-          cd openvino_doc
+          mkdir build
+          cd build
           cmake -DENABLE_DOCS=ON ..
 
       - name: Build doc
         run: cmake --build . --target openvino_docs || exit 0
-        working-directory: openvino_doc
+        working-directory: build
 
       - name: 'Upload doc'
         uses: actions/upload-artifact@v2
         with:
           name: openvino_doc
-          path: openvino_doc/docs/html/
+          path: build/docs/html/
