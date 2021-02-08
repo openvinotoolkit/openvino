@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,9 +30,10 @@ std::shared_ptr<Node> createWeightsOriginal(
     const size_t groupCount,
     const size_t kernelSize,
     const std::vector<float>& weightsValues,
-    const FakeQuantizeOnWeights& fakeQuantizeOnWeights) {
+    const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights) {
     std::shared_ptr<Node> weights;
-    if (fakeQuantizeOnWeights.empty()) {
+    if (fakeQuantizeOnWeights.empty() && dequantizationOnWeights.empty()) {
         weights = ngraph::opset1::Constant::create(
             precision,
             ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
@@ -41,32 +42,36 @@ std::shared_ptr<Node> createWeightsOriginal(
                 weightsValues);
     } else {
         const size_t inputChannelsPerGroup = inputChannelsCount / groupCount;
-        const std::shared_ptr<ngraph::opset1::Constant> weightsConst = ngraph::opset1::Constant::create(
+        weights = ngraph::opset1::Constant::create(
             precision,
             ngraph::Shape{ outputChannelsCount, inputChannelsPerGroup, kernelSize, kernelSize },
             weightsValues.size() == 1ul ?
                 std::vector<float>(outputChannelsCount * kernelSize * kernelSize * inputChannelsPerGroup, weightsValues[0]) :
                 weightsValues);
 
-        const std::shared_ptr<ngraph::Node> fakeQuantize = ngraph::builder::makeFakeQuantize(
-            weightsConst,
-            precision,
-            fakeQuantizeOnWeights.quantizationLevel,
-            { outputChannelsCount, 1, 1, 1 },
-            fakeQuantizeOnWeights.inputLowValues,
-            fakeQuantizeOnWeights.inputHighValues,
-            fakeQuantizeOnWeights.outputLowValues,
-            fakeQuantizeOnWeights.outputHighValues);
+        if (!fakeQuantizeOnWeights.empty()) {
+            weights = ngraph::builder::makeFakeQuantize(
+                weights,
+                precision,
+                fakeQuantizeOnWeights.quantizationLevel,
+                { outputChannelsCount, 1, 1, 1 },
+                fakeQuantizeOnWeights.inputLowValues,
+                fakeQuantizeOnWeights.inputHighValues,
+                fakeQuantizeOnWeights.outputLowValues,
+                fakeQuantizeOnWeights.outputHighValues);
+        }
 
-        const std::shared_ptr<ngraph::opset1::Reshape> reshape = std::make_shared<ngraph::opset1::Reshape>(
-            fakeQuantize,
+        if (!dequantizationOnWeights.empty()) {
+            weights = ngraph::builder::subgraph::makeDequantization(weights, dequantizationOnWeights);
+        }
+
+        weights = std::make_shared<ngraph::opset1::Reshape>(
+            weights,
             ngraph::opset1::Constant::create(
                 element::i64,
                 Shape{ 5 },
                 std::vector<size_t>({ groupCount, outputChannelsCount / groupCount, inputChannelsPerGroup, 7, 7 })),
             true);
-
-        weights = reshape;
     }
 
     return weights;
@@ -100,7 +105,8 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
         groupCount,
         kernelSize,
         weightsConst->cast_vector<float>(),
-        fakeQuantizeOnWeights);
+        fakeQuantizeOnWeights,
+        {});
 
     const auto convolution = std::make_shared<ngraph::opset1::GroupConvolution>(
         dequantization,
@@ -152,7 +158,8 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
         groupCount,
         kernelSize,
         weightsValues,
-        fakeQuantizeOnWeights);
+        fakeQuantizeOnWeights,
+        {});
 
     const auto convolution = std::make_shared<ngraph::opset1::GroupConvolution>(
         fakeQuantizeOnActivations == nullptr ? input : fakeQuantizeOnActivations,
@@ -166,14 +173,15 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "GroupConvolutionTransformation");
 }
 
-std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
+std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const ngraph::Shape& outputShape,
     const size_t groupCount,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     std::shared_ptr<ngraph::opset1::Constant> weightsConst,
-    const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
+    const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
     const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const ngraph::element::Type precisionAfterDequantization) {
@@ -193,7 +201,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
     }
 
     std::shared_ptr<ngraph::Node> weights;
-    if (fakeQuantizeOnWeights.empty()) {
+    if (fakeQuantizeOnWeights.empty() && dequantizationOnWeights.empty()) {
         const ngraph::Shape weightsShape = ngraph::Shape{ groupCount, outputChannelsInGroup, inputChannelsInGroup, kernelSize, kernelSize };
         weights = ngraph::opset1::Constant::create(
             weightsConst->get_element_type(),
@@ -210,7 +218,8 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
             groupCount,
             kernelSize,
             weightsConst->cast_vector<float>(),
-            fakeQuantizeOnWeights);
+            fakeQuantizeOnWeights,
+            dequantizationOnWeights);
     }
 
     auto convolutionOriginal = ngraph::opset1::GroupConvolution(

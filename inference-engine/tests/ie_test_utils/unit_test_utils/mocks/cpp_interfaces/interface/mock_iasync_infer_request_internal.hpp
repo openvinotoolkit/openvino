@@ -20,11 +20,11 @@ public:
     MOCK_METHOD1(GetUserData, void(void **));
     MOCK_METHOD1(SetUserData, void(void *));
     MOCK_METHOD0(Infer, void());
-    MOCK_CONST_METHOD1(GetPerformanceCounts, void(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &));
-    MOCK_METHOD2(SetBlob, void(const char *name, const InferenceEngine::Blob::Ptr &));
-    MOCK_METHOD2(GetBlob, void(const char *name, InferenceEngine::Blob::Ptr &));
-    MOCK_METHOD3(SetBlob, void(const char *name, const InferenceEngine::Blob::Ptr &, const InferenceEngine::PreProcessInfo&));
-    MOCK_CONST_METHOD2(GetPreProcess, void(const char* name, const InferenceEngine::PreProcessInfo**));
+    MOCK_CONST_METHOD0(GetPerformanceCounts, std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>());
+    MOCK_METHOD2(SetBlob, void(const std::string&, const InferenceEngine::Blob::Ptr &));
+    MOCK_METHOD1(GetBlob, InferenceEngine::Blob::Ptr(const std::string&));
+    MOCK_METHOD3(SetBlob, void(const std::string&, const InferenceEngine::Blob::Ptr &, const InferenceEngine::PreProcessInfo&));
+    MOCK_CONST_METHOD1(GetPreProcess, const InferenceEngine::PreProcessInfo&(const std::string&));
     MOCK_METHOD1(SetCompletionCallback, void(InferenceEngine::IInferRequest::CompletionCallback));
     MOCK_METHOD1(SetBatch, void(int));
     MOCK_METHOD0(QueryState, std::vector<IVariableStateInternal::Ptr>());

@@ -314,7 +314,7 @@ static std::string pretty_partial_shape(const PartialShape& shape)
             }
             if (shape[i].is_dynamic())
             {
-                ss << "?";
+                ss << shape[i];
             }
             else
             {
