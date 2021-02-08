@@ -231,6 +231,8 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
         std::copy_if(dataObjects.begin(), dataObjects.end(), std::back_inserter(unusedInputs), [](const Data& data) {
             return data->usage() == DataUsage::Input && !data->isConsumed();
         });
+        // There is no guarantee that model->datas() always contain data objects in the same order from run to run,
+        // so to stabilize allocation, and as a result, the final blob, we need to sort them
         std::sort(unusedInputs.begin(), unusedInputs.end(), [](const Data& lhs, const Data& rhs) { return lhs->name() < rhs->name(); });
         std::for_each(unusedInputs.begin(), unusedInputs.end(), [&allocateShape](const Data& unusedInput) { allocateShape(unusedInput); });
 

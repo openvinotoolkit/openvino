@@ -389,15 +389,15 @@ void FrontEnd::processTrivialCases(const Model& model) {
     for (const auto& dataObjectsWithTheSameOrigData : ieToVpuDataVector) {
         if (dataObjectsWithTheSameOrigData.second.size() > 1) {
             VPU_THROW_UNLESS(dataObjectsWithTheSameOrigData.second.size() == 2,
-                             "There can't be more than two data objects connected with the same origData {}",
+                             "There can't be more than two data objects associated with the same original IE data object with name {}",
                              dataObjectsWithTheSameOrigData.first->getName());
             trivialCases.push_back(dataObjectsWithTheSameOrigData.second);
         }
     }
 
     for (const auto& trivialCase : trivialCases) {
-        Data unconnectedOutput = trivialCase.front()->usage() == DataUsage::Output ? trivialCase.front() : trivialCase.back();
-        Data unconnectedInput = unconnectedOutput == trivialCase.front() ? trivialCase.back() : trivialCase.front();
+        const auto& unconnectedOutput = trivialCase.front()->usage() == DataUsage::Output ? trivialCase.front() : trivialCase.back();
+        const auto& unconnectedInput = unconnectedOutput == trivialCase.front() ? trivialCase.back() : trivialCase.front();
 
         _stageBuilder->addCopyStage(
             model,
