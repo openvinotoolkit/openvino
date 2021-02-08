@@ -45,15 +45,11 @@ namespace ngraph
 
                     if (return_mask)
                     {
-                        NGRAPH_WARN << "Default mask for Dropout is ignored, "
-                                    << "because of unsupported constant networks";
-                        /*const auto mask = std::make_shared<default_opset::Broadcast>(
-                                default_opset::Constant::create(ngraph::element::boolean,
-                            Shape{}, {true}),
-                                std::make_shared<default_opset::ShapeOf>(input_data));*/
-                        // If constant network is supported mask should be returned instead of
-                        // NullNode (ticket 48055)
-                        return {input_data, std::make_shared<NullNode>()};
+                        const auto mask = std::make_shared<default_opset::Broadcast>(
+                            default_opset::Constant::create(
+                                ngraph::element::boolean, Shape{}, {true}),
+                            std::make_shared<default_opset::ShapeOf>(input_data));
+                        return {input_data, mask};
                     }
                     else
                     {
