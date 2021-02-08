@@ -244,31 +244,6 @@ namespace ngraph
 
                 Coordinate get_input_coords_for_nearest_mode(const Coordinate& output_coord);
 
-                struct InfoForLinearONNXMode
-                {
-                    std::vector<float> y_original;
-                    std::vector<float> x_original;
-
-                    std::vector<int64_t> input_width_mul_y1;
-                    std::vector<int64_t> input_width_mul_y2;
-                    std::vector<int64_t> in_x1;
-                    std::vector<int64_t> in_x2;
-
-                    std::vector<float> dy1;
-                    std::vector<float> dy2;
-                    std::vector<float> dx1;
-                    std::vector<float> dx2;
-
-                    int64_t batch_size;
-                    int64_t num_channels;
-                    int64_t input_height;
-                    int64_t input_width;
-                    int64_t output_height;
-                    int64_t output_width;
-                };
-
-                InfoForLinearONNXMode get_info_for_linear_onnx_mode();
-
                 struct InfoForGenericLinearONNXMode
                 {
                     int64_t input_data_ptr_increment;
@@ -413,12 +388,6 @@ namespace ngraph
                 /// \param out pointer to memory block for output data
                 void linear_onnx_func(const T* input_data, T* out);
 
-                /// \brief Calculates interpolation as in ONNX 'linear' mode (4D case)
-                ///
-                /// \param input_data pointer to input data
-                /// \param out pointer to memory block for output data
-                void linear_onnx4D_func(const T* input_data, T* out);
-
                 /// \brief Calculates interpolation as in ONNX 'linear' mode (generic case)
                 ///
                 /// \param input_data pointer to input data
@@ -484,6 +453,8 @@ namespace ngraph
             void InterpolateEval<T>::linear_onnx_generic_func(const T* input_data, T* out)
             {
                 size_t input_rank = m_input_data_shape.size();
+
+                assert(input_rank > 1);
 
                 size_t num_of_axes = m_axes.size();
 
@@ -618,63 +589,6 @@ namespace ngraph
 
                         xdata += input_data_ptr_increment;
                         ydata += output_data_ptr_increment;
-                    }
-                }
-            }
-
-            template <typename T>
-            void InterpolateEval<T>::linear_onnx4D_func(const T* input_data, T* out)
-            {
-                size_t input_rank = m_input_data_shape.size();
-                size_t num_of_axes = m_axes.size();
-
-                assert((input_rank == 2) || (input_rank == 4));
-                assert((num_of_axes == 2) || (num_of_axes == input_rank));
-
-                bool correct_axes = ((m_axes[0] == 0) && (m_axes[1] == 1)) ||
-                                    ((m_axes[0] == 2) && (m_axes[1] == 3));
-
-                if ((num_of_axes == 4) && (input_rank == 4))
-                {
-                    correct_axes = (m_axes[0] == 0) && (m_axes[1] == 1) && (m_axes[2] == 2) &&
-                                   (m_axes[3] == 3);
-                }
-
-                assert(correct_axes);
-
-                const auto info = helper.get_info_for_linear_onnx_mode();
-
-                int64_t batch_size = info.batch_size;
-                int64_t num_channels = info.num_channels;
-                int64_t output_height = info.output_height;
-                int64_t output_width = info.output_width;
-                int64_t input_height = info.input_height;
-                int64_t input_width = info.input_width;
-
-                const T* xdata = input_data;
-                T* ydata = out;
-                for (int64_t n = 0; n < batch_size; ++n)
-                {
-                    for (int64_t c = 0; c < num_channels; ++c)
-                    {
-                        for (int64_t y = 0; y < output_height; ++y)
-                        {
-                            for (int64_t x = 0; x < output_width; ++x)
-                            {
-                                T x11 = xdata[info.input_width_mul_y1[y] + info.in_x1[x]];
-                                T x21 = xdata[info.input_width_mul_y1[y] + info.in_x2[x]];
-                                T x12 = xdata[info.input_width_mul_y2[y] + info.in_x1[x]];
-                                T x22 = xdata[info.input_width_mul_y2[y] + info.in_x2[x]];
-
-                                ydata[output_width * y + x] =
-                                    static_cast<T>(info.dx2[x] * info.dy2[y] * x11 +
-                                                   info.dx1[x] * info.dy2[y] * x21 +
-                                                   info.dx2[x] * info.dy1[y] * x12 +
-                                                   info.dx1[x] * info.dy1[y] * x22);
-                            }
-                        }
-                        xdata += input_height * input_width;
-                        ydata += output_width * output_height;
                     }
                 }
             }
