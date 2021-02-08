@@ -263,7 +263,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
             import subprocess
             path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)),
                                                            'offline_transformations.py')
-            status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ)
+            status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=600)
             if status.returncode != 0:
                 print("[ WARNING ] offline_transformations return code {}, using fallback".format(status.returncode))
 
