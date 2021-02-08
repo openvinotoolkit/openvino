@@ -1435,8 +1435,6 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
     }
 
     auto nGraphFunc = network.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
 
@@ -1627,8 +1625,6 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOpOpset6) {
     }
 
     auto nGraphFunc = network.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
 
