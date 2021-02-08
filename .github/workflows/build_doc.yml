@@ -2,7 +2,7 @@ name: Documentation
 on: [push, pull_request]
 
 jobs:
-  Build-Doc:
+  Build_Doc:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -14,6 +14,7 @@ jobs:
         run: |
           sudo apt --assume-yes install libusb-1.0-0-dev doxygen graphviz texlive
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+          python3 -m pip install lxml
 
       - name: CMake
         run: |
