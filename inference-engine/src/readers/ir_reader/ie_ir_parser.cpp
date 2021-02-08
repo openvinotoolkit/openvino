@@ -693,7 +693,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     auto opsetIt = opsets.find(params.version);
 
     // Try to create operation from loaded opsets
-    auto version = params.version;
     static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
                                                                             "ExperimentalDetectronGenerateProposalsSingleImage",
                                                                             "ExperimentalDetectronPriorGridGenerator",
@@ -701,11 +700,10 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                                             "ExperimentalDetectronTopKROIs"};
 
     if (experimental_detectrons.count(params.type)) {
-        version = "opset6";
+        opsetIt = opsets.find("opset6");
     }
 
-    if (!ngraphNode && opsets.count(version)) {
-        auto opset = opsets.at(version);
+    if (!ngraphNode && opsetIt != opsets.end()) {
         auto const & type = params.type == "Const"
                                 ? "Constant"
                                 : params.type;
@@ -718,9 +716,10 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
                         << " from unsupported opset: " << params.version;
                 }
-                opset = opsetIt->second;
             }
         }
+
+        auto const& opset = opsetIt->second;
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
         if (!ngraphNode) {
