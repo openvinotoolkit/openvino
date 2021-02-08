@@ -24,7 +24,6 @@ class PoolV2ToAttributedPool(MiddleReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for pool_v2_node in graph.get_op_nodes(op='PoolingV2'):
-
             pool_v2_name = pool_v2_node.soft_get('name', pool_v2_node.id)
 
             pool_v1_node = Pooling(graph, {'window': pool_v2_node.in_port(1).data.get_value(),
