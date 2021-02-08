@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -651,10 +651,10 @@ std::vector<std::pair<CNNLayerPtr, int> > CNNNetGetPrevLayersSkip(CNNLayerPtr or
  * @brief remove given layer from topology, currently only layers with one input data and one output data supported
  */
 inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
-    gnalog() << "Removing " << layer->name << " layer\n";
     if (!layer) {
         THROW_IE_EXCEPTION << "Cannot remove layer pointed to NULL";
     }
+    gnalog() << "Removing " << layer->name << " layer\n";
     if (layer->insData.size() != 1) {
         THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" that has not 1 input";
     }
