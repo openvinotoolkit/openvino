@@ -236,16 +236,14 @@ int main(int argc, char *argv[]) {
         const bool isBGR = false;
 
         /** Iterate over all input images **/
-        for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
-            auto image = imagesData.at(image_id).get();
-            for (size_t h = 0; h < H; h++) {
-                for (size_t w = 0; w < W; w++) {
-                    for (size_t c = 0; c < C; ++c) {
-                        if (isBGR) {
-                            data[image_id * H * W * C + c + w * C + h * W * C] = image[c + w * C + h * W * C];
-                        } else {
-                            data[image_id * H * W * C + c + w * C + h * W * C] = image[(C - c - 1) + w * C + h * W * C];
-                        }
+        auto image = imagesData.at(0).get();
+        for (size_t h = 0; h < H; h++) {
+            for (size_t w = 0; w < W; w++) {
+                for (size_t c = 0; c < C; ++c) {
+                    if (isBGR) {
+                        data[c + w * C + h * W * C] = image[c + w * C + h * W * C];
+                    } else {
+                        data[c + w * C + h * W * C] = image[(C - c - 1) + w * C + h * W * C];
                     }
                 }
             }
