@@ -17,10 +17,13 @@ jobs:
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
           python3 -m pip install lxml
           # install doxygen
+          mkdir doxygen
+          cd doxygen
           git clone https://github.com/doxygen/doxygen.git
           cd doxygen
           git checkout Release_1_9_1
           mkdir build
+          cd build
           cmake ..
           cmake --build . -j2
           sudo make install
@@ -39,4 +42,4 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: openvino_doc
-          path: openvino_doc/
+          path: openvino_doc/docs/html/
