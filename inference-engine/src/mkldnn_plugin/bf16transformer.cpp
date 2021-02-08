@@ -43,6 +43,7 @@ void BF16Transformer::convertToFloat(InferenceEngine::CNNNetwork &network) {
         for (size_t o = 0; o < iter->outData.size(); o++) {
             if (inputs.find(iter->outData[o]->getName()) == inputs.end()
                 && outputs.find(iter->outData[o]->getName()) == outputs.end()
+                && !CaselessEq<std::string>()(iter->type, "const")
                 && iter->outData[o]->getPrecision() == Precision::BF16) {
                 iter->outData[o]->setPrecision(Precision::FP32);
             }
