@@ -42,14 +42,14 @@ struct jGatherArgs {
     int* retVal; // remove
 };
 
-struct jitUniGatherKernel {
+struct jitGatherKernelBase {
     void (*ker_)(const jGatherArgs *);
     void operator()(const jGatherArgs *args) {
         assert(ker_);
         ker_(args);
     }
-    explicit jitUniGatherKernel(jGatherConfParams jcp) : ker_(nullptr), jcp_(jcp) {}
-    virtual ~jitUniGatherKernel() {}
+    explicit jitGatherKernelBase(jGatherConfParams jcp) : ker_(nullptr), jcp_(jcp) {}
+    virtual ~jitGatherKernelBase() {}
 
     virtual void create_ker() = 0;
 
@@ -59,10 +59,10 @@ struct jitUniGatherKernel {
 #define GET_OFF(field) offsetof(jGatherArgs, field)
 
 template <x64::cpu_isa_t isa>
-struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jitUniGatherKernel_32)
+struct jitUniGatherKernel : public jitGatherKernelBase, public x64::jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jitUniGatherKernel)
 
-    explicit jitUniGatherKernel_32(jGatherConfParams jcp) : jitUniGatherKernel(jcp), x64::jit_generator() {}
+    explicit jitUniGatherKernel(jGatherConfParams jcp) : jitGatherKernelBase(jcp), x64::jit_generator() {}
 
     void create_ker() override {
         x64::jit_generator::create_kernel();
@@ -102,7 +102,6 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
                 jl(lTail, T_NEAR);
 
                 fillIndicies(vmmSrcShifts);
-
                 uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
                 vpgatherdd(vmmDst, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
                 uni_vmovups(ptr[regDst], vmmDst);
@@ -153,24 +152,15 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
             mov(regAux1, ptr[regParams + GET_OFF(permMask16bit)]);
             uni_vmovups(vmmPermMask, ptr[regAux1]);
 
-//mov(regAux1, ptr[regParams + GET_OFF(tmp)]);
-//mov(regAux2, ptr[regParams + GET_OFF(retVal)]);
-
             Xbyak::Label lDstIdxLoop, lTail, lFinish;
             L(lDstIdxLoop);
             {
                 cmp(regWorkAmount, elPerVec);
                 jl(lTail, T_NEAR);
 
-                gatherAndShift(vmmAux3, vmmShufMask);
+                gatherAndShift(vmmAux3, vmmShufMask); // VPERMB 512
                 gatherAndShift(vmmAux4, vmmShufMask);
-                vshufps(vmmAux3, vmmAux3, vmmAux4, 0);
-
-                gatherAndShift(vmmAux4, vmmShufMask);
-                gatherAndShift(vmmAux5, vmmShufMask);
-                vshufps(vmmAux4, vmmAux4, vmmAux5, 0);
-
-                vshufps(vmmAux3, vmmAux3, vmmAux4, 0x88);
+                vshufps(vmmAux3, vmmAux3, vmmAux4, 0x44);
                 vpermd(vmmAux3, vmmPermMask, vmmAux3);
 
                 uni_vmovups(ptr[regDst], vmmAux3);
@@ -220,9 +210,6 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
             mov(regAux1, ptr[regParams + GET_OFF(permMask8bit)]);
             uni_vmovups(vmmPermMask, ptr[regAux1]);
 
-//mov(regAux1, ptr[regParams + GET_OFF(tmp)]);
-//mov(regAux2, ptr[regParams + GET_OFF(retVal)]);
-
             Xbyak::Label lDstIdxLoop, lTail, lFinish;
             L(lDstIdxLoop);
             {
@@ -267,7 +254,6 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
 
                 L(lCalc);
                 mov(eax, ptr[regIndices + regIdxIter]);
-//                mul(regDictTypeSize32);
                 add(eax, regAxDimSum32);
                 mov(regAux3_8, ptr[regSrc + rax]);
                 mov(ptr[regDst], regAux3_8);
@@ -284,39 +270,15 @@ struct jitUniGatherKernel_32 : public jitUniGatherKernel, public x64::jit_genera
     }
 
 protected:
-//    inline void uni_insertps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& op, uint8_t imm) {
-//        if (isa == x64::avx512_common || isa == x64::avx2) {
-//            vinsertps(x1, x2, op, imm);
-//        } else {
-//            insertps(x1, op, imm);
-//        }
-//    }
-
-//    inline void uni_movaps(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2) {
-//        if (isa == x64::avx512_common || isa == x64::avx2) {
-//            vmovaps(x1, x2);
-//        } else {
-//            movaps(x1, x2);
-//        }
-//    }
-
-//    inline void uni_vpmuldq(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& x3) {
-//        if (isa == x64::avx512_common || isa == x64::avx2) {
-//            vpmuldq(x1, x2, x3);
-//        } else {
-//            pmuldq(x1, x3);
-//        }
-//    }
-
     void fillIndicies(Xbyak::Xmm& dst) {
         Xbyak::Label lPerElements, lExit;
 
-        cmp(regIdxIter, jcp_.indicesSize - 16);
+        cmp(regIdxIter, jcp_.indicesSize - vlenXmm);
         jg(lPerElements, T_NEAR);
             uni_vmovups(dst, ptr[regIndices + regIdxIter]);
             uni_vpmulld(dst, dst, xmmDictTypeSize);
             uni_vpaddd(dst, dst, xmmAxDimSum);
-            add(regIdxIter, 16);
+            add(regIdxIter, vlenXmm);
         cmp(regIdxIter, jcp_.indicesSize);
         jl(lExit, T_NEAR);
             uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
@@ -339,57 +301,58 @@ protected:
             vinsertps(dst, dst, xmmAux1, i << 4);
             add(regIdxIter, sizeof(int));
         }
-//mov(ptr[regAux2], regAux1);
-//uni_vmovups(ptr[regAux1], dst);
         L(lExit);
     }
 
     void fillIndicies(Xbyak::Ymm& dst) {
         Xbyak::Label lPerXmm, lExit;
 
-        cmp(regIdxIter, jcp_.indicesSize - 32);
+        cmp(regIdxIter, jcp_.indicesSize - vlenYmm);
         jg(lPerXmm, T_NEAR);
             uni_vmovups(dst, ptr[regIndices + regIdxIter]);
-//mov(ptr[regAux2], regIdxIter);
-//uni_vmovups(ptr[regAux1], dst);
             uni_vpmulld(dst, dst, vmmDictTypeSize);
-            uni_vpaddd(dst, dst, vmmAxDimSum); //check +*
-            add(regIdxIter, 32);
+            uni_vpaddd(dst, dst, vmmAxDimSum);
+            add(regIdxIter, vlenYmm);
         cmp(regIdxIter, jcp_.indicesSize);
         jl(lExit, T_NEAR);
             uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
             mov(regIdxIter, 0);
         jmp(lExit, T_NEAR);
         L(lPerXmm);
-//uni_vmovups(vmmAux1, ptr[regIndices + regIdxIter]);
-//uni_vmovups(ptr[regAux1], vmmAux1);
             for (int i = 0; i < 2; i++) {
-//if (i == 0) {
-//mov(regAux3, jcp_.indicesSize);
-//mov(ptr[regAux2], regAux3);
-////mov(ptr[regAux2], regIdxIter);
-////uni_vmovups(ptr[regAux1], xmmAux0);
-//}
                 fillIndicies(xmmAux0);
-//if (i == 0) {
-////mov(ptr[regAux2], regIdxIter);
-//uni_vmovups(ptr[regAux1], xmmAux0);
-//}
                 vinsertf128(dst, dst, xmmAux0, i);
             }
         L(lExit);
     }
 
     void fillIndicies(Xbyak::Zmm& dst) {
-        for (int i = 0; i < 2; i++) {
-            fillIndicies(ymmDstAxIdx);
-            vinsertf32x8(dst, dst, ymmDstAxIdx, i);
-        }
+        Xbyak::Label lPerYmm, lExit;
+
+        cmp(regIdxIter, jcp_.indicesSize - vlen);
+        jg(lPerYmm, T_NEAR);
+            uni_vmovups(dst, ptr[regIndices + regIdxIter]);
+            uni_vpmulld(dst, dst, vmmDictTypeSize);
+            uni_vpaddd(dst, dst, vmmAxDimSum);
+            add(regIdxIter, vlen);
+        cmp(regIdxIter, jcp_.indicesSize);
+        jl(lExit, T_NEAR);
+            uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
+            mov(regIdxIter, 0);
+        jmp(lExit, T_NEAR);
+        L(lPerYmm);
+            for (int i = 0; i < 2; i++) {
+                fillIndicies(ymmAux2);
+                vinsertf32x8(dst, dst, ymmAux2, i);
+            }
+        L(lExit);
     }
 
 protected:
     using Vmm = typename mkldnn::impl::utils::conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    uint32_t vlen = x64::cpu_isa_traits<isa>::vlen;
+    const uint32_t vlen = x64::cpu_isa_traits<isa>::vlen;
+    const uint32_t vlenXmm = x64::cpu_isa_traits<x64::sse41>::vlen;
+    const uint32_t vlenYmm = x64::cpu_isa_traits<x64::avx2>::vlen;
     int elPerVec;
 
     void gatherAndShift(const Vmm& dst, const Vmm& vmmShufMask) {
@@ -416,7 +379,7 @@ protected:
     Xbyak::Xmm xmmAxDim = Xbyak::Xmm(3);
     Xbyak::Xmm xmmDictTypeSize = Xbyak::Xmm(4);
 
-    Xbyak::Ymm ymmDstAxIdx = Xbyak::Ymm(0);
+    Xbyak::Ymm ymmAux2 = Xbyak::Ymm(7);
 
     Vmm vmmAux0 = Vmm(0);
     Vmm vmmAux1 = Vmm(1);
@@ -425,7 +388,7 @@ protected:
     Vmm vmmDictTypeSize = Vmm(4);
     Vmm vmmSrcShifts = Vmm(5);
     Vmm vmmOnesBit = Vmm(6);
-    Vmm vmmAux2 = Vmm(7);
+//    Vmm vmmAux2 = Vmm(7);
     Vmm vmmAux3 = Vmm(8);
     Vmm vmmAux4 = Vmm(9);
     Vmm vmmAux5 = Vmm(10);
@@ -510,12 +473,12 @@ public:
             jcp.indicesSize = indicesSize_ * idxPrecision.size();
             jcp.dictTypeSize = dictTypeSize_;
             if (x64::mayiuse(x64::avx512_common)) {
-                kernel32_.reset(new jitUniGatherKernel_32<x64::avx512_common>(jcp));
+                jKernel_.reset(new jitUniGatherKernel<x64::avx512_common>(jcp));
             } else if (x64::mayiuse(x64::avx2)) {
-                kernel32_.reset(new jitUniGatherKernel_32<x64::avx2>(jcp));
+                jKernel_.reset(new jitUniGatherKernel<x64::avx2>(jcp));
             }
-            if (kernel32_)
-                kernel32_->create_ker();
+            if (jKernel_)
+                jKernel_->create_ker();
         }
     }
 
@@ -554,7 +517,7 @@ private:
             dataType *dstData = output->buffer().as<dataType*>() + output->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
             size_t workAmount = beforeAxisSize_ * indicesSize_;
-            if (kernel32_) {
+            if (jKernel_) {
                 auto threadBody = [&](const int ithr, const int nthr) {
                     size_t start(0lu), end(0lu);
                     splitter(workAmount, nthr, ithr, start, end);
@@ -591,7 +554,7 @@ private:
                     arg.workAmount = end - start;
 //                    arg.tmp = tmp;
 //                    arg.retVal = &retVal;
-                    (*kernel32_)(&arg);
+                    (*jKernel_)(&arg);
 //    std::string tmpStr = "tmp: ";
 //for (int s = 0; s < 8; s++) {
 //    tmpStr += std::to_string(tmp[s]) + "; ";
@@ -673,8 +636,8 @@ private:
     int shufMask8bit_[8] = {0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080};
     int permMask8bit_[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     int shufMask16bit_[8] = {0x05040100, 0x0D0C0908, 0x80808080, 0x80808080, 0x05040100, 0x0D0C0908, 0x80808080, 0x80808080};
-    int permMask16bit_[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-    std::shared_ptr<jitUniGatherKernel> kernel32_;
+    int permMask16bit_[8] = {0, 1, 4, 5, 2, 3, 6, 7};
+    std::shared_ptr<jitGatherKernelBase> jKernel_;
 };
 
 

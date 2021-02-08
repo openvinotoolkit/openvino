@@ -55,6 +55,8 @@ protected:
         std::tie(dictionaryShape, indicesShape, axis, dictPrecision, idxPrecision, axPrecision, targetDevice, cpuParams) = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType = std::string("unknown_") + dictPrecision.name();
+        if (dictPrecision == InferenceEngine::Precision::FP16)
+            selectedType = std::string("unknown_") + InferenceEngine::Precision(InferenceEngine::Precision::FP32).name();
 
         auto ngDictPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(dictPrecision);
         auto ngIdxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(idxPrecision);
@@ -91,6 +93,10 @@ TEST_P(GatherCpuSpecLayerTest, CompareWithRefs) {
 namespace {
     std::vector<InferenceEngine::Precision> precisions = {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::BF16, InferenceEngine::Precision::I32, InferenceEngine::Precision::I8};
+    // op implementation allows just I32 and I64 for indices
+    std::vector<InferenceEngine::Precision> idxPrecisions = {InferenceEngine::Precision::I32, InferenceEngine::Precision::I64};
+    std::vector<InferenceEngine::Precision> axisPrecisions = {InferenceEngine::Precision::I32, InferenceEngine::Precision::I64,
+        InferenceEngine::Precision::I16, InferenceEngine::Precision::I8};
 
     std::vector<CPUSpecificParams> cpuParams_1D = {
             CPUSpecificParams({x}, {}, {}, {})
@@ -110,62 +116,60 @@ namespace {
 
     INSTANTIATE_TEST_CASE_P(smoke_1D, GatherCpuSpecLayerTest,
                 ::testing::Combine(
-                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3}, {8}, {16}, {33}, {47}})),  // Data shape
-                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}})),      // Indices shape
-                    ::testing::ValuesIn(std::vector<int>({0})),                                           // Axis
+                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3}, {200}})),                           // Data shape
+                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {20, 5}, {1, 3, 8}, {2, 167}})),    // Indices shape
+                    ::testing::ValuesIn(std::vector<int>({0})),                                                    // Axis
                     ::testing::ValuesIn(precisions),
-                    ::testing::ValuesIn(precisions),
-                    ::testing::ValuesIn(precisions),
+                    ::testing::ValuesIn(idxPrecisions),
+                    ::testing::ValuesIn(axisPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_1D))),
             GatherCpuSpecLayerTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_2D, GatherCpuSpecLayerTest,
                 ::testing::Combine(
-                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 3}, {2, 8}, {3, 16}, {2, 33}, {2, 47}})),  // Data shape
-                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}, {2, 32}, /*{2, 320000}*/})),            // Indices shape
-                    ::testing::ValuesIn(std::vector<int>({0, 1})),                                                       // Axis
+                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 3}, {200, 50}})),             // Data shape
+                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}, {2, 165}, /*{2, 320000}*/})),            // Indices shape
+                    ::testing::ValuesIn(std::vector<int>({0, 1})),                                          // Axis
                     ::testing::ValuesIn(precisions),
-                    ::testing::ValuesIn(precisions),
-                    ::testing::ValuesIn(precisions),
+                    ::testing::ValuesIn(idxPrecisions),
+                    ::testing::ValuesIn(axisPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_2D))),
             GatherCpuSpecLayerTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_3D, GatherCpuSpecLayerTest,
                 ::testing::Combine(
-                        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 3, 3}, {2, 2, 8}, {3, 1, 16}, {2, 2, 33}, {2, 1, 47}})),  // Data shape
-                        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}})),                                    // Indices shape
-                        ::testing::ValuesIn(std::vector<int>({0, 1, 2})),                                                                   // Axis
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 3, 3}, {20, 10, 8}})),            // Data shape
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}, {3, 164}})),  // Indices shape
+                        ::testing::ValuesIn(std::vector<int>({0, 1, 2})),                                           // Axis
                         ::testing::ValuesIn(precisions),
-                        ::testing::ValuesIn(precisions),
-                        ::testing::ValuesIn(precisions),
+                        ::testing::ValuesIn(idxPrecisions),
+                        ::testing::ValuesIn(axisPrecisions),
                         ::testing::Values(CommonTestUtils::DEVICE_CPU),
                     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_3D))),
             GatherCpuSpecLayerTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_4D, GatherCpuSpecLayerTest,
                 ::testing::Combine(
-                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 3, 3, 3},
-                        {2, 2, 2, 8}, {1, 3, 1, 16}, {1, 2, 2, 33}, {1, 2, 1, 47}})),                   // Data shape
-                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}})),    // Indices shape
-                    ::testing::ValuesIn(std::vector<int>({0, 1, 3})),                                   // Axis
+                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 3, 3, 3}, {2, 5, 12, 8}})),       // Data shape
+                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}, {3, 170}})),  // Indices shape
+                    ::testing::ValuesIn(std::vector<int>({0, 1, 3})),                                           // Axis
                     ::testing::ValuesIn(precisions),
-                    ::testing::ValuesIn(precisions),
-                    ::testing::ValuesIn(precisions),
+                    ::testing::ValuesIn(idxPrecisions),
+                    ::testing::ValuesIn(axisPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D))),
             GatherCpuSpecLayerTest::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_5D, GatherCpuSpecLayerTest,
                 ::testing::Combine(
-                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 3, 3, 3, 3},
-                        {2, 2, 2, 2, 8}, {3, 1, 3, 1, 16}, {2, 1, 2, 2, 33}, {2, 1, 2, 1, 47}})),              // Data shape
-                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}, {1, 16}})),  // Indices shape
-                    ::testing::ValuesIn(std::vector<int>({0, 2, 4})),                                          // Axis
+                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{3, 3, 3, 3, 3}, {2, 5, 2, 5, 8}})),  // Data shape
+                    ::testing::ValuesIn(std::vector<std::vector<size_t>>({{2}, {2, 5}, {1, 3, 8}, {2, 171}})),  // Indices shape
+                    ::testing::ValuesIn(std::vector<int>({0, 2, 4})),                                           // Axis
                     ::testing::ValuesIn(precisions),
-                    ::testing::ValuesIn(precisions),
-                    ::testing::ValuesIn(precisions),
+                    ::testing::ValuesIn(idxPrecisions),
+                    ::testing::ValuesIn(axisPrecisions),
                     ::testing::Values(CommonTestUtils::DEVICE_CPU),
                     ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D))),
             GatherCpuSpecLayerTest::getTestCaseName);
