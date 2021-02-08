@@ -46,21 +46,6 @@ namespace ngraph
                 const auto x_pshape = m_map[OpInput::X].get_partial_shape();
                 const auto w_pshape = m_map[OpInput::W].get_partial_shape();
                 const auto r_pshape = m_map[OpInput::R].get_partial_shape();
-                std::cout << "Transposed Recurrent X shape: " << x_pshape << std::endl;
-                // NGRAPH_CHECK(x_pshape.rank().is_static() && x_pshape[0].is_static() &&
-                //                  x_pshape[1].is_static(),
-                //              "RecurrentSequence input X must have static \"seq_length\" and "
-                //              "\"batch_size\" dimensions.");
-                // NGRAPH_CHECK(w_pshape.rank().is_static() && w_pshape[0].is_static(),
-                //              "RecurrentSequence input W must have static \"num_directions\" "
-                //              "(outermost) dimension.");
-                // NGRAPH_CHECK(r_pshape.rank().is_static() && r_pshape[2].is_static(),
-                //              "RecurrentSequence input R must have static \"hidden_size\" "
-                //              "(innermost) dimension.");
-
-                // const std::size_t hidden_size = m_map[OpInput::R].get_shape().back();
-                // const std::size_t batch_size = m_map[OpInput::X].get_shape().at(0);
-                // const std::size_t num_directions = m_map[OpInput::W].get_shape().front();
 
                 // Get dimensions needed for default inputs creation
                 auto shape_of_x = std::make_shared<default_opset::ShapeOf>(
@@ -87,7 +72,7 @@ namespace ngraph
                     default_opset::Constant::create(element::i32, Shape{1}, {2}),
                     axes);
 
-
+                // ------ Optional inputs ------
                 if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
                 {
                     auto bias = ng_inputs.at(3);
