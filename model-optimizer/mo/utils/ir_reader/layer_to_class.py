@@ -370,6 +370,7 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
         if len(debug_dict) > 0:
             for out in op.out_nodes():
                 op.out_node(out)['fw_tensor_debug_info'] = debug_dict[out + len(op.in_nodes())]
+                op['fw_tensor_debug_info'] = None
         else:
             op['fw_tensor_debug_info'] = None
         if op.soft_get('type') in postprocessing_op_nodes:
