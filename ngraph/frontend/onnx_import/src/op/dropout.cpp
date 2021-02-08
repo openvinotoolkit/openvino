@@ -120,9 +120,8 @@ namespace ngraph
                 OutputVector dropout(const Node& node)
                 {
                     CHECK_VALID_NODE(node,
-                                     !node.has_attribute("consumed_inputs"),
-                                     "Legacy consumed_inputs attrubute is not supported.");
 
+                    // legacy consumed_inputs attribute ignored 
                     const bool training_mode = !node.get_attribute_value<int64_t>("is_test", 0);
                     const auto ratio = node.get_attribute_value<float>("ratio", 0.5f);
 
