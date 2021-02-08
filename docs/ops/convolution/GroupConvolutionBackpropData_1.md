@@ -4,47 +4,17 @@
 
 **Category**: Convolution
 
-**Short description**: Computes the gradients of a GroupConvolution operation with respect to the input. Also known as Deconvolution or Transposed Convolution.
+**Short description**: Computes 1D, 2D or 3D *GroupConvolutionBackpropData* of input and kernel tensors.
 
-**Detailed description**:
+**Detailed description**: Splits input and filters into multiple groups, computes *ConvolutionBackpropData* on them and concatenates the results. It is equivalent to GroupConvolution and Convolution relationship.
 
-GroupConvolutionBackpropData is similar to ConvolutionBackpropData but also specifies the group processing in a way similar to how GroupConvolution extends behavior of a regular Convolution operation.
-
-GroupConvolutionBackpropData takes input tensor, weights tensor and output shape and computes output tensor of a given shape. The shape of the output can be specified as an input 1D integer tensor explicitly or determined according to other attributes implicitly. If the output shape is specified as an explicit input, shape of the output exactly matches the specified size and required amount of padding is computed.
-
-GroupConvolutionBackpropData accepts the same set of attributes as a regular GroupConvolution operation, but they are interpreted in a "backward way", so they are applied to the output of GroupConvolutionBackpropData, but not to the input. Refer to a regular GroupConvolution operation for detailed description of each attribute.
-
-Output shape when specified as an input `output_shape`, specifies only spatial dimensions. No batch or channel dimension should be passed along with H, W or other spatial dimensions. If `output_shape` is omitted, then `pads_begin`, `pads_end` or `auto_pad` are used to determine output spatial shape `[Y_1, Y_2, ..., Y_D]` by input spatial shape `[X_1, X_2, ..., X_D]` in the following way:
-
-```
-if auto_pads != None:
-    pads_begin[i] = 0
-    pads_end[i] = 0
-
-Y_i = stride[i] * (X_i - 1) + ((K_i - 1) * dilations[i] + 1) - pads_begin[i] - pads_end[i] + output_padding[i]
-```
-
-where `K_i` filter kernel dimension along spatial axis `i`.
-
- If `output_shape` is specified, `pads_begin` and `pads_end` are ignored, and `auto_pad` defines how to distribute padding amount around the tensor. In this case pads are determined based on the next formulas to correctly align input and output tensors (similar to ONNX definition at https://github.com/onnx/onnx/blob/master/docs/Operators.md#convtranspose):
-
-```
-total_padding[i] = stride[i] * (X_i - 1) + ((K_i - 1) * dilations[i] + 1) - output_shape[i] + output_padding[i]
-if auto_pads != SAME_UPPER:
-    pads_begin[i] = total_padding[i] // 2
-    pads_end[i] = total_padding[i] - pads_begin[i]
-else:
-    pads_end[i] = total_padding[i] // 2
-    pads_begin[i] = total_padding[i] - pads_end[i]
-```
-
-**Attributes**
+**Attributes**: The operation has the same attributes as a *ConvolutionBackpropData*. Number of groups is derived from the kernel shape. 
 
 * *strides*
 
   * **Description**: *strides* has the same definition as *strides* for a regular Convolution but applied in the backward way, for the output tensor.
   * **Range of values**: positive integers
-  * **Type**: int[]
+  * **Type**: `int[]`
   * **Default value**: None
   * **Required**: *yes*
 
@@ -52,7 +22,7 @@ else:
 
   * **Description**: *pads_begin* has the same definition as *pads_begin* for a regular Convolution but applied in the backward way, for the output tensor. May be omitted, in which case pads are calculated automatically.
   * **Range of values**: non-negative integers
-  * **Type**: int[]
+  * **Type**: `int[]`
   * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
@@ -61,7 +31,7 @@ else:
 
   * **Description**: *pads_end* has the same definition as *pads_end* for a regular Convolution but applied in the backward way, for the output tensor. May be omitted, in which case pads are calculated automatically.
   * **Range of values**: non-negative integers
-  * **Type**: int[]
+  * **Type**: `int[]`
   * **Default value**: None
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
@@ -70,43 +40,82 @@ else:
 
   * **Description**: *dilations* has the same definition as *dilations* for a regular Convolution but applied in the backward way, for the output tensor.
   * **Range of values**: positive integers
-  * **Type**: int[]
+  * **Type**: `int[]`
   * **Default value**: None
   * **Required**: *yes*
 
 * *auto_pad*
 
   * **Description**: *auto_pad* has the same definition as *auto_pad* for a regular Convolution but applied in the backward way, for the output tensor. 
-    * *explicit*: use explicit padding values from `pads_begin` and `pads_end`.
-    * *same_upper (same_lower)* the input is padded to match the output size. In case of odd padding value an extra padding is added at the end (at the beginning).
+    * *explicit* - use explicit padding values from *pads_begin* and *pads_end*.
+    * *same_upper* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the end.
+    * *same_lower* - the input is padded to match the output size. In case of odd padding value an extra padding is added at the beginning.
     * *valid* - do not use padding.
-  * **Type**: string
-  * **Default value**: None
+  * **Type**: `string`
+  * **Default value**: explicit
   * **Required**: *no*
   * **Note**: *pads_begin* and *pads_end* attributes are ignored when *auto_pad* is specified.
 
 * *output_padding*
 
-  * **Description**: *output_padding* adds additional amount of paddings per each spatial axis in the `output` tensor. It unlocks more elements in the output allowing them to be computed. Elements are added at the higher coordinate indices for the spatial dimensions. Number of elements in *output_padding* list matches the number of spatial dimensions in `data` and `output` tensors.
+  * **Description**: *output_padding* adds additional amount of paddings per each spatial axis in the output tensor. It unlocks more elements in the output allowing them to be computed. Elements are added at the higher coordinate indices for the spatial dimensions. Number of elements in *output_padding* list matches the number of spatial dimensions in input and output tensors.
   * **Range of values**: non-negative integer values
-  * **Type**: int[]
+  * **Type**: `int[]`
   * **Default value**: all zeros
   * **Required**: *no*
 
 **Inputs**:
 
-*   **1**: `data` -- input tensor of rank 3 or greater. Layout is `[N, C_INPUT * GROUPS, X1, ..., XD]`, where `GROUPS` is the number of groups that is specified as a dedicated dimension in `filter` input. *Required*.
+*   **1**: Input tensor of type `T1` and rank 3, 4 or 5. Layout is `NCZYX` (number of batches, number of channels, spatial axes Z, Y, X). Required.
 
-*   **2**: `filter` -- convolution kernel tensor. Weights have shape `[GROUPS, C_INPUT, C_OUTPUT, K_D, ..., K_1]`. `C_INPUT` is the number of channels in input `data` tensor shape, and `C_OUTPUT` is the number of channels in the `output` tensor. `GROUPS` is the number of groups in input/output channel dimension. Spatial size of the kernel `[K_D, ..., K_1]` is derived from the shape of this input and not specified by any attribute. *Required*.
+*   **2**: Kernel tensor of type `T1` and rank 4, 5 or 6. Layout is `GOIZYX` (number of groups, number of output channels, number of input channels, spatial axes Z, Y, X). Required.
 
-*   **3**: `output_shape` is 1D integer tensor that specifies spatial shape of the output. *Optional*. If specified, *padding amount* is deduced from relation of input and output spatial shapes according to formulas in the description. If not specified, *output shape* is calculated based on the `pads_begin` and `pads_end` or completely according to `auto_pad`.
-
+*   **3**: Output shape tensor of type `T2` and rank 1. It specifies spatial shape of the output. Optional.
+*   **Note** Number of groups is derived from the shape of the kernel and not specified by any attribute. 
+*   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
+      * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
+      * 2D convolution (input tensors rank 4) means that there are two spatial axes Y, X
+      * 3D convolution (input tensors rank 5) means that there are three spatial axes Z, Y, X
+  
 **Outputs**:
 
-*   **1**: `output` -- output tensor of the same rank as input `data` tensor and shape `[N, GROUPS * C_OUTPUT, Y1, ..., YD]`, where `GROUPS` is the number of groups that is specified as a dedicated dimension in `filter` input.
+*   **1**: Output tensor of type `T1` and rank 3, 4 or 5 (the same as input *1*). Layout is `NOZYX` (number of batches, number of kernel output channels, spatial axes Z, Y, X).
+
+**Types**:
+
+* *T1*: any floating point type.
+* *T2*: any integer type.
 
 **Example**
 
+1D GroupConvolutionBackpropData
+```xml
+<layer id="5" name="upsampling_node" type="GroupConvolutionBackpropData">
+    <data dilations="1" pads_begin="1" pads_end="1" strides="2"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>20</dim>
+            <dim>224</dim>
+        </port>
+        <port id="1">
+            <dim>4</dim>
+            <dim>5</dim>
+            <dim>2</dim>
+            <dim>3</dim>
+        </port>
+    </input>
+    <output>
+        <port id="0" precision="FP32">
+            <dim>1</dim>
+            <dim>8</dim>
+            <dim>447</dim>
+        </port>
+    </output>
+</layer>
+```
+
+2D GroupConvolutionBackpropData
 ```xml
 <layer id="5" name="upsampling_node" type="GroupConvolutionBackpropData">
     <data dilations="1,1" pads_begin="1,1" pads_end="1,1" strides="2,2"/>
@@ -129,6 +138,39 @@ else:
         <port id="0" precision="FP32">
             <dim>1</dim>
             <dim>8</dim>
+            <dim>447</dim>
+            <dim>447</dim>
+        </port>
+    </output>
+</layer>
+```
+
+3D GroupConvolutionBackpropData
+```xml
+<layer id="5" name="upsampling_node" type="GroupConvolutionBackpropData">
+    <data dilations="1,1,1" pads_begin="1,1,1" pads_end="1,1,1" strides="2,2,2"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>20</dim>
+            <dim>224</dim>
+            <dim>224</dim>
+            <dim>224</dim>
+        </port>
+        <port id="1">
+            <dim>4</dim>
+            <dim>5</dim>
+            <dim>2</dim>
+            <dim>3</dim>
+            <dim>3</dim>
+            <dim>3</dim>
+        </port>
+    </input>
+    <output>
+        <port id="0" precision="FP32">
+            <dim>1</dim>
+            <dim>8</dim>
+            <dim>447</dim>
             <dim>447</dim>
             <dim>447</dim>
         </port>

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,24 +15,24 @@
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
-        std::vector<ptrdiff_t>,
-        std::vector<ptrdiff_t>,
-        InferenceEngine::SizeVector,
-        size_t,
-        size_t,
-        ngraph::op::PadType> groupConvBackpropDataSpecificParams;
-typedef std::tuple<
+using  groupConvBackpropDataSpecificParams = std::tuple<
+    InferenceEngine::SizeVector,        // kernels
+    InferenceEngine::SizeVector,        // strides
+    std::vector<ptrdiff_t>,             // pad begins
+    std::vector<ptrdiff_t>,             // pad ends
+    InferenceEngine::SizeVector,        // dilations
+    size_t,                             // num output channels
+    size_t,                             // num groups
+    ngraph::op::PadType>;               // padding type
+using  groupConvBackpropDataLayerTestParamsSet = std::tuple<
         groupConvBackpropDataSpecificParams,
-        InferenceEngine::Precision,
-        InferenceEngine::Precision,    // Input precision
-        InferenceEngine::Precision,    // Output precision
-        InferenceEngine::Layout,       // Input layout
-        InferenceEngine::Layout,       // Output layout
-        InferenceEngine::SizeVector,
-        LayerTestsUtils::TargetDevice> groupConvBackpropDataLayerTestParamsSet;
+        InferenceEngine::Precision,     // Network precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
+        InferenceEngine::SizeVector,    // Input shape
+        LayerTestsUtils::TargetDevice>; // Device name
 
 class GroupConvBackpropDataLayerTest : public testing::WithParamInterface<groupConvBackpropDataLayerTestParamsSet>,
                                        virtual public LayerTestsUtils::LayerTestsCommon {
