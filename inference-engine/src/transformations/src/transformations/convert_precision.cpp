@@ -327,7 +327,7 @@ inline dst_type convert_value(src_type val) {
 // and we don't need to compare and clamp the input to std::numeric_limits<int32_t>::lowest()
 template <>
 inline int32_t convert_value<uint64_t, int32_t>(uint64_t val) {
-    if (val > std::numeric_limits<int32_t>::max()) {
+    if (val > static_cast<uint64_t>(std::numeric_limits<int32_t>::max())) {
         return std::numeric_limits<int32_t>::max();
     }
     return static_cast<int32_t>(val);
@@ -373,6 +373,8 @@ bool fuse_type_to_constant(std::shared_ptr<Node> & node, element::Type to, const
             new_const = change_constant_precision<element::Type_t::u8, element::Type_t::i32>(constant);
         } else if (from == element::u16 && to == element::i32) {
             new_const = change_constant_precision<element::Type_t::u16, element::Type_t::i32>(constant);
+        } else if (from == element::i16 && to == element::i32) {
+            new_const = change_constant_precision<element::Type_t::i16, element::Type_t::i32>(constant);
         } else if (from == element::u32 && to == element::i32) {
             new_const = change_constant_precision<element::Type_t::u32, element::Type_t::i32>(constant);
         } else if (from == element::f16 && to == element::f32) {

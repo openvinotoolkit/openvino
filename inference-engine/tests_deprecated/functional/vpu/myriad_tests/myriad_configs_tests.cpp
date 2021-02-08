@@ -21,45 +21,37 @@ typedef myriadLayerTestBaseWithParam<config_t> myriadIncorrectModelsConfigsTests
 //------------------------------------------------------------------------------
 
 TEST_P(myriadCorrectModelsConfigsTests_nightly, LoadNetworkWithCorrectConfig) {
-    InferenceEngine::ResponseDesc response;
     const auto &config = GetParam();
     DISABLE_IF(!hasAppropriateStick(config));
 
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
-    InferenceEngine::IExecutableNetwork::Ptr executable;
-    InferenceEngine::StatusCode sts = _vpuPluginPtr->LoadNetwork(executable, net, config, &response);
-
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts) << response.msg;
+    InferenceEngine::ExecutableNetwork executable;
+    ASSERT_NO_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config));
 }
 
 TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithAvailableDevice) {
-    InferenceEngine::ResponseDesc response;
     const auto &config = GetParam();
     DISABLE_IF(!hasAppropriateStick(config));
 
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
-    InferenceEngine::IExecutableNetwork::Ptr executable;
-    InferenceEngine::StatusCode sts = _vpuPluginPtr->LoadNetwork(executable, net, config, &response);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts) << response.msg;
+    InferenceEngine::ExecutableNetwork executable;
+    ASSERT_NO_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config));
 
-    InferenceEngine::IInferRequest::Ptr request;
-    sts = executable->CreateInferRequest(request, &response);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts) << response.msg;
+    InferenceEngine::InferRequest request;
+    ASSERT_NO_THROW(request = executable.CreateInferRequest());
 }
 
 TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithUnavailableDevice) {
-    InferenceEngine::ResponseDesc response;
     const auto &config = GetParam();
     DISABLE_IF(hasAppropriateStick(config));
 
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
-    InferenceEngine::IExecutableNetwork::Ptr executable;
-    InferenceEngine::StatusCode sts = _vpuPluginPtr->LoadNetwork(executable, net, config, &response);
-    ASSERT_EQ(InferenceEngine::StatusCode::OK, sts) << response.msg;
+    InferenceEngine::ExecutableNetwork executable;
+    ASSERT_NO_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config));
 
-    InferenceEngine::IInferRequest::Ptr request;
-    sts = executable->CreateInferRequest(request, &response);
-    ASSERT_EQ(InferenceEngine::StatusCode::GENERAL_ERROR, sts) << response.msg;
+    InferenceEngine::InferRequest request;
+    ASSERT_THROW(request = executable.CreateInferRequest(),
+        InferenceEngine::details::InferenceEngineException);
 }
 
 //------------------------------------------------------------------------------
@@ -67,14 +59,12 @@ TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithUnavailabl
 //------------------------------------------------------------------------------
 
 TEST_P(myriadIncorrectModelsConfigsTests_nightly, LoadNetworkWithIncorrectConfig) {
-    InferenceEngine::ResponseDesc response;
     const auto &config = GetParam();
 
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
-    InferenceEngine::IExecutableNetwork::Ptr executable;
-    InferenceEngine::StatusCode sts = _vpuPluginPtr->LoadNetwork(executable, net, config, &response);
-
-    ASSERT_EQ(InferenceEngine::StatusCode::GENERAL_ERROR, sts) << response.msg;
+    InferenceEngine::ExecutableNetwork executable;
+    ASSERT_THROW(executable = _vpuPluginPtr->LoadNetwork(net, config),
+        InferenceEngine::details::InferenceEngineException);
 }
 
 //------------------------------------------------------------------------------

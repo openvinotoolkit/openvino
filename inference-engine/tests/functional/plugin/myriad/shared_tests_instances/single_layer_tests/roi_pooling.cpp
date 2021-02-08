@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<std::vector<size_t>> inShapes = {
-    {3, 4, 50, 50}
+    {1, 4, 50, 50}
 };
 
 const std::vector<std::vector<size_t>> pooledShapes_max = {

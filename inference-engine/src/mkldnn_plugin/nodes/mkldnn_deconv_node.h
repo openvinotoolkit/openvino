@@ -23,7 +23,6 @@ public:
     void createPrimitive() override;
     void filterSupportedPrimitiveDescriptors() override;
     void filterSupportedDescriptors();
-    void execute(mkldnn::stream strm) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

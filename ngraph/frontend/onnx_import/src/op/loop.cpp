@@ -141,7 +141,6 @@ namespace ngraph
                     for (size_t i = loop_carried_dependencies.size() + 1; i < body_outputs.size();
                          ++i)
                     {
-                        const auto& body_output_shape = body_outputs[i].get_partial_shape();
                         body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(
                             body_outputs[i], concat_axis_const);
                     }
@@ -176,7 +175,7 @@ namespace ngraph
                                         body_inputs[0]); // current iteration body input
                     const auto body = std::make_shared<ngraph::Function>(body_outputs, body_params);
                     auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
-                    ngraph::opset5::Loop::SpecialBodyPorts spec_ports{0, 0};
+                    default_opset::Loop::SpecialBodyPorts spec_ports{0, 0};
                     loop->set_special_body_ports(spec_ports);
                     loop->set_function(body);
 

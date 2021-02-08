@@ -89,7 +89,6 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<Params> obj) {
-        unsigned int numThreads, numIterations;
         std::string deviceName;
         Config config;
         std::tie(deviceName, config) = obj.param;

@@ -24,7 +24,6 @@ namespace ngraph
             make_constant_from_double(const element::Type& type, const Shape& shape, double num)
         {
             auto ceil_func = [](double x) { return ceil(x); };
-            auto floor_func = [](double x) { return floor(x); };
 
             std::shared_ptr<ngraph::Node> result = nullptr;
             switch (type)

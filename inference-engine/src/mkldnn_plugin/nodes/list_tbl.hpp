@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,9 @@ MKLDNN_EXTENSION_NODE(GRNImpl, GRN);
 MKLDNN_EXTENSION_NODE(SparseFillEmptyRowsImpl, SparseFillEmptyRows);
 MKLDNN_EXTENSION_NODE(BucketizeImpl, Bucketize);
 MKLDNN_EXTENSION_NODE(CTCGreedyDecoderImpl, CTCGreedyDecoder);
+MKLDNN_EXTENSION_NODE(CTCGreedyDecoderSeqLenImpl, CTCGreedyDecoderSeqLen);
 MKLDNN_EXTENSION_NODE(GatherImpl, Gather);
+MKLDNN_EXTENSION_NODE(GatherElementsImpl, GatherElements);
 MKLDNN_EXTENSION_NODE(GatherNDImpl, GatherND);
 MKLDNN_EXTENSION_NODE(ProposalImpl, Proposal);
 MKLDNN_EXTENSION_NODE(RangeImpl, Range);

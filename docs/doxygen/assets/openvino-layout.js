@@ -505,6 +505,7 @@ function openVinoContent() {
         searchSlider.on('click', function() {
             $(this).toggleClass('closed open');
             $("#MSearchField").animate({width:'toggle'},200);
+            $('#MSearchField').focus();
         });
        if (['http:', 'https:'].indexOf(window.location.protocol) !== -1) {
            $('#MSearchField').replaceWith('<input type="text" name="query" id="MSearchField" value="Search" accesskey="S" onfocus="searchBox.OnSearchFieldFocus(true)">');
@@ -539,6 +540,51 @@ function openVinoContent() {
             $container.append($(".header, .contents")).insertAfter($("#top"));
             $(".contents").prepend($(".header"));
         }
+
+        // assign clipboard button for each .fragment element
+        $('.fragment').wrap('<div class="code-container"></div>');
+        $('.code-container').prepend($('<div class="code-header"></div>'));
+        var $copyButton = $('<span class="material-icons copy-button">content_copy</span>');
+        $copyButton.click(function() {
+            var self = this;
+            $(self).text('check_circle_outline')
+                   .css('color', '#003C71')
+                   .css("pointer-events", 'none');;
+            $(self).next('.copy-tooltip')
+                   .attr('data-original-title', 'Copied!')
+                   .tooltip('show')
+                   .addClass('active');
+            var fragment = $(self.parentElement.parentElement).children('div.fragment')[0];
+            var text = [];
+            $(fragment).children('div.line').each(function(key, val) {
+                text.push(val.innerText);
+            });
+            text = text.join('\n');
+            var $placeholder = $('<textarea>');
+            $placeholder.val(text);
+            $(document.body).append($placeholder);
+            $placeholder.select();
+            document.execCommand('copy');
+            $placeholder.remove();
+            setTimeout(function() {
+                $(self).text('content_copy')
+                       .css({'color':'inherit', "pointer-events": 'all'});
+                $(self).next('.copy-tooltip')
+                       .attr('data-original-title', 'Copy')
+                       .tooltip('hide')
+                       .removeClass('active');
+            }, 2000);
+        }).mouseenter(function() {
+            $(this).next('.copy-tooltip').tooltip('show');
+        }).mouseleave(function() {
+            if (!$(this).next('.copy-tooltip').hasClass('active')) {
+                $(this).next('.copy-tooltip').tooltip('hide'); 
+            }
+        });
+        $('.code-header').append($copyButton);
+        $('.code-header').append($('<span class="copy-tooltip" data-toggle="tooltip" trigger="manual" data-placement="right" title="Copy"></span>'));
+        // activate tooltips
+        $('[data-toggle="tooltip"]').tooltip();
 
         // Detect any anchor in the content that links to an image and add target="_blank" to it
         // This lets a user see very large images if they appear too narrow on page

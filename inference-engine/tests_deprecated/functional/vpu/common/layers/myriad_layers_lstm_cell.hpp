@@ -239,9 +239,6 @@ void lstm_cell(int input_size,
     const int n_gates = 4;
     const int ohf = 0; const int ohi = 1; const int oho = 2; const int ohc = 3;
 
-    int num_weights = state_size * (input_size + state_size);
-    int num_bias = state_size;
-
     /* gates = src_layer * weights_layer */
     gemm(1, n_gates * state_size, input_size,
          src_layer,     input_size,
@@ -306,7 +303,6 @@ static void matrix_copy_transpose_repack(const ie_fp16 *psrc, ie_fp16 *pdst, int
 
 TEST_P(myriadLayersTestsLSTMCell_smoke, LSTMCell) {
     auto param = GetParam();
-    lstmcell_test_params test_params = param;
 
     size_t input_size = param.input_size;
     size_t state_size = param.state_size;

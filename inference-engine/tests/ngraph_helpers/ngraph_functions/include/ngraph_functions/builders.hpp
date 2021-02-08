@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2019-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -137,6 +137,16 @@ std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<N
                                                           bool addBiases = false,
                                                           const std::vector<float> &biasesWeights = {});
 
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
+        const ngraph::Output<Node>& inputData,
+        const bool mergeRepeated);
+
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
+        const ngraph::Output<Node>& inputData,
+        int blankIndex,
+        bool mergeRepeated,
+        const element::Type& idxPrec);
+
 std::shared_ptr<ngraph::Node> makeCTCLoss(
         const ngraph::Output<Node>& logitsNode,
         std::vector<int>& logitsLength,
@@ -235,6 +245,12 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool acrossChannels,
                                       bool normalizeVariance,
                                       double eps);
+
+std::shared_ptr<ngraph::Node> makeMVN6(const Output<Node>& in,
+                                       const Output<Node>& axesNode,
+                                       bool normalizeVariance,
+                                       float eps,
+                                       std::string& epsMode);
 
 std::shared_ptr<ngraph::Node> makeSqueezeUnsqueeze(const ngraph::Output<Node> &in,
                                                    const element::Type &type,
@@ -439,6 +455,12 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
                                       bool make_sequence = false,
                                       ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD,
                                       ngraph::helpers::SequenceTestsMode mode = ngraph::helpers::SequenceTestsMode::PURE_SEQ);
+
+std::shared_ptr<ngraph::Node> makeGatherElements(
+                                      const ngraph::Output<Node>& dataNode,
+                                      const ngraph::Shape& indicesShape,
+                                      const element::Type& indicesType,
+                                      const int axis);
 
 std::shared_ptr<ngraph::Node> makeGatherND(
                                       const ngraph::Output<Node>& dataNode,

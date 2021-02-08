@@ -108,6 +108,7 @@ Standard MXNet\* symbols:
 | SoftmaxActivation | No |
 | SoftmaxOutput | No |
 | SoftSign | No |
+| Take | The attribute 'mode' is not supported |
 | Tile | No |
 | UpSampling | No |
 | Where | No |

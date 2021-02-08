@@ -43,7 +43,7 @@ To run the sample applications, you can use images and videos from the media fil
 
 ## Samples that Support Pre-Trained Models
 
-You can download the [pre-trained models](@ref omz_models_intel_index) using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or from [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the sample, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
 
 ## Build the Sample Applications
 
@@ -127,7 +127,7 @@ You can also build a generated solution manually. For example, if you want to bu
 Microsoft Visual Studio and open the generated solution file from the `C:\Users\<user>\Documents\Intel\OpenVINO\inference_engine_cpp_samples_build\Samples.sln`
 directory.
 
-### <a name="build_samples_linux"></a>Build the Sample Applications on macOS*
+### <a name="build_samples_macos"></a>Build the Sample Applications on macOS*
 
 The officially supported macOS* build environment is the following:
 

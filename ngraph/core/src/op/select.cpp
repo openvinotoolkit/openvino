@@ -146,6 +146,7 @@ namespace detail
             NGRAPH_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
             NGRAPH_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
             NGRAPH_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, f16, output_values, input_values, autob);
             NGRAPH_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
             NGRAPH_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
             NGRAPH_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
@@ -161,5 +162,6 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values,
 {
     NGRAPH_OP_SCOPE(v1_Select_evaluate);
     const auto autob = get_auto_broadcast();
-    return detail::evaluate_select(output_values, input_values, autob, get_output_element_type(0));
+    return detail::evaluate_select(
+        output_values, input_values, autob, output_values[0]->get_element_type());
 }

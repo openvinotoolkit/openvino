@@ -20,6 +20,7 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_memory_solver.hpp"
 #include "mkldnn_itt.h"
+#include "mkldnn_infer_request.h"
 #include <nodes/mkldnn_input_node.h>
 #include <nodes/mkldnn_reorder_node.h>
 
@@ -35,6 +36,7 @@
 #include <ie_plugin_config.hpp>
 
 #include "utils/blob_dump.h"
+#include "utils/general_utils.h"
 
 /*****************************************************
  * Debug capability
@@ -84,7 +86,7 @@ void MKLDNNGraph::ApplyUnrollPasses(NET &net) {
 }
 
 template void MKLDNNGraph::ApplyUnrollPasses(TensorIterator::Body&);
-template void MKLDNNGraph::ApplyUnrollPasses(ICNNNetwork&);
+template void MKLDNNGraph::ApplyUnrollPasses(CNNNetwork&);
 
 template<typename NET>
 void MKLDNNGraph::CreateGraph(const NET &net, const MKLDNNExtensionManager::Ptr& extMgr,
@@ -102,8 +104,6 @@ void MKLDNNGraph::CreateGraph(const NET &net, const MKLDNNExtensionManager::Ptr&
 }
 
 template void MKLDNNGraph::CreateGraph(const TensorIterator::Body&,
-        const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
-template void MKLDNNGraph::CreateGraph(const ICNNNetwork&,
         const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
 template void MKLDNNGraph::CreateGraph(const CNNNetwork&,
         const MKLDNNExtensionManager::Ptr&, MKLDNNWeightsSharing::Ptr&);
@@ -203,9 +203,8 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
     }
 }
 
-void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
-    InputsDataMap inputs;
-    network.getInputsInfo(inputs);
+void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
+    InputsDataMap inputs = network.getInputsInfo();
     if (inputs.empty()) {
         THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: No inputs for the topology";
     }
@@ -269,9 +268,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
         }
     }
 
-    std::map<std::string, DataPtr> outputs;
-    network.getOutputsInfo(outputs);
-
+    OutputsDataMap outputs = network.getOutputsInfo();
     for (const auto &output : outputs) {
         const auto data = output.second;
 
@@ -452,7 +449,7 @@ void MKLDNNGraph::InitOptimalPrimitiveDescriptors() {
 
 void MKLDNNGraph::ExecuteConstantNodesOnly() {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNN_LT, "MKLDNNGraph::ExecuteConstantNodesOnly");
-    mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
+    mkldnn::stream stream(eng);
     for (auto &graphNode : graphNodes) {
         if (!graphNode->isConstant())
             continue;
@@ -688,13 +685,12 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
         void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
 
         if (ext_data_ptr != inter_data_ptr) {
-            auto l = in->getTensorDesc().getLayout();
-            if (l == CHW && input->second->getChildEdgeAt(0)->getDims().ndims() == 4)
-                l = NCHW;
+            auto ext_tdesc = MKLDNNMemoryDesc {in->getTensorDesc()};
 
-            input->second->getChildEdgeAt(0)->getMemory().SetData(
-                    MKLDNNExtensionUtils::IEPrecisionToDataType(in->getTensorDesc().getPrecision()),
-                    MKLDNNMemory::Convert(l), ext_data_ptr, in->byteSize(), false);
+            auto ext_mem = MKLDNNMemory(eng);
+            ext_mem.Create(ext_tdesc, ext_data_ptr, false);
+
+            input->second->getChildEdgeAt(0)->getMemory().SetData(ext_mem, 0, false);
         }
 
         // todo: make sure 'name' exists in this map...
@@ -760,16 +756,16 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
     }
 }
 
-void MKLDNNGraph::Infer(int batch) {
+void MKLDNNGraph::Infer(MKLDNNInferRequest* request, int batch) {
     if (!IsReady()) {
         THROW_IE_EXCEPTION << "Wrong state. Topology is not ready.";
     }
 
-    mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
+    mkldnn::stream stream(eng);
+
     for (int i = 0; i < graphNodes.size(); i++) {
-        if (IsCancellationRequested()) {
-            ResetCancellationRequest();
-            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::INFER_CANCELLED;
+        if (request != nullptr) {
+            request->ThrowIfCanceled();
         }
 
         PERF(graphNodes[i]);
@@ -783,7 +779,6 @@ void MKLDNNGraph::Infer(int batch) {
             OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, graphNodes[i]->profiling.execute);
             graphNodes[i]->execute(stream);
         }
-
         ENABLE_DUMP(do_after(DUMP_DIR, graphNodes[i]));
     }
 

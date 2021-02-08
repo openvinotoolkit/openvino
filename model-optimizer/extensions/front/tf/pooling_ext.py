@@ -110,6 +110,6 @@ def create_pooling_attrs(node, pool_method, is_pooling_v2=False):
         'pool_method': pool_method,
         'type': 'Pooling' if not is_pooling_v2 else 'PoolingV2',
         'layout': data_format.s.decode(),
-        'exclude_pad': 'true',
+        'exclude_pad': True,
     }
     return attrs

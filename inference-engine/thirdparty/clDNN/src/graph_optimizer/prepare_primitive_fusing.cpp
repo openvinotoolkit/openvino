@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (c) 2018-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@
 #include "space_to_depth_inst.h"
 #include "gather_inst.h"
 #include "scatter_update_inst.h"
+#include "scatter_elements_update_inst.h"
 #include "reverse_sequence_inst.h"
 #include "shuffle_channels_inst.h"
 #include "space_to_batch_inst.h"
@@ -312,7 +313,8 @@ void prepare_primitive_fusing::fuse_bias(program_impl &p) {
                                                                      desc->input_offset,
                                                                      desc->dilation,
                                                                      conv.get_output_layout().size,
-                                                                     conv.get_output_layout().data_type);
+                                                                     conv.get_output_layout().data_type,
+                                                                     desc->grouped_weights_shape);
 
             conv_with_bias_prim->activations_zero_points = desc->activations_zero_points;
             conv_with_bias_prim->weights_zero_points = desc->weights_zero_points;
@@ -334,7 +336,8 @@ void prepare_primitive_fusing::fuse_bias(program_impl &p) {
                                                                          desc->groups,
                                                                          desc->stride,
                                                                          desc->input_offset,
-                                                                         deconv.get_output_layout().size);
+                                                                         deconv.get_output_layout().size,
+                                                                         desc->grouped_weights_shape);
 
             auto& new_deconv_node = p.get_or_create(deconv_with_bias_prim);
             fuse_bias_f(deconv, new_deconv_node, bias_node, eltw_node);
@@ -537,6 +540,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<scatter_update>();
 
+            should_fuse |= input_data.is_type<scatter_elements_update>();
+
             should_fuse |= input_data.is_type<depth_to_space>();
 
             should_fuse |= input_data.is_type<space_to_depth>();
@@ -598,6 +603,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<gather>();
 
             should_fuse |= input_data.is_type<scatter_update>();
+
+            should_fuse |= input_data.is_type<scatter_elements_update>();
 
             should_fuse |= input_data.is_type<depth_to_space>();
 
@@ -683,6 +690,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<scatter_elements_update>() && quantize_node.get_scale_shift_opt();
+
             should_fuse |= input_data.is_type<permute>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<depth_to_space>() && quantize_node.get_scale_shift_opt();
@@ -736,9 +745,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                                       (parents[i]->is_type<space_to_batch>()) ||
                                       (parents[i]->is_type<eltwise>() && eltwise_supports_fusings(parents[i]->as<eltwise>())) ||
                                       (parents[i]->is_type<scale>()) ||
+                                      (parents[i]->is_type<scatter_elements_update>()) ||
                                       (parents[i]->is_type<pooling>() && pooling_supports_fusings(parents[i]->as<pooling>())) ||
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
                                       (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>()));
+            }
+
+            // Disable fusion to a node on constant path when second input is in data flow
+            for (size_t i = 0; i < parents.size(); i++) {
+                can_fuse_parents[i] = can_fuse_parents[i] && (!parents[i]->is_constant() || parents[parents.size() - 1 - i]->is_constant());
             }
 
             auto parent1 = parents[0];

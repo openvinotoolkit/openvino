@@ -658,6 +658,7 @@ void prepare_quantization::prepare_asymmetric_quantization(program_impl &p) {
                         old_conv_prim->input_offset,
                         old_conv_prim->dilation,
                         output_size,
+                        old_conv_prim->grouped_weights_shape,
                         old_conv_prim->output_padding);
 
             auto& new_conv_node = p.get_or_create(new_conv_prim);

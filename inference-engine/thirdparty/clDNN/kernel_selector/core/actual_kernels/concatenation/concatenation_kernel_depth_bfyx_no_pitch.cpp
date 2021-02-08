@@ -79,9 +79,11 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_depth_bfyx_no_pitch::S
     dispatchData.lws[1] = 16;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_9;
-
     return dispatchData;
+}
+
+KernelsPriority ConcatenationKernel_depth_bfyx_no_pitch::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 
 KernelsData ConcatenationKernel_depth_bfyx_no_pitch::GetKernelsData(const Params& params,

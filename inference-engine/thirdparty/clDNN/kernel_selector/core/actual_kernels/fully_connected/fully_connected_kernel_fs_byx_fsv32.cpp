@@ -58,8 +58,6 @@ FullyConnected_fs_byx_fsv32::Parent::DispatchData FullyConnected_fs_byx_fsv32::S
     dispatchData.lws[1] = wgHeight;
     dispatchData.lws[2] = subGroupSize;
 
-    dispatchData.efficiency = FORCE_PRIORITY_5;
-
     return dispatchData;
 }
 
@@ -85,7 +83,6 @@ KernelsData FullyConnected_fs_byx_fsv32::GetKernelsData(const Params& params, co
                                                     options,
                                                     DataLayout::fs_b_yx_fsv32,
                                                     WeightsLayout::os_iyx_osv32__ai32,
-                                                    FORCE_PRIORITY_5,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
@@ -93,5 +90,9 @@ KernelsData FullyConnected_fs_byx_fsv32::GetKernelsData(const Params& params, co
     }
 
     return res;
+}
+
+KernelsPriority FullyConnected_fs_byx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -356,7 +356,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     uint32_t num_filters = convolution._out_depth;
     uint32_t num_filter_coefficients = single_conv_kernel_size + num_conv_kernel_padding;
     uint32_t num_filter_rows = num_filter_coefficients / num_feature_map_columns;
-    uint32_t num_columns_in = num_inputs;
+    uint32_t num_columns_in = num_inputs + num_input_padding;
 
     uint32_t num_columns_out = (((num_inputs - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
     uint32_t num_columns_out_unpadded = (((num_inputs - single_conv_kernel_size) / num_feature_map_columns) + 1) * convolution._out_depth;
@@ -435,10 +435,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         currentComponent.orientation_out = kDnnInterleavedOrientation;
     }
 
-    size_t num_data_bytes_out =
-        InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
-        * outputs->getPrecision().size();
-
+    size_t num_data_bytes_out = num_columns_out * outputs->getPrecision().size();
     size_t num_data_bytes_in = (num_inputs + num_input_padding) * inputs->getPrecision().size();
 
     auto connectedInputLayer = connectInput(layer, ptr_inputs, num_data_bytes_in).input;
@@ -456,30 +453,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     }
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
-
-    // When there's a NCHW convolution as a last layer, the output needs to be transposed back to NCHW
-    // TODO: Jira: 43659 - the issue also appears when after conv there's an eltwise or activation
-    // For last layer or when next ones are only non functional, the data can be reordered when exporting scores
-    // For other cases inserting permute is required if data are reordered
-    auto isNonFunctional = [](CNNLayerPtr l) {
-        return LayerInfo(l).isNonFunctional();
-    };
-    if (getInputTo(outputs).empty() || !CNNNetHasNextLayerSkipCertain(layer, 0, 0, isNonFunctional)) {
-        // if height dim and width dim both equal 1, the permute is not needed to return correct results
-        // if height dim doesn't equal 1, the case requires additional permute
-        auto inputDimsCheck = (outputs->getLayout() == Layout::NHWC ||
-                               in_channels != 1 ||
-                               (in_height == 1 && in_width == 1) ||
-                               in_height != 1);
-
-        //if kernel is pow of 2 and heigher than 8, then the issue doesn't appear
-        auto kernelCheck = convolution._kernel_x > 15 && !(convolution._kernel_x & (convolution._kernel_x - 1));
-        if (!inputDimsCheck && !kernelCheck) {
-            dnn->do_rotate_output = true;
-            dnn->num_rotate_output_rows = out_width;
-            dnn->num_rotate_output_columns = out_channels;
-        }
-    }
 
     std::vector<uint8_t> transposedWeights;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
@@ -572,11 +545,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     uint32_t num_feature_map_rows = (in_channels * in_height * in_width) / num_feature_map_columns;
 
     uint32_t filter_n = convolution._out_depth;
-    uint32_t num_columns_in = num_inputs;
-
     uint32_t original_num_feature_map_rows = num_feature_map_rows;
-    uint32_t original_input_padding = num_input_padding;
-    uint32_t additional_padding = 0;
 
     // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
     if (num_input_padding == 0) {
@@ -689,11 +658,10 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         transposedWeights.resize(transposedWeights.size() + kernelPad);
     }
 
-    const auto t = convolution._weights->byteSize();
-        gnamem->readonly().push_local_ptr(ptr_weights,
-            transposedWeights.data(),
-            transposedWeights.size(),
-            64);
+    gnamem->readonly().push_local_ptr(ptr_weights,
+        transposedWeights.data(),
+        transposedWeights.size(),
+        64);
 
     if (convolution._biases) {
         gnamem->readonly().push_ptr(ptr_biases,
@@ -846,15 +814,20 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
     IE_ASSERT(!layer->insData.empty());
     IE_ASSERT(!layer->outData.empty());
+    printPoolingLayer(pooling);
+
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
-    uint32_t w_dim_in = FROM_IR_DIM(inputs, 1);
-    uint32_t h_dim_in = FROM_IR_DIM(inputs, 2);
-    uint32_t c_dim_in = FROM_IR_DIM(inputs, 3);
-    uint32_t w_dim_out = FROM_IR_DIM(outputs, 1);
-    uint32_t h_dim_out = FROM_IR_DIM(outputs, 2);
-    uint32_t c_dim_out = FROM_IR_DIM(outputs, 3);
+    auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());
+    uint32_t w_dim_in = FROM_IR_DIM(inputs, in_order[3]);
+    uint32_t h_dim_in = FROM_IR_DIM(inputs, in_order[2]);
+    uint32_t c_dim_in = FROM_IR_DIM(inputs, in_order[1]);
+
+    auto out_order = getFromIRDimsOrderNCHW(outputs->getLayout());
+    uint32_t w_dim_out = FROM_IR_DIM(outputs, out_order[3]);
+    uint32_t h_dim_out = FROM_IR_DIM(outputs, out_order[2]);
+    uint32_t c_dim_out = FROM_IR_DIM(outputs, out_order[1]);
 
     if (w_dim_in == 1) {  // swap dimensions if needed to support swapped 1D case
         swap(h_dim_in, w_dim_in);
@@ -1303,8 +1276,9 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     auto inputPrecision = quantized ? Precision(Precision::I16) : inputs->getPrecision();
 
     auto input_data = HasTo2DReshapeData(layer) ? Get2DReshapedData(inputs, 8) : inputs;
-    uint32_t num_rows_in = FROM_IR_DIM(input_data, 1);
-    uint32_t num_columns_in = FROM_IR_DIM(input_data, 2);
+    auto in_dims = input_data->getDims();
+    uint32_t num_rows_in = InferenceEngine::details::product(in_dims) / in_dims.front();
+    uint32_t num_columns_in = in_dims.front();
     uint32_t num_rows_out = isDiag ? num_rows_in : FROM_IR_DIM(outputs, 1);
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
     uint32_t num_padding_out = isDiag ? num_padding : 0;
@@ -2011,6 +1985,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"LSTMCell"}, SKIP},
         {{"FakeQuantize"}, CREATE(FakeQuantizePrimitive)}  // TODO: fakequantize layer should be properly converted to GNA scale factors for integer case
     };
+    (void)layersBuilder;
     auto it = LayersBuilder::getStorage().find(layer->type);
     if (it != LayersBuilder::getStorage().end()) {
         it->second(this, layer);
@@ -2407,6 +2382,24 @@ void GNAGraphCompiler::printConvolutionLayer(const InferenceEngine::ConvolutionL
         << layer._stride_x << x << layer._stride_y
         << " Dilation: "
         << layer._dilation_x << x << layer._dilation_y
+        << " Auto Padding: '"
+        << layer._auto_pad << "'";
+    gnalog() << "\n";
+    printTensorDesc("Input", layer.input()->getTensorDesc());
+    printTensorDesc("Output", layer.outData.front()->getTensorDesc());
+}
+
+void GNAGraphCompiler::printPoolingLayer(const InferenceEngine::PoolingLayer& layer) {
+    const char x = 'x';
+
+    gnalog() << "PoolingLayer '"
+        << layer.name
+        << "' Kernel: "
+        << layer._kernel_x << x << layer._kernel_y
+        << " Padding: "
+        << layer._padding_x << x << layer._padding_y
+        << " Stride: "
+        << layer._stride_x << x << layer._stride_y
         << " Auto Padding: '"
         << layer._auto_pad << "'";
     gnalog() << "\n";

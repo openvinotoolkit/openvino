@@ -7,11 +7,8 @@
 namespace SubgraphTestsDefinitions {
 
 std::string TrivialConcatLayerTest::getTestCaseName(const testing::TestParamInfo<trivialConcatParamsTuple> &obj) {
-    int axis;
     std::vector<size_t> inputShapes;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
     std::string targetName;
     std::map<std::string, std::string> config;
     std::tie(inputShapes, netPrecision, targetName, config) = obj.param;

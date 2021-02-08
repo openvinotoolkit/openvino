@@ -21,8 +21,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 33886
         R"(.*(QuantGroupConv2D).*)",
         R"(.*(QuantGroupConv3D).*)",
-        // TODO: Issue 31845
-        R"(.*(FakeQuantizeLayerTest).*)",
         // TODO: failed to downgrade to opset v0 in interpreter backend
         R"(.*Gather.*axis=-1.*)",
         // TODO: Issue 33151
@@ -36,8 +34,11 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
 #endif
         // TODO: Issue: 43793
-        R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
-        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
+        R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
+        R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
+        R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
+        R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
+        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
         // TODO: Issue: 40957
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
@@ -51,16 +52,15 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationLayerTest.*Ceiling.*)",
         // TODO: Issue: 32032
         R"(.*ActivationParamLayerTest.*)",
-        // TODO: Issue: 37862
-        R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)",
         // TODO: Issue: 38841
-        R"(.*TopKLayerTest.*k=5.*sort=none.*)",
+        R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
+        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
         // TODO: Issue: 43314
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
-        // TODO: Sporadic Issue: 45163
-        R"(.*Behavior.*CancellationTests.*canResetAfterCancelAsyncRequest.*)",
+        // TODO: Issue 47556. [NGraph] CTCGreedyDecoderSeqLen. Invalid type transformation i64 to i32.
+        R"(.*(CTCGreedyDecoderSeqLenLayerTest).*(idxPRC=I64).*)",
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {
