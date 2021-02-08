@@ -15,7 +15,7 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     WORK_DIR: $(Pipeline.Workspace)/_w
-    MODELS_DIR: /mnt/onnxtestdata/models
+    MODELS_DIR: /mount/cinfsshare/onnxtestdata
     TMP_DIR: /mnt/tmp
 
   steps:
@@ -41,6 +41,8 @@ jobs:
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
+      sudo mkdir -p $(MODELS_DIR)
+      sudo mount -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
     displayName: 'Make dir'
 
   - checkout: self
@@ -56,10 +58,18 @@ jobs:
     displayName: 'Get models'
 
   - script: |
+      wget -O "$(TMP_DIR)/msft.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
+      unzip "$(TMP_DIR)/msft.zip" -d "$(MODELS_DIR)/msft"
+      mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_sorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_0
+      mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_unsorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_1
+    displayName: 'Get MSFT models'
+    enabled: true
+
+  - script: |
       ls -alR $(MODELS_DIR)
       ls -alR $(TMP_DIR)
     displayName: 'List models'
-    enabled: false
+    enabled: true
 
   - script: sudo fallocate -l 48G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
     displayName: 'Create swap'
