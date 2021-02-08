@@ -24,17 +24,16 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
     bool wasGraphChanged = false;
 
     const auto gatherData = ngraph::pattern::any_input();
-    const auto gatherIndices = ngraph::pattern::any_input();
+    const auto gatherIndices = ngraph::pattern::any_input(ngraph::pattern::has_static_rank());
+    const auto gatherAxis = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
     const auto gather = ngraph::pattern::wrap_type<ngraph::opset6::Gather>(
-        {gatherData, gatherIndices, ngraph::pattern::any_input()},
+        {gatherData, gatherIndices, gatherAxis},
         ngraph::pattern::consumers_count(1));
 
-    const auto squeezeAxes = ngraph::pattern::any_input(
-        ngraph::pattern::op::as_value_predicate(ngraph::pattern::has_class<ngraph::opset6::Constant>()));
+    const auto squeezeAxes = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
     const auto squeeze = ngraph::pattern::wrap_type<ngraph::opset6::Squeeze>({gather, squeezeAxes}, ngraph::pattern::consumers_count(1));
 
-    const auto transposePerm = ngraph::pattern::any_input(
-        ngraph::pattern::op::as_value_predicate(ngraph::pattern::has_class<ngraph::opset6::Constant>()));
+    const auto transposePerm = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
     const auto transpose = ngraph::pattern::wrap_type<ngraph::opset6::Transpose>({squeeze, transposePerm});
 
     const auto m = std::make_shared<ngraph::pattern::Matcher>(transpose, "GatherSqueezeTransposeMatcher");
@@ -43,7 +42,7 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
             continue;
         }
 
-        auto& patternMap = m->get_pattern_value_map();
+        const auto& patternMap = m->get_pattern_value_map();
 
         std::vector<ngraph::Node*> shapeOfs;
         std::vector<ngraph::Node*> gatherElements;
@@ -52,8 +51,8 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
         const auto& transposeConsumers = matchedTranspose.get_target_inputs();
 
         const auto isShapeOfOrGatherElements = [](const ngraph::Input<ngraph::Node>& consumer) {
-            return consumer.get_node()->get_type_info() == ngraph::opset6::ShapeOf::type_info ||
-                   consumer.get_node()->get_type_info() == ngraph::opset6::GatherElements::type_info;
+            return consumer.get_node()->get_type_info().is_castable(ngraph::opset6::ShapeOf::type_info) ||
+                   consumer.get_node()->get_type_info().is_castable(ngraph::opset6::GatherElements::type_info);
         };
 
         if (!std::all_of(transposeConsumers.cbegin(), transposeConsumers.cend(), isShapeOfOrGatherElements)) {
@@ -61,9 +60,9 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
         }
 
         for (const auto& transposeConsumer : transposeConsumers) {
-            if (transposeConsumer.get_node()->get_type_info() == ngraph::opset6::ShapeOf::type_info) {
+            if (transposeConsumer.get_node()->get_type_info().is_castable(ngraph::opset6::ShapeOf::type_info)) {
                 shapeOfs.push_back(transposeConsumer.get_node());
-            } else if (transposeConsumer.get_node()->get_type_info() == ngraph::opset6::GatherElements::type_info) {
+            } else if (transposeConsumer.get_node()->get_type_info().is_castable(ngraph::opset6::GatherElements::type_info)) {
                 gatherElements.push_back(transposeConsumer.get_node());
             }
         }
@@ -73,7 +72,13 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
         const auto& matchedSqueeze = patternMap.at(squeeze);
         const auto& matchedGatherData = patternMap.at(gatherData);
         const auto& matchedGatherIndices = patternMap.at(gatherIndices);
-        const auto& matchedGather = patternMap.at(gather);
+        const auto& matchedGatherAxis = patternMap.at(gatherAxis);
+
+        const auto axisConst = ngraph::get_constant_from_source(matchedGatherAxis);
+        const auto axisVec = axisConst->cast_vector<int64_t>();
+        VPU_THROW_UNLESS(axisVec.size() == 1, "Error while merging Gather and GatherElements: expected to get one value from axis input, but got: {}",
+                         axisVec.size());
+        const auto axis = axisVec.front();
 
         for (const auto& gatherElement : gatherElements) {
             const auto transposeIndices = std::make_shared<ngraph::opset6::Transpose>(gatherElement->input_value(1), matchedTransposePerm);
@@ -85,11 +90,11 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
                 unsqueezeIndices,
                 matchedGatherIndices,
                 ngraph::as_type<ngraph::opset6::GatherElements>(gatherElement)->get_axis(),
-                ngraph::as_type<ngraph::opset6::Gather>(matchedGather.get_node())->get_axis());
+                axis);
             const auto squeezeData = matchedSqueeze.get_node()->clone_with_new_inputs({expGatherElements, matchedSqueezeAxes});
             const auto transposeData = matchedTranspose.get_node()->clone_with_new_inputs({squeezeData, matchedTransposePerm});
             transposeData->set_friendly_name(gatherElement->get_friendly_name());
-            gatherElement->get_default_output().replace(transposeData);
+            gatherElement->output(0).replace(transposeData);
             wasGraphChanged = true;
         }
 
@@ -100,7 +105,6 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
             const auto gatherIndicesShape = std::make_shared<ngraph::opset6::ShapeOf>(
                 matchedGatherIndices,
                 ngraph::as_type<ngraph::opset6::ShapeOf>(shapeOf)->get_output_type());
-            const auto axis = ngraph::as_type<ngraph::opset6::Gather>(matchedGather.get_node())->get_axis();
 
             const auto gatherIndicesRank = matchedGatherIndices.get_partial_shape().rank().get_length();
             const auto gatherDataRank = matchedGatherData.get_partial_shape().rank().get_length();
@@ -143,11 +147,9 @@ bool MergeGatherGatherElements::run_on_function(std::shared_ptr<ngraph::Function
                 ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
 
             transposeOutShape->set_friendly_name(shapeOf->get_friendly_name());
-            shapeOf->get_default_output().replace(transposeOutShape);
+            shapeOf->output(0).replace(transposeOutShape);
             wasGraphChanged = true;
         }
-
-        m->clear_state();
     }
 
     return wasGraphChanged;
