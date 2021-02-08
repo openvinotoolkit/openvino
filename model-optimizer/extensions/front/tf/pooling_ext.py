@@ -78,8 +78,7 @@ class AvgPoolV2FrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = create_pooling_attrs(node, 'avg', is_pooling_v2=True)
-        attrs.update({'op': __class__.op})
+        attrs = create_pooling_attrs(node, 'avg')
         PoolingV2.update_node_stat(node, attrs)
         return cls.enabled
 
@@ -90,25 +89,25 @@ class MaxPoolV2FrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = create_pooling_attrs(node, 'max', is_pooling_v2=True)
-        attrs.update({'op': __class__.op})
+        attrs = create_pooling_attrs(node, 'max')
         PoolingV2.update_node_stat(node, attrs)
         return cls.enabled
 
 
-def create_pooling_attrs(node, pool_method, is_pooling_v2=False):
+def create_pooling_attrs(node, pool_method):
     data_format = node.pb.attr["data_format"]
 
     attrs = {
         'auto_pad': convert_tf_padding_to_str(node.pb.attr['padding'].s.decode()),
-        'window': tf_int_list(node.pb.attr["ksize"].list) if not is_pooling_v2 else None,
+        'window': tf_int_list(node.pb.attr['ksize'].list) if hasattr(node.pb.attr, 'ksize') else None,
         'spatial_dims': tf_data_format_spatial(data_format),
         'pad': None,  # will be inferred when input shape is known
-        'stride': tf_int_list(node.pb.attr["strides"].list) if not is_pooling_v2 else None,
+        'stride': tf_int_list(node.pb.attr['strides'].list) if hasattr(node.pb.attr, 'strides') else None,
         'pad_spatial_shape': None,
         'output_spatial_shape': None,
         'pool_method': pool_method,
-        'type': 'Pooling' if not is_pooling_v2 else 'PoolingV2',
+        # keep behaviour for MaxPool, for MaxPoolV2 type is None
+        'type': 'Pooling' if hasattr(node.pb.attr, 'ksize') and hasattr(node.pb.attr, 'strides') else None,
         'layout': data_format.s.decode(),
         'exclude_pad': True,
     }

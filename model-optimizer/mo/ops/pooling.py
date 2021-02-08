@@ -25,8 +25,13 @@ from mo.front.extractor import bool_to_str
 
 
 class PoolingV2(Op):
+    """
+    TensorFlow MaxPoolV2 and AvgPoolV2 operations expect windows_size and strides values from inputs not from
+    attributes. This internal operation is introduced to handle that. Only constant windows_size and strides
+    values are supported. Eventually will be replaced with the standard pooling operations from the opset.
+    """
     op = 'PoolingV2'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
@@ -40,7 +45,17 @@ class PoolingV2(Op):
 
     @staticmethod
     def infer(node: Node):
-        Pooling.pool_infer(node, is_pool_v2=True)
+        assert (len(node.in_nodes()) == 3), 'MaxPoolV2 node {} from must have only 3 inputs: input, window size, and strides ' \
+                                            'but instead got {} inputs'.format(node.soft_get('name', node.id), len(node.in_nodes()))
+        node['window'] = node.in_port(1).data.get_value()
+        node['stride'] = node.in_port(2).data.get_value()
+
+        if node['window'] is None:
+            raise Error('The non-constant window size for MaxPoolV2 node {} is not supported'.format(node.soft_get('name', node.id)))
+        if node['stride'] is None:
+            raise Error('The non-constant strides for MaxPoolV2 node {} is not supported'.format(node.soft_get('name', node.id)))
+
+        Pooling.pool_infer(node)
 
 
 class Pooling(Op):
@@ -72,15 +87,13 @@ class Pooling(Op):
 
     @staticmethod
     def infer(node: Node):
+        assert (len(node.in_nodes()) == 1), 'MaxPool node {} from must have only one input but instead got ' \
+                                            '{} inputs'.format(node.soft_get('name', node.id), len(node.in_nodes()))
+
         Pooling.pool_infer(node)
 
     @staticmethod
-    def pool_infer(node: Node, is_pool_v2=False):
-        if is_pool_v2:
-            assert (len(node.in_nodes()) == 3)
-        else:
-            assert (len(node.in_nodes()) == 1)
-
+    def pool_infer(node: Node):
         input_shape = node.in_node(0).shape
         if input_shape is None:
             return
@@ -91,16 +104,13 @@ class Pooling(Op):
 
         input_spatial_shape = input_shape[node.spatial_dims]
 
-        # Setting default pad and stride attrs in case of None specified
+        # Setting default pad and stride attrs in case if None specified
         if not node.has_valid('pad'):
             node['pad'] = int64_array([[0, 0] for x in range(len(input_shape))])
         if not node.has_valid('pad_spatial_shape'):
             node['pad_spatial_shape'] = node.pad[node.spatial_dims]
 
-        if is_pool_v2:
-            node['window'] = node.in_port(1).data.get_value()
-            node['stride'] = node.in_port(2).data.get_value()
-        elif not node.has_valid('stride'):
+        if not node.has_valid('stride'):
             node['stride'] = int64_array([1 for x in range(len(input_shape))])
 
         if node.has_and_set('global_pool'):

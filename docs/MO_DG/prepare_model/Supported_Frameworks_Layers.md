@@ -130,7 +130,7 @@ Standard TensorFlow\* operations:
 | Asinh | No |
 | Atanh | No |
 | AvgPool | No |
-| AvgPoolV2 | Supported only for constant inputs |
+| AvgPoolV2 | Supported only for constant kernel_size and strides inputs |
 | BatchToSpaceND | No |
 | BiasAdd | No |
 | Bucketize | CPU only |
@@ -181,7 +181,7 @@ Standard TensorFlow\* operations:
 | MatMul | No |
 | Max | No |
 | MaxPool | No |
-| MaxPoolV2 | Supported only for constant inputs |
+| MaxPoolV2 | Supported only for constant kernel_size and strides inputs |
 | Maximum | No |
 | Mean | No |
 | Merge | Supported only when it is fused to the TensorIterator layer |

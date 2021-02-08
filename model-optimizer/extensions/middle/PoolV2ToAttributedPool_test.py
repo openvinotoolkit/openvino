@@ -30,7 +30,7 @@ class TestPoolV2ToAttributedPool(unittest.TestCase):
             **valued_const_with_data('windows', int64_array([4, 4])),
             **valued_const_with_data('strides', int64_array([4, 4])),
 
-            **regular_op_with_empty_data('pool_v2', {'type': 'PoolingV2',
+            **regular_op_with_empty_data('pool_v2', {'op': 'PoolingV2',
                                                      'pad': [2, 2],
                                                      'spatial_dims': [1, 2],
                                                      'auto_pad': 'same_upper',

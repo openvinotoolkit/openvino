@@ -14,9 +14,7 @@
  limitations under the License.
 """
 
-from extensions.middle.PartialInfer import PartialInfer
-from mo.graph.graph import Graph
-from mo.graph.graph import rename_nodes
+from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.pooling import Pooling
 
@@ -24,20 +22,12 @@ from mo.ops.pooling import Pooling
 class PoolV2ToAttributedPool(MiddleReplacementPattern):
     enabled = True
 
-    def run_after(self):
-        return [PartialInfer]
-
-    def run_before(self):
-        from extensions.middle.ApplyPermutations import ApplyPermutation
-        return [ApplyPermutation]
-
     def find_and_replace_pattern(self, graph: Graph):
-        for pool_v2_node in graph.get_op_nodes(type='PoolingV2'):
+        for pool_v2_node in graph.get_op_nodes(op='PoolingV2'):
 
             pool_v2_name = pool_v2_node.soft_get('name', pool_v2_node.id)
 
-            pool_v1_node = Pooling(graph, {'name': pool_v2_name,
-                                           'window': pool_v2_node.in_port(1).data.get_value(),
+            pool_v1_node = Pooling(graph, {'window': pool_v2_node.in_port(1).data.get_value(),
                                            'stride': pool_v2_node.in_port(2).data.get_value(),
 
                                            'pad': pool_v2_node.pad,
@@ -47,8 +37,7 @@ class PoolV2ToAttributedPool(MiddleReplacementPattern):
                                            'pad_spatial_shape': pool_v2_node.pad_spatial_shape,
 
                                            'pool_method': pool_v2_node.pool_method,
-                                           'permute_attrs': pool_v2_node.permute_attrs,
-                                           }).create_node()
+                                           'permute_attrs': pool_v2_node.permute_attrs,}).create_node()
 
             rename_nodes([(pool_v2_node, pool_v2_name + '/to_be_removed'), (pool_v1_node, pool_v2_name)])
 
