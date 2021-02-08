@@ -49,6 +49,12 @@ def pytest_addoption(parser):
         help="Path to the benchmark_app tool",
     )
     parser.addoption(
+        "--collector_dir",
+        required=True,
+        type=Path,
+        help="Path to a directory with a collector binary",
+    )
+    parser.addoption(
         "-A",
         "--artifacts",
         required=True,
@@ -72,9 +78,10 @@ def pytest_generate_tests(metafunc):
         if "marks" in test:
             extra_args["marks"] = test["marks"]
 
-        params.append(pytest.param(Path(expand_env_vars(model_path)), **extra_args))
-        ids = ids + [model_path]
-    metafunc.parametrize("model", params, ids=ids)
+        test_id = model_path.replace('$', '').replace('{', '').replace('}', '')
+        params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
+        ids = ids + [test_id]
+    metafunc.parametrize("test_id, model", params, ids=ids)
 
 
 @pytest.fixture(scope="session")
@@ -87,6 +94,12 @@ def sea_runtool(request):
 def benchmark_app(request):
     """Fixture function for command-line option."""
     return request.config.getoption("benchmark_app")
+
+
+@pytest.fixture(scope="session")
+def collector_dir(request):
+    """Fixture function for command-line option."""
+    return request.config.getoption("collector_dir")
 
 
 @pytest.fixture(scope="session")

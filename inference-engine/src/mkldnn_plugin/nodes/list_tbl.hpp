@@ -48,7 +48,6 @@ MKLDNN_EXTENSION_NODE(RegionYoloImpl, RegionYolo);
 MKLDNN_EXTENSION_NODE(LogSoftmaxImpl, LogSoftmax);
 MKLDNN_EXTENSION_NODE(ReorgYoloImpl, ReorgYolo);
 MKLDNN_EXTENSION_NODE(SqueezeImpl, Squeeze);
-MKLDNN_EXTENSION_NODE(ConvertImpl, Convert);
 MKLDNN_EXTENSION_NODE(FillImpl, Fill);
 MKLDNN_EXTENSION_NODE(UniqueImpl, Unique);
 MKLDNN_EXTENSION_NODE(PSROIPoolingImpl, PSROIPooling);

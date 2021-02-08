@@ -19,6 +19,7 @@
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "onnx_import/core/node.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
@@ -84,7 +85,7 @@ namespace ngraph
                         data, detail::create_group_norm_shape(data, num_groups), true);
 
                     auto mvn =
-                        std::make_shared<default_opset::MVN>(data_reshaped, false, true, eps);
+                        std::make_shared<ngraph::opset5::MVN>(data_reshaped, false, true, eps);
                     std::shared_ptr<ngraph::Node> result =
                         std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 

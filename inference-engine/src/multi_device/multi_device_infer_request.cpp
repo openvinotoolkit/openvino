@@ -45,18 +45,16 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const InputsDataMap&   networkI
 
 void MultiDeviceInferRequest::SetBlobsToAnotherRequest(InferRequest& req) {
     for (const auto &it : _networkInputs) {
-        Blob::Ptr blob;
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
-        GetBlob(name.c_str(), blob);
+        auto blob = GetBlob(name);
         if (req.GetBlob(name) != blob)
             req.SetBlob(name, blob);
     }
     for (const auto &it : _networkOutputs) {
-        Blob::Ptr blob;
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
-        GetBlob(name.c_str(), blob);
+        auto blob = GetBlob(name);
         if (req.GetBlob(name) != blob)
             req.SetBlob(name, blob);
     }
