@@ -9,8 +9,8 @@ graph {
       t {
         dims: 2
         data_type: 7
-        int64_data: 2
-        int64_data: 2
+        int64_data: 1
+        int64_data: 1
         name: "const_tensor"
       }
       type: TENSOR
@@ -24,36 +24,44 @@ graph {
     op_type: "PriorBoxClustered"
     attribute {
       name: "width"
-      floats: 2.12
-      floats: 1.6
+      floats: 128
+      floats: 512
+      floats: 4096
       type: FLOATS
     }
     attribute {
       name: "height"
-      floats: 5.12
-      floats: 5.6
+      floats: 128
+      floats: 512
+      floats: 4096
       type: FLOATS
     }
     attribute {
       name: "step_w"
-      f: 0.0
+      f: 0.77
       type: FLOAT
     }
     attribute {
       name: "step_h"
-      f: 0.0
+      f: 1.55
       type: FLOAT
     }
     attribute {
       name: "offset"
-      f: 0.5
+      f: 1
       type: FLOAT
     }
     attribute {
+      name: "clip"
+      i: 1
+      type: INT
+    }
+    attribute {
       name: "variances"
-      floats: 0.1
-      floats: 0.2
-      floats: 0.2
+      floats: 1.33
+      floats: 2.44
+      floats: 0.44
+      floats: 2.44
       type: FLOATS
     }
   }
