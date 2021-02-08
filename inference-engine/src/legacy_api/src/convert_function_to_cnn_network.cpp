@@ -1789,18 +1789,11 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 this->node = node;
             }
         };
-        static const std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {};
         CNNLayerPtr result;
 
-        for (auto &convertor : convertors) {
-            if (!convertor->canCreate(node)) continue;
-            result = convertor->createLayer(node);
-            break;
-        }
-
-        if (!result) {
-            CNNLayerCreator visitor(node);
-            if (node->visit_attributes(visitor)) result = visitor.create();
+        CNNLayerCreator visitor(node);
+        if (node->visit_attributes(visitor)) {
+            result = visitor.create();
         }
 
         if (!result)
