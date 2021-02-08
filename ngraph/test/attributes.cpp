@@ -1598,9 +1598,9 @@ TEST(attributes, prior_box_clustered_op)
 TEST(attributes, proposal_op)
 {
     NodeBuilder::get_ops().register_factory<opset1::Proposal>();
-    const auto class_probs = make_shared<op::Parameter>(element::i64, Shape{1024, 3, 128, 128});
-    const auto class_logits = make_shared<op::Parameter>(element::i64, Shape{1024, 3, 128, 128});
-    const auto image_shape = make_shared<op::Parameter>(element::i64, Shape{4});
+    const auto class_probs = make_shared<op::Parameter>(element::f32, Shape{1024, 2, 128, 128});
+    const auto class_logits = make_shared<op::Parameter>(element::f32, Shape{1024, 4, 128, 128});
+    const auto image_shape = make_shared<op::Parameter>(element::f32, Shape{4});
 
     op::ProposalAttrs attrs;
     attrs.base_size = 224;

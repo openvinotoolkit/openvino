@@ -58,10 +58,44 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<proposalLayerTestParamsSet> obj);
     static std::string SerializeProposalSpecificParams(proposalSpecificParams& params);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+    void Compare(const std::vector<std::vector<std::uint8_t>> &expectedOutputs, const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) override;
+    template <class T>
+    void Compare(const T *expected, const T *actual, std::size_t size,
+                        T threshold, const std::size_t output_index) {
+        for (std::size_t i = 0; i < size; ++i) {
+            const auto &ref = expected[i];
+            const auto &res = actual[i];
 
+            // verify until first -1 appears in the 1st output.
+            if (output_index == 0 &&
+                CommonTestUtils::ie_abs(ref - static_cast<T>(-1)) <= threshold) {
+                // output0 shape = {x, 5}
+                // output1 shape = {x}
+                // setting the new_size for output1 verification
+                num_selected_boxes = i / 5;
+                return;
+            }
+
+            const auto absoluteDifference = CommonTestUtils::ie_abs(res - ref);
+            if (absoluteDifference <= threshold) {
+                continue;
+            }
+
+            const auto max = std::max(CommonTestUtils::ie_abs(res),
+                                    CommonTestUtils::ie_abs(ref));
+            float diff =
+                static_cast<float>(absoluteDifference) / static_cast<float>(max);
+            ASSERT_TRUE(max != 0 && (diff <= static_cast<float>(threshold)))
+                << "Relative comparison of values expected: " << ref
+                << " and actual: " << res << " at index " << i
+                << " with threshold " << threshold << " failed";
+        }
+    }
 protected:
     void SetUp() override;
-    void Validate() override;
+
+private:
+    size_t num_selected_boxes;
 };
 
 }  // namespace LayerTestsDefinitions

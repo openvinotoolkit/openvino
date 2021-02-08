@@ -316,6 +316,7 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
+    backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp

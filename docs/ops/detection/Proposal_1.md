@@ -8,7 +8,7 @@
 
 **Detailed description**
 
-*Proposal* has three inputs: a tensor with probabilities whether particular bounding box corresponds to background and foreground, a tensor with bbox_deltas for each of the bounding boxes, a tensor with input image size in the [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`] format. The produced tensor has two dimensions `[batch_size * post_nms_topn, 5]`.
+*Proposal* has three inputs: a tensor with probabilities whether particular bounding box corresponds to background and foreground, a tensor with bbox_deltas for each of the bounding boxes, a tensor with input image size in the [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`] format. The produced tensor has two dimensions `[batch_size * post_nms_topn, 5]`, and for each output box contains batch index and box coordinates.
 *Proposal* layer does the following with the input tensor:
 1.  Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
 2.  For each point in the first input tensor:
@@ -19,8 +19,9 @@
 5.  Takes top *pre_nms_topn* proposals
 6.  Calculates intersections for boxes and filter out all boxes with \f$intersection/union > nms\_thresh\f$
 7.  Takes top *post_nms_topn* proposals
-8.  Returns top proposals
+8.  Returns top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
 
+**Attributes**:
 
 * *base_size*
 
@@ -136,15 +137,19 @@
 
 **Inputs**:
 
-*   **1**: 4D input floating point tensor with class prediction scores. Required.
+*   **1**: 4D tensor of type *T* and shape `[batch_size, 2*K, H, W]` with class prediction scores. Required.
 
-*   **2**: 4D input floating point tensor with box bbox_deltas. Required.
+*   **2**: 4D tensor of type *T* and shape `[batch_size, 4*K, H, W]` with deltas for each bounding box. Required.
 
-*   **3**: 1D input floating tensor 3 or 4 elements:  [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`]. Required.
+*   **3**: 1D tensor of type *T* with 3 or 4 elements:  `[image_height, image_width, scale_height_and_width]` or `[image_height, image_width, scale_height, scale_width]`. Required.
 
 **Outputs**:
 
-*   **1**: Floating point tensor of shape `[batch_size * post_nms_topn, 5]`.
+*   **1**: Tensor of type *T* and shape `[batch_size * post_nms_topn, 5]`.
+
+**Types**
+
+* *T*: floating point type.
 
 **Example**
 
