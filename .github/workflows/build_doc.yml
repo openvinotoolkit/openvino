@@ -13,9 +13,17 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt --assume-yes install libusb-1.0-0-dev doxygen graphviz texlive-full
+          sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
           python3 -m pip install lxml
+          # install doxygen
+          git clone https://github.com/doxygen/doxygen.git
+          cd doxygen
+          git checkout Release_1_9_1
+          mkdir build
+          cmake ..
+          cmake --build . -j2
+          sudo make install
 
       - name: CMake doc
         run: |
