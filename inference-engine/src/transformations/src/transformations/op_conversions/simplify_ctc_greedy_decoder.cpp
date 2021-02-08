@@ -84,7 +84,7 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
         ngraph::copy_runtime_info(decoder_v6, {transpose, simplified_decoder, data_shape, T, N, plusT, plusT_scalar, range1T, mask_shape, upper_bounds,
                                                squeeze2_output_f, squeeze1_output_f, transpose_upper_bounds, bool_seq_mask, seq_mask, transpose_seq_mask,
-                                                   output_i, where_equal_minus1, output_seq_mask, output_seq_len});
+                                               transpose_seq_mask_f32, output_i, where_equal_minus1, output_seq_mask, output_seq_len});
 
         output_i->set_friendly_name(decoder_v6->get_friendly_name()+".0");
         output_seq_len->set_friendly_name(decoder_v6->get_friendly_name()+".1");

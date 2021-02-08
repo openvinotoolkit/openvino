@@ -85,8 +85,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
         auto transpose_seq_mask = std::make_shared<ngraph::opset6::Transpose>(seq_mask->output(0),
                                                                               ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                Shape({2}), {1, 0}));
+        auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), element::f32);
         auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
-                                                                                     transpose_seq_mask->output(0),
+                                                                                     transpose_seq_mask_f32->output(0),
                                                                                      true);
 
         auto squeeze2_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {3});
