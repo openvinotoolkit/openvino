@@ -47,7 +47,7 @@ ngraph::pass::LowLatency::LowLatency()
                                                     ->get_friendly_name() +
                                                 "/variable_" + std::to_string(variable_id));
                 auto variable = std::make_shared<Variable>(
-                    VariableInfo{PartialShape(), element::dynamic, variable_name});
+                    VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name});
                 auto read_value = std::make_shared<opset6::ReadValue>(
                     func->get_parameters().at(merged_in->m_body_parameter_index), variable);
                 read_value->set_friendly_name(variable_name);
