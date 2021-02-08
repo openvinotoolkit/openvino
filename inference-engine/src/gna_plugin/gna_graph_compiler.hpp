@@ -42,7 +42,6 @@ private:
 
     SplitConnection  split_connection;
     CropConnection   crop_connection;
-    ConstConnections const_connections;
 
     intel_dnn_component_t * find_first_unused_input(InferenceEngine::CNNLayerPtr current);
 
@@ -57,6 +56,7 @@ public:
     GNAPluginNS::backend::DnnComponents dnnComponents;
     MemoryConnection memory_connection;
     ConcatConnection concat_connection;
+    ConstConnections const_connections;
 
     void setGNAMemoryPtr(std::shared_ptr<GNAPluginNS::gna_memory_type> gnaMemPtr);
     void setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnnPtr);

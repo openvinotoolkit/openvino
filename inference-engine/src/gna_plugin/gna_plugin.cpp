@@ -432,6 +432,60 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
     }
 }
 
+bool GNAPlugin::TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer) {
+    auto initOutput = [this, portId, layer]
+            (intel_dnn_orientation_t orientation, size_t numBytesPerElem, size_t numElem, void* outputPtr) {
+        auto & desc = outputsDesc[portId];
+        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+
+        desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
+        desc.orientation = orientation;
+        desc.num_bytes_per_element = numBytesPerElem;
+        desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
+        desc.num_elements = numElem;
+
+        // binding ptr for first infer request - then others will be setup during relocation
+        gnamem->bind_ptr(&desc.ptrs.front(), outputPtr);
+    };
+
+    // probing gna_primitives
+    auto irLayerAvatar = std::find_if(
+        graphCompiler.dnnComponents.components.begin(),
+        graphCompiler.dnnComponents.components.end(),
+        [&layer](const backend::DnnComponents::storage_type::value_type & value) {
+            return value.name == layer->name;
+    });
+    if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
+        initOutput(irLayerAvatar->dnnComponent.orientation_out, irLayerAvatar->dnnComponent.num_bytes_per_output,
+                   irLayerAvatar->dnnComponent.num_rows_out, &irLayerAvatar->dnnComponent.ptr_outputs);
+        return true;
+    }
+
+    // probing concatInfo
+    if (LayerInfo(layer).isConcat()) {
+        auto concatConnection  = graphCompiler.concat_connection.find(layer->name);
+        if (concatConnection != graphCompiler.concat_connection.end()) {
+            auto precision = layer->outData.front()->getPrecision().size();
+            initOutput(kDnnInterleavedOrientation, precision, concatConnection->second.reserved_size / precision,
+                       &concatConnection->second.gna_ptr);
+            return true;
+        }
+    }
+
+    // probing a constant info, for constant trivial networks support
+    if (LayerInfo(layer).isConst()) {
+        auto const_blob = layer->blobs["custom"];
+        auto constConnection  = graphCompiler.const_connections.find(layer->name);
+        if (constConnection != graphCompiler.const_connections.end()) {
+            initOutput(kDnnInterleavedOrientation, layer->outData.front()->getPrecision().size(),
+                       const_blob->size(), &constConnection->second);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void TransposeTensorFromNCHWToNHWC(size_t precision, size_t rows, size_t columns, uint8_t* buffer, bool transpose_rows,
                                           const std::vector<TranspositionInfo> &transpositionInfo) {
     size_t weightsTotalSize = rows * columns * precision;
@@ -821,7 +875,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // keep inputs information and create input primitives
     inputsDataMap = newNet.getInputsInfo();
     if (inputsDataMap.empty()) {
-        THROW_GNA_EXCEPTION << " No inputs for the topology";
+        gnawarn() << "No inputs for the topology\n";
     }
 
     // keep output dims
@@ -838,36 +892,21 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     for (auto & layer : sortedNoMem) {
         graphCompiler.CreateLayerPrimitive(layer);
     }
+
     for (auto& inputLayer : inputLayers) {
         auto layerInfo = LayerInfo(inputLayer);
         if (layerInfo.isInput() && 0 == inputsDesc->bytes_allocated_for_input[inputLayer->name]) {
             graphCompiler.connectOutput(inputLayer, &inputsDesc->getPtrInputsGlobal(inputLayer->name).front(), 0);
         }
     }
-    // TODO: graph might be static - should we support that
+
     if (graphCompiler.dnnComponents.components.empty()) {
-        THROW_GNA_EXCEPTION << "No GNA primitives created based on topology. This might indicate trivial topology";
+        gnawarn() << "No GNA primitives created based on topology. This might indicate trivial topology\n";
+        trivialTopology = true;
     }
 
     /// setting-up output layers information
     outputsDesc.resize(outputsDataMap.size());
-
-    auto initOutput = [this]
-            (int idx, const intel_dnn_component_t & component, CNNLayerPtr layer) {
-        // auto idx = std::distance(outputsDataMap.begin(), outputPort);
-        auto & desc = outputsDesc[idx];
-        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-
-        desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
-        desc.orientation = component.orientation_out;
-        desc.num_bytes_per_element = component.num_bytes_per_output;
-        desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
-        // TODO: this need to be fixed
-        desc.num_elements = component.num_rows_out;
-
-        // binding ptr for first infer request - then others will be setup during relocation
-        gnamem->bind_ptr(&desc.ptrs.front(), &component.ptr_outputs);
-    };
 
     int portId = 0;
     for (auto && outPort : outputsDataMap) {
@@ -891,43 +930,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         gnalog() << "[UFS] searching for : "<< outPort.first << " representation in GNA\n";
         bool stopSearching = false;
 
-        CNNNetDFS(outLayer, [this, &outPort, portId, &stopSearching, &initOutput](CNNLayerPtr layer) {
-            auto irLayerAvatar = std::find_if(
-                graphCompiler.dnnComponents.components.begin(),
-                graphCompiler.dnnComponents.components.end(),
-                [&layer](const backend::DnnComponents::storage_type::value_type & value) {
-                    return value.name == layer->name;
-            });
-
+        CNNNetDFS(outLayer, [this, &outPort, portId, &stopSearching](CNNLayerPtr layer) {
             gnalog() << "[UFS] from : "<< outPort.first <<" reached: " << layer->name << "\n";
-
-            // probing gna_primitives
-            if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
-                initOutput(portId, irLayerAvatar->dnnComponent, layer);
-                stopSearching = true;
-            }
-
-            // probing concatInfo
-            if (!stopSearching && LayerInfo(layer).isConcat()) {
-                auto concatConnection  = graphCompiler.concat_connection.find(layer->name);
-                if (concatConnection != graphCompiler.concat_connection.end()) {
-                    //initOutput(portId, irLayerAvatar->second, layer);
-
-                    auto &desc = outputsDesc[portId];
-                    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-
-                    desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
-                    // TODO: what is orientation for concat
-                    desc.orientation = kDnnInterleavedOrientation;
-                    desc.num_bytes_per_element = layer->outData.front()->getPrecision().size();
-                    desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
-                    desc.num_elements = concatConnection->second.reserved_size / desc.num_bytes_per_element;
-
-                    // binding ptr for first infer request - then others will be setup during relocation
-                    gnamem->bind_ptr(&desc.ptrs.front(), &concatConnection->second.gna_ptr);
-                    stopSearching = true;
-                }
-            }
+            stopSearching = TryToInitOutput(portId, layer);
         }, true, [&stopSearching](InferenceEngine::CNNLayer* from) {
             return make_upstream_order(!stopSearching ? from : nullptr);
         });
@@ -963,14 +968,16 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     dnn->component.insert(dnn->component.begin(), execOrder.begin(), execOrder.end());
 
     // in fp32 mode last PWL cannot be computed without that
-    dnn->InitActiveList(NULL);
+    if (!graphCompiler.dnnComponents.components.empty()) {
+        dnn->InitActiveList(NULL);
+    }
 
 #if GNA_LIB_VER == 2
     gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
 #else
     nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
 #endif
-    if (!gnaFlags->sw_fp32) {
+    if (!gnaFlags->sw_fp32 && !graphCompiler.dnnComponents.components.empty()) {
         // number of layer gets calculated inside that InitGNAStruct function
 #if GNA_LIB_VER == 2
         dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj);
@@ -1089,7 +1096,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
 #if GNA_LIB_VER == 2
 void GNAPlugin::createRequestConfigsForGnaModels() {
-    if (!gnadevice) {
+    if (!gnadevice || trivialTopology) {
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(FAKE_REQUEST_CONFIG_ID, -1, InferenceEngine::BlobMap()));
         return;
     }
@@ -1266,7 +1273,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
         ++inputNum;
     }
     // If there is no gnadevice infer using reference FP32 transforamtions
-    if (!gnadevice) {
+    if (!gnadevice || trivialTopology) {
         auto runtime = runtime::FP(dnn);
         runtime.infer();
         if (freeNnet != nnets.end()) {
@@ -1311,7 +1318,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     // already synced TODO: might be copy required ???
     if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
 
-    if (gnadevice) {
+    if (gnadevice && !trivialTopology) {
         const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
         if (waitStatus == GNA_REQUEST_ABORTED) {
             std::get<1>(nnets[request_idx]) = -1;
@@ -1567,7 +1574,10 @@ InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networ
     dnn->WriteGraphWizModel("gna-blob-imported.dot");
 #endif
 #if GNA_LIB_VER == 2
+    trivialTopology = (std::get<0>(gnaModels.back())->obj.NumberOfOperations == 0);
     createRequestConfigsForGnaModels();
+#else
+    trivialTopology = (std::get<0>(nnets.back())->obj.nLayers == 0);
 #endif
     return {};
 }
