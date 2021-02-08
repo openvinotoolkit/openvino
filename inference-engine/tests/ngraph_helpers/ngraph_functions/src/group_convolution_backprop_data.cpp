@@ -28,7 +28,7 @@ std::shared_ptr<Node> makeGroupConvolutionBackpropData(const ngraph::Output<Node
     auto shape = in.get_shape();
     std::vector<size_t> filterWeightsShape = {shape[1], numOutChannels};
     if (filterWeightsShape[0] % numGroups || filterWeightsShape[1] % numGroups)
-        throw std::runtime_error("incorrected shape for GroupConvolutionBackpropData");
+        throw std::runtime_error("incorrect shape for GroupConvolutionBackpropData");
     filterWeightsShape[0] /= numGroups;
     filterWeightsShape[1] /= numGroups;
     filterWeightsShape.insert(filterWeightsShape.begin(), numGroups);
