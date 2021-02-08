@@ -452,11 +452,11 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::linear_onnx_generic_func(const T* input_data, T* out)
             {
-                size_t input_rank = m_input_data_shape.size();
+                const size_t input_rank = m_input_data_shape.size();
 
                 assert(input_rank > 1);
 
-                size_t num_of_axes = m_axes.size();
+                const size_t num_of_axes = m_axes.size();
 
                 bool correct_axes = ((input_rank == 2) && (num_of_axes == 2) && (m_axes[0] == 0) &&
                                      (m_axes[1] == 1)) ||
@@ -484,21 +484,30 @@ namespace ngraph
 
                 const auto info = helper.get_info_for_generic_linear_onnx();
 
-                int64_t batch_size = info.batch_size;
-                int64_t num_channels = info.num_channels;
+                const int64_t batch_size = info.batch_size;
+                const int64_t num_channels = info.num_channels;
 
-                auto& input_index_multipliers = info.input_index_multipliers;
-                auto& output_index_multipliers = info.output_index_multipliers;
+                const auto& input_index_multipliers = info.input_index_multipliers;
+                const auto& output_index_multipliers = info.output_index_multipliers;
 
-                int64_t input_data_ptr_increment = info.input_data_ptr_increment;
-                int64_t output_data_ptr_increment = info.output_data_ptr_increment;
+                const int64_t input_data_ptr_increment = info.input_data_ptr_increment;
+                const int64_t output_data_ptr_increment = info.output_data_ptr_increment;
 
-                auto& input_spatial_shape = info.input_spatial_shape;
+                const auto& input_spatial_shape = info.input_spatial_shape;
 
-                int64_t axis_idx_offset = (input_rank == num_of_axes) * 2;
+                // This mode supports only interpolation with respect to spatial dimensions,
+                // not with respect to batch or channels. That is, we can have only two cases:
+                //     num_of_axes == input_rank
+                // or
+                //     num_of_axes == input_rank - 2.
+                // Hence, if num_of_axes != input_rank, then interpolated axes indices are
+                //    [0, 1, ..., num_of_axes - 1]
+                // Otherwise, if num_of_axes == input_rank, interpolated axes indices are
+                //    [2, 3, ..., num_of_axes - 1]
+                const int64_t axis_idx_offset = (input_rank == num_of_axes) ? 2 : 0;
 
-                int64_t spatial_rank = info.spatial_rank;
-                int64_t points_in_neighbor = 1 << spatial_rank;
+                const int64_t spatial_rank = info.spatial_rank;
+                const int64_t points_in_neighbor = 1 << spatial_rank;
 
                 const T* xdata = input_data;
                 T* ydata = out;
