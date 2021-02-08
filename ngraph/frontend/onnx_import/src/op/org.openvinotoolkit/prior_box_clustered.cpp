@@ -39,19 +39,9 @@ namespace ngraph
                     ngraph::op::PriorBoxClusteredAttrs attrs{};
                     attrs.widths = node.get_attribute_value<std::vector<float>>("width", {1.0});
                     attrs.heights = node.get_attribute_value<std::vector<float>>("height", {1.0});
-                    // attrs.flip =
-                    //     node.get_attribute_value<int64_t>("flip", 0);
                     attrs.clip = node.get_attribute_value<int64_t>("clip", 0);
                     attrs.variances =
                         node.get_attribute_value<std::vector<float>>("variance", {0.1f});
-                    // attrs.img_size =
-                    //     node.get_attribute_value<int64_t>("img_size", 0);
-                    // attrs.img_h =
-                    //     node.get_attribute_value<int64_t>("img_h", 0);
-                    // attrs.img_w =
-                    //     node.get_attribute_value<int64_t>("img_w", 0);
-                    // attrs.step =
-                    //     node.get_attribute_value<float>("step", 0.0f);
                     attrs.step_heights = node.get_attribute_value<float>("step_h", 0.0f);
                     attrs.step_widths = node.get_attribute_value<float>("step_w", 0.0f);
                     attrs.offset = node.get_attribute_value<float>("offset", 0.0f);
