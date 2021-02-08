@@ -49,7 +49,6 @@ namespace opset1_upgrade
 
     // Default is that we didn nothing
     shared_ptr<Node> op_cast(shared_ptr<Node> node) { return nullptr; }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v0::ConvolutionBackpropData> node)
     {
         auto data_batch_shape = node->get_data_batch_shape();
