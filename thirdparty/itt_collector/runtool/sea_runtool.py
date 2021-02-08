@@ -83,22 +83,6 @@ class DummyWith():  # for conditional with statements
         return False
 
 
-class Profiler():
-    def __enter__(self):
-        try:
-            import cProfile as profile
-        except:
-            import profile
-        self.profiler = profile.Profile()
-        self.profiler.enable()
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.profiler.disable()
-        self.profiler.print_stats('time')
-        return False
-
-
 def get_extensions(name, multiple=False):
     big_name = (name + 's').upper()
     this_module = sys.modules[__name__]
@@ -141,7 +125,6 @@ def parse_args(args):
         format_choices.append("xcode")
     elif sys.platform == 'linux':
         format_choices.append("kernelshark")
-    parser.add_argument("-f", "--format", choices=format_choices, nargs='*', default=[], help='One or many output formats.')
     parser.add_argument("-o", "--output", help='Output folder pattern -<pid> will be added to it')
     parser.add_argument("-b", "--bindir", help='If you run script not from its location')
     parser.add_argument("-i", "--input", help='Provide input folder for transformation (<the one you passed to -o>-<pid>)')
@@ -151,8 +134,7 @@ def parse_args(args):
     parser.add_argument("-c", "--cuts", nargs='*', help='Set "all" to merge all cuts in one trace')
     parser.add_argument("-r", "--ring", type=int, const='5', default=None, action='store', nargs='?', help='Makes trace to cycle inside ring buffer of given length in seconds')
     parser.add_argument("--target", help='Pid of target')
-    parser.add_argument("--stacks", action="store_true", help='Collect stacks')
-    parser.add_argument("--profile", action="store_true", help='Internal: profile runtool execution')
+    parser.add_argument("-s", "--app_status", action="store_true", help='Script returns the application status')
 
     separators = ['!', '?', '%']
     separator = None
@@ -176,8 +158,6 @@ def parse_args(args):
             args[-1] = args[-1].strip()  # removal of trailing '\r' - when launched from .sh
         parsed_args = parser.parse_args(args)
         handle_args(parsed_args)
-        if not parsed_args.format:
-            parsed_args.format = ['gt']
         setattr(parsed_args, 'user_input', parsed_args.input)
         if not parsed_args.output:
             parsed_args.output = parsed_args.input
@@ -241,9 +221,13 @@ def main():
     (args, victim) = parse_args(sys.argv[1:])  # skipping the script name
     reset_global('arguments', args)
 
-    ensure_dir(args.output, clean=True)
-    launch(args, victim)
+    if args.output:
+        ensure_dir(args.output, clean=True)
+    ret_code = launch(args, victim)
     Collector.log('Started with arguments: %s' % str(sys.argv))
+    if ret_code != 0 and not args.app_status:
+        ret_code = 0
+    return ret_code
 
 
 def os_lib_ext():
@@ -257,6 +241,7 @@ def os_lib_ext():
 
 
 def launch(args, victim):
+    ret_code = 0
     sea.prepare_environ(args)
     sea_itf = sea.ITT('tools')
 
@@ -289,8 +274,7 @@ def launch(args, victim):
             env["INTEL_JIT_PROFILER64"] = paths['64']
 
     env["INTEL_SEA_FEATURES"] = os.environ['INTEL_SEA_FEATURES'] if 'INTEL_SEA_FEATURES' in os.environ else ""
-    env["INTEL_SEA_FEATURES"] += (" " + str(args.format)) if args.format else ""
-    env["INTEL_SEA_FEATURES"] += " stacks" if args.stacks else ""
+    env["INTEL_SEA_FEATURES"] += (" stat")
 
     if args.verbose == 'info':
         env['INTEL_SEA_VERBOSE'] = '1'
@@ -319,9 +303,6 @@ def launch(args, victim):
             environ[key] += ':' + val
         else:
             environ[key] = val
-
-    if 'kernelshark' in args.format:
-        victim = 'trace-cmd record -e IntelSEAPI/* ' + victim
 
     if args.dir:
         full_victim = os.path.join(args.dir, victim[0])
@@ -353,6 +334,7 @@ def launch(args, victim):
         except KeyboardInterrupt:
             print("Stopping all...")
             proc.send_signal(signal.SIGABRT)
+            ret_code = -1
         out, err = proc.communicate()
         if out or err:
             print("\n\n -= Target output =- {\n")
@@ -360,6 +342,7 @@ def launch(args, victim):
             print("\n", "-" * 50, "\n")
             print(err.decode().strip())
             print("\n}\n\n")
+        ret_code = proc.returncode
     else:
         message('error', 'unsupported separator')
         return -1
@@ -368,7 +351,7 @@ def launch(args, victim):
     print("Stopping collectors...")
 
     if not args.output:
-        return []
+        return ret_code
 
     args.input = args.output
 
@@ -383,8 +366,9 @@ def launch(args, victim):
             allowed_pids = [args.target]
         global_storage('collection').setdefault('targets', allowed_pids)
 
-    if args.format:
-        transform_all(args)
+    transform_all(args)
+
+    return ret_code
 
 
 def subst_env_vars(path):
@@ -855,8 +839,7 @@ class Callbacks(TaskCombinerCommon):
             self.tid_map.update(tid_map)
             self.allowed_pids |= set(tid_map.values())
 
-        for fmt in args.format:
-            self.callbacks.append(get_exporters()[fmt](args, tree))
+        self.callbacks.append(get_exporters()['stat'](args, tree))
 
         if args.target:
             if isinstance(args.target, list):
@@ -2159,6 +2142,7 @@ class Collector:
 
 if __name__ == "__main__":
     start_time = time.time()
-    main()
+    ret_code = main()
     elapsed = time.time() - start_time
     print("Time Elapsed:", str(timedelta(seconds=elapsed)).split('.')[0])
+    exit(ret_code)
