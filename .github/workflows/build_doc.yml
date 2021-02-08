@@ -5,7 +5,8 @@ jobs:
   Build_Doc:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v2
+      - name: Clone OpenVINO
+        uses: actions/checkout@v2
         with:
           submodules: recursive
           lfs: true
@@ -16,12 +17,18 @@ jobs:
           python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
           python3 -m pip install lxml
 
-      - name: CMake
+      - name: CMake doc
         run: |
-          mkdir build
-          cd build
+          mkdir openvino_doc
+          cd openvino_doc
           cmake -DENABLE_DOCS=ON ..
 
       - name: Build doc
         run: cmake --build . --target openvino_docs
-        working-directory: build
+        working-directory: openvino_doc
+
+      - name: 'Upload doc'
+        uses: actions/upload-artifact@v2
+        with:
+          name: openvino_doc
+          path: openvino_doc/
