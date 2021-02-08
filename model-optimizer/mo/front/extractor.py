@@ -455,7 +455,7 @@ def extract_node_attrs(graph: Graph, extractor: callable):
     return graph
 
 
-def get_node_id_with_ports(graph: Graph, node_name: str):
+def get_node_id_with_ports(graph: Graph, node_name: str, skip_if_no_port=True):
     """
     Extracts port and node ID out of user provided name
     :param graph: graph to operate on
@@ -476,12 +476,12 @@ def get_node_id_with_ports(graph: Graph, node_name: str):
             node = Node(graph, graph.get_node_id_by_name(name))
             if match.group(1):
                 in_port = int(match.group(1).replace(':', ''))
-                if in_port not in [e['in'] for e in node.in_edges().values()]:
+                if skip_if_no_port and in_port not in [e['in'] for e in node.in_edges().values()]:
                     # skip found node if it doesn't have such port number
                     continue
             if match.group(3):
                 out_port = int(match.group(3).replace(':', ''))
-                if out_port not in [e['out'] for e in node.out_edges().values()]:
+                if skip_if_no_port and out_port not in [e['out'] for e in node.out_edges().values()]:
                     # skip found node if it doesn't have such port number
                     continue
 
