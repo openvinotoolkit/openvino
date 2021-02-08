@@ -18,6 +18,16 @@ graph {
       type: FLOAT
     }
   }
+  node {
+    input: "z"
+    op_type: "Cast"
+    output: "z_out"
+    attribute {
+      name: "to"
+      i: 6
+      type: INT
+    }
+  }
   name: "test_dropout_default_mask"
   input {
     name: "x"
@@ -58,7 +68,7 @@ graph {
     }
   }
   output {
-    name: "z"
+    name: "z_out"
     type {
       tensor_type {
         elem_type: 9

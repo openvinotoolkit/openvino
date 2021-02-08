@@ -31,14 +31,10 @@ namespace ngraph
         {
             namespace
             {
-                OutputVector
-                    build_dropout(const Node& node, float drop_probability, bool training_mode)
+                OutputVector build_dropout(const Node& node, bool training_mode)
                 {
                     CHECK_VALID_NODE(
-                        node,
-                        drop_probability == 0 || !training_mode,
-                        "Training mode is not supported for Dropout op if drop_probability is not "
-                        "equal 0");
+                        node, !training_mode, "Training mode is not supported for Dropout op");
 
                     const auto input_data = node.get_ng_inputs().at(0);
                     const bool return_mask = node.get_outputs_size() > 1;
@@ -63,25 +59,9 @@ namespace ngraph
                 OutputVector dropout(const Node& node)
                 {
                     const auto ng_inputs = node.get_ng_inputs();
-                    // seed attribute is ignored because traning mode is not supported anyway
-
-                    // default values of inputs
-                    double ratio = 0.5f;
-                    bool training_mode = false;
-
-                    if (ng_inputs.size() > 1)
-                    {
-                        if (!ngraph::op::is_null(ng_inputs.at(1)))
-                        {
-                            CHECK_VALID_NODE(
-                                node,
-                                ngraph::op::is_constant(ng_inputs.at(1).get_node_shared_ptr()),
-                                "Not constant (or omitted) ratio input is not supported.");
-                            ratio = as_type_ptr<default_opset::Constant>(
-                                        ng_inputs.at(1).get_node_shared_ptr())
-                                        ->cast_vector<double>()[0];
-                        }
-                    }
+                    // seed attribute and ratio input are ignored because traning mode is not
+                    // supported anyway
+                    bool training_mode = false; // default value
                     if (ng_inputs.size() > 2)
                     {
                         if (!ngraph::op::is_null(ng_inputs.at(2)))
@@ -95,7 +75,7 @@ namespace ngraph
                                                 ->cast_vector<bool>()[0];
                         }
                     }
-                    return build_dropout(node, ratio, training_mode);
+                    return build_dropout(node, training_mode);
                 }
             } // namespace set_12
 
@@ -104,10 +84,10 @@ namespace ngraph
                 OutputVector dropout(const Node& node)
                 {
                     // "is_test" attribute was removed
+                    // ratio attribute is ignored because traning mode is not supported
                     const bool training_mode = false;
-                    const auto ratio = node.get_attribute_value<float>("ratio", 0.5f);
 
-                    return build_dropout(node, ratio, training_mode);
+                    return build_dropout(node, training_mode);
                 }
             } // namespace set_7
 
@@ -116,10 +96,10 @@ namespace ngraph
                 OutputVector dropout(const Node& node)
                 {
                     // legacy consumed_inputs attribute ignored
+                    // ratio attribute is ignored because traning mode is not supported
                     const bool training_mode = !node.get_attribute_value<int64_t>("is_test", 0);
-                    const auto ratio = node.get_attribute_value<float>("ratio", 0.5f);
 
-                    return build_dropout(node, ratio, training_mode);
+                    return build_dropout(node, training_mode);
                 }
             } // namespace set_1
 

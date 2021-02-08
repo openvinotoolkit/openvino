@@ -16,6 +16,19 @@ graph {
     }
   }
   node {
+    output: "T"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 9
+        int32_data: 0
+      }
+      type: TENSOR
+    }
+  }
+  node {
     input: "X"
     output: "A"
     op_type: "Relu"
@@ -60,16 +73,6 @@ graph {
     type {
       tensor_type {
         elem_type: 1
-        shape {
-        }
-      }
-    }
-  }
-  input {
-    name: "T"
-    type {
-      tensor_type {
-        elem_type: 9
         shape {
         }
       }
