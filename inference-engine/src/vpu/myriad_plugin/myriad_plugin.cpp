@@ -148,6 +148,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
     const auto executableNetwork =
             std::make_shared<ExecutableNetwork>(
                 model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    executableNetwork->SetPointerToPlugin(shared_from_this());
 
     return make_executable_network(executableNetwork);
 }
