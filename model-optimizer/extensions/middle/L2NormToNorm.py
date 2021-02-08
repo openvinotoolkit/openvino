@@ -84,8 +84,8 @@ class L2NormToNorm(MiddleReplacementPattern):
 
         # We need to check axes which performed reduction because IE supports only 2D, 3D, 4D inputs and
         # reduction only along spatial dimensions.
-        input_shape = match['sum'].in_port(0).data.get_shape().size
-        if input_shape not in [2, 3, 4]:
+        input_rank = len(match['sum'].in_port(0).data.get_shape())
+        if input_rank not in [2, 3, 4]:
             log.debug('IE supports L2 normalization only for 2D, 3D and 4D tensors, skip fusing transformation.')
             return
 
@@ -96,7 +96,7 @@ class L2NormToNorm(MiddleReplacementPattern):
         axes.sort()
 
         across_spatial = False
-        if np.array_equal(axes, int64_array(np.arange(start=1, stop=input_shape))):
+        if np.array_equal(axes, int64_array(np.arange(start=1, stop=input_rank))):
             across_spatial = True
         else:
             log.debug('IE doesn\'t support l2 normalization with reduction along axes {}, skip fusing transformation.'
