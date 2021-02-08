@@ -79,7 +79,7 @@ def test_ie_core_class():
     request.set_input({'parameter': input_blob})
     request.infer()
 
-    result = request.get_blob('relu').buffer()
+    result = request.get_blob('relu').buffer
 
     assert np.allclose(result, expected_output)
 

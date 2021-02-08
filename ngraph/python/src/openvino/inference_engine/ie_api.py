@@ -24,25 +24,33 @@ from openvino.pyopenvino import TBlobUint8
 import numpy as np
 
 # Patch for Blobs to dispatch types on Python side
-class BlobPatch(object):
-    def __new__(cls, tensor_desc, arr, size = 0):
-        # TODO: create tensor_desc based on arr itself 
+class BlobPatch:
+    def __new__(cls, tensor_desc, arr : np.ndarray = None):
+        # TODO: create tensor_desc based on arr itself
         # if tenosr_desc is not given
         arr = np.array(arr) # Keeping array as numpy array
+        size_arr = np.prod(arr.shape)
+        if arr is not None:
+            if np.isfortran(arr):
+                arr = arr.ravel(order="F")
+            else:
+                arr = arr.ravel(order="C")
         # Return TBlob depends on numpy array dtype
         # TODO: add dispatching based on tensor_desc precision value
-        if arr.dtype in [np.float32, np.float64]:
-            return TBlobFloat32(tensor_desc, arr, size)
-        elif arr.dtype in [np.int64]:
-            return TBlobInt64(tensor_desc, arr, size)
-        elif arr.dtype in [np.int32]:
-            return TBlobInt32(tensor_desc, arr, size)
-        elif arr.dtype in [np.int16]:
-            return TBlobInt16(tensor_desc, arr, size)
-        elif arr.dtype in [np.int8]:
-            return TBlobInt8(tensor_desc, arr, size)
-        elif arr.dtype in [np.uint8]:
-            return TBlobUint8(tensor_desc, arr, size)
+        if arr.dtype in [np.float32]:
+            return TBlobFloat32(tensor_desc, arr, size_arr)
+        # elif arr.dtype in [np.float64]:
+        #     return TBlobFloat32(tensor_desc, arr.view(dtype=np.float32), size_arr)
+        # elif arr.dtype in [np.int64]:
+        #     return TBlobInt64(tensor_desc, arr, size)
+        # elif arr.dtype in [np.int32]:
+        #     return TBlobInt32(tensor_desc, arr, size)
+        # elif arr.dtype in [np.int16]:
+        #     return TBlobInt16(tensor_desc, arr, size)
+        # elif arr.dtype in [np.int8]:
+        #     return TBlobInt8(tensor_desc, arr, size)
+        # elif arr.dtype in [np.uint8]:
+        #     return TBlobUint8(tensor_desc, arr, size)
         else:
             # TODO: raise error
             return None
