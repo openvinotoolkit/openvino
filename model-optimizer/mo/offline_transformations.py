@@ -33,3 +33,4 @@ if __name__ == "__main__":
     net = ie.read_network(model=orig_model_name + ".xml", weights=orig_model_name + ".bin")
     ApplyMOCTransformations(net, True)
     # TODO: call validation pass to check IE components
+    print("[ OFFLINE TRANSFORMATIONS ] Success")
