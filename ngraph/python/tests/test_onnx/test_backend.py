@@ -684,7 +684,8 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
         "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",),
     (xfail_issue_48055,
-        "OnnxBackendNodeModelTest.test_dropout_default_mask_cpu",)
+        "OnnxBackendNodeModelTest.test_dropout_default_mask_cpu",
+        "OnnxBackendNodeModelTest.test_dropout_default_mask_ratio_cpu",)
 ]
 
 for test_group in tests_expected_to_fail:
