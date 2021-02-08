@@ -8,17 +8,17 @@
 
 **Detailed description**
 
-Taking a tensor with rank `N` as the first input `indices`, OneHot produces tensor with rank `N+1` extending original
-tensor with a new dimension at `axis` position in shape. Output tensor is populated with two scalar values: `on_value`
-that comes from the 3rd input and `off_value` that comes from the 4nd input. Population is made in the following way:
+Taking a tensor with rank `N` as the first input `indices`, OneHot produces a tensor with rank `N+1` extending the original
+tensor with a new dimension at the `axis` position. The output tensor is populated with two scalar values: `on_value`
+that comes from the 3rd input and `off_value` that comes from the 4nd input. The population is made in the following way:
 
     output[:, ... ,:, i, :, ... ,:] = on_value if (indices[:, ..., :, :, ..., :] == i) else off_value
 
-where `i` is at `axis` position in `output` shape and has values from range `[0, ..., depth-1]`.
+where `i` is at the `axis` position in the `output` shape and has values from the range `[0, ..., depth-1]`.
 
-When index element from `indices` is greater or equal to `depth`, it is a well-formed operation. In this case the corresponding row `output[..., i, ...]` is populated with `off_value` only for all `i` values.
+When some elements from the `indices` are greater or equal to the `depth`, it is a well-formed operation. The corresponding output rows are populated with `off_value` in this case.
 
-Types of input scalars `on_value` and `off_value` should match and can be any of the supported types. The type of output tensor is derived from `on_value` and `off_value`, they all have the same type.
+The types of input scalars `on_value` and `off_value` should match and be equal to any supported type. The output tensor type is derived from the `on_value` or the `off_value`, they all have the same type.
 
 **Attributes**:
 
@@ -32,14 +32,14 @@ Types of input scalars `on_value` and `off_value` should match and can be any of
 
 **Inputs**:
 
-* **1**: `indices`: input tensor of rank `N` with indices of any supported integer data type. Can be 0D. Required.
-* **2**: `depth`: scalar (0D tensor) of any supported integer type that specifies number of classes and the size of one-hot dimension.
-* **3**: `on_value`: scalar (0D tensor) of any type that is the value that the locations in output tensor represented by indices in input take.
-* **4**: `off_value`: scalar (0D tensor) of any type that is the value that the locations not represented by indices in input take.
+* **1**: `indices`: input tensor with non-negative indices of any supported integer data type. Can be 0D. Required.
+* **2**: `depth`: scalar (0D tensor) of any supported integer type that specifies the number of classes and thus the size of the one-hot dimension. Required.
+* **3**: `on_value`: scalar (0D tensor) of any supported type that fills the locations in output tensor specified in `indices`. Required.
+* **4**: `off_value`: scalar (0D tensor) of the same type as `on_value` that fills the locations not represented in `indices`. Required.
 
 **Outputs**:
 
-* **1** Output tensor of rank `N+1`, where `N` is a rank of input tensor `indices`. A new axis of the size `depth` is inserted at the dimension `axis`.
+* **1** A tensor of rank `N+1`, where `N` is a rank of the input tensor `indices`. A new axis of the size `depth` is inserted at the dimension `axis`.
 
 **Examples**
 
