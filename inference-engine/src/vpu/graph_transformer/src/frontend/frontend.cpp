@@ -377,44 +377,47 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
 }
 
 void FrontEnd::processTrivialCases(const Model& model) {
-    std::map<ie::DataPtr, DataVector> ieToVpuDataVector;
-    std::for_each(model->datas().begin(), model->datas().end(), [&ieToVpuDataVector](const Data& data) {
-        ieToVpuDataVector[data->origData()].push_back(data);
-    });
+    std::map<ie::DataPtr, DataVector> vpuDataObjectsSortedByOrigData;
+    for (const auto& data : model->datas()) {
+        vpuDataObjectsSortedByOrigData[data->origData()].push_back(data);
+    }
 
     std::vector<DataVector> trivialCases;
-    std::for_each(ieToVpuDataVector.begin(), ieToVpuDataVector.end(),
-            [&trivialCases](const std::pair<ie::DataPtr, DataVector>& ieToDataVector) {
-        if (ieToDataVector.second.size() > 1) {
-            trivialCases.push_back(ieToDataVector.second);
+    for (const auto& dataObjectsWithTheSameOrigData : vpuDataObjectsSortedByOrigData) {
+        if (dataObjectsWithTheSameOrigData.second.size() > 1) {
+            trivialCases.push_back(dataObjectsWithTheSameOrigData.second);
         }
-    });
+    }
 
     for (const auto& trivialCase : trivialCases) {
-        Data trivialInput, trivialOutput;
+        Data unconnectedInput, unconnectedOutput;
         for (const auto& data : trivialCase) {
             if (data->usage() == DataUsage::Input || data->usage() == DataUsage::Intermediate || data->usage() == DataUsage::Const) {
                 if (!data->isConsumed()) {
-                    trivialInput = data;
+                    VPU_THROW_UNLESS(unconnectedInput == nullptr, "There can't be more than one unconnected inputs with the same origData, but got:"
+                                     "{} and {}", unconnectedInput->name(), data->name());
+                    unconnectedInput = data;
                 }
             }
             if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Intermediate) {
                 if (data->producer() == nullptr && data->childDataToShapeEdges().size() == 0) {
-                    trivialOutput = data;
+                    VPU_THROW_UNLESS(unconnectedOutput == nullptr, "There can't be more than one unconnected outputs with the same origData, but got:"
+                                     "{} and {}", unconnectedOutput->name(), data->name());
+                    unconnectedOutput = data;
                 }
             }
         }
 
-        if (!trivialInput || !trivialOutput) {
+        if (!unconnectedInput || !unconnectedOutput) {
             continue;
         }
 
         _stageBuilder->addCopyStage(
             model,
-            trivialInput->name() + "@copy",
+            unconnectedInput->name() + "@copy",
             nullptr,
-            {trivialInput},
-            {trivialOutput},
+            {unconnectedInput},
+            {unconnectedOutput},
             "processTrivialCase");
     }
 }

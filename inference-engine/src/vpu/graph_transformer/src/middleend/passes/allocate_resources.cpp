@@ -227,10 +227,9 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
 
         // Allocate shape for unused inputs
         DataVector unusedInputs;
-        std::for_each(model->datas().begin(), model->datas().end(), [&unusedInputs](const Data& data) {
-            if (data->usage() == DataUsage::Input && !data->isConsumed()) {
-                unusedInputs.push_back(data);
-            }
+        const auto& dataObjects = model->datas();
+        std::copy_if(dataObjects.begin(), dataObjects.end(), std::back_inserter(unusedInputs), [](const Data& data) {
+            return data->usage() == DataUsage::Input && !data->isConsumed();
         });
         std::sort(unusedInputs.begin(), unusedInputs.end(), [](const Data& lhs, const Data& rhs) { return lhs->name() < rhs->name(); });
         std::for_each(unusedInputs.begin(), unusedInputs.end(), [&allocateShape](const Data& unusedInput) { allocateShape(unusedInput); });
