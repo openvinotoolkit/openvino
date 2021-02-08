@@ -168,7 +168,8 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
         if (!(CaselessEq<std::string>()(layer->type, "memory") ||
             CaselessEq<std::string>()(layer->type, "memoryinput") ||
             CaselessEq<std::string>()(layer->type, "output") ||
-            CaselessEq<std::string>()(layer->type, "reorder"))) {
+            CaselessEq<std::string>()(layer->type, "reorder") ||
+            CaselessEq<std::string>()(layer->type, "convert"))) {
             THROW_IE_EXCEPTION << "Inappropriate layer type: " << layer->type << " name: " << layer->name;
         }
     }
