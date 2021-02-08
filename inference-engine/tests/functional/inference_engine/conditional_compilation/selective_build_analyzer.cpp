@@ -63,10 +63,12 @@ struct TestNode : public TestNodeBase {
 TEST(ConditionalCompilationTests, SimpleScopeAnalysys) {
     int n = 0;
 
-    OV_SCOPE(CCTests, Scope0, n = 42;);
+    OV_SCOPE(CCTests, Scope0) n = 42;
     EXPECT_EQ(n, 42);
 
-    OV_SCOPE(CCTests, Scope1, n = 43;);
+    OV_SCOPE(CCTests, Scope1) {
+        n = 43;
+    }
     EXPECT_EQ(n, 43);
 }
 

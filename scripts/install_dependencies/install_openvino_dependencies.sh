@@ -106,8 +106,8 @@ if [ -f /etc/lsb-release ]; then
                 libtag-extras1
                 libusb-1.0-0-dev
                 libfaac0
-                python3-gi                
-
+                python3-gi
+                libgtk-3-0
         )
     fi
     apt update

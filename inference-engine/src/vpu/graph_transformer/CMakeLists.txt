@@ -54,7 +54,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     if(NOT STATIC_IE)
         add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} CUSTOM_FILTERS "+runtime/explicit")
 
-        ie_developer_export_targets(${TARGET_NAME})
+        openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
     endif()
 
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

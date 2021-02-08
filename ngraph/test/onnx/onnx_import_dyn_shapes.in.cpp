@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "default_opset.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
@@ -1129,6 +1129,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2)
     test_case.add_input<float>(input);
 
     test_case.add_expected_output<float>(
+        Shape{3, 4, 5},
         {0.80619486, 0.03075257, 0.1161086,  0.027393,   0.01955098, 0.07012682, 0.22670066,
          0.18689779, 0.4614171,  0.05485763, 0.04486172, 0.72286838, 0.10286818, 0.07356265,
          0.05583908, 0.01280724, 0.02448298, 0.08096658, 0.11509768, 0.76664552,
@@ -1141,7 +1142,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_model_softmax_axis_2)
          0.01439711, 0.70979614, 0.16515835, 0.06798343, 0.2957175,  0.17468555, 0.34994439,
          0.11166912, 0.03615172, 0.07108136, 0.08527994, 0.44775794, 0.35972905});
 
-    test_case.run(4);
+    test_case.run(3);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_positive_step)
@@ -1283,5 +1284,31 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_reduce_max_dynamic_input_rank_negat
     auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     test_case.add_input<float>(Shape{2, 4}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
     test_case.add_expected_output<float>(Shape{2, 1}, {4, 8});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_size_dyn_op)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/size_op_dyn.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+    test_case.add_input<float>(Shape{2, 3}, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0});
+    test_case.add_expected_output<int>(Shape{}, {6});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs)
+{
+    auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/max_pool_dyn_rank_without_default_attrs.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+
+    Shape input_shape{1, 1, 4, 4};
+    std::vector<float> input(shape_size(input_shape));
+    std::iota(input.begin(), input.end(), 0);
+    test_case.add_input<float>(input_shape, input);
+    test_case.add_expected_output<float>(Shape{1, 1, 3, 3}, {5, 6, 7, 9, 10, 11, 13, 14, 15});
     test_case.run();
 }

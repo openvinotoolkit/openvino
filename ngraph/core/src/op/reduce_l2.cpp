@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ shared_ptr<Node> op::v4::ReduceL2::get_default_value() const
 
 shared_ptr<Node> op::v4::ReduceL2::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_ReduceL2_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v4::ReduceL2>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
@@ -67,12 +68,9 @@ namespace reduce_l2
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(bf16)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f16)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f32)(arg, out, axes, keep_dims);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_reduce_l2, bf16, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reduce_l2, f16, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reduce_l2, f32, arg, out, axes, keep_dims);
         default: rc = false; break;
         }
         return rc;
@@ -82,7 +80,7 @@ namespace reduce_l2
 bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v4::ReduceL2::evaluate");
+    NGRAPH_OP_SCOPE(v4_ReduceL2_evaluate);
     return reduce_l2::evaluate_reduce_l2(
         inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

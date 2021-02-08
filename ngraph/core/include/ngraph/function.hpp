@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -107,7 +107,7 @@ namespace ngraph
         // updates graph and m_results list
         void replace_node(std::shared_ptr<Node> old, std::shared_ptr<Node> repl);
 
-        void validate_nodes_and_infer_types();
+        void validate_nodes_and_infer_types() const;
 
         /// \brief Returns the sum of the size of all nodes in the graph plus the size of
         /// all constant data. This has little value beyond comparing the relative size of
@@ -190,16 +190,17 @@ namespace ngraph
     };
 
     template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<Function>> : public VisitorAdapter
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<Function>>
+        : public DirectValueAccessor<std::shared_ptr<Function>>
     {
     public:
-        AttributeAdapter(std::shared_ptr<Function>& ref);
+        AttributeAdapter(std::shared_ptr<Function>& value)
+            : DirectValueAccessor<std::shared_ptr<Function>>(value)
+        {
+        }
 
-        bool visit_attributes(AttributeVisitor& visitor) override;
-
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<shared_ptr<Function>>", 0};
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Function>>",
+                                                    0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    protected:
-        std::shared_ptr<Function>& m_ref;
     };
 }

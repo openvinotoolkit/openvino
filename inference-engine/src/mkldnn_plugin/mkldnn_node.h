@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,7 @@
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
 #include <openvino/itt.hpp>
+#include <ngraph/node.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -51,6 +52,7 @@ enum Type {
     Reshape,
     Tile,
     SimplerNMS,
+    ROIAlign,
     ROIPooling,
     BatchNormalization,
     Flatten,
@@ -128,6 +130,8 @@ static std::string NameFromType(Type type) {
             return "Tile";
         case SimplerNMS:
             return "SimplerNMS";
+        case ROIAlign:
+            return "ROIAlign";
         case ROIPooling:
             return "ROIPooling";
         case BatchNormalization:
@@ -513,6 +517,12 @@ public:
         return profiling;
     }
 
+    /**
+     * @brief Returns runtime node precision based on input/output data types or data type used for computations
+     * @return Runtime node precision
+     */
+    virtual InferenceEngine::Precision getRuntimePrecision() const;
+
 protected:
     // TODO: It is necessary only in order to avoid modifications of cnnLayers and original topology
     std::vector<MKLDNNDims> outDims;
@@ -586,6 +596,18 @@ protected:
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, bool weights, bool is_grouped = false);
 
     InferenceEngine::Layout getWeightsLayoutByDims(InferenceEngine::SizeVector dims, bool isGrouped);
+
+    /**
+     * @brief Auxiliary function to get node input precisions
+     * @return Vector of precisions based on information from node input edges. Return empty vector in case edges are not initialized yet.
+     */
+    virtual std::vector<InferenceEngine::Precision> getInputPrecisions() const;
+
+    /**
+     * @brief Auxiliary function to get node output precisions
+     * @return Vector of precisions based on information from node output edges. Return empty vector in case edges are not initialized yet.
+     */
+    virtual std::vector<InferenceEngine::Precision> getOutputPrecisions() const;
 
 private:
     std::vector<MKLDNNEdgeWeakPtr> parentEdges;

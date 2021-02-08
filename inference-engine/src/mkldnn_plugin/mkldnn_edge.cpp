@@ -93,7 +93,7 @@ bool MKLDNNEdge::needReorder() {
     };
 
     const auto portChildEdges = getParent()->getChildEdgesAtPort(inNumber);
-    if (in_place && detectInPlaceChildsNum(portChildEdges) > 1 && childCanChangeMem)
+    if (in_place && childCanChangeMem && portChildEdges.size() > 1 && detectInPlaceChildsNum(portChildEdges) > 1)
         canBeInPlaceConflicts = true;
     if (!canBeInPlaceConflicts && in_place && !getParent()->getChildEdges().empty()) {
         for (auto &p_edge_peer : portChildEdges) {

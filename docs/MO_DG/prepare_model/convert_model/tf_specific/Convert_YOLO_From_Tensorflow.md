@@ -45,6 +45,10 @@ python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weig
 ```sh
 python3 convert_weights_pb.py --class_names coco.names --data_format NHWC --weights_file yolov3-tiny.weights --tiny
 ```
+At this step, you may receive a warning like `WARNING:tensorflow:Entity <...> could not be transformed and will be executed as-is.`. To workaround this issue, switch to gast 0.2.2 with the following command:
+```sh
+pip3 install --user gast==0.2.2
+```
 
 If you have YOLOv3 weights trained for an input image with the size different from 416 (320, 608 or your own), please provide the `--size` key with the size of your image specified while running the converter. For example, run the following command for an image with size 608:
 ```sh

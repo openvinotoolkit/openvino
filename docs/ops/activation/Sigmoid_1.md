@@ -14,9 +14,9 @@
 
    For each element from the input tensor calculates corresponding
     element in the output tensor with the following formula:
-    \f[
-    sigmoid( x ) = \frac{1}{1+e^{-x}}
-    \f]
+\f[
+sigmoid( x ) = \frac{1}{1+e^{-x}}
+\f]
 
 **Inputs**:
 

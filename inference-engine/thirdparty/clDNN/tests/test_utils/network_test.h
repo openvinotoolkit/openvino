@@ -144,7 +144,6 @@ template <typename T>
 struct reference_tensor_typed<T, 4> : reference_tensor {
     using vector_type = VVVVF<T>;
     reference_tensor_typed(vector_type data) : reference(std::move(data)) {}
-
     void compare(cldnn::memory actual) override {
         auto ptr = actual.pointer<T>();
         for (size_t bi = 0; bi < reference.size(); ++bi) {
@@ -231,6 +230,36 @@ VVF<OutputT> fully_connected_reference_typed(VVVVF<InputT>& input, VVVVF<Weights
     return output;
 }
 
+template <typename OutputT,
+          typename InputT,
+          typename WeightsT,
+          typename BiasT,
+          typename AccT = typename fully_connected_accumulator<InputT>::type>
+VVVVF<OutputT> fully_connected_reference_typed_3d(VVVVF<InputT>& input, VVVVF<WeightsT>& weights, VF<BiasT>& bias) {
+    size_t input_f = input[0].size();
+    size_t input_y = input[0][0].size();
+    size_t input_x = input[0][0][0].size();
+    size_t output_b = input.size();        // input is assumed to be bfyx
+    size_t output_f = weights.size();    // weights is assumed to be bfyx
+    size_t weights_f = weights[0].size();    // weights is assumed to be bfyx
+    VVVVF<OutputT> output(output_b, VVVF<OutputT>(input_f, VVF<OutputT>(output_f, VF<OutputT>(1))));
+    OutputT res;
+    for (size_t b = 0; b < output_b; ++b) {
+        for (size_t n = 0; n < input_f; ++n) {
+            for (size_t f = 0; f < output_f; ++f) {
+                res = bias[f];
+                for (size_t y = 0; y < input_y; ++y) {
+                    for (size_t x = 0; x < input_x; ++x) {
+                        res += (OutputT)input[b][n][y][x] * (OutputT)weights[f][y][0][0];
+                    }
+                }
+                output[b][n][f][0] = (OutputT)res;
+            }
+        }
+    }
+    return output;
+}
+
 // =====================================================================================================================
 // Network test
 struct reference_node_interface {
@@ -298,6 +327,22 @@ public:
                                                                 weights->reference.reference,
                                                                 bias->reference.reference[0]);
         return add_node(id, reference_tensor_typed<T, 2>(output_data), { input, weights, bias });
+    }
+
+    template <typename T, typename InputT, size_t InputN, typename WeightsT, typename BiasT>
+    typename reference_node<T, 4>::ptr add_fully_connected_3d(cldnn::primitive_id id,
+                                                           std::shared_ptr<reference_node<InputT, InputN>> input,
+                                                           std::shared_ptr<reference_node<WeightsT, InputN>> weights,
+                                                           std::shared_ptr<reference_node<BiasT, 2>> bias,
+                                                           cldnn::implementation_desc force = cldnn::implementation_desc{cldnn::format::any, ""},
+                                                           size_t input_dim_size = 3) {
+        topo.add(cldnn::fully_connected(id, input->id, weights->id, bias->id, cldnn::type_to_data_type<T>::value, cldnn::padding(), input_dim_size));
+        if (force.output_format != cldnn::format::any || force.kernel_name != "")
+            forced_impls[id] = force;
+        VVVVF<T> output_data = fully_connected_reference_typed_3d<T>(input->reference.reference,
+                                                                     weights->reference.reference,
+                                                                     bias->reference.reference[0]);
+        return add_node(id, reference_tensor_typed<T, 4>(output_data), {input, weights, bias});
     }
 
     cldnn::network build_network(cldnn::build_options opts) {

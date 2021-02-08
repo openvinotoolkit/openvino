@@ -25,7 +25,7 @@ class INFERENCE_ENGINE_API_CLASS(Reshape1DMaxPool);
 class ngraph::pass::Reshape1DOps: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    Reshape1DOps() : GraphRewrite() {
+    Reshape1DOps() {
         add_matcher<ngraph::pass::Reshape1DConvolution>();
         add_matcher<ngraph::pass::Reshape1DAvgPool>();
         add_matcher<ngraph::pass::Reshape1DMaxPool>();

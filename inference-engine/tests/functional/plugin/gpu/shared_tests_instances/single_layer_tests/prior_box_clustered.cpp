@@ -64,8 +64,8 @@ INSTANTIATE_TEST_CASE_P(smoke_PriorBoxClustered_Basic, PriorBoxClusteredLayerTes
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(std::vector<size_t>({ 1, 16, 4, 4 })),
-                            ::testing::Values(std::vector<size_t>({ 1, 3, 50, 50 })),
+                            ::testing::Values(std::vector<size_t>({ 4, 4 })),
+                            ::testing::Values(std::vector<size_t>({ 50, 50 })),
                             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         PriorBoxClusteredLayerTest::getTestCaseName
 );

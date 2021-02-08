@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,8 @@ namespace ngraph
         namespace reference
         {
             template <typename TI, typename TO>
-            void convert(const TI* arg, TO* out, size_t count)
+            typename std::enable_if<!std::is_same<TO, char>::value>::type
+                convert(const TI* arg, TO* out, size_t count)
             {
                 for (size_t i = 0; i < count; ++i)
                 {
@@ -33,14 +34,18 @@ namespace ngraph
                 }
             }
 
-            template <typename T>
-            void convert_to_bool(const T* arg, char* out, size_t count)
+            template <typename TI, typename TO>
+            typename std::enable_if<std::is_same<TO, char>::value>::type
+                convert(const TI* arg, TO* out, size_t count)
             {
                 for (size_t i = 0; i < count; ++i)
                 {
                     out[i] = static_cast<char>(static_cast<bool>(arg[i]));
                 }
             }
-        }
-    }
-}
+
+        } // namespace reference
+
+    } // namespace runtime
+
+} // namespace ngraph

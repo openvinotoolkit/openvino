@@ -40,6 +40,11 @@ public:
     virtual void Infer() = 0;
 
     /**
+     * @brief Cancel current inference request execution
+     */
+    virtual StatusCode Cancel() = 0;
+
+    /**
      * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer.
      *  Note: not all plugins may provide meaningful data
      *  @param perfMap - a map of layer names to profiling information for that layer.

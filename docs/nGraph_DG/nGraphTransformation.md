@@ -253,6 +253,13 @@ To eliminate operation, nGraph has special method that considers all limitations
 `replace_output_update_name` in case of successful replacement it automatically preserves friendly name and runtime info.
   
 
+## Transformation conditional compilation 
+
+Transformation library has two internal macros to support conditional compilation feature.
+
+* `MATCHER_SCOPE(region)` - allows to disable the MatcherPass if matcher isn't used. The region name should be unique. This macro creates a local variable `matcher_name` which you should use as a matcher name.
+* `RUN_ON_FUNCTION_SCOPE(region)` - allows to disable run_on_function pass if it isn't used. The region name should be unique.
+
 ## Transformation writing essentials <a name="transformation_writing_essentials"></a>
 
 When developing a transformation, you need to follow these transformation rules:

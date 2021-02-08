@@ -58,26 +58,24 @@ def main():
     model = args.model
     log.info(f"Loading network:\n\t{model}")
     net = ie.read_network(model=model)
-    func = ng.function_from_cnn(net)
-    ops = func.get_ordered_ops()
     # -----------------------------------------------------------------------------------------------------
 
     # ------------- 2. Load Plugin for inference engine and extensions library if specified --------------
     log.info("Device info:")
     versions = ie.get_versions(args.device)
-    print("{}{}".format(" " * 8, args.device))
-    print("{}MKLDNNPlugin version ......... {}.{}".format(" " * 8, versions[args.device].major,
-                                                          versions[args.device].minor))
-    print("{}Build ........... {}".format(" " * 8, versions[args.device].build_number))
+    print(f"{' ' * 8}{args.device}")
+    print(f"{' ' * 8}MKLDNNPlugin version ......... {versions[args.device].major}.{versions[args.device].minor}")
+    print(f"{' ' * 8}Build ........... {versions[args.device].build_number}")
 
     if args.cpu_extension and "CPU" in args.device:
         ie.add_extension(args.cpu_extension, "CPU")
-        log.info("CPU extension loaded: {}".format(args.cpu_extension))
+        log.info(f"CPU extension loaded: {args.cpu_extension}")
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- 3. Read and preprocess input --------------------------------------------
 
     print("inputs number: " + str(len(net.input_info.keys())))
+    assert len(net.input_info.keys()) == 1, 'Sample supports networks with one input'
 
     for input_key in net.input_info:
         print("input shape: " + str(net.input_info[input_key].input_data.shape))
@@ -92,9 +90,9 @@ def main():
         ih, iw = image.shape[:-1]
         images_hw.append((ih, iw))
         log.info("File was added: ")
-        log.info("        {}".format(args.input[i]))
+        log.info(f"        {args.input}")
         if (ih, iw) != (h, w):
-            log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
+            log.warning(f"Image {args.input} is resized from {image.shape[:-1]} to {(h, w)}")
             image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
@@ -134,6 +132,8 @@ def main():
     # --------------------------- Prepare output blobs ----------------------------------------------------
     log.info('Preparing output blobs')
 
+    func = ng.function_from_cnn(net)
+    ops = func.get_ordered_ops()
     output_name, output_info = "", net.outputs[next(iter(net.outputs.keys()))]
     output_ops = {op.friendly_name : op for op in ops \
                   if op.friendly_name in net.outputs and op.get_type_name() == "DetectionOutput"}
@@ -176,8 +176,8 @@ def main():
             ymin = np.int(ih * proposal[4])
             xmax = np.int(iw * proposal[5])
             ymax = np.int(ih * proposal[6])
-            print("[{},{}] element, prob = {:.6}    ({},{})-({},{}) batch id : {}" \
-                  .format(number, label, confidence, xmin, ymin, xmax, ymax, imid), end="")
+            print(f"[{number},{label}] element, prob = {confidence:.6f}    ({xmin},{ymin})-({xmax},{ymax}) "
+                  f"batch id : {imid}", end="")
             if proposal[2] > 0.5:
                 print(" WILL BE PRINTED!")
                 if not imid in boxes.keys():
@@ -190,7 +190,7 @@ def main():
                 print()
 
     for imid in classes:
-        tmp_image = cv2.imread(args.input[imid])
+        tmp_image = cv2.imread(args.input)
         for box in boxes[imid]:
             cv2.rectangle(tmp_image, (box[0], box[1]), (box[2], box[3]), (232, 35, 244), 2)
         cv2.imwrite("out.bmp", tmp_image)

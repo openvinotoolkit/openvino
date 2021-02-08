@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "default_opset.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/provenance.hpp"
-#include "onnx_import/default_opset.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/provenance_enabler.hpp"
 #include "util/test_control.hpp"

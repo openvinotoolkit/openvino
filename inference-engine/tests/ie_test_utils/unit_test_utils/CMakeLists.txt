@@ -17,6 +17,7 @@ addIeTarget(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADD_CPPLINT
         DEVELOPER_PACKAGE
+            inference_engine_tests
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
 )

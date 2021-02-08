@@ -19,6 +19,7 @@ Measuring inference performance involves many variables and is extremely use-cas
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js"></script> 
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-barchart-background@1.3.0/build/Plugin.Barchart.Background.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-deferred@1"></script>
 <!-- download this file and place on your server (or include the styles inline) -->
 <link rel="stylesheet" href="ovgraphs.css" type="text/css">
 \endhtmlonly

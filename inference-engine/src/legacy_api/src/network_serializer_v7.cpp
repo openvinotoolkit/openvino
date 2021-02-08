@@ -40,48 +40,6 @@ std::string arrayRevertToIRProperty(const T& property) {
     return sProperty;
 }
 
-std::size_t updatePreProcInfo(const InferenceEngine::ICNNNetwork& network, pugi::xml_node& netXml,
-                              const std::size_t weightsDataOffset) {
-    InputsDataMap inputInfo;
-    network.getInputsInfo(inputInfo);
-
-    // Assume that you preprocess only one input
-    auto dataOffset = weightsDataOffset;
-    for (auto ii : inputInfo) {
-        const PreProcessInfo& pp = ii.second->getPreProcess();
-        size_t nInChannels = pp.getNumberOfChannels();
-        if (nInChannels) {
-            pugi::xml_node preproc = netXml.append_child("pre-process");
-
-            preproc.append_attribute("reference-layer-name").set_value(ii.first.c_str());
-            preproc.append_attribute("mean-precision").set_value(Precision(Precision::FP32).name());
-
-            for (size_t ch = 0; ch < nInChannels; ch++) {
-                const PreProcessChannel::Ptr& preProcessChannel = pp[ch];
-                auto channel = preproc.append_child("channel");
-                channel.append_attribute("id").set_value(ch);
-
-                auto mean = channel.append_child("mean");
-
-                if (!preProcessChannel->meanData) {
-                    mean.append_attribute("value").set_value(preProcessChannel->meanValue);
-                } else {
-                    auto size = preProcessChannel->meanData->byteSize();
-                    mean.append_attribute("size").set_value(size);
-                    mean.append_attribute("offset").set_value(dataOffset);
-                    dataOffset += size;
-                }
-
-                if (1.f != preProcessChannel->stdScale) {
-                    channel.append_child("scale").append_attribute("value").set_value(
-                        CNNLayer::ie_serialize_float(preProcessChannel->stdScale).c_str());
-                }
-            }
-        }
-    }
-    return dataOffset;
-}
-
 void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     auto layerPtr = layer.get();
     auto& params = layer->params;
@@ -477,7 +435,7 @@ std::size_t FillXmlDoc(const InferenceEngine::ICNNNetwork& network, pugi::xml_do
             for (size_t oport = 0; oport < node->outData.size(); oport++) {
                 const DataPtr outData = node->outData[oport];
                 for (const auto& inputTo : getInputTo(outData)) {
-                    for (int iport = 0; iport < inputTo.second->insData.size(); iport++) {
+                    for (size_t iport = 0; iport < inputTo.second->insData.size(); iport++) {
                         if (inputTo.second->insData[iport].lock() == outData) {
                             auto itTo = matching.find(inputTo.second);
                             if (itTo == matching.end()) {

@@ -123,8 +123,10 @@ def restore_correct_ports(graph: Graph):
             in_port_id = d['in'] if not is_control_flow else 'control_flow_' + str(d['in'])
             to_node_attrs['_in_ports'].update({in_port_id: {'control_flow': is_control_flow}})
         if 'out' in d:
-            num_of_in_nodes = len(Node(graph, u).in_nodes())
-            decremented_number = d['out'] - num_of_in_nodes
+            node = Node(graph, u)
+            num_of_in_nodes = len(node.in_nodes())
+            # we need to check operation type, if it is const op, we don't renumber out ports
+            decremented_number = d['out'] - num_of_in_nodes if node.type != 'Const' else d['out']
             out_port_id = decremented_number if not is_control_flow else 'control_flow_' + str(decremented_number)
             from_node_attrs['_out_ports'].update({out_port_id: {'control_flow': is_control_flow}})
             d['out'] = decremented_number

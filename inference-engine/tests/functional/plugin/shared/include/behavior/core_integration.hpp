@@ -23,6 +23,7 @@
 #include <functional_test_utils/skip_tests_config.hpp>
 #include <common_test_utils/common_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
+#include <cpp_interfaces/exception2status.hpp>
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
@@ -60,16 +61,8 @@ namespace BehaviorTestsDefinitions {                                            
 {                                                                               \
     try {                                                                       \
         __VA_ARGS__;                                                            \
-    } catch(InferenceEngine::details::InferenceEngineException ieException) {   \
-        auto notImplementedExceptionIsThrown =                                  \
-            std::string::npos != std::string {ieException.what()}               \
-            .find(std::string{"[NOT_IMPLEMENTED] "});                           \
-        if (notImplementedExceptionIsThrown) {                                  \
-            GTEST_SKIP();                                                       \
-        } else {                                                                \
-            FAIL() << "thrown from expression: " # __VA_ARGS__ << std::endl     \
-            << "what: " << ieException.what();                                  \
-        }                                                                       \
+    } catch (const InferenceEngine::NotImplemented&) {                          \
+        GTEST_SKIP();                                                           \
     }                                                                           \
 }
 
@@ -242,7 +235,7 @@ TEST(IEClassBasicTest, smoke_createNonExistingConfigThrows) {
     ASSERT_THROW(Core ie("nonExistPlugins.xml"), InferenceEngineException);
 }
 
-#if defined __linux__  && !defined(__APPLE__)
+#ifdef __linux__
 
 TEST(IEClassBasicTest, smoke_createMockEngineConfigNoThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -1367,9 +1360,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-                expectedLayers.emplace(node->get_friendly_name());
-            }
+            expectedLayers.emplace(node->get_friendly_name());
         }
         QueryNetworkResult result;
         std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + CommonTestUtils::DEVICE_CPU);
@@ -1404,9 +1395,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-                expectedLayers.emplace(node->get_friendly_name());
-            }
+            expectedLayers.emplace(node->get_friendly_name());
         }
         QueryNetworkResult result;
         ASSERT_NO_THROW(result = ie.QueryNetwork(multinputNetwork, CommonTestUtils::DEVICE_MULTI, {

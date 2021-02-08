@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,14 @@
 #include "kernel_base.h"
 #include "kernel_selector_common.h"
 #include "kernel_selector.h"
+#include "kernel_selector_params.h"
 #include <type_traits>
 #include <sstream>
 #include <fstream>
 #include <string>
 #include <vector>
 #include <tuple>
+#include <set>
 
 // #define ENABLE_ENV
 // #define ENABLE_ENV_PRINT
@@ -100,10 +102,9 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const Params& params,
                     }
                 } else {
 #endif
-                    if (kernelsData.size() == 0 || kds[0].estimatedTime < kernelsData[0].estimatedTime) {
-                        kernelsData = kds;
-                        kernelName = implementation->GetName();
-                    }
+                    kernelsData = kds;
+                    kernelName = implementation->GetName();
+                    break;
 #ifdef ENABLE_ENV
                 }
 #endif
@@ -129,9 +130,10 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
     std::string kernelName;
 
     auto allImplementations = GetAllImplementations(params, options, kType);
-
+    auto kernel_params = static_cast<const base_params&>(params);
+    bool int8_kernel = kernel_params.inputs[0].GetDType() == Datatype::INT8 || kernel_params.inputs[0].GetDType() == Datatype::UINT8;
     std::tuple<std::string, int> cachedKernelConfig;
-    if (options.tuningParams.mode == TuningMode::TUNING_DISABLED) {  // Try to load kernel/config from offline cache
+    if (options.tuningParams.mode == TuningMode::TUNING_DISABLED && !int8_kernel) {  // Try to load kernel/config from offline cache
 #if ENABLE_OFFLINE_TUNING_CACHE
         cachedKernelConfig = autoTuner.LoadKernelOffline(params.engineInfo.deviceCache, params);
 #else
@@ -242,25 +244,33 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params,
 }
 
 KernelList kernel_selector_base::GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const {
+    using PriorityPair = std::pair<KernelsPriority, std::shared_ptr<KernelBase>>;
+    auto comparePriority = [](const PriorityPair& firstImpl, const PriorityPair& secondImpl) {
+        return firstImpl.first < secondImpl.first;
+    };
+
+    std::multiset<PriorityPair, decltype(comparePriority)> sortedImpls(comparePriority);
     KernelList result;
 
     if (params.GetType() == kType && options.GetType() == kType) {
         ParamsKey requireKey = params.GetParamsKey().Merge(options.GetSupportedKey());
         bool forceImplementation = !params.forceImplementation.empty();
-
-        std::copy_if(
-            implementations.begin(),
-            implementations.end(),
-            std::back_inserter(result),
-            [&](const std::shared_ptr<KernelBase>& implementation) {
-            const ParamsKey implKey = implementation->GetSupportedKey();
+        for (auto& impl : implementations) {
+            const ParamsKey implKey = impl->GetSupportedKey();
             if (!implKey.Support(requireKey))
-                return false;
-            if (forceImplementation && params.forceImplementation != implementation->GetName())
-                return false;
+                continue;
+            if (forceImplementation && params.forceImplementation != impl->GetName())
+                continue;
+            sortedImpls.emplace(impl->GetKernelsPriority(params, options), impl);
+        }
 
-            return true;
-        });
+        std::transform(
+            sortedImpls.begin(),
+            sortedImpls.end(),
+            std::back_inserter(result),
+            [](const PriorityPair& impl) {
+                return std::move(impl.second);
+            });
     }
 
     return result;

@@ -48,18 +48,21 @@ class Convolution(Op):
             if not node.has_valid('pad'):
                 return None
             pad = get_backend_pad(node.pad, node.spatial_dims, 0 if pad_type == 'begin' else 1)
-            if node.has_valid('auto_pad'):
+            if node.has_valid('auto_pad') and node.auto_pad != 'explicit':
                 pad = [0 for _ in pad]
             return ','.join(map(str, pad))
 
         return [
-            'auto_pad',
+            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
             ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
             ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
             ('pads_begin', lambda node: pad_attribute_helper(node, 'begin')),
             ('pads_end', lambda node: pad_attribute_helper(node, 'end')),
+
+            # for Backpropdata operations only - according to spec
             ('output_padding', lambda node: ','.join(map(str, node.output_padding[node.spatial_dims])) \
-                if node.has_valid('output_padding') else None),
+                if node.has_valid('output_padding') and node.type in
+                    ('GroupConvolutionBackpropData', 'ConvolutionBackpropData') else None),
 
             # for BinaryConvolution only
             'pad_value',
@@ -187,7 +190,7 @@ class Convolution(Op):
         # TensorFlow always has auto_pad attribute that can be either valid or same_upper
         # In ONNX auto_pad attribute is deprecated but appears in some models (could be valid, same_upper or same_lower)
         # Caffe do not use auto_pad attribute
-        if node.has_valid('auto_pad') and not node.has_valid('output_spatial_shape'):
+        if node.has_valid('auto_pad') and node.auto_pad != 'explicit' and not node.has_valid('output_spatial_shape'):
             node['pad_spatial_shape'], node['output_spatial_shape'] = tf_window_op_pad_infer(input_spatial_shape,
                                                                                              kernel_extent,
                                                                                              stride_spatial_shape,

@@ -179,8 +179,6 @@ protected:
         expectedPrecisions["Convolution_1"] = "BF16";
         expectedPrecisions["Convolution_2"] = "BF16";
         expectedPrecisions["Convolution_3"] = "BF16";
-        expectedPrecisions["Elt_max"] = "FP32";
-        expectedPrecisions["Elt_mul"] = "FP32";
         expectedPrecisions["Elt_sum"] = "ndef";
     }
 };

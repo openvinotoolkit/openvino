@@ -85,6 +85,10 @@ ReorderKernelBase::DispatchData ReorderKernel_fs_b_yx_fsv32_to_bfyx::SetDefault(
 
 KernelsData ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetKernelsData(const Params& params, const optional_params& options) const {
     const auto& orgParams = static_cast<const reorder_params&>(params);
-    return GetCommonKernelsData(orgParams, options, FORCE_PRIORITY_2);
+    return GetCommonKernelsData(orgParams, options);
+}
+
+KernelsPriority ReorderKernel_fs_b_yx_fsv32_to_bfyx::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 }  // namespace kernel_selector

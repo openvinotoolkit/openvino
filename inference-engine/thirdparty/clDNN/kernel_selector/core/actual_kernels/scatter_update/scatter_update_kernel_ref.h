@@ -44,6 +44,7 @@ public:
     virtual JitConstants GetJitConstants(const scatter_update_params& params) const;
     virtual CommonDispatchData SetDefault(const scatter_update_params& params, const optional_params&, bool is_second) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,

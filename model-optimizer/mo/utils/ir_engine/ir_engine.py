@@ -331,8 +331,8 @@ class IREngine(object):
                     n_value.append(int(val))
                 elif IREngine.__isfloat(val):
                     n_value.append(float(val))
-                elif val in ['True', 'False']:
-                    n_value.append(val == 'True')
+                elif val in ['True', 'False', 'true', 'false']:
+                    n_value.append(val in ['True', 'true'])
                 else:
                     n_value.append(val)
 

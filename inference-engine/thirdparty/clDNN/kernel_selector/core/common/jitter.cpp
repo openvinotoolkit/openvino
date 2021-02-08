@@ -1058,9 +1058,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SWISH: {
+            auto beta = disable_type_conversion ? "m"_jit : to_type("m"_jit);
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
-                    (input / (one + exp(neg(input)))).str()));
+                    (input / (one + exp(neg(beta * input)))).str()));
             break;
         }
         case ActivationFunction::HSWISH: {

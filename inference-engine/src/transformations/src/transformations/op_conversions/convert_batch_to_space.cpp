@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 
 #include <memory>
@@ -14,8 +15,9 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBatchToSpace, "ConvertBatchToSpace", 0);
 
 void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
+    MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space);
     auto batch_to_space = ngraph::pattern::wrap_type<ngraph::opset3::BatchToSpace>();
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto batch_to_space = std::dynamic_pointer_cast<ngraph::opset3::BatchToSpace> (m.get_match_root());
         if (!batch_to_space) {
             return false;
@@ -121,13 +123,14 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(batch_to_space, "ConvertBatchToSpace");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(batch_to_space, matcher_name);
     this->register_matcher(m, callback);
 }
 
 void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
+    MATCHER_SCOPE(ConvertBatchToSpace_convert_batch_to_space_by_elements);
     auto batch_to_space = ngraph::pattern::wrap_type<ngraph::opset3::BatchToSpace>();
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto batch_to_space = std::dynamic_pointer_cast<ngraph::opset3::BatchToSpace> (m.get_match_root());
         if (!batch_to_space) {
             return false;
@@ -140,7 +143,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         }
         auto data_shape = data.get_shape();
 
-        if (m_transformation_callback(batch_to_space) && (data_shape.size() == 4 || data_shape.size() == 5)) {
+        if (transformation_callback(batch_to_space) && (data_shape.size() == 4 || data_shape.size() == 5)) {
             return false;
         }
         auto block = batch_to_space->input_value(1);
@@ -220,6 +223,6 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(batch_to_space, "ConvertBatchToSpace");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(batch_to_space, matcher_name);
     this->register_matcher(m, callback);
 }

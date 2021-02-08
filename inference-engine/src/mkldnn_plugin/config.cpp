@@ -33,6 +33,9 @@ Config::Config() {
     streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
 #endif
 
+    if (!with_cpu_x86_bfloat16())
+        enforceBF16 = false;
+
     updateProperties();
 }
 
@@ -93,7 +96,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             dumpQuantizedGraphToIr = val;
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
             if (val == PluginConfigParams::YES) {
-                if (with_cpu_x86_bfloat16())
+                if (with_cpu_x86_avx512_core())
                     enforceBF16 = true;
                 else
                     THROW_IE_EXCEPTION << "Platform doesn't support BF16 format";
@@ -143,8 +146,6 @@ void Config::updateProperties() {
         _config.insert({ PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, std::to_string(streamExecutorConfig._streams) });
         _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads) });
         _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
-        if (!with_cpu_x86_bfloat16())
-            enforceBF16 = false;
         if (enforceBF16)
             _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
         else

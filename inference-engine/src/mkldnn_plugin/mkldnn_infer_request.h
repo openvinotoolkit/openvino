@@ -25,6 +25,8 @@ public:
 
     void InferImpl() override;
 
+    InferenceEngine::StatusCode Cancel() override;
+
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
 
     /**

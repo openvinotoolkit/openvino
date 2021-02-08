@@ -49,7 +49,7 @@ function(add_common_target TARGET_NAME STATIC_IE)
 
     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-    ie_developer_export_targets(${TARGET_NAME})
+    openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
 
     target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES} inference_engine_transformations
                                          PRIVATE openvino::itt)

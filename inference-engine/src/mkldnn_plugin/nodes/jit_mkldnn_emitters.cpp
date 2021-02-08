@@ -13,9 +13,9 @@ using namespace Xbyak;
 
 namespace MKLDNNPlugin {
 
-jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode& node, InferenceEngine::Precision exec_prc)
+jit_mkldnn_emitter::jit_mkldnn_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, InferenceEngine::Precision exec_prc)
     : jit_emitter(host, host_isa, node, exec_prc) {
-    auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(n);
+    auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(*n);
 
     auto alg = static_cast<mkldnn_alg_kind_t>(eltwiseNode.getAlgorithm());
 

@@ -215,7 +215,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {}, {}, {} },
             ngraph::element::f32,
             ngraph::element::f32,
-            { ngraph::element::f32, {}, { 0.01f } },
+            { {}, {}, { 0.01f } },
             ngraph::element::f32
         }
     },
@@ -296,7 +296,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::f32,
             ngraph::element::f32,
             {
-                ngraph::element::f32,
+                {},
                 {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
                 {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
             },

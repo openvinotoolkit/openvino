@@ -4,10 +4,13 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <map>
+#include <string>
 #include <type_traits>
-#include "gna_types.h"
 
+#include "gna_types.h"
 #include "gna_plugin_log.hpp"
 
 enum DnnActivationType : uint8_t {
@@ -115,6 +118,7 @@ typedef enum {
     kDnnAffineOp,
     kDnnDiagonalOp,
     kDnnConvolutional1dOp,
+    kDnnConvolutional2dOp,
     kDnnPiecewiselinearOp,
     kDnnMaxPoolOp,
     kDnnRecurrentOp,
@@ -124,11 +128,12 @@ typedef enum {
     kDnnNumOp
 } intel_dnn_operation_t;
 
-static const char *intel_dnn_operation_name[kDnnNumOp] = {
+static const char* intel_dnn_operation_name[kDnnNumOp] = {
         "kDnnNullOp",
         "kDnnAffineOp",
         "kDnnDiagonalOp",
         "kDnnConvolutional1dOp",
+        "kDnnConvolutional2dOp",
         "kDnnPiecewiselinearOp",
         "kDnnMaxPoolOp",
         "kDnnRecurrentOp",
@@ -184,6 +189,13 @@ typedef struct {
 } intel_convolutionalD_t;
 
 typedef struct {
+    std::array<uint32_t, 2> convStride;
+    float weight_scale_factor;
+    void* ptr_filters;     // filters stored one after the other
+    void* ptr_biases;
+} intel_convolutional2D_t;
+
+typedef struct {
     uint32_t num_inputs;         // pool size
     uint32_t num_inputs_step;     // pool step
     uint32_t num_inputs_stride;  // pool stride (number of convolution filters)
@@ -217,7 +229,70 @@ typedef struct {
     uint32_t num_copy_rows;            // number of rows to copy
 } intel_copy_t;
 
+#if GNA_LIB_VER == 2
+enum OvGnaType {
+    OvGnaTypeInt8 = 1,
+    OvGnaTypeInt16 = 2,
+    OvGnaTypeInt32 = 4,
+    OvGnaTypePwl = 8,
+};
+
+enum OvGnaMode {
+    OvGnaModeDefault = 0,
+    OvGnaModeDisabled = -1
+};
+
+struct OvGnaTensor {
+    std::vector<uint32_t> dimensions;
+    OvGnaType type;
+    OvGnaMode mode;
+};
+
+template <class T>
+OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
+    static const std::map<T, OvGnaType> m = {
+        {1, OvGnaTypeInt8},
+        {2, OvGnaTypeInt16},
+        {4, OvGnaTypeInt32}
+    };
+    const auto r = m.find(bytesPerElement);
+    if (r == m.end()) {
+        THROW_GNA_EXCEPTION << "OvGnaTypeIntFromBytes: unknown bytesPerElement == " << bytesPerElement;
+    }
+    return r->second;
+}
+
+static std::string OvGnaTypeToString(OvGnaType type) {
+    static const std::map<OvGnaType, std::string> typeToString = {
+        {OvGnaTypeInt8, "OvGnaTypeInt8"},
+        {OvGnaTypeInt16, "OvGnaTypeInt16"},
+        {OvGnaTypeInt32, "OvGnaTypeInt32"},
+        {OvGnaTypePwl, "OvGnaTypePwl"},
+    };
+    const auto r = typeToString.find(type);
+    if (r == typeToString.end()) {
+        THROW_GNA_EXCEPTION << "OvGnaTypeToString: unknown type == " << type;
+    }
+    return r->second;
+}
+
+static std::string OvGnaModeToString(OvGnaMode mode) {
+    static const std::map<OvGnaMode, std::string> modeToString = {
+        {OvGnaModeDefault, "OvGnaModeDefault"},
+        {OvGnaModeDisabled, "OvGnaModeDisabled"},
+    };
+    const auto r = modeToString.find(mode);
+    if (r == modeToString.end()) {
+        THROW_GNA_EXCEPTION << "OvGnaModeToString: unknown mode == " << mode;
+    }
+    return r->second;
+}
+#endif
+
 typedef struct {
+#if GNA_LIB_VER == 2
+    std::vector < OvGnaTensor > tensors;
+#endif
     uint32_t num_rows_in;
     uint32_t num_columns_in;
     uint32_t num_rows_out;
@@ -231,6 +306,7 @@ typedef struct {
     union operation_struct_t {
         intel_affine_t affine;
         intel_convolutionalD_t conv1D;
+        intel_convolutional2D_t conv2D;
         intel_maxpool_t maxpool;
         intel_piecewiselinear_t pwl;
         intel_recurrent_t recurrent;

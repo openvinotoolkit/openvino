@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "itt.hpp"
 #include <functional>
 #include <memory>
 #include <typeindex>
@@ -24,8 +25,6 @@
 #include <ngraph/util.hpp>
 #include <ngraph/log.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -220,14 +219,14 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
         if (out_shape.rank().get_length() > data_shape.rank().get_length()) {
             // check if single unsqueeze can handle this
             auto axes = get_unsqueeze_axes(data_shape, out_shape);
-            if (axes.size() + data_shape.rank().get_length() == out_shape.rank().get_length()) {
+            if (static_cast<int64_t>(axes.size()) + data_shape.rank().get_length() == out_shape.rank().get_length()) {
                 return replace_unsqueeze_only(axes);
             }
         }
         if (out_shape.rank().get_length() < data_shape.rank().get_length()) {
             // check if single squeeze can handle this
             auto axes = get_squeeze_axes(data_shape, out_shape);
-            if (data_shape.rank().get_length() - axes.size() == out_shape.rank().get_length()) {
+            if (data_shape.rank().get_length() - static_cast<int64_t>(axes.size()) == out_shape.rank().get_length()) {
                 auto axes_const =
                     opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
                 auto new_sq = make_shared<opset3::Squeeze>(input->input_value(0), axes_const);
@@ -291,14 +290,14 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
         if (out_shape.rank().get_length() < data_shape.rank().get_length()) {
             // check if single squeeze can handle this
             auto axes = get_squeeze_axes(data_shape, out_shape);
-            if (data_shape.rank().get_length() == out_shape.rank().get_length() + axes.size()) {
+            if (data_shape.rank().get_length() == out_shape.rank().get_length() + static_cast<int64_t>(axes.size())) {
                 return replace_squeeze_only(axes);
             }
         }
         if (out_shape.rank().get_length() > data_shape.rank().get_length()) {
             // check if single unsqueeze can handle this
             auto axes = get_unsqueeze_axes(data_shape, out_shape);
-            if (data_shape.rank().get_length() + axes.size() == out_shape.rank().get_length()) {
+            if (data_shape.rank().get_length() + static_cast<int64_t>(axes.size()) == out_shape.rank().get_length()) {
                 auto axes_const =
                     opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
                 auto new_unsq = make_shared<opset3::Unsqueeze>(input->input_value(0), axes_const);
@@ -331,6 +330,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
 
 bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
+    RUN_ON_FUNCTION_SCOPE(NopElimination);
     static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
         dispatcher{{TI(opset3::Pad), &eliminate_nop},
                    {TI(opset3::Convert), &eliminate_convert},

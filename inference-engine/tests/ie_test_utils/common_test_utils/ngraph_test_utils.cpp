@@ -13,22 +13,6 @@
 #include <ngraph/pass/visualize_tree.hpp>
 #include "ngraph_test_utils.hpp"
 
-bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant) {
-    const auto actualValues = constant->cast_vector<float>();
-    if (actualValues.size() != expectedValues.size()) {
-        return false;
-    }
-
-    static const float threshold = 1e-4f;
-    for (size_t i = 0; i < expectedValues.size(); ++i) {
-        if (abs(expectedValues[i] - actualValues[i]) > threshold) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 bool isTypeRelaxed(const std::string& type) {
     return type.find_first_of("TypeRelaxed") == 0;
 }
@@ -130,6 +114,17 @@ std::pair<bool, std::string> compare_functions(
             return {false, typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2)};
         }
 
+        auto subgraph1 = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(node1);
+        auto subgraph2 = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(node2);
+
+        if (subgraph1 && subgraph2) {
+            auto res = compare_functions(subgraph1->get_function(), subgraph2->get_function(),
+                    compareConstValues, compareNames, compareRuntimeKeys, comparePrecisions);
+            if (!res.first) {
+                return res;
+            }
+        }
+
         const auto& dependencies_1 = node1->get_control_dependencies();
         const auto& dependencies_2 = node2->get_control_dependencies();
         if (dependencies_1.size() != dependencies_2.size()) {
@@ -149,14 +144,25 @@ std::pair<bool, std::string> compare_functions(
 
         for (int i = 0; i < node1->inputs().size(); ++i) {
             if (compareConstValues) {
-                std::shared_ptr<ngraph::opset1::Constant> const1 = ngraph::as_type_ptr<ngraph::opset1::Constant>(node1->get_input_node_shared_ptr(i));
-                std::shared_ptr<ngraph::opset1::Constant> const2 = ngraph::as_type_ptr<ngraph::opset1::Constant>(node2->get_input_node_shared_ptr(i));
-                if ((const1 != nullptr) && (const2 != nullptr)) {
-                    if (!compare(const1->cast_vector<float>(), const2)) {
-                        err_log << "Different Constant values detected" << std::endl
+                using Constant = ngraph::opset1::Constant;
+                auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
+                auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
+
+                const auto equal = [](const Constant &c1, const Constant &c2) {
+                    const auto equal_float_str = [](const std::string &s1, const std::string s2) {
+                        return std::abs(std::stof(s1) - std::stof(s2)) < 0.001;
+                    };
+                    const auto &c1v = c1.get_value_strings();
+                    const auto &c2v = c2.get_value_strings();
+
+                    return c1v.size() == c2v.size()
+                           && std::equal(begin(c1v), end(c1v), begin(c2v), equal_float_str);
+                };
+
+                if (const1 && const2 && !equal(*const1, *const2)) {
+                        err_log << "Different Constant values detected \n"
                             << node1->description() << " Input(" << i << ") and "
                             << node2->description() << " Input(" << i << ")" << std::endl;
-                    }
                 }
             }
 

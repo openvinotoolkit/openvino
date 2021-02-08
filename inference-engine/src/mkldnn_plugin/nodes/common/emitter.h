@@ -13,7 +13,7 @@ namespace MKLDNNPlugin {
 
 class jit_emitter {
 public:
-    jit_emitter(mkldnn::impl::cpu::jit_generator* host, mkldnn::impl::cpu::cpu_isa_t host_isa, const MKLDNNNode& node,
+    jit_emitter(mkldnn::impl::cpu::jit_generator* host, mkldnn::impl::cpu::cpu_isa_t host_isa, const MKLDNNNode* node,
                 InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
         : h(host), host_isa_(host_isa), n(node), exec_prc_(exec_prc) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
@@ -32,7 +32,7 @@ protected:
     size_t get_max_vecs_count() const;
     size_t get_vec_length() const;
 
-    const MKLDNNNode& n;
+    const MKLDNNNode* n;
     mkldnn::impl::cpu::jit_generator* h;
     mkldnn::impl::cpu::cpu_isa_t host_isa_;
     InferenceEngine::Precision exec_prc_;

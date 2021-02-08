@@ -208,6 +208,9 @@ protected:
     virtual ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
                                                 const RemoteContext::Ptr& context,
                                                 const std::map<std::string, std::string>& config) {
+        (void)networkModel;
+        (void)context;
+        (void)config;
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 

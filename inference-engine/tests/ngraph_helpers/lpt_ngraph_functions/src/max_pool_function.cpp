@@ -40,13 +40,14 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::get(
     const ngraph::Shape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ngraph::element::Type precisionAfterOperation,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
 
-    parent = dequantizationBefore.empty() ? parent : makeDequantization(parent, dequantizationBefore);
+    parent = makeDequantization(parent, dequantizationBefore);
 
-    const std::shared_ptr<ngraph::Node> maxPool = std::make_shared<ngraph::opset1::MaxPool>(
+    const auto maxPool = std::make_shared<ngraph::opset1::MaxPool>(
         parent,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
@@ -54,8 +55,9 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::get(
         Shape{ 2, 2 },
         op::RoundingType::FLOOR);
     parent = maxPool;
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(maxPool, precisionAfterOperation);
 
-    parent = dequantizationAfter.empty() ? maxPool : makeDequantization(maxPool, dequantizationAfter);
+    parent = makeDequantization(maxPool, dequantizationAfter);
     maxPool->set_friendly_name("maxPool");
 
     const std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(parent);

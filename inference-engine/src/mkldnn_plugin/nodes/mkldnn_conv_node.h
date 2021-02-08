@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,8 @@ public:
     const mkldnn::memory& getBias() const;
 
     bool canBeExecutedInInt8();
+
+    InferenceEngine::Precision getRuntimePrecision() const override;
 
     std::vector<uint8_t> inputZeroPoints;
     std::vector<float> weightsZeroPoints;

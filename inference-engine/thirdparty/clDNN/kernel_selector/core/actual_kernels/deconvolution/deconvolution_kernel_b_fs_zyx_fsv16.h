@@ -28,6 +28,7 @@ public:
     DeconvolutionKernel_b_fs_zyx_fsv16() : DeconvolutionKernelBase("gen9_common_conv_bwd_data") {}
     virtual ~DeconvolutionKernel_b_fs_zyx_fsv16() {}
     ParamsKey GetSupportedKey() const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& p) const override {

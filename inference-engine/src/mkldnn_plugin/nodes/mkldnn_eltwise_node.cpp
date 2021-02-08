@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 #include <cmath>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "utils/bfloat16.hpp"
 #include "ie_parallel.hpp"
 #include "mkldnn_quantize_node.h"
 #include <map>
@@ -45,7 +46,7 @@ struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
     mkldnn::impl::cpu::jit_generator *host;
     mkldnn::impl::cpu::cpu_isa_t host_isa;
-    const MKLDNNNode & node;
+    const MKLDNNNode * node;
     InferenceEngine::Precision exec_prc;
 };
 
@@ -69,9 +70,12 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
         for (int i = 0; i < eltwiseNode.getFusedWith().size(); i++) {
             if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
                 std::set<Precision> prcs = get_supported_precisions(*eltwiseNode.getFusedWith()[i].get());
+                std::set<Precision> prcs_intersect = {};
 
                 std::set_intersection(supported_precision_intersection.begin(), supported_precision_intersection.end(),
-                                      prcs.begin(), prcs.end(), std::inserter(supported_precision_intersection, supported_precision_intersection.begin()));
+                                      prcs.begin(), prcs.end(), std::inserter(prcs_intersect, prcs_intersect.begin()));
+
+                supported_precision_intersection = prcs_intersect;
             }
         }
 
@@ -107,6 +111,9 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
                         this, post_ops.get()->entry_[post_ops.get()->len_ - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
+
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16.reset(new jit_emu_vcvtneps2bf16(this, isa, nullptr));
 
         this->preamble();
 
@@ -273,6 +280,9 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
 
         this->postamble();
 
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+            emu_vcvtneps2bf16->emit_table();
+
         eltwise_emitter->emit_table();
         for (int i = 0; i < post_op_emitters.size(); i++) {
             post_op_emitters[i]->emit_table();
@@ -319,6 +329,8 @@ private:
     Vmm vmm_d_weights = Vmm(12);
     Vmm vmm_d_bias = Vmm(13);
     Vmm vmm_zero = Vmm(15);
+
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 
     std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
     std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
@@ -392,12 +404,13 @@ private:
 
     std::shared_ptr<jit_emitter> create_eltwise_emitter(MKLDNNNode& node, Precision exec_prec) {
         auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
+        const MKLDNNNode * eltwiseNodePtr = dynamic_cast<const MKLDNNNode*>(&node);
 
         EltwiseEmitterContext ctx = {
             nullptr,
             this,
             isa,
-            eltwiseNode,
+            eltwiseNodePtr,
             exec_prec
         };
 
@@ -615,8 +628,11 @@ private:
                 uni_vmovups(op, vmm_dst);
                 break;
             case Precision::BF16:
-                vcvtneps2bf16(ymm_dst, vmm_dst);
-                uni_vmovups(op, ymm_dst);
+                if (mayiuse(avx512_core_bf16))
+                    vcvtneps2bf16(ymm_dst, vmm_dst);
+                else
+                    emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:
                 if (isa == avx512_common) {
@@ -1024,7 +1040,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    if (!mayiuse(avx512_core_bf16)) {
+    if (!mayiuse(avx512_core)) {
         bool hasBF16 = false;
         for (auto &inPrc : inputPrecisions)
             if (inPrc == Precision::BF16)
@@ -1710,8 +1726,28 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
         return false;
     };
 
+    auto isSuitableNode = [](const MKLDNNEltwiseNode* node) {
+        // [WA] Since execution precision change from I32 to FP32 for Divide operation may lead to incorrect results
+        // we disable its fusing otherwise there is no guarantee it will be executed it I32
+        // [TODO] We need to rewrite support for different precisions at all to avoid implicit conversions to FP32
+        // (all should be handled via explicit convert operations)
+        if (node->getOpType() == Divide) {
+            for (int i = 0; i < node->getCnnLayer()->insData.size(); i++) {
+                if (node->getCnnLayer()->insData[i].lock()->getPrecision() == Precision::I32) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    };
+
     if (!mayiuse(cpu::sse42))
         return false;
+
+    if (!isSuitableNode(this)) {
+        return false;
+    }
 
     // FQ inputs with quantization parameters will be hided inside post_op object, so will not increase inputs number
     size_t addedInputEdgesNum = node->getType() != Quantize ? (node->getParentEdges().size() - 1) : 0;
@@ -1721,6 +1757,10 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
     if (node->getType() == Eltwise) {
         auto eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
         if (eltwiseNode->getParentEdgesAtPort(0)[0]->getParent().get() != this) {
+            if (!isSuitableNode(this)) {
+                return false;
+            }
+
             // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for 0-th port.
             if (isOneOf(eltwiseNode->getOpType(), {Subtract, Divide, FloorMod, Mod, PowerDynamic, Greater, GreaterEqual, Less, LessEqual})) {
                 return false;
@@ -1746,6 +1786,19 @@ bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
     }
 
     return false;
+}
+
+InferenceEngine::Precision MKLDNNEltwiseNode::getRuntimePrecision() const {
+    std::vector<InferenceEngine::Precision> inputPrecisions;
+    // Don't take bias precision into account
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        auto parentEdge = getParentEdgeAt(i);
+        if (parentEdge && parentEdge->getStatus() == MKLDNNEdge::Status::Validated && !parentEdge->getParent()->isConstant()) {
+            inputPrecisions.emplace_back(MKLDNNExtensionUtils::DataTypeToIEPrecision((parentEdge->getMemoryPtr()->GetDataType())));
+        }
+    }
+
+    return MKLDNNExtensionUtils::getMaxPrecision(inputPrecisions);
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNEltwiseNode, Eltwise);

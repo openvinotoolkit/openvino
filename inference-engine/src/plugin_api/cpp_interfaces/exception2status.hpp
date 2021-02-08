@@ -12,6 +12,13 @@
 
 #include "description_buffer.hpp"
 
+/**
+ * @def THROW_IE_EXCEPTION_WITH_STATUS
+ * @brief Throws an exception along with the status (which is eventually converted to the typed exception)
+ */
+#define THROW_IE_EXCEPTION_WITH_STATUS(__status) THROW_IE_EXCEPTION << \
+                        InferenceEngine::details::as_status << InferenceEngine::StatusCode::__status << __status##_str
+
 namespace InferenceEngine {
 
 /**
@@ -85,6 +92,18 @@ namespace InferenceEngine {
  * @brief Defines the `not found` message
  */
 #define NOT_FOUND_str std::string("[NOT_FOUND] ")
+
+/**
+ * @def UNEXPECTED_str
+ * @brief Defines the `unexpected` message
+ */
+#define UNEXPECTED_str std::string("[UNEXPECTED] ")
+
+/**
+ * @def GENERAL_ERROR_str
+ * @brief Defines the `general error` message
+ */
+#define GENERAL_ERROR_str std::string("[GENERAL ERROR] ")
 
 /**
  * @def RESULT_NOT_READY_str

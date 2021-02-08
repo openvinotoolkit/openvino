@@ -38,6 +38,7 @@ protected:
     }
     bool Validate(const Params& p, const optional_params& o) const override;
     CommonDispatchData SetDefault(const deconvolution_params& arg) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
 
     enum class weights_preload {

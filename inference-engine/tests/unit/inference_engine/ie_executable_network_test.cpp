@@ -210,6 +210,8 @@ TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestPtrThrowsIfSetRequ
     ASSERT_THROW(exeNetwork->CreateInferRequestPtr(), InferenceEngine::details::InferenceEngineException);
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 class ExecutableNetworkBaseTests : public ::testing::Test {
 protected:
     std::shared_ptr<MockIExecutableNetworkInternal> mock_impl;

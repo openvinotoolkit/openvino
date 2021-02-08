@@ -68,17 +68,21 @@ std::shared_ptr<ngraph::Function> SplitFunction::getOriginal(
 
 std::shared_ptr<ngraph::Function> SplitFunction::getReference(
     const ngraph::Shape& inputShape,
-    const ngraph::element::Type precision,
+    const ngraph::element::Type inputPrecision,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ngraph::element::Type precisionAfterOperation,
     const std::vector<ngraph::builder::subgraph::DequantizationOperations>& dequantizationAfter,
     const int64_t splitedAxis,
     const size_t numSplit) {
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precision,
+        inputPrecision,
         ngraph::Shape(inputShape));
+
+    const auto deqBefore = makeDequantization(input, dequantizationBefore);
 
     std::shared_ptr<ngraph::opset1::Split> split;
     const auto constant = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{ }, splitedAxis);
-    split = std::make_shared<ngraph::opset1::Split>(input, constant, numSplit);
+    split = std::make_shared<ngraph::opset1::Split>(deqBefore, constant, numSplit);
 
     ngraph::ResultVector results;
     for (size_t i = 0; i < numSplit; ++i) {

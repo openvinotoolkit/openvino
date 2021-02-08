@@ -122,9 +122,9 @@ protected:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
         expectedPrecisions["Matmul_0"] = "BF16";
-        expectedPrecisions["Mul_1"] = "FP32";
+        expectedPrecisions["Mul_1"] = "BF16";
         expectedPrecisions["Add_1"] = "FP32";
-        expectedPrecisions["Relu_1"] = "FP32";
+        expectedPrecisions["Relu_1"] = "ndef";
         expectedPrecisions["Conc_1"] = "BF16";
         expectedPrecisions["Matmul_1"] = "BF16";
     }

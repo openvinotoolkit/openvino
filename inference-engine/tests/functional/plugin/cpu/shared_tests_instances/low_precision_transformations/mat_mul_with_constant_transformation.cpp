@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,7 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
         std::vector<float>(32 * 10, 1.f),
         { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
         "matMul/1",
-        "I8"
+        "U8"
     }
 };
 

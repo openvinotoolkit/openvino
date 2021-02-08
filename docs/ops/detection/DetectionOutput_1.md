@@ -6,7 +6,7 @@
 
 **Short description**: *DetectionOutput* performs non-maximum suppression to generate the detection output using information on location and confidence predictions.
 
-**Detailed description**: [Reference](https://arxiv.org/pdf/1512.02325.pdf). The layer has 3 mandatory inputs: tensor with box logits, tensor with confidence predictions and tensor with box coordinates (proposals). It can have 2 additional inputs with additional confidence predictions and box coordinates described in the [article](https://arxiv.org/pdf/1711.06897.pdf). The 5-input version of the layer is supported with Myriad plugin only. The output tensor contains information about filtered detections described with 7 element tuples: *[batch_id, class_id, confidence, x_1, y_1, x_2, y_2]*. The first tuple with *batch_id* equal to *-1* means end of output.
+**Detailed description**: [Reference](https://arxiv.org/pdf/1512.02325.pdf). The layer has 3 mandatory inputs: tensor with box logits, tensor with confidence predictions and tensor with box coordinates (proposals). It can have 2 additional inputs with additional confidence predictions and box coordinates described in the [article](https://arxiv.org/pdf/1711.06897.pdf). The output tensor contains information about filtered detections described with 7 element tuples: `[batch_id, class_id, confidence, x_1, y_1, x_2, y_2]`. The first tuple with `batch_id` equal to `-1` means end of output.
 
 At each feature map cell, *DetectionOutput* predicts the offsets relative to the default box shapes in the cell, as well as the per-class scores that indicate the presence of a class instance in each of those boxes. Specifically, for each box out of k at a given location, *DetectionOutput* computes class scores and the four offsets relative to the original default box shape. This results in a total of \f$(c + 4)k\f$ filters that are applied around each location in the feature map, yielding \f$(c + 4)kmn\f$ outputs for a *m \* n* feature map.
 
@@ -63,9 +63,9 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 * *share_location*
 
   * **Description**: *share_location* is a flag that denotes if bounding boxes are shared among different classes.
-  * **Range of values**: 0 or 1
-  * **Type**: int
-  * **Default value**: 1
+  * **Range of values**: false or true
+  * **Type**: boolean
+  * **Default value**: true
   * **Required**: *no*
 
 * *nms_threshold*
@@ -87,35 +87,35 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
 * *clip_after_nms*
 
   * **Description**: *clip_after_nms* flag that denotes whether to perform clip bounding boxes after non-maximum suppression or not.
-  * **Range of values**: 0 or 1
-  * **Type**: int
-  * **Default value**: 0
+  * **Range of values**: false or true
+  * **Type**: boolean
+  * **Default value**: false
   * **Required**: *no*
 
 * *clip_before_nms*
 
   * **Description**: *clip_before_nms* flag that denotes whether to perform clip bounding boxes before non-maximum suppression or not.
-  * **Range of values**: 0 or 1
-  * **Type**: int
-  * **Default value**: 0
+  * **Range of values**: false or true
+  * **Type**: boolean
+  * **Default value**: false
   * **Required**: *no*
 
 * *decrease_label_id*
 
   * **Description**: *decrease_label_id* flag that denotes how to perform NMS.
   * **Range of values**:
-    * 0 - perform NMS like in Caffe\*.
-    * 1 - perform NMS like in MxNet\*.
-  * **Type**: int
-  * **Default value**: 0
+    * false - perform NMS like in Caffe\*.
+    * true - perform NMS like in MxNet\*.
+  * **Type**: boolean
+  * **Default value**: false
   * **Required**: *no*
 
 * *normalized*
 
-  * **Description**: *normalized* flag that denotes whether input tensors with boxes are normalized. If tensors are not normalized then *input_height* and *input_width* attributes are used to normalize box coordinates.
-  * **Range of values**: 0 or 1
-  * **Type**: int
-  * **Default value**: 0
+  * **Description**: *normalized* flag that denotes whether input tensor with proposal boxes is normalized. If tensor is not normalized then *input_height* and *input_width* attributes are used to normalize box coordinates.
+  * **Range of values**: false or true
+  * **Type**: boolean
+  * **Default value**: false
   * **Required**: *no*
 
 * *input_height (input_width)*
@@ -133,21 +133,52 @@ At each feature map cell, *DetectionOutput* predicts the offsets relative to the
   * **Type**: float
   * **Default value**: 0
   * **Required**: *no*
-  
+
 **Inputs**
 
-* **1**: 2D input tensor with box logits. Required.
-* **2**: 2D input tensor with class predictions. Required.
-* **3**: 3D input tensor with proposals. Required.
-* **4**: 2D input tensor with additional class predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Optional.
-* **5**: 2D input tensor with additional box predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Optional.
+* **1**: 2D input tensor with box logits with shape `[N, num_prior_boxes * num_loc_classes * 4]` and type *T*. `num_loc_classes` is equal to `num_classes` when `share_location` is 0 or it's equal to 1 otherwise. Required.
+* **2**: 2D input tensor with class predictions with shape `[N, num_prior_boxes * num_classes]` and type *T*. Required.
+* **3**: 3D input tensor with proposals with shape `[priors_batch_size, 1, num_prior_boxes * prior_box_size]` or `[priors_batch_size, 2, num_prior_boxes * prior_box_size]`. `priors_batch_size` is either 1 or `N`. Size of the second dimension depends on `variance_encoded_in_target`. If `variance_encoded_in_target` is equal to 0, the second dimension equals to 2 and variance values are provided for each boxes coordinates. If `variance_encoded_in_target` is equal to 1, the second dimension equals to 1 and this tensor contains proposals boxes only. `prior_box_size` is equal to 4 when `normalized` is set to 1 or it's equal to 5 otherwise. Required.
+ Required.
+* **4**: 2D input tensor with additional class predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Its shape must be equal to `[N, num_prior_boxes * 2]`. Optional.
+* **5**: 2D input tensor with additional box predictions information described in the [article](https://arxiv.org/pdf/1711.06897.pdf). Its shape must be equal to first input tensor shape. Optional.
+
+**Outputs**
+
+* **1**: 4D output tensor with type *T*. Its shape depends on `keep_top_k` or `top_k` being set. It `keep_top_k[0]` is greater than zero, then the shape is `[1, 1, N * keep_top_k[0], 7]`. If `keep_top_k[0]` is set to -1 and `top_k` is greater than zero, then the shape is `[1, 1, N * top_k * num_classes, 7]`. Otherwise, the output shape is equal to `[1, 1, N * num_classes * num_prior_boxes, 7]`.
+
+**Types**
+
+* *T*: any supported floating point type.
+
 
 **Example**
 
 ```xml
 <layer ... type="DetectionOutput" ... >
-    <data num_classes="21" share_location="1" background_label_id="0" nms_threshold="0.450000" top_k="400" input_height="1" input_width="1" code_type="caffe.PriorBoxParameter.CENTER_SIZE" variance_encoded_in_target="0" keep_top_k="200" confidence_threshold="0.010000"/>
-    <input> ... </input>
-    <output> ... </output>
+    <data background_label_id="1" code_type="caffe.PriorBoxParameter.CENTER_SIZE" confidence_threshold="0.019999999552965164" eta="1.0" height="0" height_scale="0" input_height="1" input_width="1" interp_mode="" keep_top_k="200" nms_threshold="0.44999998807907104" normalized="1" num_classes="2" pad_mode="" pad_value="" prob="0" resize_mode="" share_location="1" top_k="200" variance_encoded_in_target="0" visualize_threshold="0.6" width="0" width_scale="0"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>5376</dim>
+        </port>
+        <port id="1">
+            <dim>1</dim>
+            <dim>2688</dim>
+        </port>
+        <port id="2">
+            <dim>1</dim>
+            <dim>2</dim>
+            <dim>5376</dim>
+        </port>
+    </input>
+    <output>
+        <port id="3" precision="FP32">
+            <dim>1</dim>
+            <dim>1</dim>
+            <dim>200</dim>
+            <dim>7</dim>
+        </port>
+    </output>
 </layer>
 ```

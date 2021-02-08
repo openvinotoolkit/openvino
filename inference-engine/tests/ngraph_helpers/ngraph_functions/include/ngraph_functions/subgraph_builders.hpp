@@ -13,7 +13,8 @@ static std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> in
                                                           ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     params.front()->set_friendly_name("Param_1");
-    auto const1 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, ngraph::Shape{1, 32, 1, 32});
+    std::vector<size_t> constShape = {inputShape[0], inputShape[2], inputShape[1], inputShape[3]};
+    auto const1 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{4}, constShape);
     const1->set_friendly_name("Const_1");
     auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params.front(), const1, false);
     reshape1->set_friendly_name("Reshape_1");
@@ -27,7 +28,9 @@ static std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> in
     pool1->set_friendly_name("Pool_1");
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(pool1);
     relu1->set_friendly_name("Relu_1");
-    auto const2 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, ngraph::Shape{1, 116});
+    ngraph::Shape reluShape = relu1->outputs()[0].get_tensor().get_shape();
+    std::vector<size_t> constShape2 = {1, ngraph::shape_size(reluShape)};
+    auto const2 = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{2}, constShape2);
     const2->set_friendly_name("Const_2");
     auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(relu1, const2, false);
     reshape2->set_friendly_name("Reshape_2");

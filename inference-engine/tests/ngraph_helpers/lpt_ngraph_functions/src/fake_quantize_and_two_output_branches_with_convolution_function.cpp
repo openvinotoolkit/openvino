@@ -58,32 +58,34 @@ std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
 std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
-    const ActualValues& values) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
-    const auto fakeQuantizeOnActivations = values.fqOnData.empty() ?
+    const FakeQuantizeOnData& fqOnData,
+    const FakeQuantizeOnWeights fqOnWeights1,
+    FakeQuantizeOnWeights fqOnWeights2) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    const auto fakeQuantizeOnActivations = fqOnData.empty() ?
         nullptr :
         ngraph::builder::makeFakeQuantize(
             input,
             precision,
-            values.fqOnData.quantizationLevel,
-            values.fqOnData.constantShape,
-            values.fqOnData.inputLowValues,
-            values.fqOnData.inputHighValues,
-            values.fqOnData.outputLowValues,
-            values.fqOnData.outputHighValues);
+            fqOnData.quantizationLevel,
+            fqOnData.constantShape,
+            fqOnData.inputLowValues,
+            fqOnData.inputHighValues,
+            fqOnData.outputLowValues,
+            fqOnData.outputHighValues);
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution1 = createConvolution(
         precision,
         inputShape,
         fakeQuantizeOnActivations,
-        values.fqOnWeights1,
+        fqOnWeights1,
         false);
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution2 = createConvolution(
         precision,
         inputShape,
         fakeQuantizeOnActivations,
-        values.fqOnWeights2,
+        fqOnWeights2,
         false);
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(NodeVector{ convolution1, convolution2 }, 1ul);
@@ -95,38 +97,38 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
-    const ExpectedValues& values) {
+    const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
+    const ngraph::element::Type precisionBeforeOp,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ngraph::element::Type precisionAfterOp,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter1,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter2) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
-    auto fakeQuantizeOnActivations = values.fqOnData.empty() ?
+    const auto fakeQuantizeOnActivations = fqOnData.empty() ?
         nullptr :
-        makeFakeQuantizeTypeRelaxed(input, precision, values.fqOnData);
+        makeFakeQuantizeTypeRelaxed(input, precision, fqOnData);
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(fakeQuantizeOnActivations, precisionBeforeOp);
+    const auto deqBefore = makeDequantization(fakeQuantizeOnActivations, dequantizationBefore);
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution1 = createConvolution(
         precision,
         inputShape,
-        fakeQuantizeOnActivations,
+        deqBefore,
         FakeQuantizeOnWeights(),
         true);
-    const std::shared_ptr<ngraph::opset1::Multiply> multiply1 = std::make_shared<ngraph::opset1::Multiply>(
-        convolution1,
-        std::make_shared<ngraph::opset1::Constant>(precision, Shape{1, 1, 1}, values.multiplay1Values));
+    const auto deqAfter1 = makeDequantization(convolution1, dequantizationAfter1);
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution2 = createConvolution(
         precision,
         inputShape,
-        fakeQuantizeOnActivations,
+        deqBefore,
         FakeQuantizeOnWeights(),
         true);
-    const std::shared_ptr<ngraph::opset1::Multiply> multiply2 = std::make_shared<ngraph::opset1::Multiply>(
-        convolution2,
-        std::make_shared<ngraph::opset1::Constant>(precision, Shape{1, 1, 1}, values.multiplay2Values));
+    const auto deqAfter2 = makeDequantization(convolution2, dequantizationAfter2);
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(NodeVector{ multiply1, multiply2 }, 1ul);
-
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(NodeVector{ deqAfter1, deqAfter2 }, 1ul);
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, precisionAfterOp);
     if (params.updatePrecisions) {
-        // fakeQuantizeOnActivations->set_output_type(0, params.precisionsOnActivations[0], fakeQuantizeOnActivations->get_output_partial_shape(0));
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantizeOnActivations, params.precisionsOnActivations[0]);
-
         replace_node(
             convolution1->get_input_node_shared_ptr(1),
             ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(convolution1->get_input_node_shared_ptr(1), params.precisionsOnWeights[0]));

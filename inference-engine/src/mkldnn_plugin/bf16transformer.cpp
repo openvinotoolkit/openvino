@@ -210,7 +210,7 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
                     }
                     bool marked = tryToMarkFP32(inputTo.second->outData[o], immutable);
                     if (marked) {
-                        toAnalyzeTensors.insert(layer->outData[o]);
+                        toAnalyzeTensors.insert(inputTo.second->outData[o]);
                     }
                 }
             }
@@ -347,6 +347,9 @@ void BF16Transformer::addLayerToCNNNetworkAfterData(
 void BF16Transformer::insertConvertAfterInput(InferenceEngine::CNNNetwork &network) {
     auto inputLayers = InferenceEngine::CNNNetGetAllInputLayers(network);
     for (auto inputIter : inputLayers) {
+        if (inputIter->type == "Const") {
+            continue;
+        }
         for (size_t o = 0; o < inputIter->outData.size(); o++) {
             for (auto bfInitIter : getInputTo(inputIter->outData[o])) {
                 if (inputIter->outData[o]->getPrecision() == Precision::BF16) {

@@ -7,7 +7,7 @@
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
 
-namespace LayerTestsDefinitions {
+namespace SubgraphTestsDefinitions {
 
 std::string FusePermuteAndReorderTest::getTestCaseName(testing::TestParamInfo<FusePermuteAndReorderParams> obj) {
     std::ostringstream result;
@@ -236,4 +236,4 @@ TEST_P(FusePermuteAndReorderTest2, CompareWithRefs) {
 
 INSTANTIATE_TEST_CASE_P(smoke_Basic, FusePermuteAndReorderTest2, fusePermuteAndReorderCommonParams, FusePermuteAndReorderTest::getTestCaseName);
 
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions

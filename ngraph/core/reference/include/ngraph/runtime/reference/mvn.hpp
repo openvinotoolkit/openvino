@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 #pragma once
 
 #include <cstddef>
+#include <ngraph/runtime/reference/add.hpp>
+#include <ngraph/runtime/reference/divide.hpp>
 #include <ngraph/runtime/reference/mean.hpp>
 #include <ngraph/runtime/reference/multiply.hpp>
 #include <ngraph/runtime/reference/sqrt.hpp>

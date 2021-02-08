@@ -149,6 +149,11 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
     graph->PullOutputData(_outputs);
 }
 
+InferenceEngine::StatusCode MKLDNNPlugin::MKLDNNInferRequest::Cancel() {
+    graph->Cancel();
+    return InferenceEngine::OK;
+}
+
 void MKLDNNPlugin::MKLDNNInferRequest::GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const {
     if (!graph || !graph->IsReady())

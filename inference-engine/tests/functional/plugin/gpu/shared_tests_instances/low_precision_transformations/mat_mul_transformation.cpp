@@ -33,7 +33,7 @@ std::vector<MatMulTransformationTestValues> testValues = {
 INSTANTIATE_TEST_CASE_P(smoke_LPT, MatMulTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 384, 1024 })),
+        ::testing::Values(ngraph::Shape({ 1, 384, 1024 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues)),
     MatMulTransformation::getTestCaseName);

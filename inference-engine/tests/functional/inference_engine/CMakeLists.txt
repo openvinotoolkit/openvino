@@ -14,6 +14,7 @@ set(LINK_LIBRARIES
     inference_engine_transformations
     openvino::itt
     openvino::conditional_compilation
+    sharedTestClasses
 )
 set(DEPENDENCIES
     mock_engine
@@ -21,9 +22,10 @@ set(DEPENDENCIES
     inference_engine_ir_v7_reader
     template_extension
     lptNgraphFunctions
+    sharedTestClasses
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND INCLUDES "${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op")
     list(APPEND LINK_LIBRARIES onnx_custom_op)
     list(APPEND DEPENDENCIES onnx_custom_op)
@@ -31,7 +33,7 @@ else()
     set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
-if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NOT ENABLE_MKL_DNN)
+if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NOT ENABLE_MKL_DNN OR NGRAPH_USE_PROTOBUF_LITE)
     set(EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS} "${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp")
 endif()
 
@@ -220,15 +222,12 @@ if(UNIX)
                                                  PLUGIN_API)
     else()
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS "-Wpedantic"
-                                                 HEADERS_TO_SKIP "generic_ie.hpp"
                                                  PLUGIN_API)
     endif()
 else()
-    # TODO: enable
-    # ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
-    #                                          HEADERS_TO_SKIP "generic_ie.hpp"
-    #                                          FLAGS  "/we4996 /W4 /WX"
-    #                                          PLUGIN_API)
+    ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
+                                             FLAGS  "/we4996 /W4 /WX"
+                                             PLUGIN_API)
 endif()
 
 # ir serialization functional tests variables
