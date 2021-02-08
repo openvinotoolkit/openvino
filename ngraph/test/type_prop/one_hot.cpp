@@ -31,6 +31,11 @@ TEST(type_prop, one_hot_v1_output_shape)
     auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
     ASSERT_EQ(ont_hot->get_element_type(), element::u32);
     ASSERT_EQ(ont_hot->get_shape(), (Shape{3, 2}));
+
+    auto dyn_indices = make_shared<op::Parameter>(element::i64, PartialShape{{1, 3}});
+    auto dyn_ont_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
+    ASSERT_EQ(dyn_ont_hot->get_output_element_type(0), element::u32);
+    ASSERT_EQ(dyn_ont_hot->get_output_partial_shape(0), (PartialShape{{1, 3}, 2}));
 }
 
 TEST(type_prop, one_hot_v1_output_shape_2)
@@ -43,6 +48,11 @@ TEST(type_prop, one_hot_v1_output_shape_2)
     auto ont_hot = make_shared<op::v1::OneHot>(indices, depth, on_value, off_value, axis);
     ASSERT_EQ(ont_hot->get_element_type(), element::f32);
     ASSERT_EQ(ont_hot->get_shape(), (Shape{1, 3, 2, 4, 3}));
+
+    auto dyn_indices = make_shared<op::Parameter>(element::i64, PartialShape{1, {3, 5}, 2, 3});
+    auto dyn_ont_hot = make_shared<op::v1::OneHot>(dyn_indices, depth, on_value, off_value, axis);
+    ASSERT_EQ(dyn_ont_hot->get_output_element_type(0), element::f32);
+    ASSERT_EQ(dyn_ont_hot->get_output_partial_shape(0), (PartialShape{1, {3, 5}, 2, 4, 3}));
 }
 
 TEST(type_prop, one_hot_v1_indices_elem_not_integral)
