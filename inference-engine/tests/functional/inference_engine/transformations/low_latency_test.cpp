@@ -79,8 +79,8 @@ TEST(TransformationTests, LowLatencyLSTM) {
 
         const std::string variable_name_H("LSTMTensorIterator/variable0");
         const std::string variable_name_C("LSTMTensorIterator/variable1");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape(), element::dynamic, variable_name_H});
-        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape(), element::dynamic, variable_name_C});
+        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_H);
         auto read_value_C = std::make_shared<opset6::ReadValue>(C_t, variable_C);
         // Body
@@ -160,7 +160,7 @@ TEST(TransformationTests, LowLatencyGRU) {
         auto H_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
 
         const std::string variable_name_H("GRUTensorIterator/variable0");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape(), element::dynamic, variable_name_H});
+        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_H);
         // Body
         auto axis = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
@@ -238,7 +238,7 @@ TEST(TransformationTests, LowLatencyRNN) {
         auto H_t = std::make_shared<opset6::Parameter>(element::f32, Shape{1, 128});
 
         const std::string variable_name_H("RNNTensorIterator/variable0");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape(), element::dynamic, variable_name_H});
+        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
         auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_H);
         // Body
         auto axis = ngraph::opset6::Constant::create(ngraph::element::i64, ngraph::Shape{}, {0});
@@ -328,8 +328,8 @@ TEST(TransformationTests, LowLatencyLSTMReshape) {
 
         const std::string variable_name_H("LSTMTensorIterator/variable0");
         const std::string variable_name_C("LSTMTensorIterator/variable1");
-        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape(), element::dynamic, variable_name_H});
-        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape(), element::dynamic, variable_name_C});
+        auto variable_H = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_H});
+        auto variable_C = std::make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name_C});
         auto read_value_H = std::make_shared<opset6::ReadValue>(H_t, variable_H);
         auto read_value_C = std::make_shared<opset6::ReadValue>(C_t, variable_C);
         // Body
