@@ -90,7 +90,7 @@ memory_impl::ptr memory_pool::get_memory(const layout& layout, const shared_mem_
                 params,
                 net_id), false };
             return mem_impl;
-#ifdef WIN32
+#ifdef _WIN32
         } else if (params->mem_type == shared_mem_type::shared_mem_dxbuffer) {
             memory_impl::ptr mem_impl{ new gpu::gpu_dx_buffer(engine_impl::ptr(_engine), layout,
                 params,

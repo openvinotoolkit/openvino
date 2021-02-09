@@ -255,6 +255,44 @@ class AddMeanScaleValuesTest(unittest.TestCase):
         self.assertTrue(flag, resp)
         self.check_graph_attrs(graph, graph_ref, ['parameter'])
 
+    def test_mean_values_with_colon_in_node_name(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values={'param:0': {'scale': np.array([1.]), 'mean': np.array([1., 2., 3.])}})
+        graph = build_graph(nodes, [*connect('parameter', 'result')], {'parameter': {'name': 'param:0'}},
+                            nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter'])
+        self.set_graph_attrs(graph_ref, ['parameter'])
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_mean_values_with_colon_in_node_name_and_port(self):
+        graph_ref = build_graph(nodes, [
+            *connect('parameter', '0:add_mean'),
+            *connect('mean', '1:add_mean'),
+            *connect('add_mean', 'result'),
+        ])
+
+        argv = Namespace(mean_scale_values={'0:param:0': {'scale': np.array([1.]), 'mean': np.array([1., 2., 3.])}})
+        graph = build_graph(nodes, [*connect('parameter', 'result')],
+                            {'parameter': {'name': 'param:0', 'id': 'param:0/placeholder_0',
+                                           'initial_node_name': 'param:0'}},
+                            nodes_with_edges_only=True, cli=argv)
+        self.set_graph_attrs(graph, ['parameter'])
+        self.set_graph_attrs(graph_ref, ['parameter'])
+        graph.graph['layout'] = 'NCHW'
+
+        AddMeanScaleValues().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
     def test_scale_input(self):
         graph_ref = build_graph(nodes, [
             *connect('parameter', '0:mul_scale'),

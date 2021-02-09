@@ -20,7 +20,7 @@ include(FetchContent)
 # ONNX.proto definition version
 #------------------------------------------------------------------------------
 
-set(ONNX_VERSION 1.8.0)
+set(ONNX_VERSION 1.8.1)
 
 #------------------------------------------------------------------------------
 # Download and install libonnx ...
@@ -48,8 +48,9 @@ macro(onnx_set_target_properties)
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(onnx PRIVATE /WX-)
-    else()
-        target_compile_options(onnx PRIVATE -Wno-unused-parameter)
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        target_compile_options(onnx PRIVATE -Wno-unused-variable -Wno-unused-parameter)
+        target_compile_options(onnx_proto PRIVATE -Wno-unused-variable)
     endif()
 
     set_target_properties(onnx onnx_proto PROPERTIES

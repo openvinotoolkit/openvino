@@ -89,9 +89,6 @@ bool_input_or
 # Layer <name> input port 1 is not connected to any data
 onnx_model_conv_transpose_w_groups
 
-#Incorrect number of inputs
-onnx_model_prelu
-
 # [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
 onnx_model_global_lp_pool_p0
 onnx_model_mod
@@ -175,7 +172,6 @@ arg_min_no_keep_dims_dyn_shape
 onnx_model_one_hot_with_axis
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
-# onnx_upsample9_scales_input_nearest_infer
 fused_clamp_uint16
 fused_clamp_uint8
 fused_clamp_int32
@@ -238,7 +234,7 @@ IE_CPU.onnx_model_rnn_reverse
 IE_CPU.onnx_model_rnn_fwd_bias_initial_h
 IE_CPU.onnx_model_rnn_bidirectional
 
-## RNN/GRU/LSTM Sequence: Output values mismatch - seq_lengths not supported
+# RNN/GRU/LSTM Sequence: Output values mismatch - seq_lengths not supported
 IE_GPU.onnx_model_lstm_fwd_mixed_seq_const
 IE_GPU.onnx_model_lstm_reverse_mixed_seq_const
 IE_GPU.onnx_model_rnn_fwd_mixed_seq_len
@@ -246,7 +242,7 @@ IE_GPU.onnx_model_rnn_fwd_mixed_seq_len_const
 IE_GPU.onnx_model_gru_fwd_mixed_seq_len
 IE_GPU.onnx_model_gru_fwd_mixed_seq_len_const
 
-## Const layer has incorrect dimensions in the output data
+# Const layer has incorrect dimensions in the output data
 IE_CPU.nothing_to_reverse
 
 # Unsupported dynamic ops
@@ -1176,9 +1172,6 @@ IE_CPU.onnx_model_nonmaxsuppression_center_point_box_format
 IE_CPU.onnx_model_nonmaxsuppression_single_box
 IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores_without_constants
 
-# Bug in CPU plugin for ROIPooling when pooled size is 1x1 and method is bilinear
-IE_CPU.roi_pooling_1x1_bilinear
-
 # Unsupported dynamic op
 IE_CPU.range_v4_trunc_inputs
 IE_CPU.onnx_model_reduce_sum_13_axes_as_input
@@ -1562,25 +1555,14 @@ onnx_controlflow_loop_infinite
 onnx_dyn_shapes_reduce_max_dynamic_input_rank_negative_axis
 IE_GPU.range_v4_trunc_inputs
 
-# not implemented yet on CPU and GPU plugins
-IE_CPU.evaluate_1D_gather_elements_3_indices_int32
-IE_CPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_0
-IE_CPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_1
-IE_CPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_minus_1
-IE_CPU.evaluate_2D_gather_elements_2x3_indices_int32
-IE_CPU.evaluate_3D_gather_elements_3x2x2_indices_int32
-IE_CPU.evaluate_3D_gather_elements_3x2x2_indices_int64
+# CPU plugin does not support bool type
 IE_CPU.evaluate_2D_gather_elements_3x2_data_bool
-IE_CPU.evaluate_2D_gather_elements_2x3_data_float32
+
+# CPU plugin does not validate whether indices values are out of range
 IE_CPU.evaluate_1D_gather_elements_negative_test
 IE_CPU.evaluate_2D_gather_elements_negative_test
-IE_CPU.evaluate_2D_gather_elements_2x2x1_data_float32
-IE_CPU.evaluate_4D_gather_elements_3x2x2x2_indices_int64
-IE_CPU.onnx_model_gather_elements_float_1D
-IE_CPU.onnx_model_gather_elements_float_negative_axis
-IE_CPU.onnx_model_gather_elements_int32_axis_0
-IE_CPU.onnx_model_gather_elements_int8_axis_1
-IE_CPU.onnx_model_gather_elements_float_3D_axis_2
+
+# not implemented yet on GPU plugin
 IE_GPU.evaluate_1D_gather_elements_3_indices_int32
 IE_GPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_0
 IE_GPU.evaluate_2D_gather_elements_2x2_indices_int32_axis_1
@@ -1621,3 +1603,4 @@ evaluate_mvn_6
 evaluate_mvn_6_inside_sqrt
 evaluate_mvn_6_across_chanells
 evaluate_mvn_6_across_batch
+IE_CPU.onnx_mvn_v6

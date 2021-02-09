@@ -153,8 +153,6 @@ public:
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
-        (void)name;
-
         if (m_xml_node.parent().child("body")) {
             // parameters and results from body are required for port_map attributes serialization
             std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
@@ -247,6 +245,8 @@ public:
                     exec_output.append_attribute("purpose").set_value("execution_condition");
                 }
             }
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+                m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
         }
     }
 
@@ -472,6 +472,17 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
     }
 }
 
+std::string escape_delim(const std::string& name, const char delim = ',') {
+    std::string result_name = name;
+    const std::string escaped_delim = std::string("\\") + delim;
+    size_t index = result_name.find(delim, 0);
+    while (index != std::string::npos) {
+        result_name.replace(index, 1, escaped_delim);
+        index = result_name.find(delim, index + 2);
+    }
+    return result_name;
+}
+
 std::string generate_unique_name(
     const std::unordered_set<std::string>& unique_names, std::string base_name,
     int suffix) {
@@ -506,10 +517,20 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
+bool has_dynamic_output(std::shared_ptr<Node> n) {
+    for (size_t i = 0; i < n->get_output_size(); i++) {
+        if (n->get_output_partial_shape(i).is_dynamic()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
     const auto & f_ops = f.get_ordered_ops();
     if (std::all_of(f_ops.begin(), f_ops.end(),
-            [](std::shared_ptr<Node> results) { return !results->is_dynamic(); })) {
+            [](std::shared_ptr<Node> results) {
+                return !results->is_dynamic() && !has_dynamic_output(results); })) {
         return false;
     }
 
@@ -662,6 +683,15 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
                     .set_value(get_output_precision_name(o).c_str());
+                std::string names;
+                for (const auto& name : o.get_tensor().get_names()) {
+                    if (!names.empty())
+                        names += ", ";
+                    names += escape_delim(name);
+                }
+                if (!names.empty()) {
+                    port.append_attribute("names").set_value(names.c_str());
+                }
                 for (auto d : o.get_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)

@@ -177,7 +177,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
         }
     },
 
-    // not supported 3D: U8 & I8
+    // 3D: U8 & I8
     {
         LayerTransformation::createParamsU8I8(),
         {
@@ -191,17 +191,72 @@ std::vector<MatMullTransformationTestValues> testValues = {
         {
             { 1, 3, 4 },
             ngraph::element::u8,
-            { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
+            { {}, {}, {} },
             ngraph::element::i8,
             {4, 4},
+            std::vector<float>(4 * 4, -126.f),
+            ngraph::element::f32,
+            { {}, {}, { {0.001f, 0.002f, 0.003f} } },
+            {},
+        }
+    },
+
+    // 3D: U8 & I8
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            { 1, 3, 4 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f } },
+            { 4, 4 },
+            std::vector<float>(4 * 4, 1.f),
+            {
+                255,
+                { 1, 4 },
+                {0.f, 0.f, 0.f, 0.f},
+                {254.f, 254.f, 254.f, 254.f},
+                {-127.f, -12.7f, -1.27f , -0.127f},
+                {127.f, 12.7f, 1.27f , 0.127f},
+            },
+        },
+        {
+            { 1, 3, 4 },
+            ngraph::element::u8,
+            { {}, {}, {} },
+            ngraph::element::i8,
+            { 4, 4 },
+            std::vector<float>(4 * 4, -126.f),
+            ngraph::element::f32,
+            { {}, {}, {{ 0.02f, 0.002f, 0.0002f, 0.00002f }, ngraph::element::f32, ngraph::Shape{ 1, 1, 4 }}},
+            {},
+        }
+    },
+
+    // 3D: U8 & I8: dequantization by columns in first input: can't be transformed
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            { 1, 3, 4 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f, 0.01f}, ngraph::element::f32, ngraph::Shape{1, 1, 4} } },
+            { 4, 4 },
+            std::vector<float>(4 * 4, 1.f),
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+        },
+        {
+            { 1, 3, 4 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f, 0.01f}, ngraph::element::f32, ngraph::Shape{1, 1, 4} } },
+            ngraph::element::f32,
+            { 4, 4 },
             std::vector<float>(4 * 4, 1.f),
             ngraph::element::f32,
-            {},
+            {{}, {}, {}},
             { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
         }
     },
 
-    // not supported 3D: U8 & I8
+    // U8 & I8: dequantization by rows in second input: can't be transformed
     {
         LayerTransformation::createParamsU8I8(),
         {
@@ -215,28 +270,28 @@ std::vector<MatMullTransformationTestValues> testValues = {
                 { 4, 1 },
                 {0.f, 0.f, 0.f, 0.f},
                 {254.f, 254.f, 254.f, 254.f},
-                {-12.7f / 4.f, -12.7f / 3.f, -12.7f / 2.f, -12.7f},
-                {12.7f / 4.f, 12.7f / 3.f, 12.7f / 2.f, 12.7f}
+                {-127.f, -12.7f, -1.27f , -0.127f},
+                {127.f, 12.7f, 1.27f , 0.127f},
             },
         },
         {
             { 1, 3, 4 },
             ngraph::element::u8,
             { ngraph::element::f32, {}, { 0.02f } },
-            ngraph::element::i8,
-            {4, 4},
+            ngraph::element::f32,
+            { 4, 4 },
             std::vector<float>(4 * 4, 1.f),
             ngraph::element::f32,
-            {},
+            { {}, {}, { 0.02f * 0.1f } },
             {
                 255,
                 { 4, 1 },
                 {0.f, 0.f, 0.f, 0.f},
                 {254.f, 254.f, 254.f, 254.f},
-                {-12.7f / 4.f, -12.7f / 3.f, -12.7f / 2.f, -12.7f},
-                {12.7f / 4.f, 12.7f / 3.f, 12.7f / 2.f, 12.7f}
+                {-127.f, -12.7f, -1.27f , -0.127f},
+                {127.f, 12.7f, 1.27f , 0.127f},
             },
-        }
+        },
     },
 
     // 2D: U8 & I8

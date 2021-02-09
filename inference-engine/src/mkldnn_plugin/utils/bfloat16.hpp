@@ -81,11 +81,12 @@ public:
         prepare_table();
     };
 
-    size_t get_inputs_num() { return 1; };
+    size_t get_inputs_num() override { return 1; };
 
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs,
-        const std::vector<size_t>& pool_vec_idxs, const std::vector<size_t>& pool_gpr_idxs) {
+        const std::vector<size_t>& pool_vec_idxs, const std::vector<size_t>& pool_gpr_idxs,
+        const emitter_context *emit_context) override {
         if (host_isa_ == mkldnn::impl::cpu::x64::cpu_isa_t::avx512_common) {
             Xbyak::Zmm in = Xbyak::Zmm(in_vec_idxs[0]);
             Xbyak::Ymm out = Xbyak::Ymm(out_vec_idxs[0]);
@@ -110,7 +111,7 @@ private:
         return ((output) << (4 * (input)));
     }
 
-    void register_table_entries() {
+    void register_table_entries() override {
         enum {
             fixup_input_code_qnan_ = 0,
             fixup_input_code_snan_ = 1,
@@ -133,7 +134,7 @@ private:
         push_arg_entry_of("selector", selector_int32, true);
     }
 
-    size_t aux_vecs_count() const { return 2; }
+    size_t aux_vecs_count() const override { return 2; }
 };
 } // namespace MKLDNNPlugin
 

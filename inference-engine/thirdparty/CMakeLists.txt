@@ -94,6 +94,6 @@ if(ENABLE_MKL_DNN)
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
 
-    add_subdirectory(mkl-dnn)
+    add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
     add_library(mkldnn ALIAS dnnl)
 endif()

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,6 +38,7 @@
 #include "gna_upstream_iterator.hpp"
 #include "frontend/quantization.h"
 #include "gna_groups.hpp"
+#include "gna_graph_patterns.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -628,92 +629,86 @@ void ReversePermutationsPass::run() {
 }
 
 void RemovePermutationsNHWCToNCHWPass::run() {
-    std::list<CNNLayerPtr> permutationsToRemove;
+    std::set<CNNLayerPtr> permutations_to_remove;
+    std::list<std::pair<CNNLayerPtr, CNNLayerPtr>> nhwc_layout_patterns;
     for (auto& l : *pLayers) {
         if (!LayerInfo(l).isConvolution()) {
             continue;
         }
 
-        if (l->outData.size() != 1) {
-            continue;
+        CNNLayerPtr prev, next;
+        std::tie(prev, next) = FindPermutationsAroundConvolutionInNHWCModel(l);
+
+        if (prev == nullptr || next == nullptr) continue;
+
+        if (LayerInfo(prev).isPermute() && getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+            permutations_to_remove.insert(prev);
         }
 
-        if (getInputTo(l->outData.front()).empty()) {
-            continue;
-        }
-        auto next = getInputTo(l->outData.front()).begin()->second;
-        auto prev = CNNNetPrevLayer(l);
-
-        // The next layer must be NCHW to NHWC permute
-        if (!LayerInfo(next).isPermute() || next->input()->getLayout() != Layout::NCHW ||
-            next->GetParamAsInts("order") != GetPermuteOrder(Layout::NCHW, Layout::NHWC)) {
-            continue;
+        if (LayerInfo(next).isPermute()) {
+            permutations_to_remove.insert(next);
         }
 
-        // The previous layer must be NHWC to NCHW permute or have 1D data
-        if (LayerInfo(prev).isPermute()) {
-            if (prev->outData[0]->getLayout() != Layout::NCHW ||
-                prev->GetParamAsInts("order") != GetPermuteOrder(Layout::NHWC, Layout::NCHW)) {
-                continue;
-            }
+        nhwc_layout_patterns.push_back({prev, next});
 
-            if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
-                permutationsToRemove.push_back(prev);
-            }
-        } else  {
-            if (prev->outData.size() != 1 || getInputTo(prev->outData[0]).size() != 1) {
-                continue;
-            }
-            auto prev_dims = prev->outData[0]->getDims();
-            // Check if the previous layer has all dimensions except one to be equal to 1
-            if (std::count_if(std::begin(prev_dims), std::end(prev_dims), [](size_t dim) { return dim != 1; }) > 1) {
-                continue;
-            }
+        auto* convolution = dynamic_cast<ConvolutionLayer*>(l.get());
+        if (!convolution) {
+            THROW_GNA_EXCEPTION << "Invalid type of convolution layer";
         }
-        permutationsToRemove.push_back(next);
+        if (convolution->_kernel_y != 1) {
+            THROW_GNA_LAYER_EXCEPTION(l) << "this case is not implemented yet";
+        }
+        auto in_channels = convolution->input()->getDims()[1];
+        convolution->_kernel_y = in_channels;
     }
 
-    for (auto&& toRemove : permutationsToRemove) {
-        gnalog() << toRemove->type << " layer '" << toRemove->name << "' will be removed" << '\n';
+    for (const auto& layers : nhwc_layout_patterns) {
+        auto pattern_start = layers.first;
+        auto pattern_end = layers.second;
 
-        if (!getInputTo(toRemove->outData.front()).empty()) {
-            auto next = getInputTo(toRemove->outData.front()).begin()->second;
-            IE_ASSERT(next != nullptr);
+        auto setNHWCOrder = [](InferenceEngine::DataPtr data) {
+            if (data->getLayout() == Layout::NHWC) return;
+            auto dims = data->getDims();
+            auto order = GetPermuteOrder(Layout::NCHW, Layout::NHWC);
+            InferenceEngine::SizeVector new_dims;
+            for (int i = 0; i < dims.size(); ++i) {
+                new_dims.push_back(dims[order[i]]);
+            }
+            data->setDims(new_dims);
+            data->setLayout(Layout::NHWC);
+        };
 
-            if (LayerInfo(next).isConvolution()) {
-                next->input()->setDims(toRemove->input()->getDims());
-                next->input()->setLayout(Layout::NHWC);
-                auto layerBeforePermute = CNNNetPrevLayer(toRemove);
-                DataPtr output = nullptr;
-                for (auto before_output : layerBeforePermute->outData) {
-                    if (areEqualDatas(toRemove->input(), before_output)) {
-                        output = before_output;
-                        output->setLayout(Layout::NHWC);
-                        break;
-                    }
-                }
-                if (output == nullptr) {
-                    THROW_GNA_EXCEPTION << "Could not find correct data link between " << toRemove->name << " and " << layerBeforePermute->name;
-                }
+        auto current_layer = getInputTo(pattern_start->outData[0]).begin()->second;
+        setNHWCOrder(current_layer->input());
+        while (current_layer != pattern_end) {
+            setNHWCOrder(current_layer->outData[0]);
+            current_layer = getInputTo(current_layer->outData[0]).begin()->second;
+        }
 
-                auto* convolution = dynamic_cast<ConvolutionLayer*>(next.get());
-                if (!convolution) {
-                    THROW_GNA_EXCEPTION << "There needs to be a convolution between permutations for RemovePermutationsNHWCToNCHWPass!";
+        if (LayerInfo(pattern_start).isPermute() && !getInputTo(pattern_start->outData.front()).empty()) {
+            auto layer_before_permute = CNNNetPrevLayer(pattern_start);
+            DataPtr output = nullptr;
+            for (auto before_output : layer_before_permute->outData) {
+                if (areEqualDatas(pattern_start->input(), before_output)) {
+                    output = before_output;
+                    output->setLayout(Layout::NHWC);
+                    break;
                 }
-
-                if (convolution->_kernel_y != 1) {
-                    THROW_GNA_LAYER_EXCEPTION(next) << "this case is not implemented yet";
-                }
-                auto in_channels = next->input()->getDims()[3];
-                convolution->_kernel_y = in_channels;
+            }
+            if (output == nullptr) {
+                THROW_GNA_EXCEPTION << "Could not find correct data link between " << pattern_start->name << " and " << layer_before_permute->name;
             }
         }
-        auto prev = CNNNetPrevLayer(toRemove);
-        if (LayerInfo(prev).isConvolution()) {
-            prev->outData[0]->setDims(toRemove->outData[0]->getDims());
-            prev->outData[0]->setLayout(Layout::NHWC);
+
+        if (!pattern_end->outData.empty() && !getInputTo(pattern_end->outData.front()).empty()) {
+            auto layer_after_permute = getInputTo(pattern_end->outData.front()).begin()->second;
+            layer_after_permute->input()->setLayout(Layout::NHWC);
         }
-        CNNNetworkRemoveLayer(toRemove, false);
+    }
+
+    for (auto&& to_remove : permutations_to_remove) {
+        gnalog() << to_remove->type << " layer '" << to_remove->name << "' will be removed" << '\n';
+        CNNNetworkRemoveLayer(to_remove, false);
     }
 }
 
@@ -1980,7 +1975,7 @@ int PassManager::run(int index) {
         saveGraphToDot(network, out, [](const CNNLayerPtr layer,
                                         ordered_properties &printed_properties,
                                         ordered_properties &node_properties) {});
-        network.serialize(name + ".xml", name + ".bin", nullptr);
+        network.serialize(name + ".xml", name + ".bin");
     };
 #else
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};
