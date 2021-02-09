@@ -119,6 +119,15 @@ check_ov_package() {
     fi
 }
 
+extract_release_from_version() {
+    version="$("$1" -c "import sys; \
+                        import os; \
+                        sys.path.append(os.path.join(\"$SCRIPTDIR\", os.pardir)); \
+                        from mo.utils.version import extract_release_version; \
+                        resp=extract_release_version(); \
+                        print(\"{}.{}\".format(*resp))")"
+}
+
 find_ie_bindings() {
     python_executable="$1"
     requires_sudo="$2"
@@ -131,14 +140,13 @@ find_ie_bindings() {
         fi
 
         # try to find OpenVINO version that matches MO version
-        mo_version=$(head -n 1 "$SCRIPTDIR/../version.txt")
-        if [[ $mo_version =~ ^([0-9]+)\.([0-9]+)* ]]; then
-            if install_ov "$python_executable" "$requires_sudo" "${BASH_REMATCH[0]}"; then
+        if extract_release_from_version "$python_executable"; then
+            if [[ $version == "None.None" ]]; then
+                echo "[ WARNING ] Can not extract release version from ModelOptimizer version. The latest OpenVINO version will be installed (may be incompatible with current ModelOptimizer version)"
+            elif install_ov "$python_executable" "$requires_sudo" "$version"; then
                 if check_ie "$python_executable"; then
                     return 0
                 fi
-                # If we are here then something bad has happened
-                # installed version of OV still doesn't work
                 echo "[ WARNING ] Installed OpenVINO version doesn't work as expected...Uninstalling"
                 uninstall_ov "$python_executable" "$requires_sudo"
                 return 1
@@ -154,7 +162,7 @@ find_ie_bindings() {
             if check_ie "$python_executable"; then
                 return 0
             else
-                echo "[ WARNING ] Installed OpenVINO version doesn't work as expected..."
+                echo "[ WARNING ] Installed OpenVINO version doesn't work as expected...Uninstalling"
                 uninstall_ov "$python_executable" "$requires_sudo"
                 return 1
             fi
