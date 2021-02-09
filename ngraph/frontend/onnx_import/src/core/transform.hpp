@@ -53,13 +53,19 @@ namespace ngraph
             /// \param model_proto Protobuf message with ONNX model to transform.
             void expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto);
 
-            static const std::vector<std::string> legacy_ops_to_fixup = {"DetectionOutput",
-                                                                         "FakeQuantize",
-                                                                         "GroupNorm",
-                                                                         "Normalize",
-                                                                         "PriorBox",
-                                                                         "PriorBoxClustered",
-                                                                         "Swish"};
+            static const std::vector<std::string> legacy_ops_to_fixup = {
+                "DetectionOutput",
+                "ExperimentalDetectronDetectionOutput",
+                "ExperimentalDetectronGenerateProposalsSingleImage",
+                "ExperimentalDetectronPriorGridGenerator",
+                "ExperimentalDetectronROIFeatureExtractor",
+                "ExperimentalDetectronTopKROIs",
+                "FakeQuantize",
+                "GroupNorm",
+                "Normalize",
+                "PriorBox",
+                "PriorBoxClustered",
+                "Swish"};
 
             /// \brief Add support for models with custom operators mistakenly registered in
             ///        "ai.onnx" domain.
