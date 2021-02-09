@@ -23,6 +23,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
+#include <ngraph/op/util/variable.hpp>
 
 #include <cpp/ie_cnn_network.h>
 #include "ie_blob_stream.hpp"
@@ -281,6 +282,16 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
         if (!getParameters<size_t>(node.child("data"), name, shape)) return;
         std::vector<std::ptrdiff_t> coord_diff(shape.begin(), shape.end());
         static_cast<ngraph::CoordinateDiff&>(*a) = ngraph::CoordinateDiff(coord_diff);
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter
+            <std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        std::string variable_id;
+        if (!getStrAttribute(node.child("data"), name, variable_id)) return;
+        if (!variables.count(variable_id)) {
+            variables[variable_id] = std::make_shared<ngraph::Variable>
+                    (ngraph::VariableInfo{ngraph::PartialShape::dynamic(),
+                                          ngraph::element::dynamic, variable_id});
+        }
+        a->set(variables[variable_id]);
     } else {
         THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
                             << " parameter";
@@ -360,7 +371,7 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
     ngraph::ParameterVector parameter_nodes;
     ngraph::ResultVector result_nodes;
     ngraph::NodeVector allNodes;
-    ngraph::SinkVector assign_nodes;
+    ngraph::SinkVector sink_nodes;
     std::map<std::string, std::shared_ptr<ngraph::Node>> variable_id_to_read_value;
 
     //  Following topological order create nGraph operations
@@ -396,31 +407,33 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
         //            }
         //        }
 
-        if (auto parameter_node = std::dynamic_pointer_cast<ngraph::op::Parameter>(node)) {
+        if (const auto& parameter_node = std::dynamic_pointer_cast<ngraph::op::Parameter>(node)) {
             parameter_nodes.emplace_back(parameter_node);
         }
 
-        if (auto result_node = std::dynamic_pointer_cast<ngraph::op::Result>(node)) {
+        if (const auto& result_node = std::dynamic_pointer_cast<ngraph::op::Result>(node)) {
             result_nodes.emplace_back(result_node);
         }
 
-        if (auto assign_node = std::dynamic_pointer_cast<ngraph::op::Assign>(node)) {
-            assign_nodes.emplace_back(assign_node);
+        if (const auto& sink = std::dynamic_pointer_cast<ngraph::op::Sink>(node)) {
+            sink_nodes.emplace_back(sink);
         }
 
-        if (auto read_value_node = std::dynamic_pointer_cast<ngraph::op::ReadValue>(node)) {
-            variable_id_to_read_value[read_value_node->get_variable_id()] = read_value_node;
+        if (const auto& read_value = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(node)) {
+            variable_id_to_read_value[read_value->get_variable_id()] = read_value;
         }
+
         allNodes.emplace_back(node);
     }
 
     OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphFunction");
 
     ::ngraph::op::GenericIE::DisableReshape noReshape(allNodes);
-    auto function = std::make_shared<ngraph::Function>(result_nodes, assign_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
-    for (const auto& assign : assign_nodes) {
-        assign->add_control_dependency(
-            variable_id_to_read_value.at(std::dynamic_pointer_cast<ngraph::op::Assign>(assign)->get_variable_id()));
+    auto function = std::make_shared<ngraph::Function>(result_nodes, sink_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
+    for (const auto& sink : sink_nodes) {
+        if (const auto& assign = std::dynamic_pointer_cast<ngraph::op::AssignBase>(sink)) {
+            assign->add_control_dependency(variable_id_to_read_value.at(assign->get_variable_id()));
+        }
     }
 
     return function;
@@ -464,7 +477,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
 
 std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
     std::shared_ptr<ngraph::Function> function;
-    XmlDeserializer visitor(root, weights, opsets);
+    XmlDeserializer visitor(root, weights, opsets, variables);
     visitor.on_attribute("net", function);
 
     OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
@@ -726,7 +739,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
         ngraphNode->set_arguments(inputs);
-        XmlDeserializer visitor(node, weights, opsets);
+        XmlDeserializer visitor(node, weights, opsets, variables);
         if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
         }
