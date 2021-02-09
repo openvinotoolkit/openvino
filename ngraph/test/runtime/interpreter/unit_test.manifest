@@ -161,3 +161,19 @@ quantize_clamp_int32
 
 # u16 type is not supported in Minimum evaluate method
 minimum_u16
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronDetectionOutpu
+INTERPRETER.onnx_model_experimental_detectron_detection_output
+INTERPRETER.onnx_model_experimental_detectron_detection_output_most_attrs_default
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronTopKROIs
+INTERPRETER.onnx_model_experimental_detectron_topk_rios
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronGenerateProposalsSingleImage
+INTERPRETER.onnx_model_experimental_detectron_generate_proposals_single_image
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronPriorGridGenerator
+INTERPRETER.onnx_model_experimental_detectron_prior_grid_generator
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
+INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor

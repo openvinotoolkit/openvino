@@ -113,6 +113,7 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
 
     out_shape[1] = channels_intersection;
 
+    set_output_size(2);
     set_output_type(0, input_et, out_shape);
     set_output_type(1, input_et, out_rois_shape);
 }
