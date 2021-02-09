@@ -72,10 +72,10 @@ add_custom_command(TARGET ${TARGET_NAME}
 # install
 
 install(TARGETS ${INSTALLED_TARGETS}
-        RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
-        ARCHIVE DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
-        LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION})
+        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
+        ARCHIVE DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
+        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION})
 
 install(PROGRAMS __init__.py
-        DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/inference_engine
         COMPONENT ${PYTHON_VERSION})

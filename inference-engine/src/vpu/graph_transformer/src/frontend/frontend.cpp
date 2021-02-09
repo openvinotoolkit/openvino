@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
+#include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
 
 namespace vpu {
 
@@ -171,6 +172,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+    manager.register_pass<vpu::MergeGatherGatherElements>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
     manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t>{

@@ -44,6 +44,7 @@
 #include <ngraph/runtime/reference/gelu.hpp>
 #include <ngraph/runtime/reference/grn.hpp>
 #include <ngraph/runtime/reference/group_convolution.hpp>
+#include <ngraph/runtime/reference/group_convolution_backprop_data.hpp>
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
@@ -265,6 +266,32 @@ namespace
             op->get_pads_end());
         return true;
     }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::GroupConvolutionBackpropData>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
+        const auto filter_data_ptr = inputs[1]->get_data_ptr<ET>();
+        const auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
+        const auto in_shape = inputs[0]->get_shape();
+        const auto filter_shape = inputs[1]->get_shape();
+        const auto out_shape = outputs[0]->get_shape();
+        runtime::reference::group_convolution_backprop_data<
+            typename element_type_traits<ET>::value_type>(in_data_ptr,
+                                                          filter_data_ptr,
+                                                          out_data_ptr,
+                                                          in_shape,
+                                                          filter_shape,
+                                                          out_shape,
+                                                          op->get_strides(),
+                                                          op->get_dilations(),
+                                                          op->get_pads_begin(),
+                                                          op->get_pads_end());
+        return true;
+    }
+
     namespace cum_sum_v0
     {
         template <element::Type_t t1, element::Type_t t2>
