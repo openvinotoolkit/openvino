@@ -1,0 +1,45 @@
+name: Documentation
+on: [push, pull_request]
+
+jobs:
+  Build_Doc:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive
+          python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+          python3 -m pip install lxml
+          # install doxygen
+          mkdir doxygen
+          cd doxygen
+          git clone https://github.com/doxygen/doxygen.git
+          cd doxygen
+          git checkout Release_1_9_1
+          mkdir build
+          cd build
+          cmake ..
+          cmake --build . -j`nproc`
+          sudo make install
+
+      - name: CMake doc
+        run: |
+          mkdir build
+          cd build
+          cmake -DENABLE_DOCS=ON ..
+
+      - name: Build doc
+        run: cmake --build . --target openvino_docs || exit 0
+        working-directory: build
+
+      - name: 'Upload doc'
+        uses: actions/upload-artifact@v2
+        with:
+          name: openvino_doc
+          path: build/docs/html/

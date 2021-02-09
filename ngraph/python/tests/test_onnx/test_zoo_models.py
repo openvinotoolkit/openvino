@@ -36,9 +36,6 @@ from tests import (
     xfail_issue_38726,
     xfail_issue_40686,
     xfail_issue_39704,
-    xfail_issue_43208,
-    xfail_issue_43209,
-    xfail_issue_43213,
     xfail_issue_37973,
     xfail_issue_47430,
     xfail_issue_47495)
@@ -127,6 +124,9 @@ tolerance_map = {
     "yolov4": {"atol": 1e-04, "rtol": 0.001},
     "tinyyolov3": {"atol": 1e-04, "rtol": 0.001},
     "tiny-yolov3-11": {"atol": 1e-04, "rtol": 0.001},
+    "GPT2": {"atol": 5e-06, "rtol": 0.01},
+    "GPT-2-LM-HEAD": {"atol": 4e-06},
+    "test_retinanet_resnet101": {"atol": 1.3e-06},
 }
 
 zoo_models = []
@@ -177,9 +177,6 @@ if len(zoo_models) > 0:
         execution_xfail_list = [
             # ONNX Model Zoo
             (xfail_issue_39704, "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_ResNet101_DUC_HDC_cpu"),
-            (xfail_issue_43213, "test_onnx_model_zoo_vision_object_detection_segmentation_retinanet_model_retinanet_9_test_retinanet_resnet101_retinanet_9_cpu"),
-            (xfail_issue_43208, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_10_GPT2_model_cpu"),
-            (xfail_issue_43209, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_lm_head_10_GPT_2_LM_HEAD_model_cpu"),
             (xfail_issue_40957, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
             (xfail_issue_40957, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
