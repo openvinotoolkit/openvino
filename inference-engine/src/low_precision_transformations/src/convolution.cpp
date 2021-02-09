@@ -214,10 +214,12 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                         reshapeFromWeights :
                         multiplyFromWeights->input_value(0)
                     }),
-                fold_reshape<opset1::Reshape>(
-                    multiplyFromWeights->input_value(1),
-                    std::make_shared<opset1::Constant>(element::u64, Shape{ newScaleShape.size() }, newScaleShape),
-                    false));
+                fold<opset1::Convert>(
+                    fold_reshape<opset1::Reshape>(
+                        multiplyFromWeights->input_value(1),
+                        std::make_shared<opset1::Constant>(element::u64, Shape{ newScaleShape.size() }, newScaleShape),
+                        false),
+                    convolution->get_output_element_type(0)));
             replace_node(convolution, newMultiplyAfter);
             convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
         }
