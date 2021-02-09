@@ -488,7 +488,7 @@ check_agreement()
         read -p "Want to proceed? (y/n): " yn
         case $yn in
             [Yy]*) return 0  ;;
-            [Nn]*) exit $EXIT_WRONG_ARG ;;
+            [Nn]*) exit $EXIT_FAILURE ;;
         esac
     done
 }
