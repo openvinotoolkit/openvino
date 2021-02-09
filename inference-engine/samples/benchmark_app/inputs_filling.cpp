@@ -281,6 +281,8 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                         fillBlobBinary<short>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
                     } else if (precision == InferenceEngine::Precision::I32) {
                         fillBlobBinary<int32_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
+                    } else if (precision == InferenceEngine::Precision::I64) {
+                        fillBlobBinary<int64_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
                     } else if (precision == InferenceEngine::Precision::U8) {
                         fillBlobBinary<uint8_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
                     } else {
@@ -300,6 +302,8 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                         fillBlobImInfo<short>(inputBlob, batchSize, image_size);
                     } else if (precision == InferenceEngine::Precision::I32) {
                         fillBlobImInfo<int32_t>(inputBlob, batchSize, image_size);
+                    } else if (precision == InferenceEngine::Precision::I64) {
+                        fillBlobImInfo<int64_t>(inputBlob, batchSize, image_size);
                     } else {
                         THROW_IE_EXCEPTION << "Input precision is not supported for image info!";
                     }
@@ -316,6 +320,8 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                 fillBlobRandom<short>(inputBlob);
             } else if (precision == InferenceEngine::Precision::I32) {
                 fillBlobRandom<int32_t>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::I64) {
+                fillBlobRandom<int64_t>(inputBlob);
             } else if (precision == InferenceEngine::Precision::U8) {
                 fillBlobRandom<uint8_t>(inputBlob);
             } else if (precision == InferenceEngine::Precision::I8) {
