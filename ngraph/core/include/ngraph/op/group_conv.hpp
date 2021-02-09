@@ -93,8 +93,6 @@ namespace ngraph
                 PadType m_auto_pad;
             };
 
-            NGRAPH_SUPPRESS_DEPRECATED_START
-
             /// \brief Data batch backprop for batched convolution operation.
             class NGRAPH_API GroupConvolutionBackpropData : public Op
             {
@@ -249,7 +247,6 @@ namespace ngraph
                 CoordinateDiff m_output_padding;
             };
 
-            NGRAPH_SUPPRESS_DEPRECATED_END
         } // namespace v1
     }     // namespace op
 } // namespace ngraph
