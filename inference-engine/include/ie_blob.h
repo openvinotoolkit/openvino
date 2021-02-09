@@ -577,14 +577,19 @@ public:
     /**
      *@brief Virtual destructor.
      */
-#ifdef __clang__
-    virtual ~TBlob() {};
-#else
+#ifdef __SYCL_COMPILER_VERSION
     virtual ~TBlob() {
         free();
     }
-#endif  // __clang__
-
+#else
+#  ifdef __clang__
+    virtual ~TBlob();
+#  else
+    virtual ~TBlob() {
+        free();
+    }
+#  endif  // __clang__
+#endif  // __SYCL_COMPILER_VERSION
 
     /**
      * @brief Gets the size of the given type.
@@ -806,6 +811,23 @@ protected:
         _handle = origBlob._handle;
     }
 };
+
+#ifndef __SYCL_COMPILER_VERSION
+#ifdef __clang__
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint8_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int16_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint16_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int32_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint32_t>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long long>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
+#endif  // __clang__
+#endif  // __SYCL_COMPILER_VERSION
 
 /**
  * @brief Creates a blob with the given tensor descriptor.
