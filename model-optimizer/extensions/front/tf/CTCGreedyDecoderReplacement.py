@@ -64,8 +64,6 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         # TODO: Once Inference Engine's CTCGreedyDecoder starts to support sequence length format like in TensorFlow,
-        # CTCGreedyDecoderReplacement2 needs to be removed and CTCGreedyDecoderReplacement, a more generic
-        # transformation, needs to be adopted for all cases
         ctc_greedy_decoder_tf = match['decoder']
         cast = match['cast']
         sparse_to_dense = match['sparse_to_dense']
