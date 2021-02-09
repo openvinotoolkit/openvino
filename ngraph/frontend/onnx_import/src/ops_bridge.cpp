@@ -149,7 +149,6 @@
 #include "op/org.openvinotoolkit/group_norm.hpp"
 #include "op/org.openvinotoolkit/normalize.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
-#include "op/org.openvinotoolkit/prior_box_clustered.hpp"
 #include "op/org.openvinotoolkit/swish.hpp"
 
 namespace ngraph
