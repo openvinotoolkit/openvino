@@ -33,13 +33,13 @@ The types of input scalars `on_value` and `off_value` should match and be equal 
 **Inputs**:
 
 * **1**: `indices`: input tensor with non-negative indices of any supported integer data type. Can be 0D. Required.
-* **2**: `depth`: scalar (0D tensor) of any supported integer type that specifies the number of classes and thus the size of the one-hot dimension. Required.
+* **2**: `depth`: positive scalar (0D tensor) of any supported integer type that specifies the number of classes and thus the size of the one-hot dimension. Required.
 * **3**: `on_value`: scalar (0D tensor) of any supported type that fills the locations in output tensor specified in `indices`. Required.
 * **4**: `off_value`: scalar (0D tensor) of the same type as `on_value` that fills the locations not represented in `indices`. Required.
 
 **Outputs**:
 
-* **1** A tensor of rank `N+1`, where `N` is a rank of the input tensor `indices`. A new axis of the size `depth` is inserted at the dimension `axis`.
+* **1** A tensor of rank `N+1`, where `N` is a rank of the input tensor `indices`. A new axis of the size `depth` is inserted at the dimension `axis`. The output type is the same as the `on_value` type.
 
 **Examples**
 
