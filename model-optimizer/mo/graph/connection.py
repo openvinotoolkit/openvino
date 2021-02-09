@@ -212,8 +212,8 @@ class Connection:
                             "Broken Connection object! Destination (node:{}) is not connected to source.".format(
                                 destination.node.name))
                     destination.disconnect()
-                    return edge_attrs
-            return None
+                    return edge_attrs, key
+            return {}, None
 
         if self.destinations and len(self.destinations) > 1:
             raise Error("set_destination applicable only for connections that has exactly one destination or \
@@ -228,7 +228,7 @@ class Connection:
         if self.graph.stage == 'front':
             if self.source is not None:
                 node = self.source.node
-                source_attrs = check_and_remove_edge() or {}
+                source_attrs, _ = check_and_remove_edge()
                 dest_attrs = port.get_in_edge_attrs() or {}
 
                 edge_attrs = {}
@@ -243,7 +243,7 @@ class Connection:
             # in case if data node exists just use it as is
             if self.source is not None:
                 data_node = self.source._create_data_if_necessary()
-                edge_attrs = check_and_remove_edge() or {}
+                edge_attrs, key = check_and_remove_edge()
                 edge_attrs.update({'in': port.idx})
 
                 dest_attrs = {}
@@ -253,7 +253,7 @@ class Connection:
                 new_tensor_info = self._get_new_tensor_debug_info(attributes_save_mode, data_node.attrs(), dest_attrs)
                 self._update_tensor_debug_info(data_node.attrs(), new_tensor_info)
 
-                self.graph.add_edge(data_node.id, port.node.id, **edge_attrs)
+                self.graph.add_edge(data_node.id, port.node.id, key=key, **edge_attrs)
             self.destinations = [port]
 
     def add_destination(self, port):

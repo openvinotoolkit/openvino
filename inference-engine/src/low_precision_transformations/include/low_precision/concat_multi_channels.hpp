@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,12 +32,21 @@ private:
         std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
         std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate);
 
-    static void fillQuantization(const std::shared_ptr<ngraph::Node> layer, std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>>& fakeQuantizes);
+    static void fillQuantization(
+        const std::shared_ptr<ngraph::Node> layer,
+        const std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
+        std::vector<FakeQuantizeDequantization>& dequantization);
 
-    static void updateDequantizationShapesIfNecessary(
-        std::shared_ptr<ngraph::Node> layer,
-        std::vector<std::shared_ptr<ngraph::opset1::FakeQuantize>>& fakeQuantizes,
-        std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize);
+    static FakeQuantizeDequantization getConcatenatedDequantization(
+        const std::shared_ptr<ngraph::opset1::Concat> concat,
+        const std::vector<FakeQuantizeDequantization>& dequantization);
+
+    static FakeQuantizeDequantization getFoldedDequantization(
+        const std::shared_ptr<ngraph::Node> operation,
+        const FakeQuantizeDequantization& dequantization,
+        const size_t sourceOutputIdx);
+
+    static FakeQuantizeDequantization broadcastDequantiationConstant(const FakeQuantizeDequantization& deq);
 
     bool isMultiChannel(const std::vector<std::shared_ptr<ngraph::opset1::Concat>>& concatLayers) const noexcept;
 };

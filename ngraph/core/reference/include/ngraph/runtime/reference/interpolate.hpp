@@ -244,30 +244,20 @@ namespace ngraph
 
                 Coordinate get_input_coords_for_nearest_mode(const Coordinate& output_coord);
 
-                struct InfoForLinearONNXMode
+                struct InfoForGenericLinearONNXMode
                 {
-                    std::vector<float> y_original;
-                    std::vector<float> x_original;
-
-                    std::vector<int64_t> input_width_mul_y1;
-                    std::vector<int64_t> input_width_mul_y2;
-                    std::vector<int64_t> in_x1;
-                    std::vector<int64_t> in_x2;
-
-                    std::vector<float> dy1;
-                    std::vector<float> dy2;
-                    std::vector<float> dx1;
-                    std::vector<float> dx2;
-
+                    int64_t input_data_ptr_increment;
+                    int64_t output_data_ptr_increment;
                     int64_t batch_size;
                     int64_t num_channels;
-                    int64_t input_height;
-                    int64_t input_width;
-                    int64_t output_height;
-                    int64_t output_width;
+                    int64_t spatial_rank;
+                    std::vector<int64_t> input_index_multipliers;
+                    std::vector<int64_t> output_index_multipliers;
+                    std::vector<int64_t> input_spatial_shape;
+                    std::vector<int64_t> output_spatial_shape;
                 };
 
-                InfoForLinearONNXMode get_info_for_linear_onnx_mode();
+                InfoForGenericLinearONNXMode get_info_for_generic_linear_onnx();
 
                 struct InfoForLinearMode
                 {
@@ -392,7 +382,7 @@ namespace ngraph
                 /// \param out pointer to memory block for output data
                 void linear_func(const T* input_data, T* out);
 
-                /// \brief Calculates interpolation as in ONNX 'linear' mode
+                /// \brief Calculates interpolation as in ONNX 'linear' mode (generic case)
                 ///
                 /// \param input_data pointer to input data
                 /// \param out pointer to memory block for output data
@@ -456,31 +446,62 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
             {
-                size_t input_rank = m_input_data_shape.size();
-                size_t num_of_axes = m_axes.size();
+                const size_t input_rank = m_input_data_shape.size();
 
-                assert((input_rank == 2) || (input_rank == 4));
-                assert((num_of_axes == 2) || (num_of_axes == input_rank));
+                assert(input_rank > 1);
 
-                bool correct_axes = ((m_axes[0] == 0) && (m_axes[1] == 1)) ||
-                                    ((m_axes[0] == 2) && (m_axes[1] == 3));
+                const size_t num_of_axes = m_axes.size();
 
-                if ((num_of_axes == 4) && (input_rank == 4))
+                bool correct_axes = ((input_rank == 2) && (num_of_axes == 2) && (m_axes[0] == 0) &&
+                                     (m_axes[1] == 1)) ||
+                                    ((input_rank == 3) && (num_of_axes == 3) && (m_axes[0] == 0) &&
+                                     (m_axes[1] == 1) && (m_axes[2] == 2));
+
+                if (input_rank >= 4)
                 {
-                    correct_axes = (m_axes[0] == 0) && (m_axes[1] == 1) && (m_axes[2] == 2) &&
-                                   (m_axes[3] == 3);
+                    std::vector<int64_t> all_axes;
+                    std::vector<int64_t> axes_without_batch_and_channels;
+                    all_axes.push_back(0);
+                    all_axes.push_back(1);
+                    for (int64_t i = 2; i < static_cast<int64_t>(input_rank); ++i)
+                    {
+                        all_axes.push_back(i);
+                        axes_without_batch_and_channels.push_back(i);
+                    }
+
+                    correct_axes = ((num_of_axes == input_rank) && (m_axes == all_axes)) ||
+                                   ((num_of_axes == input_rank - 2) &&
+                                    (m_axes == axes_without_batch_and_channels));
                 }
 
                 assert(correct_axes);
 
-                const auto info = helper.get_info_for_linear_onnx_mode();
+                const auto info = helper.get_info_for_generic_linear_onnx();
 
-                int64_t batch_size = info.batch_size;
-                int64_t num_channels = info.num_channels;
-                int64_t output_height = info.output_height;
-                int64_t output_width = info.output_width;
-                int64_t input_height = info.input_height;
-                int64_t input_width = info.input_width;
+                const int64_t batch_size = info.batch_size;
+                const int64_t num_channels = info.num_channels;
+
+                const auto& input_index_multipliers = info.input_index_multipliers;
+                const auto& output_index_multipliers = info.output_index_multipliers;
+
+                const int64_t input_data_ptr_increment = info.input_data_ptr_increment;
+                const int64_t output_data_ptr_increment = info.output_data_ptr_increment;
+
+                const auto& input_spatial_shape = info.input_spatial_shape;
+
+                // This mode supports only interpolation with respect to spatial dimensions,
+                // not with respect to batch or channels. That is, we can have only two cases:
+                //     num_of_axes == input_rank
+                // or
+                //     num_of_axes == input_rank - 2.
+                // Hence, if num_of_axes != input_rank, then interpolated axes indices are
+                //    [0, 1, ..., num_of_axes - 1]
+                // Otherwise, if num_of_axes == input_rank, interpolated axes indices are
+                //    [2, 3, ..., num_of_axes - 1]
+                const int64_t axis_idx_offset = (input_rank == num_of_axes) ? 2 : 0;
+
+                const int64_t spatial_rank = info.spatial_rank;
+                const int64_t points_in_neighbor = 1 << spatial_rank;
 
                 const T* xdata = input_data;
                 T* ydata = out;
@@ -488,24 +509,89 @@ namespace ngraph
                 {
                     for (int64_t c = 0; c < num_channels; ++c)
                     {
-                        for (int64_t y = 0; y < output_height; ++y)
+                        for (int64_t idx = 0; idx < output_data_ptr_increment; ++idx)
                         {
-                            for (int64_t x = 0; x < output_width; ++x)
+                            // 1. Get the current spatial coords vector.
+                            std::vector<int64_t> output_coords(spatial_rank);
+                            int64_t curr = idx;
+                            for (int64_t j = 0; j < spatial_rank - 1; ++j)
                             {
-                                T x11 = xdata[info.input_width_mul_y1[y] + info.in_x1[x]];
-                                T x21 = xdata[info.input_width_mul_y1[y] + info.in_x2[x]];
-                                T x12 = xdata[info.input_width_mul_y2[y] + info.in_x1[x]];
-                                T x22 = xdata[info.input_width_mul_y2[y] + info.in_x2[x]];
-
-                                ydata[output_width * y + x] =
-                                    static_cast<T>(info.dx2[x] * info.dy2[y] * x11 +
-                                                   info.dx1[x] * info.dy2[y] * x21 +
-                                                   info.dx2[x] * info.dy1[y] * x12 +
-                                                   info.dx1[x] * info.dy1[y] * x22);
+                                output_coords[j] = curr / output_index_multipliers[j];
+                                curr %= output_index_multipliers[j];
                             }
+                            output_coords[spatial_rank - 1] = curr;
+
+                            // 2. Some preliminaries.
+                            std::vector<int64_t> in1(spatial_rank);
+                            std::vector<int64_t> in2(spatial_rank);
+                            std::vector<float> d1(spatial_rank);
+                            std::vector<float> d2(spatial_rank);
+
+                            for (int64_t i = 0; i < spatial_rank; ++i)
+                            {
+                                float out_coord = static_cast<float>(output_coords[i]);
+
+                                float in_coord =
+                                    helper.get_in_coord(out_coord, i + axis_idx_offset);
+                                in_coord = std::max(
+                                    0.0f,
+                                    std::min(in_coord,
+                                             static_cast<float>(input_spatial_shape[i] - 1)));
+
+                                const int64_t in_coord1 = std::min(static_cast<int64_t>(in_coord),
+                                                                   input_spatial_shape[i] - 1);
+                                const int64_t in_coord2 =
+                                    std::min(in_coord1 + 1, input_spatial_shape[i] - 1);
+
+                                in1[i] = in_coord1;
+                                in2[i] = in_coord2;
+                                d1[i] = std::fabs(in_coord - in_coord1);
+                                d2[i] = std::fabs(in_coord - in_coord2);
+
+                                if (in_coord1 == in_coord2)
+                                {
+                                    d1[i] = 0.5f;
+                                    d2[i] = 0.5f;
+                                }
+                            }
+
+                            // 3. Get values in all points of a neighborhood.
+                            std::vector<T> values_of_input_points(points_in_neighbor);
+                            for (int64_t i = 0; i < points_in_neighbor; ++i)
+                            {
+                                int64_t offset = 0;
+                                for (int64_t j = 0; j < spatial_rank; ++j)
+                                {
+                                    if (i & (1 << (spatial_rank - 1 - j)))
+                                    {
+                                        offset += in1[j] * input_index_multipliers[j];
+                                    }
+                                    else
+                                    {
+                                        offset += in2[j] * input_index_multipliers[j];
+                                    }
+                                }
+                                values_of_input_points[i] = xdata[offset];
+                            }
+
+                            // 4. Interpolation.
+                            float sum = 0.0f;
+                            for (int64_t i = 0; i < points_in_neighbor; ++i)
+                            {
+                                float coeff = 1.0f;
+                                for (int64_t j = 0; j < spatial_rank; ++j)
+                                {
+                                    coeff *= (i & (1 << (spatial_rank - 1 - j))) ? d1[j] : d2[j];
+                                }
+                                sum += coeff * values_of_input_points[points_in_neighbor - 1 - i];
+                            }
+
+                            // 6. Store result.
+                            ydata[idx] = static_cast<T>(sum);
                         }
-                        xdata += input_height * input_width;
-                        ydata += output_width * output_height;
+
+                        xdata += input_data_ptr_increment;
+                        ydata += output_data_ptr_increment;
                     }
                 }
             }

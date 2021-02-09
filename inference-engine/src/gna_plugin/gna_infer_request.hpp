@@ -117,9 +117,5 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         return plg->QueryState();
     }
     IE_SUPPRESS_DEPRECATED_END
-
-    InferenceEngine::StatusCode Cancel() override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
 };
 }  // namespace GNAPluginNS
