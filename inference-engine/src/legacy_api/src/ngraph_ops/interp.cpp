@@ -115,3 +115,10 @@ shared_ptr<Node> op::ResampleV2::clone_with_new_inputs(const OutputVector& new_a
     check_new_args_count(this, new_args);
     return make_shared<ResampleV2>(new_args.at(0), new_args.at(1), m_attrs);
 }
+
+bool op::ResampleV2::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("antialias", m_attrs.antialias);
+    visitor.on_attribute("factor", m_attrs.factor);
+    visitor.on_attribute("mode", m_attrs.mode);
+    return true;
+}
