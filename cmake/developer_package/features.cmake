@@ -26,7 +26,7 @@ ie_option (ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer"
 
 ie_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
 
-ie_dependent_option (COVERAGE "enable code coverage" OFF "CMAKE_CXX_COMPILER_ID STREQUAL GNU" OFF)
+ie_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_CXX_COMPILER_ID STREQUAL GNU" OFF)
 
 # Defines CPU capabilities
 

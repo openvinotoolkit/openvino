@@ -54,6 +54,11 @@ ie_coverage_extract(INPUT "dldt" OUTPUT "low_precision_transformations"
 ie_coverage_genhtml(INFO_FILE "low_precision_transformations"
                     PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
 
+ie_coverage_extract(INPUT "dldt" OUTPUT "template_plugin"
+    PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/template_plugin/*")
+ie_coverage_genhtml(INFO_FILE "template_plugin"
+    PREFIX "${DLDT_COVERAGE_BASE_DIRECTORY}")
+
 if(ENABLE_MKL_DNN)
     ie_coverage_extract(INPUT "dldt" OUTPUT "mkldnn_plugin"
                         PATTERNS "${DLDT_COVERAGE_BASE_DIRECTORY}/mkldnn_plugin/*")
