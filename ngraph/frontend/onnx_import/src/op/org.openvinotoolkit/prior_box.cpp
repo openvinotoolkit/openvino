@@ -85,7 +85,6 @@ namespace ngraph
 
                 OutputVector prior_box_clustered(const Node& node)
                 {
-                    using PriorBoxClustered = default_opset::PriorBoxClustered;
                     auto inputs = node.get_ng_inputs();
                     NGRAPH_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
@@ -108,7 +107,7 @@ namespace ngraph
                         element::i64, Shape{1}, std::vector<int64_t>{0});
 
                     return {std::make_shared<default_opset::Unsqueeze>(
-                        std::make_shared<PriorBoxClustered>(
+                        std::make_shared<default_opset::PriorBoxClustered>(
                             output_shape_slice, image_shape_slice, attrs),
                         axes)};
                 }
