@@ -973,7 +973,7 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
     std::shared_ptr<ngraph::Node> parent = input;
 
     std::shared_ptr<ngraph::opset1::Convert> convert;
-    if (updatePrecision) {
+    if (updatePrecision || (parent->output(0).get_element_type() != deqPrecision)) {
         convert = std::make_shared<DequantizationConvert>(parent, deqPrecision);
         parent = convert;
     } else {
