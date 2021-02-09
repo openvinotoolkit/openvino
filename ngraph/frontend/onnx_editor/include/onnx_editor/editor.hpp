@@ -22,8 +22,7 @@
 
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_import/editor/detail/subgraph_extraction.hpp"
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
+#include "onnx_editor/onnx_editor_visibility.hpp"
 
 namespace ONNX_NAMESPACE
 {
@@ -42,7 +41,7 @@ namespace ngraph
         ///       an ngraph::Function by the import_onnx_model function. It lets you modify the
         ///       model's input types and shapes, extract a subgraph and more. An instance of this
         ///       class can be passed directly to the onnx_importer API.
-        class ONNX_IMPORTER_API ONNXModelEditor final
+        class ONNX_EDITOR_API ONNXModelEditor final
         {
         public:
             ONNXModelEditor() = delete;

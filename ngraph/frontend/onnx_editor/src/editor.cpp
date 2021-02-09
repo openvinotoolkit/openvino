@@ -18,7 +18,7 @@
 #include <onnx/onnx_pb.h>
 #include <onnx/shape_inference/implementation.h>
 
-#include "onnx_import/editor/editor.hpp"
+#include "onnx_editor/editor.hpp"
 #include "utils/parser.hpp"
 
 using namespace ngraph;

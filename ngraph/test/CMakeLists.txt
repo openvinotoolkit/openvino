@@ -428,6 +428,9 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
 
     get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
+
+    get_target_property(ONNX_EDITOR_SRC_DIR onnx_editor SOURCE_DIR)
+    target_include_directories(unit-test PRIVATE ${ONNX_EDITOR_SRC_DIR}/src)
 endif()
 
 target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")
@@ -452,6 +455,7 @@ endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_link_libraries(unit-test PRIVATE onnx_importer)
+    target_link_libraries(unit-test PRIVATE onnx_editor)
 endif()
 
 target_link_libraries(unit-test PRIVATE ie_backend)
