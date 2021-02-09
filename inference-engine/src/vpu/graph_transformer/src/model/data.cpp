@@ -31,6 +31,10 @@ namespace vpu {
 // DataNode
 //
 
+bool DataNode::isConsumed() const {
+    return numConsumers() > 0 || !childDataToShapeEdges().empty();
+}
+
 Data DataNode::getTopParentData() const {
     Data topParent = this;
     while (auto nextParent = topParent->parentData()) {
