@@ -45,11 +45,49 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(testing::TestParamIn
 InferenceEngine::Blob::Ptr DeformableConvolutionLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
         InferenceEngine::Blob::Ptr blobPtr;
         const std::string name = info.name();
-        if (name == "data") {
-            auto data_shape = info.getTensorDesc().getDims();
-            blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 0, 0, 0, 7235346);
-        } else {
-            blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 0, 0, 0, 7235346);
+        if (name == "a_data")
+        {
+
+        }
+        else if (name == "a_data")
+        {
+            
+        }
+        else if (name == "b_defor_vals")
+        {
+            blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 0, 0, 0, 7235346); // TODO
+        }
+        else if (name == "c_kernel_vals")
+        {
+            
+        }
+        else if (name == "d_stride_vals")
+        {
+            
+        }
+        else if (name == "e_pads_begin_vals")
+        {
+            
+        }
+        else if (name == "f_pads_begin_vals")
+        {
+            
+        }
+        else if (name == "g_dilation_vals")
+        {
+            
+        }
+        else if (name == "h_pad_type_vals")
+        {
+            
+        }
+        else if (name == "i_groups_vals")
+        {
+            
+        }
+        else if (name == "j_deformable_groups_vals")
+        {
+            
         }
         return blobPtr;
 }
@@ -57,7 +95,7 @@ InferenceEngine::Blob::Ptr DeformableConvolutionLayerTest::GenerateInput(const I
 void DeformableConvolutionLayerTest::SetUp() {
     deformableConvSpecificParams convParams;
     std::vector<size_t> inputShape;
-    auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
+    auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) =
         this->GetParam();
     ngraph::op::PadType padType;
@@ -69,8 +107,28 @@ void DeformableConvolutionLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape, deformable_vals, kernel});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    //auto deformable_values = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(kernel));
-    //deformable_values->set_friendly_name("data");
+    
+    auto data = std::make_shared<ngraph::op::Parameter>(netPrecision, ngraph::Shape(inputShape));
+    data->set_friendly_name("a_data");
+    auto defor_vals = std::make_shared<ngraph::op::Parameter>(netPrecision, ngraph::Shape(deformable_vals));
+    defor_vals->set_friendly_name("b_defor_vals");
+    auto kernel_vals = std::make_shared<ngraph::op::Parameter>(netPrecision, ngraph::Shape(kernel));
+    kernel_vals->set_friendly_name("c_kernel_vals");
+    auto stride_vals = std::make_shared<ngraph::op::Parameter>(netPrecision, ngraph::Shape(stride));
+    stride_vals->set_friendly_name("d_stride_vals");
+    auto pads_begin_vals = std::make_shared<ngraph::op::Parameter>(netPrecision, ngraph::Shape(padBegin));
+    pad_begins_vals->set_friendly_name("e_pads_begin_vals");
+    auto pads_end_vals = std::make_shared<ngraph::op::Parameter>(netPrecision, ngraph::Shape(padEnd));
+    pad_end_vals->set_friendly_name("f_pads_begin_vals");
+    auto dilation_vals = std::make_shared<ngraph::op::Parameter>(netPrecision, ngraph::Shape(dilation));
+    dilation_vals->set_friendly_name("g_dilation_vals");
+    auto pad_type_vals = std::make_shared<ngraph::op::Parameter>(netPrecision, ngraph::Shape(padType));
+    pad_type_vals->set_friendly_name("h_pad_type_vals");
+    auto groups_vals = std::make_shared<ngraph::op::Parameter>(netPrecision, ngraph::Shape(groups));
+    groups_vals->set_friendly_name("i_groups_vals");
+    auto deformable_groups = std::make_shared<ngraph::op::Parameter>(netPrecision, ngraph::Shape(deformable_groups));
+    deformable_groups->set_friendly_name("j_deformable_groups_vals");
+
     auto deformable_conv = std::make_shared<ngraph::opset1::DeformableConvolution>(paramOuts[0], paramOuts[1], paramOuts[2],
                                                               stride, padBegin, padEnd, dilation, padType, groups, deformable_groups);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(deformable_conv)};
