@@ -523,8 +523,26 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     // TODO add function
     // printConvolution2DLayer(convolution);
 
-    if (convolution._kernel_x > in_width ||
-        convolution._kernel_y > in_height) {
+    auto effectiveInputWidth = in_width;
+    auto effectiveInputHeight = in_height;
+
+    if (cnn2dInputPaddingSupported) {
+        effectiveInputWidth += convolution._padding_x * 2;
+        effectiveInputHeight += convolution._padding_y * 2;
+    } else if (convolution._padding_x != 0 || convolution._padding_y != 0 ||
+        convolution._pads_end.at(X_AXIS) != 0 || convolution._pads_end.at(Y_AXIS) != 0) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not supported";
+    }
+
+    if (convolution._padding_x != convolution._pads_end.at(X_AXIS)) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not symetric along X axis";
+    }
+    if (convolution._padding_y != convolution._pads_end.at(Y_AXIS)) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "Convolution's input padding is not symetric along Y axis";
+    }
+
+    if (convolution._kernel_x > effectiveInputWidth ||
+        convolution._kernel_y > effectiveInputHeight) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Kernel dimensions XY (" << convolution._kernel_x << ", " << convolution._kernel_y << ")"
             << " are bigger than input dimensions WH (" << in_width << "," << in_height << ")";
     }
@@ -582,7 +600,8 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
         { {out_batch, out_height, out_width, out_channels}, outputPrec, {} },
         { {filter_n, convolution._kernel_y, convolution._kernel_x, in_channels}, weightPrec, {} },
         { {filter_n}, biasPrec, {} },
-        { convolution._stride_x , convolution._stride_y},
+        { convolution._stride_y, convolution._stride_x},
+        { convolution._padding_y, convolution._padding_x },
         weight_scale_factor,
         output_scale_factor,
         ptr_inputs,
@@ -623,10 +642,10 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     // TODO: Jira: 43659 - the issue also appears when after conv there's an eltwise or activation
     // For last layer or when next ones are only non functional, the data can be reordered when exporting scores
     // For other cases inserting permute is required if data are reordered
-    auto isNonFunctional = [](CNNLayerPtr l) {
-        return LayerInfo(l).isNonFunctional();
+    auto keepsLayout = [](CNNLayerPtr l) {
+        return LayerInfo(l).isNonFunctional() || LayerInfo(l).isActivation() || LayerInfo(l).isPooling();
     };
-    if (getInputTo(outputs).empty() || !CNNNetHasNextLayerSkipCertain(layer, 0, 0, isNonFunctional)) {
+    if (getInputTo(outputs).empty() || !CNNNetHasNextLayerSkipCertain(layer, 0, 0, keepsLayout)) {
         // if height dim and width dim both equal 1, the permute is not needed to return correct results
         // if height dim doesn't equal 1, the case requires additional permute
         // auto inputDimsCheck = (in_channels != 1 ||

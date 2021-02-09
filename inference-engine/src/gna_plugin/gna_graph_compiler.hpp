@@ -36,7 +36,8 @@ private:
     std::shared_ptr<GNAPluginNS::InputDesc> inputDesc;
     std::shared_ptr<GNAPluginNS::GNAFlags> gnaFlags;
     Policy policy;
-
+    //consider moving to configuration
+    const bool cnn2dInputPaddingSupported = true;
     // layers with extra storage for connections and additional
     // non trivial processing
 
