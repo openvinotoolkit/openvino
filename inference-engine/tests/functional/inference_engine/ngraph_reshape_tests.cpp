@@ -471,6 +471,116 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     cnn.reshape(inShape);
 }
 
+TEST_F(NGraphReshapeTests, ReshapeWithDefaultGenericOps) {
+    // the RNNCEll was initially marked as "experimental" operation but later was added to opset
+    // the test checks that IR reader properly instantiate the "experimental" RNNCell as "opset6" RNNCell
+    std::string model = R"V0G0N(
+<net name="Activation" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data shape="1,16" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>16</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in2" type="Parameter" id="1" version="opset1">
+            <data shape="1,128" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in3" type="Parameter" id="2" version="opset1">
+            <data shape="128,16" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>128</dim>
+                    <dim>16</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in4" type="Parameter" id="3" version="opset1">
+            <data shape="128,128" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>128</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in5" type="Parameter" id="4" version="opset1">
+            <data shape="128" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="5" name="77/RNNCell" type="RNNCell" version="experimental">
+            <data hidden_size="128" linear_before_reset="1"/>
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>16</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+                <port id="2">
+                    <dim>128</dim>
+                    <dim>16</dim>
+                </port>
+                <port id="3">
+                    <dim>128</dim>
+                    <dim>128</dim>
+                </port>
+                <port id="4">
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="5" precision="FP32">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="6" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="5" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="5" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="5" to-port="2"/>
+        <edge from-layer="3" from-port="0" to-layer="5" to-port="3"/>
+        <edge from-layer="4" from-port="0" to-layer="5" to-port="4"/>
+        <edge from-layer="5" from-port="5" to-layer="6" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core ie;
+    Blob::Ptr weights;
+
+    auto network = ie.ReadNetwork(model, weights);
+    InferenceEngine::ICNNNetwork::InputShapes newShapes;
+    newShapes["in1"] = {2, 16};
+    newShapes["in2"] = {2, 128};
+
+    ASSERT_NO_THROW(network.reshape(newShapes));
+}
+
 TEST_F(NGraphReshapeTests, ReshapeEDDetectionOutput) {
     std::string model = R"V0G0N(
 <net name="ExperimentalDetectronDetectionOutput" version="10">
