@@ -42,7 +42,7 @@ private:
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}}, {{DataType::FP16}});
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::S32}}, {{DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -66,17 +66,43 @@ private:
 
 }  // namespace
 
-void FrontEnd::parseMVN(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
+void FrontEnd::parseMVN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+    IE_ASSERT(inputs.size() == 2);
     IE_ASSERT(outputs.size() == 1);
 
-    auto layer = std::dynamic_pointer_cast<ie::MVNLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+    const auto& input = inputs[0];
+    const int ndims = input->desc().numDims();
+    IE_ASSERT(ndims == 3 || ndims == 4);
+
+    const auto& indices = inputs[1];
+    const int indices_size = indices->desc().totalDimSize();
+    const auto indices_ptr = indices->content()->get<int>();
+
+    const auto& getDimFromAxis = [](int ndims, int axis_index) -> Dim {
+        return DimsOrder::fromNumDims(ndims).toPermutation()[ndims - axis_index - 1];
+    };
+    std::set<Dim> axes;
+    for (int i = 0; i < indices_size; i++) {
+        axes.insert(getDimFromAxis(ndims, indices_ptr[i]));
+    }
+
+    bool across_channels = false;
+    if (!axes.count(Dim::N) && axes.count(Dim::H) && axes.count(Dim::W)) {
+        across_channels = axes.count(Dim::C) != 0;
+    } else {
+        VPU_THROW_FORMAT("Unsupported combination of indices in layer \"%s\". "
+                         "Only across channel and full batch supported.", layer->name);
+    }
+
+    const auto norm_variance = layer->GetParamAsBool("normalize_variance");
+    const auto eps = layer->GetParamAsFloat("eps");
+    const auto eps_mode = layer->GetParamAsString("eps_mode", "outside_sqrt");
+    VPU_THROW_UNLESS(eps_mode == "outside_sqrt", "Only eps_mode == \"outside_sqrt\" supported.");
 
     auto stage = model->addNewStage<MVNStage>(layer->name, StageType::MVN, layer, inputs, outputs);
-    stage->attrs().set<int>("normalize", layer->normalize);
-    stage->attrs().set<int>("across_channels", layer->across_channels);
-    stage->attrs().set<float>("eps", layer->GetParamAsFloat("eps", 0.0f));
+    stage->attrs().set<int>("normalize", norm_variance);
+    stage->attrs().set<int>("across_channels", across_channels);
+    stage->attrs().set<float>("eps", eps);
 }
 
 }  // namespace vpu
