@@ -81,6 +81,7 @@ inline int get_cv_depth(const TensorDesc &ie_desc) {
     case Precision::U8:   return CV_8U;
     case Precision::FP32: return CV_32F;
     case Precision::U16:  return CV_16U;
+    case Precision::FP16: return CV_16U;
 
     default: THROW_IE_EXCEPTION << "Unsupported data type";
     }
