@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ from mo.middle.pattern_match import find_pattern_matches, inverse_dict
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.assign import Assign
 from mo.ops.concat import Concat
-from mo.ops.const import Const
 from mo.ops.crop import Crop
 from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
@@ -85,13 +84,14 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
         if context_len == 1:
             return
 
+        batch_port = graph.get_op_nodes(op="Parameter")[0].out_port(0)
         in_node_port = node.in_port(0).get_source()
         in_node_shape = node.in_port(0).data.get_shape()
         node.in_port(0).disconnect()
 
         # add Select before saving state to avoid saving garbage
         select_node = Select(graph, {'name': 'select_' + node.name}).create_node()
-        zero_else = Const(graph, {'name': 'zero_else', 'value': np.zeros(in_node_shape)}).create_node()
+        zero_else = create_const_with_batch_from_input(batch_port, in_node_shape[1])
         select_node.in_port(1).connect(in_node_port)
         select_node.in_port(2).connect(zero_else.out_port(0))
 
@@ -126,15 +126,13 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
             ones = Node(graph, inverse_dict(counter_match)['const_1'])
             input_port = Node(graph, inverse_dict(counter_match)['crop_out']).out_port(0)
         else:
-            init_value_mem_out = create_const_with_batch_from_input(in_node_port, context_len, precision=np.int32)
+            init_value_mem_out = create_const_with_batch_from_input(batch_port, context_len, precision=np.int32)
             mem_out = ReadValue(graph, {'name': 'iteration_number',
                                         'variable_id': 'iteration_'+node.name}).create_node()
             mem_out.in_port(0).connect(init_value_mem_out.out_port(0))
             cut_first = Crop(graph, {'name': 'cut_first', 'axis': int64_array([1]),
                                      'offset': int64_array([1]), 'dim': int64_array([context_len-1])}).create_node()
             cut_first.in_port(0).connect(mem_out.out_port(0))
-            # batch added to Kaldi by MO and is not changing in graph
-            batch_port = node.graph.get_op_nodes(op="Parameter")[0].out_port(0)
             ones = create_const_with_batch_from_input(batch_port, 1, value=1, precision=np.int32)
             concat = Concat(graph, {'name': 'concat_ones', 'in_ports_count': 2, 'axis': 1}).create_node()
             concat.in_port(0).connect(cut_first.out_port(0))
