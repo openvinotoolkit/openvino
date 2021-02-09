@@ -112,17 +112,6 @@ void FrontEnd::parseStridedSlice(const Model& model, const ie::CNNLayerPtr& laye
     DataVector extendedInputs{inputs.begin(), inputs.end()};
     if (inputs.size() == 3) {
         extendedInputs.push_back(model->addFakeData());
-    } else {
-        const auto& strides = inputs[3];
-        const auto stridesPtr = strides->content()->get<int32_t>();
-        VPU_THROW_UNLESS(stridesPtr != nullptr,
-                         "Checking {} with type {} failed: pointer for strides is null",
-                         layer->name, layer->type);
-        for (int i = 0; i < strides->desc().totalDimSize(); i++) {
-            VPU_THROW_UNLESS(stridesPtr[i] > 0,
-                             "Checking {} with type {} failed: negative stride is not supported",
-                             layer->name, layer->type);
-        }
     }
 
     model->addNewStage<StridedSliceStage>(layer->name, StageType::StridedSlice, layer, extendedInputs, outputs);
