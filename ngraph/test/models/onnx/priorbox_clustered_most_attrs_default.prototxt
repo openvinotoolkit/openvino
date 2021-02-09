@@ -8,42 +8,6 @@ graph {
     output: "out"
     op_type: "PriorBoxClustered"
     attribute {
-      name: "width"
-      floats: 0.1
-      floats: 0.1
-      floats: 0.2
-      floats: 0.2
-      type: FLOATS
-    }
-    attribute {
-      name: "height"
-      floats: 0.1
-      floats: 0.1
-      floats: 0.2
-      floats: 0.2
-      type: FLOATS
-    }
-    attribute {
-      name: "step_w"
-      f: 64
-      type: FLOAT
-    }
-    attribute {
-      name: "clip"
-      i: 1
-      type: INT
-    }
-    attribute {
-      name: "step_h"
-      f: 64
-      type: FLOAT
-    }
-    attribute {
-      name: "offset"
-      f: 0.5
-      type: FLOAT
-    }
-    attribute {
       name: "variance"
       floats: 0.1
       floats: 0.1
@@ -66,7 +30,7 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 1
+            dim_value: 2
           }
           dim {
             dim_value: 1
@@ -88,10 +52,10 @@ graph {
             dim_value: 1
           }
           dim {
-            dim_value: 1
+            dim_value: 3
           }
           dim {
-            dim_value: 1
+            dim_value: 3
           }
         }
       }
@@ -110,7 +74,7 @@ graph {
             dim_value: 2
           }
           dim {
-            dim_value: 4
+            dim_value: 8
           }
         }
       }

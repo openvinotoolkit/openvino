@@ -3977,112 +3977,46 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered)
         file_util::path_join(SERIALIZED_ZOO, "onnx/priorbox_clustered.prototxt"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
-    test_case.add_input<int64_t>({2, 2});
-
-    test_case.add_input<int64_t>({5, 5});
-    test_case.add_expected_output<float>(Shape{2, 32},
-                                         {
-                                             0.03800000995397567749f,
-                                             -0.2619999945163726807f,
-                                             0.4619999825954437256f,
-                                             0.761999964714050293f,
-                                             0.0899999961256980896f,
-                                             -0.310000002384185791f,
-                                             0.4099999964237213135f,
-                                             0.8100000619888305664f,
-                                             0.5379999876022338867f,
-                                             -0.2619999945163726807f,
-                                             0.9620000123977661133f,
-                                             0.761999964714050293f,
-                                             0.5900000333786010742f,
-                                             -0.310000002384185791f,
-                                             0.9100000262260437012f,
-                                             0.8100000619888305664f,
-                                             0.03800000995397567749f,
-                                             0.2380000054836273193f,
-                                             0.4619999825954437256f,
-                                             1.261999964714050293f,
-                                             0.0899999961256980896f,
-                                             0.1900000125169754028f,
-                                             0.4099999964237213135f,
-                                             1.310000061988830566f,
-                                             0.5379999876022338867f,
-                                             0.2380000054836273193f,
-                                             0.9620000123977661133f,
-                                             1.261999964714050293f,
-                                             0.5900000333786010742f,
-                                             0.1900000125169754028f,
-                                             0.9100000262260437012f,
-                                             1.310000061988830566f,
-                                             0.1000000014901161194f,
-                                             0.1000000014901161194f,
-                                             0.1000000014901161194f,
-                                             0.1000000014901161194f,
-                                             0.1000000014901161194f,
-                                             0.1000000014901161194f,
-                                             0.1000000014901161194f,
-                                             0.1000000014901161194f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                         });
+    std::vector<float> A{15.0};
+    std::vector<float> B{10.0};
+    std::vector<float> output = {
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+        0.1, 0.1, 0.2, 0.2, 0.1, 0.1, 0.2, 0.2, 0.1, 0.1, 0.2, 0.2, 0.1, 0.1, 0.2, 0.2,
+    };
+    test_case.add_input<float>(A);
+    test_case.add_input<float>(B);
+    test_case.add_expected_output<float>(Shape{1, 2, 16}, output);
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_input_shape_as_constant)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_most_attrs_default)
 {
     auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/priorbox_clustered_input_shape_as_constant.prototxt"));
+        SERIALIZED_ZOO, "onnx/priorbox_clustered_most_attrs_default.prototxt"));
 
     auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
-    test_case.add_input<int64_t>({128, 128});
-    test_case.add_expected_output<float>(Shape{2, 12},
-                                         {
-                                             0.0f,
-                                             0.0f,
-                                             0.5060155987739562988f,
-                                             0.5121093988418579102f,
-                                             0.0f,
-                                             0.0f,
-                                             1.0f,
-                                             1.0f,
-                                             0.0f,
-                                             0.0f,
-                                             1.0f,
-                                             1.0f,
-                                             0.1f,
-                                             0.1f,
-                                             0.1f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                             0.0f,
-                                         });
+    std::vector<float> A(1 * 2 * 1);
+    std::iota(std::begin(A), std::end(A), 0.0f);
+    std::vector<float> B(1 * 3 * 3);
+    std::iota(std::begin(B), std::end(B), 0.0f);
+    std::vector<float> output = {-0.1666666716337203979,
+                                 -0.1666666716337203979,
+                                 0.1666666716337203979,
+                                 0.1666666716337203979,
+                                 -0.1666666716337203979,
+                                 0.3333333432674407959,
+                                 0.1666666716337203979,
+                                 0.6666666865348815918,
+                                 0.1,
+                                 0.1,
+                                 0.2,
+                                 0.2,
+                                 0.1,
+                                 0.1,
+                                 0.2,
+                                 0.2};
+    test_case.add_input<float>(A);
+    test_case.add_input<float>(B);
+    test_case.add_expected_output<float>(Shape{1, 2, 8}, output);
     test_case.run();
 }
