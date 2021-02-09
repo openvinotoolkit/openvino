@@ -18,6 +18,8 @@
 
 #include <cstddef>
 
+#include "ngraph/type/float16.hpp"
+
 namespace ngraph
 {
     namespace runtime
@@ -33,6 +35,11 @@ namespace ngraph
                     out[i] = static_cast<TO>(arg[i]);
                 }
             }
+
+            template <>
+            void convert<uint8_t, float16>(const uint8_t* arg, float16* out, size_t count);
+            template <>
+            void convert<float16, float>(const float16* arg, float* out, size_t count);
 
             template <typename TI, typename TO>
             typename std::enable_if<std::is_same<TO, char>::value>::type
