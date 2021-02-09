@@ -17,15 +17,18 @@
 #include "ngraph/op/assign.hpp"
 #include "itt.hpp"
 #include "ngraph/op/read_value.hpp"
+#include "ngraph/op/util/variable.hpp"
 #include "ngraph/ops.hpp"
 
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::AssignBase, "AssignBase", 0);
 NGRAPH_RTTI_DEFINITION(op::v3::Assign, "Assign", 3, op::Sink);
+NGRAPH_RTTI_DEFINITION(op::v6::Assign, "Assign", 6, op::Sink);
 
 op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variable_id)
-    : Sink({new_value})
+    : AssignBase({new_value})
     , m_variable_id(variable_id)
 {
     constructor_validate_and_infer_types();
@@ -82,12 +85,42 @@ shared_ptr<Node> op::v3::Assign::clone_with_new_inputs(const OutputVector& new_a
 {
     NGRAPH_OP_SCOPE(v3_Assign_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return make_shared<Assign>(new_args.at(0), m_variable_id);
+    return make_shared<op::v3::Assign>(new_args.at(0), m_variable_id);
 }
 
 bool op::v3::Assign::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v3_Assign_visit_attributes);
     visitor.on_attribute("variable_id", m_variable_id);
+    return true;
+}
+
+op::v6::Assign::Assign(const Output<Node>& new_value, const std::shared_ptr<Variable>& variable)
+    : AssignBase({new_value})
+{
+    m_variable = variable;
+    constructor_validate_and_infer_types();
+}
+
+void op::v6::Assign::validate_and_infer_types()
+{
+    NGRAPH_OP_SCOPE(v6_Assign_validate_and_infer_types);
+    m_variable->update({get_input_partial_shape(0),
+                        get_input_element_type(0),
+                        m_variable->get_info().variable_id});
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+}
+
+shared_ptr<Node> op::v6::Assign::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    NGRAPH_OP_SCOPE(v6_Assign_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return std::make_shared<op::v6::Assign>(new_args.at(0), m_variable);
+}
+
+bool op::v6::Assign::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v6_Assign_visit_attributes);
+    visitor.on_attribute("variable_id", m_variable);
     return true;
 }

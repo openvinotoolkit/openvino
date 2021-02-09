@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,6 +76,11 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();
+
+        if (transformation_callback(m.get_match_root())) {
+            return false;
+        }
+
         auto data = pattern_map[data_pattern];
         auto input_low = pattern_map[input_low_pattern];
         auto input_high = pattern_map[input_high_pattern];

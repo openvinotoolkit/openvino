@@ -43,6 +43,8 @@
 #include <ngraph/runtime/reference/gather_tree.hpp>
 #include <ngraph/runtime/reference/gelu.hpp>
 #include <ngraph/runtime/reference/grn.hpp>
+#include <ngraph/runtime/reference/group_convolution.hpp>
+#include <ngraph/runtime/reference/group_convolution_backprop_data.hpp>
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
@@ -55,6 +57,7 @@
 #include <ngraph/runtime/reference/one_hot.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
+#include <ngraph/runtime/reference/proposal.hpp>
 #include <ngraph/runtime/reference/psroi_pooling.hpp>
 #include <ngraph/runtime/reference/region_yolo.hpp>
 #include <ngraph/runtime/reference/reorg_yolo.hpp>
@@ -236,6 +239,56 @@ namespace
             op->get_pads_begin(),
             op->get_pads_end(),
             op->get_strides());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::GroupConvolution>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto filter_data = inputs[1]->get_data_ptr<ET>();
+        auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
+        const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
+        const auto& out_shape = outputs[0]->get_shape();
+        const auto& in_shape = inputs[0]->get_shape();
+        const auto& filter_shape = inputs[1]->get_shape();
+        runtime::reference::group_convolution<typename element_type_traits<ET>::value_type>(
+            in_data_ptr,
+            filter_data,
+            out_data_ptr,
+            in_shape,
+            filter_shape,
+            out_shape,
+            op->get_strides(),
+            op->get_dilations(),
+            op->get_pads_begin(),
+            op->get_pads_end());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::GroupConvolutionBackpropData>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
+        const auto filter_data_ptr = inputs[1]->get_data_ptr<ET>();
+        const auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
+        const auto in_shape = inputs[0]->get_shape();
+        const auto filter_shape = inputs[1]->get_shape();
+        const auto out_shape = outputs[0]->get_shape();
+        runtime::reference::group_convolution_backprop_data<
+            typename element_type_traits<ET>::value_type>(in_data_ptr,
+                                                          filter_data_ptr,
+                                                          out_data_ptr,
+                                                          in_shape,
+                                                          filter_shape,
+                                                          out_shape,
+                                                          op->get_strides(),
+                                                          op->get_dilations(),
+                                                          op->get_pads_begin(),
+                                                          op->get_pads_end());
         return true;
     }
 
@@ -963,6 +1016,44 @@ namespace
                                          outputs[0]->get_data_ptr<float>(),
                                          outputs[0]->get_shape(),
                                          op->get_attrs());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::Proposal>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::proposal_v0<T>(inputs[0]->get_data_ptr<T>(),
+                                           inputs[1]->get_data_ptr<T>(),
+                                           inputs[2]->get_data_ptr<T>(),
+                                           outputs[0]->get_data_ptr<T>(),
+                                           inputs[0]->get_shape(),
+                                           inputs[1]->get_shape(),
+                                           inputs[2]->get_shape(),
+                                           outputs[0]->get_shape(),
+                                           op.get()->get_attrs());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v4::Proposal>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::proposal_v4<T>(inputs[0]->get_data_ptr<T>(),
+                                           inputs[1]->get_data_ptr<T>(),
+                                           inputs[2]->get_data_ptr<T>(),
+                                           outputs[0]->get_data_ptr<T>(),
+                                           outputs[1]->get_data_ptr<T>(),
+                                           inputs[0]->get_shape(),
+                                           inputs[1]->get_shape(),
+                                           inputs[2]->get_shape(),
+                                           outputs[0]->get_shape(),
+                                           outputs[1]->get_shape(),
+                                           op.get()->get_attrs());
         return true;
     }
 

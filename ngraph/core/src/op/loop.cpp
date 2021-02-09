@@ -310,7 +310,7 @@ void op::v5::Loop::validate_and_infer_types()
 
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v5_Loop_clone_with_new_inputs)
+    NGRAPH_OP_SCOPE(v5_Loop_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     auto op = make_shared<op::v5::Loop>();
     NGRAPH_CHECK(op.get(),
