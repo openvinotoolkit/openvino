@@ -26,27 +26,55 @@ namespace ngraph
     {
         namespace op
         {
+            namespace detail
+            {
+                namespace
+                {
+                    std::shared_ptr<default_opset::StridedSlice>
+                        make_slice(std::shared_ptr<ngraph::Node> node, int64_t start, int64_t end)
+                    {
+                        return std::make_shared<default_opset::StridedSlice>(
+                            node,
+                            default_opset::Constant::create(
+                                element::i64, Shape{1}, std::vector<int64_t>{start}),
+                            default_opset::Constant::create(
+                                element::i64, Shape{1}, std::vector<int64_t>{end}),
+                            std::vector<int64_t>{0},  // begin mask
+                            std::vector<int64_t>{0}); // end mask
+                    }
+                }
+            } // detail
+
             namespace set_1
             {
                 OutputVector prior_box_clustered(const Node& node)
                 {
                     using PriorBoxClustered = default_opset::PriorBoxClustered;
-
                     auto inputs = node.get_ng_inputs();
-                    auto layer_shape = inputs[0];
-                    auto img_shape = inputs[1];
+                    NGRAPH_CHECK(inputs.size() == 2, "Invalid number of inputs");
+
+                    auto output_shape = std::make_shared<default_opset::ShapeOf>(inputs[0]);
+                    auto image_shape = std::make_shared<default_opset::ShapeOf>(inputs[1]);
+                    auto output_shape_slice = detail::make_slice(output_shape, 2, 4);
+                    auto image_shape_slice = detail::make_slice(image_shape, 2, 4);
 
                     ngraph::op::PriorBoxClusteredAttrs attrs{};
                     attrs.widths = node.get_attribute_value<std::vector<float>>("width", {1.0});
                     attrs.heights = node.get_attribute_value<std::vector<float>>("height", {1.0});
-                    attrs.clip = node.get_attribute_value<int64_t>("clip", 0);
+                    attrs.clip = static_cast<bool>(node.get_attribute_value<int64_t>("clip", 0));
                     attrs.variances =
                         node.get_attribute_value<std::vector<float>>("variance", {0.1f});
                     attrs.step_heights = node.get_attribute_value<float>("step_h", 0.0f);
                     attrs.step_widths = node.get_attribute_value<float>("step_w", 0.0f);
                     attrs.offset = node.get_attribute_value<float>("offset", 0.0f);
 
-                    return {std::make_shared<PriorBoxClustered>(layer_shape, img_shape, attrs)};
+                    auto axes = default_opset::Constant::create(
+                        element::i64, Shape{1}, std::vector<int64_t>{0});
+
+                    return {std::make_shared<default_opset::Unsqueeze>(
+                        std::make_shared<PriorBoxClustered>(
+                            output_shape_slice, image_shape_slice, attrs),
+                        axes)};
                 }
 
             } // namespace set_1
