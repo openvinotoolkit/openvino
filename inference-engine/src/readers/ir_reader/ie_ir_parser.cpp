@@ -716,7 +716,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
             "RNNCell",
             "Proposal"};
 
-    if (experimental_ops_added_to_opset.count(params.type)) {
+    if (experimental_ops_added_to_opset.count(params.type) && (params.version == "experimental" || params.version == "extension")) {
         opsetIt = opsets.find("opset6");
     }
 
