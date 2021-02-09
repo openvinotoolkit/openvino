@@ -569,6 +569,7 @@ extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
+extensions/middle/MoveConstToLoopBody.py
 extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
@@ -578,6 +579,7 @@ extensions/middle/ONNXRNNSequenceNormalize.py
 extensions/middle/PartialInfer.py
 extensions/middle/pass_separator.py
 extensions/middle/permute_tensor_iterator.py
+extensions/middle/PoolV2ToAttributedPool.py
 extensions/middle/preprocessing.py
 extensions/middle/quantize_fuses.py
 extensions/middle/ReluQuantizeFuse.py

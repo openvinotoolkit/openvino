@@ -20,6 +20,8 @@ std::shared_ptr<ngraph::Node> shapeToConstant(const ngraph::element::Type& type,
 
 std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::Node>&, int startIndex, size_t elemCount);
 
+std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::Node>& shape, const std::vector<int64_t>& indicesToGather);
+
 template<>
 inline void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object) {
     stream << object.name << " ver. " << object.version;

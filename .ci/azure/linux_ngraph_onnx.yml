@@ -15,7 +15,7 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     WORK_DIR: $(Pipeline.Workspace)/_w
-    MODELS_DIR: /mnt/onnxtestdata/models
+    MODELS_DIR: /mount/cinfsshare/onnxtestdata
     TMP_DIR: /mnt/tmp
 
   steps:
@@ -41,7 +41,10 @@ jobs:
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
-    displayName: 'Make dir'
+      sudo mkdir -p $(MODELS_DIR)
+      sudo apt --assume-yes install nfs-common
+      sudo mount -t nfs cinfsshare.file.core.windows.net:/cinfsshare/onnxtestdata $(MODELS_DIR) -o vers=4,minorversion=1,sec=sys
+    displayName: 'Make dirs'
 
   - checkout: self
     clean: true
@@ -54,6 +57,15 @@ jobs:
 
   - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -d $(TMP_DIR) -o
     displayName: 'Get models'
+
+  - script: |
+      ##wget -O "$(TMP_DIR)/msft.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
+      ##unzip "$(TMP_DIR)/msft.zip" -d "$(MODELS_DIR)/msft"
+      #unzip "/mnt/onnxtestdata/models/20191107.zip" -d "$(MODELS_DIR)/msft"
+      #mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_sorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_0
+      #mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_unsorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_1
+    displayName: 'Get MSFT models'
+    enabled: false
 
   - script: |
       ls -alR $(MODELS_DIR)
