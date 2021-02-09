@@ -29,10 +29,6 @@ set (SRC
     provenance_enabler.hpp
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
-    list(APPEND SRC onnx_test_util.cpp)
-endif()
-
 add_library(ngraph_test_util STATIC ${SRC})
 
 if(COMMAND ie_faster_build)
@@ -47,9 +43,3 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
 endif()
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${IE_MAIN_SOURCE_DIR}/include)
 target_link_libraries(ngraph_test_util PRIVATE ngraph ngraph_backend libgtest)
-
-if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
-    target_include_directories(ngraph_test_util SYSTEM PRIVATE ${ONNX_INCLUDE_DIR}
-        ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
-    target_link_libraries(ngraph_test_util PRIVATE ${ONNX_LIBRARIES} ${Protobuf_LIBRARIES})
-endif()

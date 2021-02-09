@@ -51,6 +51,8 @@ graph {
   initializer {
     dims: 1
     dims: 1
+    dims: 1
+    dims: 1
     data_type: 1
     float_data: 1
     name: "in4"
@@ -88,6 +90,12 @@ graph {
         elem_type: 1
         shape {
           dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
             dim_value: 2
           }
           dim {
@@ -103,6 +111,12 @@ graph {
       tensor_type {
         elem_type: 1
         shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
           dim {
             dim_value: 1
           }
@@ -151,6 +165,12 @@ graph {
       tensor_type {
         elem_type: 1
         shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
           dim {
             dim_value: 2
           }

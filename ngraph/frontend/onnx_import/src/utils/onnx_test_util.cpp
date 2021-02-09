@@ -16,49 +16,16 @@
 
 #include <exception>
 #include <fstream>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/text_format.h>
 #include <onnx/onnx_pb.h>
+#include <sstream>
 
-#include "util/onnx_test_util.hpp"
+#include "onnx_test_util.hpp"
+#include "parser.hpp"
 
-using namespace ngraph::test;
+using namespace ngraph::onnx_import;
+
 namespace
 {
-    ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path)
-    {
-        std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
-
-        if (!file_stream.is_open())
-        {
-            throw std::runtime_error("Could not open the file: " + file_path);
-        };
-
-        if (!file_stream.good())
-        {
-            file_stream.clear();
-            file_stream.seekg(0);
-            if (!file_stream.good())
-            {
-                throw std::runtime_error("Invalid state of model's input stream.");
-            }
-        }
-
-        ONNX_NAMESPACE::ModelProto model_proto;
-        google::protobuf::io::IstreamInputStream iistream(&file_stream);
-        if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto))
-        {
-            file_stream.clear();
-            file_stream.seekg(0);
-            if (!model_proto.ParseFromIstream(&file_stream))
-            {
-                throw std::runtime_error("Could not import the test model: " + file_path);
-            }
-        }
-
-        return model_proto;
-    }
-
     ComparisonResult compare_nodes(const ONNX_NAMESPACE::GraphProto& graph,
                                    const ONNX_NAMESPACE::GraphProto& ref_graph)
     {
@@ -111,8 +78,8 @@ namespace
     {
         if (lhs.name() != rhs.name())
         {
-            return ComparisonResult::fail(item_type + " names in the graph don't match: " +
-                                          lhs.name() + " vs " + rhs.name());
+            return ComparisonResult::fail(
+                item_type + " names in the graph don't match: " + lhs.name() + " vs " + rhs.name());
         }
 
         const auto& lhs_tensor = lhs.type().tensor_type();
@@ -143,14 +110,14 @@ namespace
                     (rhs_dim.has_dim_value() && lhs_dim.has_dim_param()))
                 {
                     return ComparisonResult::fail("Dynamic vs static dimension mismatch for " +
-                                                  item_type + " " + lhs.name() + " at index: " +
-                                                  std::to_string(j));
+                                                  item_type + " " + lhs.name() +
+                                                  " at index: " + std::to_string(j));
                 }
                 else if (lhs_dim.has_dim_value() && lhs_dim.dim_value() != rhs_dim.dim_value())
                 {
                     return ComparisonResult::fail("Shape dimensions don't match for " + item_type +
-                                                  " " + lhs.name() + " at index: " +
-                                                  std::to_string(j) + ". " +
+                                                  " " + lhs.name() +
+                                                  " at index: " + std::to_string(j) + ". " +
                                                   std::to_string(lhs_dim.dim_value()) + " vs " +
                                                   std::to_string(rhs_dim.dim_value()));
                 }
@@ -267,38 +234,40 @@ namespace
             return ComparisonResult::pass();
         }
     }
+
+    ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
+                                         const ONNX_NAMESPACE::GraphProto& ref_graph)
+    {
+        ComparisonResult comparison = compare_inputs(graph, ref_graph);
+        if (!comparison.is_ok)
+        {
+            return comparison;
+        }
+
+        comparison = compare_outputs(graph, ref_graph);
+        if (!comparison.is_ok)
+        {
+            return comparison;
+        }
+
+        comparison = compare_initializers(graph, ref_graph);
+        if (!comparison.is_ok)
+        {
+            return comparison;
+        }
+
+        return compare_nodes(graph, ref_graph);
+    }
 } // namespace
 namespace ngraph
 {
-    namespace test
+    namespace onnx_import
     {
-        ComparisonResult compare_onnx_graphs(const ONNX_NAMESPACE::GraphProto& graph,
+        ComparisonResult compare_onnx_models(const ONNX_NAMESPACE::GraphProto& graph,
                                              const std::string& reference_model_path)
         {
-            ComparisonResult comparison;
-
-            const auto ref_model = parse_from_file(reference_model_path);
-            const auto& ref_graph = ref_model.graph();
-
-            comparison = compare_inputs(graph, ref_graph);
-            if (!comparison.is_ok)
-            {
-                return comparison;
-            }
-
-            comparison = compare_outputs(graph, ref_graph);
-            if (!comparison.is_ok)
-            {
-                return comparison;
-            }
-
-            comparison = compare_initializers(graph, ref_graph);
-            if (!comparison.is_ok)
-            {
-                return comparison;
-            }
-
-            return compare_nodes(graph, ref_graph);
+            const auto ref_model = onnx_import::parse_from_file(reference_model_path);
+            return compare_onnx_graphs(graph, ref_model.graph());
         }
-    } // namespace test
+    } // namespace onnx_import
 } // namespace ngraph

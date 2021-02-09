@@ -42,10 +42,8 @@ namespace
         return [&name](const T& onnx_object) -> bool { return onnx_object.name() == name; };
     }
 
-    std::function<bool(const std::string&)> is_equal_to(const std::string& other)
-    {
-        return [&other](const std::string& s) { return s == other; };
-    }
+    const auto is_equal_to =
+        +[](const std::string& other) { return [&](const std::string& s) { return s == other; }; };
 
     template <typename Container>
     bool already_exists(const Container& items, const std::string& name)
