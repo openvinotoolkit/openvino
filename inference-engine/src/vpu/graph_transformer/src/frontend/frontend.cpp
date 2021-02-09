@@ -378,6 +378,39 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
     }
 }
 
+void FrontEnd::processTrivialCases(const Model& model) {
+    std::unordered_map<ie::DataPtr, DataVector> ieToVpuDataVector;
+    for (const auto& data : model->datas()) {
+        const auto& origData = data->origData();
+        if (origData != nullptr) {
+            ieToVpuDataVector[origData].push_back(data);
+        }
+    }
+
+    std::vector<DataVector> trivialCases;
+    for (const auto& dataObjectsWithTheSameOrigData : ieToVpuDataVector) {
+        if (dataObjectsWithTheSameOrigData.second.size() > 1) {
+            VPU_THROW_UNLESS(dataObjectsWithTheSameOrigData.second.size() == 2,
+                             "There can't be more than two data objects associated with the same original IE data object with name {}",
+                             dataObjectsWithTheSameOrigData.first->getName());
+            trivialCases.push_back(dataObjectsWithTheSameOrigData.second);
+        }
+    }
+
+    for (const auto& trivialCase : trivialCases) {
+        const auto& unconnectedOutput = trivialCase.front()->usage() == DataUsage::Output ? trivialCase.front() : trivialCase.back();
+        const auto& unconnectedInput = unconnectedOutput == trivialCase.front() ? trivialCase.back() : trivialCase.front();
+
+        _stageBuilder->addCopyStage(
+            model,
+            unconnectedInput->name() + "@copy",
+            nullptr,
+            {unconnectedInput},
+            {unconnectedOutput},
+            "processTrivialCase");
+    }
+}
+
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
@@ -474,6 +507,12 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
         VPU_LOGGER_SECTION(env.log);
 
         parseInputAndOutputData(model);
+
+        //
+        // Process trivial cases like `input->output`, `const->output`
+        //
+
+        processTrivialCases(model);
 
         if (!CompileEnv::get().config.disableConvertStages) {
             addDataTypeConvertStages(model);
