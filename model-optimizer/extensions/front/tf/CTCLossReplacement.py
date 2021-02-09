@@ -14,26 +14,13 @@
  limitations under the License.
 """
 
-import numpy as np
-import logging as log
-
-from extensions.ops.Cast import Cast
 from extensions.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
 from extensions.ops.ctc_loss import CTCLoss
-from extensions.ops.elementwise import Equal
-from extensions.ops.parameter import Parameter
-from extensions.ops.ReduceOps import ReduceSum
-from extensions.ops.select import Select
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
-from mo.middle.passes.convert_data_type import data_type_str_to_np
-from mo.ops.broadcast import Broadcast
-from mo.ops.shape import Shape
-from mo.ops.squeeze import Squeeze
-from mo.utils.error import Error
+from mo.graph.graph import Graph
 
 
 class CTCLossReplacement(FrontReplacementSubgraph):

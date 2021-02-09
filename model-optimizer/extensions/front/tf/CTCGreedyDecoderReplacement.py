@@ -16,22 +16,13 @@
 
 import logging as log
 
-import numpy as np
-
-from extensions.front.FillToBroadcast import FillToBroadcast
-from extensions.front.Pack import Pack
-from extensions.ops.Cast import Cast
 from extensions.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph, rename_nodes
-from mo.ops.broadcast import Broadcast
-from mo.ops.concat import Concat
+from mo.graph.graph import Graph
 from mo.ops.result import Result
-from mo.ops.squeeze import Squeeze
-from mo.ops.unsqueeze import Unsqueeze
 
 
 class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
