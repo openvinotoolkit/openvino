@@ -115,18 +115,10 @@ INTERPRETER.onnx_model_conv_integer_zero_point_zero
 INTERPRETER.onnx_model_conv_integer_no_zero_point
 INTERPRETER.onnx_model_conv_integer_pads
 
+# Legacy tests with unsupported features in new version of LSTM/GRU/RNN
 # Activation function hardsigmoid is not supported.
-gru_cell_activation_function
-lstm_cell_activaction_functions
 onnx_model_gru_fwd_activations
 onnx_model_lstm_fwd_hardsigmoid_activation
-
-# Peepholes, input_forget are not supported
-onnx_model_lstm_fwd_with_clip_peepholes
-onnx_model_lstm_bdir_short_input_seq_peepholes
-lstm_cell_bias_peepholes
-lstm_cell_bias_peepholes_clip_input_forget
-
 
 # Check 'n_data_channels % groups == 0' failed
 dyn_group_convolution_backprop_data

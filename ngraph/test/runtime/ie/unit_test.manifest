@@ -208,17 +208,16 @@ onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 onnx_model_max_pool_dyn_rank_without_default_attrs
 
-# LSTMSequence Layer is not instance of RNNLayer class
-# (Constant W, B, R inputs are required)
-onnx_model_lstm_fwd_with_clip_peepholes
-onnx_model_lstm_fwd_mixed_seq
-onnx_model_lstm_fwd_hardsigmoid_activation
-onnx_model_lstm_fwd_large_batch_no_clip
-onnx_model_lstm_bdir_short_input_seq_peepholes
-onnx_model_lstm_mixed_seq_reverse
-
-# GRUCell/GRUSequence operation has a form that is not supported
-# (Constant W, B, R inputs are required)
+# Function references undeclared parameters
+# (Constant W, R, B inputs are required)
+# LSTMSequence
+IE_CPU.onnx_model_lstm_fwd_with_clip_peepholes
+IE_CPU.onnx_model_lstm_fwd_mixed_seq
+IE_CPU.onnx_model_lstm_fwd_hardsigmoid_activation
+IE_CPU.onnx_model_lstm_fwd_large_batch_no_clip
+IE_CPU.onnx_model_lstm_bdir_short_input_seq_peepholes
+IE_CPU.onnx_model_lstm_mixed_seq_reverse
+# GRUSequence 
 IE_CPU.onnx_model_gru_defaults_fwd
 IE_CPU.onnx_model_gru_fwd_activations
 IE_CPU.onnx_model_gru_fwd_mixed_seq_len
@@ -227,9 +226,7 @@ IE_CPU.onnx_model_gru_reverse
 IE_CPU.onnx_model_gru_fwd_bias_initial_h
 IE_CPU.onnx_model_gru_bidirectional
 IE_CPU.onnx_model_gru_fwd_linear_before_reset
-
-# RNNCell/RNNSequence operation has a form that is not supported
-# (Constant W, B, R inputs are required)
+# RNNSequence 
 IE_CPU.onnx_model_rnn_defaults_fwd
 IE_CPU.onnx_model_rnn_fwd_activations
 IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
@@ -834,25 +831,6 @@ shuffle_channels_simple
 shuffle_channels_negative_axis
 shuffle_channels_float
 
-# Cannot cast ngraph node LSTMCell to CNNLayer!
-lstm_cell_no_bias_no_peepholes
-lstm_cell_zero_bias_peepholes
-lstm_cell_zero_bias_peepholes_constant
-lstm_cell_fixed_no_bias_no_peepholes
-lstm_cell_bias_peepholes
-lstm_cell_bias_peepholes_clip_input_forget
-lstm_cell_activaction_functions
-
-# RNNCell should be converted to RNNCellIE operation!
-rnn_cell_no_bias
-rnn_cell_bias_clip
-rnn_cell_activation_function
-
-# GRUCell should be converted to GRUCellIE operation!
-gru_cell_bias_clip
-gru_cell_linear_before_reset
-gru_cell_activation_function
-
 # Detected op not belonging to opset1!
 onnx_model_quant_conv_linear
 onnx_model_quant_conv_linear_2d
@@ -1151,11 +1129,9 @@ IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
 
-# RNN/LSTM Cells should be converted to IE representation
-IE_CPU.lstm_cell__zero_bias_peepholes
-IE_CPU.rnn_cell__no_bias
-IE_CPU.rnn_cell__bias_clip
-IE_CPU.rnn_cell__activation_function
+# Legacy test with unsupported features in new version of LSTM/GRU/RNN
+# Unsupported Hard Sigmoid activation function
+# gru_cell_hardsigmoid_activation_function
 
 # function with NMS-5 to get the nGraph function with NMSIE3 (internal
 # operation, similar with NMS-5, but with all static output shapes), before
