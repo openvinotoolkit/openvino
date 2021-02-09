@@ -88,9 +88,12 @@ public:
 
         deconv_params.split = split;
         deconv_params.groups = groups;
-        deconv_params.filterSize = {(uint32_t)weights_size.spatial[0],
-                                    (uint32_t)weights_size.spatial[1],
-                                    (uint32_t)weights_size.spatial[2]};
+
+        auto spatial_size = arg.get_output_layout().format.dimension() - 2;
+        uint32_t kx = weights_size.spatial[0];
+        uint32_t ky = weights_size.spatial[1];
+        uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
+        deconv_params.filterSize = { kx, ky, kz };
 
         deconv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
                                  (uint32_t)std::max(-input_offset.spatial[1], 0),
