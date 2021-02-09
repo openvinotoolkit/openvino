@@ -265,8 +265,9 @@ bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Ty
 
 bool fuse_type_to_ctc_greedy_decoder_seq_len(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     if (auto ctc_decoder = as_type_ptr<opset6::CTCGreedyDecoderSeqLen>(node)) {
-        if (idx == 1 && (to == element::i32 || to == element::i64)) {
+        if (to == element::i32 || to == element::i64) {
             ctc_decoder->set_classes_index_type(to);
+            ctc_decoder->set_sequence_length_type(to);
             return true;
         }
     }

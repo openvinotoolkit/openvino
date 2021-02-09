@@ -20,7 +20,7 @@ class TRANSFORMATIONS_API SimplifyCTCGreedyDecoder;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief SimplifyCTCGreedyDecoder covert v6:CTCGreedyDecoderSeqLen into v0::CTCGreedyDecoder.
+ * @brief SimplifyCTCGreedyDecoder converts v6:CTCGreedyDecoderSeqLen into v0::CTCGreedyDecoder.
  */
 class ngraph::pass::SimplifyCTCGreedyDecoder: public ngraph::pass::MatcherPass {
 public:

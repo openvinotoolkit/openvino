@@ -24,7 +24,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 7 });
-        auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::Shape{ 1 });
+        auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{ 1 });
 
         auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, true);
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
@@ -44,6 +44,8 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
         auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::Shape{ 1 });
 
         element::Type seq_len_type = seq_len1->get_element_type();
+        element::Type ci_type = element::i32;
+        element::Type sl_type = element::i32;
         auto transpose = std::make_shared<ngraph::opset6::Transpose>(data1,
                                                                      ngraph::opset6::Constant::create(element::i32,
                                                                                                       Shape({3}), {1, 0, 2}));
@@ -91,17 +93,18 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
         auto squeeze1_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {2});
         auto squeeze1_output_f = std::make_shared<ngraph::opset6::Squeeze>(squeeze2_output_f->output(0), squeeze1_axis);
 
-        auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), element::i32);
-        auto minus1 = opset6::Constant::create(seq_len_type, Shape{}, {-1});
+        auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), ci_type);
+        auto minus1 = opset6::Constant::create(ci_type, Shape{}, {-1});
         auto where_equal_minus1 = std::make_shared<ngraph::opset6::Equal>(output_i, minus1);
 
-        auto seq_mask_const0 = opset6::Constant::create(seq_len_type, Shape{1}, {0});
-        auto seq_mask_const1 = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto seq_mask_const0 = opset6::Constant::create(ci_type, Shape{1}, {0});
+        auto seq_mask_const1 = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_mask = std::make_shared<ngraph::opset6::Select>(where_equal_minus1, seq_mask_const0, seq_mask_const1);
-        auto seq_mask_axis = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto seq_mask_axis = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
+        auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len }, ngraph::ParameterVector{ data1, seq_len1 });
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
     }
 
     auto res = compare_functions(f, f_ref, false, false, false, false);
@@ -111,10 +114,10 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
 TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicInputShapeTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
-        auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic());
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::Shape{ 1 });
 
-        auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, true);
+        auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, true, element::i64, element::i32);
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
@@ -132,6 +135,8 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicInputShapeTest) {
         auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::Shape{ 1 });
 
         element::Type seq_len_type = seq_len1->get_element_type();
+        element::Type ci_type = element::i32;
+        element::Type sl_type = element::i32;
         auto transpose = std::make_shared<ngraph::opset6::Transpose>(data1,
                                                                      ngraph::opset6::Constant::create(element::i32,
                                                                                                       Shape({3}), {1, 0, 2}));
@@ -179,17 +184,18 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicInputShapeTest) {
         auto squeeze1_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {2});
         auto squeeze1_output_f = std::make_shared<ngraph::opset6::Squeeze>(squeeze2_output_f->output(0), squeeze1_axis);
 
-        auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), element::i32);
-        auto minus1 = opset6::Constant::create(seq_len_type, Shape{}, {-1});
+        auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), ci_type);
+        auto minus1 = opset6::Constant::create(ci_type, Shape{}, {-1});
         auto where_equal_minus1 = std::make_shared<ngraph::opset6::Equal>(output_i, minus1);
 
-        auto seq_mask_const0 = opset6::Constant::create(seq_len_type, Shape{1}, {0});
-        auto seq_mask_const1 = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto seq_mask_const0 = opset6::Constant::create(ci_type, Shape{1}, {0});
+        auto seq_mask_const1 = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_mask = std::make_shared<ngraph::opset6::Select>(where_equal_minus1, seq_mask_const0, seq_mask_const1);
-        auto seq_mask_axis = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto seq_mask_axis = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
+        auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len }, ngraph::ParameterVector{ data1, seq_len1 });
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
     }
 
     auto res = compare_functions(f, f_ref, false, false, false, false);
@@ -202,7 +208,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicBatchTest) {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{Dimension::dynamic(), 3, 7});
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{Dimension::dynamic()});
 
-        auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, true);
+        auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, true, element::i32, element::i64);
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
@@ -220,6 +226,8 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicBatchTest) {
         auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{Dimension::dynamic()});
 
         element::Type seq_len_type = seq_len1->get_element_type();
+        element::Type ci_type = element::i32;
+        element::Type sl_type = element::i64;
         auto transpose = std::make_shared<ngraph::opset6::Transpose>(data1,
                                                                      ngraph::opset6::Constant::create(element::i32,
                                                                                                       Shape({3}), {1, 0, 2}));
@@ -267,17 +275,18 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicBatchTest) {
         auto squeeze1_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {2});
         auto squeeze1_output_f = std::make_shared<ngraph::opset6::Squeeze>(squeeze2_output_f->output(0), squeeze1_axis);
 
-        auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), element::i32);
-        auto minus1 = opset6::Constant::create(seq_len_type, Shape{}, {-1});
+        auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), ci_type);
+        auto minus1 = opset6::Constant::create(ci_type, Shape{}, {-1});
         auto where_equal_minus1 = std::make_shared<ngraph::opset6::Equal>(output_i, minus1);
 
-        auto seq_mask_const0 = opset6::Constant::create(seq_len_type, Shape{1}, {0});
-        auto seq_mask_const1 = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto seq_mask_const0 = opset6::Constant::create(ci_type, Shape{1}, {0});
+        auto seq_mask_const1 = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_mask = std::make_shared<ngraph::opset6::Select>(where_equal_minus1, seq_mask_const0, seq_mask_const1);
-        auto seq_mask_axis = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto seq_mask_axis = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
+        auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len }, ngraph::ParameterVector{ data1, seq_len1 });
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
     }
 
     auto res = compare_functions(f, f_ref, false, false, false, false);
@@ -290,7 +299,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicSeqLenTest) {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
 
-        auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, true, ngraph::element::i32, ngraph::element::i32);
+        auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, true, ngraph::element::i64, ngraph::element::i64);
         auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
         auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
 
@@ -308,6 +317,8 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicSeqLenTest) {
         auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
 
         element::Type seq_len_type = seq_len1->get_element_type();
+        element::Type ci_type = element::i64;
+        element::Type sl_type = element::i64;
         auto transpose = std::make_shared<ngraph::opset6::Transpose>(data1,
                                                                      ngraph::opset6::Constant::create(element::i32,
                                                                                                       Shape({3}), {1, 0, 2}));
@@ -355,17 +366,18 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicSeqLenTest) {
         auto squeeze1_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {2});
         auto squeeze1_output_f = std::make_shared<ngraph::opset6::Squeeze>(squeeze2_output_f->output(0), squeeze1_axis);
 
-        auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), element::i32);
-        auto minus1 = opset6::Constant::create(seq_len_type, Shape{}, {-1});
+        auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), ci_type);
+        auto minus1 = opset6::Constant::create(ci_type, Shape{}, {-1});
         auto where_equal_minus1 = std::make_shared<ngraph::opset6::Equal>(output_i, minus1);
 
-        auto seq_mask_const0 = opset6::Constant::create(seq_len_type, Shape{1}, {0});
-        auto seq_mask_const1 = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto seq_mask_const0 = opset6::Constant::create(ci_type, Shape{1}, {0});
+        auto seq_mask_const1 = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_mask = std::make_shared<ngraph::opset6::Select>(where_equal_minus1, seq_mask_const0, seq_mask_const1);
-        auto seq_mask_axis = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto seq_mask_axis = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
+        auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len }, ngraph::ParameterVector{ data1, seq_len1 });
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
     }
 
     auto res = compare_functions(f, f_ref, false, false, false, false);

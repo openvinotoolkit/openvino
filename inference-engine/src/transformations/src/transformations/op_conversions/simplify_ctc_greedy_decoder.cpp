@@ -74,21 +74,22 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
         element::Type ci_type = decoder_v6->get_classes_index_type();
         element::Type sl_type = decoder_v6->get_sequence_length_type();
         auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), ci_type);
-        auto minus1 = opset6::Constant::create(sl_type, Shape{}, {-1});
+        auto minus1 = opset6::Constant::create(ci_type, Shape{}, {-1});
         auto where_equal_minus1 = std::make_shared<ngraph::opset6::Equal>(output_i, minus1);
 
-        auto seq_mask_const0 = opset6::Constant::create(sl_type, Shape{1}, {0});
-        auto seq_mask_const1 = opset6::Constant::create(sl_type, Shape{1}, {1});
+        auto seq_mask_const0 = opset6::Constant::create(ci_type, Shape{1}, {0});
+        auto seq_mask_const1 = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_mask = std::make_shared<ngraph::opset6::Select>(where_equal_minus1, seq_mask_const0, seq_mask_const1);
-        auto seq_mask_axis = opset6::Constant::create(seq_len_type, Shape{1}, {1});
+        auto seq_mask_axis = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
+        auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
         ngraph::copy_runtime_info(decoder_v6, {transpose, simplified_decoder, data_shape, T, N, plusT, plusT_scalar, range1T, mask_shape, upper_bounds,
                                                squeeze2_output_f, squeeze1_output_f, transpose_upper_bounds, bool_seq_mask, seq_mask, transpose_seq_mask,
-                                               transpose_seq_mask_f32, output_i, where_equal_minus1, output_seq_mask, output_seq_len});
+                                               transpose_seq_mask_f32, output_i, where_equal_minus1, output_seq_mask, output_seq_len, output_seq_len_i});
 
         output_i->set_friendly_name(decoder_v6->get_friendly_name()+".0");
-        output_seq_len->set_friendly_name(decoder_v6->get_friendly_name()+".1");
-        ngraph::replace_node(decoder_v6, {output_i->output(0), output_seq_len->output(0)});
+        output_seq_len_i->set_friendly_name(decoder_v6->get_friendly_name()+".1");
+        ngraph::replace_node(decoder_v6, {output_i->output(0), output_seq_len_i->output(0)});
 
         return true;
     };

@@ -75,7 +75,6 @@ class CTCLossReplacement(FrontReplacementSubgraph):
             ])
 
     def replace_sub_graph(self, graph: Graph, match: dict):
-        #seq_len_tf = match['seq_len']
         transpose_tf = match['transpose']
         ctc_greedy_decoder_tf = match['ctc_greedy_decoder']
         cast_tf = match['cast']
