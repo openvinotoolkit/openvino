@@ -158,7 +158,8 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
         inputHightConst_f32 = fq::updateShape(fold<opset1::Subtract>(inputHightConst_f32, value), fakeQuantize->get_output_shape(0));
     } else if (is_type<opset1::Convert>(eltwise)) {
         // issue #40611
-        if ((eltwise->input(0).get_element_type() == element::i32) && (eltwise->output(0).get_element_type() == element::f32)) {
+        if ((eltwise->input(0).get_element_type() == element::i32) &&
+            ((eltwise->output(0).get_element_type() == element::f16) || (eltwise->output(0).get_element_type() == element::f32))) {
             return nullptr;
         }
     } else {
