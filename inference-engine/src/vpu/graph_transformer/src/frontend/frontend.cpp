@@ -379,27 +379,31 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
 }
 
 void FrontEnd::processTrivialCases(const Model& model) {
-    std::unordered_map<ie::DataPtr, DataVector> ieToVpuDataVector;
+    std::unordered_map<ie::DataPtr, std::pair<Data, Data>> ieDataToTrivialCase;
     for (const auto& data : model->datas()) {
         const auto& origData = data->origData();
         if (origData != nullptr) {
-            ieToVpuDataVector[origData].push_back(data);
+            if (data->usage() == DataUsage::Output) {
+                VPU_THROW_UNLESS(ieDataToTrivialCase.count(origData) == 0 || ieDataToTrivialCase[origData].second == nullptr,
+                                 "There can't be two data output objects associated with the same original IE data object with name {}",
+                                 origData->getName());
+                ieDataToTrivialCase[origData].second = data;
+            } else {
+                VPU_THROW_UNLESS(ieDataToTrivialCase.count(origData) == 0 || ieDataToTrivialCase[origData].first == nullptr,
+                                 "There can't be two data input/const objects associated with the same original IE data object with name {}",
+                                 origData->getName());
+                ieDataToTrivialCase[origData].first = data;
+            }
         }
     }
 
-    std::vector<DataVector> trivialCases;
-    for (const auto& dataObjectsWithTheSameOrigData : ieToVpuDataVector) {
-        if (dataObjectsWithTheSameOrigData.second.size() > 1) {
-            VPU_THROW_UNLESS(dataObjectsWithTheSameOrigData.second.size() == 2,
-                             "There can't be more than two data objects associated with the same original IE data object with name {}",
-                             dataObjectsWithTheSameOrigData.first->getName());
-            trivialCases.push_back(dataObjectsWithTheSameOrigData.second);
-        }
-    }
+    for (const auto& trivialCase : ieDataToTrivialCase) {
+        const auto& unconnectedInput = trivialCase.second.first;
+        const auto& unconnectedOutput = trivialCase.second.second;
 
-    for (const auto& trivialCase : trivialCases) {
-        const auto& unconnectedOutput = trivialCase.front()->usage() == DataUsage::Output ? trivialCase.front() : trivialCase.back();
-        const auto& unconnectedInput = unconnectedOutput == trivialCase.front() ? trivialCase.back() : trivialCase.front();
+        if (!unconnectedInput || !unconnectedOutput) {
+            continue;
+        }
 
         _stageBuilder->addCopyStage(
             model,
