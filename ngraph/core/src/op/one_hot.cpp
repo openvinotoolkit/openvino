@@ -105,7 +105,6 @@ void op::v1::OneHot::validate_and_infer_types()
                               " (got ",
                               depth_val,
                               ").");
-
         out_dims.insert(out_dims.begin() + m_axis, Dimension(depth_val));
         result_shape = out_dims;
     }

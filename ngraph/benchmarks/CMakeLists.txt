@@ -16,8 +16,15 @@ conan_cmake_run(CONANFILE conanfile.txt
 
 # 
 add_executable(ng_bench one_hot.cpp)
+add_executable(ng_try one_hot_try.cpp)
 target_link_libraries(ng_bench PRIVATE CONAN_PKG::benchmark
                                         ngraph_test_util
                                         ngraph
                                         ngraph::builder
                                         ngraph_backend)
+
+target_link_libraries(ng_try PRIVATE CONAN_PKG::benchmark
+        ngraph_test_util
+        ngraph
+        ngraph::builder
+        ngraph_backend)
