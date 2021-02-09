@@ -38,7 +38,7 @@ public:
 
     StatusCode Cancel(ResponseDesc* resp) noexcept override {
         OV_ITT_SCOPED_TASK(itt::domains::Plugin, "Cancel");
-        NO_EXCEPT_CALL_RETURN_STATUS(_impl->Cancel());
+        TO_STATUS(_impl->Cancel());
     }
 
     StatusCode GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& perfMap,

@@ -60,6 +60,8 @@ inline void extract_exception(StatusCode status, const char* msg) {
         throw InferNotStarted(msg);
     case NETWORK_NOT_READ:
         throw NetworkNotRead(msg);
+    case INFER_CANCELLED:
+        throw InferCancelled(msg);
     default:
         THROW_IE_EXCEPTION << msg << InferenceEngine::details::as_status << status;
     }

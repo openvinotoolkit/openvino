@@ -334,6 +334,11 @@ class NetworkNotRead : public std::logic_error {
     using std::logic_error::logic_error;
 };
 
+/** @brief This class represents StatusCode::INFER_CANCELLED exception */
+class InferCancelled : public std::logic_error {
+    using std::logic_error::logic_error;
+};
+
 }  // namespace InferenceEngine
 
 #if defined(_WIN32)

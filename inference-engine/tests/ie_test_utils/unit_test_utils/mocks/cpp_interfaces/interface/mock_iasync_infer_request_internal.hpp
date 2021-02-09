@@ -28,5 +28,5 @@ public:
     MOCK_METHOD1(SetCompletionCallback, void(InferenceEngine::IInferRequest::CompletionCallback));
     MOCK_METHOD1(SetBatch, void(int));
     MOCK_METHOD0(QueryState, std::vector<IVariableStateInternal::Ptr>());
-    MOCK_METHOD0(Cancel, InferenceEngine::StatusCode());
+    MOCK_METHOD0(Cancel, void());
 };

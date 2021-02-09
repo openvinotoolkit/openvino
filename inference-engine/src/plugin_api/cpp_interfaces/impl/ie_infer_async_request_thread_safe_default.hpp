@@ -281,13 +281,10 @@ public:
         }
     }
 
-    StatusCode Cancel() override {
+    void Cancel() override {
         std::lock_guard<std::mutex> lock{_mutex};
-        if (_state == InferState::Idle) {
-            return StatusCode::INFER_NOT_STARTED;
-        } else {
+        if (_state == InferState::Busy) {
             _state = InferState::Canceled;
-            return InferenceEngine::OK;
         }
     }
 
