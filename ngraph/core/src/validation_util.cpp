@@ -1574,7 +1574,7 @@ shared_ptr<op::Constant> ngraph::get_constant_from_source(const Output<Node>& so
     return std::make_shared<op::Constant>(source.get_tensor().get_upper_value());
 }
 
-bool validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size)
+bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size)
 {
     if (tensor_vector.size() != size)
         return false;
