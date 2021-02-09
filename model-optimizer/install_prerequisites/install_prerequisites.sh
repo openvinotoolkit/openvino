@@ -120,12 +120,10 @@ check_ov_package() {
 }
 
 extract_release_from_version() {
-    version="$("$1" -c "import sys; \
-                        import os; \
+    version="$("$1" -c "import sys; import os; \
                         sys.path.append(os.path.join(\"$SCRIPTDIR\", os.pardir)); \
                         from mo.utils.version import extract_release_version; \
-                        resp=extract_release_version(); \
-                        print(\"{}.{}\".format(*resp))")"
+                        print(\"{}.{}\".format(*extract_release_version()))")"
 }
 
 find_ie_bindings() {
