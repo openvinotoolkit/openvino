@@ -40,7 +40,8 @@ public:
         const DequantizationOperations::Convert& convertOnWeights,
         const DequantizationOperations& dequantizationOnWeights,
         const DequantizationOperations& dequantizationAfter,
-        const std::string operation = "Convolution");
+        const std::string operation = "Convolution",
+        bool multiplyAfter = false);
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type precision,
@@ -57,7 +58,8 @@ public:
         const Transpose& transpose,
         const Reshape& reshape2,
         const DequantizationOperations& dequantizationAfter,
-        const std::string operation = "Convolution");
+        const std::string operation = "Convolution",
+        bool multiplyAfter = false);
 };
 
 }  // namespace subgraph

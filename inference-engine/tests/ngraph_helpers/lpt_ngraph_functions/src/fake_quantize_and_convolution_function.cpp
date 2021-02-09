@@ -61,7 +61,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const DequantizationOperations::Convert& convertOnWeights,
     const DequantizationOperations& dequantizationOnWeights,
     const DequantizationOperations& dequantizationAfter,
-    const std::string operation) {
+    const std::string operation,
+    bool multiplyAfter) {
     return FakeQuantizeAndConvolutionFunction::get(
         precision,
         inputShape,
@@ -77,8 +78,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         {},
         {},
         dequantizationAfter,
-        operation);
+        operation,
+        multiplyAfter);
 }
+
 std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
@@ -94,7 +97,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const Transpose& transpose,
     const Reshape& reshape2,
     const DequantizationOperations& dequantizationAfter,
-    const std::string operation) {
+    const std::string operation,
+    bool multiplyAfter) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
 
     std::shared_ptr<Node> parentOnActivation = input;
@@ -116,8 +120,13 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
 
     std::shared_ptr<Node> parentOnWeights;
     {
-        const size_t inputChannelsCount = inputShape[1];
-        const size_t outputChannelsCount = 2 * inputShape[1];
+        size_t numGroups = inputShape[1];
+        size_t inputChannelsCount = inputShape[1];
+        size_t outputChannelsCount = inputShape[1] * 2;
+        if (operation == "GroupConvolution") {
+            inputChannelsCount = inputShape[1] / numGroups;
+            outputChannelsCount = inputShape[1];
+        }
         const Shape shape = constantOnWeights.shapeIsDefined ? constantOnWeights.shape : ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
         parentOnWeights = ngraph::opset1::Constant::create(
             constantOnWeights.outPrecision,
@@ -155,6 +164,12 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
         if (!reshape2.empty()) {
             parentOnWeights = makeReshape(parentOnWeights, reshape2);
         }
+        if (operation == "GroupConvolution") {
+            Shape new_shape{numGroups, outputChannelsCount / numGroups, inputChannelsCount};
+            for (size_t i = 2; i < shape.size(); i++)
+                new_shape.push_back(shape[i]);
+            parentOnWeights = std::make_shared<opset1::Reshape>(parentOnWeights, op::Constant::create(element::i64, Shape{new_shape.size()}, new_shape), false);
+        }
     }
 
     std::shared_ptr<Node> lastOperation;
@@ -180,6 +195,12 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
                 ngraph::Strides{ 1, 1 }),
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{});
+        if (multiplyAfter) {
+            const auto& weights_shape = parentOnWeights->get_shape();
+            std::vector<float> cc(weights_shape[0], 1);
+            auto constant = op::Constant::create(element::f32, Shape{weights_shape[0], 1, 1}, cc);
+            lastOperation = std::make_shared<ngraph::opset1::Multiply>(lastOperation, constant);
+        }
     } else {
         THROW_IE_EXCEPTION << "unknown operation type " << operation;
     }
