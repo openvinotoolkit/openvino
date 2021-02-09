@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import logging as log
 
 import numpy as np
 
-from extensions.ops.normalize import NormalizeOp
+from extensions.ops.normalize_l2 import NormalizeL2Op
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, rename_node
@@ -82,16 +82,31 @@ class L2NormToNorm(MiddleReplacementPattern):
             log.debug('The value of the "maximum_y_data" is not defined or is not constant')
             return
 
+        # We need to check axes which performed reduction because IE supports only 2D, 3D, 4D inputs and
+        # reduction only along spatial and channel dimensions.
+        input_rank = len(match['sum'].in_port(0).data.get_shape())
+        if input_rank not in [2, 3, 4]:
+            log.debug('IE supports L2 normalization only for 2D, 3D and 4D tensors, skip fusing transformation.')
+            return
+
+        axes = match['sum'].in_port(1).data.get_value()
+        axes = int64_array(axes)
+        if axes.shape == ():
+            axes = int64_array([axes])
+        axes.sort()
+
+        if not np.array_equal(axes, int64_array(np.arange(start=1, stop=input_rank))):
+            log.debug('IE doesn\'t support l2 normalization with reduction along axes {}, skip fusing transformation.'
+                      ''.format(axes))
+            return
+
         # rename l2_normalize node since it will be no longer output after the transformation
         output_name = match['l2_normalize'].soft_get('name', match['l2_normalize'].id)
         normalizel2_name = output_name + '/normalizel2'
         rename_node(match['l2_normalize'], normalizel2_name)
 
-        normalize_node = create_op_node_with_second_input(graph, NormalizeOp,
-                                                          np.ones(shape=int64_array([match['input'].shape[-1]]),
-                                                                  dtype=match['input'].data_type),
-                                                          {'name': output_name, 'eps': y,
-                                                           'across_spatial': 0, 'channel_shared': 0})
+        normalize_node = create_op_node_with_second_input(graph, NormalizeL2Op, axes, {'name': output_name,
+                                                                                       'eps_mode': 'max', 'eps': y})
         rename_node(normalize_node, output_name)
 
         match['square'].in_port(0).get_source().connect(normalize_node.in_port(0))

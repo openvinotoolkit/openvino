@@ -564,7 +564,7 @@ extensions/middle/InputCut.py
 extensions/middle/InsertLayoutPropagationTransposes.py
 extensions/middle/InsertSelect.py
 extensions/middle/InterpolateSequenceToInterpolate.py
-extensions/middle/L2NormToNorm.py
+extensions/middle/L2NormFusing.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
