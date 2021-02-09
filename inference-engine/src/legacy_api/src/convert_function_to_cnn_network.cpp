@@ -1614,14 +1614,6 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"Interpolate"}, [](const std::shared_ptr<::ngraph::Node>& node,
-                                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "Interpolate", details::convertPrecision(node->get_output_element_type(0))};
-        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
-        res->params = params;
-        return res;
-    });
-
     addSpecificCreator({"CropIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
                                       const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Crop", details::convertPrecision(node->get_output_element_type(0))};
