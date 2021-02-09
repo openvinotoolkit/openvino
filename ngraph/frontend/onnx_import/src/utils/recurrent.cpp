@@ -41,8 +41,6 @@ namespace ngraph
                 m_map[OpInput::W] = ng_inputs.at(1);
                 m_map[OpInput::R] = ng_inputs.at(2);
 
-                const auto el_type = ng_inputs.at(0).get_element_type();
-
                 const auto x_pshape = m_map[OpInput::X].get_partial_shape();
                 const auto w_pshape = m_map[OpInput::W].get_partial_shape();
                 const auto r_pshape = m_map[OpInput::R].get_partial_shape();
