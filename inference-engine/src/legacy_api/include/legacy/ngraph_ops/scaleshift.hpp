@@ -22,6 +22,7 @@ public:
                  const Output<Node>& weights,
                  const Output<Node>& bias,
                  const element::Type output_type = element::undefined);
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
     void validate_and_infer_types() override;
 
