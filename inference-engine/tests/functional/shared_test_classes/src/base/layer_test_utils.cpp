@@ -339,8 +339,12 @@ void LayerTestsCommon::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
     inputs.clear();
 
-    for (const auto &input : executableNetwork.GetInputsInfo()) {
-        const auto &info = input.second;
+    const auto& inputsInfo = executableNetwork.GetInputsInfo();
+    for (const auto& param : function->get_parameters()) {
+        const auto infoIt = inputsInfo.find(param->get_friendly_name());
+        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+
+        const auto& info = infoIt->second;
         auto blob = GenerateInput(*info);
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);

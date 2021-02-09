@@ -79,7 +79,7 @@ class MyriadExecutor {
 
 public:
     MyriadExecutor(bool forceReset, std::shared_ptr<IMvnc> mvnc,
-                        const LogLevel& vpuLogLevel, const Logger::Ptr& log);
+                   const LogLevel& vpuLogLevel, const Logger::Ptr& log);
     ~MyriadExecutor() = default;
 
     /**

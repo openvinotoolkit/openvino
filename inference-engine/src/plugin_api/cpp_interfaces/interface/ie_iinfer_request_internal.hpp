@@ -42,7 +42,7 @@ public:
     /**
      * @brief Cancel current inference request execution
      */
-    virtual StatusCode Cancel() = 0;
+    virtual void Cancel() = 0;
 
     /**
      * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer.
