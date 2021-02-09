@@ -37,7 +37,7 @@ namespace ngraph
             {
             }
 
-            Sink(const OutputVector& arguments)
+            explicit Sink(const OutputVector& arguments)
                 : Op(arguments)
             {
             }

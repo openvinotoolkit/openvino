@@ -21,6 +21,8 @@
 
 using namespace ngraph;
 
+NGRAPH_RTTI_DEFINITION(op::util::SubGraphOp, "SubGraphOp", 0);
+
 constexpr DiscreteTypeInfo op::util::SubGraphOp::SliceInputDescription::type_info;
 constexpr DiscreteTypeInfo op::util::SubGraphOp::MergedInputDescription::type_info;
 constexpr DiscreteTypeInfo op::util::SubGraphOp::InvariantInputDescription::type_info;

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <list>
 #include <memory>
+#include <ngraph/ops.hpp>
 
 #include "itt.hpp"
 #include "ngraph/function.hpp"
@@ -118,6 +119,12 @@ void Function::validate_nodes_and_infer_types() const
     OV_ITT_SCOPED_TASK(ngraph::itt::domains::nGraphPass_LT,
                        "Function::validate_nodes_and_infer_types");
 
+    struct Counter
+    {
+        int cnt_assign = 0;
+        int cnt_read_val = 0;
+    };
+    std::map<Variable*, Counter> pair_checker;
     std::stringstream unregistered_parameters;
     for (auto& node : get_ordered_ops())
     {
@@ -125,10 +132,27 @@ void Function::validate_nodes_and_infer_types() const
         if (op::is_parameter(node) &&
             std::find(m_parameters.begin(), m_parameters.end(), node) == m_parameters.end())
             unregistered_parameters << node << std::endl;
+        if (const auto& assign = std::dynamic_pointer_cast<op::AssignBase>(node))
+        {
+            pair_checker[assign->get_variable().get()].cnt_assign++;
+        }
+        else if (const auto& read_value = std::dynamic_pointer_cast<op::ReadValueBase>(node))
+        {
+            pair_checker[read_value->get_variable().get()].cnt_read_val++;
+        }
     }
     if (!unregistered_parameters.str().empty())
         throw ngraph_error("Function references undeclared parameters: " +
                            unregistered_parameters.str());
+
+    bool only_pairs = std::all_of(
+        pair_checker.begin(), pair_checker.end(), [](const std::pair<Variable*, Counter>& val) {
+            return val.second.cnt_assign == 1 && val.second.cnt_read_val == 1;
+        });
+    if (!only_pairs)
+        throw ngraph_error(
+            "Function is incorrect. Assign and ReadValue operations must be in pairs on the "
+            "network.");
 }
 
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const
