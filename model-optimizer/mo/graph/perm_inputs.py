@@ -132,21 +132,22 @@ def shape(op_node: Node, port_info: str, input_port: int):
     assert permutation_data_node.has_and_set('permutation'), 'Data node "{}" does not have permutation for node {}, ' \
                                                              'port_info "{}".'.format(permutation_data_node.id,
                                                                                       op_node.id, port_info)
-    permute_idx_for_gather = permutation_data_node.permutation.perm
-    if len(permute_idx_for_gather) == 0:
+    permute_indices_for_gather = permutation_data_node.permutation.perm
+    if len(permute_indices_for_gather) == 0:
         return
 
-    # Kludge, 'it ain't much honest, but it works' since StridedSlice need to be permuted even inputs
-    # have rank lesser than 4, e.g. input_shape = (1, 10, 10) input[..., newaxis]
-    if op_node.type == 'StridedSlice':
+    # StridedSlice must be permuted even if inputs (or outputs) have rank lesser than 4,
+    # e.g. input_shape = (1, 10, 10), out = input[..., newaxis]
+    # input_shape = (1, 100, 100, 10), out = input[..., 0]
+    if op_node.soft_get('type') == 'StridedSlice':
         from mo.ops.op import PermuteAttrs
         slice_rank = op_node.in_port(input_port).data.get_shape()[0]
-        permute_idx_for_gather = PermuteAttrs.get_nhwc_to_nchw_permutation(slice_rank).perm
+        permute_indices_for_gather = PermuteAttrs.get_nhwc_to_nchw_permutation(slice_rank).perm
 
     data_node = op_node.in_node(input_port)
 
     gather_name = op_node.soft_get('name', op_node.id) + '/ShapeGather'
-    const = Const(graph, {'value': permute_idx_for_gather, 'name': gather_name + '/const',
+    const = Const(graph, {'value': permute_indices_for_gather, 'name': gather_name + '/const',
                           'need_shape_inference': True}).create_node_with_data()
     axis_const = Const(graph, {'value': int64_array(0), 'name': gather_name + '/axis'}).create_node_with_data()
     gather = Gather(graph, {'name': gather_name,

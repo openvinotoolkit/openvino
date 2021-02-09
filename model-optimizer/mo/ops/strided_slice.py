@@ -54,27 +54,26 @@ class StridedSlice(Op):
 
     @staticmethod
     def infer(node: Node):
+        node_name = node.soft_get('name', node.id)
         begin = node.in_port(1).data.get_value()
         end = node.in_port(2).data.get_value()
         if begin is None or end is None:
-            raise Error('StridedSlice operation supports only constant begin and end inputs')
+            raise Error('StridedSlice operation for node {} supports only constant begin and end inputs'.format(node_name))
 
-        if len(node.in_nodes()) > 3:
+        if node.is_in_port_connected(3):
             strides = node.in_port(3).data.get_value()
             if strides is None:
-                raise Error('StridedSlice operation supports only constant strides input')
+                raise Error('StridedSlice operation for node {} supports only constant strides input'.format(node_name))
         else:
             strides = np.ones_like(begin)
 
-        shape = node.in_port(0).data.get_shape()
-        value = node.in_port(0).data.get_value()
-        input_rank = len(shape)
-        assert len(begin) == len(end) == len(strides), 'begin, end, and strides must be of the same length'
+        data_shape = node.in_port(0).data.get_shape()
+        data_value = node.in_port(0).data.get_value()
+        input_rank = len(data_shape)
+        assert len(begin) == len(end) == len(strides), 'begin, end, and strides of StridedSlice node {} must ' \
+                                                       'be of the same length'.format(node_name)
 
-        if shape is None or any([x < 0 for x in shape]):
-            return
-
-        # masks alligment all masks should initial slice_rank (mask_alligment != mask_extending)
+        # masks aligment all masks should initial slice_rank (mask_aligment != mask_extending)
         extend_mask = lambda mask, val=0: np.append(mask, [val] * (len(begin) - len(mask))).astype(int)
         new_axis_mask = extend_mask(node.new_axis_mask)
         shrink_axis_mask = extend_mask(node.shrink_axis_mask)
@@ -109,20 +108,20 @@ class StridedSlice(Op):
             elif shrink_axis_mask[i]:
                 slices[i] = int(begin[i])
                 if slices[i] < 0:
-                    slices[i] += int(shape[in_idx])
+                    slices[i] += int(data_shape[in_idx])
             else:
                 start, stop = begin[i], end[i]
                 if not begin_mask[i]:  # if begin, and end are not specified take whole range
                     start = 0 if strides[i] > 0 else -1
                 if not end_mask[i]:
-                    stop = shape[in_idx] if strides[i] > 0 else -shape[in_idx] - 1
+                    stop = data_shape[in_idx] if strides[i] > 0 else -data_shape[in_idx] - 1
                 slices[i] = slice(start, stop, strides[i])
             in_idx += 1 if not new_axis_mask[i] else 0
 
-        if value is not None:
-            node.out_port(0).data.set_value(value[tuple(slices)])
+        if data_value is not None:
+            node.out_port(0).data.set_value(data_value[tuple(slices)])
         else:
-            node.out_port(0).data.set_shape(get_shape_from_slice(shape, slices))
+            node.out_port(0).data.set_shape(get_shape_from_slice(data_shape, slices))
 
         # normalize slices attr which is used by ConvertGroupedStridedSlice
         in_idx = 0
@@ -132,7 +131,7 @@ class StridedSlice(Op):
             elif shrink_axis_mask[i]:
                 slices[i] = slice(slices[i], slices[i] + 1, strides[i])
             if not new_axis_mask[i]:
-                slices[i] = slice(*slices[i].indices(shape[in_idx]))  # will convert negative indices
+                slices[i] = slice(*slices[i].indices(data_shape[in_idx]))  # will convert negative indices
                 in_idx += 1
         node['slices'] = np.array(slices)
 

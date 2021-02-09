@@ -35,7 +35,7 @@ def slice_axis_ext(attrs):
 
 
 def mxnet_slice_axis_infer(node):
-    in_shape = node.in_node(0).shape
+    in_shape = node.in_port(0).data.get_shape()
     node.axis = get_canonical_axis_index(in_shape, node.axis)
     slice_axis = node.axis
 
