@@ -500,6 +500,42 @@ NGRAPH_TEST(onnx_editor, subgraph__existing_inputs_and_outputs_based_extraction)
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
 
+NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge{1, "relu1"}, InputEdge{6, "relu1"}}},
+                              {{OutputEdge{6, "mul1"}, OutputEdge{4, "mul2"}}});
+
+    const auto ref_model =
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/model_editor/reference/"
+                             "subgraph__input_edge_from_tensor_with_multiple_consumers.prototxt");
+
+    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_2)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge{1, "relu1"}, InputEdge{6, "relu1"}}},
+                              {{OutputEdge{6, "mul1"}, OutputEdge{4, "mul2"}}});
+
+    const auto ref_model =
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/model_editor/reference/"
+                             "subgraph__input_edge_from_tensor_with_multiple_consumers_2.prototxt");
+
+    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
 NGRAPH_TEST(onnx_editor, subgraph__invalid_edge_idx)
 {
     const auto model_path =
