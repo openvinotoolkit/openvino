@@ -19,7 +19,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph_ops/convolution_ie.hpp>
 #include <transformations/init_node_info.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -395,26 +395,26 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesParametersNegative) {
 TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto constReadVal = ngraph::opset6::Constant::create(ngraph::element::f32, {1, 37632}, {0});
+        auto constReadVal = ngraph::opset5::Constant::create(ngraph::element::f32, {1, 37632}, {0});
         constReadVal->set_friendly_name("const");
-        auto readVal = std::make_shared<ngraph::opset6::ReadValue>(constReadVal, "buffer_1");
+        auto readVal = std::make_shared<ngraph::opset5::ReadValue>(constReadVal, "buffer_1");
         readVal->set_friendly_name("readVal_Buf1");
 
-        auto constVarSplit1 = ngraph::opset6::Constant::create(ngraph::element::i64, {}, {1});
+        auto constVarSplit1 = ngraph::opset5::Constant::create(ngraph::element::i64, {}, {1});
         constVarSplit1->set_friendly_name("varSplitConst1");
-        auto constVarSplit2 = ngraph::opset6::Constant::create(ngraph::element::i64, {2}, {5376, 32256});
+        auto constVarSplit2 = ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {5376, 32256});
         constVarSplit2->set_friendly_name("varSplitConst2");
 
-        auto varSplit = std::make_shared<ngraph::opset6::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
+        auto varSplit = std::make_shared<ngraph::opset5::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
 
-        auto param1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
-        auto varConcat = std::make_shared<ngraph::opset6::Concat>(ngraph::OutputVector{varSplit->output(0), param1}, 1);
-        auto result = std::make_shared<ngraph::opset6::Result>(varConcat);
+        auto param1 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
+        auto varConcat = std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(0), param1}, 1);
+        auto result = std::make_shared<ngraph::opset5::Result>(varConcat);
 
-        auto param2 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
-        auto varConcat2 = std::make_shared<ngraph::opset6::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
+        auto param2 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
+        auto varConcat2 = std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
 
-        auto assign = std::make_shared<ngraph::opset6::Assign>(varConcat2, "buffer_1");
+        auto assign = std::make_shared<ngraph::opset5::Assign>(varConcat2, "buffer_1");
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::SinkVector{assign}, ngraph::ParameterVector{param1, param2});
     }
 
@@ -433,22 +433,22 @@ TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers) {
 TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers2) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
-        auto constReadVal = ngraph::opset6::Constant::create(ngraph::element::f32, {1, 37632}, {0});
+        auto constReadVal = ngraph::opset5::Constant::create(ngraph::element::f32, {1, 37632}, {0});
         constReadVal->set_friendly_name("const");
-        auto readVal = std::make_shared<ngraph::opset6::ReadValue>(constReadVal, "buffer_1");
+        auto readVal = std::make_shared<ngraph::opset5::ReadValue>(constReadVal, "buffer_1");
         readVal->set_friendly_name("readVal_Buf1");
 
-        auto constVarSplit1 = ngraph::opset6::Constant::create(ngraph::element::i64, {}, {1});
+        auto constVarSplit1 = ngraph::opset5::Constant::create(ngraph::element::i64, {}, {1});
         constVarSplit1->set_friendly_name("varSplitConst1");
-        auto constVarSplit2 = ngraph::opset6::Constant::create(ngraph::element::i64, {2}, {5376, 32256});
+        auto constVarSplit2 = ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {5376, 32256});
         constVarSplit2->set_friendly_name("varSplitConst2");
 
-        auto varSplit = std::make_shared<ngraph::opset6::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
+        auto varSplit = std::make_shared<ngraph::opset5::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
 
-        auto param2 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
-        auto varConcat2 = std::make_shared<ngraph::opset6::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
+        auto param2 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
+        auto varConcat2 = std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
 
-        auto assign = std::make_shared<ngraph::opset6::Assign>(varConcat2, "buffer_1");
+        auto assign = std::make_shared<ngraph::opset5::Assign>(varConcat2, "buffer_1");
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{}, ngraph::SinkVector{assign}, ngraph::ParameterVector{param2});
     }
 
