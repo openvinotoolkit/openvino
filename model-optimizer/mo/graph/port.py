@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -278,7 +278,7 @@ class Port:
             consumer_ports.append(node.in_port(d['in'], control_flow=self.control_flow))
         return consumer_ports
 
-    def get_tensor_names(self, port_renumber: bool = False):
+    def get_tensor_names(self, port_renumber: bool = False, first_only: bool = False):
         def get_tensor_names_list(attrs):
             tensor_names_list = []
             if 'fw_tensor_debug_info' in attrs:
@@ -289,6 +289,8 @@ class Port:
                         tensor_name = attr[2]
                         if tensor_name is not None and len(tensor_name) > 0:
                             tensor_names_list.append(tensor_name.replace(',', '\\,'))
+            if first_only:
+                return tensor_names_list[:1]
             return tensor_names_list
 
         assert self.type != 'in', "Can't get tensor names for input port at {} node".format(self.node.name)

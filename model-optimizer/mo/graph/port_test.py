@@ -71,6 +71,20 @@ class TestsGetTensorNames(unittest.TestCase):
 
         self.assertTrue(op1_node.out_port(0).get_tensor_names(port_renumber=True) == 'Op1\\,Op2')
 
+    def test_first_only_case1(self):
+        graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'),
+                                    ('input_data', 'Op2')])
+
+        input_node = Node(graph, 'input')
+        self.assertTrue(input_node.out_port(0).get_tensor_names(first_only=True) == 'input')
+
+    def test_first_only_case2(self):
+        graph = build_graph(nodes, [])
+
+        input_node = Node(graph, 'input')
+        input_node.add_output_port(0)
+        self.assertTrue(input_node.out_port(0).get_tensor_names(first_only=True) is None)
+
     def test_reconnect_middle_case1(self):
         graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'), ('Op3', 'Op3_data')])
         input_node = Node(graph, 'input')
