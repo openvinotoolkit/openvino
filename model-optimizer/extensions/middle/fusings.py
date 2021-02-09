@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -96,7 +96,7 @@ class Fusing(MiddleReplacementPattern):
                 for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
                 for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-        normalize_eltwise_inputs(graph)
+        for_graph_and_each_sub_graph_recursively(graph, normalize_eltwise_inputs)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         MarkNodesToFuseUpToFakeQuantize().find_and_replace_pattern(graph)

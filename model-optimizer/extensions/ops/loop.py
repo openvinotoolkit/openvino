@@ -315,8 +315,7 @@ class Loop(TensorIterator):
     @staticmethod
     def pull_constant_inputs_into_body(loop_node: Node):
         for port_idx, in_port in reversed(loop_node.in_ports().items()):
-            # TODO add a check that the input does not correspond to execution_condition
-            if not in_port.disconnected() and in_port.get_source().node.soft_get('type') == 'Const':
+            if port_idx > 1 and not in_port.disconnected() and in_port.get_source().node.soft_get('type') == 'Const':
                 original_const_node = in_port.get_source().node
                 new_const_node = Const(loop_node.body, original_const_node.attrs()).create_node()
 
@@ -463,7 +462,7 @@ class Loop(TensorIterator):
                 port_to_remove = port_map[record_id_to_remove]['external_port_id']
                 if port_to_remove != -1:
                     if dir == 'in':
-                        if port_to_remove not in [0, 1]:  # input port 0 and 1 are mandatory for the Loop node
+                        if port_to_remove not in [0, 1] and port_to_remove in loop_node.in_ports().keys():  # input port 0 and 1 are mandatory for the Loop node
                             loop_node.delete_input_port(port_to_remove)
                     elif dir == 'out' and port_to_remove in loop_node.out_ports():
                         loop_node.delete_output_port(port_to_remove)
