@@ -86,3 +86,7 @@ inference of a pre-trained and optimized deep learning model and a set of sample
 * [Known Issues](Known_Issues_Limitations.md)
 
 **Typical Next Step:** [Introduction to Inference Engine](inference_engine_intro.md)
+
+## Video: Inference Engine Concept
+[![](https://img.youtube.com/vi/e6R13V8nbak/0.jpg)](https://www.youtube.com/watch?v=e6R13V8nbak)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/e6R13V8nbak" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
