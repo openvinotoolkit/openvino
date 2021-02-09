@@ -31,22 +31,21 @@ def get_mo_version():
 def try_to_import_ie():
     try:
         from openvino.inference_engine import IECore, get_version
-        print("[ IMPORT ]     Successfully Imported: IECore")
+        # print("[ IMPORT ]     Successfully Imported: IECore")
 
         from openvino.offline_transformations import ApplyMOCTransformations
-        print("[ IMPORT ]     Successfully Imported: ApplyMOCTransformations")
+        # print("[ IMPORT ]     Successfully Imported: ApplyMOCTransformations")
 
         ie_version = get_version()
         mo_version = get_mo_version()
 
-        if mo_version in ie_version:
-            print("[ IMPORT ] MO and IE versions match")
-        else:
+        if mo_version not in ie_version:
             print("[ WARNING ] MO and IE versions do no match: MO: {}, IE: {}".format(mo_version, ie_version))
 
+        print("[ IMPORT ] Successfully imported InferenceEngine Python modules")
         return True
     except ImportError as e:
-        print("[ IMPORT ]     ImportError: {}".format(e))
+        # print("[ IMPORT ]     ImportError: {}".format(e))
         return False
 
 

@@ -83,7 +83,7 @@ def find_ie_version():
             subprocess.run([sys.executable, path_to_script], env=os.environ)
 
     """
-    print("[ IMPORT ] Checking default IE Python module")
+    # print("[ IMPORT ] Checking default IE Python module")
     if try_to_import_ie():
         return True
 
@@ -119,9 +119,8 @@ def find_ie_version():
     ]
 
     for item in bindings_paths:
-        print("[ IMPORT ] Trying to find module in {}".format(item['module']))
+        # print("[ IMPORT ] Trying to find module in {}".format(item['module']))
         if try_to_import_ie(module=item['module'], libs=item['libs'] if 'libs' in item else []):
-            print("[ IMPORT ] Successfully imported IE Python modules")
             return True
 
     return False
