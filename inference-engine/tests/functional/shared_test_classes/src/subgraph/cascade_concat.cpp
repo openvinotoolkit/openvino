@@ -39,8 +39,8 @@ void CascadeConcat::SetUp() {
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0),
                                                                                 relu2->output(0)},
                                                                                 1);
-    auto reshape = ngraph::builder::makeSqueezeUnsqueeze(concat, ngPrc, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
-    auto reshape2 = ngraph::builder::makeSqueezeUnsqueeze(reshape, ngPrc, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
+    auto reshape = ngraph::builder::makeSqueezeUnsqueeze(concat, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::UNSQUEEZE);
+    auto reshape2 = ngraph::builder::makeSqueezeUnsqueeze(reshape, ngraph::element::i64, {0}, ngraph::helpers::SqueezeOpType::SQUEEZE);
     auto concat2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{reshape2->output(0),
                                                                                  relu3->output(0)},
                                                                                  1);

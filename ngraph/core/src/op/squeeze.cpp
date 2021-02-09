@@ -149,10 +149,38 @@ shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args
 namespace squeeze
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
+    bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out)
     {
-        runtime::reference::copy(
-            arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(out->get_shape()));
+        const auto data_rank = arg0->get_partial_shape().rank().get_length();
+        const auto axes_num = shape_size(arg1->get_shape());
+
+        auto out_shape = arg0->get_shape();
+        if (axes_num == 0)
+        {
+            out_shape.erase(remove(out_shape.begin(), out_shape.end(), 1), out_shape.end());
+        }
+        else
+        {
+            auto norm_axes = normalize_axes(
+                "",
+                std::vector<int64_t>(arg1->get_data_ptr<ET>(), arg1->get_data_ptr<ET>() + axes_num),
+                data_rank);
+            set<size_t, greater<size_t>> ordered_axes(norm_axes.begin(), norm_axes.end());
+
+            for (const auto& axis : ordered_axes)
+            {
+                if (out_shape[axis] != 1)
+                {
+                    throw ngraph_error("Squeeze dimension is not equal to 1");
+                }
+                out_shape.erase(out_shape.begin() + axis);
+            }
+        }
+        out->set_shape(out_shape);
+
+        runtime::reference::copy(arg0->get_data_ptr<char>(),
+                                 out->get_data_ptr<char>(),
+                                 shape_size(out_shape) * out->get_element_type().size());
         return true;
     }
 
@@ -160,17 +188,19 @@ namespace squeeze
                           const HostTensorPtr& arg1,
                           const HostTensorPtr& out)
     {
-        auto element_type = arg0->get_element_type();
+        auto element_type = arg1->get_element_type();
 
         bool rc = true;
         switch (element_type)
         {
-            NGRAPH_TYPE_CASE(evaluate_squeeze, i32, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_squeeze, i64, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_squeeze, u32, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_squeeze, u64, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_squeeze, f16, arg0, out);
-            NGRAPH_TYPE_CASE(evaluate_squeeze, f32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i8, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i16, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i32, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i64, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u8, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u16, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u32, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u64, arg0, arg1, out);
         default: rc = false; break;
         }
         return rc;

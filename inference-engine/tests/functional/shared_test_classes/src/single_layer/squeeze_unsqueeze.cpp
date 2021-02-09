@@ -39,7 +39,7 @@ void SqueezeUnsqueezeLayerTest::SetUp() {
     std::tie(inputShapes, axesVector) = shapeItem;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
-    auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(params.front(), ngPrc, axesVector, opType);
+    auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(params.front(), ngraph::element::i64, axesVector, opType);
     const ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(squeeze)};
     function = std::make_shared<ngraph::Function>(results, params, "Squeeze");
 }
