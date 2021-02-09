@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from extensions.back.TopKNormalizer import TopKNormalizer
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
-from extensions.back.TopKNormalizer import TopKNormalizer
 
 
 class ResultRename(BackReplacementPattern):
