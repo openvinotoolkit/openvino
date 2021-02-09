@@ -280,3 +280,8 @@ std::vector<std::string> onnx_import::ONNXModelEditor::model_inputs() const
 
     return inputs_and_initializers;
 }
+
+std::string onnx_import::ONNXModelEditor::model_string() const
+{
+    return m_pimpl->m_model_proto.SerializeAsString();
+}

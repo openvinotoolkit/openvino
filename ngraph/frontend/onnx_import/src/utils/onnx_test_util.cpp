@@ -263,11 +263,13 @@ namespace ngraph
 {
     namespace onnx_import
     {
-        ComparisonResult compare_onnx_models(const ONNX_NAMESPACE::GraphProto& graph,
+        ComparisonResult compare_onnx_models(const std::string& model,
                                              const std::string& reference_model_path)
         {
+            std::stringstream model_stream{model};
+            const auto model_proto = onnx_import::parse_from_istream(model_stream);
             const auto ref_model = onnx_import::parse_from_file(reference_model_path);
-            return compare_onnx_graphs(graph, ref_model.graph());
+            return compare_onnx_graphs(model_proto.graph(), ref_model.graph());
         }
     } // namespace onnx_import
 } // namespace ngraph

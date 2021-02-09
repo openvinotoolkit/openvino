@@ -47,8 +47,8 @@ namespace ngraph
             }
         };
 
-        ONNX_IMPORTER_API ComparisonResult compare_onnx_models(
-            const ONNX_NAMESPACE::GraphProto& graph, const std::string& reference_model_path);
+        ONNX_IMPORTER_API ComparisonResult
+            compare_onnx_models(const std::string& model, const std::string& reference_model_path);
 
     } // namespace onnx_import
 } // namespace ngraph

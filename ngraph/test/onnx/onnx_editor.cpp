@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include <algorithm>
-#include <onnx/onnx_pb.h>
 #include <queue>
 
 #include "gtest/gtest.h"
@@ -301,7 +300,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut)
     const auto ref_model = file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -318,7 +317,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs)
     const auto ref_model = file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_head_cut.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -334,7 +333,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_head_cut)
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__linear_model_deeper_head_cut.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -349,7 +348,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut)
     const auto ref_model = file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_tail_cut.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -365,7 +364,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs)
     const auto ref_model = file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__linear_model_tail_cut.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -381,7 +380,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_with_initializer_tail_cut)
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__linear_model_with_initializer_tail_cut.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -398,7 +397,7 @@ NGRAPH_TEST(onnx_editor, subgraph__initializer_without_matching_input_tail_cut)
                              "onnx/model_editor/reference/"
                              "subgraph__initializer_without_matching_input_tail_cut.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -414,7 +413,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_tail_cut)
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__linear_model_deeper_tail_cut.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -428,7 +427,7 @@ NGRAPH_TEST(onnx_editor, subgraph__no_input_params)
 
     editor.cut_graph_fragment({}, {});
 
-    const auto result = compare_onnx_models(editor.model().graph(), model_path);
+    const auto result = compare_onnx_models(editor.model_string(), model_path);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -445,7 +444,7 @@ NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement)
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__initializer_to_input_replacement.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -462,7 +461,7 @@ NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement_2)
         SERIALIZED_ZOO,
         "onnx/model_editor/reference/subgraph__initializer_to_input_replacement.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -477,7 +476,7 @@ NGRAPH_TEST(onnx_editor, subgraph__multiout_op_output_edge)
     const auto ref_model = file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/reference/subgraph__multiout_op_output_edge.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -495,7 +494,7 @@ NGRAPH_TEST(onnx_editor, subgraph__existing_inputs_and_outputs_based_extraction)
                              "onnx/model_editor/reference/"
                              "subgraph__existing_inputs_and_outputs_based_extraction.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -513,7 +512,7 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
                              "onnx/model_editor/reference/"
                              "subgraph__input_edge_from_tensor_with_multiple_consumers.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
@@ -531,7 +530,7 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
                              "onnx/model_editor/reference/"
                              "subgraph__input_edge_from_tensor_with_multiple_consumers_2.prototxt");
 
-    const auto result = compare_onnx_models(editor.model().graph(), ref_model);
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
 
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
