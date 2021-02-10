@@ -33,7 +33,6 @@
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
 #include "generic_ie.hpp"
-#include "shape_infer/ie_built_in_holder.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -113,9 +112,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
         info->setPrecision(prc);
         network.setInputInfo(info);
     };
-
-    // Add shape infer method for old operations which are not included to opset1, opset2 and opset3
-    ::ngraph::op::GenericIE::addExtension(_ngraph_function, std::make_shared<ShapeInfer::BuiltInShapeInferHolder>());
 
     reshape();
     for (const auto& layer : _ngraph_function->get_parameters()) {

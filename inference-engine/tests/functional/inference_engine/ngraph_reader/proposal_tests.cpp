@@ -4,6 +4,7 @@
 
 #include <string>
 #include <generic_ie.hpp>
+#include "ngraph/opsets/opset6.hpp"
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadProposalNetwork) {
     std::string model_v10 = R"V0G0N(
@@ -308,6 +309,8 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
 }
 
 TEST_F(NGraphReaderTests, ReadExtensionProposalNetwork) {
+    // the Proposal with 2 inputs was initially marked as "extension" operation but later was added to opset
+    // the test checks that IR reader properly instantiate the "extension" Proposal as "opset6" Proposal
     std::string model_v10 = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -334,9 +337,9 @@ TEST_F(NGraphReaderTests, ReadExtensionProposalNetwork) {
             </output>
         </layer>
         <layer id="2" name="in3" type="Const" version="opset1">
-            <data element_type="i64" offset="0" shape="3" size="24"/>
+            <data element_type="f32" offset="0" shape="3" size="12"/>
             <output>
-                <port id="0" precision="I64">
+                <port id="0" precision="FP32">
                     <dim>3</dim>
                 </port>
             </output>
@@ -391,15 +394,15 @@ TEST_F(NGraphReaderTests, ReadExtensionProposalNetwork) {
     Core ie;
     Blob::Ptr weights;
 
-    weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {24}, Layout::C));
+    weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {12}, Layout::C));
     weights->allocate();
     CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
 
     auto func = ie.ReadNetwork(model_v10, weights).getFunction();
     for (auto op : func->get_ordered_ops()) {
-        if (op->get_friendly_name() == "proposal" && op->get_type_info() == ngraph::op::GenericIE::type_info) {
+        if (op->get_friendly_name() == "proposal" && op->get_type_info() == ngraph::opset6::Proposal::type_info) {
             return;
         }
     }
-    FAIL() << "Custom proposal layer is not a Generic operation!";
+    FAIL() << "Custom proposal layer is not an opset6 operation.";
 }

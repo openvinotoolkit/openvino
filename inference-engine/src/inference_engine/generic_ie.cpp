@@ -15,7 +15,6 @@
 
 #include "blob_factory.hpp"
 #include <ie_ngraph_utils.hpp>
-#include "shape_infer/ie_ishape_infer_extension.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/validation_util.hpp"
@@ -85,63 +84,6 @@ void ngraph::op::GenericIE::validate_and_infer_types() {
         }
         return get_output_element_type(index);
     };
-    // Try to find extension with shape inference implementation and apply it
-    for (const auto& ext : extensions) {
-        IE_SUPPRESS_DEPRECATED_START
-        InferenceEngine::IShapeInferImpl::Ptr impl;
-        InferenceEngine::StatusCode ret = ext->getShapeInferImpl(impl, type.c_str(), nullptr);
-        if (ret != InferenceEngine::StatusCode::OK || !impl) continue;
-
-        std::vector<InferenceEngine::Blob::CPtr> inputs;
-        std::map<std::string, std::string> parameters;
-        std::map<std::string, InferenceEngine::Blob::Ptr> blobs;
-        std::vector<InferenceEngine::SizeVector> outShapes;
-
-        for (uint64_t i = 0; i < get_input_size(); i++) {
-            PartialShape this_input_shape = get_input_partial_shape(i);
-
-            if (!this_input_shape.is_static()) {
-                // Set dynamic output shapes if input shapes are not defined
-                for (size_t output_index = 0; output_index < outputs.size(); output_index++) {
-                    set_output_type(output_index, get_precision(output_index), PartialShape::dynamic());
-                }
-                return;
-            }
-
-            Shape this_ishape = get_input_shape(i);
-            InferenceEngine::SizeVector dims = this_ishape;
-            InferenceEngine::Blob::Ptr input = make_blob_with_precision(InferenceEngine::TensorDesc(
-                InferenceEngine::details::convertPrecision(get_input_element_type(i)), dims,
-                InferenceEngine::TensorDesc::getLayoutByDims(dims)));
-            inputs.emplace_back(input);
-        }
-
-        for (const auto& attr : params) {
-            if (attr.second.is<std::string>()) {
-                parameters[attr.first] = attr.second.as<std::string>();
-            } else if (attr.second.is<InferenceEngine::Blob::CPtr>()) {
-                auto cBlob = attr.second.as<InferenceEngine::Blob::CPtr>();
-                auto wBlob = std::const_pointer_cast<InferenceEngine::Blob>(cBlob);
-                blobs[attr.first] = wBlob;
-            } else if (attr.second.is<InferenceEngine::Blob::Ptr>()) {
-                auto wBlob = attr.second.as<InferenceEngine::Blob::Ptr>();
-                blobs[attr.first] = wBlob;
-            } else {
-                THROW_IE_EXCEPTION << "Generic node for layer " << get_friendly_name() << " with type " << type
-                                   << " has incorrect parameter " << attr.first << "!";
-            }
-        }
-
-        ret = impl->inferShapes(inputs, parameters, blobs, outShapes, nullptr);
-        IE_SUPPRESS_DEPRECATED_END
-
-        if (ret != InferenceEngine::StatusCode::OK || outShapes.size() != outputs.size()) continue;
-
-        for (size_t output_index = 0; output_index < outputs.size(); output_index++) {
-            set_output_type(output_index, get_precision(output_index), Shape(outShapes[output_index]));
-        }
-        return;
-    }
 
     // Extensions are not loaded when we create nGraph function
     // First call: create node
