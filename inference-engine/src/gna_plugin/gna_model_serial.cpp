@@ -288,15 +288,26 @@ void GNAModelSerial::Import(void *basePointer,
 
     for (int i = 0; i != nStates; i++) {
         void *pSegment;
-        readOffset(pSegment, basePointer, is);
-        uint32_t segmentSz;
-        readBits(segmentSz, is);
-        uint32_t nameSize = 0;
-        readNBits<32>(nameSize, is);
-        std::string inName("", nameSize);
-        readNBytes(&inName[0], nameSize, is);
-        if (pstates) {
-            (*pstates)[i] = { pSegment, segmentSz, inName};
+        if ( modelHeader.version.major == 2 ) {
+            if ( modelHeader.version.minor < 5 ) {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz;
+                readBits(segmentSz, is);
+                if (pstates) {
+                    (*pstates)[i] = { pSegment, segmentSz, "noname"};
+                }
+            } else {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz;
+                readBits(segmentSz, is);
+                uint32_t nameSize = 0;
+                readNBits<32>(nameSize, is);
+                std::string inName("", nameSize);
+                readNBytes(&inName[0], nameSize, is);
+                if (pstates) {
+                    (*pstates)[i] = { pSegment, segmentSz, inName};
+                }
+            }
         }
     }
 

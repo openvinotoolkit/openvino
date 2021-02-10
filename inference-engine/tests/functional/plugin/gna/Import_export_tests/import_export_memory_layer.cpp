@@ -10,15 +10,12 @@
 #include <fstream>
 
 #include <ie_core.hpp>
+#include <ie_layouts.h>
 
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-
-#include "ngraph_functions/pass/convert_prc.hpp"
 
 typedef std::tuple<
         InferenceEngine::Precision,         // Network Precision
@@ -73,6 +70,12 @@ public:
         for (const auto &next_memory : importedNetwork.QueryState()) {
             ASSERT_TRUE(std::find(queryToState.begin(), queryToState.end(), next_memory.GetName()) != queryToState.end())
                                         << "State " << next_memory.GetName() << " expected to be in memory states but it is not!";
+        }
+        executableNetwork = importedNetwork;
+        size_t nIteration = 3;
+        for ( ; nIteration != 0; nIteration--) {
+            Infer();
+            Validate();
         }
     }
 
