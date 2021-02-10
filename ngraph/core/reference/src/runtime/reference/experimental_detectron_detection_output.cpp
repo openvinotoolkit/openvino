@@ -107,13 +107,15 @@ namespace
     {
         explicit ConfidenceComparator(const float* conf_data)
             : m_conf_data(conf_data)
-            {
-            }
-
-        bool operator()(int idx1, int idx2)
         {
-            if (m_conf_data[idx1] > m_conf_data[idx2]) return true;
-            if (m_conf_data[idx1] < m_conf_data[idx2]) return false;
+        }
+
+        bool operator()(int64_t idx1, int64_t idx2)
+        {
+            if (m_conf_data[idx1] > m_conf_data[idx2])
+                return true;
+            if (m_conf_data[idx1] < m_conf_data[idx2])
+                return false;
             return idx1 < idx2;
         }
 
@@ -146,7 +148,7 @@ namespace
         float intersect_xmax = (std::min)(xmax1, xmax2);
         float intersect_ymax = (std::min)(ymax1, ymax2);
 
-        float intersect_width  = intersect_xmax - intersect_xmin + coordinates_offset;
+        float intersect_width = intersect_xmax - intersect_xmin + coordinates_offset;
         float intersect_height = intersect_ymax - intersect_ymin + coordinates_offset;
 
         if (intersect_width <= 0 || intersect_height <= 0)
@@ -185,8 +187,10 @@ namespace
 
         int64_t num_output_scores = (pre_nms_topn == -1 ? count : (std::min)(pre_nms_topn, count));
 
-        std::partial_sort_copy(indices, indices + count,
-                               buffer, buffer + num_output_scores,
+        std::partial_sort_copy(indices,
+                               indices + count,
+                               buffer,
+                               buffer + num_output_scores,
                                ConfidenceComparator(conf_data));
 
         detections = 0;
@@ -217,7 +221,8 @@ namespace
 
     template <typename T>
     bool SortScorePairDescend(const std::pair<float, T>& pair1,
-                              const std::pair<float, T>& pair2) {
+                              const std::pair<float, T>& pair2)
+    {
         return pair1.first > pair2.first;
     }
 }
@@ -238,7 +243,6 @@ namespace ngraph
                 float* output_scores,
                 int32_t* output_classes)
             {
-
                 const float img_H = input_im_info[0];
                 const float img_W = input_im_info[1];
                 const int64_t classes_num = attrs.num_classes;
@@ -257,10 +261,15 @@ namespace ngraph
                 std::vector<float> refined_scores(classes_num * rois_num, 0);
                 std::vector<float> refined_boxes_areas(classes_num * rois_num, 0);
 
-                refine_boxes(boxes, input_deltas, &deltas_weights[0], input_scores,
-                             &refined_boxes[0], &refined_boxes_areas[0], &refined_scores[0],
+                refine_boxes(boxes, input_deltas,
+                             &deltas_weights[0],
+                             input_scores,
+                             &refined_boxes[0],
+                             &refined_boxes_areas[0],
+                             &refined_scores[0],
                              rois_num, classes_num,
-                             img_H, img_W,
+                             img_H,
+                             img_W,
                              max_delta_log_wh,
                              1.0f);
 
@@ -291,9 +300,11 @@ namespace ngraph
                 std::vector<std::pair<float, std::pair<int64_t, int64_t>>> conf_index_class_map;
 
                 int64_t indices_offset = 0;
-                for (int64_t c = 0; c < classes_num; ++c) {
+                for (int64_t c = 0; c < classes_num; ++c)
+                {
                     int64_t n = detections_per_class[c];
-                    for (int64_t i = 0; i < n; ++i) {
+                    for (int64_t i = 0; i < n; ++i)
+                    {
                         int64_t idx = indices[indices_offset + i];
                         float score = refined_scores[rois_num * c + idx];
                         conf_index_class_map.push_back(
@@ -303,7 +314,8 @@ namespace ngraph
                 }
 
                 assert(max_detections_per_image > 0);
-                if (total_detections_num > max_detections_per_image) {
+                if (total_detections_num > max_detections_per_image)
+                {
                     std::partial_sort(conf_index_class_map.begin(),
                                       conf_index_class_map.begin() + max_detections_per_image,
                                       conf_index_class_map.end(),
@@ -318,7 +330,8 @@ namespace ngraph
                 memset(output_classes, 0, max_detections_per_image * sizeof(output_classes[0]));
 
                 int64_t i = 0;
-                for (const auto& detection : conf_index_class_map) {
+                for (const auto& detection : conf_index_class_map)
+                {
                     float score = detection.first;
                     int64_t cls = detection.second.first;
                     int64_t idx = detection.second.second;
@@ -333,7 +346,6 @@ namespace ngraph
                 }
             }
 
-
             void experimental_detectron_detection_output_postprocessing(
                 const HostTensorVector& outputs,
                 const ngraph::element::Type output_type,
@@ -344,7 +356,6 @@ namespace ngraph
                 const Shape& output_classes_shape,
                 const Shape& output_scores_shape)
             {
-
                 outputs[0]->set_element_type(output_type);
                 outputs[0]->set_shape(output_boxes_shape);
                 outputs[1]->set_element_type(element::Type_t::i32);
