@@ -26,7 +26,6 @@ def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, a
             sys.executable,
             str(sea_runtool),
             f"-o={out}",
-            "-f=stat",
             f"--bindir={collector_dir}",
             "!",
             str(benchmark_app),
