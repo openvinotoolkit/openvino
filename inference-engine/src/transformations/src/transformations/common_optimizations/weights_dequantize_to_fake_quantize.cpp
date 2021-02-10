@@ -15,7 +15,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::WeightsDequantizeToFakeQuantize, "WeightsDe
 ngraph::pass::WeightsDequantizeToFakeQuantize::WeightsDequantizeToFakeQuantize() {
     MATCHER_SCOPE(WeightsDequantizeToFakeQuantize);
 
-    const auto weights = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
+    const auto weights = ngraph::pattern::wrap_type<ngraph::opset6::Constant>(pattern::type_matches(element::i8));
     const auto convert = ngraph::pattern::wrap_type<ngraph::opset6::Convert>({weights});
     const auto sub_c = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
     const auto sub = ngraph::pattern::wrap_type<ngraph::opset6::Subtract>({convert, sub_c});
