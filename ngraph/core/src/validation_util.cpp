@@ -1228,14 +1228,14 @@ bool could_propagate(const Output<Node>& output, std::vector<Node*>& order)
 void propagate_rt_info(Node* node, const Output<Node>& final_port)
 {
     auto node_outputs = node->outputs();
-    bool same_outputs = std::all_of(
-            node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
-                return output.get_tensor().has_and_set_bound();
-            });
+    bool same_outputs =
+        std::all_of(node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
+            return output.get_tensor().has_and_set_bound();
+        });
     if (same_outputs && op::is_constant(node)) // constant should not propagate it's rt_info
     {
         std::unordered_set<Node*> stop_nodes;
-        for (const auto& in: final_port.get_target_inputs())
+        for (const auto& in : final_port.get_target_inputs())
             stop_nodes.insert(in.get_node());
 
         auto curr_node = node->shared_from_this();
