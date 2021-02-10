@@ -36,6 +36,7 @@
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
 #include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
+#include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
@@ -940,6 +941,51 @@ namespace
 
         runtime::reference::experimental_detectron_prior_grid_generator_postprocessing(
             outputs, info.output_type, output_rois, info.output_shape);
+
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronDetectionOutput>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto attrs = op->get_attrs();
+        size_t rois_num = attrs.max_detections_per_image;
+
+        const Shape output_boxes_shape = Shape{rois_num, 4};
+        const Shape output_classes_shape = Shape{rois_num};
+        const Shape output_scores_shape = Shape{rois_num};
+
+        const auto output_type = op->get_input_element_type(0);
+
+        const auto boxes_data = nms_v5::get_floats(inputs[0], inputs[0]->get_shape());
+        const auto input_deltas_data = nms_v5::get_floats(inputs[1], inputs[1]->get_shape());
+        const auto input_scores_data = nms_v5::get_floats(inputs[2], inputs[2]->get_shape());
+        const auto input_im_info_data = nms_v5::get_floats(inputs[3], inputs[3]->get_shape());
+
+        std::vector<float> output_boxes(shape_size(output_boxes_shape));
+        std::vector<int32_t> output_classes(shape_size(output_classes_shape));
+        std::vector<float> output_scores(shape_size(output_scores_shape));
+
+        runtime::reference::experimental_detectron_detection_output(boxes_data.data(),
+                                                                    input_deltas_data.data(),
+                                                                    input_scores_data.data(),
+                                                                    input_im_info_data.data(),
+                                                                    attrs,
+                                                                    output_boxes.data(),
+                                                                    output_scores.data(),
+                                                                    output_classes.data());
+
+        runtime::reference::experimental_detectron_detection_output_postprocessing(
+            outputs,
+            output_type,
+            output_boxes,
+            output_classes,
+            output_scores,
+            output_boxes_shape,
+            output_classes_shape,
+            output_scores_shape);
 
         return true;
     }
