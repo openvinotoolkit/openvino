@@ -23,9 +23,11 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
             return false;
         }
         element::Type seq_len_type = decoder_seq_len->input_value(1).get_element_type();
+        // Transposing input data channels from [N, T, C] to [T, N, C]. Need for compatible with CTCGreedyDecoder v1
         auto transpose = std::make_shared<ngraph::opset6::Transpose>(decoder_seq_len->input_value(0),
                                                                      ngraph::opset6::Constant::create(element::i32,
                                                                Shape({3}), {1, 0, 2}));
+        // Get T and N shapes and concatenate to [T, N] tensor shapes:
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(decoder_seq_len->input_value(0));
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
@@ -46,11 +48,13 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
         auto mask_shape = std::make_shared<ngraph::opset6::Concat>(
                 OutputVector{T->output(0), N->output(0)}, 0);
 
+        // Generate 2D tensor [T, N] for seq mask
         auto upper_bounds = std::make_shared<ngraph::opset6::Broadcast>(
                 decoder_seq_len->input_value(1), mask_shape->output(0));
         auto transpose_upper_bounds = std::make_shared<ngraph::opset6::Transpose>(upper_bounds->output(0),
                                                                                   ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                    Shape({2}), {1, 0}));
+        // Calculating seq mask
         auto bool_seq_mask = std::make_shared<ngraph::opset6::GreaterEqual>(transpose_upper_bounds->output(0),
                                                                             range1T->output(0));
 
@@ -73,6 +77,7 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
 
         element::Type ci_type = decoder_seq_len->get_classes_index_type();
         element::Type sl_type = decoder_seq_len->get_sequence_length_type();
+        // Normalize output from CTCGreedyDecoder = output_f and create second output with output_seq_len
         auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), ci_type);
         auto minus1 = opset6::Constant::create(ci_type, Shape{}, {-1});
         auto where_equal_minus1 = std::make_shared<ngraph::opset6::Equal>(output_i, minus1);
