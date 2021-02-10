@@ -63,9 +63,6 @@ int BackEnd::serializeIOInfoSection(
             VPU_INTERNAL_CHECK(data->producerEdge() == nullptr,
                 "serializeIOInfoSection failed on input data {}. Input must have no producer but actually it has: {} with type {}",
                 data->name(), data->producerEdge()->producer()->name(), data->producerEdge()->producer()->type());
-            VPU_INTERNAL_CHECK(data->numConsumers() != 0,
-                "serializeIOInfoSection failed on input data {}. Input must have at least one consumer but it doesn't ",
-                data->usage());
         }
 
         if (dataUsage == DataUsage::Output) {
