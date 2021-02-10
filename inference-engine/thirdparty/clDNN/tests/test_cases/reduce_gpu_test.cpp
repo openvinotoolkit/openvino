@@ -541,8 +541,8 @@ public:
 
                                 if (!equal)
                                     std::cout << "Reference value at batch: " << bi << " output_f: " << fi
-                                            << " y: " << yi << " x: " << xi << " = " << val_ref << " Val = " << val
-                                            << std::endl;
+                                              << " y: " << yi << " x: " << xi << " = " << val_ref << " Val = " << val
+                                              << std::endl;
                                 
                                 EXPECT_TRUE(equal);
 

@@ -328,10 +328,6 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
     acc = FUNC_CALL(sub_group_reduce)(acc);
     final_acc = FUNC_CALL(final_reduce)(TO_FINAL_ACCUMULATOR_TYPE(acc));
 
-// #if IS_REDUCE_XY
-//     printf("%d, %d, %f\n",lid0, lid1, final_acc);
-// #endif
-
     OUTPUT_TYPE final_result;
     ACTIVATION_TYPE reduce_result = TO_ACTIVATION_TYPE(final_acc);
     #if HAS_FUSED_OPS
