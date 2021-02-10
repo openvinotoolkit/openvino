@@ -1,7 +1,7 @@
 jobs:
 - job: nGraph_ONNX_Lin
 
-  # About 150% of total time
+  # About 300% of total time
   timeoutInMinutes: 90
 
   pool:
