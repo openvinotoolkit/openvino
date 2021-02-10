@@ -14,7 +14,6 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt --assume-yes install libusb-1.0-0-dev graphviz texlive
-          python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
           python3 -m pip install lxml
           # install doxygen
           mkdir doxygen
@@ -35,7 +34,7 @@ jobs:
           cmake -DENABLE_DOCS=ON ..
 
       - name: Build doc
-        run: cmake --build . --target openvino_docs || exit 0
+        run: cmake --build . --target openvino_docs
         working-directory: build
 
       - name: 'Upload doc'
