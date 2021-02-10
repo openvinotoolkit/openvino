@@ -186,11 +186,6 @@ namespace
             onnx_import::common::get_onnx_data_size(initializer.data_type());
 
         initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
-        /* It's a workaround for problem with multitle instances of fixed_address_empty_string in
-         * protobuf lib caused by dynamic linking.
-         * The problem can be observed as two tensors pointing the same data.
-         */
-        initializer.mutable_raw_data();
 
         // update input with type and shape of initializer
         if (input)
