@@ -220,8 +220,7 @@ namespace
     }
 
     template <typename T>
-    bool SortScorePairDescend(const std::pair<float, T>& pair1,
-                              const std::pair<float, T>& pair2)
+    bool SortScorePairDescend(const std::pair<float, T>& pair1, const std::pair<float, T>& pair2)
     {
         return pair1.first > pair2.first;
     }
@@ -261,13 +260,15 @@ namespace ngraph
                 std::vector<float> refined_scores(classes_num * rois_num, 0);
                 std::vector<float> refined_boxes_areas(classes_num * rois_num, 0);
 
-                refine_boxes(boxes, input_deltas,
+                refine_boxes(boxes,
+                             input_deltas,
                              &deltas_weights[0],
                              input_scores,
                              &refined_boxes[0],
                              &refined_boxes_areas[0],
                              &refined_scores[0],
-                             rois_num, classes_num,
+                             rois_num,
+                             classes_num,
                              img_H,
                              img_W,
                              max_delta_log_wh,
