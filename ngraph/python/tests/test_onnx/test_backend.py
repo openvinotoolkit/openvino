@@ -55,7 +55,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_38712,
                    xfail_issue_38713,
                    xfail_issue_38714,
-                   xfail_issue_38715,
                    xfail_issue_33488,
                    xfail_issue_33589,
                    xfail_issue_33535,
@@ -89,7 +88,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_46765,
                    xfail_issue_47317,
                    xfail_issue_47323,
-                   xfail_issue_47330)
+                   xfail_issue_47330,
+                   xfail_issue_47337)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -558,7 +558,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_round_prefer_ceil_asymmetric_cpu",  # noqa
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_floor_align_corners_cpu",
         "OnnxBackendNodeModelTest.test_resize_upsample_sizes_nearest_cpu"),
-    (xfail_issue_38715,
+    (xfail_issue_47337,
         "OnnxBackendNodeModelTest.test_onehot_without_axis_cpu",
         "OnnxBackendNodeModelTest.test_onehot_with_negative_axis_cpu",
         "OnnxBackendNodeModelTest.test_onehot_with_axis_cpu",

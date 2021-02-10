@@ -135,7 +135,6 @@ onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max
 onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
 onnx_dyn_shapes_slice_10_3d_input_12_axes
 onnx_top_k_opset_10
-onnx_model_one_hot_without_axis
 onnx_model_scatterND_param_i64_indices
 
 # [NOT_IMPLEMENTED] Input image format U64 is not supported yet...
@@ -169,6 +168,9 @@ onnx_model_quantize_linear_const_scale_const_zero_p
 
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
+
+# OneHot operation has a form that is not supported
+onnx_model_one_hot_without_axis
 onnx_model_one_hot_with_axis
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
