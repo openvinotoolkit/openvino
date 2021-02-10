@@ -39,7 +39,7 @@ function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
         PRIVATE
             inference_engine format_reader
             Threads::Threads
-            samples_utils)
+            ie_samples_utils)
 
     add_dependencies(${TARGET_NAME}
         ${PLUGIN_NAME} ${ARGN})

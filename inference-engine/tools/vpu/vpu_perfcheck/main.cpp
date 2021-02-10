@@ -29,7 +29,8 @@
 #include <stdio.h>
 #include <ios>
 #include <sys/stat.h>
-#include <os/windows/w_dirent.h>
+
+#include <samples/os/windows/w_dirent.h>
 
 #include <inference_engine.hpp>
 #include <samples/common.hpp>

@@ -35,7 +35,7 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
 target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine vpu_graph_transformer
     gflags
-    samples_utils
+    ie_samples_utils
 )
 
 add_dependencies(${TARGET_NAME} myriadPlugin)
