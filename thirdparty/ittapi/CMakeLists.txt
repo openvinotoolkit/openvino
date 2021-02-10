@@ -42,5 +42,6 @@ if(ENABLE_PROFILING_ITT)
         endif()
 
         openvino_developer_export_targets(COMPONENT openvino_common TARGETS ittnotify)
+        add_dependencies(ittnotify sea_itt_lib)
     endif()
 endif()
