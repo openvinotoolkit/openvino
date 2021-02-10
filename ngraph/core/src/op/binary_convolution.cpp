@@ -146,28 +146,28 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
         if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
         {
             bool auto_padding_applied = false;
-            if (filters_pshape.rank().is_static() &&
-                filters_pshape.rank().get_length() > 2)
+            if (filters_pshape.rank().is_static() && filters_pshape.rank().get_length() > 2)
             {
                 m_pads_begin.clear();
                 m_pads_end.clear();
 
                 const PartialShape filter_shape = [filters_pshape]() {
                     vector<Dimension> tmp_filter_shape{filters_pshape};
-                    tmp_filter_shape.erase(tmp_filter_shape.begin(), tmp_filter_shape.begin() + 2); // Remove {O,I}
+                    tmp_filter_shape.erase(tmp_filter_shape.begin(),
+                                           tmp_filter_shape.begin() + 2); // Remove {O,I}
                     PartialShape shape{tmp_filter_shape};
                     return shape;
                 }();
 
-                if(filter_shape.is_static())
+                if (filter_shape.is_static())
                 {
                     auto_padding_applied = try_apply_auto_padding(data_batch_pshape,
-                                                              filter_shape.to_shape(),
-                                                              m_strides,
-                                                              m_dilations,
-                                                              m_auto_pad,
-                                                              m_pads_end,
-                                                              m_pads_begin);
+                                                                  filter_shape.to_shape(),
+                                                                  m_strides,
+                                                                  m_dilations,
+                                                                  m_auto_pad,
+                                                                  m_pads_end,
+                                                                  m_pads_begin);
                 }
             }
             if (!auto_padding_applied)

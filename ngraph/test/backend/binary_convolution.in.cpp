@@ -33,7 +33,6 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-
 // --------------------- 2D convolution ------------------------------------------
 // clang-format off
 NGRAPH_TEST(${BACKEND_NAME}, binary_convolution_2D_1batch_1channel)

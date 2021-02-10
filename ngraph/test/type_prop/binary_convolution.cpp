@@ -62,7 +62,8 @@ TEST(type_prop, binary_conv_v1_auto_padding_same_lower_spatial_dims_static)
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
 
-    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(
+        {Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{1, 1}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
@@ -85,7 +86,8 @@ TEST(type_prop, binary_conv_v1_auto_padding_same_upper_spatial_dims_static)
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
 
-    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(
+        {Dimension::dynamic(), Dimension::dynamic(), 5, 5}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 0}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
@@ -108,7 +110,8 @@ TEST(type_prop, binary_conv_v1_auto_padding_same_data_batch_spatial_dims_dynamic
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
 
-    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({1, Dimension::dynamic(), Dimension::dynamic(), 5}));
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(
+        {1, Dimension::dynamic(), Dimension::dynamic(), 5}));
     ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{0, 1}));
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 1}));
 }
@@ -130,7 +133,7 @@ TEST(type_prop, binary_conv_v1_dyn_data_batch)
                                                                  mode,
                                                                  pad_value,
                                                                  auto_pad);
-    ASSERT_TRUE(bin_conv->get_output_partial_shape(0).rank().same_scheme(Rank{3}));                                                                 
+    ASSERT_TRUE(bin_conv->get_output_partial_shape(0).rank().same_scheme(Rank{3}));
     ASSERT_TRUE(bin_conv->get_output_partial_shape(0).same_scheme(
         PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()}));
 }
