@@ -58,6 +58,7 @@
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -170,6 +171,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
             manager.register_pass<ngraph::pass::ConvertNMSToNMSIEInternal>();
             manager.register_pass<ngraph::pass::ConvertGather0D>();
+            manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoder>();
 
             std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
                     {ngraph::element::i64, ngraph::element::i32},

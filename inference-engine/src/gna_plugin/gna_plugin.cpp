@@ -51,6 +51,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -692,6 +693,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoder>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
 

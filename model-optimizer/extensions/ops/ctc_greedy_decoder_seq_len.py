@@ -34,14 +34,15 @@ class CTCGreedyDecoderSeqLenOp(Op):
             'version': 'opset6',
 
             'infer': self.infer,
-            'reinterp_shape': True,
-            'merge_repeated': True,
             'type_infer': self.type_infer,
-            'classes_index_type': np.int32,
-            'sequence_length_type': np.int32,
+            'reinterp_shape': True,
 
             'in_ports_count': 3,
-            'out_ports_count': 2
+            'out_ports_count': 2,
+
+            'merge_repeated': True,
+            'classes_index_type': np.int32,
+            'sequence_length_type': np.int32
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -53,13 +54,6 @@ class CTCGreedyDecoderSeqLenOp(Op):
                     ('merge_repeated', lambda node: bool_to_str(node, 'merge_repeated'))]
         else:
             raise Error('Unknown opset version "{}"'.format(version))
-
-    def supported_attrs(self):
-        return [
-            'merge_repeated',
-            'classes_index_type',
-            'sequence_length_type'
-        ]
 
     @staticmethod
     def type_infer(node):
