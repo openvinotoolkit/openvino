@@ -7,12 +7,14 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/sink.hpp>
+#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
-    namespace pass {
+namespace ngraph
+{
+    namespace pass
+    {
         /**
          * @brief The transformation replaces provided `nodes_to_freeze` nodes with Constants.
          * Constants are created inside the transformation with provided `replacing_values`.
@@ -30,7 +32,8 @@ namespace ngraph {
          *  Const_2 (shape: 3, 1; value: (4, 5, 6)) -> AnyNode_2
          *
          */
-        class NGRAPH_API FreezeNodes : public ngraph::pass::FunctionPass {
+        class NGRAPH_API FreezeNodes : public ngraph::pass::FunctionPass
+        {
         public:
             using values_for_node = std::vector<std::vector<char>>;
             NGRAPH_RTTI_DECLARATION;
@@ -43,12 +46,12 @@ namespace ngraph {
              * @param replacing_values A list of values with which the constants will be created
              * that will replace the specified nodes.
              */
-            FreezeNodes(const NodeVector &nodes_to_freeze,
-                        const std::vector<values_for_node>&replacing_values);
+            FreezeNodes(const NodeVector& nodes_to_freeze,
+                        const std::vector<values_for_node>& replacing_values);
+
         private:
             NodeVector m_nodes_to_freeze;
             std::vector<values_for_node> m_replacing_values;
         };
     } // namespace pass
 } // namespace ngraph
-
