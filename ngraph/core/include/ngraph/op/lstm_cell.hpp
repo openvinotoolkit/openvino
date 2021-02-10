@@ -328,7 +328,7 @@ namespace ngraph
                              std::vector<std::string>{"sigmoid", "tanh", "tanh"},
                          const std::vector<float>& activations_alpha = {},
                          const std::vector<float>& activations_beta = {},
-                         float clip = 0.f);
+                         float clip = std::numeric_limits<float>::infinity());
 
                 ///
                 /// \brief      Constructs LSTMCell node.
@@ -368,7 +368,7 @@ namespace ngraph
                              std::vector<std::string>{"sigmoid", "tanh", "tanh"},
                          const std::vector<float>& activations_alpha = {},
                          const std::vector<float>& activations_beta = {},
-                         float clip = 0.f);
+                         float clip = std::numeric_limits<float>::infinity());
 
                 void validate_and_infer_types() override;
 
