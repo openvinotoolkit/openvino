@@ -67,41 +67,43 @@ private:
 }  // namespace
 
 void FrontEnd::parseMVN(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 2);
-    IE_ASSERT(outputs.size() == 1);
+    VPU_THROW_UNLESS(inputs.size() == 2, "%d inputs provided to %s layer, but 2 expected.",
+                                            inputs.size(), layer->name);
+    VPU_THROW_UNLESS(outputs.size() == 1, "%d outputs provided to %s layer, but 1 expected.",
+                                            outputs.size(), layer->name);
 
     const auto& input = inputs[0];
-    const int ndims = input->desc().numDims();
-    IE_ASSERT(ndims == 3 || ndims == 4);
+    const auto ndims = input->desc().numDims();
+    VPU_THROW_UNLESS(ndims == 3 || ndims == 4, "%d input rank provided to %s layer, but only 3D and 4D supported.",
+                                            ndims, layer->name);
 
     const auto& indices = inputs[1];
-    const int indices_size = indices->desc().totalDimSize();
-    const auto indices_ptr = indices->content()->get<int>();
+    const auto indicesSize = indices->desc().totalDimSize();
+    const auto indicesPtr = indices->content()->get<int>();
 
-    const auto& getDimFromAxis = [](int ndims, int axis_index) -> Dim {
-        return DimsOrder::fromNumDims(ndims).toPermutation()[ndims - axis_index - 1];
+    const auto& getDimFromAxis = [](int ndims, int axisIndex) -> Dim {
+        return DimsOrder::fromNumDims(ndims).toPermutation()[ndims - axisIndex - 1];
     };
-    std::set<Dim> axes;
-    for (int i = 0; i < indices_size; i++) {
-        axes.insert(getDimFromAxis(ndims, indices_ptr[i]));
+    DimSet axes;
+    for (int i = 0; i < indicesSize; i++) {
+        axes.insert(getDimFromAxis(ndims, indicesPtr[i]));
     }
 
-    bool across_channels = false;
-    if (!axes.count(Dim::N) && axes.count(Dim::H) && axes.count(Dim::W)) {
-        across_channels = axes.count(Dim::C) != 0;
-    } else {
-        VPU_THROW_FORMAT("Unsupported combination of indices in layer \"%s\". "
-                         "Only across channel and full batch supported.", layer->name);
-    }
+    VPU_THROW_UNLESS(!axes.count(Dim::N) && axes.count(Dim::H) && axes.count(Dim::W),
+                     "Unsupported combination of indices in layer \"%s\". "
+                     "Only across channel and full batch supported.", layer->name);
+    const auto acrossChannels = axes.count(Dim::C) != 0;
 
-    const auto norm_variance = layer->GetParamAsBool("normalize_variance");
+    const auto normVariance = layer->GetParamAsBool("normalize_variance");
     const auto eps = layer->GetParamAsFloat("eps");
-    const auto eps_mode = layer->GetParamAsString("eps_mode", "outside_sqrt");
-    VPU_THROW_UNLESS(eps_mode == "outside_sqrt", "Only eps_mode == \"outside_sqrt\" supported.");
+    const auto epsMode = layer->GetParamAsString("eps_mode", "outside_sqrt");
+    VPU_THROW_UNLESS(epsMode == "outside_sqrt",
+                     "eps_mode == %s provided to %s layer, but only eps_mode == \"outside_sqrt\" supported.",
+                     epsMode, layer->name);
 
     auto stage = model->addNewStage<MVNStage>(layer->name, StageType::MVN, layer, inputs, outputs);
-    stage->attrs().set<int>("normalize", norm_variance);
-    stage->attrs().set<int>("across_channels", across_channels);
+    stage->attrs().set<int>("normalize", normVariance);
+    stage->attrs().set<int>("across_channels", acrossChannels);
     stage->attrs().set<float>("eps", eps);
 }
 
