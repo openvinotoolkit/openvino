@@ -1031,3 +1031,12 @@ requirements_mxnet.txt
 requirements_onnx.txt
 requirements_tf.txt
 requirements_tf2.txt
+telemetry/__init__.py
+telemetry/backend/__init__.py
+telemetry/backend/backend.py
+telemetry/backend/backend_ga.py
+telemetry/telemetry.py
+telemetry/utils/__init__.py
+telemetry/utils/isip.py
+telemetry/utils/message.py
+telemetry/utils/sender.py
