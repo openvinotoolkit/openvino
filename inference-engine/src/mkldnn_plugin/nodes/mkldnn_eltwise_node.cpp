@@ -15,9 +15,10 @@
 #include "mkldnn_extension_utils.h"
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_pooling_node.h"
-#include "common/emitter.h"
-#include "jit_eltwise_emitters.hpp"
-#include "jit_mkldnn_emitters.hpp"
+
+#include "emitters/emitter.hpp"
+#include "emitters/jit_eltwise_emitters.hpp"
+#include "emitters/jit_mkldnn_emitters.hpp"
 #include <mkldnn_selective_build.h>
 
 #include <string>
@@ -363,25 +364,25 @@ private:
         std::set<Precision> precisions;
 
         OV_SWITCH(MKLDNNPlugin, SupportedPrecisions, precisions, eltwiseNode.getOpType(),
-        OV_CASE(Relu, jit_mkldnn_emitter),
-        OV_CASE(Gelu, jit_mkldnn_emitter),
-        OV_CASE(Elu, jit_mkldnn_emitter),
-        OV_CASE(Tanh, jit_mkldnn_emitter),
-        OV_CASE(Logistic, jit_mkldnn_emitter),
-        OV_CASE(Square, jit_mkldnn_emitter),
-        OV_CASE(Abs, jit_mkldnn_emitter),
-        OV_CASE(Sqrt, jit_mkldnn_emitter),
-        OV_CASE(Linear, jit_mkldnn_emitter),
-        OV_CASE(BoundedRelu, jit_mkldnn_emitter),
-        OV_CASE(SoftRelu, jit_mkldnn_emitter),
-        OV_CASE(Relu6, jit_mkldnn_emitter),
-        OV_CASE(Exp, jit_mkldnn_emitter),
-        OV_CASE(Clamp, jit_mkldnn_emitter),
-        OV_CASE(Swish, jit_mkldnn_emitter),
-        OV_CASE(Hswish, jit_mkldnn_emitter),
-        OV_CASE(Mish, jit_mkldnn_emitter),
-        OV_CASE(Hsigmoid, jit_mkldnn_emitter),
-        OV_CASE(Round, jit_mkldnn_emitter),
+        OV_CASE(Relu, jit_mkldnn_aux_emitter),
+        OV_CASE(Gelu, jit_mkldnn_aux_emitter),
+        OV_CASE(Elu, jit_mkldnn_aux_emitter),
+        OV_CASE(Tanh, jit_mkldnn_aux_emitter),
+        OV_CASE(Logistic, jit_mkldnn_aux_emitter),
+        OV_CASE(Square, jit_mkldnn_aux_emitter),
+        OV_CASE(Abs, jit_mkldnn_aux_emitter),
+        OV_CASE(Sqrt, jit_mkldnn_aux_emitter),
+        OV_CASE(Linear, jit_mkldnn_aux_emitter),
+        OV_CASE(BoundedRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(SoftRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(Relu6, jit_mkldnn_aux_emitter),
+        OV_CASE(Exp, jit_mkldnn_aux_emitter),
+        OV_CASE(Clamp, jit_mkldnn_aux_emitter),
+        OV_CASE(Swish, jit_mkldnn_aux_emitter),
+        OV_CASE(Hswish, jit_mkldnn_aux_emitter),
+        OV_CASE(Mish, jit_mkldnn_aux_emitter),
+        OV_CASE(Hsigmoid, jit_mkldnn_aux_emitter),
+        OV_CASE(Round, jit_mkldnn_aux_emitter),
         OV_CASE(Add, jit_add_emitter),
         OV_CASE(MulAdd, jit_mul_add_emitter),
         OV_CASE(Subtract, jit_subtract_emitter),
@@ -413,37 +414,36 @@ private:
     }
 
     std::shared_ptr<jit_emitter> create_eltwise_emitter(MKLDNNNode& node, Precision exec_prec) {
-        auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
-        const MKLDNNNode * eltwiseNodePtr = dynamic_cast<const MKLDNNNode*>(&node);
+        const auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
 
         EltwiseEmitterContext ctx = {
             nullptr,
             this,
             isa,
-            eltwiseNodePtr,
+            &node,
             exec_prec
         };
 
         OV_SWITCH(MKLDNNPlugin, EltwiseEmitter, ctx, eltwiseNode.getOpType(),
-        OV_CASE(Relu, jit_mkldnn_emitter),
-        OV_CASE(Gelu, jit_mkldnn_emitter),
-        OV_CASE(Elu, jit_mkldnn_emitter),
-        OV_CASE(Tanh, jit_mkldnn_emitter),
-        OV_CASE(Logistic, jit_mkldnn_emitter),
-        OV_CASE(Square, jit_mkldnn_emitter),
-        OV_CASE(Abs, jit_mkldnn_emitter),
-        OV_CASE(Sqrt, jit_mkldnn_emitter),
-        OV_CASE(Linear, jit_mkldnn_emitter),
-        OV_CASE(BoundedRelu, jit_mkldnn_emitter),
-        OV_CASE(SoftRelu, jit_mkldnn_emitter),
-        OV_CASE(Relu6, jit_mkldnn_emitter),
-        OV_CASE(Exp, jit_mkldnn_emitter),
-        OV_CASE(Clamp, jit_mkldnn_emitter),
-        OV_CASE(Swish, jit_mkldnn_emitter),
-        OV_CASE(Hswish, jit_mkldnn_emitter),
-        OV_CASE(Mish, jit_mkldnn_emitter),
-        OV_CASE(Hsigmoid, jit_mkldnn_emitter),
-        OV_CASE(Round, jit_mkldnn_emitter),
+        OV_CASE(Relu, jit_mkldnn_aux_emitter),
+        OV_CASE(Gelu, jit_mkldnn_aux_emitter),
+        OV_CASE(Elu, jit_mkldnn_aux_emitter),
+        OV_CASE(Tanh, jit_mkldnn_aux_emitter),
+        OV_CASE(Logistic, jit_mkldnn_aux_emitter),
+        OV_CASE(Square, jit_mkldnn_aux_emitter),
+        OV_CASE(Abs, jit_mkldnn_aux_emitter),
+        OV_CASE(Sqrt, jit_mkldnn_aux_emitter),
+        OV_CASE(Linear, jit_mkldnn_aux_emitter),
+        OV_CASE(BoundedRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(SoftRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(Relu6, jit_mkldnn_aux_emitter),
+        OV_CASE(Exp, jit_mkldnn_aux_emitter),
+        OV_CASE(Clamp, jit_mkldnn_aux_emitter),
+        OV_CASE(Swish, jit_mkldnn_aux_emitter),
+        OV_CASE(Hswish, jit_mkldnn_aux_emitter),
+        OV_CASE(Mish, jit_mkldnn_aux_emitter),
+        OV_CASE(Hsigmoid, jit_mkldnn_aux_emitter),
+        OV_CASE(Round, jit_mkldnn_aux_emitter),
         OV_CASE(Add, jit_add_emitter),
         OV_CASE(MulAdd, jit_mul_add_emitter),
         OV_CASE(Subtract, jit_subtract_emitter),

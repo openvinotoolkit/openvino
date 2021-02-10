@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "emitter.h"
-
+#include "emitter.hpp"
 #include "utils/general_utils.h"
-
 #include <vector>
 
 using namespace mkldnn::impl::cpu;
@@ -57,7 +55,7 @@ std::set<InferenceEngine::Precision> jit_emitter::get_supported_precisions() {
 }
 
 void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     using namespace Xbyak::util;
     bool is_vec_input = (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::vec_to_gpr);
     bool is_vec_output = (in_out_type_ == emitter_in_out_map::vec_to_vec) || (in_out_type_ == emitter_in_out_map::gpr_to_vec);
@@ -148,7 +146,8 @@ void jit_emitter::emitter_preamble(const std::vector<size_t> &in_idxs, const std
         load_table_addr();
 }
 
-void jit_emitter::emitter_postamble() {
+
+void jit_emitter::emitter_postamble() const {
     using namespace Xbyak::util;
 
     for (size_t i = 0; i < preserved_vec_idxs.size(); ++i)
@@ -169,7 +168,7 @@ void jit_emitter::emitter_postamble() {
 
 void jit_emitter::emit_table() {
     h->align(64);
-    h->L(l_table);
+    h->L(*l_table.get());
 
     // Assumption: entries can be inserted with dd, so they should be 4 bytes.
     assert(sizeof(table_entry_val_t) == 4);
@@ -199,7 +198,7 @@ void jit_emitter::prepare_table() {
 }
 
 void jit_emitter::emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                       const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+                       const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, nullptr);

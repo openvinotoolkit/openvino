@@ -6,7 +6,7 @@
 
 #include <cmath>
 #include <limits>
-#include "nodes/common/emitter.h"
+#include "emitters/emitter.hpp"
 
 /**
  * The bfloat16_t class can be used as an arithmetic type. All arithmetic operations goes through conversion to the float data type.
@@ -86,7 +86,7 @@ public:
 private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs,
         const std::vector<size_t>& pool_vec_idxs, const std::vector<size_t>& pool_gpr_idxs,
-        const emitter_context *emit_context) override {
+        const emitter_context *emit_context) const override {
         if (host_isa_ == mkldnn::impl::cpu::x64::cpu_isa_t::avx512_common) {
             Xbyak::Zmm in = Xbyak::Zmm(in_vec_idxs[0]);
             Xbyak::Ymm out = Xbyak::Ymm(out_vec_idxs[0]);
