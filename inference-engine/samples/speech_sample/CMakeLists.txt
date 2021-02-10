@@ -5,4 +5,4 @@
 ie_add_sample(NAME speech_sample
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
               HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/speech_sample.hpp"
-              DEPENDENCIES samples_utils)
+              DEPENDENCIES ie_samples_utils)

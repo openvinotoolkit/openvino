@@ -36,7 +36,7 @@ endif()
 target_link_libraries(${TARGET_NAME} PRIVATE
     inference_engine
     gflags
-    samples_utils
+    ie_samples_utils
 )
 
 set_target_properties(${TARGET_NAME} PROPERTIES

@@ -9,7 +9,6 @@
 #include <sys/stat.h>
 
 #include <samples/slog.hpp>
-#include <vpu/utils/string.hpp>
 
 #ifdef _WIN32
 #include <os/windows/w_dirent.h>
@@ -70,16 +69,35 @@ void parseInputFilesArguments(std::vector<std::string> &files) {
     }
 }
 
-static std::map<std::string, std::string> parseArgMap(std::string argMap) {
+namespace {
+
+void splitStringList(const std::string& str, std::vector<std::string>& out, char delim) {
+    out.clear();
+
+    if (str.empty())
+        return;
+
+    std::istringstream istr(str);
+
+    std::string elem;
+    while (std::getline(istr, elem, delim)) {
+        if (elem.empty()) {
+            continue;
+        }
+        out.emplace_back(std::move(elem));
+    }
+}
+
+std::map<std::string, std::string> parseArgMap(std::string argMap) {
     argMap.erase(std::remove_if(argMap.begin(), argMap.end(), ::isspace), argMap.end());
 
     std::vector<std::string> pairs;
-    vpu::splitStringList(argMap, pairs, ',');
+    splitStringList(argMap, pairs, ',');
 
     std::map<std::string, std::string> parsedMap;
     for (auto&& pair : pairs) {
         std::vector<std::string> keyValue;
-        vpu::splitStringList(pair, keyValue, ':');
+        splitStringList(pair, keyValue, ':');
         if (keyValue.size() != 2) {
             throw std::invalid_argument("Invalid key/value pair " + pair + ". Expected <layer_name>:<value>");
         }
@@ -90,7 +108,6 @@ static std::map<std::string, std::string> parseArgMap(std::string argMap) {
     return parsedMap;
 }
 
-namespace {
 
 using supported_precisions_t = std::unordered_map<std::string, InferenceEngine::Precision>;
 

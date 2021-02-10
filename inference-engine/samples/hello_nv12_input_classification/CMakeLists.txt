@@ -4,4 +4,4 @@
 
 ie_add_sample(NAME hello_nv12_input_classification
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-              DEPENDENCIES samples_utils)
+              DEPENDENCIES ie_samples_utils)
