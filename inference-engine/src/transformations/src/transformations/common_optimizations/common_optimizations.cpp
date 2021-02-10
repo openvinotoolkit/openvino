@@ -55,6 +55,7 @@
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
@@ -69,6 +70,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+    manager.register_pass<ngraph::pass::WeightsDequantizeToFakeQuantize>();
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
