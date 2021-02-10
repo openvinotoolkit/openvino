@@ -84,6 +84,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
     std::vector<InferenceEngine::VariableStateInternal::Ptr> memoryStates;
+    bool trivialTopology = false;
 
  public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);
@@ -220,6 +221,13 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void UpdateFieldsFromConfig();
     void UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork &);
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork &);
+    /**
+     * @brief Tries to init an output on the base of a layer data
+     * @param portId output port identificator
+     * @param layer layer pointer
+     * @return true if the output is initiated, false otherwise
+    */
+    bool TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer);
 
     /**
      * @brief Converts a model from NCHW to NHWC. It fills inputs and outputs transposition info and

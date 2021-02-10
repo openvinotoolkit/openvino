@@ -1194,11 +1194,9 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const InferenceEngine::CNNLayerPtr&
 
     //  WA-start : TI node requires all attributes to construct internal subgpath
     //             including extManager, socket and mkldnn::eng.
-#if defined (COMPILED_CPU_MKLDNN_TENSORITERATOR_NODE)
     MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
     if (ti != nullptr)
         ti->setExtManager(extMgr);
-#endif
     //  WA-end
 
     if (!newNode)

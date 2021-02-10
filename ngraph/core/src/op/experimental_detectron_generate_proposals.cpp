@@ -65,6 +65,7 @@ void op::v6::ExperimentalDetectronGenerateProposalsSingleImage::validate_and_inf
     size_t post_nms_count = static_cast<size_t>(m_attrs.post_nms_count);
     auto input_et = get_input_element_type(0);
 
+    set_output_size(2);
     set_output_type(0, input_et, Shape{post_nms_count, 4});
     set_output_type(1, input_et, Shape{post_nms_count});
 

@@ -178,6 +178,7 @@ def get_dtype(precision):
     format_map = {
       'FP32' : np.float32,
       'I32'  : np.int32,
+      'I64'  : np.int64,
       'FP16' : np.float16,
       'I16'  : np.int16,
       'U16'  : np.uint16,
@@ -219,4 +220,6 @@ def fill_blob_with_image_info(image_size, layer):
     return im_info
 
 def fill_blob_with_random(layer):
-    return np.random.rand(*layer.shape).astype(get_dtype(layer.precision))
+    if layer.shape:
+        return np.random.rand(*layer.shape).astype(get_dtype(layer.precision))
+    return (get_dtype(layer.precision))(np.random.rand())

@@ -62,3 +62,32 @@ jobs:
           mkdir ../mo-ut-logs
           python3 -m xmlrunner discover -p *_test.py --output=../mo-ut-logs
         working-directory: model-optimizer
+  
+  build_wheel:
+    name: Build Python wheel
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install wheel setuptools
+          python3 -m pip install tensorflow==2.3.0
+      
+      - name: Build
+        run: |
+          python3 setup.py sdist bdist_wheel
+        working-directory: model-optimizer
+      
+      - name: Test
+        run: |
+          wget -q http://download.tensorflow.org/models/mobilenet_v1_2018_08_02/mobilenet_v1_1.0_224.tgz
+          tar -xf mobilenet_v1_1.0_224.tgz
+          python3 -m pip install model-optimizer/dist/*.whl
+          python3 -c "import sys, subprocess, mo_tf; subprocess.run([sys.executable, mo_tf.__file__, '--input_model', 'mobilenet_v1_1.0_224_frozen.pb', '--input_shape', '[1,224,224,3]'], check=True)"
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: mo_wheel
+          path: "model-optimizer/dist/*.whl"
