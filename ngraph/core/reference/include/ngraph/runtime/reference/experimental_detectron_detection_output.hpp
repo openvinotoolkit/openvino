@@ -46,6 +46,16 @@ namespace ngraph
                 float* output_boxes,
                 float* output_scores,
                 int32_t* output_classes);
+
+            void experimental_detectron_detection_output_postprocessing(
+                const HostTensorVector& outputs,
+                const ngraph::element::Type output_type,
+                const std::vector<float>& output_boxes,
+                const std::vector<int32_t>& output_classes,
+                const std::vector<float>& output_scores,
+                const Shape& output_boxes_shape,
+                const Shape& output_classes_shape,
+                const Shape& output_scores_shape);
         }
     }
 }
