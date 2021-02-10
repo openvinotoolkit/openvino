@@ -44,7 +44,7 @@ namespace
     public:
         NodeFactory() {}
         NodeFactory(const std::string& opset_name)
-            : m_opset{get_opset(opset_name)}
+            : m_opset(get_opset(opset_name))
         {
         }
 
@@ -103,9 +103,9 @@ namespace
             return it->second();
         }
 
-        const ngraph::OpSet& m_opset{ngraph::get_opset6()};
+        const ngraph::OpSet& m_opset = ngraph::get_opset6();
     };
-}
+} // namespace
 
 void regclass_pyngraph_NodeFactory(py::module m)
 {
