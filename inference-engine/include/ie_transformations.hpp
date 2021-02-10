@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,4 +53,25 @@ namespace InferenceEngine {
  * *
  */
 INFERENCE_ENGINE_API_CPP(void) LowLatency(InferenceEngine::CNNNetwork& network);
+
+/**
+ * @brief The transformation finds nodes in ngraph::Function by provided `nodes_to_replace` names and
+ * replaces these nodes with Constants. Constants are created inside the transformation with provided values.
+ *
+ * Example:
+ * 1. before transformation:
+ *  Parameter (shape: 3, 2) -> Split (axis: 1, num_split=2) -> AnyNode_1
+ *                                                          \
+ *                                                            -> AnyNode_2
+ *
+ * 2. transformation call, freeze Split layer with values (1, 2, 3), (4, 5, 6)
+ * 3. after transformation:
+ *  Const_1 (shape: 3, 1; value: (1, 2, 3)) -> AnyNode_1
+ *  Const_2 (shape: 3, 1; value: (4, 5, 6)) -> AnyNode_2
+ *
+ * @param network A network to apply LowLatency transformation
+ * @param nodes_to_replace A map contains names of nodes to replace and corresponding values for each output of the node.
+ */
+INFERENCE_ENGINE_API_CPP(void) FreezeNodes(InferenceEngine::CNNNetwork& network,
+                                           const std::map<std::string, std::vector<std::vector<char>>>& nodes_to_replace);
 } // namespace InferenceEngine
