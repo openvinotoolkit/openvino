@@ -139,7 +139,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
         libfaac0
         libfluidsynth1
         libgl-dev
-        libglib2.0
+        libglib2.0-dev
         libgstreamer1.0-0
         libnettle6
         libtag-extras1
@@ -183,7 +183,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         libfaac0
         libfluidsynth2
         libgl-dev
-        libglib2.0-0
+        libglib2.0-dev
         libgstreamer-plugins-base1.0-dev
         libgstreamer1.0-0
         libgstrtspserver-1.0-dev
@@ -270,6 +270,9 @@ elif [ "$os" == "centos7" ] ; then
         wavpack
         xz-libs
         zlib
+        python36-gi
+        python36-gobject
+        python36-gobject-devel
     )
 
     if [ -n "$extra" ] ; then

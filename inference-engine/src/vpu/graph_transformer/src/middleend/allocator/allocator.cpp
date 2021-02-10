@@ -100,8 +100,9 @@ int getInUse(const Data& data) {
     }
     for (const auto& childEdge : data->childDataToShapeEdges()) {
         auto const& child = childEdge->child();
-        if (child->usage() == DataUsage::Output) {
-            VPU_THROW_UNLESS(child->parentData() == nullptr, "Output data object must not have parent");
+        if (child->usage() == DataUsage::Input || child->usage() == DataUsage::Output) {
+            VPU_THROW_UNLESS(child->parentData() == nullptr,
+                             "Data object {} with usage {} must not have parent", child->name(), child->usage());
             inUse++;
         } else if (child->getTopParentData() == child) {
             inUse += getInUse(child);

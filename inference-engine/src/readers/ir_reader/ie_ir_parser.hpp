@@ -7,6 +7,7 @@
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
 # include <ngraph/op/util/sub_graph_base.hpp>
+# include <ngraph/op/util/variable.hpp>
 # include <ngraph/opsets/opset.hpp>
 # include <ie_ngraph_utils.hpp>
 # include <ngraph/opsets/opset5.hpp>
@@ -61,6 +62,7 @@ public:
 
 private:
     std::unordered_map<std::string, ngraph::OpSet> opsets;
+    std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
     const std::vector<IExtensionPtr> _exts;
 
     struct GenericLayerParams {
@@ -182,7 +184,9 @@ private:
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
         explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights,
-        const std::unordered_map<std::string, ngraph::OpSet>& opsets) : node(node), weights(weights), opsets(opsets) {}
+        const std::unordered_map<std::string, ngraph::OpSet>& opsets,
+        std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables)
+        : node(node), weights(weights), opsets(opsets), variables(variables) {}
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
@@ -288,6 +292,7 @@ private:
         const pugi::xml_node node;
         const Blob::CPtr& weights;
         const std::unordered_map<std::string, ngraph::OpSet>& opsets;
+        std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables;
         /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
         /// Shall be used only for ops which have port_map attribute.
         /// \param node xml op representation
