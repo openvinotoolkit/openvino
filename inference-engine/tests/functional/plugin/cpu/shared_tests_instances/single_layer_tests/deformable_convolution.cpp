@@ -15,14 +15,14 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
 
 /* ============= 2D DeformableConvolution ============= */
-const std::vector<std::vector<size_t>> deformable_vals = {{3, 3}, {3, 5}};
-const std::vector<std::vector<size_t>> kernels = {{3, 3}, {3, 5}};
-const std::vector<std::vector<size_t>> strides = {{1, 1}, {1, 3}};
-const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}, {0, 3}};
-const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 0}, {0, 3}};
-const std::vector<std::vector<size_t>> dilations = {{1, 1}, {3, 1}};
-const std::vector<size_t> groups = {1, 2};
-const std::vector<size_t> defor_groups = {1, 2};
+const std::vector<std::vector<size_t>> deformable_vals = {{1, 18, 28, 28}};
+const std::vector<std::vector<size_t>> kernels = {{1, 1, 3, 3}};
+const std::vector<std::vector<size_t>> strides = {{1, 1}};
+const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}};
+const std::vector<std::vector<ptrdiff_t>> padEnds ={{0, 0}};
+const std::vector<std::vector<size_t>> dilations = {{1, 1}};
+const std::vector<size_t> groups = {1};
+const std::vector<size_t> defor_groups = {1};
 const std::vector<size_t> numOutChannels = {1, 5};
 
 const auto deformableConv2DParams_ExplicitPadding = ::testing::Combine(
@@ -49,7 +49,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
+        ::testing::Values(std::vector<size_t>({1, 1, 30, 30})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     DeformableConvolutionLayerTest::getTestCaseName);
 
@@ -61,7 +61,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
+        ::testing::Values(std::vector<size_t>({1, 1, 30, 30})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     DeformableConvolutionLayerTest::getTestCaseName);
 }  // namespace
