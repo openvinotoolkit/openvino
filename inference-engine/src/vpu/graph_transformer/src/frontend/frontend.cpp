@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,8 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
+#include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
 
 namespace vpu {
 
@@ -171,6 +173,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+    manager.register_pass<vpu::MergeGatherGatherElements>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
     manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t>{
@@ -193,6 +196,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMinimum>();
     pass_config->disable<ngraph::pass::HSwishDecomposition>();
+    pass_config->disable<ngraph::pass::MVN6Decomposition>();
 
     auto transformationPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         return !!std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
@@ -376,6 +380,39 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
     }
 }
 
+void FrontEnd::processTrivialCases(const Model& model) {
+    std::unordered_map<ie::DataPtr, DataVector> ieToVpuDataVector;
+    for (const auto& data : model->datas()) {
+        const auto& origData = data->origData();
+        if (origData != nullptr) {
+            ieToVpuDataVector[origData].push_back(data);
+        }
+    }
+
+    std::vector<DataVector> trivialCases;
+    for (const auto& dataObjectsWithTheSameOrigData : ieToVpuDataVector) {
+        if (dataObjectsWithTheSameOrigData.second.size() > 1) {
+            VPU_THROW_UNLESS(dataObjectsWithTheSameOrigData.second.size() == 2,
+                             "There can't be more than two data objects associated with the same original IE data object with name {}",
+                             dataObjectsWithTheSameOrigData.first->getName());
+            trivialCases.push_back(dataObjectsWithTheSameOrigData.second);
+        }
+    }
+
+    for (const auto& trivialCase : trivialCases) {
+        const auto& unconnectedOutput = trivialCase.front()->usage() == DataUsage::Output ? trivialCase.front() : trivialCase.back();
+        const auto& unconnectedInput = unconnectedOutput == trivialCase.front() ? trivialCase.back() : trivialCase.front();
+
+        _stageBuilder->addCopyStage(
+            model,
+            unconnectedInput->name() + "@copy",
+            nullptr,
+            {unconnectedInput},
+            {unconnectedOutput},
+            "processTrivialCase");
+    }
+}
+
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
@@ -472,6 +509,12 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
         VPU_LOGGER_SECTION(env.log);
 
         parseInputAndOutputData(model);
+
+        //
+        // Process trivial cases like `input->output`, `const->output`
+        //
+
+        processTrivialCases(model);
 
         if (!CompileEnv::get().config.disableConvertStages) {
             addDataTypeConvertStages(model);
