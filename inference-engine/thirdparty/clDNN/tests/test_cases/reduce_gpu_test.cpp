@@ -1709,8 +1709,6 @@ public:
                                                     input_f, input_w, input_z, input_y,
                                                     input_x, input_dim, keep_dims);
 
-            auto start_ticks_build = std::chrono::steady_clock::now();
-
             topology topology;
             auto red = reduce("reduce", "input", target_mode, reduce_axis, keep_dims);
             if (force_output_dt) {
