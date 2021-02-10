@@ -47,6 +47,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
 #include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
 
 namespace vpu {
 
@@ -195,6 +196,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMinimum>();
     pass_config->disable<ngraph::pass::HSwishDecomposition>();
+    pass_config->disable<ngraph::pass::MVN6Decomposition>();
 
     auto transformationPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         return !!std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());

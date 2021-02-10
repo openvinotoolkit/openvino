@@ -13,7 +13,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsMVN_smoke,
                                 ::testing::Values(IRVersion::v7, IRVersion::v10),
                                 ::testing::ValuesIn(s_MVNCustomConfig)));
 
-TEST_F(myriadLayersTests_nightly, MVN_CHW_Input)
+TEST_F(myriadLayersTests_nightly, DISABLED_MVN_CHW_Input)
 {
     std::string model = R"V0G0N(
         <net name="MVN" version="2" batch="1">
