@@ -149,6 +149,12 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
         bool mergeRepeated,
         const element::Type& idxPrecision = element::i32);
 
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
+        const ngraph::Output<Node>& inputData,
+        int blankIndex,
+        bool mergeRepeated,
+        const element::Type& idxPrecision = element::i32);
+
 std::shared_ptr<ngraph::Node> makeCTCLoss(
         const ngraph::Output<Node>& logitsNode,
         std::vector<int>& logitsLength,

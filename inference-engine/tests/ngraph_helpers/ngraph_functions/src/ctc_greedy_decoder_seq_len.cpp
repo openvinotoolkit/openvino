@@ -35,5 +35,31 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
                                                             idxPrecision);
 }
 
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
+        const ngraph::Output<Node>& inputData,
+        int32_t blankIndex,
+        bool mergeRepeated,
+        const element::Type& idxPrecision) {
+    const auto sequenceLengthData = [&] {
+        const size_t N = inputData.get_shape().at(0);
+        const size_t T = inputData.get_shape().at(1);
+
+        if (idxPrecision == element::i32) {
+            const auto sequenceLengthI32 = std::vector<int32_t>(N, T);
+            return makeConstant(idxPrecision, {N}, sequenceLengthI32);
+        } else if (idxPrecision == element::i64) {
+            const auto sequenceLengthI64 = std::vector<int64_t>(N, T);
+            return makeConstant(idxPrecision, {N}, sequenceLengthI64);
+        }
+        throw std::logic_error("Unsupported index precision");
+    }();
+
+    return makeCTCGreedyDecoderSeqLen(inputData,
+                                      sequenceLengthData,
+                                      blankIndex,
+                                      mergeRepeated,
+                                      idxPrecision);
+}
+
 }  // namespace builder
 }  // namespace ngraph
