@@ -16,6 +16,7 @@
 
 #include "ngraph/op/prior_box.hpp"
 #include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 #include "op/org.openvinotoolkit/prior_box.hpp"
@@ -88,14 +89,27 @@ namespace ngraph
                     auto inputs = node.get_ng_inputs();
                     NGRAPH_CHECK(inputs.size() == 2, "Invalid number of inputs");
 
+                    auto output_shape_rank = inputs[0].get_partial_shape().rank().get_length();
+                    auto image_shape_rank = inputs[1].get_partial_shape().rank().get_length();
+                    CHECK_VALID_NODE(node,
+                                     output_shape_rank == 4,
+                                     "Only 4D inputs are supported. First input rank: ",
+                                     output_shape_rank,
+                                     " (should be 4)");
+                    CHECK_VALID_NODE(node,
+                                     image_shape_rank == 4,
+                                     "Only 4D inputs are supported. Second input rank: ",
+                                     image_shape_rank,
+                                     " (should be 4)");
+
                     auto output_shape = std::make_shared<default_opset::ShapeOf>(inputs[0]);
                     auto image_shape = std::make_shared<default_opset::ShapeOf>(inputs[1]);
                     auto output_shape_slice = detail::make_slice(output_shape, 2, 4);
                     auto image_shape_slice = detail::make_slice(image_shape, 2, 4);
 
                     ngraph::op::PriorBoxClusteredAttrs attrs{};
-                    attrs.widths = node.get_attribute_value<std::vector<float>>("width", {1.0});
-                    attrs.heights = node.get_attribute_value<std::vector<float>>("height", {1.0});
+                    attrs.widths = node.get_attribute_value<std::vector<float>>("width");
+                    attrs.heights = node.get_attribute_value<std::vector<float>>("height");
                     attrs.clip = static_cast<bool>(node.get_attribute_value<int64_t>("clip", 0));
                     attrs.variances =
                         node.get_attribute_value<std::vector<float>>("variance", {0.1f});

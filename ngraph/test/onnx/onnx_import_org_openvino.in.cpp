@@ -138,6 +138,46 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_most_attrs_default)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_first_input_bad_shape)
+{
+    try
+    {
+        auto function = onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/priorbox_clustered_first_input_bad_shape.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string("Only 4D inputs are supported. First input rank: 5 (should be 4)"));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_priorbox_clustered_second_input_bad_shape)
+{
+    try
+    {
+        auto function = onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/priorbox_clustered_second_input_bad_shape.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string("Only 4D inputs are supported. Second input rank: 5 (should be 4)"));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected OnnxNodeValidationFailure exception was not thrown";
+    }
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_detection_output)
 {
     const auto function = onnx_import::import_onnx_model(
