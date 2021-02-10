@@ -781,6 +781,10 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         if (!ngraphNode) {
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
+        // Share Weights form constant blob
+        if (auto constant = std::dynamic_pointer_cast<ngraph::opset6::Constant>(ngraphNode)) {
+            constant->alloc_buffer_on_visit_attributes(false);
+        }
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights, opsets, variables);
         if (ngraphNode->visit_attributes(visitor)) {
