@@ -412,9 +412,7 @@ bool fuse_type_to_constant(std::shared_ptr<Node> & node, element::Type to, const
         }
 
         new_const->validate_and_infer_types();
-        if (constant->get_output_size() == consumers.size()) {
-            new_const->set_friendly_name(constant->get_friendly_name());
-        }
+        new_const->set_friendly_name(constant->get_friendly_name());
     }
     return false;
 }
