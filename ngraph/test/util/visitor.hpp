@@ -162,7 +162,16 @@ namespace ngraph
             }
             void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
             {
-                NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
+                if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<
+                        std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter))
+                {
+                    auto& data = m_values.get<HostTensorPtr>(name);
+                    data->read(a->get()->get_ptr(), a->get()->size());
+                }
+                else
+                {
+                    NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
+                }
             }
             // The remaining adapter methods fall back on the void adapter if not implemented
             void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override
@@ -257,7 +266,18 @@ namespace ngraph
 
             void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override
             {
-                NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
+                if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<
+                        std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter))
+                {
+                    HostTensorPtr data =
+                        std::make_shared<HostTensor>(element::u8, Shape{a->get()->size()});
+                    data->write(a->get()->get_ptr(), a->get()->size());
+                    m_values.insert(name, data);
+                }
+                else
+                {
+                    NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");
+                }
             }
             // The remaining adapter methods fall back on the void adapter if not implemented
             void on_adapter(const std::string& name, ValueAccessor<std::string>& adapter) override

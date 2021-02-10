@@ -240,27 +240,21 @@ public:
 class ReadAndStoreAttributes : public ngraph::AttributeVisitor, protected storage::Storage {
 public:
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        if (auto inputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+        if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
             insert(name, inputs->get());
-        } else if (
-            auto outputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+        } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
             insert(name, outputs->get());
-        } else if (
-            auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+        } else if (auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
             insert(name, ports->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+            const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
+            const auto end = beg + a->get()->size();
+            insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
         } else {
             m_read_result += "store   attr [ ERR ]: " + name +
                              " [drop `void` comparison which is '" + adapter.get_type_info().name +
                              "']";
         }
-    }
-
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override {
-        const auto beg = static_cast<unsigned char*>(adapter.get_ptr());
-        const auto end = beg + adapter.size();
-        insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
     }
 
 #define ON_ADAPTER(TYPE)                                                                      \
@@ -506,38 +500,29 @@ public:
             return;
         }
         m_visited_attributes.insert(name);
-        if (auto inputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+        if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
             verify(name, inputs->get());
-        } else if (
-            auto outputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+        } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
             verify(name, outputs->get());
-        } else if (
-            auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+        } else if (auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
             verify(name, ports->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+            m_visited_attributes.insert(name);
+            const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
+            if (!ref_value) {
+                m_cmp_result += "missing attribute name: '" + name + "'";
+                return;
+            }
+
+            if (a->get()->size() != ref_value->size() ||
+                std::memcmp(ref_value->data(), a->get()->get_ptr(), ref_value->size()) != 0) {
+                m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
+                return;
+            }
         } else {
             m_cmp_result += "compare attr [ ERR ]: " + name +
                             " [drop `void` comparison which is '" + adapter.get_type_info().name +
                             "']";
-        }
-    }
-
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override {
-        if (should_return()) {
-            return;
-        }
-        m_visited_attributes.insert(name);
-        const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
-        if (!ref_value) {
-            m_cmp_result += "missing attribute name: '" + name + "'";
-            return;
-        }
-
-        if (adapter.size() != ref_value->size() ||
-            std::memcmp(ref_value->data(), adapter.get_ptr(), ref_value->size()) != 0) {
-            m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
-            return;
         }
     }
 

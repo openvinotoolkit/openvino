@@ -216,43 +216,6 @@ private:
             stringToType<double>(val, value);
             adapter.set(value);
         }
-        void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override  {
-            std::string value;
-            pugi::xml_node dn = node.child("data");
-            auto type = XMLParseUtils::GetStrAttr(node, "type");
-
-            if (dn.empty())
-                THROW_IE_EXCEPTION << "No attrtibutes defined for " << type << " op!";
-
-            if (getStrAttribute(dn, name, value)) {
-                auto data = static_cast<char*>(adapter.get_ptr());
-                size_t length = std::min(value.size(), adapter.size());
-                value.copy(data, length);
-            } else if (name == "value" && type == "Const") {
-                std::vector<int64_t> shape;
-                std::string el_type_str;
-
-                size_t offset = XMLParseUtils::GetUInt64Attr(dn, "offset");
-                size_t size = XMLParseUtils::GetUInt64Attr(dn, "size");
-                if (!getStrAttribute(dn, "element_type", el_type_str)) return;
-                if (!getParameters<int64_t>(dn, "shape", shape)) return;
-
-                ngraph::element::Type el_type = details::convertPrecision(el_type_str);
-
-                size_t length = weights->byteSize();
-                if (!length)
-                    THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
-                if (length < offset + size)
-                    THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
-                if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
-                    THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type << " op!";
-
-                auto data = static_cast<char*>(adapter.get_ptr());
-                char* weights_data = weights->cbuffer().as<char*>() + offset;
-
-                std::memcpy(data, weights_data, size);
-            }
-        }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val))

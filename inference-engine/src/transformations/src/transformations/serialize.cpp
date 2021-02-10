@@ -247,22 +247,15 @@ public:
             }
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
                 m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
-        }
-    }
-
-    void on_adapter(const std::string& name,
-                    ngraph::ValueAccessor<void*>& adapter) override {
-        if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
-            using AlignedBufferAdapter =
-                ngraph::AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>;
-            if (auto a = ngraph::as_type<AlignedBufferAdapter>(&adapter)) {
-                const int64_t size = a->size();
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+            if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
+                const int64_t size = a->get()->size();
                 const int64_t offset = m_bin_data.tellp();
 
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
 
-                auto data = static_cast<const char*>(a->get_ptr());
+                auto data = static_cast<const char*>(a->get()->get_ptr());
                 m_bin_data.write(data, size);
             }
         }
