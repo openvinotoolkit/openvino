@@ -4,7 +4,6 @@
 
 
 int main() {
-using namespace InferenceEngine;
 //! [part0]
 
 using namespace std;
@@ -34,7 +33,7 @@ auto ng_function = make_shared<Function>(OutputVector{add1}, ParameterVector{arg
 //! [part0]
 
 //! [part1]
-CNNNetwork net (ng_function);
+InferenceEngine::CNNNetwork net (ng_function);
 //! [part1]
 
 return 0;

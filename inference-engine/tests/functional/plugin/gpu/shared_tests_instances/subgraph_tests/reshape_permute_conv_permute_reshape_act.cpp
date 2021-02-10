@@ -29,8 +29,8 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
 
 std::map<std::string, std::string> additional_config = {};
 
-namespace LayerTestsDefinitions {
-    INSTANTIATE_TEST_CASE_P(basic, ConvReshapeAct,
+namespace SubgraphTestsDefinitions {
+    INSTANTIATE_TEST_CASE_P(smoke_basic, ConvReshapeAct,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GPU),
@@ -39,6 +39,6 @@ namespace LayerTestsDefinitions {
             ::testing::ValuesIn(output_channels),
             ::testing::Values(additional_config)),
         ConvReshapeAct::getTestCaseName);
-}  // namespace LayerTestsDefinitions
+}  // namespace SubgraphTestsDefinitions
 
 

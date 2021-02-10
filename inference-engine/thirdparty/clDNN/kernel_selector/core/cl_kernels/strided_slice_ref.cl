@@ -15,7 +15,7 @@
 
 #include "include/include_all.cl"
 
-KERNEL(strided_slice_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
+KERNEL(strided_slice_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
     const uint batch = get_global_id(0);
     const uint feature = get_global_id(1);

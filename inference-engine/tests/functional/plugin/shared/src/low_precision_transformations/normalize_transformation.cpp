@@ -13,96 +13,80 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph/pass/visualize_tree.hpp"
-#include "ngraph_functions/builders.hpp"
+#include "lpt_ngraph_functions/normalize_l2_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string NormalizeTransformation::getTestCaseName(testing::TestParamInfo<NormalizeTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
+    ngraph::element::Type netPrecision;
+    std::pair<ngraph::Shape, ngraph::Shape> shapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
-    std::tie(netPrecision, inputShapes, targetDevice, params, fuseMultiply, shift) = obj.param;
+    std::tie(netPrecision, shapes, targetDevice, axes, fuseMultiply, shift) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision.name() << "_" <<
-        CommonTestUtils::vec2str(inputShapes) << "_" <<
+    result << netPrecision << "_" <<
+        shapes.first << "_" <<
+        shapes.second << "_" <<
         targetDevice << "_" <<
         toString(params) << "_" <<
+        "_axes" << axes.size() <<
         (fuseMultiply ? "_multiply" : "") <<
         (shift ? "_shift" : "");
     return result.str();
 }
 
-void NormalizeTransformation::SetUp() {
+void NormalizeL2Transformation::SetUp() {
     threshold = 3.e-3;
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    ngraph::element::Type precision;
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
-    std::tie(netPrecision, inputShape, targetDevice, params, fuseMultiply, shift) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    std::tie(precision, shapes, targetDevice, axes, fuseMultiply, shift) = this->GetParam();
 
-    const float low = params.precisionsOnActivations[0] == InferenceEngine::Precision::U8 ? (0.f + (shift ? 10.f : 0.f)) : (-128.f + (shift ? 10.f : 0.f));
-    const float high = params.precisionsOnActivations[0] == InferenceEngine::Precision::U8 ? 255.f : 127.f;
-    const float k = 10.f;
+    function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
+        precision,
+        shapes,
+        params.precisionsOnActivations[0],
+        axes,
+        fuseMultiply,
+        shift);
 
-    const auto paramNode = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(inputShape));
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(
-        paramNode->output(0), ngPrc, 256, { 1ul },
-        { low / k }, { high / k }, { low / k }, { high / k });
-
-    const auto axes = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{ 1 }, std::vector<int64_t>{ 1ul });
-    const auto normL2 = std::make_shared<ngraph::opset1::NormalizeL2>(fakeQuantize->output(0), axes, 1e-6, ngraph::op::EpsMode::ADD);
-
-    ngraph::ResultVector results;
-    if (fuseMultiply) {
-        const auto multiplyConst = std::make_shared<ngraph::op::Constant>(
-            ngPrc, ngraph::Shape{ inputShape[0], inputShape[1], 1ul, 1ul }, std::vector<float>{ 2.f });
-        const auto multiply = std::make_shared<ngraph::opset1::Multiply>(normL2->output(0), multiplyConst);
-        results = { std::make_shared<ngraph::opset1::Result>(multiply) };
-    } else {
-        results = { std::make_shared<ngraph::opset1::Result>(normL2) };
-    }
-
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { paramNode }, "NormalizeTransformation");
-
-    // TODO: move to some another place
     validate();
 }
 
-void NormalizeTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+void NormalizeL2Transformation::validate() {
+    ngraph::element::Type precision;
+    std::pair<ngraph::Shape, ngraph::Shape> shapes;
+    std::string targetDevice;
+    std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
-    std::tie(netPrecision, inputShape, targetDevice, params, fuseMultiply, shift) = this->GetParam();
+    std::tie(precision, shapes, targetDevice, axes, fuseMultiply, shift) = this->GetParam();
 
-    const InferenceEngine::CNNNetwork network = transform(params);
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
 
-    IE_SUPPRESS_DEPRECATED_START
+    const auto output = transformed->get_output_op(0);
+    const auto normalize = output->get_input_node_shared_ptr(0);
+    const std::string typeName = normalize->get_type_name();
+    ASSERT_EQ("NormalizeIE", typeName);
 
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ(shift ? "Normalize" : "ScaleShift", outputLayer->type);
-
-    IE_SUPPRESS_DEPRECATED_END
+    const auto inputPrecision = normalize->get_input_element_type(0);
+    const auto expectedPrecision = shift ? ngraph::element::f32 : ngraph::element::u8;
+    ASSERT_EQ(inputPrecision, expectedPrecision);
 }
 
-TEST_P(NormalizeTransformation, CompareWithRefImpl) {
+TEST_P(NormalizeL2Transformation, CompareWithRefImpl) {
     Run();
 };
 

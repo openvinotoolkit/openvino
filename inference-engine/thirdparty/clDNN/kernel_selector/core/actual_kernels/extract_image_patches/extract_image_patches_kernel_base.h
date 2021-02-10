@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 #include <vector>
@@ -41,9 +41,9 @@ struct extract_image_patches_optional_params : optional_params {
     extract_image_patches_optional_params() : optional_params(KernelType::EXTRACT_IMAGE_PATCHES) {}
 };
 
-class ExtractImagePatchesKernelBase : public common_kernel_base {
+class ExtractImagePatchesKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     using DispatchData = CommonDispatchData;
     virtual ~ExtractImagePatchesKernelBase() {}
 
@@ -51,7 +51,7 @@ protected:
     virtual ParamsKey GetSupportedKey() const override;
     virtual JitConstants GetJitConstants(const extract_image_patches_params& params) const;
     DispatchData SetDefault(const extract_image_patches_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 
     bool Validate(const Params& p, const optional_params&) const override;
 };

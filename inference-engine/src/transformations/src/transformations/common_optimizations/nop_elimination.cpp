@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "itt.hpp"
 #include <functional>
 #include <memory>
 #include <typeindex>
@@ -24,13 +25,14 @@
 #include <ngraph/util.hpp>
 #include <ngraph/log.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
-
-NGRAPH_SUPPRESS_DEPRECATED_START
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace std;
 using namespace ngraph;
 
 #define TI(x) x::type_info
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::NopElimination, "NopElimination", 0);
 
 static bool eliminate_nop(const std::shared_ptr<Node>& node) {
     // skip if shapes are dynamic
@@ -40,14 +42,6 @@ static bool eliminate_nop(const std::shared_ptr<Node>& node) {
     }
 
     if (node->get_input_shape(0) == node->get_output_shape(0)) {
-        return replace_output_update_name(node->output(0), node->input_value(0));
-    }
-    return false;
-}
-
-static bool eliminate_sum(const std::shared_ptr<Node>& node) {
-    auto sum = as_type_ptr<op::v0::Sum>(node);
-    if (sum->get_reduction_axes().empty()) {
         return replace_output_update_name(node->output(0), node->input_value(0));
     }
     return false;
@@ -165,7 +159,7 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
 static std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape,
                                                const PartialShape& out_shape) {
     std::vector<int64_t> axes;
-    size_t i = 0;
+    int64_t i = 0;
     for (auto o = 0; o < out_shape.rank().get_length(); o++) {
         if (i < data_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[o])) {
             i += 1;
@@ -181,7 +175,7 @@ static std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape,
 static std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape,
                                              const PartialShape& out_shape) {
     std::vector<int64_t> axes;
-    size_t out_i = 0;
+    int64_t out_i = 0;
     for (auto i = 0; i < data_shape.rank().get_length(); i++) {
         if (out_i < out_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[out_i])) {
             out_i += 1;
@@ -202,6 +196,8 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
     }
 
     auto unsqueeze = as_type_ptr<opset3::Unsqueeze>(node);
+    if (unsqueeze == nullptr)
+        return false;
     auto input = unsqueeze->input_value(0).get_node_shared_ptr();
     auto squeeze = as_type_ptr<opset3::Squeeze>(input);
     auto replace_unsqueeze_only = [&](const vector<int64_t>& axes) {
@@ -226,14 +222,14 @@ static bool eliminate_unsqueeze(const std::shared_ptr<Node>& node) {
         if (out_shape.rank().get_length() > data_shape.rank().get_length()) {
             // check if single unsqueeze can handle this
             auto axes = get_unsqueeze_axes(data_shape, out_shape);
-            if (axes.size() + data_shape.rank().get_length() == out_shape.rank().get_length()) {
+            if (static_cast<int64_t>(axes.size()) + data_shape.rank().get_length() == out_shape.rank().get_length()) {
                 return replace_unsqueeze_only(axes);
             }
         }
         if (out_shape.rank().get_length() < data_shape.rank().get_length()) {
             // check if single squeeze can handle this
             auto axes = get_squeeze_axes(data_shape, out_shape);
-            if (data_shape.rank().get_length() - axes.size() == out_shape.rank().get_length()) {
+            if (data_shape.rank().get_length() - static_cast<int64_t>(axes.size()) == out_shape.rank().get_length()) {
                 auto axes_const =
                     opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
                 auto new_sq = make_shared<opset3::Squeeze>(input->input_value(0), axes_const);
@@ -268,6 +264,8 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
     }
 
     auto squeeze = as_type_ptr<opset3::Squeeze>(node);
+    if (squeeze == nullptr)
+        return false;
     auto input = squeeze->input_value(0).get_node_shared_ptr();
     auto replace_squeeze_only = [&](const vector<int64_t>& axes) {
         auto axes_const = opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
@@ -295,14 +293,14 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
         if (out_shape.rank().get_length() < data_shape.rank().get_length()) {
             // check if single squeeze can handle this
             auto axes = get_squeeze_axes(data_shape, out_shape);
-            if (data_shape.rank().get_length() == out_shape.rank().get_length() + axes.size()) {
+            if (data_shape.rank().get_length() == out_shape.rank().get_length() + static_cast<int64_t>(axes.size())) {
                 return replace_squeeze_only(axes);
             }
         }
         if (out_shape.rank().get_length() > data_shape.rank().get_length()) {
             // check if single unsqueeze can handle this
             auto axes = get_unsqueeze_axes(data_shape, out_shape);
-            if (data_shape.rank().get_length() + axes.size() == out_shape.rank().get_length()) {
+            if (data_shape.rank().get_length() + static_cast<int64_t>(axes.size()) == out_shape.rank().get_length()) {
                 auto axes_const =
                     opset3::Constant::create<int64_t>(element::i64, Shape{axes.size()}, axes);
                 auto new_unsq = make_shared<opset3::Unsqueeze>(input->input_value(0), axes_const);
@@ -332,38 +330,38 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node) {
     return false;
 }
 
-static bool eliminate_stop_gradient(const std::shared_ptr<Node>& node) {
-    replace_output_update_name(node->output(0), node->input_value(0));
-    return true;
-}
+#define ECHO(NAME) #NAME
+#define STR(NAME) ECHO(NAME)
+#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, OP, FUNC) \
+class NAME : public ngraph::pass::MatcherPass { \
+public: \
+NGRAPH_RTTI_DECLARATION; \
+NAME() { \
+    MATCHER_SCOPE(NAME); \
+    auto match_node = ngraph::pattern::wrap_type<OP>(); \
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) { \
+        return FUNC(m.get_match_root()); \
+    }; \
+    auto m = std::make_shared<ngraph::pattern::Matcher>(match_node, matcher_name); \
+    register_matcher(m, callback); \
+}  \
+}; \
+NGRAPH_RTTI_DEFINITION(NAME, STR(NAME), 0);
 
-bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
-    static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
-        dispatcher{{TI(opset3::Pad), &eliminate_nop},
-                   {TI(op::v0::Sum), &eliminate_sum},
-                   {TI(opset3::Convert), &eliminate_convert},
-                   {TI(op::v0::Slice), &eliminate_nop},
-                   {TI(op::v0::StopGradient), &eliminate_stop_gradient},
-                   {TI(opset3::Reshape), &eliminate_reshape_v1},
-                   {TI(opset3::Concat), &eliminate_concat},
-                   {TI(opset3::Squeeze), &eliminate_squeeze},
-                   {TI(opset3::Unsqueeze), &eliminate_unsqueeze},
-                   {TI(op::v0::Broadcast), &eliminate_nop}};
+SIMPLE_MATCHER_PASS_DEFINITION(EliminatePad, opset3::Pad, eliminate_nop);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateConvert, opset3::Convert, eliminate_convert);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, opset3::Reshape, eliminate_reshape_v1);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateConcat, opset3::Concat, eliminate_concat);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateSqueeze, opset3::Squeeze, eliminate_squeeze);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, opset3::Unsqueeze, eliminate_unsqueeze);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, op::v1::Broadcast, eliminate_nop);
 
-    bool clobbered = false;
-
-    for (const auto& node : function->get_ops()) {
-        // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                clobbered |= run_on_function(sub_graph);
-            }
-        }
-        auto handler = dispatcher.find(node->get_type_info());
-        if (handler != dispatcher.end()) {
-            clobbered |= handler->second(node);
-        }
-    }
-
-    return clobbered;
+ngraph::pass::NopElimination::NopElimination() {
+    add_matcher<EliminatePad>();
+    add_matcher<EliminateConvert>();
+    add_matcher<EliminateReshape>();
+    add_matcher<EliminateConcat>();
+    add_matcher<EliminateSqueeze>();
+    add_matcher<EliminateUnsqueeze>();
+    add_matcher<EliminateBroadcast>();
 }

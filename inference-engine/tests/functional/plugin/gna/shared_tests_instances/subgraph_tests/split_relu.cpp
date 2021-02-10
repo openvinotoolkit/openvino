@@ -5,7 +5,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "gna/gna_config.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     std::vector<std::vector<std::vector<size_t>>> inputs{
@@ -45,7 +45,7 @@ namespace {
             {std::string(GNA_CONFIG_KEY(COMPACT_MODE)), "NO"}
     };
 
-    INSTANTIATE_TEST_CASE_P(split_connected, SplitRelu,
+    INSTANTIATE_TEST_CASE_P(smoke_split_connected, SplitRelu,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(connect_index),

@@ -15,7 +15,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/lin_op_sequence_fusoin.hpp>
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/pass/visualize_tree.hpp>

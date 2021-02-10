@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@
 #include <cstddef>
 #include <memory>
 
-#include "instance_norm.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
@@ -27,9 +28,8 @@
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/partial_shape.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "op/instance_norm.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
@@ -93,21 +93,8 @@ namespace ngraph
                     const auto reduction_axes =
                         common::get_monotonic_range_along_node_rank(data, 2);
 
-                    const std::shared_ptr<ngraph::Node> eps_node =
-                        std::make_shared<default_opset::Constant>(
-                            data.get_element_type(), Shape{}, epsilon);
-
-                    auto mean =
-                        std::make_shared<default_opset::ReduceMean>(data, reduction_axes, true);
-                    auto diff = std::make_shared<default_opset::Subtract>(data, mean);
-                    auto variance = std::make_shared<default_opset::ReduceMean>(
-                        std::make_shared<default_opset::Power>(
-                            diff,
-                            default_opset::Constant::create(data.get_element_type(), Shape{}, {2})),
-                        reduction_axes,
-                        true);
-                    const auto sqrt = std::make_shared<default_opset::Sqrt>(
-                        std::make_shared<default_opset::Add>(variance, eps_node));
+                    auto mvn = std::make_shared<default_opset::MVN>(
+                        data, reduction_axes, true, epsilon, ngraph::op::MVNEpsMode::INSIDE_SQRT);
 
                     std::shared_ptr<ngraph::Node> data_shape_node;
                     if (data_pshape.is_static())
@@ -132,10 +119,9 @@ namespace ngraph
                         data_shape_node,
                         std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1));
 
-                    // scale * (data - mean) / sqrt + bias
+                    // scale * mvn + bias
                     std::shared_ptr<ngraph::Node> result =
-                        std::make_shared<default_opset::Divide>(scale, sqrt);
-                    result = std::make_shared<default_opset::Multiply>(diff, result);
+                        std::make_shared<default_opset::Multiply>(mvn, scale);
                     result = std::make_shared<default_opset::Add>(result, bias);
 
                     return {result};

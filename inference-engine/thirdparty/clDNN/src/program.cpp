@@ -60,6 +60,7 @@
 #include "reorder_inst.h"
 #include "split_inst.h"
 #include "mvn_inst.h"
+#include "gemm_inst.h"
 #include "reduce_inst.h"
 #include "strided_slice_inst.h"
 #include "to_string_utils.h"
@@ -531,7 +532,8 @@ void program_impl::transfer_memory_to_device() {
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(mem.get_layout(),
                                                                     allocation_type::usm_device,
-                                                                    mem.get_net_id());
+                                                                    mem.get_net_id(),
+                                                                    false);
                 dynamic_cast<gpu::gpu_usm&>(*device_mem).copy_from_other(dynamic_cast<gpu::gpu_usm&>(mem));
                 data_node.attach_memory(*device_mem);
                 const_cast<memory&>(data_node.get_primitive()->mem).reset();
@@ -568,7 +570,7 @@ void program_impl::add_split_outputs() {
             primitive_id input_id = split_prim->input[0];
             auto split_num = split_prim->output_offsets.size();
 
-            // create crop for each split ouptut provided
+            // create crop for each split output provided
             for (decltype(split_num) i = 0; i < split_num; i++) {
                 primitive_id output_id = node->id() + ":" + split_prim->output_ids[i];
 
@@ -770,11 +772,12 @@ void program_impl::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program_impl::replace_all_usages(program_node& old_node, program_node& new_node) {
-    auto itr = old_node.users.begin();
-    auto cnt = old_node.users.size();
-    while (cnt != 0) {
-        cnt--;
+    const std::list<program_node*> users(old_node.users);
+    auto itr = users.begin();
+    bool end = (itr == users.end());
+    while (!end) {
         auto& usage = (*itr++);
+        end = (itr == users.end());
         usage->replace_dependency(old_node, new_node);
     }
 }
@@ -1018,6 +1021,45 @@ void program_impl::dump_program(const char* stage,
 
 program_impl::primitives_info program_impl::get_current_stage_info() const {
     primitives_info info;
+
+    auto get_inference_precision = [](program_node& node) -> data_types {
+        if (node.is_input()) {
+            return node.get_output_layout().data_type;
+        }
+        std::vector<data_types> input_dts;
+        for (auto& dep : node.get_dependencies()) {
+            input_dts.push_back(dep->get_output_layout().data_type);
+        }
+        data_types output_dt = node.get_output_layout().data_type;
+
+        assert(!input_dts.empty());
+        if (node.is_type<reorder>()) {
+            // If reorder has different input/output types - pick the max one as runtime precision
+            return data_type_traits::max_type(input_dts[0], output_dt);
+        } else if (node.is_type<quantize>()) {
+            if (data_type_traits::is_quantized(output_dt))
+                return output_dt;
+            return data_type_traits::max_type(input_dts[0], output_dt);
+        } else if (node.is_type<eltwise>()) {
+            auto max_dt = input_dts[0];
+            for (size_t i = 1; i < input_dts.size(); i++) {
+                max_dt = data_type_traits::max_type(max_dt, input_dts[i]);
+            }
+            return max_dt;
+        } else if (node.is_type<convolution>() || node.is_type<deconvolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
+            if (input_dts.size() < 2) {
+                throw std::runtime_error("[clDNN] Invalid inputs count in node " + node.id() + " during stage info collection. Expected >= 2 inputs");
+            }
+            if (data_type_traits::is_quantized(input_dts[0]) && data_type_traits::is_quantized(input_dts[1])) {
+                return input_dts[0];
+            } else {
+                return data_type_traits::max_type(input_dts[0], input_dts[1]);
+            }
+        }
+
+        return input_dts[0];
+    };
+
     // Get info for actually executed graph nodes
     int exec_id = 0;
     for (auto& p : get_processing_order()) {
@@ -1047,6 +1089,7 @@ program_impl::primitives_info program_impl::get_current_stage_info() const {
                           p->get_output_layout(),
                           fmt_to_str(p->get_output_layout().format),
                           p->selected_impl ? p->selected_impl->get_kernel_name() : "",
+                          get_inference_precision(*p),
                           p->selected_impl ? p->selected_impl->is_cpu() : false,
                           exec_id++);
 
@@ -1098,6 +1141,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t total_1x1_fm_conv_layers = 0;
     size_t total_grouped_conv_layers = 0;
     size_t opt_deconv_layers_b_fs_zyx_fsv16 = 0;
+    size_t total_crop_layers = 0;
 
     for (auto& node : get_processing_order()) {
         auto &prim = *node;
@@ -1184,6 +1228,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             if (prim.get_dependencies()[0]->is_type<reshape>() || prim.get_dependencies()[0]->is_type<concatenation>()) {
                 can_use_fsv16 = false;
             }
+            total_crop_layers++;
         }
 
         if (prim.is_in_data_flow() &&
@@ -1208,12 +1253,16 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // Due to fact that single winograd convolution is faster than b_fs_yx_fsv16 and
     // using them together leads do redundant reorders, whole topology switch
     // will be performed if at least half of layers can use b_fs_yx_fsv16.
+    // Crop layers are poorly optimized in fsv16 layout so whole topology stays in bfyx
+    // if there are many crops (2x more then b_fs_yx_fsv16 convolutions)
     const float cond_denom = total_conv_layers > 0 ? 1.0f / static_cast<float>(total_conv_layers) : 1.0f;
+    size_t num_of_conv_b_fs_yx_fsv16 = lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false});
 
     bool should_use_b_fs_yx_fsv16_conv = is_quantized_int8_model ||
                                          (can_use_fsv16 &&
                                           total_conv_layers > 11 &&
-                                          lo.get_optimized_conv_count({format::b_fs_yx_fsv16, false}) * cond_denom > 0.5f);
+                                          num_of_conv_b_fs_yx_fsv16 * cond_denom > 0.5f &&
+                                          num_of_conv_b_fs_yx_fsv16 * 2 > total_crop_layers);
 
     bool should_use_fs_b_yx_fsv32_conv = total_conv_layers > 11 &&
                                          total_grouped_conv_layers == 0 &&

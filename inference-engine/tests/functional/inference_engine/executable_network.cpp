@@ -37,7 +37,7 @@ TEST(ExecutableNetworkTests, throwsOnUninitializedExportStream) {
 
 TEST(ExecutableNetworkTests, nothrowsOnUninitializedCast) {
     ExecutableNetwork exec;
-    ASSERT_NO_THROW(auto &enet = static_cast<IExecutableNetwork::Ptr &>(exec));
+    ASSERT_NO_THROW((void)static_cast<IExecutableNetwork::Ptr &>(exec));
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {
@@ -46,8 +46,10 @@ TEST(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedQueryState) {
+    IE_SUPPRESS_DEPRECATED_START
     ExecutableNetwork exec;
     ASSERT_THROW(exec.QueryState(), InferenceEngine::details::InferenceEngineException);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedSetConfig) {

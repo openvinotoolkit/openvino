@@ -160,7 +160,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
     assertOneOrMoreOccurrence(customLayer, {"Kernel"});
     auto kernelNodes = [&] {
         auto nodes = SmallVector<pugi::xml_node>{};
-        for (auto kernel = customLayer.child("Kernel"); !kernel.empty(); kernel = kernel.next_sibling("Kernel")) {
+        FOREACH_CHILD(kernel, customLayer, "Kernel") {
             assertExactlyOneOccurrence(kernel, {"Parameters", "WorkSizes"});
             assertOneOrMoreOccurrence(kernel, {"Source"});
             nodes.push_back(kernel);
@@ -178,10 +178,10 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
                 "each kernel should be provided with 'stage' attribute.", _layerName);
 
             const auto stageNum = std::stod(stageAttr.value());
-            VPU_THROW_UNLESS(stageOrder.find(stageNum) == stageOrder.end(),
+            VPU_THROW_UNLESS(stageOrder.find(static_cast<int>(stageNum)) == stageOrder.end(),
                 "Error while binding %s custom layer: found duplicating stage id.", _layerName);
 
-            stageOrder.emplace(stageNum, CustomKernel{kernel, _configDir});
+            stageOrder.emplace(static_cast<int>(stageNum), CustomKernel{kernel, _configDir});
         }
 
         VPU_THROW_UNLESS(!stageOrder.empty(),

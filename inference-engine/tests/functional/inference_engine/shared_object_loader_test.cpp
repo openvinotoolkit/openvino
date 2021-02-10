@@ -17,7 +17,7 @@ IE_SUPPRESS_DEPRECATED_START
 class SharedObjectLoaderTests: public ::testing::Test {
 protected:
     std::string get_mock_engine_name() {
-        return FileUtils::makeSharedLibraryName<char>(getIELibraryPath(),
+        return FileUtils::makePluginLibraryName<char>(getIELibraryPath(),
             std::string("mock_engine") + IE_BUILD_POSTFIX);
     }
 

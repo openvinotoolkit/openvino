@@ -40,21 +40,21 @@ ParamsKey GemmKernelTiledOpt::GetSupportedKey() const {
 GemmKernelBase::DispatchData GemmKernelTiledOpt::SetDefault(const gemm_params& params) const {
     const auto& output = params.output;
 
-    DispatchData kd;
+    DispatchData dispatchData;
     GemmTuningData td = SetTuningParams(params);
 
     auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
     std::vector<size_t> global = { output.X().v, output.Y().v, total_batches };
 
-    kd.gws0 = Align(global[0], td.tile_n_size) / (td.tile_n_size / td.simd_size);
-    kd.gws1 = Align(global[1], td.tile_m_size) / td.tile_m_size;
-    kd.gws2 = global[2];
+    dispatchData.gws[0] = Align(global[0], td.tile_n_size) / (td.tile_n_size / td.simd_size);
+    dispatchData.gws[1] = Align(global[1], td.tile_m_size) / td.tile_m_size;
+    dispatchData.gws[2] = global[2];
 
-    kd.lws0 = td.simd_size;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = td.simd_size;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return kd;
+    return dispatchData;
 }
 
 GemmKernelTiledOpt::GemmTuningData GemmKernelTiledOpt::SetTuningParams(const gemm_params& params) const {
@@ -175,9 +175,13 @@ JitConstants GemmKernelTiledOpt::GetJitConstants(const gemm_params& params) cons
 }
 
 KernelsData GemmKernelTiledOpt::GetKernelsData(const Params& params, const optional_params& options) const {
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority GemmKernelTiledOpt::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
     const auto& gmm_params = static_cast<const gemm_params&>(params);
 
-    return GetCommonKernelsData(params, options, gmm_params.transpose_input0 || gmm_params.transpose_input1 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_3);
+    return gmm_params.transpose_input0 || gmm_params.transpose_input1 ? FORCE_PRIORITY_6 : FORCE_PRIORITY_3;
 }
 
 bool GemmKernelTiledOpt::Validate(const Params& params, const optional_params& options) const {

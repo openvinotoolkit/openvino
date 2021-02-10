@@ -64,8 +64,8 @@ DepthDeconvolutionCHWWeightsContent::DepthDeconvolutionCHWWeightsContent(
 void DepthDeconvolutionCHWWeightsContent::fillTempBuf(void* tempBuf) const {
     VPU_PROFILE(DepthDeconvolutionCHWWeightsContent);
     depthDeconvolutionRelayoutCHW(
-            _origContent->get<fp16_t>(), _origContent->byteSize() / sizeof(fp16_t),
-            static_cast<fp16_t*>(tempBuf), _origContent->byteSize() / sizeof(fp16_t),
+            _origContent->get<fp16_t>(), static_cast<int>(_origContent->byteSize() / sizeof(fp16_t)),
+            static_cast<fp16_t*>(tempBuf), static_cast<int>(_origContent->byteSize() / sizeof(fp16_t)),
             _KX, _KY, _channels);
 }
 
@@ -105,8 +105,8 @@ DepthDeconvolutionHWCWeightsContent::DepthDeconvolutionHWCWeightsContent(
 void DepthDeconvolutionHWCWeightsContent::fillTempBuf(void* tempBuf) const {
     VPU_PROFILE(DepthDeconvolutionHWCWeightsContent);
     depthDeconvolutionRelayoutHWC(
-            _origContent->get<fp16_t>(), _origContent->byteSize() / sizeof(fp16_t),
-            static_cast<fp16_t*>(tempBuf), _origContent->byteSize() / sizeof(fp16_t),
+            _origContent->get<fp16_t>(), static_cast<int>(_origContent->byteSize() / sizeof(fp16_t)),
+            static_cast<fp16_t*>(tempBuf), static_cast<int>(_origContent->byteSize() / sizeof(fp16_t)),
             _KX, _KY, _channels);
 }
 

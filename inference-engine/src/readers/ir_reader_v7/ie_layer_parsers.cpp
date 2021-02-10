@@ -42,6 +42,7 @@ CNNLayer::Ptr ActivationLayerCreator::CreateLayer(pugi::xml_node& node, LayerPar
         {"elu", std::make_shared<LayerCreator<CNNLayer>>("ELU")},
         {"sigmoid", std::make_shared<LayerCreator<CNNLayer>>("Sigmoid")},
         {"tanh", std::make_shared<LayerCreator<CNNLayer>>("TanH")},
+        {"not", std::make_shared<LayerCreator<CNNLayer>>("LogicalNot")}
     };
 
     CNNLayer::Ptr activation;
@@ -193,12 +194,12 @@ CNNLayer::Ptr TILayerCreator::CreateLayer(pugi::xml_node& node, LayerParseParame
     std::vector<DataPtr> inputs, outputs;
     for (const auto& p : all_inputs) {
         IE_ASSERT(ins.find(p) != ins.end());
-        p2i[p] = inputs.size();
+        p2i[p] = static_cast<int>(inputs.size());
         inputs.push_back(ins[p]);
     }
     for (const auto& p : all_outputs) {
         IE_ASSERT(outs.find(p) != outs.end());
-        p2i[p] = outputs.size();
+        p2i[p] = static_cast<int>(outputs.size());
         outputs.push_back(outs[p]);
     }
 

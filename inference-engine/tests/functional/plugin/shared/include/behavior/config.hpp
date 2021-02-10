@@ -10,12 +10,11 @@
 #include <memory>
 #include "ie_extension.h"
 #include <condition_variable>
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 #include <ie_plugin_config.hpp>
 #include <vpu/vpu_plugin_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 #include <gna/gna_config.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ie_core.hpp>
@@ -24,7 +23,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include <threading/ie_executor_manager.hpp>
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <base/behavior_test_utils.hpp>
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
@@ -91,7 +90,7 @@ namespace BehaviorTestsDefinitions {
         } else {
             try {
                 ie->SetConfig(configuration, targetDevice);
-            } catch (InferenceEngine::details::InferenceEngineException ex) {}
+            } catch (InferenceEngine::details::InferenceEngineException &) {}
         }
     }
 

@@ -60,10 +60,10 @@ public:
     void * alloc(size_t size) noexcept override {
         return ptr;
     }
-    virtual bool   free(void* handle) noexcept {
+    bool   free(void* handle) noexcept override {
         return true;
     }
-    virtual void Release() noexcept {
+    void Release() noexcept override {
         delete this;
     }
 };
@@ -331,6 +331,8 @@ void GNAPropagateMatcher :: match() {
 
             EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
 
+            EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
+
             EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
 
@@ -470,8 +472,7 @@ void GNAPropagateMatcher :: match() {
             }
         }
 
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-        plugin.GetPerformanceCounts(perfMap);
+        auto perfMap = plugin.GetPerformanceCounts();
 
         if(_env.is_profiling_enabled != false) {
             ASSERT_NE(perfMap.empty(),true);
@@ -556,6 +557,8 @@ void GNAPluginAOTMatcher :: match() {
         }));
 
     EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
+
+    EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
@@ -657,6 +660,8 @@ void GNADumpXNNMatcher::match() {
             }));
 
         EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
+
+        EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
 
         EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
@@ -783,6 +788,8 @@ void GNAQueryStateMatcher :: match() {
 
     EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
 
+    EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
+
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2MemoryFree(_)).WillOnce(Return(Gna2StatusSuccess));
@@ -808,6 +815,7 @@ void GNAQueryStateMatcher :: match() {
 
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigAssignToRequestConfig(_,_)).Times(AtLeast(1)).WillRepeatedly(Return(Gna2StatusSuccess));
 #endif
+    IE_SUPPRESS_DEPRECATED_START
     try {
         loadNetwork();
         if (GnaPluginTestEnvironment::kAnyNotNull == _env.numberOfStates) {
@@ -830,6 +838,7 @@ void GNAQueryStateMatcher :: match() {
     catch(...) {
         FAIL() << "unknown exception thrown";
     }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 

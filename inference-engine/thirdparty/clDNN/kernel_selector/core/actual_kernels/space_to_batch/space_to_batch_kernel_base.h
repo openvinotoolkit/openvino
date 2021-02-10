@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <vector>
 
@@ -47,9 +47,9 @@ struct space_to_batch_fuse_params : fuse_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // SpaceToBatchKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class SpaceToBatchKernelBase : public common_kernel_base {
+class SpaceToBatchKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~SpaceToBatchKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {};
@@ -58,6 +58,6 @@ protected:
     virtual bool Validate(const Params&, const optional_params&) const;
     virtual JitConstants GetJitConstants(const space_to_batch_params& params) const;
     virtual CommonDispatchData SetDefault(const space_to_batch_params& params, const optional_params&) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 };
 }  // namespace kernel_selector

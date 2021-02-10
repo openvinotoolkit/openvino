@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
+#include "ngraph/op/sink.hpp"
 
 namespace ngraph
 {
@@ -49,6 +50,16 @@ namespace ngraph
                  const std::string& name = "");
 
         Function(const ResultVector& results,
+                 const ParameterVector& parameters,
+                 const std::string& name = "");
+
+        Function(const ResultVector& results,
+                 const SinkVector& sinks,
+                 const ParameterVector& parameters,
+                 const std::string& name = "");
+
+        Function(const OutputVector& results,
+                 const SinkVector& sinks,
                  const ParameterVector& parameters,
                  const std::string& name = "");
 
@@ -96,7 +107,7 @@ namespace ngraph
         // updates graph and m_results list
         void replace_node(std::shared_ptr<Node> old, std::shared_ptr<Node> repl);
 
-        void validate_nodes_and_infer_types();
+        void validate_nodes_and_infer_types() const;
 
         /// \brief Returns the sum of the size of all nodes in the graph plus the size of
         /// all constant data. This has little value beyond comparing the relative size of
@@ -138,10 +149,60 @@ namespace ngraph
         bool evaluate(const HostTensorVector& output_tensors,
                       const HostTensorVector& input_tensors) const;
 
+        /// \brief Return a list of function's sinks.
+        const SinkVector& get_sinks() const { return m_sinks; }
+        /// \brief Add new sink nodes to the list. Method doesn't validate graph, it should be done
+        /// manually after all changes.
+        /// \param sinks new sink nodes
+        void add_sinks(const SinkVector& sinks);
+
+        /// \brief Delete sink node from the list of sinks. Method doesn't delete node from graph.
+        /// \param sink Sink to delete
+        void remove_sink(const std::shared_ptr<op::Sink>& sink);
+
+        /// \brief Add new Result nodes to the list. Method doesn't validate graph, it should be
+        /// done manually after all changes.
+        /// \param results new Result nodes
+        void add_results(const ResultVector& results);
+
+        /// \brief Delete Result node from the list of results. Method will not delete node from
+        /// graph.
+        /// \param result Result node to delete
+        void remove_result(const std::shared_ptr<op::Result>& result);
+
+        /// \brief Add new Parameter nodes to the list.
+        ///
+        /// Method doesn't change or validate graph, it should be done manually.
+        /// For example, if you want to replace `ReadValue` node by `Parameter`, you should do the
+        /// following steps:
+        /// * replace node `ReadValue` by `Parameter` in graph
+        /// * call add_parameter() to add new input to the list
+        /// * call graph validation to check correctness of changes
+        ///
+        /// \param params new Parameter nodes
+        void add_parameters(const ParameterVector& params);
+
+        /// \brief Delete Parameter node from the list of parameters. Method will not delete node
+        /// from graph. You need to replace Parameter with other operation manually.
+        /// Attention: Indexing of parameters can be changed.
+        ///
+        /// Possible use of method is to replace input by variable. For it the following steps
+        /// should be done:
+        /// * `Parameter` node should be replaced by `ReadValue`
+        /// * call remove_parameter(param) to remove input from the list
+        /// * check if any parameter indexes are saved/used somewhere, update it for all inputs
+        /// because indexes can be changed
+        /// * call graph validation to check all changes
+        ///
+        /// \param param Parameter node to delete
+        void remove_parameter(const std::shared_ptr<op::Parameter>& param);
+
     private:
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
         Function& operator=(const Function&) = delete;
+        /// \brief Checks all the Parameter nodes are registered in the list of Function parameters
+        void check_all_parameters_registered() const;
 
         static std::atomic<size_t> m_next_instance_id;
         std::string m_name;
@@ -150,20 +211,25 @@ namespace ngraph
         topological_sort_t m_topological_sorter;
 
         ResultVector m_results;
+
+        // List of the nodes with side effect in graph.
+        // These nodes are not outputs of graph but should not be removed even if have no children.
+        SinkVector m_sinks;
         ParameterVector m_parameters;
     };
 
     template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<Function>> : public VisitorAdapter
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<Function>>
+        : public DirectValueAccessor<std::shared_ptr<Function>>
     {
     public:
-        AttributeAdapter(std::shared_ptr<Function>& ref);
+        AttributeAdapter(std::shared_ptr<Function>& value)
+            : DirectValueAccessor<std::shared_ptr<Function>>(value)
+        {
+        }
 
-        bool visit_attributes(AttributeVisitor& visitor) override;
-
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<shared_ptr<Function>>", 0};
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Function>>",
+                                                    0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    protected:
-        std::shared_ptr<Function>& m_ref;
     };
-}
+} // namespace ngraph

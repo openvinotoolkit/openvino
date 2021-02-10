@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "cpp_interfaces/impl/ie_infer_async_request_internal.hpp"
 #include "cpp_interfaces/impl/ie_infer_request_internal.hpp"
@@ -63,8 +64,11 @@ public:
     }
 
     void Export(const std::string& modelFileName) override {
-        (void)modelFileName;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        // we need to write to stringstream first
+        // because in case of exception in ExportImpl the file is not created
+        std::stringstream strm;
+        ExportImpl(strm);
+        std::ofstream(modelFileName.c_str()) << strm.rdbuf();
     }
 
     void Export(std::ostream& networkModel) override {
@@ -75,9 +79,8 @@ public:
         networkModel << strm.rdbuf();
     }
 
-    void GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr) override {
-        (void)graphPtr;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    CNNNetwork GetExecGraphInfo() override {
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     /**
@@ -89,12 +92,11 @@ public:
         _plugin = plugin;
     }
 
-    std::vector<IMemoryStateInternal::Ptr> QueryState() override {
-        // meaning base plugin reports as no state available - plugin owners need to create proper override of this
-        return {};
+    std::vector<IVariableStateInternal::Ptr> QueryState() override {
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
-    void SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* /* resp */) override {
+    void SetConfig(const std::map<std::string, Parameter>& config) override {
         if (config.empty()) {
             THROW_IE_EXCEPTION << "The list of configuration values is empty";
         }
@@ -102,16 +104,18 @@ public:
                            << config.begin()->first;
     }
 
-    void GetConfig(const std::string& /* name */, Parameter& /* result */, ResponseDesc* /* resp */) const override {
+    Parameter GetConfig(const std::string& name) const override {
+        (void)name;
         THROW_IE_EXCEPTION << "GetConfig for executable network is not supported by this device";
     }
 
-    void GetMetric(const std::string& /* name */, Parameter& /* result */, ResponseDesc* /* resp */) const override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    Parameter GetMetric(const std::string& name) const override {
+        (void)name;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
-    void GetContext(RemoteContext::Ptr& /* pContext */, ResponseDesc* /* resp */) const override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    RemoteContext::Ptr GetContext() const override {
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
 protected:
@@ -123,7 +127,7 @@ protected:
      */
     virtual void ExportImpl(std::ostream& networkModel) {
         (void)networkModel;
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 
     InferenceEngine::InputsDataMap _networkInputs;  //!< Holds infromation about network inputs info

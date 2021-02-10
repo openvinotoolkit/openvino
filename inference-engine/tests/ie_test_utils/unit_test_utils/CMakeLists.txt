@@ -9,7 +9,6 @@ add_subdirectory(mocks/mock_engine)
 list(APPEND EXPORT_DEPENDENCIES
         commonTestUtils_s
         inference_engine_s
-        inference_engine_lp_transformations
         gmock)
 
 addIeTarget(
@@ -18,6 +17,7 @@ addIeTarget(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         ADD_CPPLINT
         DEVELOPER_PACKAGE
+            inference_engine_tests
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
 )

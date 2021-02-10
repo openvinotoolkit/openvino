@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,36 +14,27 @@
 
 #include "include/common.cl"
 #include "include/data_types.cl"
+#include "include/fetch.cl"
 
-#if DENSE
-__attribute__((intel_reqd_sub_group_size(16)))
-__attribute__((reqd_work_group_size(16, 1, 1)))
-#endif
-KERNEL (tile_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
+KERNEL(tile_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
-#if DENSE
+    const uint x = (uint)get_global_id(0) % OUTPUT_SIZE_X;
+    const uint y = (uint)get_global_id(0) / OUTPUT_SIZE_X;
+    const uint f = (uint)get_global_id(2) / OUTPUT_BATCH_NUM;
+    const uint b = (uint)get_global_id(2) % OUTPUT_BATCH_NUM;
+    #if OUTPUT_DIMS == 6
+    const uint z = (uint)get_global_id(1) % OUTPUT_SIZE_Z;
+    const uint w = (uint)get_global_id(1) / OUTPUT_SIZE_Z;
+    const uint out_offset = OUTPUT_GET_INDEX(b, f, w, z, y, x);
+    const uint in_offset = INPUT0_GET_INDEX_SAFE(b, f, w, z, y, x);
+    #elif OUTPUT_DIMS == 5
+    const uint z = (uint)get_global_id(1);
+    const uint out_offset = OUTPUT_GET_INDEX(b, f, z, y, x);
+    const uint in_offset = INPUT0_GET_INDEX_SAFE(b, f, z, y, x);
+    #elif OUTPUT_DIMS == 4
+    const uint out_offset = OUTPUT_GET_INDEX(b, f, y, x);
+    const uint in_offset = INPUT0_GET_INDEX_SAFE(b, f, y, x);
+    #endif
 
-    const uint id = get_global_id(0);
-    const uint group_id = id / 16;
-    const uint lid = get_local_id(0);
-    const uint idx = min((uint)(id), (uint)(OUTER_SIZE - 1));
-    UNIT_TYPE val = input[idx];
-
-    for (int t = 0; t < TILES; t++)
-    {
-        UNIT_TYPE save_val = intel_sub_group_shuffle(val, (t*16 + lid)/TILES);
-        int offset = group_id*16*TILES + t*16 + lid;
-        if (offset < OUTPUT_ELEMENTS)
-            output[offset] = save_val;
-    }
-#else
-    const uint outer_idx = get_global_id(0);
-    const uint inner_idx = get_global_id(1);
-    if (inner_idx >= AXIS_PITCH) return;
-
-    for (int t = 0; t < TILES; t++)
-    {
-        output[outer_idx*TILES*AXIS_PITCH + t*AXIS_PITCH + inner_idx] = input[outer_idx*AXIS_PITCH + inner_idx];
-    }
-#endif
+    output[out_offset] = input[in_offset];
 }

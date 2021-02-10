@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // y ou may not use this file except in compliance with the License.
@@ -55,6 +55,10 @@ KernelsData EltwiseKernelRef::GetKernelsData(const Params& params, const optiona
     return GetCommonKernelsData(params, options);
 }
 
+KernelsPriority EltwiseKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
+
 JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) const {
     auto jit = EltwiseKernelBase::GetJitConstants(params);
 
@@ -70,8 +74,13 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
             idx_order = {"d6", "d5", "d4", "d3", "d2", "d1"};
         }
 
-        FusedOpsConfiguration conf = {"", idx_order, "res", input_dt, 1};
-        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        if (!params.layoutBased && !params.int8_quantization && !params.broadcast && CheckInputsOutputNoPitchSameDims(params)) {
+            FusedOpsConfiguration conf = {"", {"d1"}, "res", input_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::ENABLED, IndexType::LINEAR_OFFSET};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        } else {
+            FusedOpsConfiguration conf =  {"", idx_order, "res", input_dt, 1};
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        }
     }
 
     return jit;

@@ -8,14 +8,14 @@
 #include <memory>
 
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp>
 
 #include <ngraph/ops.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/function.hpp>
-#include <ngraph_ops/gru_sequence_ie.hpp>
-#include <ngraph_ops/rnn_sequence_ie.hpp>
-#include <ngraph_ops/lstm_sequence_ie.hpp>
+#include <legacy/ngraph_ops/gru_sequence_ie.hpp>
+#include <legacy/ngraph_ops/rnn_sequence_ie.hpp>
+#include <legacy/ngraph_ops/lstm_sequence_ie.hpp>
 #include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/test_common.hpp"
@@ -200,8 +200,9 @@ TEST(TransformationTests, LSTMSequenceConversionTest) {
         const auto B = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32,
                                                                   ngraph::Shape{num_directions,
                                                                                 gates_count * hidden_size});
-        const auto seq_len = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i32, ngraph::Shape{batch_size});
-        sequence = std::make_shared<ngraph::opset5::LSTMSequence>(X, H_t, C_t, seq_len, W, R, B, hidden_size,
+
+        const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{batch_size});
+        sequence = std::make_shared<ngraph::op::v5::LSTMSequence>(X, H_t, C_t, seq_len, W, R, B, hidden_size,
                                                                   ngraph::op::RecurrentSequenceDirection::FORWARD);
         sequence->set_friendly_name("test_sequence");
 

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,10 @@ namespace ngraph
                 /// \brief Constructs a ReorgYolo operation
                 ///
                 /// \param input          Input
-                /// \param strides        Stride to reorganize input by
+                /// \param stride         Stride to reorganize input by
+                ReorgYolo(const Output<Node>& input, const size_t stride);
+
+                // Constructor with `strides` for backward compatibility
                 ReorgYolo(const Output<Node>& input, const Strides& strides);
 
                 void validate_and_infer_types() override;

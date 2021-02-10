@@ -12,8 +12,8 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph_ops/fully_connected.hpp>
-#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 

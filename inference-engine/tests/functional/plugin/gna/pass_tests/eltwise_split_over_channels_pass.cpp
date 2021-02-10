@@ -9,7 +9,7 @@
 
 #include <ie_core.hpp>
 
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -71,7 +71,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
         }
 };
 
-INSTANTIATE_TEST_CASE_P(EltwiseSplitOverChennels, EltwiseSplitOverChannelsPassTest,
+INSTANTIATE_TEST_CASE_P(smoke_EltwiseSplitOverChennels, EltwiseSplitOverChannelsPassTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),

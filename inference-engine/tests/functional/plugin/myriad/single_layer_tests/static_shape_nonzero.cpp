@@ -6,7 +6,7 @@
 
 #include "vpu/private_plugin_config.hpp"
 
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <functional_test_utils/blob_utils.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <precision_utils.h>
@@ -110,7 +110,7 @@ std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::I32,
 };
 
-INSTANTIATE_TEST_CASE_P(accuracy, StaticShapeNonZeroLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_accuracy, StaticShapeNonZeroLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputDims),
                                 ::testing::ValuesIn(inputPrecisions),

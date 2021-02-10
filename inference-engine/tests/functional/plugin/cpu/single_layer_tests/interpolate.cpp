@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/interpolate.hpp>
+#include <shared_test_classes/single_layer/interpolate.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -12,6 +12,7 @@ namespace CPULayerTestsDefinitions {
 
 typedef std::tuple<
         LayerTestsDefinitions::InterpolateLayerTestParams,
+        std::map<std::string, std::string>,  // Bf16 config
         CPUSpecificParams> InterpolateLayerCPUTestParamsSet;
 
 class InterpolateLayerCPUTest : public testing::WithParamInterface<InterpolateLayerCPUTestParamsSet>,
@@ -20,11 +21,15 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerCPUTestParamsSet> obj) {
         LayerTestsDefinitions::InterpolateLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
+        std::map<std::string, std::string> bf16config;
+        std::tie(basicParamsSet, bf16config, cpuParams) = obj.param;
 
         std::ostringstream result;
         result << LayerTestsDefinitions::InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<LayerTestsDefinitions::InterpolateLayerTestParams>(
                 basicParamsSet, 0));
+
+        result << "bf16Enforce=" << (bf16config.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16) ?
+                                     bf16config.at(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16) : InferenceEngine::PluginConfigParams::NO);
 
         result << CPUTestsBase::getTestCaseName(cpuParams);
 
@@ -35,60 +40,61 @@ protected:
     void SetUp() {
         LayerTestsDefinitions::InterpolateLayerTestParams basicParamsSet;
         CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        std::map<std::string, std::string> bf16config;
+        std::tie(basicParamsSet, bf16config, cpuParams) = this->GetParam();
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         LayerTestsDefinitions::InterpolateSpecificParams interpolateParams;
         std::vector<size_t> inputShape;
         std::vector<size_t> targetShape;
-        auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(interpolateParams, netPrecision, inputShape, targetShape, targetDevice) = basicParamsSet;
+        auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
+        std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice) = basicParamsSet;
 
         ngraph::op::v4::Interpolate::InterpolateMode mode;
+        ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
         ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode;
         ngraph::op::v4::Interpolate::NearestMode nearestMode;
         bool antialias;
         std::vector<size_t> padBegin, padEnd;
         double cubeCoef;
-        std:tie(mode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef) = interpolateParams;
-
+        std::vector<int64_t> axes;
+        std::vector<float> scales;
+        std::tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
+        inPrc = outPrc = netPrecision;
+        configuration.insert(bf16config.begin(), bf16config.end());
         using ShapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode;
-        ShapeCalcMode shape_calc_mode = ShapeCalcMode::sizes;
 
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
         auto constant = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {targetShape.size()}, targetShape);
 
-        std::vector<float> scales(targetShape.size(), 1.0f);
         auto scales_const = ngraph::opset3::Constant(ngraph::element::Type_t::f32, {scales.size()}, scales);
 
         auto scalesInput = std::make_shared<ngraph::opset3::Constant>(scales_const);
 
         auto secondaryInput = std::make_shared<ngraph::opset3::Constant>(constant);
 
-        ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{mode, shape_calc_mode, padBegin,
+        auto axesConst = ngraph::opset3::Constant(ngraph::element::Type_t::i64, {axes.size()}, axes);
+        auto axesInput = std::make_shared<ngraph::opset3::Constant>(axesConst);
+        ngraph::op::v4::Interpolate::InterpolateAttrs interpolateAttributes{mode, shapeCalcMode, padBegin,
             padEnd, coordinateTransformMode, nearestMode, antialias, cubeCoef};
         auto interpolate = std::make_shared<ngraph::op::v4::Interpolate>(params[0],
                                                                          secondaryInput,
                                                                          scalesInput,
+                                                                         axesInput,
                                                                          interpolateAttributes);
-        interpolate->get_rt_info() = CPUTestsBase::setCPUInfo(inFmts, outFmts, priority);
-        const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
-        function = std::make_shared<ngraph::Function>(results, params, "interpolate");
+        function = makeNgraphFunction(ngPrc, params, interpolate, "interpolate");
+        selectedType = getPrimitiveType() + "_" + inPrc.name();
     }
-
-    std::vector<cpu_memory_format_t> inFmts, outFmts;
-    std::vector<std::string> priority;
-    std::string selectedType;
 };
 
 TEST_P(InterpolateLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Interpolate", inFmts, outFmts, selectedType);
+    CheckPluginRelatedResults(executableNetwork, "Interpolate");
 }
 
 namespace {
@@ -99,7 +105,6 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
     if (with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw16c, x, x}, {nChw16c}, {"jit_avx512"}, "jit_avx512_FP32"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx512"}, "jit_avx512_FP32"});
-        resCPUParams.push_back(CPUSpecificParams{{nchw, x, x}, {nchw}, {"jit_avx2"}, "jit_avx2_FP32"});
     } else if (with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{nChw8c, x, x}, {nChw8c}, {"jit_avx2"}, "jit_avx2_FP32"});
         resCPUParams.push_back(CPUSpecificParams{{nhwc, x, x}, {nhwc}, {"jit_avx2"}, "jit_avx2_FP32"});
@@ -115,7 +120,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice() {
 /* ========== */
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::BF16
 };
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
@@ -124,6 +130,11 @@ const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordina
         ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
         ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
         ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
+        ngraph::op::v4::Interpolate::ShapeCalcMode::sizes,
+        ngraph::op::v4::Interpolate::ShapeCalcMode::scales,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
@@ -140,6 +151,7 @@ const std::vector<ngraph::op::v4::Interpolate::NearestMode> defNearestModes = {
 
 const std::vector<std::vector<size_t>> pads = {
         {0, 0, 0, 0},
+        {0, 0, 1, 1},
 };
 
 const std::vector<bool> antialias = {
@@ -150,45 +162,221 @@ const std::vector<double> cubeCoefs = {
         -0.75f,
 };
 
+const std::vector<std::vector<int64_t>> defaultAxes = {
+    {2, 3}
+};
+
+const std::vector<std::vector<float>> defaultScales = {
+    {1.25f, 1.5f}
+};
+
 const auto interpolateCasesNN = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
+        ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
         ::testing::ValuesIn(nearestModes),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(pads),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
 
 const auto interpolateCasesLinearOnnx = ::testing::Combine(
         ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
+        ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
         ::testing::ValuesIn(defNearestModes),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(pads),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
 
-INSTANTIATE_TEST_CASE_P(InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
+const auto interpolateCasesCubic = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::cubic),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
+
+const auto interpolateCasesBf16Enforced = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::nearest),
+        ::testing::Values(ngraph::op::v4::Interpolate::ShapeCalcMode::scales),
+        ::testing::Values(ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn),
+        ::testing::Values(ngraph::op::v4::Interpolate::NearestMode::simple),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
+
+std::vector<std::map<std::string, std::string>> bf16EnforceFlags = {
+        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}},
+        {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES}}
+};
+
+INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
                 interpolateCasesNN,
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(std::vector<size_t>({1, 1, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 1, 50, 60})),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(std::map<std::string, std::string> {}),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTest,
+INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
                 interpolateCasesLinearOnnx,
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(std::vector<size_t>({1, 1, 40, 40})),
-                ::testing::Values(std::vector<size_t>({1, 1, 50, 60})),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(std::map<std::string, std::string> {}),
             ::testing::ValuesIn(filterCPUInfoForDevice())),
     InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            ::testing::Combine(
+                interpolateCasesCubic,
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::Values(std::map<std::string, std::string> {}),
+            ::testing::ValuesIn(filterCPUInfoForDevice())),
+    InterpolateLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Enforced_Bf16_Layout_Test, InterpolateLayerCPUTest,
+        ::testing::Combine(
+            ::testing::Combine(
+                interpolateCasesBf16Enforced,
+                ::testing::Values(InferenceEngine::Precision::BF16),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(std::vector<size_t>({1, 21, 40, 40})),
+                ::testing::Values(std::vector<size_t>({1, 21, 50, 60})),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+            ::testing::ValuesIn(bf16EnforceFlags),
+            ::testing::ValuesIn(filterCPUInfoForDevice())),
+        InterpolateLayerCPUTest::getTestCaseName);
+
+
+////////////////////////5D/////////////////////////////
+std::vector<CPUSpecificParams> filterCPUInfoForDevice5D() {
+    std::vector<CPUSpecificParams> resCPUParams;
+    if (with_cpu_x86_avx512f()) {
+        resCPUParams.push_back(CPUSpecificParams{{nCdhw16c, x, x}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x}, {ndhwc}, {"jit_avx512"}, "jit_avx512_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x}, {ncdhw}, {"jit_avx512"}, "jit_avx512_FP32"});
+    } else if (with_cpu_x86_avx2()) {
+        resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x, x}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x}, {ndhwc}, {"jit_avx2"}, "jit_avx2_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x}, {ncdhw}, {"jit_avx2"}, "jit_avx2_FP32"});
+    } else if (with_cpu_x86_sse42()) {
+        resCPUParams.push_back(CPUSpecificParams{{nCdhw8c, x, x}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ndhwc, x, x}, {ndhwc}, {"jit_sse42"}, "jit_sse42_FP32"});
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x}, {ncdhw}, {"jit_sse42"}, "jit_sse42_FP32"});
+    } else {
+        resCPUParams.push_back(CPUSpecificParams{{ncdhw, x, x}, {ncdhw}, {"ref"}, "ref_FP32"});
+    }
+    return resCPUParams;
+}
+
+const std::vector<std::vector<size_t>> pads5D = {
+        {0, 0, 0, 0, 0}
+};
+
+const std::vector<std::vector<int64_t>> defaultAxes5D = {
+    {2, 3, 4}
+};
+
+const std::vector<std::vector<float>> defaultScales5D = {
+    {1.25f, 1.5f, 1.5f}
+};
+
+const auto interpolateCasesLinearOnnx5D = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(nearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes5D),
+        ::testing::ValuesIn(defaultScales5D));
+
+const auto interpolateCasesNN5D = ::testing::Combine(
+        ::testing::Values(ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(defNearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(pads5D),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes5D),
+        ::testing::ValuesIn(defaultScales5D));
+
+// open when ref merged
+// INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx5D_Layout_Test, InterpolateLayerCPUTest,
+//         ::testing::Combine(
+//             ::testing::Combine(
+//                 interpolateCasesLinearOnnx5D,
+//                 ::testing::ValuesIn(netPrecisions),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Layout::ANY),
+//                 ::testing::Values(InferenceEngine::Layout::ANY),
+//                 ::testing::Values(std::vector<size_t>({1, 21, 4, 10, 10})),
+//                 ::testing::Values(std::vector<size_t>({1, 21, 5, 15, 15})),
+//                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//             ::testing::Values(std::map<std::string, std::string> {}),
+//             ::testing::ValuesIn(filterCPUInfoForDevice5D())),
+//     InterpolateLayerCPUTest::getTestCaseName);
+
+// INSTANTIATE_TEST_CASE_P(smoke_InterpolateNN5D_Layout_Test, InterpolateLayerCPUTest,
+//         ::testing::Combine(
+//             ::testing::Combine(
+//                 interpolateCasesNN5D,
+//                 ::testing::ValuesIn(netPrecisions),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Layout::ANY),
+//                 ::testing::Values(InferenceEngine::Layout::ANY),
+//                 ::testing::Values(std::vector<size_t>({1, 21, 4, 10, 10})),
+//                 ::testing::Values(std::vector<size_t>({1, 21, 5, 15, 15})),
+//                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//             ::testing::Values(std::map<std::string, std::string> {}),
+//             ::testing::ValuesIn(filterCPUInfoForDevice5D())),
+//     InterpolateLayerCPUTest::getTestCaseName);
 
 } // namespace
 

@@ -28,12 +28,13 @@ public:
     virtual ~ConvolutionKernel_mmad_b_fs_yx_fsv32_dw() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
         return WeightsLayout::goiyx;
     }

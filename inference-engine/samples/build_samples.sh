@@ -64,7 +64,7 @@ if [ "$OS_PATH" == "x86_64" ]; then
 fi
 
 if [ -e "$build_dir/CMakeCache.txt" ]; then
-    rm -rf "$build_dir/CMakeCache.txt"
+  rm -rf "$build_dir/CMakeCache.txt"
 fi
 mkdir -p "$build_dir"
 cd "$build_dir"

@@ -74,8 +74,7 @@ class PWLMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     };
 
     DnnActivationType detectPwlType(gna_nnet_layer_t *layer) const {
-
-        intel_dnn_component_t comp;
+        intel_dnn_component_t comp{};
         comp.ptr_outputs = layer->pOutputs;
         comp.num_columns_in = layer->nInputColumns;
         comp.num_rows_in = layer->nInputRows;

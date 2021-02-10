@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -44,13 +44,14 @@ struct reorg_yolo_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ReorgYoloKernelRef
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class ReorgYoloKernelRef : public common_kernel_base {
+class ReorgYoloKernelRef : public KernelBaseOpenCL {
 public:
-    ReorgYoloKernelRef() : common_kernel_base("reorg_yolo_gpu_ref") {}
+    ReorgYoloKernelRef() : KernelBaseOpenCL("reorg_yolo_gpu_ref") {}
     virtual ~ReorgYoloKernelRef() {}
 
     using DispatchData = CommonDispatchData;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

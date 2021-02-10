@@ -4,7 +4,7 @@
 
 #include "dsr_tests_common.hpp"
 
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 
 #include <ngraph_functions/builders.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
@@ -98,7 +98,7 @@ std::vector<ConcatParam> concatParams = {
         },
 };
 
-INSTANTIATE_TEST_CASE_P(DynamicConcat, DSR_Concat, ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_DynamicConcat, DSR_Concat, ::testing::Combine(
         ::testing::ValuesIn(dataTypes),
         ::testing::ValuesIn(concatParams),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));

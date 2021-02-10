@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ set(TARGET_NAME "ngraph_reference")
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
-set(REF_IMPL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/ CACHE INTERNAL "")
+set(REF_IMPL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -30,14 +30,22 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create shared library
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-# Defines macro in C++ to load backend plugin
-target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR})
-target_include_directories(${TARGET_NAME} PRIVATE ${NGRAPH_INCLUDE_PATH}
-                                                  ${REF_IMPL_INCLUDE_DIR}/ngraph)
+if(COMMAND ie_faster_build)
+    ie_faster_build(${TARGET_NAME}
+        UNITY
+        PCH PRIVATE "src/precomp.hpp"
+    )
+endif()
 
-#Add an alias so that library can be used inside the build tree, e.g. when testing
+target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_NO_OP_NAMES XBYAK64)
+
+# Defines macro in C++ to load backend plugin
+target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH})
+
+target_link_libraries(${TARGET_NAME} PRIVATE xbyak)
+
+# Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::reference ALIAS ${TARGET_NAME})
 
 # developer package
-
-openvino_developer_export_targets(ngraph::reference)
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph::reference)

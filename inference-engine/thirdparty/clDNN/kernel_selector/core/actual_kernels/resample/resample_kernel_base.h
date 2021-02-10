@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
+
+#include <map>
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -23,10 +25,17 @@ namespace kernel_selector {
 struct resample_params : public base_params {
     resample_params() : base_params(KernelType::RESAMPLE) {}
 
-    uint32_t pad_begin = 0;
-    uint32_t pad_end = 0;
+    std::vector<int32_t> pads_begin = {};
+    std::vector<int32_t> pads_end = {};
     uint32_t align_corners = 0;
     ResampleType resampleType = ResampleType::NEAREST_NEIGHBOR;
+    CoordinateTransformationMode coordTransMode = CoordinateTransformationMode::HALF_PIXEL;
+    NearestMode nearestMode = NearestMode::ROUND_PREFER_FLOOR;
+    ShapeCalculationMode shapeCalculationMode = ShapeCalculationMode::SIZES;
+    uint32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    using AxesAndScales = std::map<InterpolateAxis, float>;
+    AxesAndScales axesAndScales;
 
     virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
@@ -45,10 +54,10 @@ struct resample_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ResampleKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class ResampleKernelBase : public common_kernel_base {
+class ResampleKernelBase : public KernelBaseOpenCL {
 public:
     using DispatchData = CommonDispatchData;
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
 
     virtual ~ResampleKernelBase() {}
 

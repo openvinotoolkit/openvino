@@ -10,7 +10,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <transformations/convert_pad_to_group_conv.hpp>
+#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -31,14 +31,9 @@ TEST(TransformationTests, ConvertPadToConv) {
         auto pad = std::make_shared<opset4::Pad>(input, pad_begin, pad_end, pad_value, pad_mode);
         f = std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
 
-        const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-            return std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node) != nullptr;
-        };
-
         pass::Manager manager;
         manager.register_pass<pass::InitNodeInfo>();
         manager.register_pass<pass::ConvertPadToGroupConvolution>();
-        manager.set_callback(transformations_callback);
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -69,15 +64,10 @@ TEST(TransformationTests, ConvertPadToConvNeg1) {
         return std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
     };
 
-    const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-            return !!std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
-    };
-
     std::shared_ptr<Function> f(get_function()), f_ref(get_function());
     pass::Manager manager;
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPadToGroupConvolution>();
-    manager.set_callback(transformations_callback);
     manager.run_passes(f);
 
     ASSERT_NO_THROW(check_rt_info(f));
@@ -97,15 +87,10 @@ TEST(TransformationTests, ConvertPadToConvNeg2) {
         return std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
     };
 
-    const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-            return !!std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
-    };
-
     std::shared_ptr<Function> f(get_function()), f_ref(get_function());
     pass::Manager manager;
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPadToGroupConvolution>();
-    manager.set_callback(transformations_callback);
     manager.run_passes(f);
 
     ASSERT_NO_THROW(check_rt_info(f));
@@ -125,15 +110,10 @@ TEST(TransformationTests, ConvertPadToConvNeg3) {
         return std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
     };
 
-    const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-            return !!std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
-    };
-
     std::shared_ptr<Function> f(get_function()), f_ref(get_function());
     pass::Manager manager;
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPadToGroupConvolution>();
-    manager.set_callback(transformations_callback);
     manager.run_passes(f);
 
     ASSERT_NO_THROW(check_rt_info(f));
@@ -154,15 +134,10 @@ TEST(TransformationTests, ConvertPadToConvNeg4) {
         return std::make_shared<Function>(NodeVector{pad}, ParameterVector{input});
     };
 
-    const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-            return !!std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
-    };
-
     std::shared_ptr<Function> f(get_function()), f_ref(get_function());
     pass::Manager manager;
     manager.register_pass<pass::InitNodeInfo>();
     manager.register_pass<pass::ConvertPadToGroupConvolution>();
-    manager.set_callback(transformations_callback);
     manager.run_passes(f);
 
     ASSERT_NO_THROW(check_rt_info(f));

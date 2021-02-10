@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -26,7 +26,6 @@
 #include <opencv2/gapi/gcommon.hpp>
 #include "logger.hpp"
 
-#include <opencv2/gapi/own/convert.hpp>
 #include <opencv2/gapi/gmat.hpp>    //for version of descr_of
 // PRIVATE STUFF!
 #include "compiler/gobjref.hpp"
@@ -87,15 +86,15 @@ namespace
                     return gim.metadata(nh).get<NodeKind>().k == NodeKind::ISLAND;
                 });
 
-            const auto out_rois = cv::gimpl::getCompileArg<cv::GFluidOutputRois>(args);
+            const auto out_rois = cv::gapi::getCompileArg<cv::GFluidOutputRois>(args);
             if (num_islands > 1 && out_rois.has_value())
                 cv::util::throw_error(std::logic_error("GFluidOutputRois feature supports only one-island graphs"));
 
             auto rois = out_rois.value_or(cv::GFluidOutputRois());
 
             auto graph_data = fluidExtractInputDataFromGraph(graph, nodes);
-            const auto parallel_out_rois = cv::gimpl::getCompileArg<cv::GFluidParallelOutputRois>(args);
-            const auto gpfor             = cv::gimpl::getCompileArg<cv::GFluidParallelFor>(args);
+            const auto parallel_out_rois = cv::gapi::getCompileArg<cv::GFluidParallelOutputRois>(args);
+            const auto gpfor             = cv::gapi::getCompileArg<cv::GFluidParallelFor>(args);
 
 #if !defined(GAPI_STANDALONE)
             auto default_pfor = [](std::size_t count, std::function<void(std::size_t)> f){
@@ -833,7 +832,8 @@ cv::gimpl::GFluidExecutable::GFluidExecutable(const ade::Graph                  
       m_num_int_buffers (traverse_res.m_mat_count),
       m_scratch_users   (traverse_res.m_scratch_users),
       m_id_map          (traverse_res.m_id_map),
-      m_all_gmat_ids    (traverse_res.m_all_gmat_ids)
+      m_all_gmat_ids    (traverse_res.m_all_gmat_ids),
+      m_buffers(m_num_int_buffers + m_scratch_users.size())
 {
     GConstFluidModel fg(m_g);
 
@@ -857,9 +857,6 @@ cv::gimpl::GFluidExecutable::GFluidExecutable(const ade::Graph                  
     // Actually initialize Fluid buffers
     GAPI_LOG_INFO(NULL, "Initializing " << m_num_int_buffers << " fluid buffer(s)" << std::endl);
 
-    const std::size_t num_scratch = m_scratch_users.size();
-    m_buffers.resize(m_num_int_buffers + num_scratch);
-
     // After buffers are allocated, repack: ...
     for (auto &agent : m_agents)
     {
@@ -882,10 +879,10 @@ cv::gimpl::GFluidExecutable::GFluidExecutable(const ade::Graph                  
                 auto inEdge = GModel::getInEdgeByPort(m_g, agent->op_handle, in_idx);
                 auto ownStorage = fg.metadata(inEdge).get<FluidUseOwnBorderBuffer>().use;
 
-                gapi::fluid::View view = buffer.mkView(fu.border_size, ownStorage);
                 // NB: It is safe to keep ptr as view lifetime is buffer lifetime
-                agent->in_views[in_idx] = view;
-                agent->in_args[in_idx]  = GArg(view);
+                agent->in_views[in_idx] = buffer.mkView(fu.border_size, ownStorage);
+                agent->in_args[in_idx]  = GArg(&agent->in_views[in_idx]);
+                buffer.addView(&agent->in_views[in_idx]);
             }
             else
             {
@@ -905,6 +902,7 @@ cv::gimpl::GFluidExecutable::GFluidExecutable(const ade::Graph                  
     }
 
     // After parameters are there, initialize scratch buffers
+    const std::size_t num_scratch = m_scratch_users.size();
     if (num_scratch)
     {
         GAPI_LOG_INFO(NULL, "Initializing " << num_scratch << " scratch buffer(s)" << std::endl);
@@ -932,8 +930,8 @@ std::size_t cv::gimpl::GFluidExecutable::total_buffers_size() const
     for (const auto &i : ade::util::indexed(m_buffers))
     {
         // Check that all internal and scratch buffers are allocated
-        const auto idx = ade::util::index(i);
-        const auto b   = ade::util::value(i);
+        const auto  idx = ade::util::index(i);
+        const auto& b   = ade::util::value(i);
         if (idx >= m_num_int_buffers ||
             fg.metadata(m_all_gmat_ids.at(idx)).get<FluidData>().internal == true)
         {
@@ -954,7 +952,7 @@ namespace
         using namespace cv::gimpl;
         GModel::Graph g(graph);
         GFluidModel fg(graph);
-        for (const auto node : g.nodes())
+        for (const auto& node : g.nodes())
         {
             if (g.metadata(node).get<NodeType>().t == NodeType::DATA)
             {
@@ -1238,55 +1236,32 @@ void cv::gimpl::GFluidExecutable::reshape(ade::Graph &g, const GCompileArgs &arg
     initLineConsumption(g);
     calcLatency(g);
     calcSkew(g);
-    const auto out_rois = cv::gimpl::getCompileArg<cv::GFluidOutputRois>(args).value_or(cv::GFluidOutputRois());
+    const auto out_rois = cv::gapi::getCompileArg<cv::GFluidOutputRois>(args).value_or(cv::GFluidOutputRois());
     makeReshape(out_rois.rois);
 }
 
 // FIXME: Document what it does
 void cv::gimpl::GFluidExecutable::bindInArg(const cv::gimpl::RcDesc &rc, const GRunArg &arg)
 {
-    switch (rc.shape)
-    {
-    case GShape::GMAT:    m_buffers[m_id_map.at(rc.id)].priv().bindTo(util::get<cv::gapi::own::Mat>(arg), true); break;
-    case GShape::GSCALAR: m_res.slot<cv::Scalar>()[rc.id] = util::get<cv::Scalar>(arg); break;
-    case GShape::GARRAY:  m_res.slot<cv::detail::VectorRef>()[rc.id] = util::get<cv::detail::VectorRef>(arg); break;
-    case GShape::GOPAQUE: m_res.slot<cv::detail::OpaqueRef>()[rc.id] = util::get<cv::detail::OpaqueRef>(arg); break;
+    magazine::bindInArg(m_res, rc, arg);
+    if (rc.shape == GShape::GMAT) {
+        auto& mat = m_res.slot<cv::Mat>()[rc.id];
+        // fluid::Buffer::bindTo() is not connected to magazine::bindIn/OutArg and unbind() calls,
+        // it's simply called each run() without any requirement to call some fluid-specific
+        // unbind() at the end of run()
+        m_buffers[m_id_map.at(rc.id)].priv().bindTo(mat, true);
     }
 }
 
 void cv::gimpl::GFluidExecutable::bindOutArg(const cv::gimpl::RcDesc &rc, const GRunArgP &arg)
 {
     // Only GMat is supported as return type
-    using T = GRunArgP;
-    switch (rc.shape)
-    {
-    case GShape::GMAT:
-        {
-            cv::GMatDesc desc = m_buffers[m_id_map.at(rc.id)].meta();
-            auto &bref = m_buffers[m_id_map.at(rc.id)].priv();
-
-            switch (arg.index()) {
-            // FIXME: See the bindInArg comment on Streaming-related changes
-            case T::index_of<cv::gapi::own::Mat*>(): {
-                auto &outMat = *util::get<cv::gapi::own::Mat*>(arg);
-                GAPI_Assert(outMat.data != nullptr);
-                GAPI_Assert(descr_of(outMat) == desc && "Output argument was not preallocated as it should be ?");
-                bref.bindTo(outMat, false);
-            } break;
-#if !defined(GAPI_STANDALONE)
-            case T::index_of<cv::Mat*>(): {
-                auto &outMat = *util::get<cv::Mat*>(arg);
-                GAPI_Assert(outMat.data != nullptr);
-                GAPI_Assert(descr_of(outMat) == desc && "Output argument was not preallocated as it should be ?");
-                bref.bindTo(cv::to_own(outMat), false);
-            } break;
-#endif // GAPI_STANDALONE
-            default: GAPI_Assert(false);
-            } // switch(arg.index())
-            break;
-        }
-    default: util::throw_error(std::logic_error("Unsupported return GShape type"));
+    if (rc.shape != GShape::GMAT) {
+        util::throw_error(std::logic_error("Unsupported return GShape type"));
     }
+    magazine::bindOutArg(m_res, rc, arg);
+    auto& mat = m_res.slot<cv::Mat>()[rc.id];
+    m_buffers[m_id_map.at(rc.id)].priv().bindTo(mat, false);
 }
 
 void cv::gimpl::GFluidExecutable::packArg(cv::GArg &in_arg, const cv::GArg &op_arg)
@@ -1392,6 +1367,10 @@ void cv::gimpl::GFluidExecutable::run(std::vector<InObj>  &input_objs,
             agent->doWork();
         }
     }
+
+    // In/Out args clean-up is mandatory now with RMat
+    for (auto &it : input_objs) magazine::unbind(m_res, it.first);
+    for (auto &it : output_objs) magazine::unbind(m_res, it.first);
 }
 
 cv::gimpl::GParallelFluidExecutable::GParallelFluidExecutable(const ade::Graph                      &g,
@@ -1461,7 +1440,7 @@ void GFluidBackendImpl::addMetaSensitiveBackendPasses(ade::ExecutionEngineSetupC
                 {
                     // Add FluidData to all data nodes inside island,
                     // set internal = true if node is not a slot in terms of higher-level GIslandModel
-                    for (const auto node : isl->contents())
+                    for (const auto& node : isl->contents())
                     {
                         if (g.metadata(node).get<NodeType>().t == NodeType::DATA &&
                             !fg.metadata(node).contains<FluidData>())

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 #include <string>
 
 #include "onnx_import/core/operator_set.hpp"
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
+#include "utils/onnx_importer_visibility.hpp"
 
 namespace ngraph
 {
@@ -43,6 +43,17 @@ namespace ngraph
                                std::int64_t version,
                                const std::string& domain,
                                Operator fn);
+
+        /// \brief      Unregisters ONNX custom operator.
+        ///             The function unregisters previously registered operator.
+        ///
+        /// \param      name      The ONNX operator name.
+        /// \param      version   The ONNX operator set version.
+        /// \param      domain    The domain the ONNX operator is registered to.
+        ONNX_IMPORTER_API
+        void unregister_operator(const std::string& name,
+                                 std::int64_t version,
+                                 const std::string& domain);
 
     } // namespace onnx_import
 

@@ -48,6 +48,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     }
 
     if (FLAGS_m.empty()) {
+        showUsage();
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
@@ -232,7 +233,8 @@ int main(int argc, char *argv[]) {
                     slog::warn << "-nstreams default value is determined automatically for " << device << " device. "
                           "Although the automatic selection usually provides a reasonable performance,"
                           "but it still may be non-optimal for some cases, for more information look at README." << slog::endl;
-                    device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
+                    if (std::string::npos == device.find("MYRIAD")) // MYRIAD sets the default number of streams implicitly (without _AUTO)
+                        device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
                 }
                 if (device_config.count(key))
                     device_nstreams[device] = device_config.at(key);
@@ -275,6 +277,7 @@ int main(int argc, char *argv[]) {
                 }
             } else if (device == "MYRIAD") {
                 device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
+                setThroughputStreams();
             } else if (device == "GNA") {
                 if (FLAGS_qb == 8)
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
@@ -283,6 +286,21 @@ int main(int argc, char *argv[]) {
 
                 if (isFlagSetInCommandLine("nthreads"))
                     device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
+            } else {
+                std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                auto supported = [&] (const std::string& key) {
+                    return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key)
+                        != std::end(supported_config_keys);
+                };
+                if (supported(CONFIG_KEY(CPU_THREADS_NUM)) && isFlagSetInCommandLine("nthreads")) {
+                    device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
+                }
+                if (supported(CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) && isFlagSetInCommandLine("nstreams")) {
+                    device_config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = FLAGS_nstreams;
+                }
+                if (supported(CONFIG_KEY(CPU_BIND_THREAD)) && isFlagSetInCommandLine("pin")) {
+                    device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
+                }
             }
         }
 
@@ -476,7 +494,7 @@ int main(int argc, char *argv[]) {
         size_t iteration = 0;
 
         std::stringstream ss;
-        ss << "Start inference " << FLAGS_api << "ronously";
+        ss << "Start inference " << FLAGS_api << "hronously";
         if (FLAGS_api == "async") {
             if (!ss.str().empty()) {
                 ss << ", ";

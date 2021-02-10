@@ -22,6 +22,8 @@
 #define IN_VEC16 MAKE_VECTOR_TYPE(INPUT0_TYPE, 16)
 #define OUT_VEC16 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 16)
 
+#define ACCUMULATOR_VEC16 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 16)
+#define TO_ACCUMULATOR_VEC16 CAT(convert_, ACCUMULATOR_VEC16)
 #define ACTIVATION_VEC16 MAKE_VECTOR_TYPE(ACTIVATION_TYPE, 16)
 #define TO_ACTIVATION_VEC16 CAT(convert_, ACTIVATION_VEC16)
 
@@ -35,6 +37,15 @@
 #error
 #endif
 
+inline ACCUMULATOR_VEC16 FUNC(apply_pooling16)(ACCUMULATOR_VEC16 tmp, ACCUMULATOR_VEC16 in)
+{
+#if MAX_POOLING
+    return ACCUMULATOR_MAX_FUNC(tmp, in);
+#elif AVG_POOLING
+    return tmp + in;
+#endif
+}
+
 inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
 #if MAX_POOLING
@@ -44,6 +55,168 @@ inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TY
 #endif
 }
 
+#if GLOBAL_POOLING
+__attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE)))
+__attribute__((reqd_work_group_size(1, LWS, 1)))
+KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+) {
+    const uint set_idx = (uint)get_global_id(1);
+#if OUTPUT_DIMS == 4
+    const uint y    = set_idx;
+    const uint z    = 0;
+#else
+    const uint y    = set_idx % INPUT0_SIZE_Y;
+    const uint z    = set_idx / INPUT0_SIZE_Y;
+#endif
+    const uint f    = (uint)get_global_id(2) * FEATURE_SLICE_SIZE;
+    const uint b    = (uint)get_global_id(0);
+
+    const uint loc_id   = (uint)get_local_id(1);
+
+#if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
+    const bool last_in_f_group = (f == FEATURE_SLICE_SIZE * ((INPUT0_FEATURE_NUM - 1) / FEATURE_SLICE_SIZE));
+#endif
+
+    const int offset_x = -PADDING_SIZE_X;
+
+    ACCUMULATOR_VEC16 result = INIT_VAL;
+    __local ACCUMULATOR_VEC16 lg_storage[LWS];
+
+    __attribute__((opencl_unroll_hint(UNROLL_Z)))
+    for (uint pz = 0; pz < Z_LOAD; pz++) {
+        __attribute__((opencl_unroll_hint(UNROLL_Y)))
+        for (uint py = 0; py < Y_LOAD; py++) {
+#if INPUT0_DIMS == 4
+            uint y_ind = y * Y_LOAD + py;
+            uint input_idx = INPUT0_GET_INDEX(b, f, y_ind, offset_x);
+            if (y_ind >= INPUT0_SIZE_Y)
+                continue;
+#else
+            uint z_ind = z * Z_LOAD + pz;
+            uint y_ind = y * Y_LOAD + py;
+            uint input_idx = INPUT0_GET_INDEX(b, f, z_ind, y_ind, offset_x);
+            if (z_ind >= INPUT0_SIZE_Z || y_ind >= INPUT0_SIZE_Y)
+                continue;
+#endif
+            __attribute__((opencl_unroll_hint(UNROLL_X)))
+            for (uint px = 0; px < POOL_SIZE_X; px++) {
+                IN_VEC16 ch16_data;
+#if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
+                if (!last_in_f_group) {
+#endif
+                    ch16_data = AS_TYPE(IN_VEC16, vload4(0, (__global int*)(input + input_idx)));
+                    result = FUNC_CALL(apply_pooling16)(result, TO_ACCUMULATOR_VEC16(ch16_data));
+#if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
+                } else {
+                    __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE)))
+                    for (uint k = 0; k < INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE; k++) {
+                        result[k] = FUNC_CALL(apply_pooling)(result[k], input[input_idx + k]);
+                    }
+                }
+#endif
+                input_idx += IN_X_PITCH;
+            }
+        }
+    }
+#if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
+    const uint num_elements = INPUT0_SIZE_X * INPUT0_SIZE_Z * INPUT0_SIZE_Y;
+#endif
+    lg_storage[loc_id] = result;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if (loc_id == 0) {
+        __attribute__((opencl_unroll_hint(LWS_SIZE)))
+        for (uint i = 1; i < LWS_SIZE; ++i) {
+            result = FUNC_CALL(apply_pooling16)(result, lg_storage[i]);
+        }
+
+        ACTIVATION_VEC16 pool_result;
+#if defined AVG_POOLING
+#if INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
+        __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE)))
+        for (uint i = 0; i < INPUT0_FEATURE_NUM % FEATURE_SLICE_SIZE; i++) {
+#else
+        __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
+        for (uint i = 0; i < FEATURE_SLICE_SIZE; i++) {
+#endif
+#if ENABLE_ROUND
+#if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
+            pool_result[i] = convert_int(round(((float)result[i] / max(num_elements, (uint)1))));
+#else
+            pool_result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_X * INPUT0_SIZE_Z * INPUT0_SIZE_Y)));
+#endif
+#else // ENABLE_ROUND
+#if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
+            pool_result[i] = (float)result[i] / max(num_elements, (uint)1);
+#else
+            pool_result[i] = (float)result[i] / (int)(POOL_SIZE_X * INPUT0_SIZE_Z * INPUT0_SIZE_Y);
+#endif
+#endif  // ENABLE_ROUND
+        }
+#else   // AVG_POOLING
+        pool_result = TO_ACTIVATION_VEC16(result);
+#endif  // AVG_POOLING
+
+        OUT_VEC16 final_result = OUTPUT_VAL_ZERO;
+#if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
+        FUSED_OPS_PRELOAD;
+#endif
+
+        __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
+        for (uint i = 0; i < FEATURE_SLICE_SIZE; i++) {
+#if HAS_FUSED_OPS
+#if FUSED_OPS_CAN_USE_PRELOAD
+            FUSED_OPS_CALC;
+#else
+            FUSED_OPS;
+#endif
+            final_result[i] = FUSED_OPS_RESULT;
+#else
+            final_result[i] = TO_OUTPUT_TYPE(ACTIVATION(pool_result[i], ACTIVATION_PARAMS));
+#endif
+        }
+
+#if OUTPUT_DIMS == 4
+        const uint output_pos = OUTPUT_GET_INDEX(b, f, 0, 0);
+#else
+        const uint output_pos = OUTPUT_GET_INDEX(b, f, 0, 0, 0);
+#endif
+
+#if OUTPUT_TYPE_SIZE == 1
+#if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
+        if (!last_in_f_group) {
+#endif
+            vstore4(as_uint4(final_result), 0, ((__global uint*)(output + output_pos)));
+#if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
+        } else {
+            __attribute__((opencl_unroll_hint(OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE)))
+            for (uint k = 0; k < OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE; k++) {
+                output[output_pos + k] = final_result[k];
+            }
+        }
+#endif
+#else
+#if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
+        if (!last_in_f_group) {
+#endif
+            *((__global OUT_VEC16*)(output + output_pos)) = final_result;
+#if OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE != 0
+        } else {
+            __attribute__((opencl_unroll_hint(OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE)))
+            for (uint k = 0; k < OUTPUT_FEATURE_NUM % FEATURE_SLICE_SIZE; k++) {
+                output[output_pos + k] = final_result[k];
+            }
+        }
+#endif
+#endif
+    }
+}
+#else  // GLOBAL_POOLING
 __attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE)))
 KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     const __global INPUT0_TYPE* input,
@@ -167,13 +340,13 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
 #else
     uint input_idx = INPUT0_GET_INDEX(b, f, offset_z, offset_y, offset_x);
 #endif
-    __attribute__((opencl_unroll_hint(POOL_SIZE_Z)))
+    __attribute__((opencl_unroll_hint(UNROLL_Z)))
     for(uint pz = 0; pz < POOL_SIZE_Z; pz++)
     {
-        __attribute__((opencl_unroll_hint(POOL_SIZE_Y)))
+        __attribute__((opencl_unroll_hint(UNROLL_Y)))
         for(uint py = 0; py < POOL_SIZE_Y; py++)
         {
-            __attribute__((opencl_unroll_hint(POOL_SIZE_X)))
+            __attribute__((opencl_unroll_hint(UNROLL_X)))
             for(uint px = 0; px < POOL_SIZE_X; px++)
             {
                 IN_VEC16 ch16_data;
@@ -218,7 +391,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
     const uint num_elements = POOL_SIZE_X*POOL_SIZE_Y*POOL_SIZE_Z;
 #endif
 #endif
-    
+
     ACTIVATION_VEC16 pool_result;
 #if defined AVG_POOLING
 #if ENABLE_ROUND
@@ -300,6 +473,7 @@ KERNEL(pooling_gpu_b_fs_zyx_fsv16)(
 #endif
 #endif
 }
+#endif // GLOBAL_POOLING
 
 #undef ALIGN_TO
 #undef AS_TYPE

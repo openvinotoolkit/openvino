@@ -3,7 +3,7 @@
 #
 
 # [cmake:main]
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13)
 
 project(InferenceEngineTemplatePlugin)
 
@@ -11,15 +11,19 @@ set(IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR ${InferenceEngineTemplatePlugin_SOURCE_DI
 
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wall)
+endif()
+
 add_subdirectory(src)
 
 if(ENABLE_TESTS)
-	include(CTest)
-	enable_testing()
+    include(CTest)
+    enable_testing()
 
-	if(ENABLE_FUNCTIONAL_TESTS)
-	    add_subdirectory(tests/functional)
-	endif()
+    if(ENABLE_FUNCTIONAL_TESTS)
+        add_subdirectory(tests/functional)
+    endif()
 endif()
 # [cmake:main]
 

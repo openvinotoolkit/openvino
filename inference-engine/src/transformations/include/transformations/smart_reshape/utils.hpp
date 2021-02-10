@@ -4,16 +4,8 @@
 
 #pragma once
 
-#include <functional>
-#include <memory>
-#include <assert.h>
-#include <vector>
-#include <limits>
-
 #include <transformations_visibility.hpp>
 #include <ngraph/op/util/op_annotations.hpp>
-#include <ngraph/op/constant.hpp>
-#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 
 namespace ngraph {

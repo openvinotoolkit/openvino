@@ -14,7 +14,7 @@ using namespace std;
 namespace InferenceEngine {
 namespace details {
 
-std::vector<CNNLayerPtr> CNNNetSortTopologically(const ICNNNetwork& network) {
+std::vector<CNNLayerPtr> CNNNetSortTopologically(const CNNNetwork& network) {
     std::vector<CNNLayerPtr> stackOfVisited;
     bool res = CNNNetForestDFS(
         CNNNetGetAllInputLayers(network),

@@ -47,7 +47,7 @@ struct CPUStreamsExecutor::Impl {
                 _offset{streamId * threadsPerStream  + threadBindingOffset} {
             }
             void on_scheduler_entry(bool) override {
-                PinThreadToVacantCore(_offset + tbb::task_arena::current_thread_index(), _threadBindingStep, _ncpus, _mask);
+                PinThreadToVacantCore(_offset + tbb::this_task_arena::current_thread_index(), _threadBindingStep, _ncpus, _mask);
             }
             void on_scheduler_exit(bool) override {
                 PinCurrentThreadByMask(_ncpus, _mask);
@@ -161,7 +161,7 @@ struct CPUStreamsExecutor::Impl {
         }
         for (auto streamId = 0; streamId < _config._streams; ++streamId) {
             _threads.emplace_back([this, streamId] {
-                itt::threadName(_config._name + "_" + std::to_string(streamId));
+                openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
                 for (bool stopped = false; !stopped;) {
                     Task task;
                     {

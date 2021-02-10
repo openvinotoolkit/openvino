@@ -42,43 +42,27 @@ JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) co
 NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normalize_params& params) const {
     const auto& output = params.output;
 
-    DispatchData kd;
-
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
-    std::vector<size_t> global(3);
-
+    DispatchData dispatchData;
     if (params.normMode == NormalizeMode::WITHIN_SPATIAL) {
-        global = {output.X().v, output.Y().v, output.Batch().v};
+        dispatchData.gws = {output.X().v, output.Y().v, output.Batch().v};
     } else {
-        global = {output.Batch().v, 1, 1};
+        dispatchData.gws = {output.Batch().v, 1, 1};
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
-                                                      const optional_params& options,
-                                                      float estimated_time) const {
+                                                      const optional_params& options) const {
     assert(params.GetType() == KernelType::NORMALIZE);
     if (!Validate(params, options))
         return {};
 
     const normalize_params& orgParams = static_cast<const normalize_params&>(params);
 
-    DispatchData runInfo;
-
-    runInfo = SetDefault(orgParams);
+    DispatchData dispatchData = SetDefault(orgParams);
 
     KernelData kd = KernelData::Default<normalize_params>(params);
 
@@ -88,7 +72,7 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,
@@ -100,8 +84,6 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
                      GetFusedPrimitiveInputsCount(params));
 
     kernel.arguments.push_back({ArgumentDescriptor::Types::SCALE_TABLE, 0});
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }

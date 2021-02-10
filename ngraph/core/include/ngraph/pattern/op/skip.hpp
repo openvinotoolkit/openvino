@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,20 @@ namespace ngraph
                     : Pattern({arg}, as_value_predicate(pred))
                 {
                     set_output_type(0, arg.get_element_type(), arg.get_partial_shape());
+                }
+
+                Skip(const OutputVector& args, ValuePredicate pred)
+                    : Pattern(args, pred)
+                {
+                    set_output_type(
+                        0, args.at(0).get_element_type(), args.at(0).get_partial_shape());
+                }
+
+                Skip(const OutputVector& args, NodePredicate pred = nullptr)
+                    : Pattern(args, as_value_predicate(pred))
+                {
+                    set_output_type(
+                        0, args.at(0).get_element_type(), args.at(0).get_partial_shape());
                 }
 
                 virtual bool match_value(pattern::Matcher* matcher,

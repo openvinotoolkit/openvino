@@ -68,15 +68,16 @@ public:
     /// \return The group
     const size_t& get_group() const { return m_group; }
     void set_group(const size_t & group) { m_group = group; }
+    bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     Strides m_strides;
     Strides m_dilations;
     CoordinateDiff m_pads_begin;
     CoordinateDiff m_pads_end;
-    CoordinateDiff m_output_padding;
     PadType m_auto_pad;
     size_t m_group;
+    CoordinateDiff m_output_padding;
     std::shared_ptr<Node> m_output_shape;
 };
 

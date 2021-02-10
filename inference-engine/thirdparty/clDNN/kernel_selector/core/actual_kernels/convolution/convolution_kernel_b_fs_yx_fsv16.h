@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ public:
 
     KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     KernelsData GetTunedKernelsDataByIndex(const Params& params,
                                            const optional_params& options,
                                            int autoTuneIndex = -1) const override;
@@ -49,7 +50,7 @@ protected:
     bool NeedPaddedInput() const override { return false; }
     bool Validate(const Params& p, const optional_params& o) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
 
 private:
     struct AutoTuneOption {
@@ -57,7 +58,16 @@ private:
         std::string exeMode;
     };
 
+    struct ConvolutionTuningData {
+        const size_t sub_group_size = 16;
+        const size_t feature_block_size = 16;
+        size_t slm_div_factor = 1;
+        size_t work_group_size = 1;
+    };
+
     std::vector<AutoTuneOption> autoTuneOptions;
     AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
+    ConvolutionTuningData GetTuningParams(const convolution_params& params) const;
+    float EstimateOccupancy(const convolution_params& params, const ConvolutionTuningData& tuning_data) const;
 };
 }  // namespace kernel_selector

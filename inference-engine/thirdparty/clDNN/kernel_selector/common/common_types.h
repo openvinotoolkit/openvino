@@ -56,9 +56,9 @@ enum class KernelType {
     PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
-    DETECTION_OUTPUT,
     GATHER,
     SCATTER_UPDATE,
+    SCATTER_ELEMENTS_UPDATE,
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHUFFLE_CHANNELS,
@@ -145,6 +145,7 @@ enum class ActivationFunction {
     POW,
     ERF,
     HARD_SIGMOID,
+    HSIGMOID,
     RECIPROCAL,
     SELU,
     SIGN,
@@ -153,7 +154,9 @@ enum class ActivationFunction {
     SWISH,
     HSWISH,
     MISH,
-    GELU
+    GELU,
+    ROUND_HALF_TO_EVEN,
+    ROUND_HALF_AWAY_FROM_ZERO
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -353,17 +356,6 @@ enum class ConcatAxis {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// TileAxis
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum class TileAxis {
-    X,
-    Y,
-    Z,
-    FEATURE,
-    BATCH,
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // DepthToSpaceMode
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 enum class DepthToSpaceMode {
@@ -378,6 +370,38 @@ enum class ResampleType {
     NEAREST_NEIGHBOR,
     BILINEAR_INTERP,
     CAFFE_BILINEAR_INTERP,
+    CUBIC,
+    LINEAR_ONNX,
+};
+
+enum class CoordinateTransformationMode {
+    HALF_PIXEL,
+    PYTORCH_HALF_PIXEL,
+    ASYMMETRIC,
+    TF_HALF_PIXEL_FOR_NN,
+    ALIGN_CORNERS,
+};
+
+enum class NearestMode {
+    ROUND_PREFER_FLOOR,
+    ROUND_PREFER_CEIL,
+    FLOOR,
+    CEIL,
+    SIMPLE,
+};
+
+enum class ShapeCalculationMode {
+    SIZES,
+    SCALES,
+};
+
+enum class InterpolateAxis {
+    X,
+    Y,
+    Z,
+    W,
+    FEATURE,
+    BATCH
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

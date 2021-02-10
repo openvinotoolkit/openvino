@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,14 +18,14 @@
 #include <cstdlib>
 #include <vector>
 
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/enum_names.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "recurrent.hpp"
+#include "utils/recurrent.hpp"
 
 namespace ngraph
 {
@@ -66,7 +66,8 @@ namespace ngraph
                     auto bias = ng_inputs.at(3);
                     auto split_bias = builder::opset1::split(bias, 2, 1);
                     NGRAPH_SUPPRESS_DEPRECATED_START
-                    m_map[OpInput::B] = split_bias.at(0) + split_bias.at(1);
+                    m_map[OpInput::B] =
+                        std::make_shared<ngraph::op::v1::Add>(split_bias.at(0), split_bias.at(1));
                     NGRAPH_SUPPRESS_DEPRECATED_END
                 }
                 else

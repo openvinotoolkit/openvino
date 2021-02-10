@@ -88,7 +88,7 @@ private:
                          inputEdges().size());
 
         // check number of outputs, without temp buffer
-        const int outputsNumber = outputEdges().size();
+        const int outputsNumber = static_cast<int>(outputEdges().size());
         const int useCellState = outputsNumber >= 2;
         const int outputEdgesExpected = 1
                                       + (useCellState ? 1 : 0)
@@ -193,8 +193,8 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
             newWeightsPtr + ngates * stateSize * inputSize,
 
             ngates,
-            stateSize,
-            inputSize);
+            static_cast<int>(stateSize),
+            static_cast<int>(inputSize));
     };
 
     auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
@@ -215,8 +215,8 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
 
     bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
     stage->attrs().set<bool>("RNNForward", RNNForward);
-    stage->attrs().set<int>("nCells", nCells);
-    stage->attrs().set<int>("nBatches", nBatches);
+    stage->attrs().set<int>("nCells", static_cast<int>(nCells));
+    stage->attrs().set<int>("nBatches", static_cast<int>(nBatches));
 }
 
 void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) {
@@ -262,8 +262,8 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
             newWeightsPtr,
             newWeightsPtr + ngates * stateSize * inputSize,
             ngates,
-            stateSize,
-            inputSize);
+            static_cast<int>(stateSize),
+            static_cast<int>(inputSize));
     };
 
     auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
@@ -306,7 +306,7 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
     auto stage = model->addNewStage<LSTMCellStage>(layer->name, StageType::LSTMCell, layer, stageInputs, realOutputs);
     stage->attrs().set<bool>("RNNForward", true);
     stage->attrs().set<int>("nCells", 1);
-    stage->attrs().set<int>("nBatches", nBatches);
+    stage->attrs().set<int>("nBatches", static_cast<int>(nBatches));
 }
 
 }  // namespace vpu

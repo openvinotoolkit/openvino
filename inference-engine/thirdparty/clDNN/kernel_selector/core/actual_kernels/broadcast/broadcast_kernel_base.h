@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018-2019 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <vector>
 
@@ -37,15 +37,15 @@ struct broadcast_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BroadcastKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class BroadcastKernelBase : public common_kernel_base {
+class BroadcastKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
 
     using DispatchData = CommonDispatchData;
 
 protected:
     JitConstants GetJitConstants(const broadcast_params& params) const;
     static DispatchData SetDefault(const broadcast_params& params);
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 };
 }  // namespace kernel_selector

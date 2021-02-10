@@ -52,14 +52,13 @@ TEST_P(DSR_TopK_Const, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicTopKConst, DSR_TopK_Const, combinations);
+INSTANTIATE_TEST_CASE_P(smoke_DynamicTopKConst, DSR_TopK_Const, combinations);
 
 class DSR_TopK : public testing::WithParamInterface<Parameters>, public DSR_TestsCommon {
 protected:
     std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
         const auto& dataType = std::get<0>(parameters);
-        const auto& idxType = std::get<1>(parameters);
         const auto& topkSetup = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
 
@@ -82,6 +81,6 @@ TEST_P(DSR_TopK, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicTopKConst, DSR_TopK, combinations);
+INSTANTIATE_TEST_CASE_P(smoke_DynamicTopKConst, DSR_TopK, combinations);
 
 }  // namespace

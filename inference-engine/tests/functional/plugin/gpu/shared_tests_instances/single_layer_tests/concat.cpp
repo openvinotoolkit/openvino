@@ -24,11 +24,15 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
                                                          InferenceEngine::Precision::I64};
 
 
-INSTANTIATE_TEST_CASE_P(NoReshape, ConcatLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_NoReshape, ConcatLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(axes),
                                 ::testing::ValuesIn(inShapes),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConcatLayerTest::getTestCaseName);
 }  // namespace

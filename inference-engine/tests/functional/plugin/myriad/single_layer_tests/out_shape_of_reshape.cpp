@@ -6,7 +6,7 @@
 
 #include "vpu/private_plugin_config.hpp"
 
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <functional_test_utils/blob_utils.hpp>
 #include <precision_utils.h>
 #include <ngraph/opsets/opset3.hpp>
@@ -111,7 +111,7 @@ std::vector<OutShapeOfReshapeParam> shapeParams = {
         std::make_tuple(InputShape{ 2, 5,   5,   0 }, ShapeDescriptor{ 0,  4          }, false),
 };
 
-INSTANTIATE_TEST_CASE_P(accuracy, OutShapeOfReshapeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_accuracy, OutShapeOfReshapeLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shapeParams),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),

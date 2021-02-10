@@ -19,7 +19,7 @@ INSTANTIATE_TEST_CASE_P(
 
 // TODO
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassNetworkTestP, IEClassNetworkTestP,
+        DISABLED_smoke_IEClassNetworkTestP, IEClassNetworkTestP,
         ::testing::Values("GNA"));
 
 //
@@ -44,12 +44,12 @@ INSTANTIATE_TEST_CASE_P(
 
 // TODO: Issue: 30198
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
+        DISABLED_smoke_IEClassGetMetricTest, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("GNA"));
 
 // TODO: Issue: 30199
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassGetMetricTest, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
+        DISABLED_smoke_IEClassGetMetricTest, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
         ::testing::Values("GNA"));
 
 INSTANTIATE_TEST_CASE_P(
@@ -78,27 +78,27 @@ INSTANTIATE_TEST_CASE_P(
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        DISABLED_smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::Values("GNA" /*, "MULTI:GNA", "HETERO:GNA" */));
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        DISABLED_smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
         ::testing::Values("GNA" /*, "MULTI:GNA",  "HETERO:GNA" */));
 
 // TODO: this metric is not supported by the plugin
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
+        DISABLED_smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
         ::testing::Values("GNA", "MULTI:GNA", "HETERO:GNA"));
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+        DISABLED_smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
         ::testing::Values("GNA"/*, "MULTI:GNA", "HETERO:GNA" */));
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+        DISABLED_smoke_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
         ::testing::Values("GNA", /* "MULTI:GNA", */ "HETERO:GNA"));
 
 //
@@ -107,17 +107,17 @@ INSTANTIATE_TEST_CASE_P(
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassExecutableNetworkGetConfigTest, IEClassExecutableNetworkGetConfigTest,
+        DISABLED_smoke_IEClassExecutableNetworkGetConfigTest, IEClassExecutableNetworkGetConfigTest,
         ::testing::Values("GNA"));
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
+        DISABLED_smoke_IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
         ::testing::Values("GNA"));
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassExecutableNetworkSupportedConfigTest, IEClassExecutableNetworkSupportedConfigTest,
+        DISABLED_smoke_IEClassExecutableNetworkSupportedConfigTest, IEClassExecutableNetworkSupportedConfigTest,
         ::testing::Combine(::testing::Values("GNA"),
                            ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW),
                                              std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW),
@@ -126,7 +126,7 @@ INSTANTIATE_TEST_CASE_P(
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassExecutableNetworkUnsupportedConfigTest, IEClassExecutableNetworkUnsupportedConfigTest,
+        DISABLED_smoke_IEClassExecutableNetworkUnsupportedConfigTest, IEClassExecutableNetworkUnsupportedConfigTest,
         ::testing::Combine(::testing::Values("GNA"),
                            ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_FP32),
                                              std::make_pair(GNA_CONFIG_KEY(SCALE_FACTOR), "5"),
@@ -147,7 +147,7 @@ TEST_P(IEClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassExecutableNetworkSetConfigFromFp32Test, IEClassExecutableNetworkSetConfigFromFp32Test,
+        DISABLED_smoke_IEClassExecutableNetworkSetConfigFromFp32Test, IEClassExecutableNetworkSetConfigFromFp32Test,
         ::testing::Combine(::testing::Values("GNA"),
                            ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW),
                                              std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW),
@@ -158,13 +158,13 @@ INSTANTIATE_TEST_CASE_P(
 // IE Class Query network
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassQueryNetworkTest, IEClassQueryNetworkTest,
+        smoke_IEClassQueryNetworkTest, IEClassQueryNetworkTest,
         ::testing::Values("GNA"));
 
 // IE Class Load network
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassLoadNetworkTest, IEClassLoadNetworkTest,
+        smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTest,
         ::testing::Values("GNA"));
 
 //
@@ -173,20 +173,20 @@ INSTANTIATE_TEST_CASE_P(
 
 // TODO: verify hetero interop
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        DISABLED_smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::Values("GNA"));
 
 // TODO: verify hetero interop
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        DISABLED_smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
         ::testing::Values("GNA"));
 
 // TODO: verify hetero interop
 INSTANTIATE_TEST_CASE_P(
-        DISABLED_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
+        DISABLED_smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME,
         ::testing::Values("GNA"));
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
+        smoke_IEClassHeteroExecutableNetworlGetMetricTest, IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK,
         ::testing::Values("GNA"));
 } // namespace

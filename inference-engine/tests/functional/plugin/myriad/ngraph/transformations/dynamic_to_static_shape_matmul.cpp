@@ -204,6 +204,6 @@ protected:
 
 TEST_P(DynamicToStaticShapeMatMul, CompareFunctions) {
 }
-INSTANTIATE_TEST_CASE_P(MatMul, DynamicToStaticShapeMatMul, combinations);
+INSTANTIATE_TEST_CASE_P(smoke_MatMul, DynamicToStaticShapeMatMul, combinations);
 
 }  // namespace

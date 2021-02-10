@@ -287,7 +287,8 @@ shaped_data = lambda name, shape: {name: {'kind': 'data', 'value': None,
                                           'shape': int64_array(shape) if shape is not None else None}}
 empty_data = lambda name: valued_data(name, None)
 
-result = lambda name=None: {name if name is not None else 'output': {'kind': 'op', 'type': 'Result', 'op': 'Result'}}
+result = lambda name=None: {name if name is not None else 'output': {'kind': 'op', 'type': 'Result', 'op': 'Result',
+                                                                     'infer': lambda x: 0}}
 
 regular_op_with_shaped_data = lambda name, shape, kwargs: {**regular_op(name, kwargs),
                                                            **shaped_data(name + '_d', shape)}
@@ -301,8 +302,6 @@ fake_const = lambda name, shape: {name: {'kind': 'op', 'value': None, 'infer': C
 shaped_const_with_data = lambda name, shape: {**fake_const(name, shape), **shaped_data(name + '_d', shape)}
 
 valued_const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
-
-const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
 
 
 def extract_port_from_string(node_name: str):

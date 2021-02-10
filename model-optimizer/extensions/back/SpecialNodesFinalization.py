@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 """
 import logging as log
 from collections import defaultdict
-from copy import copy
 
 import numpy as np
 
@@ -80,7 +79,7 @@ class CreateConstNodesReplacement(BackReplacementPattern):
     def replace_pattern(self, graph: Graph, match: dict):
         """
             Adds layers with type 'Const' that produce blob from 'bin' file. The pass finds data nodes with one output which
-            doesn't have edge with 'bin' attribute (or with two outputs and at least one output havent 'bin' attr)
+            doesn't have edge with 'bin' attribute (or with two outputs and at least one output doesn't have 'bin' attr)
             and generate Const op node before the node and data node before the Const node. The data node before 'Const'
             node is needed because the op node dumps input tensors to bin file.
         """
@@ -125,6 +124,11 @@ class RemoveConstToResult(BackReplacementPattern):
     """
     enabled = True
     force_clean_up = True
+    # TODO: remove this transformation once all plugins support constant value network.
+    # Do not run recursively since Const->Result sub-graph can be encountered in a body graph of Loop node
+    # and this sub-graph is needed to avoid dynamism created by Loop node
+    # in case using axis in output port map
+    run_not_recursively = True
 
     @staticmethod
     def pattern():

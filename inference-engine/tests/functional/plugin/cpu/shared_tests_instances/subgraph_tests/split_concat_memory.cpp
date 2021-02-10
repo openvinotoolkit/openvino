@@ -6,7 +6,7 @@
 
 #include "subgraph_tests/split_concat_memory.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 
@@ -26,7 +26,7 @@ const std::vector<InferenceEngine::SizeVector> shapes = {
     {3, 8},
 };
 
-INSTANTIATE_TEST_CASE_P(CPU, SplitConcatMemory,
+INSTANTIATE_TEST_CASE_P(smoke_CPU, SplitConcatMemory,
                         ::testing::Combine(
                                 ::testing::ValuesIn(shapes),
                                 ::testing::ValuesIn(netPrecisions),

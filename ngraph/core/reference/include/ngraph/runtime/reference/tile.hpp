@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,8 @@ namespace ngraph
                       char* out,
                       const Shape& in_shape,
                       const Shape& out_shape,
-                      size_t elem_size);
+                      const size_t elem_size,
+                      const std::vector<int64_t>& repeats);
         }
     }
 }

@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,21 +19,20 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35929, xfail_issue_36483
+from tests import xfail_issue_44970
 
 
-@xfail_issue_35929
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, range_start, range_end",
     [
         (ng.absolute, np.abs, -1, 1),
         (ng.abs, np.abs, -1, 1),
         (ng.acos, np.arccos, -1, 1),
-        (ng.acosh, np.arccosh, -1, 1),
+        (ng.acosh, np.arccosh, 1, 2),
         (ng.asin, np.arcsin, -1, 1),
         (ng.asinh, np.arcsinh, -1, 1),
         (ng.atan, np.arctan, -100.0, 100.0),
-        (ng.atanh, np.arctanh, -100.0, 100.0),
+        (ng.atanh, np.arctanh, 0.0, 1.0),
         (ng.ceiling, np.ceil, -100.0, 100.0),
         (ng.ceil, np.ceil, -100.0, 100.0),
         (ng.cos, np.cos, -100.0, 100.0),
@@ -52,14 +51,13 @@ from tests import xfail_issue_35929, xfail_issue_36483
 )
 def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
     np.random.seed(133391)
-    input_data = range_start + np.random.rand(2, 3, 4) * (range_end - range_start)
+    input_data = (range_start + np.random.rand(2, 3, 4) * (range_end - range_start)).astype(np.float32)
     expected = numpy_fn(input_data)
 
     result = run_op_node([input_data], ng_api_fn)
     assert np.allclose(result, expected, rtol=0.001)
 
 
-@pytest.mark.skip(reason="Segmentation fault")
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, input_data",
     [
@@ -68,8 +66,8 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
         pytest.param(ng.acos, np.arccos, np.float32(-0.5)),
         pytest.param(ng.asin, np.arcsin, np.float32(-0.5)),
         pytest.param(ng.atan, np.arctan, np.float32(-0.5)),
-        pytest.param(ng.ceiling, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
-        pytest.param(ng.ceil, np.ceil, np.float32(1.5), marks=xfail_issue_36483),
+        pytest.param(ng.ceiling, np.ceil, np.float32(1.5)),
+        pytest.param(ng.ceil, np.ceil, np.float32(1.5)),
         pytest.param(ng.cos, np.cos, np.float32(np.pi / 4.0)),
         pytest.param(ng.cosh, np.cosh, np.float32(np.pi / 4.0)),
         pytest.param(ng.exp, np.exp, np.float32(1.5)),
@@ -113,7 +111,7 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip(reason="Wrong results are broadcasted along given axis")
+@xfail_issue_44970
 def test_softmax():
     axis = 0
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
@@ -139,6 +137,51 @@ def test_hswish():
 
     node = ng.hswish(data)
     assert node.get_type_name() == "HSwish"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 10]
+    assert node.get_output_element_type(0) == Type.f32
+
+
+def test_round_even():
+    float_dtype = np.float32
+    data = ng.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
+
+    node = ng.round(data, "HALF_TO_EVEN")
+    assert node.get_type_name() == "Round"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 10]
+    assert node.get_output_element_type(0) == Type.f32
+
+    input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
+    expected = [-2.0, -2.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0, 4.0]
+
+    result = run_op_node([input_tensor], ng.round, "HALF_TO_EVEN")
+    assert np.allclose(result, expected)
+
+
+def test_round_away():
+    float_dtype = np.float32
+    data = ng.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
+
+    node = ng.round(data, "HALF_AWAY_FROM_ZERO")
+    assert node.get_type_name() == "Round"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 10]
+    assert node.get_output_element_type(0) == Type.f32
+
+    input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
+    expected = [-3.0, -2.0, -1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 4.0]
+
+    result = run_op_node([input_tensor], ng.round, "HALF_AWAY_FROM_ZERO")
+    assert np.allclose(result, expected)
+
+
+def test_hsigmoid():
+    float_dtype = np.float32
+    data = ng.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
+
+    node = ng.hsigmoid(data)
+    assert node.get_type_name() == "HSigmoid"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32

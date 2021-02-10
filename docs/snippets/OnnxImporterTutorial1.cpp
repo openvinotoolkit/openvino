@@ -1,9 +1,8 @@
 #include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
-#include "ngraph/frontend/onnx_import/onnx_utils.hpp"
+#include "onnx_import/onnx.hpp"
 
 int main() {
-using namespace InferenceEngine;
 //! [part1]
 const std::string op_name = "Abs";
 const std::int64_t version = 12;

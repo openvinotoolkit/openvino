@@ -201,9 +201,9 @@ TestResult test_infer_request_inference(const std::string& model, const std::str
 }
 
 TestResult test_reinfer_request_inference(InferenceEngine::InferRequest& infer_request,
-                                          InferenceEngine::CNNNetwork& cnnNetwork, const std::string& model,
+                                          InferenceEngine::OutputsDataMap& output_info, const std::string& model,
                                           const std::string& target_device, const int& n) {
     log_info("Inference of InferRequest from network: \"" << model << "\" for device: \"" << target_device << "\" for "
                                                           << n << " times");
-    return common_test_pipeline(reinfer_request_inference(infer_request, cnnNetwork), n);
+    return common_test_pipeline(reinfer_request_inference(infer_request, output_info), n);
 }

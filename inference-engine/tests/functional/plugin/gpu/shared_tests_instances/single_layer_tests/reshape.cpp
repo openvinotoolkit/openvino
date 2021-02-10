@@ -16,20 +16,28 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 //TODO: Issue : - 28981
-INSTANTIATE_TEST_CASE_P(DISABLE_ReshapeCheckDynBatch, ReshapeLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLE_smoke_ReshapeCheckDynBatch, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({1, 16, 16, 16})),
                 ::testing::Values(std::vector<size_t>({1, 0, 256})),
                  ::testing::Values(CommonTestUtils::DEVICE_GPU),
                 ::testing::Values(std::map<std::string, std::string>({{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(YES)}}))),
                 ReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(ReshapeCheck, ReshapeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck, ReshapeLayerTest,
         ::testing::Combine(
                 ::testing::Values(true),
                 ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                ::testing::Values(InferenceEngine::Layout::ANY),
+                ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
                 ::testing::Values(std::vector<size_t>({10, 0, 100})),
                 ::testing::Values(CommonTestUtils::DEVICE_GPU),

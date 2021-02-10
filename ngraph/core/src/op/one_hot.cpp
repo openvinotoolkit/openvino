@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,93 +15,14 @@
 //*****************************************************************************
 
 #include "ngraph/op/one_hot.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/validation_util.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
-
-constexpr NodeTypeInfo op::v0::OneHot::type_info;
-
-op::v0::OneHot::OneHot(const Output<Node>& arg, const PartialShape& shape, size_t one_hot_axis)
-    : Op({arg})
-    , m_shape(shape)
-    , m_one_hot_axis(one_hot_axis)
-{
-    constructor_validate_and_infer_types();
-}
-
-void op::v0::OneHot::validate_and_infer_types()
-{
-    element::Type arg_et = get_input_element_type(0);
-    PartialShape arg_shape = get_input_partial_shape(0);
-    Rank arg_rank = arg_shape.rank();
-
-    NODE_VALIDATION_CHECK(this,
-                          arg_et.is_dynamic() || arg_et.is_integral(),
-                          "Argument does not have integral element type.");
-
-    NODE_VALIDATION_CHECK(
-        this, m_shape.rank().is_static(), "Requested result shape has dynamic rank.");
-
-    NODE_VALIDATION_CHECK(this,
-                          m_one_hot_axis < m_shape.rank().get_length(),
-                          "One-hot axis (",
-                          m_one_hot_axis,
-                          ") is out of bounds (requested result shape: ",
-                          m_shape,
-                          ").");
-
-    NODE_VALIDATION_CHECK(this,
-                          m_shape[m_one_hot_axis].is_static(),
-                          "Requested result shape (",
-                          m_shape,
-                          ") has dynamic dimension at the one-hot axis ",
-                          "(",
-                          m_one_hot_axis,
-                          ").");
-
-    PartialShape result_shape{m_shape};
-
-    if (arg_rank.is_static())
-    {
-        std::vector<Dimension> expected_input_dims(m_shape.rank().get_length());
-        for (size_t i = 0; i < m_shape.rank().get_length(); i++)
-        {
-            expected_input_dims[i] = m_shape[i];
-        }
-        expected_input_dims.erase(expected_input_dims.begin() + m_one_hot_axis);
-        PartialShape expected_input_shape{expected_input_dims};
-
-        PartialShape merged_input_shape{expected_input_shape};
-        NODE_VALIDATION_CHECK(this,
-                              PartialShape::merge_into(merged_input_shape, arg_shape),
-                              "Argument shape ",
-                              arg_shape,
-                              " does not match the expected shape of ",
-                              expected_input_shape,
-                              ".");
-
-        std::vector<Dimension> output_dims(merged_input_shape.rank().get_length());
-        for (size_t i = 0; i < merged_input_shape.rank().get_length(); i++)
-        {
-            output_dims[i] = merged_input_shape[i];
-        }
-        output_dims.insert(output_dims.begin() + m_one_hot_axis, m_shape[m_one_hot_axis]);
-        result_shape = PartialShape{output_dims};
-    }
-
-    set_output_type(0, arg_et, result_shape);
-}
-
-shared_ptr<Node> op::v0::OneHot::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::OneHot>(new_args.at(0), m_shape, m_one_hot_axis);
-}
 
 constexpr NodeTypeInfo op::v1::OneHot::type_info;
 
@@ -118,6 +39,7 @@ op::v1::OneHot::OneHot(const Output<Node>& indices,
 
 void op::v1::OneHot::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_OneHot_validate_and_infer_types);
     const auto& indices_et = get_input_element_type(0);
     const auto& depth_et = get_input_element_type(1);
     const auto& on_value_et = get_input_element_type(2);
@@ -152,18 +74,13 @@ void op::v1::OneHot::validate_and_infer_types()
                           off_value_shape.is_dynamic() || is_scalar(off_value_shape.to_shape()),
                           "off_value input must be scalar.");
 
-    const auto& depth = input_value(1).get_node_shared_ptr();
     PartialShape result_shape{PartialShape::dynamic()};
-
-    if (indices_shape.is_static() && indices_shape.rank().is_static() && op::is_constant(depth))
+    const auto& depth = input_value(1).get_node_shared_ptr();
+    const auto& depth_constant = get_constant_from_source(input_value(1));
+    if (indices_shape.rank().is_static() && depth_constant)
     {
+        std::vector<Dimension> out_dims{indices_shape};
         const auto indices_rank = indices_shape.rank().get_length();
-
-        std::vector<Dimension> out_dims(indices_rank);
-        for (auto i = 0; i < indices_rank; i++)
-        {
-            out_dims[i] = indices_shape[i];
-        }
         m_axis =
             ngraph::normalize_axis(this, m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
 
@@ -181,9 +98,7 @@ void op::v1::OneHot::validate_and_infer_types()
                               depth->get_shape(),
                               " elements).");
 
-        const auto depth_constant = as_type_ptr<op::Constant>(depth);
         int64_t depth_val = depth_constant->cast_vector<int64_t>()[0];
-
         NODE_VALIDATION_CHECK(this,
                               depth_val > 0,
                               "The value of 'depth' must be a positive number.",
@@ -200,13 +115,92 @@ void op::v1::OneHot::validate_and_infer_types()
 
 bool ngraph::op::v1::OneHot::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_OneHot_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
 shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_OneHot_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::OneHot>(
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
+}
+
+namespace detail
+{
+    template <typename ind_t, typename out_t>
+    bool evaluate(const HostTensorVector& output_values,
+                  const HostTensorVector& input_values,
+                  const int64_t axis)
+    {
+        const auto& indices = input_values[0];
+        const auto& on_value = input_values[2];
+        const auto& off_value = input_values[3];
+
+        const auto& out = output_values[0];
+
+        runtime::reference::one_hot<ind_t, out_t>(indices->get_data_ptr<ind_t>(),
+                                                  out->get_data_ptr<out_t>(),
+                                                  indices->get_shape(),
+                                                  out->get_shape(),
+                                                  axis,
+                                                  on_value->get_data_ptr<out_t>()[0],
+                                                  off_value->get_data_ptr<out_t>()[0]);
+        return true;
+    }
+
+#define TYPE_OUT_CASE(a, ...)                                                                      \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_one_hot_out, _, a));                                   \
+        using IT = typename element_type_traits<element::Type_t::a>::value_type;                   \
+        using OT = typename element_type_traits<out_t>::value_type;                                \
+        rc = evaluate<IT, OT>(__VA_ARGS__);                                                        \
+    }                                                                                              \
+    break
+
+    template <element::Type_t out_t>
+    bool evaluate(const HostTensorVector& output_values,
+                  const HostTensorVector& input_values,
+                  const int64_t axis)
+    {
+        const auto& indices = input_values[0];
+
+        bool rc = true;
+        switch (indices->get_element_type())
+        {
+            TYPE_OUT_CASE(i32, output_values, input_values, axis);
+            TYPE_OUT_CASE(i64, output_values, input_values, axis);
+        default: rc = false; break;
+        }
+
+        return rc;
+    }
+
+    bool evaluate_onehot(const HostTensorVector& output_values,
+                         const HostTensorVector& input_values,
+                         const int64_t axis)
+    {
+        const auto& on_value = input_values[2];
+
+        bool rc = false;
+        switch (on_value->get_element_type())
+        {
+            NGRAPH_TYPE_CASE(evaluate_onehot, boolean, output_values, input_values, axis);
+            NGRAPH_TYPE_CASE(evaluate_onehot, f32, output_values, input_values, axis);
+            NGRAPH_TYPE_CASE(evaluate_onehot, i32, output_values, input_values, axis);
+            NGRAPH_TYPE_CASE(evaluate_onehot, i64, output_values, input_values, axis);
+        default: rc = false;
+        }
+        return rc;
+    }
+} // namespace detail
+
+bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
+                              const HostTensorVector& input_values) const
+{
+    NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
+    return detail::evaluate_onehot(output_values, input_values, get_axis());
 }

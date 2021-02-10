@@ -43,8 +43,8 @@ ParamsKey MVNKernelRef::GetSupportedKey() const {
     return k;
 }
 
-JitConstants MVNKernelRef::GetJitConstants(const mvn_params& params, DispatchData kd) const {
-    auto jits = Parent::GetJitConstants(params, kd);
+JitConstants MVNKernelRef::GetJitConstants(const mvn_params& params, DispatchData dispatchData) const {
+    auto jits = Parent::GetJitConstants(params, dispatchData);
 
     auto activation_dt = GetActivationType(params);
     jits.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
@@ -70,6 +70,10 @@ std::string MVNKernelRef::GetKernelName(const mvn_params& params) const {
 }
 
 KernelsData MVNKernelRef::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    return GetCommonKernelsData(params, optParams, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, optParams);
+}
+
+KernelsPriority MVNKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

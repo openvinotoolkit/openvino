@@ -7,7 +7,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "subgraph_tests/basic_lstm.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -22,7 +22,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(BasicLSTM, Basic_LSTM_S,
+INSTANTIATE_TEST_CASE_P(smoke_BasicLSTM, Basic_LSTM_S,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),

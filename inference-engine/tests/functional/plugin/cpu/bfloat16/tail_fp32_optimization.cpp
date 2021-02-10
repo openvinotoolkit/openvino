@@ -114,7 +114,6 @@ protected:
         // performance counters
         expectedPrecisions["Add_4"] = "FP32";
         expectedPrecisions["Convolution_6"] = "BF16";
-        expectedPrecisions["AvgPool_8"] = "FP32";
     }
 };
 
@@ -123,7 +122,7 @@ TEST_P(PoolingAfterConv, CompareWithRefImpl) {
 };
 
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, PoolingAfterConv,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, PoolingAfterConv,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::FP32),
@@ -132,7 +131,7 @@ INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, PoolingAfterConv,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             PoolingAfterConv::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, PoolingAfterConv,
+INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, PoolingAfterConv,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

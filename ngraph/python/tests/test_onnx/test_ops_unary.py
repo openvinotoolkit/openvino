@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2018-2020 Intel Corporation
+# Copyright 2018-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,10 +22,8 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 from ngraph.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
-from tests import (xfail_issue_35929,
-                   xfail_issue_34323,
-                   xfail_issue_35930,
-                   xfail_issue_35932)
+from tests import (xfail_issue_40957,
+                   xfail_issue_35930)
 
 
 @pytest.mark.parametrize(
@@ -106,7 +104,6 @@ def test_neg(input_data):
     assert np.array_equal(ng_results, [expected_output])
 
 
-@xfail_issue_35929
 @pytest.mark.parametrize(
     "input_data",
     [
@@ -116,13 +113,13 @@ def test_neg(input_data):
     ],
 )
 def test_floor(input_data):
+    input_data = input_data.astype(np.float32)
     expected_output = np.floor(input_data)
     node = onnx.helper.make_node("Floor", inputs=["x"], outputs=["y"])
     ng_results = run_node(node, [input_data])
     assert np.array_equal(ng_results, [expected_output])
 
 
-@xfail_issue_35929
 @pytest.mark.parametrize(
     "input_data",
     [
@@ -132,6 +129,7 @@ def test_floor(input_data):
     ],
 )
 def test_ceil(input_data):
+    input_data = input_data.astype(np.float32)
     expected_output = np.ceil(input_data)
     node = onnx.helper.make_node("Ceil", inputs=["x"], outputs=["y"])
     ng_results = run_node(node, [input_data])
@@ -166,7 +164,6 @@ def test_clip_default():
     assert np.allclose(result, [expected])
 
 
-@xfail_issue_35929
 @pytest.mark.parametrize(
     "input_data",
     [
@@ -176,6 +173,7 @@ def test_clip_default():
     ],
 )
 def test_reciprocal(input_data):
+    input_data = input_data.astype(np.float32)
     expected_output = np.reciprocal(input_data)
     node = onnx.helper.make_node("Reciprocal", inputs=["x"], outputs=["y"])
     ng_results = run_node(node, [input_data])
@@ -285,7 +283,6 @@ def test_softmax():
         ng_results = run_node(node, [data])
 
 
-@xfail_issue_35932
 def test_logsoftmax():
     def logsoftmax_2d(x):
         max_x = np.max(x, axis=1).reshape((-1, 1))
@@ -305,13 +302,13 @@ def test_logsoftmax():
     ng_results = run_node(node, [data])
     assert np.allclose(ng_results, [expected])
 
-    # default axis is 1
-    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"])
+    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=2)
+    expected = logsoftmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
     ng_results = run_node(node, [data])
     assert np.allclose(ng_results, [expected])
 
-    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"], axis=2)
-    expected = logsoftmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
+    # default axis is -1
+    node = onnx.helper.make_node("LogSoftmax", inputs=["x"], outputs=["y"])
     ng_results = run_node(node, [data])
     assert np.allclose(ng_results, [expected])
 
@@ -391,7 +388,7 @@ def test_cast_to_bool(val_type, input_data):
     "val_type, range_start, range_end, in_dtype",
     [
         (np.dtype(np.float32), -8, 8, np.dtype(np.int32)),
-        pytest.param(np.dtype(np.float64), -16383, 16383, np.dtype(np.int64), marks=xfail_issue_35929),
+        (np.dtype(np.float64), -16383, 16383, np.dtype(np.int64)),
     ],
 )
 def test_cast_to_float(val_type, range_start, range_end, in_dtype):
@@ -504,8 +501,8 @@ def test_cast_errors():
 
 
 @pytest.mark.parametrize("value_type",
-                         [pytest.param(np.float32, marks=xfail_issue_34323),
-                          pytest.param(np.float64, marks=xfail_issue_35929)])
+                         [pytest.param(np.float32, marks=xfail_issue_40957),
+                          pytest.param(np.float64, marks=xfail_issue_40957)])
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)
     node = onnx.helper.make_node(

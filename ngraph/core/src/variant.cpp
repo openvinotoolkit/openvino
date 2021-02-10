@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,11 +34,6 @@ std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Nod
 std::shared_ptr<ngraph::Variant> Variant::merge(const ngraph::NodeVector& nodes)
 {
     return nullptr;
-}
-
-template <typename T>
-VariantImpl<T>::~VariantImpl()
-{
 }
 
 template class ngraph::VariantImpl<std::string>;

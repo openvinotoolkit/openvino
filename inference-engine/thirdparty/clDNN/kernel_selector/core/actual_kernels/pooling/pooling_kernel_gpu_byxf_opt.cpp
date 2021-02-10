@@ -41,15 +41,15 @@ ParamsKey PoolingKernelGPUByxfOpt::GetSupportedKey() const {
 PoolingKernelBase::DispatchData PoolingKernelGPUByxfOpt::SetDefault(const pooling_params& params) const {
     const auto& output = params.output;
 
-    DispatchData runInfo = PoolingKernelBase::SetDefault(params);
+    DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    runInfo.gws2 = output.Batch().v * (CeilDiv(output.Feature().v, 8));
+    dispatchData.gws[2] = output.Batch().v * (CeilDiv(output.Feature().v, 8));
 
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants PoolingKernelGPUByxfOpt::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    auto jit = PoolingKernelBase::GetJitConstants(params, kd);
+JitConstants PoolingKernelGPUByxfOpt::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
@@ -87,6 +87,10 @@ bool PoolingKernelGPUByxfOpt::Validate(const Params& p, const optional_params& o
 }
 
 KernelsData PoolingKernelGPUByxfOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_7);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority PoolingKernelGPUByxfOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

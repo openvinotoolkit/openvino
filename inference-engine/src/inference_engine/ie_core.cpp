@@ -90,12 +90,7 @@ template <typename F>
 void allowNotImplemented(F && f) {
     try {
         f();
-    } catch (const details::InferenceEngineException & ex) {
-        std::string message = ex.what();
-        if (message.find(NOT_IMPLEMENTED_str) == std::string::npos) {
-            throw ex;
-        }
-    }
+    } catch (const NotImplemented & ex) { }
 }
 
 }  // namespace
@@ -197,8 +192,7 @@ public:
         pugi::xml_node ieNode = xmlDoc.document_element();
         pugi::xml_node devicesNode = ieNode.child("plugins");
 
-        for (auto pluginNode = devicesNode.child("plugin"); !pluginNode.empty();
-             pluginNode = pluginNode.next_sibling("plugin")) {
+        FOREACH_CHILD(pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
             FileUtils::FilePath pluginPath = FileUtils::toFilePath(GetStrAttr(pluginNode, "location").c_str());
 
@@ -217,8 +211,7 @@ public:
             std::map<std::string, std::string> config;
 
             if (propertiesNode) {
-                for (auto propertyNode = propertiesNode.child("property"); !propertyNode.empty();
-                     propertyNode = propertyNode.next_sibling("property")) {
+                FOREACH_CHILD(propertyNode, propertiesNode, "property") {
                     std::string key = GetStrAttr(propertyNode, "key");
                     std::string value = GetStrAttr(propertyNode, "value");
                     config[key] = value;
@@ -230,8 +223,7 @@ public:
             std::vector<FileUtils::FilePath> listOfExtentions;
 
             if (extensionsNode) {
-                for (auto extensionNode = extensionsNode.child("extension"); !extensionNode.empty();
-                     extensionNode = extensionNode.next_sibling("extension")) {
+                FOREACH_CHILD(extensionNode, extensionsNode, "extension") {
                     FileUtils::FilePath extensionLocation = FileUtils::toFilePath(GetStrAttr(extensionNode, "location").c_str());
                     listOfExtentions.push_back(extensionLocation);
                 }
@@ -292,29 +284,10 @@ public:
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
     }
 
-    QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
+    QueryNetworkResult QueryNetwork(const CNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) const override {
-        QueryNetworkResult res;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config, res);
-        if (!network.getFunction())
-            return res;
-
-        // WA for constant folded operations (plugins should support all folded ops)
-        const auto& func = network.getFunction();
-        auto specialized_function = ngraph::clone_function(*func);
-
-        ngraph::pass::ConstantFolding().run_on_function(specialized_function);
-        std::unordered_set<std::string> operationNames;
-        for (const auto& op : specialized_function->get_ops())
-            operationNames.emplace(op->get_friendly_name());
-
-        for (const auto& op : func->get_ops()) {
-            if (operationNames.find(op->get_friendly_name()) != operationNames.end())
-                continue;
-            res.supportedLayersMap[op->get_friendly_name()] = deviceName;
-        }
-        return res;
+        return GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);
     }
 
     Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {
@@ -351,6 +324,8 @@ public:
      * @return Reference to a CPP plugin wrapper
      */
     InferencePlugin GetCPPPluginByName(const std::string& deviceName) const {
+        OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::GetCPPPluginByName");
+
         std::lock_guard<std::mutex> lock(pluginsMutex);
 
         auto it = pluginRegistry.find(deviceName);
@@ -439,7 +414,7 @@ public:
         // append IR library path for default IE plugins
         FileUtils::FilePath pluginPath;
         {
-            pluginPath = FileUtils::makeSharedLibraryName({}, FileUtils::toFilePath(pluginName.c_str()));
+            pluginPath = FileUtils::makePluginLibraryName({}, FileUtils::toFilePath(pluginName.c_str()));
 
             FileUtils::FilePath absFilePath = FileUtils::makePath(getInferenceEngineLibraryPath(), pluginPath);
             if (FileUtils::fileExist(absFilePath)) pluginPath = absFilePath;
@@ -615,45 +590,37 @@ void Core::AddExtension(const IExtensionPtr& extension) {
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::LoadNetwork");
-    std::map<std::string, std::string> config_ = config;
 
     if (context == nullptr) {
         THROW_IE_EXCEPTION << "Remote context is null";
     }
 
-    std::string deviceName_ = context->getDeviceName();
-    DeviceIDParser device(deviceName_);
-    std::string deviceName = device.getDeviceName();
-
-    return _impl->GetCPPPluginByName(deviceName).LoadNetwork(network, config_, context);
+    auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
+    return _impl->GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config, context);
 }
 
-RemoteContext::Ptr Core::CreateContext(const std::string& deviceName_, const ParamMap& params) {
-    if (deviceName_.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device does not support remote contexts";
+RemoteContext::Ptr Core::CreateContext(const std::string& deviceName, const ParamMap& params) {
+    if (deviceName.find("HETERO") == 0) {
+        THROW_IE_EXCEPTION << "HETERO device does not support remote context";
     }
-    if (deviceName_.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support remote contexts";
+    if (deviceName.find("MULTI") == 0) {
+        THROW_IE_EXCEPTION << "MULTI device does not support remote context";
     }
 
-    DeviceIDParser device(deviceName_);
-    std::string deviceName = device.getDeviceName();
-
-    return _impl->GetCPPPluginByName(deviceName).CreateContext(params);
+    auto parsed = parseDeviceNameIntoConfig(deviceName, params);
+    return _impl->GetCPPPluginByName(parsed._deviceName).CreateContext(parsed._config);
 }
 
-RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName_) {
-    if (deviceName_.find("HETERO") == 0) {
-        THROW_IE_EXCEPTION << "HETERO device does not support remote contexts";
+RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName) {
+    if (deviceName.find("HETERO") == 0) {
+        THROW_IE_EXCEPTION << "HETERO device does not support remote context";
     }
-    if (deviceName_.find("MULTI") == 0) {
-        THROW_IE_EXCEPTION << "MULTI device does not support remote contexts";
+    if (deviceName.find("MULTI") == 0) {
+        THROW_IE_EXCEPTION << "MULTI device does not support remote context";
     }
 
-    DeviceIDParser device(deviceName_);
-    std::string deviceName = device.getDeviceName();
-
-    return _impl->GetCPPPluginByName(deviceName).GetDefaultContext();
+    auto parsed = parseDeviceNameIntoConfig(deviceName, ParamMap());
+    return _impl->GetCPPPluginByName(parsed._deviceName).GetDefaultContext(parsed._config);
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {

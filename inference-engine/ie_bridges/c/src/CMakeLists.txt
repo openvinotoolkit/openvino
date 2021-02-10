@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 set(TARGET_NAME inference_engine_c_api)
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
@@ -21,9 +17,15 @@ target_include_directories(${TARGET_NAME} PUBLIC "${InferenceEngine_C_API_SOURCE
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+ie_add_vs_version_file(NAME ${TARGET_NAME}
+                       FILEDESCRIPTION "Inference Engine C API Core Runtime library")
+
 # export
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
+export(TARGETS ${TARGET_NAME} NAMESPACE IE::
+       APPEND FILE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
 
 # install
 

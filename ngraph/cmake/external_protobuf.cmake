@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,27 +20,11 @@ include(FetchContent)
 # Download and install Google Protobuf ...
 #------------------------------------------------------------------------------
 
-# Since this file is going to be modifying CMAKE_*_FLAGS we need to preserve
-# it so we won't overwrite the caller's CMAKE_*_FLAGS
-set(PUSH_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-set(PUSH_CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-set(PUSH_CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-set(PUSH_CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-set(PUSH_CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
-set(PUSH_CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE}")
-
-set(CMAKE_CXX_FLAGS ${CMAKE_ORIGINAL_CXX_FLAGS})
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_ORIGINAL_CXX_FLAGS_RELEASE}")
-set(CMAKE_C_FLAGS_RELEASE "${CMAKE_ORIGINAL_C_FLAGS_RELEASE}")
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_ORIGINAL_EXE_LINKER_FLAGS_RELEASE}")
-set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_ORIGINAL_SHARED_LINKER_FLAGS_RELEASE}")
-set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_ORIGINAL_MODULE_LINKER_FLAGS_RELEASE}")
+set(PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
 
 if (MSVC)
-    string(REPLACE "/W3" "/W0" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     set(protobuf_MSVC_STATIC_RUNTIME OFF CACHE BOOL "")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error -fno-lto")
 endif()
 
 # This version of PROTOBUF is required by Microsoft ONNX Runtime.
@@ -82,7 +66,7 @@ endif()
 set(NGRAPH_PROTOBUF_GIT_TAG "v${PROTOC_VERSION}")
 
 
-if ("${CMAKE_GENERATOR}" STREQUAL "Ninja")
+if (CMAKE_GENERATOR STREQUAL "Ninja")
     set(MAKE_UTIL make)
 else()
     set(MAKE_UTIL $(MAKE))
@@ -91,7 +75,7 @@ endif()
 if(PROTOC_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
     message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
 else()
-    if(CMAKE_CXX_COMPILER_ID MATCHES ".*[Cc]lang")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         include(ExternalProject)
         set(Protobuf_INSTALL_PREFIX ${EXTERNAL_PROJECTS_ROOT}/protobuf)
         set(Protobuf_PROTOC_EXECUTABLE ${Protobuf_INSTALL_PREFIX}/bin/protoc)
@@ -106,7 +90,7 @@ else()
             UPDATE_COMMAND ""
             PATCH_COMMAND ""
             CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${EXTERNAL_PROJECTS_ROOT}/protobuf --disable-shared
-            BUILD_COMMAND ${MAKE_UTIL} "CXXFLAGS=-std=c++${NGRAPH_CXX_STANDARD} -fPIC"
+            BUILD_COMMAND ${MAKE_UTIL} "CXXFLAGS=-std=c++${CMAKE_CXX_STANDARD} -fPIC"
             TMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/tmp"
             STAMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/stamp"
             DOWNLOAD_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/download"
@@ -121,20 +105,20 @@ else()
         # Use the interface of FindProtobuf.cmake
         # -----------------------------------------------------------------------------
         if (NOT TARGET protobuf::libprotobuf)
-        add_library(protobuf::libprotobuf UNKNOWN IMPORTED)
-        set_target_properties(protobuf::libprotobuf PROPERTIES
-            INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}"
-            IMPORTED_LOCATION "${Protobuf_LIBRARY}")
-        add_dependencies(protobuf::libprotobuf ext_protobuf)
+            add_library(protobuf::libprotobuf UNKNOWN IMPORTED)
+            set_target_properties(protobuf::libprotobuf PROPERTIES
+                INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}"
+                IMPORTED_LOCATION "${Protobuf_LIBRARY}")
+            add_dependencies(protobuf::libprotobuf ext_protobuf)
         endif()
         set(Protobuf_LIBRARIES protobuf::libprotobuf)
 
         if (NOT TARGET protobuf::protoc)
-        add_executable(protobuf::protoc IMPORTED)
-        set_target_properties(protobuf::protoc PROPERTIES
-            INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_PROTOC_EXECUTABLE}"
-            IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}")
-        add_dependencies(protobuf::protoc ext_protobuf)
+            add_executable(protobuf::protoc IMPORTED)
+            set_target_properties(protobuf::protoc PROPERTIES
+                INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_PROTOC_EXECUTABLE}"
+                IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}")
+            add_dependencies(protobuf::protoc ext_protobuf)
         endif()
 
         set(Protobuf_FOUND TRUE)
@@ -165,13 +149,17 @@ else()
         else()
             set(Protobuf_LIBRARIES libprotobuf)
         endif()
+
+        if(CMAKE_COMPILER_IS_GNUCXX)
+            set(_proto_libs ${Protobuf_LIBRARIES})
+            if(TARGET libprotoc)
+                list(APPEND _proto_libs libprotoc)
+            endif()
+            set_target_properties(${_proto_libs} PROPERTIES
+                                   COMPILE_FLAGS "-Wno-unused-variable")
+        endif()
     endif()
 endif()
 
-# Now make sure we restore the original CMAKE_*_FLAGS for the caller
-set(CMAKE_CXX_FLAGS ${PUSH_CMAKE_CXX_FLAGS})
-set(CMAKE_CXX_FLAGS_RELEASE "${PUSH_CMAKE_CXX_FLAGS_RELEASE}")
-set(CMAKE_C_FLAGS_RELEASE "${PUSH_CMAKE_C_FLAGS_RELEASE}")
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${PUSH_CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${PUSH_CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
-set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${PUSH_CMAKE_MODULE_LINKER_FLAGS_RELEASE}")
+# Now make sure we restore the original flags
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")

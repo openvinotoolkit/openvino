@@ -27,7 +27,7 @@
 
 /**
  * @struct c_mat
- * @brief OpenCV Mat Wraper
+ * @brief OpenCV Mat Wrapper
  */
 typedef struct c_mat {
     unsigned char *mat_data;

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,9 +33,9 @@ namespace ngraph
             // variances      Values to adjust prior boxes with
             std::vector<float> widths;
             std::vector<float> heights;
-            bool clip = false;
-            float step_widths = 1.0f;
-            float step_heights = 1.0f;
+            bool clip = true;
+            float step_widths = 0.0f;
+            float step_heights = 0.0f;
             float offset = 0.0f;
             std::vector<float> variances;
         };

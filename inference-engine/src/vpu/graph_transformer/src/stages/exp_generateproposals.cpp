@@ -60,6 +60,8 @@ private:
         for (auto& outputEdge : outputEdges()) {
             outputEdge->output()->serializeBuffer(serializer);
         }
+
+        tempBuffer(0)->serializeBuffer(serializer);
     }
 };
 
@@ -129,6 +131,29 @@ void FrontEnd::parseExpGenerateProposals(
         outputs);
 
     stage->attrs().set("params", params);
+
+    //This structure is needed to compute sizeProposalBuf.
+    //Since its outside the scope of the file, we write structure here
+    typedef struct {
+        int32_t idx;
+        fp16_t x0;
+        fp16_t y0;
+        fp16_t x1;
+        fp16_t y1;
+        fp16_t score;
+    } t_ExpGenerateProposalsProposal;
+
+    const int ALIGN_VALUE = 64;
+    const int sizeProposalsBuf = sizeof(t_ExpGenerateProposalsProposal) *
+                             inputScores->desc().dim(Dim::H) *
+                             inputScores->desc().dim(Dim::W) *
+                             inputScores->desc().dim(Dim::C) + ALIGN_VALUE;
+    const int sizeAuxBuf = sizeof(int8_t) * params.pre_nms_topn + ALIGN_VALUE;
+    const int sizeRoiIndicesBuf = sizeof(int32_t) * params.post_nms_topn + ALIGN_VALUE;
+
+    int buffer_size = 2 * sizeProposalsBuf + sizeAuxBuf + sizeRoiIndicesBuf;
+
+    model->addTempBuffer(stage, buffer_size);
 }
 
 }  // namespace vpu

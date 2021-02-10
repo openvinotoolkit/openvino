@@ -25,6 +25,7 @@ public:
     virtual ~PoolingKernelGPU_b_fs_zyx_fsv16_imad() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const pooling_params& params) const override;
     bool Validate(const Params&, const optional_params&) const override;
@@ -36,6 +37,7 @@ public:
     }
 
 protected:
-    JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const override;
+    JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
+    bool IsGlobalPooling(const pooling_params& params) const;
 };
 }  // namespace kernel_selector

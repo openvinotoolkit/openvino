@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,9 +46,6 @@ enum class build_option_type {
     /// @brief Enable implicit static input reordering for user inputs (default: false).
     allow_static_input_reorder,
 
-    /// @brief Enable running detection output layer always on gpu, regardless performance
-    detection_output_gpu,
-
     /// @brief Enable debug mode (default: false).
     /// @details This option enforce all program primitives to be accessible as outputs.
     debug,
@@ -69,6 +66,8 @@ enum class build_option_type {
 
     /// @brief Specifies a directory to which stages of network compilation should be dumped. (default: empty, i.e. no dumping)
     graph_dumps_dir,
+    /// @brief Specifies a directory to which compiled kernels should be cached or can be loaded from. (default: empty, i.e. no caching)
+    kernels_cache_dir,
     /// @brief Name for serialization process
     serialize_network,
     load_program,
@@ -130,9 +129,6 @@ struct build_option {
     /// @brief Enable implicit reordering for static user inputs (default: false).
     static std::shared_ptr<const build_option> allow_static_input_reorder(bool enable = false);
 
-    /// @brief Enable running detection output layer always on GPU, regardless performance (default: false).
-    static std::shared_ptr<const build_option> detection_output_gpu(bool enable = false);
-
     /// @brief Enable debug mode (default: false).
     /// @details This option enforce all program primitives to be accessible as outputs.
     static std::shared_ptr<const build_option> debug(bool enable = false);
@@ -151,6 +147,9 @@ struct build_option {
 
     /// @brief Specifies a directory to which stages of network compilation should be dumped (default: empty, i.e. no dumping)
     static std::shared_ptr<const build_option> graph_dumps_dir(const std::string& dir_path);
+
+    /// @brief Specifies a directory to which compiled kernels should be cached or can be loaded from. (default: empty, i.e. no caching)
+    static std::shared_ptr<const build_option> kernels_cache_dir(const std::string& dir_path);
 
     /// @brief Specifies a name for serialization process.
     static std::shared_ptr<const build_option> serialize_network(const std::string& network_name);
@@ -257,6 +256,21 @@ private:
     build_option_directory& operator=(const build_option_directory& other) = delete;
 };
 
+/// @brief @ref build_option specialization for selecting a directory.
+template <build_option_type OptType>
+struct build_option_kernels_cache_dir : build_option {
+    const std::string directory_path;
+
+    explicit build_option_kernels_cache_dir(const std::string& dir_path) : directory_path(dir_path) {}
+
+private:
+    /// @brief Returns build_option_type::kernels_cache_dir.
+    build_option_type get_type() const override { return build_option_type::kernels_cache_dir; }
+
+    build_option_kernels_cache_dir(const build_option_kernels_cache_dir& other) = delete;
+    build_option_kernels_cache_dir& operator=(const build_option_kernels_cache_dir& other) = delete;
+};
+
 /// @brief @ref build_option specialization for serialization process.
 template <build_option_type OptType>
 struct build_option_serialization : build_option {
@@ -323,11 +337,6 @@ struct build_option_traits<build_option_type::allow_static_input_reorder> {
     static std::shared_ptr<const build_option> make_default() { return build_option::allow_static_input_reorder(); }
 };
 template <>
-struct build_option_traits<build_option_type::detection_output_gpu> {
-    typedef build_option_bool<build_option_type::detection_output_gpu> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::detection_output_gpu(); }
-};
-template <>
 struct build_option_traits<build_option_type::debug> {
     typedef build_option_bool<build_option_type::debug> object_type;
     static std::shared_ptr<const build_option> make_default() { return build_option::debug(); }
@@ -351,6 +360,11 @@ template <>
 struct build_option_traits<build_option_type::graph_dumps_dir> {
     typedef build_option_directory<build_option_type::graph_dumps_dir> object_type;
     static std::shared_ptr<const build_option> make_default() { return build_option::graph_dumps_dir({}); }
+};
+template <>
+struct build_option_traits<build_option_type::kernels_cache_dir> {
+    typedef build_option_directory<build_option_type::kernels_cache_dir> object_type;
+    static std::shared_ptr<const build_option> make_default() { return build_option::kernels_cache_dir({}); }
 };
 template <>
 struct build_option_traits<build_option_type::serialize_network> {
@@ -384,10 +398,6 @@ inline std::shared_ptr<const build_option> build_option::allow_static_input_reor
     return std::make_shared<build_option_bool<build_option_type::allow_static_input_reorder>>(enable);
 }
 
-inline std::shared_ptr<const build_option> build_option::detection_output_gpu(bool enable) {
-    return std::make_shared<build_option_bool<build_option_type::detection_output_gpu>>(enable);
-}
-
 inline std::shared_ptr<const build_option> build_option::debug(bool enable) {
     return std::make_shared<build_option_bool<build_option_type::debug>>(enable);
 }
@@ -406,6 +416,10 @@ inline std::shared_ptr<const build_option> build_option::tuning_config(const tun
 
 inline std::shared_ptr<const build_option> build_option::graph_dumps_dir(const std::string& dir_path) {
     return std::make_shared<build_option_directory<build_option_type::graph_dumps_dir>>(dir_path);
+}
+
+inline std::shared_ptr<const build_option> build_option::kernels_cache_dir(const std::string& dir_path) {
+    return std::make_shared<build_option_directory<build_option_type::kernels_cache_dir>>(dir_path);
 }
 inline std::shared_ptr<const build_option> build_option::serialize_network(const std::string& name) {
     return std::make_shared<build_option_serialization<build_option_type::serialize_network>>(name);

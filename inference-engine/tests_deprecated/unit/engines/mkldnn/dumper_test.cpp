@@ -69,7 +69,7 @@ TEST(MKLDNNLayersTests, DumpSimpleGraph) {
     graph.CreateGraph(net, extMgr, cache);
 
     auto dump_net = dump_graph_as_ie_net(graph);
-    auto layers = details::CNNNetSortTopologically(*dump_net);
+    auto layers = details::CNNNetSortTopologically(dump_net);
 
     ASSERT_EQ(layers.size(), 4);
     ASSERT_EQ(layers[0]->type, "Input");

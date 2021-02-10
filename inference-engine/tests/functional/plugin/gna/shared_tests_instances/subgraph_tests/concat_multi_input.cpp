@@ -7,7 +7,7 @@
 #include "subgraph_tests/concat_multi_input.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 
@@ -32,7 +32,7 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_PRECISION", "I16"},
 };
 
-INSTANTIATE_TEST_CASE_P(concat_multi_input, ConcatMultiInput,
+INSTANTIATE_TEST_CASE_P(smoke_concat_multi_input, ConcatMultiInput,
     ::testing::Combine(
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(netPrecisions),

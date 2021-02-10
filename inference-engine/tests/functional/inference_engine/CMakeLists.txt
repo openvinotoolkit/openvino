@@ -1,36 +1,58 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2019-2021 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set(TARGET_NAME ieFuncTests)
 
+set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine)
+
+set(LINK_LIBRARIES
+    gmock
+    funcTestUtils
+    ngraphFunctions
+    lptNgraphFunctions
+    inference_engine_transformations
+    openvino::itt
+    openvino::conditional_compilation
+    sharedTestClasses
+)
+
+set(DEPENDENCIES
+    mock_engine
+    inference_engine_ir_reader
+    inference_engine_ir_v7_reader
+    template_extension
+    lptNgraphFunctions
+    sharedTestClasses
+)
+
+if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_USE_PROTOBUF_LITE)
+    set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        INCLUDES
-            # TODO: remove after removing `cnn_network_ngraph_imp.hpp`
-            ${IE_MAIN_SOURCE_DIR}/src/inference_engine
-        EXCLUDED_SOURCE_DIRS
-            ${CMAKE_CURRENT_SOURCE_DIR}/extension_lib
-        LINK_LIBRARIES
-            gmock
-            funcTestUtils
-            ngraphFunctions
-            inference_engine_transformations
+        INCLUDES ${INCLUDES}
+        EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
+        LINK_LIBRARIES ${LINK_LIBRARIES}
         ADD_CPPLINT
-        DEPENDENCIES
-            template_extension
-            mock_engine
-            inference_engine_ir_reader
-            inference_engine_ir_v7_reader
+        DEPENDENCIES ${DEPENDENCIES}
         LABELS
-            IE
+        IE
 )
 
-if(TARGET inference_engine_onnx_reader)
+if(NGRAPH_ONNX_IMPORT_ENABLE)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        NGRAPH_ONNX_IMPORT_ENABLE
+        ONNX_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()
+
+ie_faster_build(${TARGET_NAME}
+    PCH PRIVATE "precomp.hpp"
+)
 
 include(CMakeParseArguments)
 
@@ -125,6 +147,13 @@ function(ie_headers_compilation_with_custom_flags)
     # To include TBB headers as system
     set_ie_threading_interface_for(${target_name})
 
+    # To avoid further TBB find_package action in next call of this function. Some version of TBB
+    # has an issue with cmake config which lead to fail in case of multiple call of find_package
+    # from one cmake script file.
+    set("TBB_FOUND" ${TBB_FOUND} PARENT_SCOPE)
+    set("TBB_IMPORTED_TARGETS" ${TBB_IMPORTED_TARGETS} PARENT_SCOPE)
+    set("TBB_VERSION" ${TBB_VERSION} PARENT_SCOPE)
+
     set_target_properties(${target_name} PROPERTIES
                           CXX_STANDARD ${IE_TEST_CXX_STANDARD}
                           CXX_STANDARD_REQUIRED OFF)
@@ -136,6 +165,10 @@ function(ie_headers_compilation_with_custom_flags)
 
     if(IE_TEST_DEFINITIONS)
         target_compile_definitions(${target_name} PRIVATE ${IE_TEST_DEFINITIONS})
+    endif()
+
+    if(WIN32)
+        set_target_properties(${target_name} PROPERTIES COMPILE_PDB_NAME ${target_name})
     endif()
 
     add_dependencies(${TARGET_NAME} ${target_name})
@@ -184,13 +217,13 @@ if(UNIX)
                                                  PLUGIN_API)
     else()
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiPedantic FLAGS "-Wpedantic"
-                                                 HEADERS_TO_SKIP "generic_ie.hpp"
                                                  PLUGIN_API)
     endif()
 else()
-    # TODO: enable
-    # ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
-    #                                          HEADERS_TO_SKIP "generic_ie.hpp"
-    #                                          FLAGS  "/we4996 /W4 /WX"
-    #                                          PLUGIN_API)
+    ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWindowsAreErrors
+                                             FLAGS  "/we4996 /W4 /WX"
+                                             PLUGIN_API)
 endif()
+
+# ir serialization functional tests variables
+target_compile_definitions(${TARGET_NAME} PRIVATE IR_SERIALIZATION_MODELS_PATH="${CMAKE_CURRENT_SOURCE_DIR}/ir_serialization/models/")

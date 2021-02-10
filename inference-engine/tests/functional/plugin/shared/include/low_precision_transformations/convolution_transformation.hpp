@@ -7,17 +7,28 @@
 #include <string>
 #include <memory>
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
+#include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
 
+class ConvolutionTransformationParam {
+public:
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    bool asymmetricQuantizationOnData;
+    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+    bool asymmetricQuantizationOnWeights;
+    std::string layerName;
+    std::string expectedKernelType;
+};
+
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
-    bool, // fqOnActivations
-    bool  // fqOnWeights
+    ngraph::pass::low_precision::LayerTransformation::Params,
+    ConvolutionTransformationParam
 > ConvolutionTransformationParams;
 
 class ConvolutionTransformation :
@@ -28,6 +39,8 @@ public:
 
 protected:
     void SetUp() override;
+
+    void Run() override;
 
 private:
     void validate();

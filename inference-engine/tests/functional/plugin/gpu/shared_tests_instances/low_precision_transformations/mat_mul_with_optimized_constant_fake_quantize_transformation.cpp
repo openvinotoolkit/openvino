@@ -10,23 +10,23 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
 };
 
 const std::vector<LayerTestsDefinitions::MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues> params = {
     {
         { 256ul, ngraph::Shape { 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        { 255ul, ngraph::Shape { 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } }
-    }
+        { 255ul, ngraph::Shape { 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } }
+    },
 };
 
-const std::vector<std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>> inputShapes = {
-    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>({ InferenceEngine::SizeVector({ 1, 16 }), InferenceEngine::SizeVector({ 10, 16 }) }),
-    std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>({ InferenceEngine::SizeVector({ 1, 16 }), InferenceEngine::SizeVector({ 16, 10 }) })
+const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> inputShapes = {
+    std::pair<ngraph::Shape, ngraph::Shape>({ 1, 16 }, { 10, 16 }),
+    std::pair<ngraph::Shape, ngraph::Shape>({ 1, 16 }, { 16, 10 })
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

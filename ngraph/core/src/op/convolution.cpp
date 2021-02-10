@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/convolution.hpp"
+#include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -46,6 +47,7 @@ op::v1::Convolution::Convolution(const Output<Node>& data_batch,
 
 bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Convolution_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -56,6 +58,7 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::Convolution::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Convolution_validate_and_infer_types);
     const PartialShape& data_batch_shape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
     const PartialShape& filters_shape = get_input_partial_shape(1);
@@ -145,6 +148,7 @@ void op::v1::Convolution::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Convolution_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Convolution>(new_args.at(0),
                                         new_args.at(1),
@@ -183,6 +187,7 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
 
 bool op::v1::ConvolutionBackpropData::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_ConvolutionBackpropData_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -216,7 +221,7 @@ bool op::v1::ConvolutionBackpropData::is_dynamic() const
     bool is_dynamic = Node::is_dynamic();
     if (inputs().size() == 3 && !is_dynamic)
     {
-        return !is_type<op::Constant>(input_value(2).get_node());
+        return !has_and_set_equal_bounds(input_value(2));
     }
     return is_dynamic;
 }
@@ -237,7 +242,7 @@ const PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
     bool is_output_shape_present = inputs().size() == 3;
     if (is_output_shape_present)
     {
-        if (auto const_op = as_type<op::Constant>(input_value(2).get_node()))
+        if (auto const_op = get_constant_from_source(input_value(2)))
         {
             shape = const_op->get_shape_val();
         }
@@ -291,6 +296,7 @@ void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
 
 void op::v1::ConvolutionBackpropData::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_ConvolutionBackpropData_validate_and_infer_types);
     auto data_pshape = get_input_partial_shape(0);
     element::Type delta_et = get_input_element_type(0);
     const PartialShape& filters_pshape = get_input_partial_shape(1);
@@ -432,6 +438,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
 shared_ptr<Node>
     op::v1::ConvolutionBackpropData::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_ConvolutionBackpropData_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3)
     {

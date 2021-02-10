@@ -68,13 +68,13 @@ TestResult common_test_pipeline(const std::function<std::array<long, MeasureValu
 
     std::array<long, MeasureValueMax> measures = test_pipeline();
 
-    if ((!Environment::Instance().getCollectResultsOnly()) && (measures[VMRSS] > references[VMRSS]))
+    if (measures[VMRSS] > references[VMRSS])
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: RSS virtual memory consumption became greater than reference.\n"
                           "Reference RSS memory consumption: " + std::to_string(references[VMRSS]) + " KB.\n" +
                           "Current RSS memory consumption: " + std::to_string(measures[VMRSS]) + " KB.\n");
 
-    if ((!Environment::Instance().getCollectResultsOnly()) && (measures[VMHWM] > references[VMHWM]))
+    if (measures[VMHWM] > references[VMHWM])
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: HWM (peak of RSS) virtual memory consumption is greater than reference.\n"
                           "Reference HWM of memory consumption: " + std::to_string(references[VMHWM]) + " KB.\n" +

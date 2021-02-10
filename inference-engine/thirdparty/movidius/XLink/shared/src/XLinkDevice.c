@@ -253,7 +253,7 @@ XLinkError_t XLinkResetRemote(linkId_t id)
     XLINK_RET_ERR_IF(DispatcherWaitEventComplete(&link->deviceHandle),
         X_LINK_TIMEOUT);
 
-    if(sem_wait(&link->dispatcherClosedSem)) {
+    if(XLink_sem_wait(&link->dispatcherClosedSem)) {
         mvLog(MVLOG_ERROR,"can't wait dispatcherClosedSem\n");
         return X_LINK_ERROR;
     }
@@ -390,7 +390,7 @@ static xLinkDesc_t* getNextAvailableLink() {
 
     xLinkDesc_t* link = &availableXLinks[i];
 
-    if (sem_init(&link->dispatcherClosedSem, 0 ,0)) {
+    if (XLink_sem_init(&link->dispatcherClosedSem, 0 ,0)) {
         mvLog(MVLOG_ERROR, "Cannot initialize semaphore\n");
         return NULL;
     }

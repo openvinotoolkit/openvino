@@ -24,10 +24,11 @@ public:
     FullyConnected_fs_byx_fsv32() : Parent("fully_connected_gpu_fs_byx_fsv32") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 protected:
     ParamsKey GetSupportedKey() const override;
     DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
-    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
 };
 }  // namespace kernel_selector

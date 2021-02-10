@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,13 +37,14 @@ struct gather_optional_params : optional_params {
     gather_optional_params() : optional_params(KernelType::GATHER) {}
 };
 
-class GatherKernelRef : public common_kernel_base {
+class GatherKernelRef : public KernelBaseOpenCL {
 public:
-    GatherKernelRef() : common_kernel_base("gather_ref") {}
+    GatherKernelRef() : KernelBaseOpenCL("gather_ref") {}
     virtual ~GatherKernelRef() {}
     virtual JitConstants GetJitConstants(const gather_params& params) const;
     virtual CommonDispatchData SetDefault(const gather_params& params, const optional_params&) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,

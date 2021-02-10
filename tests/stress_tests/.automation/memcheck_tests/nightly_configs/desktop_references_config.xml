@@ -1,6 +1,323 @@
-<?xml version="1.0"?>
 <attributes>
     <models>
-
+        # References were collected from DB with next query: {"target_branch": "releases/2020/4", "commit_date":
+        "2020-06-15 13:21:41+00:00"}
+        # and modified on FACTOR = 1.3
+        <model device="GPU" path="public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" test="create_exenetwork" vmhwm="329206"
+               vmpeak="687460" vmrss="329206" vmsize="687460"/>
+        <model device="GPU" path="public/ctdet_coco_dlav0_512/FP32/ctdet_coco_dlav0_512.xml"
+               test="infer_request_inference" vmhwm="1071985" vmpeak="1598854" vmrss="1071985" vmsize="1513657"/>
+        <model device="GPU" path="public/brain-tumor-segmentation-0001/FP32/brain-tumor-segmentation-0001.xml"
+               test="create_exenetwork" vmhwm="5488875" vmpeak="5846682" vmrss="5417256" vmsize="5774787"/>
+        <model device="CPU" path="public/brain-tumor-segmentation-0002/FP32/brain-tumor-segmentation-0002.xml"
+               test="create_exenetwork" vmhwm="153509" vmpeak="2130762" vmrss="131820" vmsize="2109010"/>
+        <model device="CPU" path="public/googlenet-v1-tf/FP32/googlenet-v1-tf.xml" test="infer_request_inference"
+               vmhwm="143520" vmpeak="1230450" vmrss="117785" vmsize="1230450"/>
+        <model device="CPU" path="public/googlenet-v4-tf/FP32/googlenet-v4-tf.xml" test="infer_request_inference"
+               vmhwm="715135" vmpeak="1690878" vmrss="517982" vmsize="1483570"/>
+        <model device="GPU" path="public/yolo-v2-tf/FP32/yolo-v2-tf.xml" test="infer_request_inference" vmhwm="1357283"
+               vmpeak="1707222" vmrss="1055761" vmsize="1487714"/>
+        <model device="GPU" path="public/alexnet/FP32/alexnet.xml" test="create_exenetwork" vmhwm="1673422"
+               vmpeak="2031624" vmrss="1013547" vmsize="1371312"/>
+        <model device="CPU" path="public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" test="infer_request_inference" vmhwm="32110"
+               vmpeak="1137089" vmrss="32110" vmsize="1137089"/>
+        <model device="GPU" path="public/ssd_mobilenet_v2_coco/FP32/ssd_mobilenet_v2_coco.xml" test="create_exenetwork"
+               vmhwm="1023994" vmpeak="1370938" vmrss="959743" vmsize="1306188"/>
+        <model device="CPU" path="public/brain-tumor-segmentation-0001/FP32/brain-tumor-segmentation-0001.xml"
+               test="create_exenetwork" vmhwm="845915" vmpeak="2927428" vmrss="655449" vmsize="2736734"/>
+        <model device="GPU" path="public/ctdet_coco_dlav0_384/FP32/ctdet_coco_dlav0_384.xml"
+               test="infer_request_inference" vmhwm="942968" vmpeak="1470898" vmrss="942968" vmsize="1385701"/>
+        <model device="CPU" path="public/mobilenet-v2/FP32/mobilenet-v2.xml" test="create_exenetwork" vmhwm="90064"
+               vmpeak="1030208" vmrss="74037" vmsize="1014031"/>
+        <model device="CPU" path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="infer_request_inference"
+               vmhwm="126630" vmpeak="1222676" vmrss="110188" vmsize="1137479"/>
+        <model device="CPU" path="public/mtcnn/mtcnn-o/FP32/mtcnn-o.xml" test="infer_request_inference" vmhwm="33727"
+               vmpeak="1141301" vmrss="33727" vmsize="1141301"/>
+        <model device="GPU" path="public/densenet-169/FP32/densenet-169.xml" test="infer_request_inference"
+               vmhwm="1462349" vmpeak="1990289" vmrss="1462349" vmsize="1905092"/>
+        <model device="CPU" path="public/efficientnet-b0/FP32/efficientnet-b0.xml" test="infer_request_inference"
+               vmhwm="128403" vmpeak="1194440" vmrss="116745" vmsize="1194440"/>
+        <model device="GPU" path="public/brain-tumor-segmentation-0002/FP32/brain-tumor-segmentation-0002.xml"
+               test="infer_request_inference" vmhwm="2300573" vmpeak="2732880" vmrss="2217467" vmsize="2647684"/>
+        <model device="CPU" path="public/ctdet_coco_dlav0_512/FP32/ctdet_coco_dlav0_512.xml" test="create_exenetwork"
+               vmhwm="323060" vmpeak="1302262" vmrss="233859" vmsize="1212931"/>
+        <model device="CPU" path="public/brain-tumor-segmentation-0002/FP32/brain-tumor-segmentation-0002.xml"
+               test="infer_request_inference" vmhwm="1157234" vmpeak="2449824" vmrss="1157234" vmsize="2364627"/>
+        <model device="GPU" path="public/brain-tumor-segmentation-0002/FP32/brain-tumor-segmentation-0002.xml"
+               test="create_exenetwork" vmhwm="2281832" vmpeak="2638927" vmrss="2207790" vmsize="2564796"/>
+        <model device="CPU" path="public/vgg19/FP32/vgg19.xml" test="infer_request_inference" vmhwm="2219224"
+               vmpeak="3182665" vmrss="1523537" vmsize="2453885"/>
+        <model device="GPU" path="public/yolo-v2-tiny-tf/FP32/yolo-v2-tiny-tf.xml" test="create_exenetwork"
+               vmhwm="538304" vmpeak="895824" vmrss="490417" vmsize="847880"/>
+        <model device="GPU" path="public/ctdet_coco_dlav0_384/FP32/ctdet_coco_dlav0_384.xml" test="create_exenetwork"
+               vmhwm="957179" vmpeak="1314721" vmrss="957179" vmsize="1314721"/>
+        <model device="GPU" path="public/mobilenet-v2/FP32/mobilenet-v2.xml" test="create_exenetwork" vmhwm="594932"
+               vmpeak="952640" vmrss="594932" vmsize="952640"/>
+        <model device="CPU" path="public/googlenet-v3/FP32/googlenet-v3.xml" test="create_exenetwork" vmhwm="415412"
+               vmpeak="1326598" vmrss="296753" vmsize="1207601"/>
+        <model device="CPU" path="public/googlenet-v1-tf/FP32/googlenet-v1-tf.xml" test="create_exenetwork"
+               vmhwm="142896" vmpeak="1079457" vmrss="112377" vmsize="1048611"/>
+        <model device="GPU" path="public/alexnet/FP32/alexnet.xml" test="infer_request_inference" vmhwm="1677910"
+               vmpeak="2036039" vmrss="1018867" vmsize="1460924"/>
+        <model device="GPU" path="public/googlenet-v4-tf/FP32/googlenet-v4-tf.xml" test="create_exenetwork"
+               vmhwm="1662434" vmpeak="2019430" vmrss="1662434" vmsize="2019430"/>
+        <model device="GPU" path="public/densenet-121/FP32/densenet-121.xml" test="create_exenetwork" vmhwm="1094308"
+               vmpeak="1452172" vmrss="1094308" vmsize="1452172"/>
+        <model device="CPU" path="public/yolo-v1-tiny-tf/FP32/yolo-v1-tiny-tf.xml" test="create_exenetwork"
+               vmhwm="272740" vmpeak="1216732" vmrss="192602" vmsize="1136304"/>
+        <model device="GPU" path="public/mask_rcnn_resnet101_atrous_coco/FP32/mask_rcnn_resnet101_atrous_coco.xml"
+               test="create_exenetwork" vmhwm="4859030" vmpeak="5206666" vmrss="4102753" vmsize="4450399"/>
+        <model device="CPU" path="public/googlenet-v1/FP32/googlenet-v1.xml" test="create_exenetwork" vmhwm="147898"
+               vmpeak="1114651" vmrss="115112" vmsize="1053561"/>
+        <model device="GPU" path="public/yolo-v1-tiny-tf/FP32/yolo-v1-tiny-tf.xml" test="infer_request_inference"
+               vmhwm="680680" vmpeak="1054289" vmrss="527285" vmsize="969092"/>
+        <model device="CPU" path="public/octave-resnext-50-0.25/FP32/octave-resnext-50-0.25.xml"
+               test="infer_request_inference" vmhwm="464297" vmpeak="1802980" vmrss="400145" vmsize="1717783"/>
+        <model device="GPU" path="public/ctdet_coco_dlav0_512/FP32/ctdet_coco_dlav0_512.xml" test="create_exenetwork"
+               vmhwm="1071673" vmpeak="1429012" vmrss="1071673" vmsize="1429012"/>
+        <model device="GPU" path="public/ssd_mobilenet_v1_coco/FP32/ssd_mobilenet_v1_coco.xml"
+               test="infer_request_inference" vmhwm="672250" vmpeak="1199031" vmrss="672250" vmsize="1113834"/>
+        <model device="CPU" path="public/efficientnet-b0/FP32/efficientnet-b0.xml" test="create_exenetwork"
+               vmhwm="128388" vmpeak="1033484" vmrss="107822" vmsize="1012533"/>
+        <model device="CPU" path="public/ssd_mobilenet_v1_coco/FP32/ssd_mobilenet_v1_coco.xml"
+               test="infer_request_inference" vmhwm="143041" vmpeak="1332099" vmrss="121971" vmsize="1246902"/>
+        <model device="GPU" path="public/yolo-v2-tf/FP32/yolo-v2-tf.xml" test="create_exenetwork" vmhwm="1357709"
+               vmpeak="1707929" vmrss="1054398" vmsize="1401415"/>
+        <model device="GPU" path="public/se-resnet-50/FP32/se-resnet-50.xml" test="infer_request_inference"
+               vmhwm="1207304" vmpeak="1725323" vmrss="1207304" vmsize="1640126"/>
+        <model device="GPU" path="public/efficientnet-b0/FP32/efficientnet-b0.xml" test="create_exenetwork"
+               vmhwm="810825" vmpeak="1168039" vmrss="810825" vmsize="1168039"/>
+        <model device="GPU" path="public/se-inception/FP32/se-inception.xml" test="create_exenetwork" vmhwm="944112"
+               vmpeak="1291321" vmrss="944112" vmsize="1291321"/>
+        <model device="CPU" path="public/googlenet-v3/FP32/googlenet-v3.xml" test="infer_request_inference"
+               vmhwm="415594" vmpeak="1390048" vmrss="305515" vmsize="1390048"/>
+        <model device="CPU" path="public/mask_rcnn_resnet101_atrous_coco/FP32/mask_rcnn_resnet101_atrous_coco.xml"
+               test="infer_request_inference" vmhwm="2099572" vmpeak="3280186" vmrss="2099572" vmsize="2998964"/>
+        <model device="CPU" path="public/se-resnet-50/FP32/se-resnet-50.xml" test="infer_request_inference"
+               vmhwm="476954" vmpeak="1581210" vmrss="351046" vmsize="1496014"/>
+        <model device="CPU"
+               path="public/faster_rcnn_inception_resnet_v2_atrous_coco/FP32/faster_rcnn_inception_resnet_v2_atrous_coco.xml"
+               test="create_exenetwork" vmhwm="1011462" vmpeak="2969579" vmrss="760396" vmsize="2718393"/>
+        <model device="CPU"
+               path="public/faster_rcnn_inception_resnet_v2_atrous_coco/FP32/faster_rcnn_inception_resnet_v2_atrous_coco.xml"
+               test="infer_request_inference" vmhwm="1731979" vmpeak="2994170" vmrss="1731979" vmsize="2908973"/>
+        <model device="CPU" path="public/ctpn/FP32/ctpn.xml" test="infer_request_inference" vmhwm="497364"
+               vmpeak="1607845" vmrss="497364" vmsize="1529418"/>
+        <model device="CPU" path="public/mobilenet-v2/FP32/mobilenet-v2.xml" test="infer_request_inference"
+               vmhwm="90126" vmpeak="1281170" vmrss="82409" vmsize="1195974"/>
+        <model device="CPU" path="public/yolo-v2-tf/FP32/yolo-v2-tf.xml" test="infer_request_inference" vmhwm="812780"
+               vmpeak="1815288" vmrss="625066" vmsize="1744184"/>
+        <model device="CPU" path="public/alexnet/FP32/alexnet.xml" test="create_exenetwork" vmhwm="964272"
+               vmpeak="1895368" vmrss="654877" vmsize="1585792"/>
+        <model device="CPU" path="public/mobilenet-v1-1.0-224-tf/FP32/mobilenet-v1-1.0-224-tf.xml"
+               test="infer_request_inference" vmhwm="97141" vmpeak="1279350" vmrss="81712" vmsize="1194154"/>
+        <model device="CPU" path="public/mask_rcnn_resnet101_atrous_coco/FP32/mask_rcnn_resnet101_atrous_coco.xml"
+               test="create_exenetwork" vmhwm="1128233" vmpeak="3280191" vmrss="780743" vmsize="2932467"/>
+        <model device="CPU" path="public/mobilenet-v2-1.4-224/FP32/mobilenet-v2-1.4-224.xml"
+               test="infer_request_inference" vmhwm="130343" vmpeak="1311367" vmrss="111295" vmsize="1226170"/>
+        <model device="CPU" path="public/se-inception/FP32/se-inception.xml" test="create_exenetwork" vmhwm="232299"
+               vmpeak="1191814" vmrss="176898" vmsize="1136148"/>
+        <model device="GPU" path="public/se-resnet-152/FP32/se-resnet-152.xml" test="infer_request_inference"
+               vmhwm="2734373" vmpeak="3261367" vmrss="2734373" vmsize="3176170"/>
+        <model device="CPU" path="public/se-resnext-50/FP32/se-resnext-50.xml" test="create_exenetwork" vmhwm="476860"
+               vmpeak="1483336" vmrss="339549" vmsize="1345760"/>
+        <model device="CPU" path="public/ssd_mobilenet_v2_coco/FP32/ssd_mobilenet_v2_coco.xml"
+               test="infer_request_inference" vmhwm="300705" vmpeak="1445402" vmrss="235357" vmsize="1360205"/>
+        <model device="CPU" path="public/brain-tumor-segmentation-0001/FP32/brain-tumor-segmentation-0001.xml"
+               test="infer_request_inference" vmhwm="1768228" vmpeak="2992033" vmrss="1768228" vmsize="2821946"/>
+        <model device="CPU" path="public/caffenet/FP32/caffenet.xml" test="infer_request_inference" vmhwm="965572"
+               vmpeak="1894677" vmrss="658169" vmsize="1585953"/>
+        <model device="GPU" path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="infer_request_inference"
+               vmhwm="664773" vmpeak="1181507" vmrss="664773" vmsize="1096310"/>
+        <model device="CPU" path="public/ctdet_coco_dlav0_384/FP32/ctdet_coco_dlav0_384.xml" test="create_exenetwork"
+               vmhwm="321599" vmpeak="1278414" vmrss="232367" vmsize="1189084"/>
+        <model device="CPU" path="public/ssd_mobilenet_v2_coco/FP32/ssd_mobilenet_v2_coco.xml" test="create_exenetwork"
+               vmhwm="301511" vmpeak="1258327" vmrss="221260" vmsize="1177727"/>
+        <model device="GPU" path="public/yolo-v3-tf/FP32/yolo-v3-tf.xml" test="create_exenetwork" vmhwm="1711231"
+               vmpeak="2075855" vmrss="1532403" vmsize="1889888"/>
+        <model device="CPU" path="public/vgg19/FP32/vgg19.xml" test="create_exenetwork" vmhwm="2219448" vmpeak="3182665"
+               vmrss="1490070" vmsize="2453094"/>
+        <model device="CPU" path="public/googlenet-v1/FP32/googlenet-v1.xml" test="infer_request_inference"
+               vmhwm="149328" vmpeak="1320654" vmrss="123120" vmsize="1235457"/>
+        <model device="GPU" path="public/ctpn/FP32/ctpn.xml" test="create_exenetwork" vmhwm="2404532" vmpeak="2762448"
+               vmrss="2386540" vmsize="2743967"/>
+        <model device="CPU" path="public/i3d-rgb-tf/FP32/i3d-rgb-tf.xml" test="create_exenetwork" vmhwm="292292"
+               vmpeak="1390573" vmrss="230708" vmsize="1328849"/>
+        <model device="GPU" path="public/mtcnn/mtcnn-o/FP32/mtcnn-o.xml" test="create_exenetwork" vmhwm="339934"
+               vmpeak="698349" vmrss="339934" vmsize="698349"/>
+        <model device="CPU" path="public/yolo-v3-tf/FP32/yolo-v3-tf.xml" test="infer_request_inference" vmhwm="988608"
+               vmpeak="1965574" vmrss="720434" vmsize="1841538"/>
+        <model device="CPU" path="public/yolo-v1-tiny-tf/FP32/yolo-v1-tiny-tf.xml" test="infer_request_inference"
+               vmhwm="271902" vmpeak="1405289" vmrss="206668" vmsize="1320092"/>
+        <model device="CPU" path="public/se-resnext-50/FP32/se-resnext-50.xml" test="infer_request_inference"
+               vmhwm="477490" vmpeak="1483336" vmrss="371966" vmsize="1346592"/>
+        <model device="CPU" path="public/yolo-v3-tf/FP32/yolo-v3-tf.xml" test="create_exenetwork" vmhwm="991343"
+               vmpeak="1970904" vmrss="679114" vmsize="1658664"/>
+        <model device="GPU" path="public/caffenet/FP32/caffenet.xml" test="create_exenetwork" vmhwm="1678461"
+               vmpeak="2036767" vmrss="1018586" vmsize="1376455"/>
+        <model device="CPU" path="public/se-resnet-152/FP32/se-resnet-152.xml" test="infer_request_inference"
+               vmhwm="1114266" vmpeak="2174572" vmrss="828776" vmsize="2056496"/>
+        <model device="GPU" path="public/mtcnn/mtcnn-o/FP32/mtcnn-o.xml" test="infer_request_inference" vmhwm="340433"
+               vmpeak="868753" vmrss="340433" vmsize="783556"/>
+        <model device="CPU" path="public/Sphereface/FP32/Sphereface.xml" test="infer_request_inference" vmhwm="374836"
+               vmpeak="1459000" vmrss="263281" vmsize="1373803"/>
+        <model device="GPU" path="public/i3d-rgb-tf/FP32/i3d-rgb-tf.xml" test="infer_request_inference" vmhwm="1485442"
+               vmpeak="1881984" vmrss="1365530" vmsize="1796787"/>
+        <model device="GPU" path="public/se-resnet-152/FP32/se-resnet-152.xml" test="create_exenetwork" vmhwm="2746140"
+               vmpeak="3103349" vmrss="2746140" vmsize="3103349"/>
+        <model device="CPU" path="public/alexnet/FP32/alexnet.xml" test="infer_request_inference" vmhwm="963482"
+               vmpeak="1895368" vmrss="658283" vmsize="1767693"/>
+        <model device="GPU" path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="create_exenetwork" vmhwm="665277"
+               vmpeak="1012148" vmrss="665277" vmsize="1012148"/>
+        <model device="GPU" path="public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" test="infer_request_inference" vmhwm="329435"
+               vmpeak="857864" vmrss="329435" vmsize="772668"/>
+        <model device="GPU" path="public/ssd_mobilenet_v1_coco/FP32/ssd_mobilenet_v1_coco.xml" test="create_exenetwork"
+               vmhwm="671990" vmpeak="1028981" vmrss="671990" vmsize="1028981"/>
+        <model device="CPU" path="public/yolo-v2-tf/FP32/yolo-v2-tf.xml" test="create_exenetwork" vmhwm="813150"
+               vmpeak="2102848" vmrss="554668" vmsize="1737689"/>
+        <model device="GPU"
+               path="public/faster_rcnn_inception_resnet_v2_atrous_coco/FP32/faster_rcnn_inception_resnet_v2_atrous_coco.xml"
+               test="create_exenetwork" vmhwm="5051202" vmpeak="5408088" vmrss="5051202" vmsize="5408088"/>
+        <model device="CPU" path="public/octave-resnext-50-0.25/FP32/octave-resnext-50-0.25.xml"
+               test="create_exenetwork" vmhwm="463372" vmpeak="1638936" vmrss="360770" vmsize="1535965"/>
+        <model device="CPU" path="public/i3d-rgb-tf/FP32/i3d-rgb-tf.xml" test="infer_request_inference" vmhwm="392787"
+               vmpeak="1390573" vmrss="392787" vmsize="1389242"/>
+        <model device="CPU" path="public/se-resnet-50/FP32/se-resnet-50.xml" test="create_exenetwork" vmhwm="477682"
+               vmpeak="1454668" vmrss="337610" vmsize="1314164"/>
+        <model device="CPU" path="public/ssd_mobilenet_v1_coco/FP32/ssd_mobilenet_v1_coco.xml" test="create_exenetwork"
+               vmhwm="142844" vmpeak="1097834" vmrss="109626" vmsize="1064325"/>
+        <model device="CPU" path="public/se-resnet-152/FP32/se-resnet-152.xml" test="create_exenetwork" vmhwm="1113491"
+               vmpeak="2174577" vmrss="813904" vmsize="1874657"/>
+        <model device="CPU" path="public/densenet-121/FP32/densenet-121.xml" test="create_exenetwork" vmhwm="182317"
+               vmpeak="1197773" vmrss="164658" vmsize="1111999"/>
+        <model device="CPU" path="public/ctdet_coco_dlav0_512/FP32/ctdet_coco_dlav0_512.xml"
+               test="infer_request_inference" vmhwm="322951" vmpeak="1484464" vmrss="279208" vmsize="1399268"/>
+        <model device="GPU" path="public/se-resnext-50/FP32/se-resnext-50.xml" test="create_exenetwork" vmhwm="1193774"
+               vmpeak="1540479" vmrss="1193774" vmsize="1540479"/>
+        <model device="CPU" path="public/mtcnn/mtcnn-o/FP32/mtcnn-o.xml" test="create_exenetwork" vmhwm="34309"
+               vmpeak="962114" vmrss="32546" vmsize="960247"/>
+        <model device="GPU" path="public/mobilenet-v1-1.0-224-tf/FP32/mobilenet-v1-1.0-224-tf.xml"
+               test="create_exenetwork" vmhwm="494447" vmpeak="852124" vmrss="494447" vmsize="852124"/>
+        <model device="GPU" path="public/mobilenet-v2-1.4-224/FP32/mobilenet-v2-1.4-224.xml"
+               test="infer_request_inference" vmhwm="645127" vmpeak="1162184" vmrss="645127" vmsize="1076987"/>
+        <model device="GPU" path="public/vgg19/FP32/vgg19.xml" test="create_exenetwork" vmhwm="3663301" vmpeak="4022153"
+               vmrss="2013772" vmsize="2371428"/>
+        <model device="GPU" path="public/ssd_mobilenet_v2_coco/FP32/ssd_mobilenet_v2_coco.xml"
+               test="infer_request_inference" vmhwm="1022548" vmpeak="1475224" vmrss="959036" vmsize="1390027"/>
+        <model device="GPU"
+               path="public/faster_rcnn_inception_resnet_v2_atrous_coco/FP32/faster_rcnn_inception_resnet_v2_atrous_coco.xml"
+               test="infer_request_inference" vmhwm="5038597" vmpeak="5561036" vmrss="5038597" vmsize="5475839"/>
+        <model device="GPU" path="public/i3d-rgb-tf/FP32/i3d-rgb-tf.xml" test="create_exenetwork" vmhwm="1361396"
+               vmpeak="1708865" vmrss="1361396" vmsize="1708865"/>
+        <model device="GPU" path="public/mobilenet-v1-1.0-224-tf/FP32/mobilenet-v1-1.0-224-tf.xml"
+               test="infer_request_inference" vmhwm="491171" vmpeak="1018591" vmrss="491171" vmsize="933394"/>
+        <model device="GPU" path="public/octave-resnext-50-0.25/FP32/octave-resnext-50-0.25.xml"
+               test="infer_request_inference" vmhwm="1976426" vmpeak="2503280" vmrss="1976426" vmsize="2418083"/>
+        <model device="GPU" path="public/googlenet-v1/FP32/googlenet-v1.xml" test="infer_request_inference"
+               vmhwm="691709" vmpeak="1207856" vmrss="691709" vmsize="1122659"/>
+        <model device="GPU" path="public/efficientnet-b0/FP32/efficientnet-b0.xml" test="infer_request_inference"
+               vmhwm="820570" vmpeak="1338064" vmrss="820570" vmsize="1252867"/>
+        <model device="GPU" path="public/Sphereface/FP32/Sphereface.xml" test="infer_request_inference" vmhwm="863813"
+               vmpeak="1215136" vmrss="698453" vmsize="1129939"/>
+        <model device="CPU" path="public/mobilenet-ssd/FP32/mobilenet-ssd.xml" test="create_exenetwork" vmhwm="125866"
+               vmpeak="1110345" vmrss="98670" vmsize="1045501"/>
+        <model device="GPU" path="public/se-resnet-50/FP32/se-resnet-50.xml" test="create_exenetwork" vmhwm="1210544"
+               vmpeak="1557566" vmrss="1210544" vmsize="1557566"/>
+        <model device="GPU" path="public/mobilenet-v2/FP32/mobilenet-v2.xml" test="infer_request_inference"
+               vmhwm="596081" vmpeak="1120735" vmrss="596081" vmsize="1035538"/>
+        <model device="GPU" path="public/yolo-v1-tiny-tf/FP32/yolo-v1-tiny-tf.xml" test="create_exenetwork"
+               vmhwm="680950" vmpeak="1038434" vmrss="520566" vmsize="877874"/>
+        <model device="CPU" path="public/yolo-v2-tiny-tf/FP32/yolo-v2-tiny-tf.xml" test="infer_request_inference"
+               vmhwm="200688" vmpeak="1273443" vmrss="159364" vmsize="1273443"/>
+        <model device="GPU" path="public/Sphereface/FP32/Sphereface.xml" test="create_exenetwork" vmhwm="849794"
+               vmpeak="1208750" vmrss="683867" vmsize="1041315"/>
+        <model device="CPU" path="public/densenet-169/FP32/densenet-169.xml" test="create_exenetwork" vmhwm="290888"
+               vmpeak="1281810" vmrss="257852" vmsize="1248598"/>
+        <model device="CPU" path="public/ctdet_coco_dlav0_384/FP32/ctdet_coco_dlav0_384.xml"
+               test="infer_request_inference" vmhwm="321152" vmpeak="1278378" vmrss="258684" vmsize="1194871"/>
+        <model device="GPU" path="public/googlenet-v3/FP32/googlenet-v3.xml" test="create_exenetwork" vmhwm="1110356"
+               vmpeak="1467570" vmrss="1110356" vmsize="1467570"/>
+        <model device="CPU" path="public/mtcnn/mtcnn-r/FP32/mtcnn-r.xml" test="create_exenetwork" vmhwm="30227"
+               vmpeak="1037795" vmrss="30227" vmsize="956035"/>
+        <model device="GPU" path="public/googlenet-v1/FP32/googlenet-v1.xml" test="create_exenetwork" vmhwm="682973"
+               vmpeak="1039568" vmrss="682973" vmsize="1039568"/>
+        <model device="CPU" path="public/googlenet-v4-tf/FP32/googlenet-v4-tf.xml" test="create_exenetwork"
+               vmhwm="716154" vmpeak="1690884" vmrss="507525" vmsize="1482078"/>
+        <model device="CPU" path="public/densenet-121/FP32/densenet-121.xml" test="infer_request_inference"
+               vmhwm="182390" vmpeak="1197778" vmrss="173716" vmsize="1112763"/>
+        <model device="GPU" path="public/densenet-121/FP32/densenet-121.xml" test="infer_request_inference"
+               vmhwm="1093898" vmpeak="1621344" vmrss="1093898" vmsize="1536147"/>
+        <model device="GPU" path="public/yolo-v2-tiny-tf/FP32/yolo-v2-tiny-tf.xml" test="infer_request_inference"
+               vmhwm="541606" vmpeak="1021555" vmrss="494780" vmsize="936358"/>
+        <model device="GPU" path="public/octave-resnext-50-0.25/FP32/octave-resnext-50-0.25.xml"
+               test="create_exenetwork" vmhwm="1975246" vmpeak="2332423" vmrss="1975246" vmsize="2332423"/>
+        <model device="GPU" path="public/se-resnext-50/FP32/se-resnext-50.xml" test="infer_request_inference"
+               vmhwm="1214886" vmpeak="1731776" vmrss="1214886" vmsize="1646580"/>
+        <model device="CPU" path="public/se-inception/FP32/se-inception.xml" test="infer_request_inference"
+               vmhwm="231592" vmpeak="1403303" vmrss="181334" vmsize="1318106"/>
+        <model device="GPU" path="public/googlenet-v1-tf/FP32/googlenet-v1-tf.xml" test="create_exenetwork"
+               vmhwm="684533" vmpeak="1041762" vmrss="684533" vmsize="1041762"/>
+        <model device="CPU" path="public/ctpn/FP32/ctpn.xml" test="create_exenetwork" vmhwm="312821" vmpeak="1613175"
+               vmrss="229080" vmsize="1529262"/>
+        <model device="GPU" path="public/caffenet/FP32/caffenet.xml" test="infer_request_inference" vmhwm="1678918"
+               vmpeak="2036923" vmrss="1019933" vmsize="1461808"/>
+        <model device="GPU" path="public/mask_rcnn_resnet101_atrous_coco/FP32/mask_rcnn_resnet101_atrous_coco.xml"
+               test="infer_request_inference" vmhwm="4857247" vmpeak="5206427" vmrss="4128420" vmsize="4553484"/>
+        <model device="GPU" path="public/googlenet-v4-tf/FP32/googlenet-v4-tf.xml" test="infer_request_inference"
+               vmhwm="1670255" vmpeak="2196989" vmrss="1670255" vmsize="2111792"/>
+        <model device="CPU" path="public/mobilenet-v1-1.0-224-tf/FP32/mobilenet-v1-1.0-224-tf.xml"
+               test="create_exenetwork" vmhwm="97193" vmpeak="1087216" vmrss="76294" vmsize="1012232"/>
+        <model device="CPU" path="public/caffenet/FP32/caffenet.xml" test="create_exenetwork" vmhwm="964386"
+               vmpeak="1900002" vmrss="654992" vmsize="1590425"/>
+        <model device="GPU" path="public/mobilenet-v2-1.4-224/FP32/mobilenet-v2-1.4-224.xml" test="create_exenetwork"
+               vmhwm="640260" vmpeak="988109" vmrss="640260" vmsize="988109"/>
+        <model device="CPU" path="public/mobilenet-v2-1.4-224/FP32/mobilenet-v2-1.4-224.xml" test="create_exenetwork"
+               vmhwm="130213" vmpeak="1074086" vmrss="100630" vmsize="1044352"/>
+        <model device="CPU" path="public/densenet-169/FP32/densenet-169.xml" test="infer_request_inference"
+               vmhwm="290009" vmpeak="1430551" vmrss="266780" vmsize="1430551"/>
+        <model device="GPU" path="public/densenet-169/FP32/densenet-169.xml" test="create_exenetwork" vmhwm="1465521"
+               vmpeak="1823016" vmrss="1465521" vmsize="1823016"/>
+        <model device="GPU" path="public/ctpn/FP32/ctpn.xml" test="infer_request_inference" vmhwm="2408104"
+               vmpeak="2888906" vmrss="2363524" vmsize="2803710"/>
+        <model device="GPU" path="public/googlenet-v3/FP32/googlenet-v3.xml" test="infer_request_inference"
+               vmhwm="1109373" vmpeak="1637074" vmrss="1109373" vmsize="1551877"/>
+        <model device="CPU" path="public/Sphereface/FP32/Sphereface.xml" test="create_exenetwork" vmhwm="375663"
+               vmpeak="1307919" vmrss="260686" vmsize="1192750"/>
+        <model device="GPU" path="public/brain-tumor-segmentation-0001/FP32/brain-tumor-segmentation-0001.xml"
+               test="infer_request_inference" vmhwm="5498755" vmpeak="5913622" vmrss="5393434" vmsize="5828425"/>
+        <model device="GPU" path="public/vgg19/FP32/vgg19.xml" test="infer_request_inference" vmhwm="3676467"
+               vmpeak="4025216" vmrss="2028057" vmsize="2459688"/>
+        <model device="GPU" path="public/googlenet-v1-tf/FP32/googlenet-v1-tf.xml" test="infer_request_inference"
+               vmhwm="681803" vmpeak="1209452" vmrss="681803" vmsize="1124255"/>
+        <model device="GPU" path="public/se-inception/FP32/se-inception.xml" test="infer_request_inference"
+               vmhwm="947564" vmpeak="1465734" vmrss="947564" vmsize="1380537"/>
+        <model device="CPU" path="public/yolo-v2-tiny-tf/FP32/yolo-v2-tiny-tf.xml" test="create_exenetwork"
+               vmhwm="201552" vmpeak="1170317" vmrss="144762" vmsize="1089290"/>
+        <model device="GPU" path="public/yolo-v3-tf/FP32/yolo-v3-tf.xml" test="infer_request_inference" vmhwm="1711876"
+               vmpeak="2076287" vmrss="1521967" vmsize="1963785"/>
+        <model path="public/ssd300/FP32/ssd300.xml" test="create_exenetwork" device="CPU" vmsize="1046988"
+               vmpeak="1179042" vmrss="307990" vmhwm="439457"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model path="public/ssd300/FP32/ssd300.xml" test="create_exenetwork" device="GPU" vmsize="1267775"
+               vmpeak="1279647" vmrss="932672" vmhwm="944626"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model path="public/ssd300/FP32/ssd300.xml" test="infer_request_inference" device="CPU" vmsize="1321819"
+               vmpeak="1321819" vmrss="374207" vmhwm="439748"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model path="public/ssd300/FP32/ssd300.xml" test="infer_request_inference" device="GPU" vmsize="1356565"
+               vmpeak="1441762" vmrss="941418" vmhwm="947060"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model device="CPU" path="public/googlenet-v2/FP32/googlenet-v2.xml" test="create_exenetwork" vmhwm="214182"
+               vmpeak="1067034" vmrss="162011" vmsize="1014452"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model device="CPU" path="public/ssd512/FP32/ssd512.xml" test="create_exenetwork" vmhwm="453237"
+               vmpeak="1498151" vmrss="319966" vmsize="1361952"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model device="GPU" path="public/googlenet-v2/FP32/googlenet-v2.xml" test="create_exenetwork" vmhwm="642766"
+               vmpeak="975322" vmrss="606226" vmsize="938501"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model device="GPU" path="public/ssd512/FP32/ssd512.xml" test="create_exenetwork" vmhwm="1110293"
+               vmpeak="1441819" vmrss="1110293" vmsize="1441819"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model device="CPU" path="public/googlenet-v2/FP32/googlenet-v2.xml" test="infer_request_inference"
+               vmhwm="213876" vmpeak="1180764" vmrss="167460" vmsize="1095567"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model device="CPU" path="public/ssd512/FP32/ssd512.xml" test="infer_request_inference" vmhwm="501009"
+               vmpeak="1543474" vmrss="501009" vmsize="1458277"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model device="GPU" path="public/googlenet-v2/FP32/googlenet-v2.xml" test="infer_request_inference"
+               vmhwm="644373" vmpeak="1111749" vmrss="610048" vmsize="1026552"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
+        <model device="GPU" path="public/ssd512/FP32/ssd512.xml" test="infer_request_inference" vmhwm="1127287"
+               vmpeak="1619753" vmrss="1127287" vmsize="1534556"/> # values from {"target_branch": "releases/2020/2", "commit_date": "2020-05-14 11:19:36+00:00"} and *= 1.3
     </models>
 </attributes>

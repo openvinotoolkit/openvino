@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/myriad_plugin_config.hpp>
@@ -23,9 +23,9 @@ protected:
         SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
 
         const auto& parameters = GetParam();
-        const auto& dataType = std::get<0>(GetParam());
-        const auto& dataDims = std::get<1>(GetParam());
-        targetDevice = std::get<2>(GetParam());
+        const auto& dataType = std::get<0>(parameters);
+        const auto& dataDims = std::get<1>(parameters);
+        targetDevice = std::get<2>(parameters);
 
         const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims);
         const auto nonZero = std::make_shared<ngraph::opset3::NonZero>(data);
@@ -45,7 +45,7 @@ TEST_P(NonZero_Transpose, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicTranspose, NonZero_Transpose,
+INSTANTIATE_TEST_CASE_P(smoke_DynamicTranspose, NonZero_Transpose,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::Values(ngraph::Shape{1, 800}),

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ TEST(node_input_output, input_create)
 {
     auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto add = make_shared<op::Add>(x, y);
+    auto add = make_shared<op::v1::Add>(x, y);
 
     auto add_in_0 = add->input(0);
     auto add_in_1 = add->input(1);
@@ -58,7 +58,7 @@ TEST(node_input_output, input_create_const)
 {
     auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto add = make_shared<const op::Add>(x, y);
+    auto add = make_shared<const op::v1::Add>(x, y);
 
     auto add_in_0 = add->input(0);
     auto add_in_1 = add->input(1);
@@ -84,7 +84,7 @@ TEST(node_input_output, output_create)
 {
     auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto add = make_shared<op::Add>(x, y);
+    auto add = make_shared<op::v1::Add>(x, y);
 
     auto add_out_0 = add->output(0);
 
@@ -101,7 +101,7 @@ TEST(node_input_output, output_create_const)
 {
     auto x = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
     auto y = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
-    auto add = make_shared<const op::Add>(x, y);
+    auto add = make_shared<const op::v1::Add>(x, y);
 
     auto add_out_0 = add->output(0);
 

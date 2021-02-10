@@ -50,7 +50,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="3" name="1344813449_const" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -58,7 +58,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="4" name="1345813459_const" type="Const" version="opset1">
-            <data offset="8" size="8"/>
+            <data element_type="i64" offset="8" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -66,7 +66,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="9" name="13458134591_const" type="Const" version="opset1">
-            <data offset="16" size="8"/>
+            <data element_type="i64" offset="16" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -151,7 +151,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="12" name="ExpandAxis" type="Const" version="opset1">
-            <data offset="24" size="8"/>
+            <data element_type="i64" offset="24" shape="1" size="8"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>
@@ -311,7 +311,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="3" name="1344813449_const" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -319,7 +319,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="4" name="13458134591_const" type="Const" version="opset1">
-            <data offset="8" size="8"/>
+            <data element_type="i64" offset="8" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -327,7 +327,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="9" name="1345813459_const" type="Const" version="opset1">
-            <data offset="16" size="8"/>
+            <data element_type="i64" offset="16" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -411,7 +411,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="12" name="ExpandAxis" type="Const" version="opset1">
-            <data offset="24" size="8"/>
+            <data element_type="i64" offset="24" shape="1" size="8"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>
@@ -581,7 +581,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="3" name="1344813449_const" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -589,7 +589,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="4" name="1345813459_const" type="Const" version="opset1">
-            <data offset="8" size="8"/>
+            <data element_type="i64" offset="8" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -597,7 +597,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="9" name="13458134591_const" type="Const" version="opset1">
-            <data offset="16" size="8"/>
+            <data element_type="i64" offset="16" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -682,7 +682,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxClusteredNetwork) {
             </output>
         </layer>
         <layer id="12" name="ExpandAxis" type="Const" version="opset1">
-            <data offset="24" size="8"/>
+            <data element_type="i64" offset="24" shape="1" size="8"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>
@@ -920,7 +920,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="3" name="1344813449_const" type="Const" version="opset1">
-            <data offset="0" size="8"/>
+            <data element_type="i64" offset="0" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -928,7 +928,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="4" name="13458134591_const" type="Const" version="opset1">
-            <data offset="8" size="8"/>
+            <data element_type="i64" offset="8" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -936,7 +936,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="9" name="1345813459_const" type="Const" version="opset1">
-            <data offset="16" size="8"/>
+            <data element_type="i64" offset="16" shape="1" size="8"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>1</dim>
@@ -1020,7 +1020,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxNetwork) {
             </output>
         </layer>
         <layer id="12" name="ExpandAxis" type="Const" version="opset1">
-            <data offset="24" size="8"/>
+            <data element_type="i64" offset="24" shape="1" size="8"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>1</dim>

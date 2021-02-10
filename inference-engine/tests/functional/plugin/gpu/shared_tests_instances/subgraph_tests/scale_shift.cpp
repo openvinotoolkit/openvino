@@ -6,7 +6,7 @@
 #include "subgraph_tests/scaleshift.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 
@@ -47,7 +47,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
 
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(ScaleShift, ScaleShiftLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ScaleShift, ScaleShiftLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
                                 ::testing::ValuesIn(netPrecisions),

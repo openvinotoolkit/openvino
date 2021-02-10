@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,10 +44,10 @@ TEST(dyn_elimination, transpose)
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::Transpose>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Reshape>(f), 1);
+    ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(f), 1);
 
     auto new_reshape =
-        as_type_ptr<op::Reshape>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
+        as_type_ptr<op::v1::Reshape>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_reshape);
 
     ASSERT_EQ(new_reshape->get_input_order(), (AxisVector{2, 3, 1, 0}));

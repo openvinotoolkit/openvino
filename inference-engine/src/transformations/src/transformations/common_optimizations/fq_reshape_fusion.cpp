@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
 
 #include <memory>
@@ -11,7 +12,10 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::FakeQuantizeReshapeFusion, "FakeQuantizeReshapeFusion", 0);
+
 ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
+    MATCHER_SCOPE(FakeQuantizeReshapeFusion);
     const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
             {ngraph::pattern::wrap_type<opset4::Constant>(), // for weights only
              ngraph::pattern::any_input(),
@@ -20,7 +24,14 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
              ngraph::pattern::any_input()},
             pattern::consumers_count(1));
     const auto reshape_node_p = ngraph::pattern::wrap_type<opset4::Reshape>(
-            {fq_node_p, ngraph::pattern::any_input()});
+            {fq_node_p, ngraph::pattern::any_input()}, [](const Output<Node> & output) {
+                // WA: check that all Reshape node consumers are not GroupConvolution operations
+                const auto & target_inputs = output.get_target_inputs();
+                return std::all_of(target_inputs.begin(), target_inputs.end(),
+                        [](const Input<Node> & input){
+                            return input.get_node()->get_type_info() != opset4::GroupConvolution::type_info;
+                        });
+            });
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         const auto &pattern_map = m.get_pattern_value_map();
@@ -65,6 +76,6 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_node_p, "FakeQuantizeReshapeFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_node_p, matcher_name);
     this->register_matcher(m, callback);
 }

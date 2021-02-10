@@ -30,6 +30,7 @@ public:
                                            const int autoTuneIndex = -1) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
 
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
     struct tune_params {
@@ -68,7 +69,7 @@ protected:
                  FusedOpType::SCALE,
                  FusedOpType::QUANTIZE };
     }
-    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& params, const optional_params& options) const override;
 
     tune_params GetAutoTuneParams(const fully_connected_params& params, int idx = -1) const;

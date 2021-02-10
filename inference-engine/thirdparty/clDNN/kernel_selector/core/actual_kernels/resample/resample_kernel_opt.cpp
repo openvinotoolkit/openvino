@@ -46,27 +46,29 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
+    k.EnableReampleType(ResampleType::LINEAR_ONNX);
     k.EnableSubGroup();
     k.EnableSubGroupShort();
     return k;
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
-    DispatchData runInfo;
+    DispatchData dispatchData;
     const auto& out = arg.output;
 
-    runInfo.gws0 = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
-    runInfo.gws1 = Align(out.Feature().v, sub_group_size);
-    runInfo.gws2 = arg.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
+    dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
+    dispatchData.gws[2] = arg.output.Batch().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = sub_group_size;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = sub_group_size;
+    dispatchData.lws[2] = 1;
 
-    runInfo.efficiency = FORCE_PRIORITY_3;
-    runInfo.fp16UnitUsed = out.GetDType() == Datatype::F16;
+    return dispatchData;
+}
 
-    return runInfo;
+KernelsPriority ResampleKernelOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) const {

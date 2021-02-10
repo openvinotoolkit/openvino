@@ -28,11 +28,12 @@ public:
     virtual ~Convolution_kernel_b_fs_zyx_fsv16_imad() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     bool Validate(const Params& params, const optional_params& options) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return true; }
     WeightsLayout GetPreferredWeightsLayout(const convolution_params& p) const override {
@@ -50,7 +51,7 @@ protected:
         size_t output_block_width;
         size_t output_block_height;
         size_t output_block_depth;
-        
+
         size_t output_block_features;
 
         size_t input_block_width;
@@ -61,6 +62,7 @@ protected:
     };
 
     BlockParams GetBlockParams(const convolution_params& params) const;
+    float EstimateBlockParamsRatio(const convolution_params& params, const BlockParams& block) const;
     float EstimateRegPressure(const convolution_params& params, const BlockParams& block) const;
     float EstimateOccupancy(const convolution_params& params, const BlockParams& block) const;
     float EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const;

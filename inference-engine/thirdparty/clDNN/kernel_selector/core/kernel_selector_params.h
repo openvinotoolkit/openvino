@@ -180,6 +180,8 @@ public:
                         uint32_t nearest_neighbor : 1;
                         uint32_t caffe_bilinear_interp : 1;
                         uint32_t bilinear_interp : 1;
+                        uint32_t cubic : 1;
+                        uint32_t linear_onnx : 1;
                     } resample;
                     struct reorder_t {
                         uint32_t winograd : 1;
@@ -363,6 +365,14 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Device type
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class dev_type {
+    integrated_gpu = 0,
+    discrete_gpu = 1
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // EngineInfo
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct EngineInfo {
@@ -376,14 +386,16 @@ struct EngineInfo {
     bool bIMMADSupport = false;
     bool bOptHintsSupport = false;
     bool bLocalBlockIOSupport = false;
+    dev_type deviceType = dev_type::integrated_gpu;
     uint32_t computeUnitsCount = 0;
+    uint32_t maxThreadsPerExecutionUnit = 0;
+    uint32_t maxThreadsPerDevice = 0;
     uint64_t maxWorkGroupSize = 0;
     uint64_t maxLocalMemSize = 0;
     uint64_t maxImage2dWidth = 0;
     uint64_t maxImage2dHeight = 0;
     std::string deviceId = "";
     std::string driverVersion = "";
-    std::string hostVersion = "";
     std::shared_ptr<TuningCache> deviceCache;
 };
 

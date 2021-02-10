@@ -63,7 +63,7 @@ class ClampNormalizer(BackReplacementPattern):
                     clamp.out_port(0).get_connection().set_source(min_node.out_port(0))
                 clamp.in_port(2).get_connection().set_destination(min_node.in_port(1))
             assert min_node is not None or max_node is not None, 'Clamp node should have either min or max input used'
-            rename_node(max_node if min_node is None else min_node, name)
+            rename_node(min_node if min_node is not None else max_node, name)
         else:
             a_clamp = AttributedClamp(graph, {'name': name, 'min': min_value, 'max': max_value}).create_node()
             rename_node(a_clamp, name)

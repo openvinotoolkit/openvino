@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ namespace ngraph
             class NGRAPH_API Transpose : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Transpose", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 Transpose() = default;
                 ///
                 /// \brief      Constructs a transpose operation.

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -99,12 +99,12 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
             from google.protobuf.pyext import cpp_message
             # Check os windows and env variable PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION
             if os.name == 'nt' and os.environ.get('PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION', default='') != 'cpp':
-                # 2. cpp implementaion is available but not used
+                # 2. cpp implementation is available but not used
                 message += 'However, cpp implementation is available, you can boost ' \
                            'model conversion by setting PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION env variable to cpp. \n' \
                            'Run: set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp \n'
         except ImportError:
-            # 3. cpp implementaion is not available
+            # 3. cpp implementation is not available
             message += 'However you can use the C++ protobuf implementation that is supplied with the OpenVINO toolkit' \
                        'or build protobuf library from sources. \n' \
                        'Navigate to "install_prerequisites" folder and run: ' \
@@ -121,10 +121,12 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
         log.error('Exception message: {}\n\n'.format(e) +
                   '    Possible reasons:\n' +
                   '      1. {} does not exist\n'.format(proto_path) +
-                  '      2. {} does not have a valid structure, for example, it was downloaded as html\n'.format(proto_path) +
+                  '      2. {} does not have a valid structure, for example, it was downloaded as html\n'.format(
+                      proto_path) +
                   '      3. {} contains custom layers or attributes that are not supported\n'.format(proto_path) +
                   '         in Model Optimizer by default.\n\n' +
-                  '    After you made sure that {} has a valid structure and still see this issue, then\n'.format(proto_path) +
+                  '    After you made sure that {} has a valid structure and still see this issue, then\n'.format(
+                      proto_path) +
                   '    you need to generate a python parser for caffe.proto that was used when the model\n' +
                   '    was created.\n' +
                   '    Run "python3 generate_caffe_pb2.py --input_proto ${PATH_TO_CAFFE}/src/caffe/proto/caffe.proto"' +
@@ -301,7 +303,8 @@ def caffe_pb_to_nx(graph, proto, model):
                 'out': src_port,
                 'in': dst_port,
                 'name': bottom,
-                'fw_tensor_debug_info': [(src_layer, bottom)],  # debug anchor for a framework tensor name and port
+                # debug anchor for a framework name, out port and tensor name
+                'fw_tensor_debug_info': [(src_layer, src_port, bottom)],
                 'in_attrs': ['in', 'name'],
                 'out_attrs': ['out', 'name'],
                 'data_attrs': ['fw_tensor_debug_info']

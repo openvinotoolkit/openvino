@@ -12,6 +12,13 @@
 
 #include "description_buffer.hpp"
 
+/**
+ * @def THROW_IE_EXCEPTION_WITH_STATUS
+ * @brief Throws an exception along with the status (which is eventually converted to the typed exception)
+ */
+#define THROW_IE_EXCEPTION_WITH_STATUS(__status) THROW_IE_EXCEPTION << \
+                        InferenceEngine::details::as_status << InferenceEngine::StatusCode::__status << __status##_str
+
 namespace InferenceEngine {
 
 /**
@@ -31,27 +38,6 @@ namespace InferenceEngine {
     } catch (...) {                                                                                          \
         return InferenceEngine::DescriptionBuffer(UNEXPECTED);                                               \
     }
-
-/**
- * @def TO_STATUSVAR(x, statusVar, descBufferVar)
- * @brief Converts C++ exceptioned function call to a status variable
- * @ingroup ie_dev_api_error_debug
- */
-#define TO_STATUSVAR(x, statusVar, descBufferVar)                                                                      \
-    do {                                                                                                               \
-        try {                                                                                                          \
-            x;                                                                                                         \
-            statusVar = OK;                                                                                            \
-        } catch (const InferenceEngine::details::InferenceEngineException& iex) {                                      \
-            statusVar =                                                                                                \
-                InferenceEngine::DescriptionBuffer((iex.hasStatus() ? iex.getStatus() : GENERAL_ERROR), descBufferVar) \
-                << iex.what();                                                                                         \
-        } catch (const std::exception& ex) {                                                                           \
-            statusVar = InferenceEngine::DescriptionBuffer(GENERAL_ERROR, descBufferVar) << ex.what();                 \
-        } catch (...) {                                                                                                \
-            statusVar = InferenceEngine::DescriptionBuffer(UNEXPECTED);                                                \
-        }                                                                                                              \
-    } while (false)
 
 /**
  * @def TO_STATUS_NO_RESP(x)
@@ -102,10 +88,28 @@ namespace InferenceEngine {
 #define NETWORK_NOT_LOADED_str std::string("[NETWORK_NOT_LOADED] ")
 
 /**
+ * @def NETWORK_NOT_READ_str
+ * @brief Defines the `network not read` message
+ */
+#define NETWORK_NOT_READ_str std::string("[NETWORK_NOT_READ] ")
+
+/**
  * @def NOT_FOUND_str
  * @brief Defines the `not found` message
  */
 #define NOT_FOUND_str std::string("[NOT_FOUND] ")
+
+/**
+ * @def UNEXPECTED_str
+ * @brief Defines the `unexpected` message
+ */
+#define UNEXPECTED_str std::string("[UNEXPECTED] ")
+
+/**
+ * @def GENERAL_ERROR_str
+ * @brief Defines the `general error` message
+ */
+#define GENERAL_ERROR_str std::string("[GENERAL ERROR] ")
 
 /**
  * @def RESULT_NOT_READY_str
@@ -136,6 +140,12 @@ namespace InferenceEngine {
  * @brief Defines the `not allocated` message
  */
 #define NOT_ALLOCATED_str std::string("[NOT_ALLOCATED] ")
+
+/**
+ * @def INFER_CANCELLED_str
+ * @brief Defines the `infer cancelled` message
+ */
+#define INFER_CANCELLED_str std::string("[INFER_CANCELLED] ")
 
 /**
  * @}

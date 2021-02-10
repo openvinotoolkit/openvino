@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ shared_ptr<Node> descriptor::Output::get_node() const
     return m_node->shared_from_this();
 }
 
-Output<Node> descriptor::Output::get_output() const
+ngraph::Output<Node> descriptor::Output::get_output() const
 {
     return get_node()->output(m_index);
 }

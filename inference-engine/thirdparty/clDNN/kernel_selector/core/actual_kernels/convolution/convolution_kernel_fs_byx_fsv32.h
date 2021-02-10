@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ public:
     KernelsData GetTunedKernelsDataByIndex(const Params& params,
                                            const optional_params& options,
                                            int autoTuneIndex = -1) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
@@ -44,7 +45,7 @@ protected:
     }
 
     bool Validate(const Params& p, const optional_params& o) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return true; }
 

@@ -7,6 +7,8 @@
  * @file primitives_priority_attribute.hpp
  */
 
+#pragma once
+
 #include <assert.h>
 #include <functional>
 #include <memory>

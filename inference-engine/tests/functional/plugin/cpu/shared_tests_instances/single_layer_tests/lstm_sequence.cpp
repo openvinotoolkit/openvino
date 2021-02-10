@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,10 +10,14 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    // without clip values increase rapidly, so use only seq_lenghts = 2
+    std::vector<ngraph::helpers::SequenceTestsMode> mode{ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
+                                                         ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
+                                                         ngraph::helpers::SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
+                                                         ngraph::helpers::SequenceTestsMode::PURE_SEQ};
+    // output values increase rapidly without clip, so use only seq_lenghts = 2
     std::vector<size_t> seq_lengths_zero_clip{2};
     std::vector<size_t> seq_lengths_clip_non_zero{20};
-    std::vector<size_t> batch{1, 10};
+    std::vector<size_t> batch{10};
     std::vector<size_t> hidden_size{1, 10};
     std::vector<size_t> input_size{10};
     std::vector<std::vector<std::string>> activations = {{"relu", "sigmoid", "tanh"}, {"sigmoid", "tanh", "tanh"},
@@ -28,8 +32,9 @@ namespace {
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16};
 
-    INSTANTIATE_TEST_CASE_P(LSTMSequenceCommonZeroClip, LSTMSequenceTest,
+    INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCommonZeroClip, LSTMSequenceTest,
                             ::testing::Combine(
+                                    ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_zero_clip),
                                     ::testing::ValuesIn(batch),
                                     ::testing::ValuesIn(hidden_size),
@@ -41,8 +46,9 @@ namespace {
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             LSTMSequenceTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(LSTMSequenceCommonClip, LSTMSequenceTest,
+    INSTANTIATE_TEST_CASE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
                             ::testing::Combine(
+                                    ::testing::ValuesIn(mode),
                                     ::testing::ValuesIn(seq_lengths_clip_non_zero),
                                     ::testing::ValuesIn(batch),
                                     ::testing::ValuesIn(hidden_size),

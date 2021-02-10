@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h *.inc)
 
 function(add_graph_transformer_target TARGET_NAME STATIC_IE)
@@ -16,7 +12,6 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         # TODO: enable some day and fix all warnings
 #        target_compile_options(${TARGET_NAME} PRIVATE "-Wall")
-        target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-variable")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=unused-function")
         target_compile_options(${TARGET_NAME} PRIVATE "-Werror=strict-aliasing")
     endif()
@@ -26,6 +21,7 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
         target_compile_definitions(${TARGET_NAME}
             PUBLIC
                 USE_STATIC_IE)
+        set_target_properties(${TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL ON)
     endif()
     target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
@@ -57,8 +53,10 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
     if(NOT STATIC_IE)
         add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} CUSTOM_FILTERS "+runtime/explicit")
 
-        ie_developer_export_targets(${TARGET_NAME})
+        openvino_developer_export_targets(COMPONENT inference_engine_vpu TARGETS ${TARGET_NAME})
     endif()
+
+    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 endfunction()
 
 add_graph_transformer_target("vpu_graph_transformer" FALSE)

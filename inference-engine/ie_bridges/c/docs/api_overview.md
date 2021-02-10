@@ -120,6 +120,10 @@ enum precision_e{
 
 ​    FP16 = 11,  /**< 16bit floating point value */
 
+    BF16 = 12,  /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
+    
+    FP64 = 13,  /**< 64bit floating point value */
+
 ​    Q78 = 20,   /**< 16bit specific signed fixed point precision */
 
 ​    I16 = 30,   /**< 16bit signed integer value */
@@ -309,7 +313,7 @@ This strcut represents an Inference Engine entity and allows you to manipulate w
 
   - Usage examples:
 
-    Create an `ie_core_t` t instance with a custom configuration location sepcified:
+    Create an `ie_core_t` t instance with a custom configuration location specified:
 
     ```
     char *xml_config_file="/localdisk/plugins/my_custom_cfg.xml";

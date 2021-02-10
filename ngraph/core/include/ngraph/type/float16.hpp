@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,6 +47,12 @@ namespace ngraph
         }
 
         float16(float value);
+
+        template <typename I>
+        explicit float16(I value)
+            : m_value{float16{static_cast<float>(value)}.m_value}
+        {
+        }
 
         std::string to_string() const;
         size_t size() const;

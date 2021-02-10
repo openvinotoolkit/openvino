@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +16,11 @@
 
 #include <iterator>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/coordinate_diff.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/convpool.hpp"
-#include "onnx_import/utils/pooling_factory.hpp"
+#include "utils/convpool.hpp"
+#include "utils/pooling_factory.hpp"
 
 namespace ngraph
 {
@@ -31,11 +31,13 @@ namespace ngraph
             PoolingFactory::PoolingFactory(const Node& node)
                 : m_onnx_node{node}
                 , m_inputs{node.get_ng_inputs()}
-                , m_strides{convpool::get_strides(node)}
-                , m_dilations{convpool::get_dilations(node)}
+                , m_kernel_shape(node.get_attribute_value<std::vector<std::size_t>>("kernel_shape"))
+                , m_strides{convpool::get_strides(node, m_kernel_shape.size())}
+                , m_dilations{convpool::get_dilations(node, m_kernel_shape.size())}
                 , m_auto_pad{convpool::get_auto_pad(node)}
+                , m_rounding_type{convpool::get_rounding_type(node)}
             {
-                const auto paddings = convpool::get_pads(node);
+                const auto paddings = convpool::get_pads(node, m_kernel_shape.size());
                 const CoordinateDiff& padding_above{paddings.second};
                 const CoordinateDiff& padding_below{paddings.first};
                 m_padding_below = Shape{std::begin(padding_below), std::end(padding_below)};
@@ -52,7 +54,7 @@ namespace ngraph
                                                                  m_padding_above,
                                                                  m_kernel_shape,
                                                                  !count_include_pad,
-                                                                 op::RoundingType::FLOOR,
+                                                                 m_rounding_type,
                                                                  m_auto_pad)};
             }
 
@@ -63,35 +65,8 @@ namespace ngraph
                                                                  m_padding_below,
                                                                  m_padding_above,
                                                                  m_kernel_shape,
-                                                                 op::RoundingType::FLOOR,
+                                                                 m_rounding_type,
                                                                  m_auto_pad)};
-            }
-
-            LocalPoolingFactory::LocalPoolingFactory(const Node& node)
-                : PoolingFactory(node)
-            {
-                // Kernel shape is required
-                m_kernel_shape = node.get_attribute_value<std::vector<std::size_t>>("kernel_shape");
-            }
-
-            GlobalPoolingFactory::GlobalPoolingFactory(const Node& node)
-                : PoolingFactory(node)
-            {
-                const auto data_shape = node.get_ng_inputs().at(0).get_partial_shape();
-                const auto data_rank = data_shape.rank();
-                CHECK_VALID_NODE(
-                    node, data_rank.is_static(), "Data rank must be static for global pooling ops");
-                Shape kernel_shape;
-                for (auto i = 2; i < data_rank.get_length(); ++i)
-                {
-                    CHECK_VALID_NODE(node,
-                                     data_shape[i].is_static(),
-                                     "All spatial dimensions must be known for global pooling ops");
-                    kernel_shape.emplace_back(data_shape[i].get_length());
-                }
-
-                // Set shape to all but {N,C} axes.
-                m_kernel_shape = kernel_shape;
             }
         } // namespace pooling
     }     // namespace onnx_import
