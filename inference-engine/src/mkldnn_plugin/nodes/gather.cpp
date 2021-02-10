@@ -32,10 +32,12 @@ struct jGatherArgs {
     const int* dictTypeSize;
     const int* axisDim;
     const int* axDimSum;
-    const int* shufMask8bit;
-    const int* permMask8bit;
-    const int* shufMask16bit;
-    const int* permMask16bit;
+    const int* shufMask8bitUni;
+    const int* permMask8bitA2;
+    const int* permMask8bitA5;
+    const int* shufMask16bitUni;
+    const int* permMask16bitA2;
+    const int* permMask16bitA5;
     size_t idxStartB;
     size_t workAmount;
     int* tmp; // remove
@@ -93,17 +95,18 @@ struct jitUniGatherKernel : public jitGatherKernelBase, public x64::jit_generato
 //        mov(regAux2, ptr[regParams + GET_OFF(retVal)]);
 
         elPerVec = vlen / jcp_.dictTypeSize;
+        if (isa == x64::avx512_common) {
+            vpcmpub(kMaskOnes, vmmOnesBit, vmmOnesBit, 0);
+        }
 
         if (jcp_.dictTypeSize == 4) {
-            Xbyak::Label lDstIdxLoop, lTail, lFinish;
+            Xbyak::Label lDstIdxLoop, lTail;
             L(lDstIdxLoop);
             {
                 cmp(regWorkAmount, elPerVec);
                 jl(lTail, T_NEAR);
 
-                fillIndicies(vmmSrcShifts);
-                uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
-                vpgatherdd(vmmDst, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
+                vpGatherDD(vmmDst);
                 uni_vmovups(ptr[regDst], vmmDst);
 
                 add(regDst, vlen);
@@ -112,54 +115,29 @@ struct jitUniGatherKernel : public jitGatherKernelBase, public x64::jit_generato
                 jmp(lDstIdxLoop, T_NEAR);
             }
             L(lTail);
-            Xbyak::Label lTailLoop, lCalc;
-            Xbyak::Reg32 regDictTypeSize32(regAux1.getIdx());
-            Xbyak::Reg32 regAxDimSum32(regAux2.getIdx());
-            Xbyak::Reg32 regAux3_32(regAux3.getIdx());
-            uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 0);
-            uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
-            L(lTailLoop);
-            {
-                cmp(regWorkAmount, 0);
-                je(lFinish, T_NEAR);
-
-                cmp(regIdxIter, jcp_.indicesSize);
-                jl(lCalc, T_NEAR);
-                mov(regIdxIter, 0);
-                uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
-                uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
-
-                L(lCalc);
-                mov(eax, ptr[regIndices + regIdxIter]);
-                mul(regDictTypeSize32);
-                add(eax, regAxDimSum32);
-                mov(regAux3_32, ptr[regSrc + rax]);
-                mov(ptr[regDst], regAux3_32);
-
-                add(regIdxIter, sizeof(int));
-                add(regDst, jcp_.dictTypeSize);
-                sub(regWorkAmount, 1);
-                jmp(lTailLoop, T_NEAR);
-            }
-
-            L(lFinish);
+            tail();
         } else if (jcp_.dictTypeSize == 2) {
             auto& vmmShufMask = vmmAux8;
-            mov(regAux1, ptr[regParams + GET_OFF(shufMask16bit)]);
+            mov(regAux1, ptr[regParams + GET_OFF(shufMask16bitUni)]);
             uni_vmovups(vmmShufMask, ptr[regAux1]);
 
             auto& vmmPermMask = vmmAux9;
-            mov(regAux1, ptr[regParams + GET_OFF(permMask16bit)]);
+            if (isa == x64::avx512_common) {
+                mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA5)]);
+            } else {
+                mov(regAux1, ptr[regParams + GET_OFF(permMask16bitA2)]);
+            }
             uni_vmovups(vmmPermMask, ptr[regAux1]);
 
-            Xbyak::Label lDstIdxLoop, lTail, lFinish;
+            Xbyak::Label lDstIdxLoop, lTail;
             L(lDstIdxLoop);
             {
                 cmp(regWorkAmount, elPerVec);
                 jl(lTail, T_NEAR);
 
-                gatherAndShift(vmmAux3, vmmShufMask); // VPERMB 512
-                gatherAndShift(vmmAux4, vmmShufMask);
+                // TODO: On AVX512_VBMI can be replaced on VPERMB(VPERMB(Gather()), Gather())
+                gatherAndGroup(vmmAux3, vmmShufMask);
+                gatherAndGroup(vmmAux4, vmmShufMask);
                 vshufps(vmmAux3, vmmAux3, vmmAux4, 0x44);
                 vpermd(vmmAux3, vmmPermMask, vmmAux3);
 
@@ -171,57 +149,32 @@ struct jitUniGatherKernel : public jitGatherKernelBase, public x64::jit_generato
                 jmp(lDstIdxLoop, T_NEAR);
             }
             L(lTail);
-            Xbyak::Label lTailLoop, lCalc;
-            Xbyak::Reg32 regDictTypeSize32(regAux1.getIdx());
-            Xbyak::Reg32 regAxDimSum32(regAux2.getIdx());
-            Xbyak::Reg16 regAux3_16(regAux3.getIdx());
-            uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 0);
-            uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
-            L(lTailLoop);
-            {
-                cmp(regWorkAmount, 0);
-                je(lFinish, T_NEAR);
-
-                cmp(regIdxIter, jcp_.indicesSize);
-                jl(lCalc, T_NEAR);
-                mov(regIdxIter, 0);
-                uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
-                uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
-
-                L(lCalc);
-                mov(eax, ptr[regIndices + regIdxIter]);
-                mul(regDictTypeSize32);
-                add(eax, regAxDimSum32);
-                mov(regAux3_16, ptr[regSrc + rax]);
-                mov(ptr[regDst], regAux3_16);
-
-                add(regIdxIter, sizeof(int));
-                add(regDst, jcp_.dictTypeSize);
-                sub(regWorkAmount, 1);
-                jmp(lTailLoop, T_NEAR);
-            }
-            L(lFinish);
+            tail();
         } else if (jcp_.dictTypeSize == 1) {
             auto& vmmShufMask = vmmAux8;
-            mov(regAux1, ptr[regParams + GET_OFF(shufMask8bit)]);
+            mov(regAux1, ptr[regParams + GET_OFF(shufMask8bitUni)]);
             uni_vmovups(vmmShufMask, ptr[regAux1]);
 
             auto& vmmPermMask = vmmAux9;
-            mov(regAux1, ptr[regParams + GET_OFF(permMask8bit)]);
+            if (isa == x64::avx512_common) {
+                mov(regAux1, ptr[regParams + GET_OFF(permMask8bitA5)]);
+            } else {
+                mov(regAux1, ptr[regParams + GET_OFF(permMask8bitA2)]);
+            }
             uni_vmovups(vmmPermMask, ptr[regAux1]);
 
-            Xbyak::Label lDstIdxLoop, lTail, lFinish;
+            Xbyak::Label lDstIdxLoop, lTail;
             L(lDstIdxLoop);
             {
                 cmp(regWorkAmount, elPerVec);
                 jl(lTail, T_NEAR);
 
-                gatherAndShift(vmmAux3, vmmShufMask);
-                gatherAndShift(vmmAux4, vmmShufMask);
+                gatherAndGroup(vmmAux3, vmmShufMask);
+                gatherAndGroup(vmmAux4, vmmShufMask);
                 vshufps(vmmAux3, vmmAux3, vmmAux4, 0);
 
-                gatherAndShift(vmmAux4, vmmShufMask);
-                gatherAndShift(vmmAux5, vmmShufMask);
+                gatherAndGroup(vmmAux4, vmmShufMask);
+                gatherAndGroup(vmmAux5, vmmShufMask);
                 vshufps(vmmAux4, vmmAux4, vmmAux5, 0);
 
                 vshufps(vmmAux3, vmmAux3, vmmAux4, 0x88);
@@ -235,41 +188,62 @@ struct jitUniGatherKernel : public jitGatherKernelBase, public x64::jit_generato
                 jmp(lDstIdxLoop, T_NEAR);
             }
             L(lTail);
-            Xbyak::Label lTailLoop, lCalc;
-            Xbyak::Reg32 regDictTypeSize32(regAux1.getIdx());
-            Xbyak::Reg32 regAxDimSum32(regAux2.getIdx());
-            Xbyak::Reg8 regAux3_8(regAux3.getIdx());
-            uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 0);
-            uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
-            L(lTailLoop);
-            {
-                cmp(regWorkAmount, 0);
-                je(lFinish, T_NEAR);
-
-                cmp(regIdxIter, jcp_.indicesSize);
-                jl(lCalc, T_NEAR);
-                mov(regIdxIter, 0);
-                uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
-                uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
-
-                L(lCalc);
-                mov(eax, ptr[regIndices + regIdxIter]);
-                add(eax, regAxDimSum32);
-                mov(regAux3_8, ptr[regSrc + rax]);
-                mov(ptr[regDst], regAux3_8);
-
-                add(regIdxIter, sizeof(int));
-                add(regDst, jcp_.dictTypeSize);
-                sub(regWorkAmount, 1);
-                jmp(lTailLoop, T_NEAR);
-            }
-            L(lFinish);
+            tail();
         }
 
         this->postamble();
     }
 
 protected:
+    using Vmm = typename mkldnn::impl::utils::conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    const uint32_t vlen = x64::cpu_isa_traits<isa>::vlen;
+    const uint32_t vlenXmm = x64::cpu_isa_traits<x64::sse41>::vlen;
+    const uint32_t vlenYmm = x64::cpu_isa_traits<x64::avx2>::vlen;
+    int elPerVec;
+
+    void tail() {
+        Xbyak::Label lTailLoop, lCalc, lFinish;
+        Xbyak::Reg32 regDictTypeSize32(regAux1.getIdx());
+        Xbyak::Reg32 regAxDimSum32(regAux2.getIdx());
+        Xbyak::Reg32 regAux3_32(regAux3.getIdx());
+        Xbyak::Reg16 regAux3_16(regAux3.getIdx());
+        Xbyak::Reg8  regAux3_8(regAux3.getIdx());
+        uni_vpextrd(regDictTypeSize32, xmmDictTypeSize, 0);
+        uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
+        L(lTailLoop);
+        {
+            cmp(regWorkAmount, 0);
+            je(lFinish, T_NEAR);
+
+            cmp(regIdxIter, jcp_.indicesSize);
+            jl(lCalc, T_NEAR);
+            mov(regIdxIter, 0);
+            uni_vpaddd(vmmAxDimSum, vmmAxDimSum, vmmAxDim);
+            uni_vpextrd(regAxDimSum32, xmmAxDimSum, 0);
+
+            L(lCalc);
+            mov(eax, ptr[regIndices + regIdxIter]);
+            mul(regDictTypeSize32);
+            add(eax, regAxDimSum32);
+            if (jcp_.dictTypeSize == 4) {
+                mov(regAux3_32, ptr[regSrc + rax]);
+                mov(ptr[regDst], regAux3_32);
+            } else if (jcp_.dictTypeSize == 2) {
+                mov(regAux3_16, ptr[regSrc + rax]);
+                mov(ptr[regDst], regAux3_16);
+            } else if (jcp_.dictTypeSize == 1) {
+                mov(regAux3_8, ptr[regSrc + rax]);
+                mov(ptr[regDst], regAux3_8);
+            }
+
+            add(regIdxIter, sizeof(int));
+            add(regDst, jcp_.dictTypeSize);
+            sub(regWorkAmount, 1);
+            jmp(lTailLoop, T_NEAR);
+        }
+        L(lFinish);
+    }
+
     void fillIndicies(Xbyak::Xmm& dst) {
         Xbyak::Label lPerElements, lExit;
 
@@ -348,18 +322,26 @@ protected:
         L(lExit);
     }
 
-protected:
-    using Vmm = typename mkldnn::impl::utils::conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    const uint32_t vlen = x64::cpu_isa_traits<isa>::vlen;
-    const uint32_t vlenXmm = x64::cpu_isa_traits<x64::sse41>::vlen;
-    const uint32_t vlenYmm = x64::cpu_isa_traits<x64::avx2>::vlen;
-    int elPerVec;
-
-    void gatherAndShift(const Vmm& dst, const Vmm& vmmShufMask) {
+    void vpGatherDD(const Xbyak::Ymm& dst) {
         fillIndicies(vmmSrcShifts);
         uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
         vpgatherdd(dst, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
-        vpshufb(dst, dst, vmmShufMask);
+    }
+
+    void vpGatherDD(const Xbyak::Zmm& dst) {
+        fillIndicies(vmmSrcShifts);
+        vpcmpub(kMaskAux1, vmmOnesBit, vmmOnesBit, 0);
+        vpgatherdd(dst | kMaskAux1, ptr[regSrc + vmmSrcShifts]);
+    }
+
+    void gatherAndGroup(const Xbyak::Ymm& dst, const Xbyak::Ymm& shufMask) {
+        vpGatherDD(dst);
+        vpshufb(dst, dst, shufMask);
+    }
+
+    void gatherAndGroup(const Xbyak::Zmm& dst, const Xbyak::Zmm& shufMask) {
+        vpGatherDD(dst);
+        vpshufb(dst | kMaskOnes, dst, shufMask);
     }
 
     Xbyak::Reg64 regSrc = r8;
@@ -373,11 +355,15 @@ protected:
 
     Xbyak::Reg64 regParams = x64::abi_param1;
 
+    Xbyak::Opmask kMaskOnes = Xbyak::Opmask(1);
+    Xbyak::Opmask kMaskAux1 = Xbyak::Opmask(2);
+
     Xbyak::Xmm xmmAux0 = Xbyak::Xmm(0);
     Xbyak::Xmm xmmAux1 = Xbyak::Xmm(1);
     Xbyak::Xmm xmmAxDimSum = Xbyak::Xmm(2);
     Xbyak::Xmm xmmAxDim = Xbyak::Xmm(3);
     Xbyak::Xmm xmmDictTypeSize = Xbyak::Xmm(4);
+    Xbyak::Xmm xmmOnesBit = Xbyak::Xmm(5);
 
     Xbyak::Ymm ymmAux2 = Xbyak::Ymm(7);
 
@@ -444,10 +430,14 @@ public:
         const SizeVector& indexesDims = idxData->getTensorDesc().getDims();
         indicesSize_ = std::accumulate(indexesDims.begin(), indexesDims.end(), 1, std::multiplies<size_t>());
 
-        const Precision idxPrecision = Precision::I32;
+        Precision dictPrecision = dictData->getTensorDesc().getPrecision();
+        if (dictPrecision == Precision::BF16 && !x64::mayiuse(x64::avx512_common)) {
+            dictPrecision = Precision::FP32;
+        }
+        const Precision idxPrecision(Precision::I32);
+
         LayerConfig config;
         DataConfig dataConfigIdx, dataConfigDct;
-        const Precision dictPrecision = dictData->getTensorDesc().getPrecision();
         dataConfigDct.desc = TensorDesc(dictPrecision, dictionaryDims,
                 dictData->getTensorDesc().getLayoutByDims(dictionaryDims));
         config.inConfs.push_back(dataConfigDct);
@@ -491,7 +481,7 @@ public:
             case sizeof(PrecisionTrait<Precision::I8>::value_type):
                 return gather<PrecisionTrait<Precision::I8>::value_type>(inputs, outputs, resp);
             default:
-                std::string errMsg = std::string("Gather layer has inputData input with unsupported precision: ") +
+                std::string errMsg = std::string("Gather layer has inputData with unsupported precision: ") +
                     inputs[GATHER_DICTIONARY]->getTensorDesc().getPrecision().name();
                 errMsg.copy(resp->msg, sizeof(resp->msg) - 1);
                 return GENERAL_ERROR;
@@ -505,7 +495,6 @@ private:
         const int* srcIndices = inputs[GATHER_INDEXES]->cbuffer().as<const int*>() +
             inputs[GATHER_INDEXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         auto& output = outputs[0];
-//        const int *srcIndices = indexes->cbuffer().as<const int*>() + indexes->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
 //static unsigned c1 = 0;
 //static double t1 = 0.0;
@@ -531,10 +520,6 @@ private:
 //int tmp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 //int retVal = 0;
 
-//int imm = 1;
-//imm = imm | (imm << 2) | (imm << 4) | (imm << 6);
-//imm = ~((imm << 3) - imm);
-
                     const int dictTypeSize = dictTypeSize_;
                     const int axisDimB = axisDim_ * dictTypeSize_;
                     const int axDimSumB = axisDimB * basStart;
@@ -547,10 +532,12 @@ private:
                     arg.axisDim = &axisDimB;
                     arg.axDimSum = &axDimSumB;
                     arg.idxStartB = idxStart * sizeof(int);
-                    arg.shufMask8bit = shufMask8bit_;
-                    arg.permMask8bit = permMask8bit_;
-                    arg.shufMask16bit = shufMask16bit_;
-                    arg.permMask16bit = permMask16bit_;
+                    arg.shufMask8bitUni  = shufMask8bitUni_;
+                    arg.permMask8bitA2   = permMask8bitA2_;
+                    arg.permMask8bitA5   = permMask8bitA5_;
+                    arg.shufMask16bitUni = shufMask16bitUni_;
+                    arg.permMask16bitA2  = permMask16bitA2_;
+                    arg.permMask16bitA5  = permMask16bitA5_;
                     arg.workAmount = end - start;
 //                    arg.tmp = tmp;
 //                    arg.retVal = &retVal;
@@ -633,10 +620,16 @@ private:
     size_t afterAxisSize_ = 1lu;
     size_t indicesSize_ = 1lu;
     size_t dictTypeSize_ = 1lu;
-    int shufMask8bit_[8] = {0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080};
-    int permMask8bit_[8] = {0, 4, 1, 5, 2, 6, 3, 7};
-    int shufMask16bit_[8] = {0x05040100, 0x0D0C0908, 0x80808080, 0x80808080, 0x05040100, 0x0D0C0908, 0x80808080, 0x80808080};
-    int permMask16bit_[8] = {0, 1, 4, 5, 2, 3, 6, 7};
+
+    const int shufMask8bitUni_[16]  = {0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080,
+                                       0x0C080400, 0x80808080, 0x80808080, 0x80808080, 0x0C080400, 0x80808080, 0x80808080, 0x80808080};
+    const int permMask8bitA2_[8]    = {0, 4, 1, 5, 2, 6, 3, 7};
+    const int permMask8bitA5_[16]   = {0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 3, 7, 11, 15};
+    const int shufMask16bitUni_[16] = {0x05040100, 0x0D0C0908, 0x80808080, 0x80808080, 0x05040100, 0x0D0C0908, 0x80808080, 0x80808080,
+                                       0x05040100, 0x0D0C0908, 0x80808080, 0x80808080, 0x05040100, 0x0D0C0908, 0x80808080, 0x80808080};
+    const int permMask16bitA2_[8]   = {0, 1, 4, 5, 2, 3, 6, 7};
+    const int permMask16bitA5_[16]  = {0, 1, 4, 5, 8, 9, 12, 13, 2, 3, 6, 7, 10, 11, 14, 15};
+
     std::shared_ptr<jitGatherKernelBase> jKernel_;
 };
 
