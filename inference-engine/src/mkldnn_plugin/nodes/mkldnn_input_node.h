@@ -20,10 +20,8 @@ public:
     void createPrimitive() override;
     bool created() const override;
 
-    void execute(mkldnn::stream strm) override;
-    void withMeanImage() {
-        isMeanImage = true;
-    }
+    void withMeanImage();
+    InferenceEngine::Blob::Ptr getConstBlob() const;
 
 private:
     InferenceEngine::Precision precision;

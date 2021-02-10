@@ -213,6 +213,37 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
                 binConvLayer->blobs.clear();
                 binConvLayer->_weights = nullptr;
             }
+        } else if (layer->type == "Convolution") {
+            auto * convLayer = dynamic_cast<ConvolutionLayer*>(layer.get());
+            if (convLayer == nullptr)
+                THROW_IE_EXCEPTION << "Cannot convert convolution layer.";
+
+            bool const isGrouped = convLayer->_group != 1;
+            size_t const groupNum = convLayer->_group;
+            size_t const groupIC = isGrouped
+                                ? convLayer->input()->getDims()[1] / groupNum
+                                : convLayer->input()->getDims()[1];
+            size_t const groupOC = isGrouped
+                                ? convLayer->_out_depth / groupNum
+                                : convLayer->_out_depth;
+
+            auto weightsBlobIt = convLayer->blobs.find("weights");
+            auto biasesBlobIt = convLayer->blobs.find("biases");
+
+            if (weightsBlobIt != convLayer->blobs.end()) {
+                Blob::Ptr weightsBlob = weightsBlobIt->second;
+                std::vector<size_t> shape = { groupOC, groupIC };
+                for (int i = 1; i <= convLayer->_kernel.size(); i++) {
+                    shape.push_back(convLayer->_kernel[convLayer->_kernel.size() - i]);
+                }
+                createConstInputTo(layer, weightsBlob, shape, "weights");
+            }
+
+            if (biasesBlobIt != convLayer->blobs.end()) {
+                Blob::Ptr biasesBlob = biasesBlobIt->second;
+                std::vector<size_t> shape = { groupOC * groupNum };
+                createConstInputTo(layer, biasesBlob, shape, "biases");
+            }
         }
     }
 

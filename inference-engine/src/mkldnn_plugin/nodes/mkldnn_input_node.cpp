@@ -97,77 +97,12 @@ bool MKLDNNInputNode::created() const {
     return getType() == Input || getType() == Output;
 }
 
-namespace {
-    bool isDefaultOrder(const InferenceEngine::SizeVector &order) {
-        return std::is_sorted(order.begin(), order.end(),
-                                [](size_t a, size_t b) { return a + 1 == b; });
-    }
+void MKLDNNInputNode::withMeanImage() {
+    isMeanImage = true;
+}
 
-    std::tuple<bool, size_t> isDefaultStrides(const InferenceEngine::SizeVector &strides,
-                                              const InferenceEngine::SizeVector &dims) {
-        if (strides.size() != dims.size())
-            return std::make_tuple(false, 0);
-
-        size_t dim = 1;
-
-        for (size_t i = dims.size(); i-- > 0;) {
-            if (strides[i] != dim)
-                return std::make_tuple(false, 0);
-            dim *= dims[i];
-        }
-
-        return std::make_tuple(true, dim);
-    }
-
-    bool isCompatibleTensors(const InferenceEngine::TensorDesc &lhs, const InferenceEngine::TensorDesc &rhs,
-                             bool isNeedPrecValid = true) {
-        auto const &lhsBlockingDesc = lhs.getBlockingDesc();
-        auto const &rhsBlockingDesc = rhs.getBlockingDesc();
-
-        bool lhsDefaultStrides = false, rhsDefaultStrides = false;
-        size_t lhsSize = 0lu, rhsSize = 0lu;
-
-        std::tie(lhsDefaultStrides, lhsSize) = isDefaultStrides(lhsBlockingDesc.getStrides(), lhs.getDims());
-        std::tie(rhsDefaultStrides, rhsSize) = isDefaultStrides(rhsBlockingDesc.getStrides(), rhs.getDims());
-        bool isCompatTensors = lhsSize == rhsSize
-                               && lhsDefaultStrides
-                               && rhsDefaultStrides
-                               && isDefaultOrder(lhsBlockingDesc.getOrder())
-                               && isDefaultOrder(rhsBlockingDesc.getOrder());
-
-        return (isNeedPrecValid ? lhs.getPrecision() == rhs.getPrecision() : true) && isCompatTensors;
-    }
-}   // namespace
-
-void MKLDNNInputNode::execute(mkldnn::stream strm) {
-    if (!constBlob)
-        return;
-    auto dstBlob = getChildEdgeAt(0)->getBlob();
-
-    if (constBlob->getTensorDesc() == dstBlob->getTensorDesc()
-        || isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc())) {
-        const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
-        int8_t *dstData = dstBlob->buffer();
-
-        cpu_memcpy_s(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
-    } else if (constBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN ||
-               dstBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN) {
-        size_t dstSize = dstBlob->size() / 8;
-        if (constBlob->size() != dstSize) {
-            IE_THROW() << "Incorrect blob sizes for node " << getName();
-        }
-
-        const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
-        int8_t *dstData = dstBlob->buffer();
-
-        cpu_memcpy_s(dstData, dstSize, srcData, constBlob->byteSize());
-    } else if (constBlob->getTensorDesc().getPrecision() != dstBlob->getTensorDesc().getPrecision() &&
-               isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc(), false)) {
-        cpu_convert(constBlob->cbuffer().as<const void *>(), dstBlob->buffer().as<void *>(),
-                    constBlob->getTensorDesc().getPrecision(), dstBlob->getTensorDesc().getPrecision(), dstBlob->size());
-    } else {
-        IE_THROW() << "Input node with name: '" << getName() << "' has incompatible tensors";
-    }
+InferenceEngine::Blob::Ptr MKLDNNInputNode::getConstBlob() const {
+    return constBlob;
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Input);
