@@ -11,8 +11,8 @@ from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, config_network_inputs, get_number_iterations, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
-    get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, getInputsInfo, \
-    getBatchSize, load_config, dump_config
+    get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, get_inputs_info, \
+    get_batch_size, load_config, dump_config
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 
@@ -193,7 +193,7 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            app_inputs_info, reshape = getInputsInfo(args.shape, args.layout, args.batch_size, ie_network.input_info)
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, ie_network.input_info)
             if reshape:
                 start_time = datetime.utcnow()
                 shapes = { k : v.shape for k,v in app_inputs_info.items() }
@@ -209,7 +209,7 @@ def run(args):
                                               ])
 
             # use batch size according to provided layout and shapes
-            batch_size = getBatchSize(app_inputs_info) if args.layout else ie_network.batch_size
+            batch_size = get_batch_size(app_inputs_info) if args.layout else ie_network.batch_size
 
             logger.info('Network batch size: {}'.format(batch_size))
 
@@ -250,7 +250,7 @@ def run(args):
                                           [
                                               ('import network time (ms)', duration_ms)
                                           ])
-            app_inputs_info, _ = getInputsInfo(args.shape, args.layout, args.batch_size, exe_network.input_info)
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, exe_network.input_info)
             if batch_size == 0:
                 batch_size = 1
 

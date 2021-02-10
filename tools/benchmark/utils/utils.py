@@ -226,7 +226,7 @@ def get_command_line_arguments(argv):
         parameters.append((arg_name, arg_value))
     return parameters
 
-def parseInputParameters(parameter_string, input_info):
+def parse_input_parameters(parameter_string, input_info):
     # Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all inputs)
     return_value = {}
     if parameter_string:
@@ -286,9 +286,9 @@ class InputInfo:
     def depth(self):
         return self.getDimentionByLayout("D")
 
-def getInputsInfo(shape_string, layout_string, batch_size, input_info):
-    shape_map = parseInputParameters(shape_string, input_info)
-    layout_map = parseInputParameters(layout_string, input_info)
+def get_inputs_info(shape_string, layout_string, batch_size, input_info):
+    shape_map = parse_input_parameters(shape_string, input_info)
+    layout_map = parse_input_parameters(layout_string, input_info)
     reshape = False
     info_map = {}
     for name, descriptor in input_info.items():
@@ -313,7 +313,7 @@ def getInputsInfo(shape_string, layout_string, batch_size, input_info):
         info_map[name] = info
     return info_map, reshape
 
-def getBatchSize(inputs_info):
+def get_batch_size(inputs_info):
     batch_size = 0
     for _, info in inputs_info.items():
         batch_index = info.layout.index('N') if 'N' in info.layout else -1
