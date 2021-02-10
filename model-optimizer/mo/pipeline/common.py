@@ -31,6 +31,7 @@ from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.middle.passes.infer import type_infer
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils.error import Error
+from extensions.back.ResultRename import ResultRename
 
 
 def determined_sort(outputs: list):
@@ -207,6 +208,8 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
     # the TensorIterator nodes
     type_infer(graph)
     RemoveUselessConvert().find_and_replace_pattern(graph)
+
+    ResultRename().find_and_replace_pattern(graph)
 
     for sub_graph in [graph] + collect_sub_graphs(graph):
         op_order, data_order = determined_sort(get_sorted_outputs(sub_graph))

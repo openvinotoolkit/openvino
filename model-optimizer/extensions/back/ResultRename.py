@@ -20,24 +20,16 @@ from mo.graph.graph import Graph
 
 
 class ResultRename(BackReplacementPattern):
-    enabled = True
+    enabled = False
 
-    def run_after(self):
-        return [TopKNormalizer]
-
-    @staticmethod
-    def pattern():
-        return dict(
-            nodes=[('result', {'type': 'Result'})],
-            edges=[],
-        )
-
-    @staticmethod
-    def replace_pattern(graph: Graph, match: dict):
-        node = match['result']
-        if node.in_ports():
-            prev_node_out_port = node.in_port(0).get_connection().get_source()
-            result_name = prev_node_out_port.get_tensor_names(first_only=True)
-            if result_name is None:
-                result_name = prev_node_out_port.node.name + '/sink_port_' + str(prev_node_out_port.idx)
-            node['name'] = result_name
+    def find_and_replace_pattern(self, graph: Graph):
+        for node in graph.get_op_nodes(type='Result'):
+            if node.in_ports():
+                prev_node_out_port = node.in_port(0).get_connection().get_source()
+                tensor_names = prev_node_out_port.get_tensor_names()
+                if tensor_names:
+                    result_name = tensor_names[0]
+                else:
+                    result_name = prev_node_out_port.node.soft_get('name', prev_node_out_port.node.id) + \
+                                  '/sink_port_' + str(prev_node_out_port.idx)
+                node['name'] = result_name
