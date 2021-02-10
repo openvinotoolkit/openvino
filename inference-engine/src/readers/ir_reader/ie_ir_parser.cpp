@@ -617,17 +617,6 @@ V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(con
 
         port.portId = GetIntAttr(parentNode, "id");
 
-        FOREACH_CHILD(node, parentNode, "dim") {
-            size_t dim = 0;
-            const pugi::char_t* dimVal = node.child_value();
-            std::stringstream ss(dimVal);
-            if (!(ss >> dim) || dim == 0) {
-                THROW_IE_EXCEPTION << "dimension (" << dimVal << ") in node " << node.name()
-                                   << " must be a positive integer: at offset " << node.offset_debug();
-            }
-            port.dims.push_back(dim);
-        }
-
         ngraph::element::Type type(ngraph::element::Type_t::undefined);
         // Input port hasn't precision
         if (!input) {
