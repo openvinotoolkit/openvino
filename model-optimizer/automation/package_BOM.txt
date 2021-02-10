@@ -564,11 +564,12 @@ extensions/middle/InputCut.py
 extensions/middle/InsertLayoutPropagationTransposes.py
 extensions/middle/InsertSelect.py
 extensions/middle/InterpolateSequenceToInterpolate.py
-extensions/middle/L2NormToNorm.py
+extensions/middle/L2NormFusing.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
+extensions/middle/MoveConstToLoopBody.py
 extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
@@ -578,6 +579,7 @@ extensions/middle/ONNXRNNSequenceNormalize.py
 extensions/middle/PartialInfer.py
 extensions/middle/pass_separator.py
 extensions/middle/permute_tensor_iterator.py
+extensions/middle/PoolV2ToAttributedPool.py
 extensions/middle/preprocessing.py
 extensions/middle/quantize_fuses.py
 extensions/middle/ReluQuantizeFuse.py
@@ -1029,3 +1031,12 @@ requirements_mxnet.txt
 requirements_onnx.txt
 requirements_tf.txt
 requirements_tf2.txt
+telemetry/__init__.py
+telemetry/backend/__init__.py
+telemetry/backend/backend.py
+telemetry/backend/backend_ga.py
+telemetry/telemetry.py
+telemetry/utils/__init__.py
+telemetry/utils/isip.py
+telemetry/utils/message.py
+telemetry/utils/sender.py

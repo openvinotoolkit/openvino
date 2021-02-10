@@ -557,3 +557,128 @@ TEST(op_eval, interpolate_v4_linear_onnx)
         ++i;
     }
 }
+
+TEST(op_eval, interpolate_v4_linear_onnx5d)
+{
+    struct ShapesAndAttrs
+    {
+        Shape input_data_shape;
+        std::vector<int64_t> spatial_shape;
+        Shape out_shape;
+        std::vector<float> scales_data;
+        CoordinateTransformMode transform_mode;
+        ShapeCalcMode shape_calculation_mode;
+    };
+
+    std::vector<ShapesAndAttrs> shapes_and_attrs = {
+        // resize_downsample_scales_linear
+        {Shape{1, 1, 3, 2, 4},
+         {2, 1, 2},
+         Shape{1, 1, 2, 1, 2},
+         {0.8f, 0.6f, 0.6f},
+         CoordinateTransformMode::half_pixel,
+         ShapeCalcMode::scales},
+        // resize_downsample_scales_linear_align_corners
+        {Shape{1, 1, 3, 2, 4},
+         {2, 1, 2},
+         Shape{1, 1, 2, 1, 2},
+         {0.8f, 0.6f, 0.6f},
+         CoordinateTransformMode::align_corners,
+         ShapeCalcMode::scales},
+        // resize_upsample_scales_linear
+        {Shape{1, 1, 2, 2, 2},
+         {4, 4, 4},
+         Shape{1, 1, 4, 4, 4},
+         {2.0, 2.0, 2.0},
+         CoordinateTransformMode::half_pixel,
+         ShapeCalcMode::scales},
+        // resize_upsample_scales_linear_align_corners
+        {Shape{1, 1, 2, 2, 2},
+         {4, 4, 4},
+         Shape{1, 1, 4, 4, 4},
+         {2.0, 2.0, 2.0},
+         CoordinateTransformMode::align_corners,
+         ShapeCalcMode::scales},
+        // resize_downsample_sizes_linear_pytorch_half_pixel
+        {Shape{1, 1, 2, 4, 4},
+         {1, 3, 1},
+         Shape{1, 1, 1, 3, 1},
+         {0.5, 0.75, 0.25},
+         CoordinateTransformMode::pytorch_half_pixel,
+         ShapeCalcMode::sizes}};
+
+    std::vector<std::vector<float>> input_data_list = {
+        // resize_downsample_scales_linear
+        {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f, 12.0f,
+         13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f},
+        // resize_downsample_scales_linear_align_corners
+        {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f, 12.0f,
+         13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f},
+        // resize_upsample_scales_linear
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
+        // resize_upsample_scales_linear_align_corners
+        {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
+        // resize_downsample_sizes_linear_pytorch_half_pixel
+        {1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f,
+         12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f,
+         23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f}};
+
+    std::vector<std::vector<float>> expected_results = {
+        // resize_downsample_scales_linear
+        {3.6666665, 5.333333, 13.666666, 15.333333},
+        // resize_downsample_scales_linear_align_corners
+        {1.0, 4.0, 17.0, 20.0},
+        // resize_upsample_scales_linear
+        {1.0, 1.25, 1.75, 2.0, 1.5, 1.75, 2.25, 2.5, 2.5, 2.75, 3.25, 3.5, 3.0, 3.25, 3.75, 4.0,
+         2.0, 2.25, 2.75, 3.0, 2.5, 2.75, 3.25, 3.5, 3.5, 3.75, 4.25, 4.5, 4.0, 4.25, 4.75, 5.0,
+         4.0, 4.25, 4.75, 5.0, 4.5, 4.75, 5.25, 5.5, 5.5, 5.75, 6.25, 6.5, 6.0, 6.25, 6.75, 7.0,
+         5.0, 5.25, 5.75, 6.0, 5.5, 5.75, 6.25, 6.5, 6.5, 6.75, 7.25, 7.5, 7.0, 7.25, 7.75, 8.0},
+        // resize_upsample_scales_linear_align_corners
+        {1.0,       1.3333333, 1.6666667, 2.0,       1.6666666, 2.0,       2.3333335, 2.6666667,
+         2.3333333, 2.6666665, 3.0,       3.3333335, 3.0,       3.3333333, 3.6666665, 4.0,
+         2.3333335, 2.6666665, 3.0,       3.3333333, 3.0,       3.333333,  3.6666665, 3.9999995,
+         3.6666665, 4.0,       4.3333335, 4.6666665, 4.333333,  4.6666665, 4.9999995, 5.333333,
+         3.6666667, 4.0,       4.3333335, 4.6666665, 4.3333335, 4.6666665, 5.0,       5.333333,
+         5.0,       5.3333335, 5.666667,  6.0,       5.666667,  5.9999995, 6.333333,  6.666667,
+         5.0,       5.333333,  5.6666665, 6.0,       5.666667,  5.9999995, 6.333333,  6.666666,
+         6.3333335, 6.666666,  7.0,       7.3333335, 7.0,       7.333333,  7.6666675, 8.0},
+        // resize_downsample_sizes_linear_pytorch_half_pixel
+        {1.6666667, 7.0, 12.333333}};
+
+    std::size_t i = 0;
+    for (const auto& s : shapes_and_attrs)
+    {
+        auto image = std::make_shared<op::Parameter>(element::f32, s.input_data_shape);
+        auto target_spatial_shape =
+            op::Constant::create<int64_t>(element::i64, Shape{3}, s.spatial_shape);
+        auto scales = op::Constant::create<float>(element::f32, Shape{3}, s.scales_data);
+        auto axes = op::Constant::create<int64_t>(element::i64, Shape{3}, {2, 3, 4});
+
+        InterpolateAttrs attrs;
+        attrs.mode = InterpolateMode::linear_onnx;
+        attrs.shape_calculation_mode = s.shape_calculation_mode;
+        attrs.coordinate_transformation_mode = s.transform_mode;
+        attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+        attrs.antialias = false;
+        attrs.pads_begin = {0, 0, 0, 0, 0};
+        attrs.pads_end = {0, 0, 0, 0, 0};
+        attrs.cube_coeff = -0.75;
+
+        auto interp =
+            std::make_shared<op::v4::Interpolate>(image, target_spatial_shape, scales, axes, attrs);
+        auto fun = std::make_shared<Function>(OutputVector{interp}, ParameterVector{image});
+        auto result = std::make_shared<HostTensor>();
+        ASSERT_TRUE(fun->evaluate(
+            {result},
+            {make_host_tensor<element::Type_t::f32>(s.input_data_shape, input_data_list[i])}));
+        EXPECT_EQ(result->get_element_type(), element::f32);
+        EXPECT_EQ(result->get_shape(), s.out_shape);
+        auto result_vector = read_vector<float>(result);
+        std::size_t num_of_elems = shape_size(s.out_shape);
+        for (std::size_t j = 0; j < num_of_elems; ++j)
+        {
+            EXPECT_NEAR(result_vector[j], expected_results[i][j], 0.00001);
+        }
+        ++i;
+    }
+}
