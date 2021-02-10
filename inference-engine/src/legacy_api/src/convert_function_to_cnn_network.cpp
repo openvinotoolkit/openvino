@@ -349,13 +349,6 @@ public:
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void>& adapter) override;
 
-    void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void*>& adapter) override {
-        if (std::string(node->get_type_name()) != "Constant") {
-            const auto data_beg = static_cast<char*>(adapter.get_ptr());
-            params[name] = std::string(data_beg, adapter.size());
-        }
-    }
-
 private:
     std::shared_ptr<::ngraph::Node> node;
     std::map<std::string, std::string> params;
@@ -394,6 +387,11 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
         (void)a;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(& adapter)) {
         (void)a;
+    } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(& adapter)) {
+        if (std::string(node->get_type_name()) != "Constant") {
+            const auto data_beg = static_cast<char*>(a->get()->get_ptr());
+            params[name] = std::string(data_beg, a->get()->size());
+        }
     } else {
         THROW_IE_EXCEPTION << "Error converting ngraph to CNN network. "
                               "Attribute adapter can not be found for " << name << " parameter";
