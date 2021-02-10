@@ -209,6 +209,8 @@ private:
     void parseLayer(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                     const UnsupportedLayerCallback& onUnsupported, const SupportedLayerCallback& onSupported = nullptr);
 
+    void processTrivialCases(const Model& model);
+
 private:
     StageBuilder::Ptr _stageBuilder;
     const ie::ICore* _core = nullptr;
