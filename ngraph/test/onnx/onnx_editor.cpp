@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include <algorithm>
-#include <queue>
 
 #include "gtest/gtest.h"
 

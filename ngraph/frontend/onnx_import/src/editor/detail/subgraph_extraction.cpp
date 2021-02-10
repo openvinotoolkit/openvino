@@ -232,17 +232,14 @@ namespace
             "Unsupported value type of the container");
 
         int idx = 0;
-        const auto keep_node = [&nodes_to_keep, &idx](const typename Container::value_type&) {
-            return nodes_to_keep.count(idx++) > 0;
+        const auto discard_node = [&idx, &nodes_to_keep](const typename Container::value_type&) {
+            return nodes_to_keep.count(idx++) == 0;
         };
 
         using std::begin;
         using std::end;
 
-        // Stable partition rearranges the nodes keeping the relative order in both partitions.
-        // This way the topological sort is preserved and all of the nodes to discard are moved
-        // after the returned iterator.
-        const auto new_end = std::stable_partition(begin(all_nodes), end(all_nodes), keep_node);
+        const auto new_end = std::remove_if(begin(all_nodes), end(all_nodes), discard_node);
         all_nodes.erase(new_end, end(all_nodes));
     }
 } // namespace
