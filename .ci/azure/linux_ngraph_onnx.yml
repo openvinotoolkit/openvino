@@ -3,6 +3,7 @@ jobs:
 
   # About 300% of total time
   timeoutInMinutes: 90
+  enable: false
 
   pool:
     name: LIN_VMSS_VENV_ONNX_WU2

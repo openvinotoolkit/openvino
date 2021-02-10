@@ -32,11 +32,11 @@ jobs:
     BIN_DIR: $(REPO_DIR)\bin\intel64
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
-    TEST_ENV_PATH: $(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.1\opencv\bin;%PATH%
     INSTALL_DIR: $(WORK_DIR)\install_pkg
     SETUPVARS: $(INSTALL_DIR)\bin\setupvars.bat
     IB_DIR: C:\Program Files (x86)\IncrediBuild
     IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
+    TEST_ENV_PATH: $(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.1\opencv\bin;$(IB_DIR);%PATH%
 
   steps:
   - script: |
@@ -119,7 +119,7 @@ jobs:
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml >TEST-InferenceEngineUnitTests.log
       type TEST-InferenceEngineUnitTests.log
     displayName: 'IE UT old'
@@ -128,7 +128,7 @@ jobs:
     displayName: 'IE UT Analyze'
     continueOnError: true
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(IB_DIR);%PATH%
+      set PATH=$(TEST_ENV_PATH)
       "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml /testlevel=128 >TEST-InferenceEngineUnitTests-IB.log
       type TEST-InferenceEngineUnitTests-IB.log
     displayName: 'IE UT old IB'
@@ -180,7 +180,7 @@ jobs:
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      set PATH=$(TEST_ENV_PATH)
       $(BIN_DIR)\cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml >TEST-cpuFuncTests.log
       type TEST-cpuFuncTests.log
     displayName: 'CPU FuncTests'
@@ -189,7 +189,7 @@ jobs:
     displayName: 'CPU FuncTests Analyze'
     continueOnError: true
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(IB_DIR);%PATH%
+      set PATH=$(TEST_ENV_PATH)
       "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=128 >TEST-cpuFuncTests-IB.log
       type TEST-cpuFuncTests-IB.log
     displayName: 'CPU FuncTests IB'
@@ -206,31 +206,22 @@ jobs:
 
     # Add for gtest-parallel, it hangs now (CVS-33386)
     #python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
-    # Add for IncrediBuild
-    #"$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke*:-CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests.xml /testlevel=128
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;$(IB_DIR);%PATH%
-      set DATA_PATH=$(BUILD_DIR)\testdata
-      set MODELS_PATH=$(BUILD_DIR)\testdata
-      $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
+      set PATH=$(TEST_ENV_PATH)
+      set DATA_PATH=$(MODELS_PATH)
+      set MODELS_PATH=$(MODELS_PATH)
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests.xml /testlevel=128
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
 
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
-      set DATA_PATH=$(BUILD_DIR)\testdata
-      set MODELS_PATH=$(BUILD_DIR)\testdata
-      $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests-other.xml
-    displayName: 'MklDnnFunctionalTests Other'
-    continueOnError: false
-    enabled: false
-  - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
-      set DATA_PATH=$(BUILD_DIR)\testdata
-      set MODELS_PATH=$(BUILD_DIR)\testdata
+      set PATH=$(TEST_ENV_PATH)
+      set DATA_PATH=$(MODELS_PATH)
+      set MODELS_PATH=$(MODELS_PATH)
       $(BIN_DIR)\InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
+
   - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
     displayName: Stop IncrediBuild
     continueOnError: true
