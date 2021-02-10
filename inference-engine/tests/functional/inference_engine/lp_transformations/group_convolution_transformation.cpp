@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,6 +34,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         std::shared_ptr<ngraph::opset1::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
     };
 
     class Expected {
@@ -42,6 +43,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
         std::shared_ptr<ngraph::opset1::Constant> weights;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationOnWeights;
         ngraph::element::Type precisionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
         ngraph::element::Type precisionAfterDequantization;
@@ -60,20 +62,24 @@ public:
     void SetUp() override {
         const GroupConvolutionTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
+        actualFunction = ngraph::builder::subgraph::GroupConvolutionFunction::get(
             testValues.actual.precisionBeforeDequantization,
             testValues.inputShape,
             testValues.outputShape,
             testValues.group,
             testValues.actual.dequantization,
             testValues.actual.weights,
-            testValues.actual.fakeQuantizeOnWeights);
+            testValues.actual.fakeQuantizeOnWeights,
+            testValues.actual.dequantizationOnWeights,
+            ngraph::element::f32,
+            {},
+            ngraph::element::f32);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::GroupConvolutionFunction::getReference(
+        referenceFunction = ngraph::builder::subgraph::GroupConvolutionFunction::get(
             testValues.expected.precisionBeforeDequantization,
             testValues.inputShape,
             testValues.outputShape,
@@ -81,6 +87,7 @@ public:
             testValues.expected.dequantizationBefore,
             testValues.expected.weights,
             testValues.expected.fakeQuantizeOnWeights,
+            testValues.expected.dequantizationOnWeights,
             testValues.expected.precisionAfterOperation,
             testValues.expected.dequantizationAfter,
             testValues.expected.precisionAfterDequantization);
@@ -121,13 +128,15 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             ngraph::element::u8,
             {{ngraph::element::f32}, { 128.f }, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
             ngraph::element::u8,
             {{}, { { 128.f }, ngraph::element::f32, { 1, 6, 1, 1 }, false }, {}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
             {},
             ngraph::element::f32,
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
@@ -144,7 +153,8 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             ngraph::element::u8,
             {{ngraph::element::f32}, { 128.f }, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
@@ -152,6 +162,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {{ ngraph::element::f32 }, { 128.f }, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {},
             ngraph::element::f32,
             {}
         }
@@ -167,13 +178,15 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             ngraph::element::f32,
             {{}, { 128.f }, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
             ngraph::element::f32,
             {{}, { { 128.f }, ngraph::element::f32, { 1, 6, 1, 1 }, false }, {}},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
             {},
             ngraph::element::f32,
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 24, 1, 1 }}} // 0.0002 = 0.02 (on data) * 0.01 (on weights)
@@ -194,13 +207,15 @@ const std::vector<GroupConvolutionTestValues> testValues = {
                 {{ 0.02f, 0.02f, 0.04f, 0.04f, 0.08f, 0.08f }, ngraph::element::f32, {1, 6, 1, 1}}
             },
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
             ngraph::element::u8,
             {},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
             {},
             ngraph::element::f32,
             {
@@ -235,13 +250,15 @@ const std::vector<GroupConvolutionTestValues> testValues = {
                 {{ 0.02f }, ngraph::element::f32, {1, 6, 1, 1}}
             },
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {},
         },
         // ExpectedValues
         {
             ngraph::element::u8,
             {},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
             {},
             ngraph::element::f32,
             {
@@ -262,7 +279,8 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             ngraph::element::f32,
             {{}, {}, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
@@ -270,6 +288,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {{}, {}, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {},
             ngraph::element::f32,
             {}
         }
@@ -285,7 +304,8 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             ngraph::element::u8,
             {{element::f32}, {}, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
@@ -293,11 +313,12 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
             {},
+            {},
             ngraph::element::f32,
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 24, 1, 1 }}}
         }
     },
-    // depth-wise convolution, tensor quantization, with zero point
+    // depth-wise convolution, per-tensor quantization, with zero point
     {
         LayerTransformation::createParamsU8I8(),
         { 1, 6, 224, 224 },
@@ -308,13 +329,15 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             ngraph::element::u8,
             {{ngraph::element::f32}, { 128.f }, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
             ngraph::element::u8,
             {{}, { { 128.f }, ngraph::element::f32, { 1, 6, 1, 1 }, false }, {}},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
             {},
             ngraph::element::f32,
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 6, 1, 1 }}}
@@ -331,13 +354,15 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             ngraph::element::f32,
             {{}, { 128.f }, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
             ngraph::element::f32,
             {{}, { { 128.f }, ngraph::element::f32, { 1, 6, 1, 1 }, false }, {}},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
             {},
             ngraph::element::f32,
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 6, 1, 1 }}}
@@ -358,13 +383,15 @@ const std::vector<GroupConvolutionTestValues> testValues = {
                 {{ 0.02f, 0.02f, 0.04f, 0.04f, 0.08f, 0.08f }, ngraph::element::f32, {1, 6, 1, 1}}
             },
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
             ngraph::element::u8,
             {},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
             {},
             ngraph::element::f32,
             {
@@ -381,7 +408,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             },
         }
     },
-    // depth-wise convolution, per-channel quantization with the same values, without zero point
+    // depth-wise convolution, per-tensor quantization with the same values, without zero point
     {
         LayerTransformation::createParamsU8I8(),
         { 1, 6, 224, 224 },
@@ -396,13 +423,15 @@ const std::vector<GroupConvolutionTestValues> testValues = {
                 {{ 0.02f }, ngraph::element::f32, {1, 6, 1, 1}}
             },
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
             ngraph::element::u8,
             {},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
             {},
             ngraph::element::f32,
             {
@@ -423,7 +452,8 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             ngraph::element::f32,
             {{}, {}, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
@@ -431,6 +461,7 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {{}, {}, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {},
             ngraph::element::f32,
             {}
         }
@@ -446,13 +477,15 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             ngraph::element::u8,
             {{element::f32}, {}, { 0.02f }},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
             ngraph::element::u8,
             {},
             op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ -125.f }),
+            {},
             {},
             ngraph::element::f32,
             {{}, {}, {{ 0.0002f }, ngraph::element::f32, { 6, 1, 1 }}}
@@ -469,7 +502,8 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             ngraph::element::f32,
             {},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
-            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {}
         },
         // ExpectedValues
         {
@@ -477,10 +511,111 @@ const std::vector<GroupConvolutionTestValues> testValues = {
             {},
             op::Constant::create(ngraph::element::f32, ngraph::Shape{}, std::vector<float>{ 2.f }),
             { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } },
+            {},
             ngraph::element::f32,
             {}
         }
     },
+
+    // per-channel quantization with different values, without zero point
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 6, 224, 224 },
+        { 1, 24, 218, 218 },
+        3ul,
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{ 0.02f, 0.02f, 0.04f, 0.04f, 0.08f, 0.08f }, ngraph::element::f32, {1, 6, 1, 1}}
+            },
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            {},
+            { ngraph::element::f32, {}, {0.01}}
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {},
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            {},
+            {},
+            ngraph::element::f32,
+            {
+                {},
+                {},
+                {
+                    {
+                        // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+                        0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f,
+                        // 0.0004 = 0.04 (on data) * 0.01 (on weights)
+                        0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f,
+                        // 0.0008 = 0.08 (on data) * 0.01 (on weights)
+                        0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f
+                    },
+                    ngraph::element::f32, {24, 1, 1}
+                }
+            },
+        }
+    },
+
+    // per-channel quantization with different values, without zero point
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 6, 224, 224 },
+        { 1, 24, 218, 218 },
+        3ul,
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{255}, ngraph::element::f32, {}, true, 1, ngraph::element::u8, true},
+                {{ 0.02f, 0.02f, 0.04f, 0.04f, 0.08f, 0.08f }, ngraph::element::f32, {1, 6, 1, 1}}
+            },
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            {},
+            {
+                ngraph::element::f32,
+                {{127}, ngraph::element::f32, {}, true, 1, ngraph::element::i8, true},
+                {0.01}
+            }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {
+                {},
+                {std::vector<float>(6ul, 255.f), ngraph::element::f32, {1, 6, 1, 1}, false, 1, ngraph::element::u8},
+                {}
+            },
+            op::Constant::create(ngraph::element::i8, ngraph::Shape{}, std::vector<float>{ 2.f }),
+            {},
+            {
+                {},
+                {std::vector<float>(24ul, 127.f), ngraph::element::f32, {24, 1, 1, 1}, false, 1, ngraph::element::i8, false, {"DISABLED_CONSTANT_FOLDING"}},
+                {}
+            },
+            ngraph::element::f32,
+            {
+                {},
+                {},
+                {
+                    {
+                        // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+                        0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f,
+                        // 0.0004 = 0.04 (on data) * 0.01 (on weights)
+                        0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f,
+                        // 0.0008 = 0.08 (on data) * 0.01 (on weights)
+                        0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f
+                    },
+                    ngraph::element::f32, {24, 1, 1}
+                }
+            },
+        }
+    }
 };
 
 INSTANTIATE_TEST_CASE_P(

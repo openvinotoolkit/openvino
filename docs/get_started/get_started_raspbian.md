@@ -43,7 +43,7 @@ The primary tools for deploying your models and applications are installed to th
 The OpenVINO™ workflow on Raspbian* OS is as follows:
 1. **Get a pre-trained model** for your inference task. If you want to use your model for inference, the model must be converted to the `.bin` and `.xml` Intermediate Representation (IR) files, which are used as input by Inference Engine. On Raspberry PI, OpenVINO™ toolkit includes only the Inference Engine module. The Model Optimizer is not supported on this platform. To get the optimized models you can use one of the following options:
    
-   * Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader_README#model_downloader_usage).
+   * Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader_README).
     <br> For more information on pre-trained models, see [Pre-Trained Models Documentation](@ref omz_models_intel_index)
    
    * Convert a model using the Model Optimizer from a full installation of Intel® Distribution of OpenVINO™ toolkit on one of the supported platforms. Installation instructions are available:
@@ -57,25 +57,21 @@ The OpenVINO™ workflow on Raspbian* OS is as follows:
 Follow the steps below to run pre-trained Face Detection network using Inference Engine samples from the OpenVINO toolkit.
 
 1. Create a samples build directory. This example uses a directory named `build`:
-```sh
-mkdir build && cd build
-```
-2. Build the Object Detection Sample with the following command:
-```sh
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino/deployment_tools/inference_engine/samples/cpp
-```
-```sh
-make -j2 object_detection_sample_ssd
-```
-3. Download the pre-trained Face Detection model with the Model Downloader:
-
    ```sh
-   git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
-   cd open_model_zoo/tools/downloader
-   python3 -m pip install -r requirements.in
-   python3 downloader.py --name face-detection-adas-0001 
+   mkdir build && cd build
    ```
-
+2. Build the Object Detection Sample with the following command:
+   ```sh
+   cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-march=armv7-a" /opt/intel/openvino/deployment_tools/inference_engine/samples/cpp
+   make -j2 object_detection_sample_ssd
+   ```
+3. Download the pre-trained Face Detection model with the [Model Downloader tool](@ref omz_tools_downloader_README):
+```sh
+git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
+cd open_model_zoo/tools/downloader
+python3 -m pip install -r requirements.in
+python3 downloader.py --name face-detection-adas-0001 
+```
 4. Run the sample, specifying the model and path to the input image:
 ```sh
 ./armv7l/Release/object_detection_sample_ssd -m face-detection-adas-0001.xml -d MYRIAD -i <path_to_image>
@@ -91,11 +87,9 @@ Following are some basic guidelines for executing the OpenVINO™ workflow using
 source <INSTALL_DIR>/bin/setupvars.sh
 ``` 
 2. Have the directory path for the following:
-- Code Sample binaries
-- Media: Video or image. Many sources are available from which you can download video media to use the code samples and demo applications, like https://videos.pexels.com and https://images.google.com.
-- Model in the IR format (.bin and .xml files).
-
-
+   - Code Sample binaries
+   - Media: Video or image. Many sources are available from which you can download video media to use the code samples and demo applications, like https://videos.pexels.com and https://images.google.com.
+   - Model in the IR format (.bin and .xml files).
 ## Additional Resources
 
 Use these resources to learn more about the OpenVINO™ toolkit:
@@ -106,4 +100,3 @@ Use these resources to learn more about the OpenVINO™ toolkit:
 * [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
 * [Overview of OpenVINO™ Toolkit Pre-Trained Models](https://software.intel.com/en-us/openvino-toolkit/documentation/pretrained-models)
-* [OpenVINO™ Hello World Face Detection Exercise](https://github.com/intel-iot-devkit/inference-tutorials-generic)

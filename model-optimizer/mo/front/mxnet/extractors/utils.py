@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -120,8 +120,8 @@ def get_mxnet_node_edges(node: dict, node_id: [int, str], nodes_list: list, inde
         edge_attrs = {
             'in': in_port,
             'out': dest_port,
-            # debug anchor for name of tensor consumed at this input port
-            'fw_tensor_debug_info': [(nodes_list[src_node]['name'], src_node_id[1])],
+            # debug anchor for framework name, out port and tensor name
+            'fw_tensor_debug_info': [(index_node_key[src_node], src_node_id[1], nodes_list[src_node]['name'])],
             'in_attrs': ['in'],
             'out_attrs': ['out'],
             'data_attrs': ['fw_tensor_debug_info']

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
-"""! ngraph module namespace, exposing factory functions for all ops and other classes."""
+"""ngraph module namespace, exposing factory functions for all ops and other classes."""
 # noqa: F401
 
 from pkg_resources import get_distribution, DistributionNotFound
@@ -56,6 +56,7 @@ from ngraph.opset6 import convolution_backprop_data
 from ngraph.opset6 import cos
 from ngraph.opset6 import cosh
 from ngraph.opset6 import ctc_greedy_decoder
+from ngraph.opset6 import ctc_greedy_decoder_seq_len
 from ngraph.opset6 import ctc_loss
 from ngraph.opset6 import cum_sum
 from ngraph.opset6 import cum_sum as cumsum

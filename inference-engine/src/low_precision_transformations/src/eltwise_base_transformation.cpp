@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "low_precision/eltwise_base_transformation.hpp"
@@ -83,13 +83,13 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
 }
 
 int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise) const {
-    FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 0ul);
-    if (dequantization1.empty()) {
+    const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 0ul);
+    if (dequantization1.empty() || as_type<opset1::Constant>(dequantization1.data.get_node())) {
         return -1;
     }
 
-    FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 1ul);
-    if (dequantization2.empty()) {
+    const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 1ul);
+    if (dequantization2.empty() || as_type<opset1::Constant>(dequantization2.data.get_node())) {
         return -1;
     }
 
@@ -141,16 +141,22 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
 }
 
 std::pair<int, int> EltwiseBaseTransformation::getMultiplyConstBranch(const std::shared_ptr<Node>& eltwise) const {
-    std::shared_ptr<Node> parent1 = eltwise->get_input_node_shared_ptr(0);
-    std::shared_ptr<Node> parent2 = eltwise->get_input_node_shared_ptr(1);
+    const std::shared_ptr<Node> parent1 = eltwise->get_input_node_shared_ptr(0);
+    const auto dequantization1 = NetworkHelper::getDequantization(eltwise, 0);
+    const std::shared_ptr<Node> parent2 = eltwise->get_input_node_shared_ptr(1);
+    const auto dequantization2 = NetworkHelper::getDequantization(eltwise, 1);
 
-    std::shared_ptr<opset1::Constant> constParent = as_type_ptr<opset1::Constant>(parent1);
+    std::shared_ptr<opset1::Constant> constParent = dequantization1.empty() ?
+        as_type_ptr<opset1::Constant>(parent1) :
+        as_type_ptr<opset1::Constant>(dequantization1.data.get_node_shared_ptr());
     std::shared_ptr<opset1::Multiply> multiplyParent = as_type_ptr<opset1::Multiply>(parent2);
     int multiplyBranch = 1;
 
 
     if (constParent == nullptr || multiplyParent == nullptr) {
-        constParent = as_type_ptr<opset1::Constant>(parent2);
+        constParent = dequantization2.empty() ?
+            as_type_ptr<opset1::Constant>(parent2) :
+            as_type_ptr<opset1::Constant>(dequantization2.data.get_node_shared_ptr());
         multiplyParent = as_type_ptr<opset1::Multiply>(parent1);
         multiplyBranch = 0;
     }

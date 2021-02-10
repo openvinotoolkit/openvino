@@ -21,7 +21,7 @@ For the "Supported Networks", please reference to [MYRIAD Plugin](MYRIAD.md)
 See VPU common configuration parameters for the [VPU Plugins](VPU.md).
 When specifying key values as raw strings (that is, when using Python API), omit the `KEY_` prefix.
 
-In addition to common parameters for Myriad plugin and HDDL plugin, HDDL plugin accepts the following options:
+In addition to common parameters for MYRIAD plugin and HDDL plugin, HDDL plugin accepts the following options:
 
 | Parameter Name                        | Parameter Values | Default      | Description                                                                     |
 | :---                                  | :---             | :---         | :---                                                                            |

@@ -40,4 +40,20 @@ public:
     std::shared_ptr<ngraph::Function> function;
     std::string targetDevice;
 };
+
+using HoldersTestImportNetwork = HoldersTest;
+
+class HoldersTestOnImportedNetwork : public CommonTestUtils::TestsCommon,
+                                     public ::testing::WithParamInterface<std::string> {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
+
+    void SetUp() override;
+    void TearDown() override;
+
+    std::shared_ptr<ngraph::Function> function;
+    std::string targetDevice;
+    std::string deathTestStyle;
+};
+
 }  // namespace BehaviorTestsDefinitions

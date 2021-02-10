@@ -13,7 +13,7 @@ resources:
 jobs:
 - job: Mac
   # About 200% of total time (perfomace of Mac hosts is unstable)
-  timeoutInMinutes: 240
+  timeoutInMinutes: 300
 
   pool:
     vmImage: 'macOS-10.15'
@@ -109,7 +109,7 @@ jobs:
     displayName: 'nGraph UT'
     continueOnError: false
 
-  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
+  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_filter=-MKLDNNGraphStructureTests.TestNoRedundantReordersBeforeDWConvolution:TestConvolution/MKLDNNGraphConvolutionTests.TestsConvolution/0:TestConvolutionDefaultPrimitivesPriority/MKLDNNGraphConvolutionTests.TestsConvolution/0 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: false
 
