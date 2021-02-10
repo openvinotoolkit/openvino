@@ -69,7 +69,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_38732,
                    xfail_issue_38734,
                    xfail_issue_38735,
-                   xfail_issue_45177,
                    xfail_issue_45180,
                    xfail_issue_43742,
                    xfail_issue_44839,
@@ -90,8 +89,7 @@ from tests import (BACKEND_NAME,
                    xfail_issue_47323,
                    xfail_issue_47330,
                    xfail_issue_48052,
-                   xfail_issue_33593,
-                   xfail_issue_48055)
+                   xfail_issue_33593)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -200,10 +198,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_constant_cpu",
         "OnnxBackendNodeModelTest.test_eyelike_populate_off_main_diagonal_cpu",
         "OnnxBackendNodeModelTest.test_eyelike_without_dtype_cpu",
-        "OnnxBackendNodeModelTest.test_dropout_default_ratio_cpu",
-        "OnnxBackendNodeModelTest.test_training_dropout_default_cpu",
-        "OnnxBackendNodeModelTest.test_training_dropout_zero_ratio_cpu",
-        "OnnxBackendNodeModelTest.test_training_dropout_cpu",
         "OnnxBackendNodeModelTest.test_eyelike_with_dtype_cpu"),
     (xfail_issue_35915,
         "OnnxBackendNodeModelTest.test_min_uint8_cpu"),
@@ -609,15 +603,12 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_adagrad_multiple_cpu",
         "OnnxBackendNodeModelTest.test_adagrad_cpu"),
     (xfail_issue_48052,
+        "OnnxBackendNodeModelTest.test_training_dropout_cpu",
         "OnnxBackendNodeModelTest.test_training_dropout_mask_cpu",
+        "OnnxBackendNodeModelTest.test_training_dropout_default_cpu",
+        "OnnxBackendNodeModelTest.test_training_dropout_zero_ratio_cpu",
         "OnnxBackendNodeModelTest.test_training_dropout_default_mask_cpu",
-        "OnnxBackendNodeModelTest.test_training_dropout_zero_ratio_mask_cpu",),
-    (xfail_issue_45177,
-        "OnnxBackendNodeModelTest.test_reduce_sum_default_axes_keepdims_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_sum_default_axes_keepdims_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_sum_empty_axes_input_noop_example_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_sum_empty_axes_input_noop_random_cpu",
-        "OnnxBackendNodeModelTest.test_reduce_sum_negative_axes_keepdims_random_cpu"),
+        "OnnxBackendNodeModelTest.test_training_dropout_zero_ratio_mask_cpu"),
     (xfail_issue_45180,
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_example_cpu",
         "OnnxBackendNodeModelTest.test_reduce_sum_do_not_keepdims_random_cpu",
@@ -678,9 +669,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_quantizelinear_axis_cpu",),
     (xfail_issue_33593,
         "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
-        "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",),
-    (xfail_issue_48055,
-        "OnnxBackendNodeModelTest.test_dropout_default_mask_ratio_cpu",)
+        "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",)
 ]
 
 for test_group in tests_expected_to_fail:

@@ -131,6 +131,14 @@ class Computation(object):
 
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
+        # Input validation
+        if len(input_values) < len(self.parameters):
+            raise UserInputError(
+                "Expected %s params, received not enough %s values.", len(self.parameters), len(input_values)
+            )
+        # ignore not needed input values
+        input_values = input_values[:len(self.parameters)]
+
         input_values = [np.array(input_value) for input_value in input_values]
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
@@ -154,11 +162,6 @@ class Computation(object):
 
         executable_network = self.runtime.backend.load_network(cnn_network, self.runtime.backend_name)
 
-        # Input validation
-        if len(input_values) != len(self.parameters):
-            raise UserInputError(
-                "Expected %s parameters, received %s.", len(self.parameters), len(input_values)
-            )
         for parameter, input in zip(self.parameters, input_values):
             parameter_shape = parameter.get_output_partial_shape(0)
             input_shape = PartialShape(input.shape)
