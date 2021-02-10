@@ -89,13 +89,20 @@ const std::vector<SoftMaxConfig> optimizedConfigsFP32 {
         {InferenceEngine::SizeVector{5, 5, 1}, 1},
         {InferenceEngine::SizeVector{5, 5, 5}, 2},
         {InferenceEngine::SizeVector{5, 5, 5, 5}, 0},
+        {InferenceEngine::SizeVector{5, 5, 1, 1}, 1},
         {InferenceEngine::SizeVector{5, 5, 5, 5}, 1},
+        {InferenceEngine::SizeVector{5, 5, 5, 1}, 2},
         {InferenceEngine::SizeVector{5, 5, 5, 5}, 2},
+        {InferenceEngine::SizeVector{5, 5, 5, 5}, 3},
         {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 0},
+        {InferenceEngine::SizeVector{5, 5, 1, 1, 1}, 1},
         {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 1},
+        {InferenceEngine::SizeVector{5, 5, 5, 1, 1}, 2},
         {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 2},
+        {InferenceEngine::SizeVector{5, 5, 5, 1, 1}, 3},
         {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 3},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 4}
+        {InferenceEngine::SizeVector{5, 5, 5, 5, 1}, 4},
+        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 4},
 };
 
 const std::vector<SoftMaxConfig> notOptimizedConfigsFP32 {
@@ -106,66 +113,20 @@ const std::vector<SoftMaxConfig> notOptimizedConfigsFP32 {
 };
 
 const auto OptimizedParams = testing::Combine(
-            testing::Values(Precision::FP32),
-            testing::ValuesIn(optimizedConfigsFP32),
-            testing::Values(CommonTestUtils::DEVICE_CPU),
-            testing::Values(emptyCPUSpec));
+        testing::Values(Precision::FP32, Precision::BF16),
+        testing::ValuesIn(optimizedConfigsFP32),
+        testing::Values(CommonTestUtils::DEVICE_CPU),
+        testing::Values(emptyCPUSpec));
 
-INSTANTIATE_TEST_CASE_P(smoke_SoftMax_Optimized_CPU_FP32, SoftMaxLayerCPUTest, OptimizedParams, SoftMaxLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_SoftMax_Optimized_CPU, SoftMaxLayerCPUTest, OptimizedParams, SoftMaxLayerCPUTest::getTestCaseName);
 
 const auto NotOptimizedParams = testing::Combine(
-        testing::Values(Precision::FP32),
+        testing::Values(Precision::FP32, Precision::BF16),
         testing::ValuesIn(notOptimizedConfigsFP32),
         testing::Values(CommonTestUtils::DEVICE_CPU),
         testing::Values(notOptimizedCPUSpec));
 
-INSTANTIATE_TEST_CASE_P(smoke_SoftMax_CPU_FP32, SoftMaxLayerCPUTest, NotOptimizedParams, SoftMaxLayerCPUTest::getTestCaseName);
-
-const std::vector<SoftMaxConfig> optimizedConfigsBF16 {
-        {InferenceEngine::SizeVector{1, 100}, 1},
-        {InferenceEngine::SizeVector{10, 10}, 1},
-        {InferenceEngine::SizeVector{100, 1}, 0},
-        {InferenceEngine::SizeVector{100, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5}, 2},
-        {InferenceEngine::SizeVector{5, 5, 1, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 1}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 3},
-        {InferenceEngine::SizeVector{5, 5, 1, 1, 1}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 1, 1}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 1, 1}, 3},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 4}
-};
-
-const std::vector<SoftMaxConfig> notOptimizedConfigsBF16 {
-        {InferenceEngine::SizeVector{1, 100}, 0},
-        {InferenceEngine::SizeVector{10, 10}, 0},
-        {InferenceEngine::SizeVector{10, 10, 10}, 0},
-        {InferenceEngine::SizeVector{10, 10, 10}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 0},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 5}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 0},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 1},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 2},
-        {InferenceEngine::SizeVector{5, 5, 5, 5, 5}, 3}
-};
-
-const auto OptimizedParamsBF16 = testing::Combine(
-        testing::Values(Precision::BF16),
-        testing::ValuesIn(optimizedConfigsBF16),
-        testing::Values(CommonTestUtils::DEVICE_CPU),
-        testing::Values(emptyCPUSpec));
-
-INSTANTIATE_TEST_CASE_P(smoke_SoftMax_Optimized_CPU_BF16, SoftMaxLayerCPUTest, OptimizedParamsBF16, SoftMaxLayerCPUTest::getTestCaseName);
-
-const auto NotOptimizedParamsBF16 = testing::Combine(
-        testing::Values(Precision::BF16),
-        testing::ValuesIn(notOptimizedConfigsBF16),
-        testing::Values(CommonTestUtils::DEVICE_CPU),
-        testing::Values(notOptimizedCPUSpec));
-
-INSTANTIATE_TEST_CASE_P(smoke_SoftMax_CPU_BF16, SoftMaxLayerCPUTest, NotOptimizedParamsBF16, SoftMaxLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_SoftMax_CPU, SoftMaxLayerCPUTest, NotOptimizedParams, SoftMaxLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
