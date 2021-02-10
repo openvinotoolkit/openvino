@@ -65,10 +65,6 @@ private:
     MKLDNNMemoryDesc w_data_d;
     MKLDNNMemoryDesc w_state_d;
     MKLDNNMemoryDesc w_bias_d;
-
-    // List of in/out reorders if required
-    std::vector<mkldnn::reorder> exec_before;
-    std::vector<mkldnn::reorder> exec_after;
 };
 
 }  // namespace MKLDNNPlugin
