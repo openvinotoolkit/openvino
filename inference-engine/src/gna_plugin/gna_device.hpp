@@ -31,6 +31,7 @@
  * holds gna - style handle in RAII way
  */
 class GNADeviceHelper {
+    static std::mutex acrossPluginsSync;
 #if GNA_LIB_VER == 1
     intel_gna_status_t nGNAStatus = GNA_NOERROR;
     intel_gna_handle_t nGNAHandle = 0;
@@ -159,6 +160,7 @@ public:
     void setOMPThreads(uint8_t const n_threads);
 
     void initGnaPerfCounters() {
+        std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
         nGNAPerfResults = {{0, 0, 0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0}, {0, 0}};
         nGNAPerfResultsTotal = {{0, 0, 0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0}, {0, 0}};
