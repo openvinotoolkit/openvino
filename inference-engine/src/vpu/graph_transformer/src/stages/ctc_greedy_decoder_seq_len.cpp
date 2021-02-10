@@ -131,11 +131,16 @@ void FrontEnd::parseCTCGreedyDecoderSeqLen(const Model& model, const ie::CNNLaye
                      "provided {} outputs",
                      layer->type, layer->name, outputs.size());
 
+
     const auto mergeRepeated = layer->GetParamAsBool("merge_repeated");
     const auto blankIndex = [&] {
         if (inputs.size() == 3) {
+            VPU_THROW_UNLESS(inputs[2]->usage() == DataUsage::Const,
+                             "Only constant axis is supported, but got {} data object",
+                             inputs[2]->usage());
             VPU_THROW_UNLESS(inputs[2]->desc().totalDimSize() == 1,
-                             "Input 3 should have only one element.");
+                             "Only single value blankIndex is supported, got {} elements",
+                             inputs[2]->desc().totalDimSize());
 
             return *inputs[2]->content()->get<int32_t>();
         }
