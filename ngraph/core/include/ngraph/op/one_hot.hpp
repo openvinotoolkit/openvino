@@ -54,7 +54,8 @@ namespace ngraph
 
                 virtual bool evaluate(const HostTensorVector& output_values,
                                       const HostTensorVector& input_values) const override;
-
+                //bool evaluate_old(const HostTensorVector& output_values,
+                //              const HostTensorVector& input_values) const;
                 /// \return The index of the one-hot axis.
                 int64_t get_axis() const { return m_axis; }
                 void set_axis(int64_t axis) { m_axis = axis; }

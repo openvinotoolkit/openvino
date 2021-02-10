@@ -195,11 +195,66 @@ namespace detail
         }
         return rc;
     }
+
+
+
 } // namespace detail
+
+namespace new_detail{
+    bool evaluate_onehot_new(const HostTensorVector& output_values,
+                             const HostTensorVector& input_values,
+                             const int64_t axis) {
+
+        const auto& indices = input_values[0];
+        const auto& on_value = input_values[2];
+        const auto& off_value = input_values[3];
+        const auto& out = output_values[0];
+        std::cout << indices->get_shape() << "\n";
+        bool rc = true;
+        switch (on_value->get_element_type())
+        {
+            /*
+            case element::Type_t::i32:
+            {
+                runtime::reference::one_hot<int32_t>(indices->get_data_ptr<int32_t>(),
+                                                        out->get_data_ptr<char>(),
+                                                        indices->get_shape(),
+                                                        out->get_shape(),
+                                                        out->get_element_type().size(),
+                                                        axis,
+                                                        on_value->get_data_ptr<char>(),
+                                                        off_value->get_data_ptr<char>());
+            }*/
+            case element::Type_t::i64:
+            {
+                NGRAPH_OP_SCOPE(evaluate_one_hot_in_i64);
+                runtime::reference::one_hot<int64_t>(indices->get_data_ptr<int64_t>(),
+                                                     out->get_data_ptr<char>(),
+                                                     indices->get_shape(),
+                                                     out->get_shape(),
+                                                     out->get_element_type().size(),
+                                                     axis,
+                                                     on_value->get_data_ptr<char>(),
+                                                     off_value->get_data_ptr<char>());
+            }
+            default: rc = false;
+        }
+        return rc;
+    }
+
+}
 
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
+    return new_detail::evaluate_onehot_new(output_values, input_values, get_axis());
+}
+/*
+bool op::v1::OneHot::evaluate_old(const HostTensorVector& output_values,
+                              const HostTensorVector& input_values) const
+{
+    NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
     return detail::evaluate_onehot(output_values, input_values, get_axis());
 }
+*/
