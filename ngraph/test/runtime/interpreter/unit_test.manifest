@@ -76,8 +76,6 @@ INTERPRETER.auto_bcast_binary_elementwise_pdpd
 
 # Revise reference implementation
 onnx_dyn_model_hardmax
-onnx_model_one_hot_with_axis
-onnx_model_one_hot_with_axis
 onnx_model_quantize_linear_const_scale_const_zero_p
 onnx_model_quantize_linear
 onnx_model_quantize_linear_axis_zero
