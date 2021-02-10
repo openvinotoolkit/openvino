@@ -200,10 +200,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_constant_cpu",
         "OnnxBackendNodeModelTest.test_eyelike_populate_off_main_diagonal_cpu",
         "OnnxBackendNodeModelTest.test_eyelike_without_dtype_cpu",
-        "OnnxBackendNodeModelTest.test_shape_cpu",
-        "OnnxBackendNodeModelTest.test_shape_example_cpu",
-        "OnnxBackendNodeModelTest.test_size_cpu",
-        "OnnxBackendNodeModelTest.test_size_example_cpu",
         "OnnxBackendNodeModelTest.test_dropout_default_ratio_cpu",
         "OnnxBackendNodeModelTest.test_training_dropout_default_cpu",
         "OnnxBackendNodeModelTest.test_training_dropout_zero_ratio_cpu",
@@ -684,7 +680,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
         "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",),
     (xfail_issue_48055,
-        "OnnxBackendNodeModelTest.test_dropout_default_mask_cpu",
         "OnnxBackendNodeModelTest.test_dropout_default_mask_ratio_cpu",)
 ]
 
