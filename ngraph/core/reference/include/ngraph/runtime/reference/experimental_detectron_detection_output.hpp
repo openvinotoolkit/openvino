@@ -21,6 +21,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <ngraph/runtime/host_tensor.hpp>
@@ -44,7 +45,7 @@ namespace ngraph
                 const op::v6::ExperimentalDetectronDetectionOutput::Attributes& attrs,
                 float* output_boxes,
                 float* output_scores,
-                float* output_classes);
+                int32_t* output_classes);
         }
     }
 }
