@@ -15,6 +15,16 @@ graph {
       floats: 0.2
       type: FLOATS
     }
+    attribute {
+      name: "width"
+      floats: 1.0
+      type: FLOATS
+    }
+    attribute {
+      name: "height"
+      floats: 1.0
+      type: FLOATS
+    }
   }
   name: "compute_graph"
   input {
