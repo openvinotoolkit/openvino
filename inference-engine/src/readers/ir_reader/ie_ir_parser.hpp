@@ -25,6 +25,7 @@
 #include <memory>
 #include <set>
 #include <sstream>
+#include <stack>
 #include <string>
 #include <vector>
 
@@ -183,10 +184,33 @@ private:
 
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
-        explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights,
-        const std::unordered_map<std::string, ngraph::OpSet>& opsets,
-        std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables)
-        : node(node), weights(weights), opsets(opsets), variables(variables) {}
+        /// TODO: move whole class to src file
+        enum class io { INPUTS, OUTPUTS };
+
+        using NodeIdToIoIndex = std::unordered_map<size_t /*xml node id*/, uint64_t /*body io index*/>;
+        using IoMap = std::unordered_map<io, NodeIdToIoIndex>;
+        using NodeIdToIoIndexStack = std::stack<IoMap>;
+
+        struct NextLevelOfIoMap {
+            NextLevelOfIoMap() {
+                io_map_stack.push(IoMap{{io::INPUTS, {}}, {io::OUTPUTS, {}}});
+            }
+            ~NextLevelOfIoMap() {
+                if (!io_map_stack.empty()) {
+                    io_map_stack.pop();
+                } else {
+                    assert(!"This should not happen");
+                }
+            }
+        };
+
+        explicit XmlDeserializer(
+            const pugi::xml_node& node,
+            const Blob::CPtr& weights,
+            const std::unordered_map<std::string, ngraph::OpSet>& opsets,
+            std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables)
+            : node(node), weights(weights), opsets(opsets), variables(variables) {}
+
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
@@ -288,11 +312,21 @@ private:
             adapter.set(value);
         }
 
+
     private:
+        //TODO move data to the bottom (or top)
         const pugi::xml_node node;
         const Blob::CPtr& weights;
         const std::unordered_map<std::string, ngraph::OpSet>& opsets;
         std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables;
+
+        ///
+        /// store information about parameters/results order in created function
+        /// which will be used in upper instance this class when Inputs/Outputs Description
+        /// will be created during SubGraph processing
+        ///
+        thread_local static NodeIdToIoIndexStack io_map_stack;
+
         /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
         /// Shall be used only for ops which have port_map attribute.
         /// \param node xml op representation
@@ -303,12 +337,10 @@ private:
         /// \param node xml op representation
         std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> parseOutputDescription(
             const pugi::xml_node& node);
-        /// \brief Traverses nGraph body function for specified op type and creates a map of all
-        ///  op iterations. Map constains type id and assigned to it consecutive number starting from 0.
-        /// \param node xml op representation
-        /// \param type op type name to find
-        /// \return map container
-        std::map<uint64_t, uint64_t> map_type_in_function(const pugi::xml_node& node, std::string type);
+
+        //TODO consider to call only once per layer/TI-Loop node
+        static IoMap updated_io_map(const pugi::xml_node& node);
+
         /// \brief Traverses xml node representation in order to create nGraph function for it.
         /// \param node xml node representation
         /// \param weights weights attached to current node
