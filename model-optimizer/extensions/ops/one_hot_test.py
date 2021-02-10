@@ -22,16 +22,16 @@ from generator import generator, generate
 from extensions.ops.one_hot import OneHot
 from mo.front.common.partial_infer.utils import int64_array, float_array
 from mo.graph.graph import Node
-from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, const_with_data, connect
+from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, connect
 
 
 def generate_nodes(data, axis=-1, depth=4, on_value=1., off_value=0.):
     return {
         'indices': {'Op': 'Parameter', 'value': data, 'shape': int64_array(data.shape)},
         'indices_d': {'kind': 'data', 'value': data, 'shape': int64_array(data.shape)},
-        **const_with_data('depth', int64_array(depth)),
-        **const_with_data('on_value', float_array(on_value)),
-        **const_with_data('off_value', float_array(off_value)),
+        **valued_const_with_data('depth', int64_array(depth)),
+        **valued_const_with_data('on_value', float_array(on_value)),
+        **valued_const_with_data('off_value', float_array(off_value)),
         **regular_op_with_shaped_data('one_hot', None, {'type': 'OneHot', 'axis': axis, 'Op': 'OneHot'})
     }
 

@@ -4,25 +4,13 @@
 
 #pragma once
 
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/single_layer/batch_norm.hpp"
 #include "ngraph_functions/builders.hpp"
-
-typedef std::tuple<
-        double,                        // epsilon
-        InferenceEngine::Precision,    // Net precision
-        InferenceEngine::SizeVector,   // Input shapes
-        LayerTestsUtils::TargetDevice  // Target device name
-> BatchNormLayerTestParams;
 
 namespace LayerTestsDefinitions {
 
-class BatchNormLayerTest : public testing::WithParamInterface<BatchNormLayerTestParams>,
-                           public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<BatchNormLayerTestParams>& obj);
-
-protected:
-    void SetUp() override;
-};
+TEST_P(BatchNormLayerTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

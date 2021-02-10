@@ -24,12 +24,13 @@ public:
     FullyConnected_fb_io_block() : FullyConnectedKernelBase("fully_connected_gpu_fb_io_block_fp16") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;
     JitConstants GetJitConstants(const fully_connected_params& params,
-                                 const FullyConnectedKernelBase::DispatchData& kd) const override;
+                                 const FullyConnectedKernelBase::DispatchData& dispatchData) const override;
     DispatchData SetDefault(const fully_connected_params& arg, int autoTuneIndex = -1) const override;
 };
 }  // namespace kernel_selector

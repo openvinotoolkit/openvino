@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,16 +17,16 @@
 #include <algorithm>
 #include <deque>
 #include <iostream>
-#include <pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <regex>
 #include <unordered_set>
 #include <vector>
 
-#include "graph_rewrite.hpp"
 #include "itt.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
+#include "ngraph/pass/graph_rewrite.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -72,6 +72,7 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
     bool rewritten = false;
+    const auto& pass_config = get_pass_config();
 
     // Initialize execution queue with nodes in topological order
     deque<std::shared_ptr<Node>> nodes_to_run;
@@ -85,6 +86,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
     std::unordered_map<NodeTypeInfo, std::vector<size_t>> type_to_matcher;
     for (size_t matcher_index = 0; matcher_index < m_matchers.size(); ++matcher_index)
     {
+        // Skip passes that are disabled
+        if (pass_config->is_disabled(m_matchers[matcher_index]->get_type_info()))
+            continue;
+
         auto matcher = m_matchers[matcher_index]->get_matcher();
         if (!matcher)
         {
@@ -104,12 +109,14 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         // it's type
         // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
         // and default algorithm is used.
-        NodeTypeInfo root_type_info = root->get_type_info();
         if (auto p = dynamic_pointer_cast<pattern::op::Pattern>(root))
         {
             if (auto any_type = dynamic_pointer_cast<pattern::op::WrapType>(p))
             {
-                root_type_info = any_type->get_wrapped_type();
+                for (const auto& root_type_info : any_type->get_wrapped_types())
+                {
+                    type_to_matcher[root_type_info].push_back(matcher_index);
+                }
             }
             else
             {
@@ -117,7 +124,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 break;
             }
         }
-        type_to_matcher[root_type_info].push_back(matcher_index);
+        else
+        {
+            type_to_matcher[root->get_type_info()].push_back(matcher_index);
+        }
 
         // TODO: traverse parents for root_type_info in order to register complete list of matchers
         // including ones triggered by parent type info.
@@ -137,11 +147,6 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                             "optimization till the shapes are fully "
                             "materialized";
             return false;
-        }
-
-        if (!m_has_default_callback)
-        {
-            m_pass->set_callback(m_transformation_callback);
         }
 
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
@@ -224,6 +229,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         {
             for (auto& m_pass : m_matchers)
             {
+                // Skip passes that are disabled
+                if (pass_config->is_disabled(m_pass->get_type_info()))
+                    continue;
+
                 if (run_matcher_pass(m_pass, node))
                 {
                     rewritten = true;
@@ -247,6 +256,7 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
             if (m->match(node->output(0)))
             {
                 NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                NGRAPH_PASS_CALLBACK(m);
                 bool status = callback(*m.get());
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
@@ -266,6 +276,35 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
     // callback require static shape.
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
     NGRAPH_SUPPRESS_DEPRECATED_END
+}
+
+void pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& rhs)
+{
+    auto pass_config = get_pass_config();
+    // We have to preserve disabled passes because in case when we register matchers inside
+    // GraphRewrite c-tor we work with local PassConfig instance.
+    // For example:
+    //
+    // class ExampleGraphRewrite: public pass::GraphRewrite {
+    //      ExampleGraphRewrite() {
+    //          add_mather<TestMatcher1, false /* disabled by default */>();
+    //          add_mather<TestMatcher2>();
+    //      }
+    // };
+    //
+    // When we call add_matcher inside c-tor we automatically work with locally created PassConfig
+    // instance that is not shared. So when instance of this pass is being created in pass::Manager
+    // we set shared PassConfig but we will override already existing rules inside local config. To
+    // resolve this we have to copy disabled passes from local PassConfig to shared but we take into
+    // account that if passes were manually enabled we do not add them.
+    rhs->add_disabled_passes(*pass_config);
+    PassBase::set_pass_config(rhs);
+
+    // update nested transformations with new shared pass_config
+    for (auto& pass : m_matchers)
+    {
+        pass->set_pass_config(rhs);
+    }
 }
 
 void pass::RecurrentGraphRewrite::add_matcher(
@@ -354,6 +393,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
         if (m->match(node->output(0)))
         {
             NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+            NGRAPH_PASS_CALLBACK(m);
             bool status = callback(*m.get());
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();
@@ -368,5 +408,7 @@ bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "ngraph::pass::MatcherPass::apply");
     m_new_nodes.clear();
-    return m_handler(node);
+    if (m_handler)
+        return m_handler(node);
+    return false;
 }

@@ -54,27 +54,4 @@ struct MetricType;
         __VA_ARGS__;                                                                                          \
     return _##name##_value
 
-/**
- * @def        IE_SET_METRIC(name, ...)
- * @ingroup    ie_dev_api
- * @brief      Set metric with specified @p name and arguments `...`. Example:
- * @code
- * Parameter result = IE_SET_METRIC(SUPPORTED_METRICS, {
-            METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
-            METRIC_KEY(SUPPORTED_METRICS),
-            METRIC_KEY(NETWORK_NAME),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS)
-        });
- * @endcode
- *
- * @param      name  The metric name
- * @param      ...   A metric value
- *
- * @return     A metric value wrapped with Parameter. Must be used as a left-side argument to assignment operator.
- */
-#define IE_SET_METRIC(name, ...)                 \
-    [&] {                                        \
-        IE_SET_METRIC_RETURN(name, __VA_ARGS__); \
-    }()
-
 #include "ie_plugin_config.hpp"

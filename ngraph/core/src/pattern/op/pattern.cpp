@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <regex>
 
-#include "pattern.hpp"
+#include "ngraph/pattern/op/pattern.hpp"
 
 namespace ngraph
 {
@@ -93,6 +93,13 @@ namespace ngraph
         {
             return
                 [=](Output<Node> output) -> bool { return output.get_partial_shape().is_static(); };
+        }
+
+        std::function<bool(Output<Node>)> has_static_rank()
+        {
+            return [=](Output<Node> output) -> bool {
+                return output.get_partial_shape().rank().is_static();
+            };
         }
 
         std::function<bool(Output<Node>)> type_matches(const element::Type& type)

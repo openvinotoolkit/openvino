@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,8 +21,6 @@
 #include "util/all_close_f.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -52,7 +50,8 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_abc)
     auto b = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
     auto c = make_shared<op::Parameter>(element::f32, PartialShape{2, Dimension::dynamic(), 3});
 
-    auto a_plus_b_times_c = (a + b) * c;
+    auto a_plus_b = make_shared<op::v1::Add>(a, b);
+    auto a_plus_b_times_c = make_shared<op::v1::Multiply>(a_plus_b, c);
 
     auto f = make_shared<Function>(NodeVector{a_plus_b_times_c}, ParameterVector{a, b, c});
 
@@ -116,7 +115,7 @@ static void axpy_test(const PartialShape& input_pshape, const std::vector<Shape>
     auto x = make_shared<op::Parameter>(element::f32, input_pshape);
     auto y = make_shared<op::Parameter>(element::f32, input_pshape);
 
-    auto axpy = a * x + y;
+    auto axpy = make_shared<op::v1::Add>(make_shared<op::v1::Multiply>(a, x), y);
 
     auto f = make_shared<Function>(NodeVector{axpy}, ParameterVector{a, x, y});
     auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
@@ -182,8 +181,10 @@ static void to_vector_test(const PartialShape& input_pshape, const std::vector<S
     auto x = make_shared<op::Parameter>(element::f32, input_pshape);
 
     shared_ptr<Node> x_new_shape = make_shared<op::v0::ShapeOf>(x);
-    x_new_shape = make_shared<op::Product>(x_new_shape, AxisSet{0});
-    x_new_shape = make_shared<op::Reshape>(x_new_shape, AxisVector{}, Shape{1});
+    auto axes = op::Constant::create(element::i64, {}, {0});
+    x_new_shape = make_shared<op::v1::ReduceProd>(x_new_shape, axes);
+    x_new_shape = make_shared<op::v1::Reshape>(
+        x_new_shape, op::Constant::create(element::u64, {1}, Shape{1}), false);
 
     auto x_reshaped = make_shared<op::v1::Reshape>(x, x_new_shape, true);
 
@@ -242,7 +243,8 @@ static void reverse_shape_test(const PartialShape& input_pshape,
     auto x = make_shared<op::Parameter>(element::f32, input_pshape);
 
     shared_ptr<Node> x_new_shape = make_shared<op::v0::ShapeOf>(x);
-    x_new_shape = make_shared<op::Reverse>(x_new_shape, AxisSet{0});
+    x_new_shape = make_shared<op::v1::Reverse>(
+        x_new_shape, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
 
     auto x_reshaped = make_shared<op::v1::Reshape>(x, x_new_shape, true);
 
@@ -295,4 +297,31 @@ NGRAPH_TEST(${BACKEND_NAME}, dynamic_reverse_shape)
                         Shape{8, 2},
                         Shape{8, 2, 8, 2},
                         Shape{2, 3, 4, 5, 2}});
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, dynamic_transpose)
+{
+    auto arg = std::make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto input_order = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto transpose = std::make_shared<op::v1::Transpose>(arg, input_order);
+
+    auto f = std::make_shared<Function>(NodeVector{transpose}, ParameterVector{arg, input_order});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
+    auto ex = backend->compile(f);
+
+    auto arg_data = vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    auto input_order_data = vector<int32_t>{2, 0, 1};
+
+    auto arg_tensor = backend->create_tensor(element::i32, Shape{2, 2, 3});
+    auto input_order_tensor = backend->create_tensor(element::i32, Shape{input_order_data.size()});
+    copy_data(arg_tensor, arg_data);
+    copy_data(input_order_tensor, input_order_data);
+
+    auto output = backend->create_dynamic_tensor(element::i32, PartialShape::dynamic());
+    ex->call_with_validate({output}, {arg_tensor, input_order_tensor});
+
+    ASSERT_EQ(output->get_element_type(), element::i32);
+    EXPECT_EQ(read_vector<int32_t>(output),
+              vector<int32_t>({1, 4, 7, 10, 2, 5, 8, 11, 3, 6, 9, 12}));
 }

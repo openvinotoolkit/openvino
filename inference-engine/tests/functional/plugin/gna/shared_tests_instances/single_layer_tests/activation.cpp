@@ -38,12 +38,26 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
         {{1, 50}, {{}}},
         {{1, 128}, {{}}},
-        {{1, 10 * 1024}, {{}}}
+        {{1, 10 * 1024}, {{}}},
+        {{64, 1}, {{}}},
+        {{8, 128}, {{}}},
+        {{16, 128}, {{}}},
+        {{18, 128}, {{}}},
+        {{32, 512}, {{}}},
+        {{1, 4, 2, 256}, {{}}},
+        {{4, 4, 4, 4}, {{}}},
+        {{1, 16, 1, 128}, {{}}},
+        {{1, 8, 15, 128}, {{}}},
+        {{1, 4, 4, 128}, {{}}}
 };
 
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_GNA)
 );

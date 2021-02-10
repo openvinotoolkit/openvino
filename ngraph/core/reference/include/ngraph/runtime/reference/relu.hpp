@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,15 +31,6 @@ namespace ngraph
                 for (size_t i = 0; i < count; i++)
                 {
                     out[i] = arg[i] > zero ? arg[i] : zero;
-                }
-            }
-            template <typename T>
-            void relu_backprop(const T* arg, const T* delta_arg, T* out, size_t count)
-            {
-                T zero = 0;
-                for (size_t i = 0; i < count; i++)
-                {
-                    out[i] = arg[i] > zero ? delta_arg[i] : zero;
                 }
             }
         }

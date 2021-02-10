@@ -8,8 +8,9 @@
 
 namespace vpu {
 
-class EliminateShapeOfAfterDSR : public ngraph::pass::GraphRewrite {
+class EliminateShapeOfAfterDSR : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     EliminateShapeOfAfterDSR();
 };
 

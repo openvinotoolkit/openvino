@@ -23,7 +23,7 @@
 
 TEST_P(ModelTransformationsTest, LPT) {}
 
-static void checkLayerInputPrecision(const ICNNNetwork& network, const std::string& layerName, Precision expectedPrecision, int inputIndex = -1) {
+static void checkLayerInputPrecision(const CNNNetwork& network, const std::string& layerName, Precision expectedPrecision, int inputIndex = -1) {
     CNNLayerPtr layer = getLayer(network, layerName);
     if (layer == nullptr) {
         THROW_IE_EXCEPTION << "layer '" << layerName << "' was not found";
@@ -40,6 +40,19 @@ static void checkLayerInputPrecision(const ICNNNetwork& network, const std::stri
 
 ModelParams getModelParams(const std::string modelName) {
 std::map<std::string, ModelParams> modelParams = {
+    // {
+    //    "inception_v2_tf",
+    //    ModelParams(
+    //            "inception_v2_tf",
+    //            "inception_v2/inception_v2_i8.xml",
+    //            "validation_set/224x224/dog.bmp",
+    //            {{157, 9.49783 },  // 157 row: 'Blenheim spaniel'
+    //            { 219, 7.13866 },  // 219 row: 'Welsh springer spaniel',
+    //            { 216, 5.60607 },  // 153 row: 'Japanese spaniel',
+    //            { 220, 5.23158 }}
+    //    )
+    // },
+
     {
         "inception_v3_tf",
         ModelParams(
@@ -58,10 +71,11 @@ std::map<std::string, ModelParams> modelParams = {
                 "mobilenet_v2_tf_depthwise",
                 "mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml",
                 "validation_set/224x224/dog.bmp",
+                // original (FP32, no LPT) output tensor
                 {{ 157, 8.63748 },
                  { 219, 6.29954 },
-                 { 216, 4.7303 },
-                 { 218, 4.69319 },
+                 { 216, 4.7303 },   // Windows, Linux: {218, 4.75413}
+                 { 218, 4.69319 },  // Windows, Linux: {216, 4.75355}
                  { 220, 3.67249 }},
                 {},
                 [](const TransformationsParams& transformationsParam, CNNNetworkImplPtr usedNetwork) {
@@ -81,9 +95,9 @@ std::map<std::string, ModelParams> modelParams = {
                         };
 
                         for (const std::pair<std::string, std::string> item : fakeQuantizeAndConcolutionItems) {
-                            TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, item.first, Precision::U8);
+                            TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, item.first, Precision::U8);
                             if (!item.second.empty()) {
-                                checkLayerInputPrecision(*usedNetwork, item.second, Precision::U8, 0);
+                                checkLayerInputPrecision(usedNetwork, item.second, Precision::U8, 0);
                             }
                         }
                     }
@@ -101,17 +115,17 @@ std::map<std::string, ModelParams> modelParams = {
                  { 217, 10.1224 },
                  { 152, 9.60148 }},
                 {},
-                [](const TransformationsParams& transformationsParam, CNNNetworkImplPtr usedNetwork) {
+                [](const TransformationsParams& transformationsParam, CNNNetwork usedNetwork) {
                     if (transformationsParam.transformationsInTestEnabled && transformationsParam.params.updatePrecisions) {
                         const Precision originalPrecision = Precision::FP32;
                         const Precision targetPrecision = Precision::U8;
 
                         //Eltwise CPU/GPU specific
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block1/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
 
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
-                        TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_0", originalPrecision);
+                        TestsCommonFunc::checkLayerOuputPrecision(usedNetwork, "resnet_v1_50/block2/unit_1/bottleneck_v1/add/fq_input_1", Precision::I8);
                     }
                 })
         },
@@ -129,6 +143,8 @@ INSTANTIATE_TEST_CASE_P(
         smoke_Inception,
         ModelTransformationsTest,
         ::testing::Values(
+                // TransformationsParams("CPU", getModelParams("inception_v2_tf"), 1ul, true, false, createParam()),
+
                 TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, false, createParam(), {}, 3ul),
                 TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, true, createParamI8I8(), {}, 0, false),
                 TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, true, createParamU8I8(), {}, 0),
@@ -144,14 +160,14 @@ INSTANTIATE_TEST_CASE_P(
         smoke_MobileNet,
         ModelTransformationsTest,
         ::testing::Values(
-                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false),
+                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, false, createParamU8I8(), {}, 2),
 // TODO: eshoguli: fix this issue
 //                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamI8I8()),
 //                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamU8I8()),
 //                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamU8U8(), {}, 2),
 //                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamCpu(), { "464/Pool", "465/Pool" }),
-                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, true),
-                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 2ul, true)
+                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, true, false, createParamU8I8(), {}, 2),
+                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 2ul, true, false, createParamU8I8(), {}, 2)
         ),
         TransformationsParams::getLowPrecisionTransformerSingleLayerTestName);
 

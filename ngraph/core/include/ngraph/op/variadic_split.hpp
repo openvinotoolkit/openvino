@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@ namespace ngraph
             class NGRAPH_API VariadicSplit : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"VariadicSplit", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a variadic split operation.
                 VariadicSplit() = default;
                 /// \brief Constructs a variadic split operation.
@@ -56,6 +56,10 @@ namespace ngraph
                 size_t get_default_output_index() const override { return no_default_index(); }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+            private:
+                bool evaluate_variadic_split(const HostTensorVector& outputs,
+                                             const HostTensorVector& inputs) const;
             };
         } // namespace v1
 

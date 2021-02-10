@@ -7,15 +7,15 @@
 #include <string>
 #include <memory>
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string, // target device: CPU, GPU
-    InferenceEngine::details::LayerTransformation::Params, // transformation parameters
+    ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
     bool, // transparent intermediate
     // multichannel
     bool> ConcatWithIntermediateTransformationParams;
@@ -29,6 +29,8 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
     void validate();
 };
 

@@ -51,10 +51,10 @@ if [ -e "$INSTALLDIR/deployment_tools/inference_engine" ]; then
 
     export HDDL_INSTALL_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/hddl
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        export DYLD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_mac/lib:$INSTALLDIR/deployment_tools/inference_engine/external/tbb/lib:${IE_PLUGINS_PATH}${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
-        export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_mac/lib:$INSTALLDIR/deployment_tools/inference_engine/external/tbb/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export DYLD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/omp/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_mac/lib:${IE_PLUGINS_PATH}${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/omp/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_mac/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     else
-        export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:$INSTALLDIR/deployment_tools/inference_engine/external/gna/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_lnx/lib:$INSTALLDIR/deployment_tools/inference_engine/external/tbb/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+        export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:$INSTALLDIR/deployment_tools/inference_engine/external/omp/lib:$INSTALLDIR/deployment_tools/inference_engine/external/gna/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_lnx/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     fi
 
     HDDL_UNITE_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/hddl_unite
@@ -62,6 +62,14 @@ if [ -e "$INSTALLDIR/deployment_tools/inference_engine" ]; then
     if [ -e "$HDDL_UNITE_DIR" ]; then
         export LD_LIBRARY_PATH=$HDDL_UNITE_DIR/lib:$HDDL_UNITE_DIR/thirdparty/XLink/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     fi
+fi
+
+if [ -e "$INSTALLDIR/deployment_tools/inference_engine/external/tbb" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        export DYLD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/tbb/lib:${DYLD_LIBRARY_PATH:+:DYLD_LIBRARY_PATH}
+    fi
+    export LD_LIBRARY_PATH=$INSTALLDIR/deployment_tools/inference_engine/external/tbb/lib:${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+    export TBB_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/tbb/cmake
 fi
 
 if [ -e "$INSTALLDIR/deployment_tools/ngraph" ]; then
@@ -112,22 +120,27 @@ fi
 
 MINIMUM_REQUIRED_PYTHON_VERSION="3.6"
 MAX_SUPPORTED_PYTHON_VERSION=$([[ "$OSTYPE" == "darwin"* ]] && echo '3.7' || echo '3.8') 
-if [[ ! -z "$python_version" && "$(printf '%s\n' "$python_version" "$MINIMUM_REQUIRED_PYTHON_VERSION" | sort -V | head -n 1)" != "$MINIMUM_REQUIRED_PYTHON_VERSION" ]]; then
+if [[ -n "$python_version" && "$(printf '%s\n' "$python_version" "$MINIMUM_REQUIRED_PYTHON_VERSION" | sort -V | head -n 1)" != "$MINIMUM_REQUIRED_PYTHON_VERSION" ]]; then
     echo "[setupvars.sh] ERROR: Unsupported Python version. Please install one of Python 3.6-${MAX_SUPPORTED_PYTHON_VERSION} (64-bit) from https://www.python.org/downloads/"
     return 1
 fi
 
 
-if [ ! -z "$python_version" ]; then
-    # add path to OpenCV API for Python 3.x
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python3:$PYTHONPATH"
-    pydir=$INTEL_OPENVINO_DIR/python/python$python_version
-    if [[ -d $pydir ]]; then
-        # add path to Inference Engine Python API
-        export PYTHONPATH="${pydir}:${PYTHONPATH}"
+if [ -n "$python_version" ]; then
+    if [[ -d $INTEL_OPENVINO_DIR/python ]]; then
+        # add path to OpenCV API for Python 3.x
+        export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python3:$PYTHONPATH"
+        pydir=$INTEL_OPENVINO_DIR/python/python$python_version
+        if [[ -d $pydir ]]; then
+            # add path to Inference Engine Python API
+            export PYTHONPATH="${pydir}:${PYTHONPATH}"
+        else
+            echo "[setupvars.sh] WARNING: Can not find OpenVINO Python module for python${python_version} by path ${pydir}"
+            echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"
+        fi
     else
-        echo "[setupvars.sh] ERROR: Can not find OpenVINO Python module for python${python_version} by path ${pydir}"
-        return 1
+        echo "[setupvars.sh] WARNING: Can not find OpenVINO Python binaries by path ${INTEL_OPENVINO_DIR}/python"
+        echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"
     fi
 fi
 

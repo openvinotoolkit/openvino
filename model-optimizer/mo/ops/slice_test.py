@@ -51,6 +51,8 @@ class TestSliceOp(unittest.TestCase):
             (None, [1], [3], [0], [4], [1], [4]),
             # with rounding and negative steps (e.g. take from 1st to 3rd with step 4 should give shape 1 not 0)
             (None, [7], [3], [0], [-7], [1], [10]),
+            # reversing the sequence of elements
+            (None, [-1], [np.iinfo(np.int32).min], [0], [-1], [10], [10]),
         ])
         def test_slice_infer(self, inp_value, starts, ends, axes, steps, expected, inp_shape=None):
             if inp_value is None:

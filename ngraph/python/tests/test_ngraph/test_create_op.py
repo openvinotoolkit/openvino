@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ from _pyngraph import PartialShape
 import ngraph as ng
 import ngraph.opset1 as ng_opset1
 from ngraph.impl import Type
+
+from tests import skip_segfault
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -72,6 +74,46 @@ def test_ctc_greedy_decoder(dtype):
 
     assert node.get_type_name() == "CTCGreedyDecoder"
     assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
+@pytest.mark.parametrize("fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index",
+                         [
+                             (np.float32, np.int32, "i32", "i32", True, True),
+                             (np.float32, np.int32, "i64", "i32", True, True),
+                             (np.float32, np.int32, "i32", "i64", True, True),
+                             (np.float32, np.int32, "i64", "i64", True, True),
+                             (np.float64, np.int64, "i32", "i32", False, True),
+                             (np.float64, np.int64, "i64", "i32", False, True),
+                             (np.float64, np.int64, "i32", "i64", False, True),
+                             (np.float64, np.int64, "i64", "i64", False, True),
+                             (np.float32, np.int32, "i32", "i32", True, False),
+                             (np.float32, np.int32, "i64", "i32", True, False),
+                             (np.float32, np.int32, "i32", "i64", True, False),
+                             (np.float32, np.int32, "i64", "i64", True, False),
+                             (np.float64, np.int64, "i32", "i32", False, False),
+                             (np.float64, np.int64, "i64", "i32", False, False),
+                             (np.float64, np.int64, "i32", "i64", False, False),
+                             (np.float64, np.int64, "i64", "i64", False, False)
+                         ],)
+def test_ctc_greedy_decoder_seq_len(fp_dtype, int_dtype, int_ci, int_sl, merge_repeated, blank_index):
+    input0_shape = [8, 20, 128]
+    input1_shape = [8]
+    input2_shape = [1]
+    expected_shape = [8, 20]
+
+    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=fp_dtype)
+    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=int_dtype)
+    parameter_input2 = None
+    if blank_index:
+        parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=int_dtype)
+
+    node = ng.ctc_greedy_decoder_seq_len(
+        parameter_input0, parameter_input1, parameter_input2, merge_repeated, int_ci, int_sl
+    )
+
+    assert node.get_type_name() == "CTCGreedyDecoderSeqLen"
+    assert node.get_output_size() == 2
     assert list(node.get_output_shape(0)) == expected_shape
 
 
@@ -288,7 +330,7 @@ def test_lstm_cell_operator_opset1(dtype):
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
-def test_lstm_sequence_operator_bidirectional(dtype):
+def test_lstm_sequence_operator_bidirectional_opset1(dtype):
     batch_size = 1
     input_size = 16
     hidden_size = 128
@@ -353,7 +395,7 @@ def test_lstm_sequence_operator_bidirectional(dtype):
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
-def test_lstm_sequence_operator_reverse(dtype):
+def test_lstm_sequence_operator_reverse_opset1(dtype):
     batch_size = 2
     input_size = 4
     hidden_size = 3
@@ -419,7 +461,7 @@ def test_lstm_sequence_operator_reverse(dtype):
 
 
 @pytest.mark.parametrize("dtype", [np.float32, np.float64])
-def test_lstm_sequence_operator_forward(dtype):
+def test_lstm_sequence_operator_forward_opset1(dtype):
     batch_size = 2
     input_size = 4
     hidden_size = 3
@@ -538,6 +580,154 @@ def test_gru_cell_operator():
     assert list(node_param.get_output_shape(0)) == expected_shape
 
 
+def test_gru_sequence():
+    batch_size = 2
+    input_size = 16
+    hidden_size = 32
+    seq_len = 8
+    seq_lengths = [seq_len] * batch_size
+    num_directions = 1
+    direction = "FORWARD"
+
+    X_shape = [batch_size, seq_len, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    W_shape = [num_directions, 3 * hidden_size, input_size]
+    R_shape = [num_directions, 3 * hidden_size, hidden_size]
+    B_shape = [num_directions, 3 * hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=np.float32)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=np.float32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=np.float32)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=np.float32)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+
+    expected_shape_y = [batch_size, num_directions, seq_len, hidden_size]
+    expected_shape_h = [batch_size, num_directions, hidden_size]
+
+    node_default = ng.gru_sequence(
+        parameter_X,
+        parameter_H_t,
+        seq_lengths,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node_default.get_type_name() == "GRUSequence"
+    assert node_default.get_output_size() == 2
+    assert list(node_default.get_output_shape(0)) == expected_shape_y
+    assert list(node_default.get_output_shape(1)) == expected_shape_h
+
+    activations = ["tanh", "relu"]
+    activations_alpha = [1.0, 2.0]
+    activations_beta = [1.0, 2.0]
+    clip = 0.5
+    linear_before_reset = True
+
+    # If *linear_before_reset* is set True, then B tensor shape must be [4 * hidden_size]
+    B_shape = [num_directions, 4 * hidden_size]
+    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+
+    node_param = ng.gru_sequence(
+        parameter_X,
+        parameter_H_t,
+        seq_lengths,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activations_alpha,
+        activations_beta,
+        clip,
+        linear_before_reset,
+    )
+
+    assert node_param.get_type_name() == "GRUSequence"
+    assert node_param.get_output_size() == 2
+    assert list(node_param.get_output_shape(0)) == expected_shape_y
+    assert list(node_param.get_output_shape(1)) == expected_shape_h
+
+
+def test_rnn_sequence():
+    batch_size = 2
+    input_size = 16
+    hidden_size = 32
+    seq_len = 8
+    seq_lengths = [seq_len] * batch_size
+    num_directions = 1
+    direction = "FORWARD"
+
+    X_shape = [batch_size, seq_len, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    W_shape = [num_directions, hidden_size, input_size]
+    R_shape = [num_directions, hidden_size, hidden_size]
+    B_shape = [num_directions, hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=np.float32)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=np.float32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=np.float32)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=np.float32)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+
+    expected_shape_y = [batch_size, num_directions, seq_len, hidden_size]
+    expected_shape_h = [batch_size, num_directions, hidden_size]
+
+    node_default = ng.rnn_sequence(
+        parameter_X,
+        parameter_H_t,
+        seq_lengths,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node_default.get_type_name() == "RNNSequence"
+    assert node_default.get_output_size() == 2
+    assert list(node_default.get_output_shape(0)) == expected_shape_y
+    assert list(node_default.get_output_shape(1)) == expected_shape_h
+
+    activations = ["relu"]
+    activations_alpha = [2.0]
+    activations_beta = [1.0]
+    clip = 0.5
+
+    node_param = ng.rnn_sequence(
+        parameter_X,
+        parameter_H_t,
+        seq_lengths,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activations_alpha,
+        activations_beta,
+        clip,
+    )
+
+    assert node_param.get_type_name() == "RNNSequence"
+    assert node_param.get_output_size() == 2
+    assert list(node_param.get_output_shape(0)) == expected_shape_y
+    assert list(node_param.get_output_shape(1)) == expected_shape_h
+
+
+@skip_segfault
+def test_loop():
+    trip_count = 8
+    condition = True
+
+    node_default = ng.loop(trip_count, condition)
+
+    assert node_default.get_type_name() == "Loop"
+
+
 def test_roi_pooling():
     inputs = ng.parameter([2, 3, 4, 5], dtype=np.float32)
     coords = ng.parameter([150, 5], dtype=np.float32)
@@ -550,9 +740,9 @@ def test_roi_pooling():
 
 
 def test_psroi_pooling():
-    inputs = ng.parameter([1, 3, 4, 5], dtype=np.float32)
+    inputs = ng.parameter([1, 72, 4, 5], dtype=np.float32)
     coords = ng.parameter([150, 5], dtype=np.float32)
-    node = ng.psroi_pooling(inputs, coords, 2, 6, 0.0625, 0, 0, "Avg")
+    node = ng.psroi_pooling(inputs, coords, 2, 6, 0.0625, 0, 0, "average")
 
     assert node.get_type_name() == "PSROIPooling"
     assert node.get_output_size() == 1
@@ -716,6 +906,7 @@ def test_prior_box(int_dtype, fp_dtype):
         "offset": fp_dtype(0),
         "min_size": np.array([2, 3], dtype=fp_dtype),
         "aspect_ratio": np.array([1.5, 2.0, 2.5], dtype=fp_dtype),
+        "scale_all_sizes": False
     }
 
     layer_shape = ng.constant(np.array([32, 32], dtype=int_dtype), int_dtype)
@@ -746,8 +937,8 @@ def test_prior_box_clustered(int_dtype, fp_dtype):
     image_size = np.array([64, 64], dtype=int_dtype)
     attributes = {
         "offset": fp_dtype(0.5),
-        "widths": np.array([4.0, 2.0, 3.2], dtype=fp_dtype),
-        "heights": np.array([1.0, 2.0, 1.0], dtype=fp_dtype),
+        "width": np.array([4.0, 2.0, 3.2], dtype=fp_dtype),
+        "height": np.array([1.0, 2.0, 1.0], dtype=fp_dtype),
     }
 
     output_size = ng.constant(np.array([19, 19], dtype=int_dtype), int_dtype)
@@ -781,11 +972,11 @@ def test_detection_output(int_dtype, fp_dtype):
         "nms_threshold": fp_dtype(0.645),
     }
 
-    box_logits = ng.parameter([4, 1, 5, 5], fp_dtype, "box_logits")
-    class_preds = ng.parameter([2, 1, 4, 5], fp_dtype, "class_preds")
-    proposals = ng.parameter([2, 1, 4, 5], fp_dtype, "proposals")
-    aux_class_preds = ng.parameter([2, 1, 4, 5], fp_dtype, "aux_class_preds")
-    aux_box_preds = ng.parameter([2, 1, 4, 5], fp_dtype, "aux_box_preds")
+    box_logits = ng.parameter([4, 8], fp_dtype, "box_logits")
+    class_preds = ng.parameter([4, 170], fp_dtype, "class_preds")
+    proposals = ng.parameter([4, 2, 10], fp_dtype, "proposals")
+    aux_class_preds = ng.parameter([4, 4], fp_dtype, "aux_class_preds")
+    aux_box_preds = ng.parameter([4, 8], fp_dtype, "aux_box_preds")
 
     node = ng.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
 
@@ -939,3 +1130,582 @@ def test_extract_image_patches():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [64, 27, 2, 2]
     assert node.get_output_element_type(0) == Type.i32
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_lstm_sequence_operator_bidirectional(dtype):
+    batch_size = 1
+    input_size = 16
+    hidden_size = 128
+    num_directions = 2
+    seq_length = 2
+
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    C_t_shape = [batch_size, num_directions, hidden_size]
+    seq_len_shape = [batch_size]
+    W_shape = [num_directions, 4 * hidden_size, input_size]
+    R_shape = [num_directions, 4 * hidden_size, hidden_size]
+    B_shape = [num_directions, 4 * hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    direction = "BIDIRECTIONAL"
+    node = ng.lstm_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_C_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node.get_type_name() == "LSTMSequence"
+    assert node.get_output_size() == 3
+
+    activations = ["RELU", "tanh", "Sigmoid"]
+    activation_alpha = [1.0, 2.0, 3.0]
+    activation_beta = [3.0, 2.0, 1.0]
+    clip = 1.22
+
+    node_param = ng.lstm_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_C_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activation_alpha,
+        activation_beta,
+        clip,
+    )
+
+    assert node_param.get_type_name() == "LSTMSequence"
+    assert node_param.get_output_size() == 3
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_lstm_sequence_operator_reverse(dtype):
+    batch_size = 2
+    input_size = 4
+    hidden_size = 3
+    num_directions = 1
+    seq_length = 2
+
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    C_t_shape = [batch_size, num_directions, hidden_size]
+    seq_len_shape = [batch_size]
+    W_shape = [num_directions, 4 * hidden_size, input_size]
+    R_shape = [num_directions, 4 * hidden_size, hidden_size]
+    B_shape = [num_directions, 4 * hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    direction = "REVERSE"
+
+    node_default = ng.lstm_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_C_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node_default.get_type_name() == "LSTMSequence"
+    assert node_default.get_output_size() == 3
+
+    activations = ["RELU", "tanh", "Sigmoid"]
+    activation_alpha = [1.0, 2.0, 3.0]
+    activation_beta = [3.0, 2.0, 1.0]
+    clip = 1.22
+
+    node_param = ng.lstm_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_C_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activation_alpha,
+        activation_beta,
+        clip,
+    )
+
+    assert node_param.get_type_name() == "LSTMSequence"
+    assert node_param.get_output_size() == 3
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_lstm_sequence_operator_forward(dtype):
+    batch_size = 2
+    input_size = 4
+    hidden_size = 3
+    num_directions = 1
+    seq_length = 2
+
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    C_t_shape = [batch_size, num_directions, hidden_size]
+    seq_len_shape = [batch_size]
+    W_shape = [num_directions, 4 * hidden_size, input_size]
+    R_shape = [num_directions, 4 * hidden_size, hidden_size]
+    B_shape = [num_directions, 4 * hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_C_t = ng.parameter(C_t_shape, name="C_t", dtype=dtype)
+    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    direction = "forward"
+
+    node_default = ng.lstm_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_C_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node_default.get_type_name() == "LSTMSequence"
+    assert node_default.get_output_size() == 3
+
+    activations = ["RELU", "tanh", "Sigmoid"]
+    activation_alpha = [2.0]
+    activation_beta = [1.0]
+    clip = 0.5
+
+    node = ng.lstm_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_C_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activation_alpha,
+        activation_beta,
+        clip,
+    )
+
+    assert node.get_type_name() == "LSTMSequence"
+    assert node.get_output_size() == 3
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_gru_sequence_operator_bidirectional(dtype):
+    batch_size = 1
+    input_size = 16
+    hidden_size = 128
+    num_directions = 2
+    seq_length = 2
+
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    seq_len_shape = [batch_size]
+    W_shape = [num_directions, 3 * hidden_size, input_size]
+    R_shape = [num_directions, 3 * hidden_size, hidden_size]
+    B_shape = [num_directions, 3 * hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    direction = "BIDIRECTIONAL"
+    node = ng.gru_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node.get_type_name() == "GRUSequence"
+    assert node.get_output_size() == 2
+
+    activations = ["RELU", "tanh"]
+    activation_alpha = [1.0, 2.0, 3.0]
+    activation_beta = [3.0, 2.0, 1.0]
+    clip = 1.22
+    linear_before_reset = True
+    B_shape = [num_directions, 4 * hidden_size]
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    node_param = ng.gru_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activation_alpha,
+        activation_beta,
+        clip,
+        linear_before_reset
+    )
+
+    assert node_param.get_type_name() == "GRUSequence"
+    assert node_param.get_output_size() == 2
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_gru_sequence_operator_reverse(dtype):
+    batch_size = 2
+    input_size = 4
+    hidden_size = 3
+    num_directions = 1
+    seq_length = 2
+
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    seq_len_shape = [batch_size]
+    W_shape = [num_directions, 3 * hidden_size, input_size]
+    R_shape = [num_directions, 3 * hidden_size, hidden_size]
+    B_shape = [num_directions, 3 * hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    direction = "REVERSE"
+
+    node_default = ng.gru_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node_default.get_type_name() == "GRUSequence"
+    assert node_default.get_output_size() == 2
+
+    activations = ["RELU", "tanh"]
+    activation_alpha = [1.0, 2.0, 3.0]
+    activation_beta = [3.0, 2.0, 1.0]
+    clip = 1.22
+    linear_before_reset = True
+    B_shape = [num_directions, 4 * hidden_size]
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    node_param = ng.gru_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activation_alpha,
+        activation_beta,
+        clip,
+        linear_before_reset
+    )
+
+    assert node_param.get_type_name() == "GRUSequence"
+    assert node_param.get_output_size() == 2
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_gru_sequence_operator_forward(dtype):
+    batch_size = 2
+    input_size = 4
+    hidden_size = 3
+    num_directions = 1
+    seq_length = 2
+
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    seq_len_shape = [batch_size]
+    W_shape = [num_directions, 3 * hidden_size, input_size]
+    R_shape = [num_directions, 3 * hidden_size, hidden_size]
+    B_shape = [num_directions, 3 * hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    direction = "forward"
+
+    node_default = ng.gru_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node_default.get_type_name() == "GRUSequence"
+    assert node_default.get_output_size() == 2
+
+    activations = ["RELU", "tanh"]
+    activation_alpha = [2.0]
+    activation_beta = [1.0]
+    clip = 0.5
+    linear_before_reset = True
+    B_shape = [num_directions, 4 * hidden_size]
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    node = ng.gru_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activation_alpha,
+        activation_beta,
+        clip,
+        linear_before_reset
+    )
+
+    assert node.get_type_name() == "GRUSequence"
+    assert node.get_output_size() == 2
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_rnn_sequence_operator_bidirectional(dtype):
+    batch_size = 1
+    input_size = 16
+    hidden_size = 128
+    num_directions = 2
+    seq_length = 2
+
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    seq_len_shape = [batch_size]
+    W_shape = [num_directions, hidden_size, input_size]
+    R_shape = [num_directions, hidden_size, hidden_size]
+    B_shape = [num_directions, hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    direction = "BIDIRECTIONAL"
+    node = ng.rnn_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node.get_type_name() == "RNNSequence"
+    assert node.get_output_size() == 2
+
+    activations = ["RELU", "tanh"]
+    activation_alpha = [1.0, 2.0, 3.0]
+    activation_beta = [3.0, 2.0, 1.0]
+    clip = 1.22
+
+    node_param = ng.rnn_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activation_alpha,
+        activation_beta,
+        clip,
+    )
+
+    assert node_param.get_type_name() == "RNNSequence"
+    assert node_param.get_output_size() == 2
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_rnn_sequence_operator_reverse(dtype):
+    batch_size = 2
+    input_size = 4
+    hidden_size = 3
+    num_directions = 1
+    seq_length = 2
+
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    seq_len_shape = [batch_size]
+    W_shape = [num_directions, hidden_size, input_size]
+    R_shape = [num_directions, hidden_size, hidden_size]
+    B_shape = [num_directions, hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    direction = "REVERSE"
+
+    node_default = ng.rnn_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node_default.get_type_name() == "RNNSequence"
+    assert node_default.get_output_size() == 2
+
+    activations = ["RELU", "tanh"]
+    activation_alpha = [1.0, 2.0, 3.0]
+    activation_beta = [3.0, 2.0, 1.0]
+    clip = 1.22
+
+    node_param = ng.rnn_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activation_alpha,
+        activation_beta,
+        clip,
+    )
+
+    assert node_param.get_type_name() == "RNNSequence"
+    assert node_param.get_output_size() == 2
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_rnn_sequence_operator_forward(dtype):
+    batch_size = 2
+    input_size = 4
+    hidden_size = 3
+    num_directions = 1
+    seq_length = 2
+
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    seq_len_shape = [batch_size]
+    W_shape = [num_directions, hidden_size, input_size]
+    R_shape = [num_directions, hidden_size, hidden_size]
+    B_shape = [num_directions, hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=dtype)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=dtype)
+    parameter_seq_len = ng.parameter(seq_len_shape, name="seq_len", dtype=np.int32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=dtype)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=dtype)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=dtype)
+
+    direction = "forward"
+
+    node_default = ng.rnn_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node_default.get_type_name() == "RNNSequence"
+    assert node_default.get_output_size() == 2
+
+    activations = ["RELU", "tanh"]
+    activation_alpha = [2.0]
+    activation_beta = [1.0]
+    clip = 0.5
+
+    node = ng.rnn_sequence(
+        parameter_X,
+        parameter_H_t,
+        parameter_seq_len,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activation_alpha,
+        activation_beta,
+        clip,
+    )
+
+    assert node.get_type_name() == "RNNSequence"
+    assert node.get_output_size() == 2

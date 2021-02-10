@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,8 +20,6 @@
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -34,7 +32,8 @@ NGRAPH_TEST(${BACKEND_NAME}, abc)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
     auto C = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>((A + B) * C, ParameterVector{A, B, C});
+    auto arg = make_shared<op::v1::Multiply>(make_shared<op::v1::Add>(A, B), C);
+    auto f = make_shared<Function>(arg, ParameterVector{A, B, C});
 
     std::vector<float> a{1, 2, 3, 4};
     std::vector<float> b{5, 6, 7, 8};
@@ -65,7 +64,8 @@ NGRAPH_TEST(${BACKEND_NAME}, abc_int64)
     auto A = make_shared<op::Parameter>(element::i64, shape);
     auto B = make_shared<op::Parameter>(element::i64, shape);
     auto C = make_shared<op::Parameter>(element::i64, shape);
-    auto f = make_shared<Function>((A + B) * C, ParameterVector{A, B, C});
+    auto arg = make_shared<op::v1::Multiply>(make_shared<op::v1::Add>(A, B), C);
+    auto f = make_shared<Function>(arg, ParameterVector{A, B, C});
 
     std::vector<int64_t> a{1, 2, 3, 4};
     std::vector<int64_t> b{5, 6, 7, 8};

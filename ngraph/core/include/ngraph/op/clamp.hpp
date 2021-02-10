@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,9 +36,9 @@ namespace ngraph
             class NGRAPH_API Clamp : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Clamp", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Clamp() = default;
+                NGRAPH_RTTI_DECLARATION;
+
+                Clamp();
                 /// \brief Constructs a Clamp node.
                 ///
                 /// \param data - Node producing the input tensor

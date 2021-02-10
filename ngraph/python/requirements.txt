@@ -1,2 +1,2 @@
-numpy
-typing
+numpy==1.19.4
+typing; python_version < '3.6'

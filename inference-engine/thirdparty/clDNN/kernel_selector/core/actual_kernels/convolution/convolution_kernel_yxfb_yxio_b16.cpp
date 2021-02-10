@@ -77,7 +77,7 @@ size_t GetOfmPerWorkitem(Datatype dataType) {
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(const convolution_params& arg,
                                                                                 int) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
 
     const auto filter_ofm_num = arg.weights.OFM().v * arg.weights.G().v;
     const auto batch_size = arg.output.Batch().v;
@@ -86,16 +86,16 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(
     const size_t batchesPerWorkItem = GetBatchesPerWorkItem(batch_size, arg.inputs[0].GetDType());
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(arg.inputs[0].GetDType());
 
-    if (arg.inputs[0].GetDType() == Datatype::F16) {
-        runInfo.efficiency = FORCE_PRIORITY_7;
-    } else {
-        runInfo.efficiency = FORCE_PRIORITY_9;
-    }
+    dispatchData.lws[0] = min_lws;
+    dispatchData.gws[0] = filter_ofm_num * batch_size / (ofmPerWorkItem * batchesPerWorkItem);
 
-    runInfo.lws0 = min_lws;
-    runInfo.gws0 = filter_ofm_num * batch_size / (ofmPerWorkItem * batchesPerWorkItem);
+    return dispatchData;
+}
 
-    return runInfo;
+KernelsPriority ConvolutionKernel_yxfb_yxio_b16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    return p.inputs[0].GetDType() == Datatype::F16 ? FORCE_PRIORITY_7 : FORCE_PRIORITY_9;
 }
 
 bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p, const optional_params& o) const {
@@ -140,10 +140,10 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p, const optional_p
 }
 
 JitConstants ConvolutionKernel_yxfb_yxio_b16::GetJitConstants(const convolution_params& params,
-                                                              const DispatchData& kd) const {
-    auto jit = Parent::GetJitConstants(params, kd);
+                                                              const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    const auto local_work_group_size = kd.lws0;
+    const auto local_work_group_size = dispatchData.lws[0];
     const auto batch_size = params.output.Batch().v;
 
     if (params.inputs[0].GetDType() == Datatype::F32) {
@@ -168,7 +168,7 @@ JitConstants ConvolutionKernel_yxfb_yxio_b16::GetJitConstants(const convolution_
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(params.inputs[0].GetDType());
 
     jit.AddConstants({
-        MakeJitConstant("LOCAL_WORK_GROUP_SIZE", kd.lws0),
+        MakeJitConstant("LOCAL_WORK_GROUP_SIZE", dispatchData.lws[0]),
         MakeJitConstant("OFM_PER_WORK_ITEM", ofmPerWorkItem),
         MakeJitConstant("BATCHES_PER_WORK_ITEM",
                         batchesPerWorkItem),  // how many batches will a single work item compute

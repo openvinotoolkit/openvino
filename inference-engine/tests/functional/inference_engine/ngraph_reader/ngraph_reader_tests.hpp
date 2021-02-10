@@ -12,6 +12,8 @@
 
 #include <ie_core.hpp>
 #include <legacy/details/ie_cnn_network_iterator.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -39,6 +41,12 @@ protected:
         }
 
         auto network = ie.ReadNetwork(modelV10, weights);
+        auto f = network.getFunction();
+        // WA: we have to resolve dynamysm manually to compare resulting function with v7 IR
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
+        manager.run_passes(f);
+        network = CNNNetwork(f);
         auto cnnNetwork = ie.ReadNetwork(oldModel, weights);
 
         IE_SUPPRESS_DEPRECATED_START

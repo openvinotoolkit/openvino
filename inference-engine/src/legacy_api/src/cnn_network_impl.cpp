@@ -21,22 +21,25 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include <transformations/init_node_info.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include "legacy/convert_function_to_cnn_network.hpp"
 #include "legacy/graph_tools.hpp"
 #include "legacy/details/ie_cnn_network_tools.h"
 #include <legacy/cnn_network_impl.hpp>
-#include "network_serializer_v7.hpp"
+
+#ifdef ENABLE_V7_SERIALIZE
+# include "network_serializer_v7.hpp"
+#endif
 
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
+std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
     std::map<CNNLayer*, bool> result;
 
     const std::vector<CNNLayerPtr> layers = CNNNetSortTopologically(network);
@@ -84,8 +87,6 @@ std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
     return result;
 }
 
-ICNNNetwork::~ICNNNetwork() {}
-
 CNNNetworkImpl::CNNNetworkImpl() {}
 
 CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
@@ -109,13 +110,22 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
+CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & ngraphImpl) :
+    CNNNetworkImpl(static_cast<const ICNNNetwork&>(ngraphImpl)) {
+}
+
+IE_SUPPRESS_DEPRECATED_END
+
 CNNNetworkImpl::~CNNNetworkImpl() {
     // In case of cycles, memory leaks occur: Layer holds shared_ptr<Data>, and vice versa.
     // Added additional check on cycles.
     bool res = false;
     try {
-        res = CNNNetForestDFS(CNNNetGetAllInputLayers(*this), [&](CNNLayerPtr layer) {}, false);
-    } catch (...) {
+        res = CNNNetForestDFS(CNNNetGetAllInputLayers(this), [&](CNNLayerPtr layer) {}, false);
+    } catch (const std::exception & ex) {
+        std::cout << ex.what() << std::endl;
         // Exception means that network was invalid. Reset all data.
     }
 
@@ -227,7 +237,7 @@ void CNNNetworkImpl::validate(int version) {
     }
 
     bool res = CNNNetForestDFS(
-        CNNNetGetAllInputLayers(*this),
+        CNNNetGetAllInputLayers(CNNNetwork(shared_from_this())),
         [&](CNNLayerPtr layer) {
             std::string layerName = layer->name;
 
@@ -389,7 +399,8 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     noexcept {
     try {
 #ifdef ENABLE_V7_SERIALIZE
-        Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+        Serialization::Serialize(xmlPath, binPath, CNNNetwork(
+            std::const_pointer_cast<ICNNNetwork>(shared_from_this())));
         return OK;
 #endif
     } catch (const InferenceEngineException& e) {
@@ -417,7 +428,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
             return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 0D/1D/3D input";
         }
 
-        const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(*this);
+        const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(CNNNetwork(shared_from_this()));
         for (auto& layer : _data) {
             SizeVector dims = layer.second->getDims();
             CNNLayerPtr layerT = getCreatorLayer(layer.second).lock();

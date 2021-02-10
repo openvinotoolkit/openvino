@@ -189,7 +189,7 @@ public:
     }
 
     inline int numConsumers() const {
-        return _consumerEdges.size();
+        return static_cast<int>(_consumerEdges.size());
     }
     inline auto consumers() const -> decltype(mapRange<ConsumerAccess>(consumerEdges())) {
         return mapRange<ConsumerAccess>(consumerEdges());
@@ -207,13 +207,15 @@ public:
     }
 
     inline int numChildDatas() const {
-        return _childDataToDataEdges.size();
+        return static_cast<int>(_childDataToDataEdges.size());
     }
     inline auto childDatas() const -> decltype(mapRange<ChildDataAccess>(childDataToDataEdges())) {
         return mapRange<ChildDataAccess>(childDataToDataEdges());
     }
 
     Data getTopParentData() const;
+
+    bool isConsumed() const;
 
     //
     // DataDesc

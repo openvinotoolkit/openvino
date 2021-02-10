@@ -11,23 +11,44 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(true),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(false),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+const std::vector<ConcatTransformationTestValues> testValues = {
+    // U8
+    {
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} }
+    },
+    // I8
+    {
+        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
+    },
+    // mixed: U8 + I8
+    {
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
+    },
+    // mixed: I8 + U8
+    {
+        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} }
+    }
+};
+
+const std::vector<ngraph::Shape> shapes = {
+    ngraph::Shape({ 1, 3, 16, 16 }),
+    ngraph::Shape({ 4, 3, 16, 16 })
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(testValues)),
     ConcatTransformation::getTestCaseName);
 }  // namespace

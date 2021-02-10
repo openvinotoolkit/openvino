@@ -108,10 +108,14 @@ inline std::string fmt_to_str(format fmt) {
 
         case format::oiyx:
             return "oiyx";
+        case format::ioyx:
+            return "ioyx";
         case format::yxio:
             return "yxio";
         case format::oizyx:
             return "oizyx";
+        case format::iozyx:
+            return "iozyx";
         case format::winograd_2x3_s1_weights:
             return "winograd_2x3_s1_weights";
         case format::winograd_2x3_s1_fused_weights:
@@ -140,8 +144,12 @@ inline std::string fmt_to_str(format fmt) {
             return "os_is_yx_isv16_osv16";
         case format::os_is_yx_isa8_osv8_isv4:
             return "os_is_yx_isa8_osv8_isv4";
+        case format::os_is_yx_isa8_osv16_isv4:
+            return "os_is_yx_isa8_osv16_isv4";
         case format::os_is_zyx_isa8_osv8_isv4:
             return "os_is_zyx_isa8_osv8_isv4";
+        case format::os_is_zyx_isa8_osv16_isv4:
+            return "os_is_zyx_isa8_osv16_isv4";
         case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
             return "os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4";
         case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
@@ -179,6 +187,10 @@ inline std::string fmt_to_str(format fmt) {
             return "goiyx";
         case format::goizyx:
             return "goizyx";
+        case format::gioyx:
+            return "gioyx";
+        case format::giozyx:
+            return "giozyx";
         case format::g_os_iyx_osv16:
             return "g_os_iyx_osv16";
         case format::g_os_iyx_osv32:
@@ -213,6 +225,8 @@ inline std::string fmt_to_str(format fmt) {
             return "g_os_zyx_is_osv32_isv16";
         case format::g_os_zyx_is_osv32_isv32:
             return "g_os_zyx_is_osv32_isv32";
+        case format::gs_oi_yxs_gsv32_yxsv4:
+            return "gs_oi_yxs_gsv32_yxsv4";
         default:
             return "unknown (" + std::to_string(fmt.value) + ")";
     }

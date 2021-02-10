@@ -81,5 +81,10 @@ TEST(InferRequestCPPTests, throwsOnUninitializedSetCompletionCallback) {
 
 TEST(InferRequestCPPTests, throwsOnUninitializedCast) {
     InferRequest req;
-    ASSERT_THROW(auto &ireq = static_cast<IInferRequest::Ptr &>(req), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW((void)static_cast<IInferRequest::Ptr &>(req), InferenceEngine::details::InferenceEngineException);
+}
+
+TEST(InferRequestCPPTests, throwsOnUninitializedQueryState) {
+    InferRequest req;
+    ASSERT_THROW(req.QueryState(), InferenceEngine::details::InferenceEngineException);
 }

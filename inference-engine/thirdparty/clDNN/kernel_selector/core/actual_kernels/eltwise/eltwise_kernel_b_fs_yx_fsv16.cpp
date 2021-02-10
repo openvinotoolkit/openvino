@@ -24,6 +24,8 @@ ParamsKey EltwiseKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
@@ -78,9 +80,12 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::MakeLoadJitConstants(const eltwise_par
                                                         "input" + std::to_string(input.index) +
                                                         "[0]"));
                     } else {
+                        std::string block_read_str = "BLOCK_READN(INPUT" + std::to_string(input.index) + "_TYPE, " +
+                                                                 "BLOCK_SIZE, " +
+                                                                 "input" + std::to_string(input.index) + ", " +
+                                                                 "INPUT" + std::to_string(input.index) + "_GET_INDEX(b, f_block*16, y, x))";
                         jit.AddConstant(MakeJitConstant(name,
-                                                        "READ_FUNC(input" + std::to_string(input.index) +
-                                                        ", INPUT"+std::to_string(input.index)+"_GET_INDEX(b, f_block*16, y, x))"));
+                                                        "TO_TYPE(MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, BLOCK_SIZE), " + block_read_str + ")"));
                     }
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
@@ -143,7 +148,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
     if (!params.fused_ops.empty()) {
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);
 
-        FusedOpsConfiguration conf = {"", {"b", "f_block", "y", "x"}, "res", input_dt, blockSize};
+        FusedOpsConfiguration conf = {"", {"b", "f_block*16", "y", "x"}, "res", input_dt, blockSize};
         conf.load_type = FusedOpsConfiguration::LoadType::LT_ALIGNED_READ;
         conf.vec_axis = Tensor::DataChannelName::X;
 
@@ -176,20 +181,33 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
 
     auto input0 = ewParams.inputs[0];
 
-    for (size_t i = 1; i < ewParams.inputs.size(); i++) {
-        if (input0.GetDType() != ewParams.inputs[i].GetDType()) {
-            return false;
-        }
-    }
-
     // Check that padding before features doesn't miss-align the blocks
     auto feature_block_size = 16;
     if (input0.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0) {
         return false;
     }
 
+    auto compareTensors = [](const DataTensor& input0, const DataTensor& input1) -> bool {
+        // Check all parameters except DataType
+        auto& input0_dims = input0.GetDims();
+        auto& input1_dims = input1.GetDims();
+        bool same = input0.GetLayout() == input1.GetLayout() &&
+                    input0.GetPaddedVal() == input1.GetPaddedVal() &&
+                    input0.GetViewOffset() == input1.GetViewOffset() &&
+                    input0_dims.size() == input1_dims.size();
+        if (same) {
+            for (size_t i = 0; i < input0_dims.size(); i++) {
+                same &= input0_dims[i].v == input1_dims[i].v &&
+                        input0_dims[i].pad.before == input1_dims[i].pad.before &&
+                        input0_dims[i].pad.after == input1_dims[i].pad.after &&
+                        input0_dims[i].pitch == input1_dims[i].pitch;
+            }
+        }
+        return same;
+    };
+
     for (size_t i = 1; i < ewParams.inputs.size(); i++) {
-        if (ewParams.inputs[i].LogicalSize() == input0.LogicalSize() && !(ewParams.inputs[i] == input0))
+        if (ewParams.inputs[i].LogicalSize() == input0.LogicalSize() && !(compareTensors(ewParams.inputs[i], input0)))
             return false;
         if (ewParams.inputs[i].Feature().pad.before % feature_block_size != 0) {
             return false;
@@ -200,23 +218,26 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
 }
 
 EltwiseKernelBase::DispatchData EltwiseKernel_b_fs_yx_fsv16::SetDefault(const eltwise_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    kd.gws0 = Align(params.output.Feature().v, 16);
-    kd.gws1 = CeilDiv(params.output.X().v, GetBlockSize(params)) * params.output.Y().v;
-    kd.gws2 = params.output.Batch().v;
+    dispatchData.gws[0] = Align(params.output.Feature().v, 16);
+    dispatchData.gws[1] = CeilDiv(params.output.X().v, GetBlockSize(params)) * params.output.Y().v;
+    dispatchData.gws[2] = params.output.Batch().v;
 
-    kd.lws0 = 16;
-    kd.lws1 = 16;
-    while (kd.lws1 > 1) {
-        if (kd.gws1 % kd.lws1 == 0)
+    dispatchData.lws[0] = 16;
+    dispatchData.lws[1] = 16;
+    while (dispatchData.lws[1] > 1) {
+        if (dispatchData.gws[1] % dispatchData.lws[1] == 0)
             break;
-        kd.lws1--;
+        dispatchData.lws[1]--;
     }
-    kd.lws2 = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = FORCE_PRIORITY_1;
-    return kd;
+    return dispatchData;
+}
+
+KernelsPriority EltwiseKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -231,20 +252,18 @@ KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, co
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    DispatchData runInfo = SetDefault(newParams);
+    DispatchData dispatchData = SetDefault(newParams);
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-    kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
+    kernel.workGroups.global = dispatchData.gws;
+    kernel.workGroups.local = dispatchData.lws;
 
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,
                                    GetFusedPrimitiveInputsCount(params));
-
-    kd.estimatedTime = runInfo.efficiency;
 
     return {kd};
 }

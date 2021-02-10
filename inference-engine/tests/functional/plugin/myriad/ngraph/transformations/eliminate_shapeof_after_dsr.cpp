@@ -13,6 +13,7 @@
 
 #include <common_test_utils/test_common.hpp>
 #include <gtest/gtest.h>
+#include <ngraph/pass/manager.hpp>
 
 
 namespace {
@@ -46,19 +47,21 @@ protected:
                 ngraph::NodeVector{shapeOf},
                 ngraph::ParameterVector{data, shape},
                 "Actual");
-
-        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
+        ngraph::pass::Manager manager;
+        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+        manager.run_passes(function);
         return function;
     }
 
     std::shared_ptr<const ngraph::Function> reference(
             const TensorType& dataType,
             const TensorShape& dataShape) const {
+        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
         const auto shape = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
 
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{shape},
-                ngraph::ParameterVector{shape},
+                ngraph::ParameterVector{data, shape},
                 "Expected");
     }
 };
@@ -107,21 +110,23 @@ protected:
                 ngraph::NodeVector{shapeOfOutputRelu},
                 ngraph::ParameterVector{data, shape},
                 "Actual");
-
-        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
+        ngraph::pass::Manager manager;
+        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+        manager.run_passes(function);
         return function;
     }
 
     std::shared_ptr<const ngraph::Function> reference(
             const TensorType& dataType,
             const TensorShape& dataShape) const {
+        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
         const auto shape = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
 
         const auto shapeRelu = std::make_shared<ngraph::opset3::Relu>(shape);
 
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{shapeRelu},
-                ngraph::ParameterVector{shape},
+                ngraph::ParameterVector{data, shape},
                 "Expected");
     }
 };
@@ -172,7 +177,9 @@ protected:
                 ngraph::ParameterVector{data, shape},
                 "Actual");
 
-        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
+        ngraph::pass::Manager manager;
+        manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+        manager.run_passes(function);
         return function;
     }
 

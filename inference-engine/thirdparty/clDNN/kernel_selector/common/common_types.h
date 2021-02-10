@@ -56,9 +56,9 @@ enum class KernelType {
     PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
-    DETECTION_OUTPUT,
     GATHER,
     SCATTER_UPDATE,
+    SCATTER_ELEMENTS_UPDATE,
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHUFFLE_CHANNELS,
@@ -145,6 +145,7 @@ enum class ActivationFunction {
     POW,
     ERF,
     HARD_SIGMOID,
+    HSIGMOID,
     RECIPROCAL,
     SELU,
     SIGN,
@@ -153,7 +154,9 @@ enum class ActivationFunction {
     SWISH,
     HSWISH,
     MISH,
-    GELU
+    GELU,
+    ROUND_HALF_TO_EVEN,
+    ROUND_HALF_AWAY_FROM_ZERO
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -350,17 +353,6 @@ enum class ConcatAxis {
     W,
     FEATURE,
     BATCH
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// TileAxis
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-enum class TileAxis {
-    X,
-    Y,
-    Z,
-    FEATURE,
-    BATCH,
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

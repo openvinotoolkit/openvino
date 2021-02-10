@@ -53,35 +53,25 @@ JitConstants ExtractImagePatchesKernelBase::GetJitConstants(const extract_image_
 }
 
 ExtractImagePatchesKernelBase::DispatchData ExtractImagePatchesKernelBase::SetDefault(const extract_image_patches_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    std::vector<size_t> global = { params.output.Batch().v,
-                                   params.output.Feature().v,
-                                   params.output.Y().v * params.output.X().v };
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v,
+                         params.output.Y().v * params.output.X().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ExtractImagePatchesKernelBase::GetCommonKernelsData(const Params& params,
-                                                                const optional_params& options,
-                                                                float estimated_time) const {
+                                                                const optional_params& options) const {
     if (!Validate(params, options)) {
         return KernelsData();
     }
 
     const auto& prim_params = static_cast<const extract_image_patches_params&>(params);
 
-    auto run_info = SetDefault(prim_params);
+    auto dispatchData = SetDefault(prim_params);
     KernelData kd = KernelData::Default<extract_image_patches_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
@@ -89,9 +79,7 @@ KernelsData ExtractImagePatchesKernelBase::GetCommonKernelsData(const Params& pa
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, run_info, params.engineInfo, kernelName, jit, entry_point);
-
-    kd.estimatedTime = estimated_time;
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     return {kd};
 }

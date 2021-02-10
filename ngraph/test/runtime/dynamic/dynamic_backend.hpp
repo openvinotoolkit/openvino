@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -140,7 +140,7 @@ public:
     virtual void read(void* p, size_t n) const override;
     bool has_storage() const;
     void release_storage();
-    void make_storage(const element::Type& element_type, const Shape& shape);
+    void make_storage(const element::Type& element_type, const PartialShape& shape);
     const std::shared_ptr<ngraph::runtime::Tensor>& get_wrapped_tensor() const;
 
 private:

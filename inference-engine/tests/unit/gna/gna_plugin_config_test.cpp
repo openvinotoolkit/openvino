@@ -16,7 +16,7 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), ""},
     {GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT},
-    {GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(YES)},
+    {GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(NO)},
     {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(PRECISION), Precision(Precision::I16).name()},
     {GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN), CONFIG_VALUE(NO)},
@@ -51,7 +51,7 @@ protected:
 };
 
 TEST_F(GNAPluginConfigTest, GnaConfigDefaultConfigIsExpected) {
-    ASSERT_EQ(config.key_config_map, supportedConfigKeysWithDefaults);
+    ASSERT_EQ(config.keyConfigMap, supportedConfigKeysWithDefaults);
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigScaleFactorTest) {

@@ -69,7 +69,7 @@ JitConstants ConcatenationKernelBase::GetJitConstants(const concatenation_params
 }
 
 ConcatenationKernelBase::DispatchData ConcatenationKernelBase::SetDefault(const concatenation_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& dims = params.inputs[0].GetDims();
     auto layout = params.inputs[0].GetLayout();
@@ -80,19 +80,18 @@ ConcatenationKernelBase::DispatchData ConcatenationKernelBase::SetDefault(const 
                              DataTensor::Channelndex(layout, Tensor::DataChannelName::X) };
 
     // Determine global work sizes.
-    kd.gws0 = idx[2] != -1 ? dims[idx[2]].v : 1;  // Y
-    kd.gws1 = idx[1] != -1 ? dims[idx[1]].v : 1;  // F
-    kd.gws2 = idx[0] != -1 ? dims[idx[0]].v : 1;  // B
+    dispatchData.gws[0] = idx[2] != -1 ? dims[idx[2]].v : 1;  // Y
+    dispatchData.gws[1] = idx[1] != -1 ? dims[idx[1]].v : 1;  // F
+    dispatchData.gws[2] = idx[0] != -1 ? dims[idx[0]].v : 1;  // B
 
-    kd.lws0 = std::min(std::max(kd.gws0, static_cast<size_t>(1)), static_cast<size_t>(32));
-    while (kd.gws0 % kd.lws0 != 0) {
-        --kd.lws0;
+    dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
+    while (dispatchData.gws[0] % dispatchData.lws[0] != 0) {
+        --dispatchData.lws[0];
     }
 
-    kd.lws1 = 1;
-    kd.lws2 = 1;
-    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    return kd;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
+    return dispatchData;
 }
 
 KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
@@ -106,11 +105,9 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
 
     uint32_t lastOffset = 0;
     const auto concatChannelIndex = GetConcatChannelIndex(orgParams);
-    float efficiency = FORCE_PRIORITY_1;
     size_t ifm_offset = 0;
     for (size_t i = 0; i < orgParams.inputs.size(); i++) {
         const auto& input = orgParams.inputs[i];
-
         auto newParams = orgParams;
         newParams.inputs.resize(1);
         newParams.inputs[0] = input;
@@ -120,13 +117,13 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         ifm_offset += ifm;
 
         auto& kernel = kd.kernels[i];
-        DispatchData runInfo = SetDefault(newParams);
+        DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
         auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, options);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
-        kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-        kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
+        kernel.workGroups.global = dispatchData.gws;
+        kernel.workGroups.local = dispatchData.lws;
         kernel.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t)i });
         kernel.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -138,10 +135,7 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         kernel.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
 
         lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
-        efficiency = std::max(efficiency, runInfo.efficiency);
     }
-
-    kd.estimatedTime = efficiency;
 
     return {kd};
 }

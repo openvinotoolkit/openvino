@@ -218,6 +218,10 @@ static std::vector<std::string> skipConstInfer = {
     "CumSum",     // Const inference function for CumSum is not implemented
     "Convolution", // Const inference function for Convolution is not implemented
     "Eltwise",  // Const inference function for Eltwise is not implemented
+    "FullyConnected",
+    "Squeeze",
+    "TensorIterator",
+    "LSTMSequence",
 };
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {
@@ -252,7 +256,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         auto currentLayer = (*rit);
         std::string currentLayerName = currentLayer->name;
         bool isCurrentConst = mapConstLayers.find(currentLayerName) != mapConstLayers.end();
-        for (int i = 0; i < currentLayer->insData.size(); i++) {
+        for (size_t i = 0; i < currentLayer->insData.size(); i++) {
             std::string creatorName;
             if (currentLayer->insData[i].lock() != nullptr) {
                 auto creator = getCreatorLayer(currentLayer->insData[i].lock()).lock();
@@ -295,37 +299,6 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
 const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& constLayers,
                                              const std::vector<CNNLayerPtr>& sortedLayers) {
     BlobMap constData;
-    auto getInputBlobs = [&constData](const std::vector<DataWeakPtr>& insData,
-                                      bool isForShape) -> std::vector<Blob::CPtr> {
-        std::vector<Blob::CPtr> inputBlobs;
-        // special case of Const layers: no inputs, no input blobs
-        if (insData.empty()) {
-            return {};
-        }
-        for (const auto& data : insData) {
-            std::string dataName = data.lock()->getName();
-            if (constData.find(dataName) != constData.end()) {
-                // get blobs, inferred before
-                inputBlobs.push_back(constData.at(dataName));
-            } else {
-                // special case of Shape layer: no input data, but blob contains info about dimensions, layout and
-                // etc...
-                auto blob = make_blob_with_precision(data.lock()->getTensorDesc());
-                inputBlobs.push_back(blob);
-            }
-        }
-        return inputBlobs;
-    };
-
-    auto getOutputBlobs = [](const std::vector<DataPtr>& outData) -> std::vector<Blob::Ptr> {
-        std::vector<Blob::Ptr> outputBlobs;
-        for (const auto& data : outData) {
-            auto blob = make_blob_with_precision(data->getTensorDesc());
-            blob->allocate();
-            outputBlobs.push_back(blob);
-        }
-        return outputBlobs;
-    };
 
     for (const auto& layer : sortedLayers) {
         if (constLayers.find(layer->name) != constLayers.end()) {
@@ -372,7 +345,10 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
     //       tensor statistic for particular reshape.
     auto reshape = std::make_shared<ReshapeLayer>(
             LayerParams{layer->name, "Reshape", precision});
-    reshape->shape = std::vector<int>(shape.begin(), shape.end());
+
+    reshape->shape.resize(shape.size());
+    for (size_t p = 0; p < shape.size(); ++p)
+        reshape->shape[p] = static_cast<int>(shape[p]);
 
     // replacement
     auto &input_to_map = getInputTo(in_data);

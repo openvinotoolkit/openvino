@@ -27,6 +27,7 @@ public:
     virtual ~ConvolutionKernel_bfyx_iyxo() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -34,7 +35,7 @@ protected:
         return WeightsLayout::iyxo;
     }
 
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& p, const optional_params& o) const override;
     bool NeedPaddedInput() const override { return true; }
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;

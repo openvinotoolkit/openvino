@@ -8,7 +8,7 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
+using namespace ngraph::pass::low_precision;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -21,6 +21,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
+
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, OutputLayersHandlingInTransformations,
     ::testing::Combine(

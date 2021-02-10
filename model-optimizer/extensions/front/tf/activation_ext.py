@@ -14,7 +14,7 @@
  limitations under the License.
 """
 from extensions.ops.activation_ops import Abs, Elu, Erf, Exp, ReLU, LeakyReLU, LogicalNot, ReLU6, Sigmoid, \
-    Sin, Sinh, Cos, Cosh, Tan, Tanh, Ceiling, Atanh, Acosh, Asinh, Mish
+    Sin, Sinh, Cos, Cosh, Tan, Tanh, Ceiling, Atanh, Acosh, Asinh, Mish, Log
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -219,4 +219,14 @@ class MishExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         Mish.update_node_stat(node)
+        return cls.enabled
+
+
+class LogExtractor(FrontExtractorOp):
+    op = 'Log'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Log.update_node_stat(node)
         return cls.enabled

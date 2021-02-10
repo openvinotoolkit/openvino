@@ -55,12 +55,7 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
         }
 
         for (auto& config : configs) {
-            std::vector<memory::format> outFormats;
-            for (auto& outConfig : config.outConfs) {
-                outFormats.push_back(MKLDNNMemory::Convert(outConfig.desc.getLayout()));
-            }
-
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormats);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
     }
     if (impls.empty()) {
@@ -158,7 +153,7 @@ void MKLDNNGenericNode::execLayer() {
     InferenceEngine::ResponseDesc resp;
     InferenceEngine::StatusCode rc = impls[0]->execute(inputs, outputs, &resp);
     if (rc != InferenceEngine::OK) {
-        THROW_IE_EXCEPTION << resp.msg;
+        THROW_IE_EXCEPTION << this->getTypeStr() << ":" << this->getName() << ": " << resp.msg;
     }
 }
 

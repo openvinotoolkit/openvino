@@ -56,11 +56,15 @@ ParamsKey PoolingKernelGPUInt8Ref::GetSupportedKey() const {
 }
 
 KernelsData PoolingKernelGPUInt8Ref::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, options);
 }
 
-JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    JitConstants jit = PoolingKernelBase::GetJitConstants(params, kd);
+KernelsPriority PoolingKernelGPUInt8Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
+}
+
+JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    JitConstants jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 

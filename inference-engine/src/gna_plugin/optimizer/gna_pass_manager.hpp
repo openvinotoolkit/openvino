@@ -30,7 +30,7 @@ public:
     virtual ~IPassManager() = default;
     virtual int &getIntVar(std::string name) = 0;
     virtual const Policy &getPolicy() const = 0;
-    virtual const InferenceEngine::CNNNetPtr &getNetwork() const = 0;
+    virtual InferenceEngine::CNNNetwork &getNetwork() = 0;
 };
 
 class BasePass : public Pass {
@@ -124,6 +124,14 @@ DECL_PASS(ReorderMaxPool);
 DECL_PASS(HandleMultipleActivationsForTheLayer);
 
 /**
+ * @brief GNA doesn't provide intermediate results (sums) when the layer is fused with activation.
+ * When more layers use the sums as inputs (beside the activation) then the diagonal layer
+ * is inserted before the activation to forbid the fusing and make the sums exposed.
+ * This is observed in the multiple_activations_onGNA_INT16 test.
+ */
+DECL_PASS(ForbidActivationFusing);
+
+/**
  * @brief copy layer insertion required in cases where input layer does not have output memory
  */
 DECL_PASS(InsertCopyLayer);
@@ -132,6 +140,11 @@ DECL_PASS(InsertCopyLayer);
  * @brief aligning filter layer insertion required in cases when split/slice have output connections on not aligned addresses
  */
 DECL_PASS(InsertSplitAligningFilter);
+
+/**
+* @brief Pass that flattens trivial concatenations inputs and output and changes its axis to 1
+*/
+DECL_PASS(FlattenTrivialConcat);
 
 /**
  * @brief concat-aligning filter layer insertion required in cases when concat inputs size are not 64-aligned
@@ -186,6 +199,17 @@ DECL_PASS(FuseMultipleIdentities);
 */
 DECL_PASS(BroadcastConst);
 
+/**
+* @brief runs static quantisation on given floating weights and replaces fakeQuantize with constblobs
+*/
+DECL_PASS(FuseFQIntoWeights);
+
+/**
+* @brief remove all fake quantize layers while moving it's settings into QuantParams for certain layer
+*/
+DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
+
+
 struct PassManagerSettings {
     Policy policy;
     /// @brief whether to run passes before copy
@@ -195,12 +219,12 @@ struct PassManagerSettings {
 
 class PassManager : public IPassManager, public std::enable_shared_from_this<PassManager> {
     PassManagerSettings settings;
-    InferenceEngine::CNNNetPtr network;
+    InferenceEngine::CNNNetwork network;
     std::vector<std::shared_ptr<Pass>> passes;
     std::map<std::string, int> intMap;
 
 public:
-    explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetPtr network) noexcept
+    explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetwork network) noexcept
     : settings(settings)
     , network(network) {}
 
@@ -214,7 +238,7 @@ public:
     const Policy & getPolicy() const override {
         return settings.policy;
     }
-    const InferenceEngine::CNNNetPtr & getNetwork() const override {
+    InferenceEngine::CNNNetwork& getNetwork() override {
         return network;
     }
     /**

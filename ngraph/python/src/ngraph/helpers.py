@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,3 +24,9 @@ def function_from_cnn(cnn_network: IENetwork) -> Function:
     capsule = cnn_network._get_function_capsule()
     ng_function = Function.from_capsule(capsule)
     return ng_function
+
+
+def function_to_cnn(ng_function: Function) -> Function:
+    """Get Inference Engine CNN network from nGraph function."""
+    capsule = Function.to_capsule(ng_function)
+    return IENetwork(capsule)

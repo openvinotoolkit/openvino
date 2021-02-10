@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -191,8 +191,8 @@ namespace ngraph
                                 }
                                 else
                                 {
-                                    c[i] = static_cast<size_t>(padding_below[i] + src_dim +
-                                                               padding_above[i] - pos);
+                                    c[i] = static_cast<size_t>(2 * (padding_below[i] + src_dim) -
+                                                               c[i] - 1);
                                 }
                             }
                         }

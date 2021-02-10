@@ -108,36 +108,31 @@ WeightsLayout DeconvolutionKernel_imad_along_f_tile_bfx::GetPreferredWeightsLayo
 }
 
 DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_along_f_tile_bfx::SetDefault(const deconvolution_params& params) const {
-    auto dispatch = Parent::SetDefault(params);
+    DispatchData dispatchData = Parent::SetDefault(params);
 
     auto tile_x = GetTileX(params);
     auto tile_ofm = GetTileOFM(params);
     auto tile_b = GetTileB(params);
 
-    std::vector<size_t> global = {
+    dispatchData.gws = {
          CeilDiv(params.output.X().v, tile_x) * params.output.Y().v * params.output.Z().v,
          Align(CeilDiv(params.output.Feature().v, tile_ofm), simd),
          CeilDiv(params.output.Batch().v, tile_b)
     };
 
-    std::vector<size_t> local = { 1, simd, 1 };
+    dispatchData.lws = { 1, simd, 1 };
 
-    dispatch.gws0 = global[0];
-    dispatch.gws1 = global[1];
-    dispatch.gws2 = global[2];
+    return dispatchData;
+}
 
-    dispatch.lws0 = local[0];
-    dispatch.lws1 = local[1];
-    dispatch.lws2 = local[2];
-
+KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const deconvolution_params&>(params);
+    
     // Currently most optimized for fsv16 formats
-    if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
-        dispatch.efficiency = FORCE_PRIORITY_7;
-    } else {
-        dispatch.efficiency = FORCE_PRIORITY_8;
-    }
-
-    return dispatch;
+    if (p.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16)
+        return FORCE_PRIORITY_7;
+    else
+        return FORCE_PRIORITY_8;
 }
 
 JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const deconvolution_params& params) const {

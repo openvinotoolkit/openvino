@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 #include <algorithm>
 #include <regex>
 
-#include "matcher.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph
 {

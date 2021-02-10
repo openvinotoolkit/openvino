@@ -31,6 +31,7 @@ class FreezePlaceholderValue(FrontReplacementSubgraph):
     a string and casts it to actual node data type
     """
     enabled = True
+    run_not_recursively = True
     graph_condition = [lambda graph: graph.graph['freeze_placeholder'] is not None]
 
     def run_after(self):

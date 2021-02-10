@@ -46,7 +46,7 @@ class BinarizeWeightsM1P1(MiddleReplacementPattern):
         transparent.
 
         #TODO Describe how to apply multiplication at output ports -- this is not specified. In the current definition
-        we can pass through only scalar multiplication, but we already requre passing it channel-wise.
+        we can pass through only scalar multiplication, but we already require passing it channel-wise.
     """
     enabled = True
 

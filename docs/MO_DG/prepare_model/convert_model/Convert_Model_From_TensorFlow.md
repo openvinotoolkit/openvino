@@ -114,6 +114,7 @@ Where `HEIGHT` and `WIDTH` are the input images height and width for which the m
 | Unet | [Repo](https://github.com/kkweon/UNet-in-Tensorflow) |
 | Keras-TCN | [Repo](https://github.com/philipperemy/keras-tcn) |
 | PRNet | [Repo](https://github.com/YadiraF/PRNet) |
+| YOLOv4 | [Repo](https://github.com/Ma-Dan/keras-yolo4) |
 
 * YOLO topologies from DarkNet* can be converted using [instruction](tf_specific/Convert_YOLO_From_Tensorflow.md),
 * FaceNet topologies can be converted using [instruction](tf_specific/Convert_FaceNet_From_Tensorflow.md).
@@ -279,7 +280,7 @@ python3 mo_tf.py --input_model inception_v1.pb -b 1 --tensorflow_custom_operatio
 
 * Launching the Model Optimizer for Inception V1 frozen model and use custom sub-graph replacement file `transform.json` for model conversion. For more information about this feature, refer to [Sub-Graph Replacement in the Model Optimizer](../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
 ```sh
-python3 mo_tf.py --input_model inception_v1.pb -b 1 --tensorflow_use_custom_operations_config transform.json
+python3 mo_tf.py --input_model inception_v1.pb -b 1 --transformations_config transform.json
 ```
 
 * Launching the Model Optimizer for Inception V1 frozen model and dump information about the graph to TensorBoard log dir `/tmp/log_dir`

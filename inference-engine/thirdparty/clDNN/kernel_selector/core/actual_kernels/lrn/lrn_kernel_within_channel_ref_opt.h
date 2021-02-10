@@ -25,6 +25,7 @@ public:
     LRNKernelWithinChannelOpt() : Parent("lrn_gpu_within_channel_opt") {}
     virtual ~LRNKernelWithinChannelOpt() {}
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 private:
@@ -35,6 +36,6 @@ private:
                  FusedOpType::ACTIVATION };
     }
     bool Validate(const Params& params, const optional_params& options) const override;
-    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const override;
 };
 }  // namespace kernel_selector

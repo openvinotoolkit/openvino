@@ -67,7 +67,7 @@ int getMeanValue(const std::vector<short>& exponents) {
     if (realSize == 0) {
         return smallestExp;
     } else {
-        return sum / realSize;
+        return static_cast<int>(sum / realSize);
     }
 }
 

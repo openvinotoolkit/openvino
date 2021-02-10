@@ -28,11 +28,12 @@ public:
     virtual ~Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     bool Validate(const Params& params, const optional_params& options) const override;
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return true; }
     WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {

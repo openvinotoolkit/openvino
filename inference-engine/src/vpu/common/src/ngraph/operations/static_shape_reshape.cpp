@@ -40,7 +40,7 @@ void StaticShapeReshape::validate_and_infer_types() {
 
     const auto& inputShape = get_input_shape(0);
 
-    auto outputDimensionsValues = evaluateTargetShape(targetShape);
+    auto outputDimensionsValues = ::vpu::evaluateTargetShape(targetShape);
     NODE_VALIDATION_CHECK(this, !outputDimensionsValues.empty(), "StaticShapeReshape (", get_friendly_name(), ") can't evaluate output shape");
 
     for (std::size_t i = 0; i < outputDimensionsValues.size(); ++i) {

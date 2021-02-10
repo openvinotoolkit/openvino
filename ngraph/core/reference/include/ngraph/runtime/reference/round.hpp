@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,11 +40,18 @@ namespace ngraph
             }
 
             template <typename T>
-            void round(const T* arg, T* out, size_t count)
+            void round(const T* arg, T* out, size_t count, const op::v5::Round::RoundMode mode)
             {
                 for (size_t i = 0; i < count; ++i)
                 {
-                    out[i] = round_to_nearest_even(arg[i]);
+                    if (mode == op::v5::Round::RoundMode::HALF_TO_EVEN)
+                    {
+                        out[i] = round_to_nearest_even(arg[i]);
+                    }
+                    else
+                    {
+                        out[i] = std::round(arg[i]);
+                    }
                 }
             }
         }

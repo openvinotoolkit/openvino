@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -15,7 +15,7 @@ typedef std::tuple<
     InferenceEngine::Precision,
     InferenceEngine::SizeVector,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
+    ngraph::pass::low_precision::LayerTransformation::Params,
     bool> OutputLayersHandlingInTransformationsParams;
 
 class OutputLayersHandlingInTransformationsForConcatMultiChannel :
@@ -27,9 +27,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

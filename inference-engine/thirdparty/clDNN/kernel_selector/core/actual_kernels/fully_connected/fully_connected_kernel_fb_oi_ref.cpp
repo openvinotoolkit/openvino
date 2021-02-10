@@ -33,8 +33,8 @@ ParamsKey FullyConnected_fb_oi_ref::GetSupportedKey() const {
 }
 
 
-JitConstants FullyConnected_fb_oi_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+JitConstants FullyConnected_fb_oi_ref::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);
@@ -51,7 +51,6 @@ KernelsData FullyConnected_fb_oi_ref::GetKernelsData(const Params& params, const
                                                     optParams,
                                                     DataLayout::fb,
                                                     WeightsLayout::oi,
-                                                    DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
@@ -60,4 +59,7 @@ KernelsData FullyConnected_fb_oi_ref::GetKernelsData(const Params& params, const
     return res;
 }
 
+KernelsPriority FullyConnected_fb_oi_ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
 }  // namespace kernel_selector

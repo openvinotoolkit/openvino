@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,16 +16,15 @@
 
 #include <numeric>
 
-#include "builder/autobroadcast.hpp"
-#include "builder/reduce_ops.hpp"
 #include "ngraph/axis_set.hpp"
+#include "ngraph/builder/autobroadcast.hpp"
+#include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
-#include "ngraph/op/sum.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/util.hpp"
 

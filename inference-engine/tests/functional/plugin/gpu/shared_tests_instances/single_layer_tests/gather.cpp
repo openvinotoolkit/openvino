@@ -57,6 +57,10 @@ const auto Gather6dAxes5 = testing::Combine(
         testing::ValuesIn(axes5),
         testing::ValuesIn(inputShapes6DAxes5),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -90,6 +94,10 @@ const auto GatherAxes4 = testing::Combine(
         testing::ValuesIn(axes4),
         testing::ValuesIn(inputShapesAxes4),
         testing::ValuesIn(netPrecisionsFP16),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -106,6 +114,10 @@ const auto Gather6dAxes4 = testing::Combine(
         testing::ValuesIn(axes4),
         testing::ValuesIn(inputShapes6DAxes4),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -150,6 +162,10 @@ const auto GatherAxes3 = testing::Combine(
         testing::ValuesIn(axes3),
         testing::ValuesIn(inputShapesAxes3),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -166,6 +182,10 @@ const auto Gather6dAxes3 = testing::Combine(
         testing::ValuesIn(axes3),
         testing::ValuesIn(inputShapes6DAxes3),
         testing::ValuesIn(netPrecisionsI32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -177,6 +197,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 const std::vector<std::vector<size_t>> inputShapesAxes2 = {
+        std::vector<size_t>{5, 6, 7},
         std::vector<size_t>{5, 6, 7, 8},
         std::vector<size_t>{1, 6, 7, 8},
         std::vector<size_t>{5, 1, 7, 8},
@@ -210,6 +231,10 @@ const auto GatherAxes2 = testing::Combine(
         testing::ValuesIn(axes2),
         testing::ValuesIn(inputShapesAxes2),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -226,6 +251,10 @@ const auto Gather6dAxes2 = testing::Combine(
         testing::ValuesIn(axes2),
         testing::ValuesIn(inputShapes6DAxes2),
         testing::ValuesIn(netPrecisionsFP16),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -237,6 +266,8 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 const std::vector<std::vector<size_t>> inputShapesAxes1 = {
+        std::vector<size_t>{5, 6},
+        std::vector<size_t>{5, 6, 7},
         std::vector<size_t>{5, 6, 7, 8},
         std::vector<size_t>{1, 6, 7, 8},
         std::vector<size_t>{5, 6, 1, 8},
@@ -270,6 +301,10 @@ const auto GatherAxes1 = testing::Combine(
         testing::ValuesIn(axes1),
         testing::ValuesIn(inputShapesAxes1),
         testing::ValuesIn(netPrecisionsI32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -286,6 +321,10 @@ const auto Gather6dAxes1 = testing::Combine(
         testing::ValuesIn(axes1),
         testing::ValuesIn(inputShapes6DAxes1),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -297,6 +336,9 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 const std::vector<std::vector<size_t>> inputShapesAxes0 = {
+        std::vector<size_t>{5},
+        std::vector<size_t>{5, 6},
+        std::vector<size_t>{5, 6, 7},
         std::vector<size_t>{5, 6, 7, 8},
         std::vector<size_t>{5, 1, 7, 8},
         std::vector<size_t>{5, 6, 1, 8},
@@ -330,6 +372,10 @@ const auto GatherAxes0 = testing::Combine(
         testing::ValuesIn(axes0),
         testing::ValuesIn(inputShapesAxes0),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
@@ -346,6 +392,10 @@ const auto Gather6dAxes0 = testing::Combine(
         testing::ValuesIn(axes0),
         testing::ValuesIn(inputShapes6DAxes0),
         testing::ValuesIn(netPrecisionsFP32),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 

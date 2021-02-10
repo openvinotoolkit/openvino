@@ -59,7 +59,7 @@ void FrontEnd::parseFullyConnected(const Model& model, const ie::CNNLayerPtr& _l
     std::tie(weights, biases) = getWeightsAndBiases(model, layer);
 
     IE_ASSERT(weights->desc().totalDimSize() >=
-              input->desc().totalDimSize() / input->desc().dim(Dim::N, 1) * layer->_out_num);
+              input->desc().totalDimSize() / input->desc().dim(Dim::N, 1) * static_cast<int>(layer->_out_num));
     weights = model->duplicateData(
         weights,
         "@fc",

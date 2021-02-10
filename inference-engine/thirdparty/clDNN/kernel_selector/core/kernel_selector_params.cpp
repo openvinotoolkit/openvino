@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -324,6 +324,12 @@ void ParamsKey::EnableReampleType(ResampleType a) {
             break;
         case ResampleType::BILINEAR_INTERP:
             key.restrict.val.dedicated.resample.bilinear_interp = 1;
+            break;
+        case ResampleType::CUBIC:
+            key.restrict.val.dedicated.resample.cubic = 1;
+            break;
+        case ResampleType::LINEAR_ONNX:
+            key.restrict.val.dedicated.resample.linear_onnx = 1;
             break;
         default:
             break;

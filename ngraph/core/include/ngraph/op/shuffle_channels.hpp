@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ namespace ngraph
         namespace v0
         {
             /// \brief Permutes data in the channel dimension of the input
-            class NGRAPH_API ShuffleChannels : public ngraph::op::util::FusedOp
+            class NGRAPH_API ShuffleChannels : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"ShuffleChannels", 0};
@@ -53,21 +53,24 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 size_t get_zero_based_axis() const;
 
-                virtual void pre_validate_and_infer_types() override;
-
-                virtual OutputVector decompose_op() const override;
+                virtual void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 int64_t get_axis() const { return m_axis; }
                 int64_t get_group() const { return m_group; }
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
+
             private:
                 /// \brief Generates a shape required to permute the data
                 ///
                 /// \param data_shape - Shape of the original input data tensor
                 /// \return A 4D tensor to be used to reshape the input data before shuffling it
                 Shape get_pre_shuffle_shape(const Shape& data_shape) const;
+                bool evaluate_shuffle_channels(const HostTensorVector& outputs,
+                                               const HostTensorVector& inputs) const;
 
                 int64_t m_axis;
                 int64_t m_group;

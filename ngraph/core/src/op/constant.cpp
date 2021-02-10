@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/log.hpp"
@@ -57,7 +59,7 @@ op::Constant::Constant(const shared_ptr<runtime::Tensor>& tensor)
 }
 
 op::Constant::Constant(const element::Type& type,
-                       Shape shape,
+                       const Shape& shape,
                        const std::vector<std::string>& values)
     : Constant(type, shape)
 {
@@ -301,11 +303,11 @@ op::Constant::Constant(const element::Type& type, const Shape& shape)
     constructor_validate_and_infer_types();
 }
 
-void* op::Constant::allocate_buffer()
+void op::Constant::allocate_buffer()
 {
     m_data = make_shared<runtime::AlignedBuffer>(shape_size(m_shape) * m_element_type.size(),
                                                  host_alignment());
-    return get_data_ptr_nc();
+    std::memset(m_data->get_ptr(), 0, m_data->size());
 }
 
 op::Constant::Constant(const element::Type& type, const Shape& shape, const void* data)
@@ -540,8 +542,15 @@ AxisSet op::Constant::get_axis_set_val() const
     return output_axis_set;
 }
 
+void op::Constant::set_data_shape(const Shape& shape)
+{
+    NGRAPH_CHECK(shape_size(shape) == shape_size(m_shape));
+    m_shape = shape;
+}
+
 shared_ptr<Node> op::Constant::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Constant_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Constant>(*this);
 }
@@ -618,6 +627,7 @@ bool op::Constant::are_all_data_elements_bitwise_identical() const
 
 bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Constant_visit_attributes);
     visitor.on_attribute("element_type", m_element_type);
     visitor.on_attribute("shape", m_shape);
     if (m_data == nullptr)
@@ -632,10 +642,19 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
 bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Constant::evaluate");
+    NGRAPH_OP_SCOPE(v0_Constant_evaluate);
     auto output = outputs[0];
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;
+}
+
+bool op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const
+{
+    return evaluate(outputs, {});
+}
+bool op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const
+{
+    return evaluate(outputs, {});
 }
 
 //

@@ -69,7 +69,7 @@ private:
             auto irIndex = oldIndices[i];
             if (irIndex < 0) {
                 // handle negative indices
-                irIndex = ndims - std::abs(irIndex);
+                irIndex = static_cast<int>(ndims - std::abs(irIndex));
             }
             VPU_THROW_UNLESS(irIndex < ndims,
                             "Stage {} of type {} expects input with index {} ({}) include values less than ",

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,7 +56,8 @@ namespace ngraph
             std::shared_ptr<Node> NGRAPH_API
                 convert_lstm_node_format(const Output<Node>& node,
                                          LSTMWeightsFormat from_format,
-                                         LSTMWeightsFormat to_format = LSTMWeightsFormat::FICO);
+                                         LSTMWeightsFormat to_format = LSTMWeightsFormat::FICO,
+                                         int64_t axis = 0);
 
             /// \brief      Base class for all recurrent network cells.
             ///

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017-2019 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1122,6 +1122,64 @@ TEST(crop_gpu, basic_in3x1x2x2x1_crop_all_bfzyx) {
     }
 }
 
+TEST(crop_gpu, basic_in3x1x3x2x2x1_crop_all_bfwzyx) {
+    //  Reference  : 3x1x3x2x2x1
+    //  Input      : 6x2x6x4x3x2
+    //  Output     : 3x1x3x2x2x1
+
+    const auto& engine = get_test_engine();
+
+    auto batch_num = 6;
+    auto feature_num = 2;
+    auto x_size = 4;
+    auto y_size = 3;
+    auto z_size = 2;
+    auto w_size = 6;
+
+    auto crop_batch_num = batch_num - 3;
+    auto crop_feature_num = feature_num - 1;
+    auto crop_x_size = x_size - 2;
+    auto crop_y_size = y_size - 1;
+    auto crop_z_size = z_size - 1;
+    auto crop_w_size = w_size - 3;
+
+    tensor in_size = tensor(format::bfwzyx, { batch_num, feature_num, w_size, z_size, y_size, x_size });
+    tensor crop_size = tensor(format::bfwzyx, { crop_batch_num, crop_feature_num, crop_w_size, crop_z_size, crop_y_size, crop_x_size });
+    auto input = memory::allocate(engine, { data_types::f32,format::bfwzyx, in_size });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(crop("crop", "input", crop_size, tensor{ 0 }));
+
+    VVVVVVF<float> input_rnd = generate_random_6d<float>(batch_num, feature_num, w_size, z_size, y_size, x_size, -10, 10);
+    VF<float> input_vec = flatten_6d<float>(format::bfwzyx, input_rnd);
+    set_values(input, input_vec);
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("crop").get_memory();
+    auto output_ptr = output.pointer<float>();
+    for (int b = 0; b < crop_batch_num; ++b) { //B
+        for (int f = 0; f < crop_feature_num; ++f) { //F
+            for (int w = 0; w < crop_w_size; ++w) { //W
+                for (int z = 0; z < crop_z_size; ++z) { //Z
+                    for (int y = 0; y < crop_y_size; ++y) { //Y
+                        for (int x = 0; x < crop_x_size; ++x) { //X
+                            int linear_id = x + x_size * (y + y_size * (z + z_size * (w + w_size * (f + feature_num * b))));
+                            int output_linear_id = x + crop_x_size * (y + crop_y_size * (z + crop_z_size * (w + crop_w_size * (f + crop_feature_num * b))));
+                            EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // batch size, input feature, crop out feature, (in_out format, crop format)
 using crop_test_params = std::tuple<size_t, size_t, size_t, std::pair<cldnn::format,cldnn::format>>;
 
@@ -1156,8 +1214,8 @@ TEST_P(crop_gpu, pad_test) {
     topology.add(crop("crop1", "reorder", tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size, crop_z_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0,0), batch(0)) }));
     topology.add(reorder("out", "crop1", in_out_format, data_types::f32));
 
-    std::vector<float> input_vec; 
-    std::vector<float> res; 
+    std::vector<float> input_vec;
+    std::vector<float> res;
     std::vector<float> input_data;
     std::vector<float> res_data;
     for (size_t i = 0; i < feature_num; i++) {

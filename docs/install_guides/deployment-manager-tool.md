@@ -18,7 +18,7 @@ The Deployment Manager is a Python\* command-line tool that is delivered within 
      * Steps for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
      
 
-> **IMPORTANT**: The operating system on the target host must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 16.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 16.04.     
+> **IMPORTANT**: The operating system on the target host must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 18.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 18.04.     
 
 ## Create Deployment Package Using Deployment Manager
 
@@ -39,10 +39,10 @@ Interactive mode provides a user-friendly command-line interface that will guide
    ./deployment_manager.py
    ``` 
 2. The target device selection dialog is displayed:
-![Deployment Manager selection dialog](../img/selection_dialog.png "Deployment Manager selection dialog")
+![Deployment Manager selection dialog](../img/selection_dialog.png)
 Use the options provided on the screen to complete selection of the target devices and press **Enter** to proceed to the package generation dialog. if you want to interrupt the generation process and exit the program, type **q** and press **Enter**.
 3. Once you accept the selection, the package generation dialog is displayed:
-![Deployment Manager configuration dialog](../img/configuration_dialog.png "Deployment Manager configuration dialog")
+![Deployment Manager configuration dialog](../img/configuration_dialog.png)
    1. The target devices you have selected at the previous step appear on the screen. If you want to change the selection, type **b** and press **Enter** to go back to the previous screen. 
    
    2. Use the options provided to configure the generation process, or use the default settings.

@@ -26,6 +26,10 @@ INSTANTIATE_TEST_CASE_P(smoke_Basic, RangeLayerTest,
                                 ::testing::ValuesIn(stop),
                                 ::testing::ValuesIn(step),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         RangeLayerTest::getTestCaseName);
 }  // namespace

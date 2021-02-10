@@ -228,14 +228,13 @@ Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) const 
 }
 
 KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
-                                                   const optional_params& options,
-                                                   float estimatedTime) const {
+                                                   const optional_params& options) const {
     if (!Validate(p, options)) {
         return {};
     }
 
     const reduce_params& params = static_cast<const reduce_params&>(p);
-    DispatchData runInfo = SetDefault(params, options);
+    DispatchData dispatchData = SetDefault(params, options);
 
     KernelData kd = KernelData::Default<reduce_params>(params);
 
@@ -245,7 +244,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,
@@ -255,7 +254,6 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params));
-    kd.estimatedTime = estimatedTime;
 
     return {kd};
 }

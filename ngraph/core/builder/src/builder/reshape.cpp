@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,11 +19,10 @@
 #include <iterator>
 #include <numeric>
 
-#include "builder/reshape.hpp"
 #include "ngraph/axis_vector.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/product.hpp"
 #include "ngraph/op/reduce_prod.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/shape_of.hpp"
@@ -218,7 +217,7 @@ shared_ptr<Node> builder::opset1::collapse(const Output<Node>& value,
         // Multiply all alements of shape from start_axis to end_axis inclusive
         size_t collapsed_axis_size = accumulate(next(begin(shape), start_axis),
                                                 next(begin(shape), end_axis + 1),
-                                                1UL,
+                                                size_t{1},
                                                 multiplies<size_t>());
         Shape output_shape{};
         output_shape.insert(begin(output_shape), begin(shape), next(begin(shape), start_axis));

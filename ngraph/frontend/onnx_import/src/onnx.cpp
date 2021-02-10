@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,12 +19,13 @@
 #include <google/protobuf/text_format.h>
 #include <memory>
 
+#include "core/graph.hpp"
+#include "core/model.hpp"
+#include "core/transform.hpp"
 #include "ngraph/except.hpp"
-#include "ngraph/file_util.hpp"
-#include "onnx_import/core/graph.hpp"
-#include "onnx_import/core/model.hpp"
 #include "onnx_import/onnx.hpp"
-#include "onnx_import/ops_bridge.hpp"
+#include "ops_bridge.hpp"
+#include "utils/parser.hpp"
 
 namespace ngraph
 {
@@ -32,103 +33,6 @@ namespace ngraph
     {
         namespace detail
         {
-            namespace error
-            {
-                struct file_open : ngraph_error
-                {
-                    explicit file_open(const std::string& path)
-                        : ngraph_error{
-                              "Error during import of ONNX model expected to be in file: " + path +
-                              ". Could not open the file."}
-                    {
-                    }
-                };
-
-                struct stream_parse_binary : ngraph_error
-                {
-                    explicit stream_parse_binary()
-                        : ngraph_error{
-                              "Error during import of ONNX model provided as input stream "
-                              " with binary protobuf message."}
-                    {
-                    }
-                };
-
-                struct stream_parse_text : ngraph_error
-                {
-                    explicit stream_parse_text()
-                        : ngraph_error{
-                              "Error during import of ONNX model provided as input stream "
-                              " with prototxt protobuf message."}
-                    {
-                    }
-                };
-
-                struct stream_corrupted : ngraph_error
-                {
-                    explicit stream_corrupted()
-                        : ngraph_error{"Provided input stream has incorrect state."}
-                    {
-                    }
-                };
-
-            } // namespace error
-
-            static const std::vector<std::string> legacy_ops_to_fixup = {
-                "DetectionOutput", "FakeQuantize", "GroupNorm", "Normalize", "PriorBox"};
-
-            // There are some models with custom OPs (list above) that has the default domain set.
-            // So in order to load the models, we need overwrite the OPs' domain to the one they're
-            // registered
-            void fixup_legacy_operators(ONNX_NAMESPACE::GraphProto* graph_proto)
-            {
-                for (auto& node : *graph_proto->mutable_node())
-                {
-                    auto it = std::find(
-                        legacy_ops_to_fixup.begin(), legacy_ops_to_fixup.end(), node.op_type());
-                    if (it != legacy_ops_to_fixup.end())
-                    {
-                        if (!node.has_domain() || node.domain().empty() ||
-                            node.domain() == "ai.onnx")
-                        {
-                            node.set_domain(OPENVINO_ONNX_DOMAIN);
-                        }
-                    }
-                }
-            }
-
-            // The paths to external data files are stored as relative to model path.
-            // The helper function below combines them and replaces the original relative path.
-            // As a result in futher processing data from external files can be read directly.
-            void update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
-                                            const std::string& model_path)
-            {
-                if (model_path.empty())
-                {
-                    return;
-                }
-                const auto model_dir_path = file_util::get_directory(model_path);
-                auto graph_proto = model_proto.mutable_graph();
-                for (auto& initializer_tensor : *graph_proto->mutable_initializer())
-                {
-                    const auto location_key_value_index = 0;
-                    if (initializer_tensor.has_data_location() &&
-                        initializer_tensor.data_location() ==
-                            ONNX_NAMESPACE::TensorProto_DataLocation::
-                                TensorProto_DataLocation_EXTERNAL)
-                    {
-                        const auto external_data_relative_path =
-                            initializer_tensor.external_data(location_key_value_index).value();
-                        const auto external_data_full_path =
-                            file_util::path_join(model_dir_path, external_data_relative_path);
-
-                        // Set full paths to the external file
-                        initializer_tensor.mutable_external_data(location_key_value_index)
-                            ->set_value(external_data_full_path);
-                    }
-                }
-            }
-
             std::shared_ptr<Function>
                 convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
             {
@@ -143,54 +47,44 @@ namespace ngraph
                 }
                 return function;
             }
+
+            std::shared_ptr<Function> import_onnx_model(ONNX_NAMESPACE::ModelProto& model_proto,
+                                                        const std::string& model_path)
+            {
+                transform::expand_onnx_functions(model_proto);
+                transform::fixup_legacy_operators(model_proto);
+                transform::update_external_data_paths(model_proto, model_path);
+
+                return detail::convert_to_ng_function(model_proto);
+            }
         } // namespace detail
 
         std::shared_ptr<Function> import_onnx_model(std::istream& stream,
                                                     const std::string& model_path)
         {
-            if (!stream.good())
-            {
-                stream.clear();
-                stream.seekg(0);
-                if (!stream.good())
-                {
-                    throw detail::error::stream_corrupted();
-                }
-            }
+            ONNX_NAMESPACE::ModelProto model_proto{parse_from_istream(stream)};
 
-            ONNX_NAMESPACE::ModelProto model_proto;
-            // Try parsing input as a binary protobuf message
-            if (!model_proto.ParseFromIstream(&stream))
-            {
-#ifdef NGRAPH_USE_PROTOBUF_LITE
-                throw detail::error::stream_parse_binary();
-#else
-                // Rewind to the beginning and clear stream state.
-                stream.clear();
-                stream.seekg(0);
-                google::protobuf::io::IstreamInputStream iistream(&stream);
-                // Try parsing input as a prototxt message
-                if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto))
-                {
-                    throw detail::error::stream_parse_text();
-                }
-#endif
-            }
-
-            detail::fixup_legacy_operators(model_proto.mutable_graph());
-            detail::update_external_data_paths(model_proto, model_path);
-
-            return detail::convert_to_ng_function(model_proto);
+            return detail::import_onnx_model(model_proto, model_path);
         }
 
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path)
         {
-            std::ifstream ifs{file_path, std::ios::in | std::ios::binary};
-            if (!ifs.is_open())
+            std::ifstream model_stream{file_path, std::ios::in | std::ios::binary};
+
+            if (!model_stream.is_open())
             {
-                throw detail::error::file_open{file_path};
-            }
-            return import_onnx_model(ifs, file_path);
+                throw ngraph_error("Error during import of ONNX model expected to be in file: " +
+                                   file_path + ". Could not open the file.");
+            };
+
+            return import_onnx_model(model_stream, file_path);
+        }
+
+        std::shared_ptr<Function> import_onnx_model(const ONNXModelEditor& model_editor)
+        {
+            // this overload of the import_onnx_model is friended with the ONNXModelEditor
+            // and thus can access its private members
+            return detail::import_onnx_model(model_editor.model(), model_editor.model_path());
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -106,7 +106,7 @@ namespace ngraph
                                     {
                                         // For this sample we save 4x point (0,0) with weight 0
                                         pooling_points.insert(pooling_points.end(), 4, {0, 0});
-                                        pooling_weights.insert(pooling_weights.end(), 4, {0});
+                                        pooling_weights.insert(pooling_weights.end(), 4, T{0});
                                         continue;
                                     }
 

@@ -1,52 +1,41 @@
 ﻿// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "low_precision_transformations/transparent_base_transformation.hpp"
+#include "low_precision/transparent_base_transformation.hpp"
 
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "low_precision_transformations/common/ie_lpt_exception.hpp"
-#include "low_precision_transformations/network_helper.hpp"
+#include "low_precision/network_helper.hpp"
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+using namespace ngraph;
+using namespace ngraph::pass;
+using namespace ngraph::pass::low_precision;
 
-void TransparentBaseTransformation::transform(TransformationContext& context, CNNLayer& layer) const {
-    const CNNLayerPtr scaleShift = CNNNetworkHelper::getParent(layer, 0);
-    if (scaleShift == nullptr) {
-        return;
-    }
+bool TransparentBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    auto operation = m.get_match_root();
+    const std::shared_ptr<Node> dequantization = operation->input_value(0).get_node_shared_ptr();
+    // const std::shared_ptr<Node> dequantizationParent = dequantization->input_value(0).get_node_shared_ptr();
 
-    if (scaleShift->type == "Concat") {
-        if (updatePrecisions) {
-            // TODO: looks like as workaround for Concat -> Pooling -> Concat: refactor later
-            CNNNetworkHelper::setOutDataPrecision(layer, CNNNetworkHelper::getPrecisionParent(layer, 0ul));
-        }
-    } else if (scaleShift->type == "ScaleShift") {
-        if (updatePrecisions) {
-            CNNNetworkHelper::setOutDataPrecision(layer, getPrecisionBeforeParentDequantizationScaleShift(layer));
-        }
+    // auto newOperation = operation->copy_with_new_inputs({ dequantizationParent });
+    // const auto newDequantization = dequantization->copy_with_new_inputs({
+    //    newOperation,
+    //    dequantization->input_value(1),
+    //    dequantization->input_value(2) });
 
-        std::vector<float> scales;
-        std::vector<float> shifts;
-        fillFromDequantizationLayer(*scaleShift, scales, shifts);
+    // const std::string friendlyName = operation->get_friendly_name();
+    //// TODO: new operation name has to be unique
+    // newOperation->set_friendly_name(friendlyName + "_original");
+    // newDequantization->set_friendly_name(friendlyName);
 
-        const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(layer);
-        if (outputChannelsCount != CNNNetworkHelper::getInputChannelsCount(layer)) {
-            if (!DequantizationDetails::isPerTensor(scales, shifts)) {
-                THROW_IE_LPT_EXCEPTION(layer) << "input and output channels count values are different for per channel quantization";
-            }
-            scales = std::vector<float>(outputChannelsCount, scales[0]);
-            shifts = std::vector<float>(outputChannelsCount, shifts[0]);
-        }
+    // replace_node(operation, newDequantization);
 
-        CNNNetworkHelper::removeLayer(context.network, scaleShift);
-        context.removeLayer(*scaleShift);
+    // NetworkHelper::moveDequantization(operation, dequantization);
+    return true;
+}
 
-        addDequantizationLayer(context, layer, scales, shifts);
-    }
+bool TransparentBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    return true;
 }

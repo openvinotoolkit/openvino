@@ -91,14 +91,14 @@ void PriorBoxContent::fillTempBuf(void* tempBuf) const {
     if (!_densitys.empty()) {
         for (const auto& _density : _densitys) {
             if (!_fixed_ratios.empty()) {
-                _num_priors += _fixed_ratios.size() * (static_cast<int>(pow(_density, 2)) - 1);
+                _num_priors += static_cast<int>(_fixed_ratios.size()) * (static_cast<int>(pow(_density, 2)) - 1);
             } else {
-                _num_priors += _aspect_ratios.size() * (static_cast<int>(pow(_density, 2)) - 1);
+                _num_priors += static_cast<int>(_aspect_ratios.size()) * (static_cast<int>(pow(_density, 2)) - 1);
             }
         }
     }
 
-    _num_priors += _max_sizes.size();
+    _num_priors += static_cast<int>(_max_sizes.size());
 
     auto W  = _inDesc0.dim(Dim::W);
     auto H  = _inDesc0.dim(Dim::H);
@@ -317,7 +317,7 @@ void PriorBoxClusteredContent::fillTempBuf(void* tempBuf) const {
     auto num_priors_ = widths_.size();
 
     if (variance_.empty()) {
-        variance_.push_back(0.1);
+        variance_.push_back(0.1f);
     }
 
     auto layer_width  = _inDesc0.dim(Dim::W);

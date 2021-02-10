@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,8 +34,10 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableDifferentInputWeightsTypes();
     k.EnableDifferentTypes();
     k.EnableInputLayout(DataLayout::bf);
+    k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableOutputLayout(DataLayout::fb);
+    k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableBiasPerOutput();
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
@@ -48,25 +50,25 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
 
 FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const fully_connected_params& params,
                                                                           int) const {
-    auto runInfo = Parent::SetDefault(params);
+    auto dispatchData = Parent::SetDefault(params);
 
-    std::vector<size_t> global = {params.output.Feature().v, params.output.Batch().v};
-    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    std::vector<size_t> global = {params.output.Feature().v, params.output.Batch().v, 1};
+    if (params.output.GetLayout() == DataLayout::bfyx)
+        global = {params.output.Feature().v * params.output.Y().v, params.output.Batch().v, 1};
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = 1;
+    dispatchData.gws = global;
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = 1;
+    return dispatchData;
+}
 
-    return runInfo;
+KernelsPriority FullyConnected_bfyx_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_params& params,
-    const FullyConnectedKernelBase::DispatchData& kd) const {
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+    const FullyConnectedKernelBase::DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     Datatype accumulator_dt;
     Datatype activation_dt;
 
@@ -77,13 +79,14 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
         accumulator_dt = Datatype::F32;
         activation_dt = Datatype::F32;
     }
-
+    if (params.output.GetLayout() == DataLayout::bfyx)
+        jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 
     if (!params.fused_ops.empty()) {
-        FusedOpsConfiguration conf = { "", {"b", "ofm", "y", "x"}, "dequantized", activation_dt, 1 };
+        FusedOpsConfiguration conf = { "", {"b", "ofm", "oym", "0"}, "dequantized", activation_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
     return jit;
@@ -97,7 +100,6 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params, const 
             options,
             DataLayout::bfyx,
             WeightsLayout::oiyx,
-            DONT_USE_IF_HAVE_SOMETHING_ELSE,
             static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
@@ -132,6 +134,10 @@ bool FullyConnected_bfyx_Ref::Validate(const Params& params, const optional_para
                         (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
 
     if (!is_quantization && !has_fused_op)
+        return false;
+
+    // We don't support 4d output
+    if (fc_params.output.GetLayout() == DataLayout::bfyx && fc_params.output.X().v > 1)
         return false;
 
     return true;

@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <iterator>
 #include <samples/common.hpp>
 
 #include <inference_engine.hpp>
@@ -34,12 +35,13 @@ cv::Mat imreadW(std::wstring input_image_path) {
         std::iostream::binary | std::ios_base::ate | std::ios_base::in);
     if (input_image_stream.is_open()) {
         if (input_image_stream.good()) {
+            input_image_stream.seekg(0, std::ios::end);
             std::size_t file_size = input_image_stream.tellg();
             input_image_stream.seekg(0, std::ios::beg);
             std::vector<char> buffer(0);
             std::copy(
-                std::istream_iterator<char>(input_image_stream),
-                std::istream_iterator<char>(),
+                std::istreambuf_iterator<char>(input_image_stream),
+                std::istreambuf_iterator<char>(),
                 std::back_inserter(buffer));
             image = cv::imdecode(cv::Mat(1, file_size, CV_8UC1, &buffer[0]), cv::IMREAD_COLOR);
         } else {
@@ -67,7 +69,7 @@ int main(int argc, char *argv[]) {
     try {
         // ------------------------------ Parsing and validation of input args ---------------------------------
         if (argc != 4) {
-            tcout << "Usage : ./hello_classification <path_to_model> <path_to_image> <device_name>" << std::endl;
+            tcout << "Usage : " << argv[0] << " <path_to_model> <path_to_image> <device_name>" << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -86,7 +88,8 @@ int main(int argc, char *argv[]) {
 
         // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
         CNNNetwork network = ie.ReadNetwork(input_model);
-        network.setBatchSize(1);
+        if (network.getOutputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 output only");
+        if (network.getInputsInfo().size() != 1) throw std::logic_error("Sample supports topologies with 1 input only");
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input & output ---------------------------------------------

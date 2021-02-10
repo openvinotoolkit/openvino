@@ -24,9 +24,10 @@ public:
     LRNKernelAcrossChannelMultipleFeaturesFSV16() : Parent("lrn_gpu_across_channel_multiple_features_fsv16") {}
 
     ParamsKey GetSupportedKey() const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 private:
     DispatchData SetDefault(const lrn_params& params) const override;
-    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const override;
 };
 }  // namespace kernel_selector

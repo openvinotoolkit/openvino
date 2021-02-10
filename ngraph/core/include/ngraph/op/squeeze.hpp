@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,9 +34,9 @@ namespace ngraph
             class NGRAPH_API Squeeze : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Squeeze", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Squeeze() = default;
+                NGRAPH_RTTI_DECLARATION;
+
+                Squeeze();
                 Squeeze(const Output<Node>& data, const Output<Node>& axes);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -44,6 +44,10 @@ namespace ngraph
                 virtual void pre_validate_and_infer_types() override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
+                bool constant_fold(OutputVector& output_values,
+                                   const OutputVector& inputs_values) override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

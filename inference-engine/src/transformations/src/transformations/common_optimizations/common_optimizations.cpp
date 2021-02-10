@@ -1,46 +1,57 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
 
+#include "transformations/init_node_info.hpp"
+#include "itt.hpp"
 #include "transformations/common_optimizations/algebraic_simplification.hpp"
+#include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/conv_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
-#include "transformations/depth_to_space_fusion.hpp"
-#include "transformations/optimize_strided_slice.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/itt.hpp"
-#include "transformations/mish_fusion.hpp"
-#include "transformations/softplus_fusion.hpp"
-#include "transformations/softplus_to_mish_fusion.hpp"
-#include "transformations/swish_fusion.hpp"
-#include "transformations/normalize_l2_fusion.hpp"
-#include "transformations/bidirectional_sequences_decomposition.hpp"
-#include "transformations/convert_pad_to_group_conv.hpp"
-#include "transformations/convert_divide.hpp"
-#include "transformations/convert_quantize_dequantize.hpp"
-#include "transformations/convert_mod.hpp"
-#include "transformations/convert_minimum_to_power_and_max.hpp"
-#include "transformations/convert_negative.hpp"
-#include "transformations/convert_scatter_elements_to_scatter.hpp"
-#include "transformations/convert_reduce_to_pooling.hpp"
-#include "transformations/convert_subtract.hpp"
-#include "transformations/convert_depth_to_space.hpp"
-#include "transformations/convert_space_to_depth.hpp"
-#include "transformations/convert_broadcast_to_tiles.hpp"
-#include "transformations/convert_gelu.hpp"
-#include "transformations/batch_norm_decomposition.hpp"
-#include "transformations/pull_transpose_through_fq.hpp"
-#include "transformations/lin_op_sequence_fusoin.hpp"
-#include "transformations/reduce_l1_decomposition.hpp"
-#include "transformations/reduce_l2_decomposition.hpp"
-#include "transformations/remove_filtering_boxes_by_size.hpp"
-#include "transformations/hswish_decomposition.hpp"
-#include "transformations/hswish_fusion.hpp"
+#include "transformations/common_optimizations/depth_to_space_fusion.hpp"
+#include "transformations/common_optimizations/optimize_strided_slice.hpp"
+#include "transformations/common_optimizations/mish_fusion.hpp"
+#include "transformations/common_optimizations/softplus_fusion.hpp"
+#include "transformations/common_optimizations/softplus_to_mish_fusion.hpp"
+#include "transformations/common_optimizations/swish_fusion.hpp"
+#include "transformations/common_optimizations/normalize_l2_fusion.hpp"
+#include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
+#include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/common_optimizations/hsigmoid_fusion.hpp"
+#include "transformations/common_optimizations/hswish_fusion.hpp"
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/relu_fake_quantize_fusion.hpp"
+#include "transformations/common_optimizations/clamp_fusion.hpp"
+#include "transformations/common_optimizations/pad_fusion.hpp"
+#include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
+#include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
+#include "transformations/op_conversions/convert_pad_to_group_conv.hpp"
+#include "transformations/op_conversions/convert_divide.hpp"
+#include "transformations/op_conversions/convert_mod.hpp"
+#include "transformations/op_conversions/convert_minimum_to_power_and_max.hpp"
+#include "transformations/op_conversions/convert_negative.hpp"
+#include "transformations/op_conversions/convert_scatter_elements_to_scatter.hpp"
+#include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
+#include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_depth_to_space.hpp"
+#include "transformations/op_conversions/convert_space_to_depth.hpp"
+#include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
+#include "transformations/op_conversions/convert_gelu.hpp"
+#include "transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp"
+#include "transformations/op_conversions/batch_norm_decomposition.hpp"
+#include "transformations/op_conversions/reduce_l1_decomposition.hpp"
+#include "transformations/op_conversions/reduce_l2_decomposition.hpp"
+#include "transformations/op_conversions/hswish_decomposition.hpp"
+#include "transformations/op_conversions/convert_previous_nms_to_nms_5.hpp"
+#include "transformations/op_conversions/hsigmoid_decomposition.hpp"
+#include "transformations/op_conversions/log_softmax_decomposition.hpp"
+#include "transformations/op_conversions/mvn6_decomposition.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -48,39 +59,53 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::CommonOptimizations");
-
-    ngraph::pass::Manager manager;
+    RUN_ON_FUNCTION_SCOPE(CommonOptimizations);
+    ngraph::pass::Manager manager(get_pass_config());
 
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
+
+    // TODO: move to KMB
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
-    manager.register_pass<ngraph::pass::NopElimination>(); // may introduce fake dynamism
-    manager.register_pass<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
+    manager.register_pass<ngraph::pass::BroadcastElementwiseFusion>();
+
+    auto eliminations = manager.register_pass<ngraph::pass::GraphRewrite>();
+    eliminations->add_matcher<ngraph::pass::EliminateUnsqueezeGather>();
+    eliminations->add_matcher<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
+    eliminations->add_matcher<ngraph::pass::NopElimination>(); // may introduce fake dynamism
+    eliminations->set_name("ngraph::pass::CommonEliminations");
+
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
-    manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
-    manager.register_pass<ngraph::pass::MishFusion>();
-    manager.register_pass<ngraph::pass::SoftPlusFusion>();
-    manager.register_pass<ngraph::pass::SoftPlusToMishFusion>();
-    manager.register_pass<ngraph::pass::SwishFusion>();
-    manager.register_pass<ngraph::pass::HSwishFusion>();
-    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution>();
-    manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
-    manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-    manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
-    manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+
+    auto common_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    common_fusions->add_matcher<ngraph::pass::ConvertScatterElementsToScatter>();
+    common_fusions->add_matcher<ngraph::pass::DepthToSpaceFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftPlusFusion>();
+    common_fusions->add_matcher<ngraph::pass::SoftPlusToMishFusion>();
+    common_fusions->add_matcher<ngraph::pass::SwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::HSwishFusion>();
+    common_fusions->add_matcher<ngraph::pass::HSigmoidFusion>();
+    common_fusions->add_matcher<ngraph::pass::NormalizeL2Fusion>();
+    common_fusions->add_matcher<ngraph::pass::ClampFusion>();
+    common_fusions->add_matcher<ngraph::pass::PadFusion>();
+    common_fusions->set_name("ngraph::pass::CommonFusions");
+
+    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
+    manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::BidirectionalSequenceDecomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
     decomp->add_matcher<ngraph::pass::HSwishDecomposition>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceSumToPooling>();
+    decomp->add_matcher<ngraph::pass::HSigmoidDecomposition>();
+    decomp->add_matcher<ngraph::pass::LogSoftmaxDecomposition>();
+    decomp->add_matcher<ngraph::pass::ConvertReduceToPooling>();
     decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
     decomp->add_matcher<ngraph::pass::ConvertMod>();
     decomp->add_matcher<ngraph::pass::ConvertGELU>();
@@ -91,6 +116,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
+    decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
@@ -99,19 +125,27 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     // LinOpSequenceFusion must be executed after all decompositions
     manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
 
-    manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
-    manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
-    manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-    manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    auto conv_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->add_matcher<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    conv_fusions->set_name("ngraph::pass::ConvFusions");
+
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeReshapeFusion>();
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
+    fq_fusions->add_matcher<ngraph::pass::ReluFakeQuantizeFusion>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
-    manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
-    return true;
+
+    // Returning value is false because pass::Manager always apply Validation pass
+    // if function was changed. This helps to avoid excess Validations after applying
+    // this pass. In future when we will return more meaningful status code it will be
+    // replaced with real status reported by manager.run_passes() method call.
+    return false;
 }

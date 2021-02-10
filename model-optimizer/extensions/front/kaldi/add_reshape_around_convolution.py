@@ -13,16 +13,19 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.elementwise import Mul, Pow
-from extensions.ops.split import VariadicSplit
-from mo.front.common.partial_infer.utils import int64_array
+import numpy as np
+
+from extensions.ops.Cast import Cast
+from extensions.ops.elementwise import Div
+from mo.front.common.partial_infer.utils import int64_array, float_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from mo.graph.graph import Graph
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.concat import Concat
-from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
+from mo.utils.shape import node_to_get_shape_value_of_indices
 
 
 class ReplaceConvolutionReshape(FrontReplacementPattern):
@@ -57,30 +60,28 @@ class ReplaceConvolutionReshape(FrontReplacementPattern):
 
         # create Reshape before convolution
         # shape = [in_shape[0], in_shape[1]/patch_stride, 1, patch_stride]
-        shape = Shape(graph, {'name': node_name + '/Shape'}).create_node()
-        shape.in_port(0).connect(node.in_port(0).get_source())
+        i_shape = Shape(graph, {'name': node_name + '/Shape'}).create_node()
+        shape = Cast(graph, {'name': node_name + '/to_float',
+                             'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node()
+        i_shape.in_port(0).connect(node.in_port(0).get_source())
+        shape.in_port(0).connect(i_shape.out_port(0))
 
-        split = create_op_with_const_inputs(graph, VariadicSplit, {1: int64_array(0), 2: int64_array([1, -1])},
-                                            {'name': shape.name + '/split_batch', 'out_ports_count': 2}, shape)
+        N, H = node_to_get_shape_value_of_indices(shape, [0]), node_to_get_shape_value_of_indices(shape, [1])
 
-        pow_node = create_op_node_with_second_input(graph, Pow, int64_array([-1]), {'name': node_name + '/patch_stride/inverse'})
-        conv_patch_stride = Const(graph, {'value': int64_array([node.patch_stride]),
-                                          'name': node_name + '/patch_stride/'}).create_node()
-        pow_node.in_port(0).connect(conv_patch_stride.out_port(0))
+        div = create_op_with_const_inputs(
+            graph, Div, {1: float_array([node.patch_stride])}, {'name': node_name + '/div_stride_h'})
+        div.in_port(0).connect(H.out_port(0))
 
-        mul = Mul(graph, {'name': node_name + '/mul_inverse_stride_h'}).create_node()
-        mul.in_port(0).connect(split.out_port(1))
-        mul.in_port(1).connect(pow_node.out_port(0))
-
-        concat = create_op_with_const_inputs(graph, Concat, {2: int64_array([1])},
+        concat = create_op_with_const_inputs(graph, Concat, {2: float_array([1]), 3: float_array([node.patch_stride])},
                                              {'name': node_name + '/concat_all_dims', 'in_ports_count': 4, 'axis': 0})
+        concat.in_port(0).connect(N.out_port(0))
+        concat.in_port(1).connect(div.out_port(0))
 
-        concat.in_port(0).connect(split.out_port(0))
-        concat.in_port(1).connect(mul.out_port(0))
-        concat.in_port(3).connect(conv_patch_stride.out_port(0))
+        reshape_pattern = Cast(graph, {'name': node_name + '/to_int', 'dst_type': np.int64}).create_node()
+        concat.out_port(0).connect(reshape_pattern.in_port(0))
 
         reshape_in = Reshape(graph, {'name': node_name + '/reshape_in'}).create_node()
-        reshape_in.in_port(1).connect(concat.out_port(0))
+        reshape_in.in_port(1).connect(reshape_pattern.out_port(0))
 
         # create Reshape after Convolution
         reshape_out = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),

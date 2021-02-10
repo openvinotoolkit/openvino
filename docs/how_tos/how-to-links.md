@@ -12,8 +12,8 @@
 * [Introducing int8 quantization for fast CPU inference using OpenVINO](https://www.intel.ai/introducing-int8-quantization-for-fast-cpu-inference-using-openvino/)
 * [Accelerate Vision-based AI with Intel® Distribution of OpenVINO™ Toolkit](https://www.intel.ai/accelerate-vision-based-ai-with-intel-distribution-of-openvino-toolkit/)
 
-## Custom Layers Guide
-To learn about what is *custom layers* and how to work with them in the Deep Learning Deployment Toolkit, see the [Custom Layers Guide](../HOWTO/Custom_Layers_Guide.md).
+## Custom Operations Guide
+To learn about what is *custom operation* and how to work with them in the Deep Learning Deployment Toolkit, see the [Custom Operations Guide](../HOWTO/Custom_Layers_Guide.md).
  
 ## Introducing OpenVINO™ and Computer Vision | IoT Developer Show Season 2 | Intel Software
 
@@ -31,13 +31,6 @@ To learn about what is *custom layers* and how to work with them in the Deep Lea
 
 [![](https://img.youtube.com/vi/1_iI_4Zgufw/0.jpg)](https://www.youtube.com/watch?v=1_iI_4Zgufw)
 <iframe width="560" height="315" src="https://www.youtube.com/embed/1_iI_4Zgufw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-
-## Deploying Intel® FPGAs for Deep Learning Inferencing with OpenVINO™ Toolkit
-
-[![](https://img.youtube.com/vi/7yh1c8kJn1A/0.jpg)](https://www.youtube.com/watch?v=7yh1c8kJn1A)
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/7yh1c8kJn1A" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 
 ## Computer Vision at the Edge with OpenVINO by Krishnakumar Shetti at ODSC_India

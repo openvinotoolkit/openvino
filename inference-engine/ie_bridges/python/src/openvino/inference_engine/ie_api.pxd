@@ -62,9 +62,6 @@ cdef class DataPtr:
 cdef class CDataPtr:
     cdef C.CDataPtr _ptr
 
-cdef class IENetLayer:
-    cdef C.CNNLayerPtr _ptr
-
 cdef class TensorDesc:
     cdef C.CTensorDesc impl
 

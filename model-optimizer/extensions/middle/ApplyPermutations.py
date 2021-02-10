@@ -143,6 +143,9 @@ class ApplyPermutation(MiddleReplacementPattern):
                         not is_input_data_in_correct_layout(node, in_port) and \
                         len(port_to_check.data.get_shape()) >= 4:
                     permutation(node, port_info, in_port)
+            if node.has_and_set('need_shape_inference'):
+                node.infer(node)
+                node.need_shape_inference = False
 
     @staticmethod
     def shape_of_sub_graph_reinference(graph: Graph):

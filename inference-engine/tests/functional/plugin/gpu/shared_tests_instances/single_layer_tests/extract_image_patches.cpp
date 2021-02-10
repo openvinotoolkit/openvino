@@ -64,6 +64,9 @@ INSTANTIATE_TEST_CASE_P(smoke_layers_GPU, ExtractImagePatchesTest,
             ::testing::ValuesIn(rates),
             ::testing::ValuesIn(autoPads),
             ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+            ::testing::Values(InferenceEngine::Layout::ANY),
             ::testing::Values(CommonTestUtils::DEVICE_GPU)),
         ExtractImagePatchesTest::getTestCaseName);
 

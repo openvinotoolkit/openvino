@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,9 +35,9 @@ namespace ngraph
             class NGRAPH_API NormalizeL2 : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"NormalizeL2", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                NormalizeL2() = default;
+                NGRAPH_RTTI_DECLARATION;
+
+                NormalizeL2();
                 ///
                 /// \brief      Constructs a Normalize operation.
                 ///

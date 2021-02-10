@@ -60,7 +60,7 @@ bool DynamicShapeResolver::visit_attributes(ngraph::AttributeVisitor&) {
     return true;
 }
 
-namespace {
+namespace dyn_shape {
 
 template<element::Type_t ET>
 bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
@@ -74,7 +74,7 @@ bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
     }
     size_t outputRank = data->get_shape()[0];
 
-    for (int i = 0; i < outputRank; i++) {
+    for (size_t i = 0; i < outputRank; i++) {
         result.push_back(dataPtr[i]);
     }
 
@@ -189,11 +189,11 @@ bool evaluateDynamicShapeResolver(const HostTensorPtr& inputTensor,
     return rc;
 }
 
-}  // namespace
+}  // namespace dyn_shape
 
 bool DynamicShapeResolver::evaluate(const HostTensorVector& outputs,
                                     const HostTensorVector& inputs) const {
-    return evaluateDynamicShapeResolver(inputs[0], inputs[1], outputs[0]);
+    return dyn_shape::evaluateDynamicShapeResolver(inputs[0], inputs[1], outputs[0]);
 }
 
 }  // namespace op

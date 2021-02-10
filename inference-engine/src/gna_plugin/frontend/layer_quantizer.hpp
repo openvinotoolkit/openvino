@@ -83,6 +83,10 @@ struct QuantI8  : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(I8), gna
     }
 };
 
+// for support proper trait instantiation for quantization function callback
+struct FakeQuantI16 : public QuantI16 {};
+struct FakeQuantI8 : public QuantI8 {};
+
 template <class A, class B>
 struct QuantPair {
     using MandatoryType = A;
@@ -115,7 +119,7 @@ inline bool shouldAlwaysAllocate<gna_compound_bias_t>() {
  */
 template <class T>
 class Quant {
- public:
+public:
     template<class ...Args>
     void operator()(Args && ... args) const { }
 };
@@ -125,7 +129,9 @@ class Quant<QuantI16> {
  public:
     template<class ...Args>
     void operator()(Args && ... args) const {
-        QuantizeAffine16(std::forward<Args>(args)...);
+        QuantizationCallback<int16_t, int32_t> {
+            std::forward<Args>(args)...
+        }.runQuantize();
     }
 };
 
@@ -134,9 +140,34 @@ class Quant<QuantI8> {
  public:
     template<class ...Args>
     void operator()(Args && ... args) const {
-        QuantizeAffine8(std::forward<Args>(args)...);
+        QuantizationCallback<int8_t, gna_compound_bias_t> {
+            std::forward<Args>(args)...
+        }.runQuantize();
     }
 };
+
+template<>
+class Quant<FakeQuantI16> {
+ public:
+    template<class ...Args>
+    void operator()(Args && ... args) const {
+        QuantizationCallback<int16_t, int32_t> {
+            std::forward<Args>(args)...
+        }.runFakeQuantize();
+    }
+};
+
+template<>
+class Quant<FakeQuantI8> {
+ public:
+    template<class ...Args>
+    void operator()(Args && ... args) const {
+        QuantizationCallback<int8_t, gna_compound_bias_t>{
+            std::forward<Args>(args)...
+        }.runFakeQuantize();
+    }
+};
+
 
 template <typename T>
 inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::Ptr fp32_blob, InferenceEngine::Precision precision, float scale_factor) {
@@ -242,7 +273,7 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
     if (InferenceEngine::CNNNetHasPrevLayer(wl)) {
         auto quantDataForInputLayer =
             InferenceEngine::getInjectedData<QuantizedLayerParams>(*InferenceEngine::CNNNetPrevLayer(wl).get());
-        input_scale_factor = quantDataForInputLayer->_dst_quant.scale;
+        input_scale_factor = quantDataForInputLayer->_dst_quant.GetScale();
         if (std::isnan(input_scale_factor) ||
             std::isinf(input_scale_factor)) {
             THROW_IE_EXCEPTION << "Unsupported input scale factor value " << input_scale_factor;
@@ -255,7 +286,7 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         THROW_IE_EXCEPTION << "Unsupported input dims size for " << wl->name << ", should be > 1, but " << wl->insData[0].lock().get()->getDims().size();
     }
     uint32_t num_rows = isDiagonal ? 1 : wl->outData[0]->getDims()[oIdx];
-    uint32_t num_columns = wl->insData[0].lock().get()->getDims()[iIdx];
+    uint32_t num_columns = isDiagonal ? wl->_weights->size() : wl->insData[0].lock().get()->getDims()[iIdx];
 
     if (LayerInfo(wl).isAffineFilter() || LayerInfo(wl).isConcatAlignFilter())  {
         // for affine filter layer insdata size not equal to actual coded in input layer
@@ -273,17 +304,26 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
     {
+        auto per_channel_weights = !quantData->_weights_quant.GetMinValues().empty();
+        auto weightsScale = quantData->_weights_quant.GetScale();
+        auto dstScale = quantData->_dst_quant.GetScale();
         fnc(wl->_weights->buffer().as<float *>(),
             wl->_biases ? wl->_biases->buffer().as<float *>() : nullptr,
             intWeights->buffer(),
             intBiases ? intBiases->buffer() : static_cast<BiasesPrecision *>(nullptr),
             input_scale_factor,
-            &quantData->_weights_quant.scale,
-            &quantData->_dst_quant.scale,
+            &weightsScale,
+            &dstScale,
             num_rows,
             num_columns,
             num_rows_padded,
-            num_columns_padded);
+            num_columns_padded,
+            quantData->_weights_quant.GetLevels(),
+            nullptr,
+            nullptr,
+            per_channel_weights ? &quantData->_weights_quant.GetMinValues().front(): nullptr,
+            per_channel_weights ? &quantData->_weights_quant.GetMaxValues().front(): nullptr,
+            &quantData->_weights_quantized);
     }
     wl->_weights = intWeights;
     wl->_biases = intBiases;
@@ -343,7 +383,7 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
     if (InferenceEngine::CNNNetHasPrevLayer(conv)) {
         auto quantDataForInputLayer =
             InferenceEngine::getInjectedData<QuantizedLayerParams>(*InferenceEngine::CNNNetPrevLayer(conv).get());
-        input_scale_factor = quantDataForInputLayer->_dst_quant.scale;
+        input_scale_factor = quantDataForInputLayer->_dst_quant.GetScale();
         if (std::isnan(input_scale_factor) ||
             std::isinf(input_scale_factor)) {
             THROW_IE_EXCEPTION << "Unsupported input scale factor value " << input_scale_factor;
@@ -370,13 +410,15 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*conv);
     {
+        auto weightsScale = quantData->_weights_quant.GetScale();
+        auto dstScale = quantData->_dst_quant.GetScale();
         fnc(conv->_weights->buffer().as<float *>(),
             conv->_biases ? conv->_biases->buffer().as<float *>() : nullptr,
             intWeights->buffer(),
             intBiases ? intBiases->buffer() : static_cast<BiasesPrecision *>(nullptr),
             input_scale_factor,
-            &quantData->_weights_quant.scale,
-            &quantData->_dst_quant.scale,
+            &weightsScale,
+            &dstScale,
             num_rows,
             num_columns,
             num_rows_padded,
@@ -434,7 +476,8 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
                 if (LayerInfo(*cnnLayer).isActivation() ||
                     LayerInfo(*cnnLayer).isCopy() ||
                     LayerInfo(*cnnLayer).isNonFunctional() ||
-                    LayerInfo(*cnnLayer).isPermute()) {
+                    LayerInfo(*cnnLayer).isPermute() ||
+                    LayerInfo(*cnnLayer).isConst()) {
                 // precision of activation layers is always equal input precision
                 for (auto &&outData : cnnLayer->outData) {
                     outData->setPrecision(Desc::mandatory().getInputPrecision());
@@ -443,11 +486,15 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
         }
         cnnLayer->precision = Desc::mandatory().getInputPrecision();
 
-        if (cnnLayer->type == "Const") {
-            if (cnnLayer->blobs["custom"]->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
+        if (LayerInfo(*cnnLayer).isConst()) {
+            auto initial_precision = cnnLayer->blobs["custom"]->getTensorDesc().getPrecision();
+            // TODO I32 must be handled separately when it'll be supported
+            IE_ASSERT(initial_precision != InferenceEngine::Precision::I32);
+
+            if (initial_precision == InferenceEngine::Precision::FP16) {
                 cnnLayer->blobs["custom"] = make_fp32_blob(cnnLayer->blobs["custom"]);
             }
-            auto const_scale_factor = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer)->_dst_quant.scale;
+            auto const_scale_factor = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer)->_dst_quant.GetScale();
             auto new_const_blob = InferenceEngine::Blob::CreateFromData(cnnLayer->outData[0]);
             auto const_blob = cnnLayer->blobs["custom"];
             if (const_blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
@@ -562,5 +609,10 @@ class LayersQuantizer : public frontend::DataQuantizerBase {
 
 using QuantI16 = frontend::QuantPair<frontend::QuantI16, frontend::QuantI16>;
 using QuantI8 = frontend::QuantPair<frontend::QuantI8, frontend::QuantI16>;
+
+
+using FakeQuantI16 = frontend::QuantPair<frontend::FakeQuantI16, frontend::FakeQuantI16>;
+using FakeQuantI8 = frontend::QuantPair<frontend::FakeQuantI8, frontend::FakeQuantI16>;
+
 
 }  // namespace GNAPluginNS

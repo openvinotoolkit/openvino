@@ -103,8 +103,10 @@ KernelsData PermuteKernelRef::GetKernelsData(const Params& params, const optiona
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc(1, false, false, GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return {kd};
+}
+
+KernelsPriority PermuteKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

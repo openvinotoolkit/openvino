@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "tensor.hpp"
+#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -49,7 +49,9 @@ size_t runtime::Tensor::get_size_in_bytes() const
 
 const std::string& runtime::Tensor::get_name() const
 {
+    NGRAPH_SUPPRESS_DEPRECATED_START
     return m_descriptor->get_name();
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 bool runtime::Tensor::get_stale() const

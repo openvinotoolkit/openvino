@@ -16,16 +16,7 @@
 
 set(TARGET_NAME itt)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
-file(GLOB_RECURSE SOURCES "src/*.cpp")
-
-if(ENABLE_PROFILING_ITT)
-    find_package(ITT)
-    if(NOT ITT_FOUND)
-        message(WARNING "Profiling option enabled, but no ITT library was found")
-    endif()
-endif()
+file(GLOB_RECURSE SOURCES "src/*.cpp" "src/*.hpp")
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 
@@ -42,3 +33,5 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

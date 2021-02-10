@@ -6,16 +6,16 @@
 
 #include <string>
 #include <memory>
-#include "ngraph_functions/low_precision_transformations/fuse_fake_quantize_and_scale_shift_function.hpp"
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "lpt_ngraph_functions/fuse_fake_quantize_and_scale_shift_function.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
+    ngraph::pass::low_precision::LayerTransformation::Params,
     ngraph::builder::subgraph::FakeQuantizeOnData> FuseFakeQuantizeAndScaleShiftTransformationParams;
 
 class FuseFakeQuantizeAndScaleShiftTransformation :
@@ -28,7 +28,7 @@ protected:
     void SetUp() override;
 
 private:
-    void validate(const std::string& referenceOutputLayerName);
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

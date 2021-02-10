@@ -27,7 +27,7 @@ public:
             conf.axis_index_ = conf.has_axis_ ?
                                 std::stoi(layer->params.at("axis")) :0;
 
-            addConfig(layer, {DataConfigurator(ConfLayout::PLN)}, {DataConfigurator(ConfLayout::PLN)});
+            addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

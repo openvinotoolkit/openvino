@@ -20,25 +20,19 @@ ParamsKey SoftmaxKernelRef::GetSupportedKey() const { return GetDefaultSupported
 
 SoftmaxKernelRef::Parent::DispatchData SoftmaxKernelRef::SetDefault(const softmax_params& params,
                                                                     const optional_params& optParams) const {
-    auto runInfo = Parent::SetDefault(params, optParams);
+    auto dispatchData = Parent::SetDefault(params, optParams);
 
-    const auto global = GetSoftmaxDimGlobalSizes(params.dim, params.output);
+    dispatchData.gws = GetSoftmaxDimGlobalSizes(params.dim, params.output);
 
-    assert(global.size() == 3);
+    assert(dispatchData.gws.size() == 3);
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
+    return dispatchData;
+}
 
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    runInfo.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
-    return runInfo;
+KernelsPriority SoftmaxKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 KernelsData SoftmaxKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {

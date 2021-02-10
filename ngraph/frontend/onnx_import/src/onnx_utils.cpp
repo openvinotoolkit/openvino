@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "onnx_import/onnx_utils.hpp"
-#include "onnx_import/ops_bridge.hpp"
+#include "ops_bridge.hpp"
 
 namespace ngraph
 {
@@ -27,6 +27,13 @@ namespace ngraph
                                Operator fn)
         {
             OperatorsBridge::register_operator(name, version, domain, std::move(fn));
+        }
+
+        void unregister_operator(const std::string& name,
+                                 std::int64_t version,
+                                 const std::string& domain)
+        {
+            OperatorsBridge::unregister_operator(name, version, domain);
         }
 
     } // namespace onnx_import

@@ -5,11 +5,11 @@
 #include <string>
 #include <fstream>
 
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ie_system_conf.h"
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 
 namespace LayerTestsDefinitions {
 
@@ -48,7 +48,7 @@ protected:
         auto mem_i = make_shared<op::v0::Constant>(type, shape, 0);
         auto mem_r = make_shared<op::v3::ReadValue>(mem_i, "id");
 
-        auto mul = make_shared<op::v0::Multiply>(mem_r, input);
+        auto mul = make_shared<op::v1::Multiply>(mem_r, input);
         auto sig = make_shared<op::v0::Sigmoid>(mul);
 
         auto fc1_w = make_shared<op::v0::Constant>(type, Shape{C, C}, 1);

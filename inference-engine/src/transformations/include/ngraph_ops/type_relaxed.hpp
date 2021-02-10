@@ -115,6 +115,9 @@ public:
     }
 };
 
+// TODO: remove once FusedOp is removed
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 /// Relaxes tensor element type requirements for BaseOp inputs and outputs
 /// This class template should be used with Node descendant class. Defines a new operation by extending the
 /// original BaseOp operation with ability to accept inputs and provide outputs with element type that is
@@ -183,12 +186,15 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         }
     }
 
+    NGRAPH_SUPPRESS_DEPRECATED_START
     BaseOp::validate_and_infer_types();
+    NGRAPH_SUPPRESS_DEPRECATED_END
 
     // Restore original input data types
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         BaseOp::get_input_tensor(i).set_tensor_type(old_input_types[i], BaseOp::get_input_partial_shape(i));
     }
+
 
     // Override (some) output types
     for (size_t i = 0; i < BaseOp::get_output_size(); ++i) {
@@ -228,6 +234,8 @@ const ::ngraph::Node::type_info_t& TypeRelaxed<BaseOp>::get_type_info_static() {
 
 template <typename BaseOp>
 const ::ngraph::Node::type_info_t TypeRelaxed<BaseOp>::type_info = TypeRelaxed<BaseOp>::get_type_info_static();
+
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 }  // namespace op
 }  // namespace ngraph

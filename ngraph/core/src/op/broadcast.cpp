@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/sum.hpp"
 #include "ngraph/partial_shape.hpp"
 
+#include <ngraph/validation_util.hpp>
 #include <numeric>
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
@@ -143,8 +143,26 @@ namespace
     }
 }
 
+bool op::v3::Broadcast::broadcast_evaluate(const HostTensorVector& outputs,
+                                           const HostTensorVector& inputs) const
+{
+    if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
+    {
+        auto arg_shape = inputs[0]->get_shape();
+        Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
+        PartialShape result_shape =
+            get_result_shape_bidirectional(this, PartialShape{arg_shape}, target_shape);
+        auto pair_broadcast_axes =
+            get_broadcast_axes_bidirectional(arg_shape, result_shape.to_shape());
+        return op::util::BroadcastBase::evaluate_broadcast(
+            inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
+    }
+    return op::util::BroadcastBase::evaluate(outputs, inputs);
+}
+
 void op::v3::Broadcast::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_Broadcast_validate_and_infer_types);
     if (m_mode.m_type == BroadcastType::NONE)
     {
         NODE_VALIDATION_CHECK(this,
@@ -168,8 +186,7 @@ void op::v3::Broadcast::validate_and_infer_types()
         {
             auto arg_shape = get_input_partial_shape(0);
 
-            const auto shape_constant =
-                as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+            const auto shape_constant = get_constant_from_source(input_value(1));
             if (shape_constant)
             {
                 auto target_shape = shape_constant->get_shape_val();
@@ -188,6 +205,7 @@ void op::v3::Broadcast::validate_and_infer_types()
 
 shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_Broadcast_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2)
     {
@@ -205,26 +223,16 @@ shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("broadcast_spec", m_mode);
+    NGRAPH_OP_SCOPE(v3_Broadcast_visit_attributes);
+    visitor.on_attribute("mode", m_mode);
     return true;
 }
 
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Broadcast::evaluate");
-    if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
-    {
-        auto arg_shape = inputs[0]->get_shape();
-        Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
-        PartialShape result_shape =
-            get_result_shape_bidirectional(this, PartialShape{arg_shape}, target_shape);
-        auto pair_broadcast_axes =
-            get_broadcast_axes_bidirectional(arg_shape, result_shape.to_shape());
-        return op::util::BroadcastBase::evaluate_broadcast(
-            inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
-    }
-    return op::util::BroadcastBase::evaluate(outputs, inputs);
+    NGRAPH_OP_SCOPE(v3_Broadcast_evaluate);
+    return broadcast_evaluate(outputs, inputs);
 }
 
 namespace
@@ -270,8 +278,29 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
 
 void op::v1::Broadcast::validate_and_infer_types()
 {
-    util::BroadcastBase::validate_and_infer_types();
+    NGRAPH_OP_SCOPE(v1_Broadcast_validate_and_infer_types);
+    // m_type is deduced and not always explicitly stated, for cases where broadcast
+    // has 2 inputs its always NUMPY mode
+    if (m_broadcast_spec.m_type == AutoBroadcastType::NONE && get_input_size() < 3)
+    {
+        m_broadcast_spec.m_type = AutoBroadcastType::NUMPY;
+    }
 
+    // Mocking axes_mapping input for cases that don't require it
+    if (m_broadcast_spec.m_type == AutoBroadcastType::NUMPY && get_input_size() < 3)
+    {
+        auto output = op::v0::Constant::create(element::u8, Shape{}, {0})->output(0);
+        set_argument(2, output);
+    }
+
+    // update the base class' mode spec
+    auto base_spec = to_broadcast_mode(m_broadcast_spec);
+    if (util::BroadcastBase::m_mode.m_type != base_spec.m_type)
+    {
+        util::BroadcastBase::m_mode = base_spec;
+    }
+
+    util::BroadcastBase::validate_and_infer_types();
     set_input_is_relevant_to_shape(0); // arg - Result element type
     set_input_is_relevant_to_shape(1); // target_shape - Result shape
     set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
@@ -279,6 +308,7 @@ void op::v1::Broadcast::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Broadcast_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Broadcast>(
         new_args.at(0), new_args.at(1), new_args.at(2), m_broadcast_spec);
@@ -286,209 +316,14 @@ shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("broadcast_spec", m_broadcast_spec);
+    NGRAPH_OP_SCOPE(v1_Broadcast_visit_attributes);
+    visitor.on_attribute("mode", m_broadcast_spec);
     return true;
 }
 
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Broadcast::evaluate");
+    NGRAPH_OP_SCOPE(v1_Broadcast_evaluate);
     return op::util::BroadcastBase::evaluate(outputs, inputs);
-}
-
-constexpr NodeTypeInfo op::v0::Broadcast::type_info;
-
-op::v0::Broadcast::Broadcast(const OutputVector& args,
-                             const Shape& shape,
-                             const AxisSet& broadcast_axes)
-    : Op(args)
-    , m_shape(shape)
-    , m_broadcast_axes(broadcast_axes)
-{
-    constructor_validate_and_infer_types();
-}
-
-op::v0::Broadcast::Broadcast(const Output<Node>& arg,
-                             const Shape& shape,
-                             const AxisSet& broadcast_axes)
-    : Broadcast(OutputVector{arg}, shape, broadcast_axes)
-{
-}
-
-bool op::v0::Broadcast::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("shape", m_shape);
-    visitor.on_attribute("broadcast_axes", m_broadcast_axes);
-    return true;
-}
-
-void op::v0::Broadcast::validate_and_infer_types()
-{
-    infer_shape();
-
-    for (auto axis : m_broadcast_axes)
-    {
-        NODE_VALIDATION_CHECK(this,
-                              axis < m_shape.size(),
-                              "Broadcast axis index (",
-                              axis,
-                              ") exceeds specified output shape rank ",
-                              "(broadcast axes: ",
-                              m_broadcast_axes,
-                              ", output shape: ",
-                              m_shape,
-                              ").");
-    }
-
-    Shape required_input_shape = m_shape;
-    for (auto i = m_broadcast_axes.rbegin(); i != m_broadcast_axes.rend(); ++i)
-    {
-        required_input_shape.erase(required_input_shape.begin() + *i);
-    }
-
-    // TODO(amprocte): We can probably have a more helpful error message here.
-    // There are two things that can go wrong, which are being picked up in
-    // one fell swoop by this check: either the number of broadcast axes is not
-    // enough, or there is a mismatch with one of the pre-broadcast axis lengths.
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(0).compatible(required_input_shape),
-        "Broadcast argument shape, specified output shape, and axes are incompatible ",
-        "(argument shape: ",
-        get_input_partial_shape(0),
-        ", output shape: ",
-        m_shape,
-        ", broadcast axes: ",
-        m_broadcast_axes,
-        ").");
-
-    set_output_type(0, get_input_element_type(0), m_shape);
-}
-
-shared_ptr<Node> op::v0::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::Broadcast>(new_args.at(0), m_shape, m_broadcast_axes);
-}
-
-namespace
-{
-#define TYPE_CASE_v0(a)                                                                            \
-    case element::Type_t::a: rc = evaluate_v0<element::Type_t::a>
-
-    template <element::Type_t ET>
-    inline bool evaluate_v0(const HostTensorPtr& arg0,
-                            const HostTensorPtr& out,
-                            const AxisSet& broadcast_axes)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::broadcast<T>((arg0->get_data_ptr<ET>()),
-                                         (out->get_data_ptr<ET>()),
-                                         arg0->get_shape(),
-                                         out->get_shape(),
-                                         broadcast_axes);
-        return true;
-    }
-
-    bool evaluate_broadcast_v0(const HostTensorPtr& arg0,
-                               const HostTensorPtr& out,
-                               const AxisSet broadcast_axes,
-                               const Shape output_shape)
-    {
-        bool rc = true;
-        Shape in_shape = arg0->get_shape();
-        out->set_shape(output_shape);
-        out->set_element_type(arg0->get_element_type());
-        switch (arg0->get_element_type())
-        {
-            TYPE_CASE_v0(boolean)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i8)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i32)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i64)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u8)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u32)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u64)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(bf16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(f16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(f32)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(f64)(arg0, out, broadcast_axes);
-            break;
-        default: rc = false; break;
-        }
-        return rc;
-    }
-}
-
-bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs,
-                                 const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Broadcast::evaluate");
-    return evaluate_broadcast_v0(inputs[0], outputs[0], get_broadcast_axes(), get_output_shape(0));
-}
-
-constexpr NodeTypeInfo op::v0::BroadcastLike::type_info;
-
-op::v0::BroadcastLike::BroadcastLike(const Output<Node>& arg,
-                                     const Output<Node>& like_arg,
-                                     const AxisSet& initial_broadcast_axes)
-    : op::v0::Broadcast({arg, like_arg}, {}, {})
-    , m_initial_broadcast_axes(initial_broadcast_axes)
-{
-    constructor_validate_and_infer_types();
-}
-
-bool op::v0::BroadcastLike::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("shape", m_shape);
-    visitor.on_attribute("broadcast_axes", m_broadcast_axes);
-    visitor.on_attribute("initial_broadcast_axes", m_initial_broadcast_axes);
-    return true;
-}
-
-shared_ptr<Node> op::v0::BroadcastLike::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    if (new_args.size() != 2)
-    {
-        throw ngraph_error("Incorrect number of new arguments");
-    }
-    return make_shared<v0::BroadcastLike>(new_args.at(0), new_args.at(1), m_initial_broadcast_axes);
-}
-
-void op::v0::BroadcastLike::infer_shape()
-{
-    const Shape& in_shape = get_input_shape(0);
-    m_shape = get_input_shape(1);
-    m_broadcast_axes = m_initial_broadcast_axes;
-    if (m_broadcast_axes.size() == 0)
-    {
-        for (size_t i = 0; i < m_shape.size(); ++i)
-        {
-            if (i < in_shape.size())
-            {
-                if (in_shape.at(i) == 1 && m_shape.at(i) > 1)
-                {
-                    m_broadcast_axes.insert(i);
-                }
-            }
-            else
-            {
-                m_broadcast_axes.insert(i);
-            }
-        }
-    }
 }

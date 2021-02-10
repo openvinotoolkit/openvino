@@ -544,7 +544,7 @@ static int wait_findopen(const char *device_address, int timeout, libusb_device 
     for(;;)
     {
         highres_gettime(&t1);
-        int addr_size = strlen(device_address);
+        int addr_size = (int)strlen(device_address);
 #if (!defined(_WIN32) && !defined(_WIN64) )
         rc = usb_find_device_with_bcd(0, (char*)device_address, addr_size, (void**)dev,
                                       DEFAULT_VID, get_pid_by_name(device_address), bcdusb);

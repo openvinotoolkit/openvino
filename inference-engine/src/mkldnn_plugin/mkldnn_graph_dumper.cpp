@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "mkldnn_graph_dumper.h"
 #include <legacy/cnn_network_impl.hpp>
 #include <legacy/ie_util_internal.hpp>
-#include <legacy/ie_ngraph_utils.hpp>
+#include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "mkldnn_debug.h"
 #include "generic_ie.hpp"
@@ -41,7 +41,7 @@ CNNLayer::Ptr create_cnnlayer(const MKLDNNNodePtr &node) {
     return layer;
 }
 
-std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
+InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
     std::map<MKLDNNNodePtr, std::shared_ptr<ngraph::Node> > node2layer;
 
     ngraph::ResultVector results;
@@ -142,7 +142,7 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
     return net;
 }
 
-std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
+InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
     net->setName(graph._name);
@@ -191,14 +191,12 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
         net->setInputInfo(in_info);
     }
 
-    return net;
+    return InferenceEngine::CNNNetwork{net};
 }
 
 void dump_graph_as_dot(const MKLDNNGraph &graph, std::ostream &out) {
-    auto dump_net = dump_graph_as_ie_net(graph);
-    if (dump_net == nullptr)
-        THROW_IE_EXCEPTION << "Nullable net dump";
-    InferenceEngine::saveGraphToDot(*dump_net, out, drawer_callback);
+    InferenceEngine::CNNNetwork dump_net = dump_graph_as_ie_net(graph);
+    InferenceEngine::saveGraphToDot(dump_net, out, drawer_callback);
 }
 
 //**********************************
@@ -252,13 +250,15 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
     serialization_info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
 
     std::string outputLayoutsStr;
-    auto outLayouts = node->getSelectedPrimitiveDescriptor()->getOutputLayouts();
-    if (!outLayouts.empty()) {
-        outputLayoutsStr = mkldnn_fmt2str(static_cast<mkldnn_memory_format_t>(outLayouts[0]));
+    auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
+
+    if (!outDescs.empty()) {
+        auto fmt0 = MKLDNNMemoryDesc(outDescs[0].desc).getFormat();
+        outputLayoutsStr = mkldnn::utils::fmt2str(fmt0);
 
         bool isAllEqual = true;
-        for (size_t i = 1; i < outLayouts.size(); i++) {
-            if (outLayouts[i - 1] != outLayouts[i]) {
+        for (size_t i = 1; i < outDescs.size(); i++) {
+            if (MKLDNNMemoryDesc(outDescs[i - 1].desc).getFormat() != MKLDNNMemoryDesc(outDescs[i].desc).getFormat()) {
                 isAllEqual = false;
                 break;
             }
@@ -266,11 +266,13 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
         // If all output layouts are the same, we store the name only once
         if (!isAllEqual) {
-            for (size_t i = 1; i < outLayouts.size(); i++)
-                outputLayoutsStr += "," + std::string(mkldnn_fmt2str(static_cast<mkldnn_memory_format_t>(outLayouts[i])));
+            for (size_t i = 1; i < outDescs.size(); i++) {
+                auto fmt = MKLDNNMemoryDesc(outDescs[i].desc).getFormat();
+                outputLayoutsStr += "," + std::string(mkldnn::utils::fmt2str(fmt));
+            }
         }
     } else {
-        outputLayoutsStr = mkldnn_fmt2str(mkldnn_format_undef);
+        outputLayoutsStr = mkldnn::utils::fmt2str(mkldnn::memory::format_tag::undef);
     }
     serialization_info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = outputLayoutsStr;
 
@@ -282,6 +284,8 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
     }
 
     serialization_info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
+
+    serialization_info[ExecGraphInfoSerialization::RUNTIME_PRECISION] = node->getRuntimePrecision().name();
 
     return serialization_info;
 }

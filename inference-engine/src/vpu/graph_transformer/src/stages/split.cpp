@@ -153,14 +153,44 @@ Stage StageBuilder::addSplitStage(
         const DataVector& outputs) {
     std::vector<DimValues> offsets;
     offsets.reserve(outputs.size());
-
     DimValues curOffset({{axis, 0}});
-    for (const auto& output : outputs) {
-        offsets.emplace_back(curOffset);
-        curOffset.set(axis, curOffset[axis] + output->desc().dim(axis));
+
+    const auto haveUnusedOutput = [](const DataVector& outputs) {
+        return std::any_of(outputs.begin(), outputs.end(), [](const vpu::Data& out) {
+            return out == nullptr;
+        });
+    };
+
+    std::vector<size_t> outAxisSizes;
+    if (haveUnusedOutput(outputs)) {
+        VPU_THROW_UNLESS(layer != nullptr,
+            "Can't build split stage whith name {} with unused outputs when layer == nullptr", name);
+        const auto outDimsSize = layer->outData[0]->getDims().size();
+        const int idx = dimToIeInd(axis, outDimsSize);
+        outAxisSizes.reserve(outDimsSize);
+        for (const auto& out : layer->outData) {
+            VPU_THROW_UNLESS(idx <= out->getDims().size(),
+                "Split stage with name {} and type {} can't have idx = {} when out dimensions size = {}",
+                layer->name, layer->type, idx, out->getDims().size());
+            outAxisSizes.push_back(out->getDims()[idx]);
+        }
+    } else {
+        outAxisSizes.reserve(outputs.size());
+        for (const auto& output : outputs) {
+            outAxisSizes.push_back(output->desc().dim(axis));
+        }
     }
 
-    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs);
+    vpu::DataVector usedOutputs;
+    for (int i = 0; i < outputs.size(); ++i) {
+        if (outputs[i] != nullptr) {
+            offsets.emplace_back(curOffset);
+            usedOutputs.push_back(outputs[i]);
+        }
+        curOffset.set(axis, curOffset[axis] + outAxisSizes[i]);
+    }
+
+    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, usedOutputs);
 
     stage->attrs().set("axis", axis);
 
