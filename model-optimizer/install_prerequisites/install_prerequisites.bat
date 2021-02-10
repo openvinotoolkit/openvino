@@ -35,7 +35,7 @@ for /F "tokens=1,2,3 delims=. " %%a in ("%version%") do (
 
 if "%Major%" geq "3" (
    if "%Minor%" geq "5" (
-	  set python_ver=okay
+    set python_ver=okay
    )
 )
 if not "%python_ver%"=="okay" (
@@ -77,21 +77,67 @@ IF /I "%1%" EQU "" (
  )
 )
 
-
 pip3 install --user -r ..\requirements%postfix%.txt
 
-:: Check IE Python bindings
+:: Find or install IE Python bindings
+set errorlevel=
 python %~dp0..\mo\utils\find_ie_version.py
-IF %ERRORLEVEL% NEQ 0 (
-   pip3 install openvino
-   python %~dp0..\mo\utils\find_ie_version.py
-   IF %ERRORLEVEL% NEQ 0 (
-      echo [ WARNING ] No compatible OpenVINO python version was found
-   )
+IF %errorlevel% EQU 0 goto ie_search_end
+
+set errorlevel=
+pip3 show openvino
+IF %errorlevel% EQU 0 (
+    echo [ WARNING ] Existing OpenVINO version doesn't work as expected
+    echo [ WARNING ] Please build IneferenceEngine Python bindings from source
+    goto ie_search_end
 )
 
+set python_command='python -c "import sys; import os; sys.path.append(os.path.join(os.pardir)); from mo.utils.version import extract_release_version; print(\"{}.{}\".format(*extract_release_version()))"'
+FOR /F "delims=" %%i IN (%python_command%) DO set version=%%i
+IF "%version%" EQU "None.None" (
+    echo [ WARNING ] Can not extract release version from ModelOptimizer version. The latest OpenVINO version will be installed that may be incompatible with current ModelOptimizer version
+    goto install_last_ov
+)
+
+set errorlevel=
+pip3 install openvino==%version%
+IF %errorlevel% NEQ 0 (
+    echo [ WARNING ] Can not find OpenVINO version that matches ModelOptimizer version. The latest OpenVINO version will be installed that may be incompatible with current ModelOptimizer version
+    goto install_last_ov
+)
+
+set errorlevel=
+python %~dp0..\mo\utils\find_ie_version.py
+IF %errorlevel% EQU 0 goto ie_search_end
+
+echo [ WARNING ] Installed OpenVINO version doesn't work as expected...Uninstalling
+pip3 uninstall -y openvino
+echo [ WARNING ] Please build IneferenceEngine Python bindings from source
+goto ie_search_end
+
+:install_last_ov
+set errorlevel=
+pip3 install openvino
+IF %errorlevel% NEQ 0 (
+    echo [ WARNING ] No OpenVINO version is available for installation
+    echo [ WARNING ] Please build IneferenceEngine Python bindings from source
+    goto ie_search_end
+)
+
+set errorlevel=
+python %~dp0..\mo\utils\find_ie_version.py
+IF %errorlevel% EQU 0 goto ie_search_end
+
+echo [ WARNING ] Installed OpenVINO version doesn't work as expected...Uninstalling
+pip3 uninstall -y openvino
+echo [ WARNING ] Please build IneferenceEngine Python bindings from source
+goto ie_search_end
+
+:ie_search_end
+
 echo *****************************************************************************************
-echo Optional: To speed up model conversion process, install protobuf-*.egg located in the
+echo Warning: please expect that Model Optimizer conversion might be slow.
+echo You can boost conversion speed by installing protobuf-*.egg located in the
 echo "model-optimizer\install_prerequisites" folder or building protobuf library from sources.
 echo For more information please refer to Model Optimizer FAQ, question #80.
 
