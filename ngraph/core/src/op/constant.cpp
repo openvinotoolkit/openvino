@@ -630,11 +630,6 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
     NGRAPH_OP_SCOPE(v0_Constant_visit_attributes);
     visitor.on_attribute("element_type", m_element_type);
     visitor.on_attribute("shape", m_shape);
-    if (m_data == nullptr)
-    {
-        // Filling in a fresh constant
-        allocate_buffer();
-    }
     visitor.on_attribute("value", m_data);
     return true;
 }
