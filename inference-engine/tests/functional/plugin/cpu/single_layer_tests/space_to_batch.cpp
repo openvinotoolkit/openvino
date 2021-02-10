@@ -45,9 +45,13 @@ protected:
         std::vector<int64_t> blockShape, padsBegin, padsEnd;
         InferenceEngine::Precision netPrecision;
         std::tie(blockShape, padsBegin, padsEnd, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = basicParamsSet;
-
         inPrc = outPrc = netPrecision;
-        selectedType = std::string("unknown_") + netPrecision.name();
+
+        if (strcmp(netPrecision.name(), "U8") == 0)
+            selectedType = std::string("unknown_") + "I8";
+        else
+            selectedType = std::string("unknown_") + netPrecision.name();
+
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
@@ -69,6 +73,7 @@ TEST_P(SpaceToBatchCPULayerTest, CompareWithRefs) {
 namespace {
 
 const std::vector<Precision> precisions = {
+        Precision::U8,
         Precision::I8,
         Precision::I32,
         Precision::FP32,
