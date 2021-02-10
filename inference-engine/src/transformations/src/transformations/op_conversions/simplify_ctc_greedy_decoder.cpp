@@ -18,15 +18,15 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
     auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        auto decoder_v6 = std::dynamic_pointer_cast<opset6::CTCGreedyDecoderSeqLen> (m.get_match_root());
-        if (!decoder_v6) {
+        auto decoder_seq_len = std::dynamic_pointer_cast<opset6::CTCGreedyDecoderSeqLen> (m.get_match_root());
+        if (!decoder_seq_len) {
             return false;
         }
-        element::Type seq_len_type = decoder_v6->input_value(1).get_element_type();
-        auto transpose = std::make_shared<ngraph::opset6::Transpose>(decoder_v6->input_value(0),
+        element::Type seq_len_type = decoder_seq_len->input_value(1).get_element_type();
+        auto transpose = std::make_shared<ngraph::opset6::Transpose>(decoder_seq_len->input_value(0),
                                                                      ngraph::opset6::Constant::create(element::i32,
                                                                Shape({3}), {1, 0, 2}));
-        auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(decoder_v6->input_value(0));
+        auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(decoder_seq_len->input_value(0));
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
         auto T = std::make_shared<ngraph::opset6::Gather>(data_shape, indexT, axisT);
@@ -47,7 +47,7 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
                 OutputVector{T->output(0), N->output(0)}, 0);
 
         auto upper_bounds = std::make_shared<ngraph::opset6::Broadcast>(
-                decoder_v6->input_value(1), mask_shape->output(0));
+                decoder_seq_len->input_value(1), mask_shape->output(0));
         auto transpose_upper_bounds = std::make_shared<ngraph::opset6::Transpose>(upper_bounds->output(0),
                                                                                   ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                    Shape({2}), {1, 0}));
@@ -61,18 +61,18 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
                                                                               ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                Shape({2}), {1, 0}));
         auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), element::f32);
-        auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
+        auto decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
                                                                                      transpose_seq_mask_f32->output(0),
-                                                                                     decoder_v6->get_merge_repeated());
-        simplified_decoder->set_friendly_name(decoder_v6->get_friendly_name());
+                                                                                     decoder_seq_len->get_merge_repeated());
+        decoder->set_friendly_name(decoder_seq_len->get_friendly_name());
 
         auto squeeze2_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {3});
-        auto squeeze2_output_f = std::make_shared<ngraph::opset6::Squeeze>(simplified_decoder->output(0), squeeze2_axis);
+        auto squeeze2_output_f = std::make_shared<ngraph::opset6::Squeeze>(decoder->output(0), squeeze2_axis);
         auto squeeze1_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {2});
         auto squeeze1_output_f = std::make_shared<ngraph::opset6::Squeeze>(squeeze2_output_f->output(0), squeeze1_axis);
 
-        element::Type ci_type = decoder_v6->get_classes_index_type();
-        element::Type sl_type = decoder_v6->get_sequence_length_type();
+        element::Type ci_type = decoder_seq_len->get_classes_index_type();
+        element::Type sl_type = decoder_seq_len->get_sequence_length_type();
         auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), ci_type);
         auto minus1 = opset6::Constant::create(ci_type, Shape{}, {-1});
         auto where_equal_minus1 = std::make_shared<ngraph::opset6::Equal>(output_i, minus1);
@@ -83,13 +83,13 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
         auto seq_mask_axis = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
         auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
-        ngraph::copy_runtime_info(decoder_v6, {transpose, simplified_decoder, data_shape, T, N, plusT, plusT_scalar, range1T, mask_shape, upper_bounds,
+        ngraph::copy_runtime_info(decoder_seq_len, {transpose, decoder, data_shape, T, N, plusT, plusT_scalar, range1T, mask_shape, upper_bounds,
                                                squeeze2_output_f, squeeze1_output_f, transpose_upper_bounds, bool_seq_mask, seq_mask, transpose_seq_mask,
                                                transpose_seq_mask_f32, output_i, where_equal_minus1, output_seq_mask, output_seq_len, output_seq_len_i});
 
-        output_i->set_friendly_name(decoder_v6->get_friendly_name()+".0");
-        output_seq_len_i->set_friendly_name(decoder_v6->get_friendly_name()+".1");
-        ngraph::replace_node(decoder_v6, {output_i->output(0), output_seq_len_i->output(0)});
+        output_i->set_friendly_name(decoder_seq_len->get_friendly_name()+".0");
+        output_seq_len_i->set_friendly_name(decoder_seq_len->get_friendly_name()+".1");
+        ngraph::replace_node(decoder_seq_len, {output_i->output(0), output_seq_len_i->output(0)});
 
         return true;
     };

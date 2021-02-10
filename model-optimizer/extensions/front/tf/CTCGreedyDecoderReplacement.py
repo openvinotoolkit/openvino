@@ -29,13 +29,7 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
     """
     TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine and
     Inference Engine's CTCGreedyDecoder has different output that is in a dense format. So this transformation
-    intents to replace TF CTCGreedyDecoder+SparseToDense with IE one.
-    Also Inference Engine's CTCGreedyDecoder has a specific format for the second input tensor, a sequence length,
-    different from TF's one so this transformation cares about transformation of its format.
-    The second input to the CTCGreedyDecoder in the TensorFlow is a 1D tensor with sequence lengths. In the Inference
-    Engine the second input to the CTCGreedyDecoder is a 2D tensor, a sequence mask, where the first element
-    in each row is equal to 1 and all others in the tail are equal to 0. The number of ones represents
-    a sequence length.
+    intents to replace TF CTCGreedyDecoder+SparseToDense to CTCGreedyDecoderSeqLen which compatible with IE.
     """
     enabled = True
 
@@ -59,6 +53,8 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         cast = match['cast']
         sparse_to_dense = match['sparse_to_dense']
 
+        # for normalizing input chanel need to transpose input data from [T, N, C] to [N, T, C]
+        # which supported CTCGreedyDecoderSeqLen op.
         ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
                                                             {'name': ctc_greedy_decoder_tf.name + '/ctc_data_permute'})
         ctc_greedy_decoder_tf.in_port(0).get_source().connect(ctc_data_permute.in_port(0))
