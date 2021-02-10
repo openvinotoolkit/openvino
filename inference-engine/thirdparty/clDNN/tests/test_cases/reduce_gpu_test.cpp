@@ -1689,18 +1689,18 @@ public:
         }
 
         std::vector<cldnn::reduce_mode> modes {
-            reduce_mode::max,
-            reduce_mode::min,
-            reduce_mode::mean,
+            cldnn::reduce_mode::max,
+            cldnn::reduce_mode::min,
+            cldnn::reduce_mode::mean,
             // reduce_mode::prod,
-            reduce_mode::sum,
-            reduce_mode::logical_and,
-            reduce_mode::logical_or,
+            cldnn::reduce_mode::sum,
+            cldnn::reduce_mode::logical_and,
+            cldnn::reduce_mode::logical_or,
             // reduce_mode::sum_square,
-            reduce_mode::l1,
+            cldnn::reduce_mode::l1,
             // reduce_mode::l2,
             // reduce_mode::log_sum,
-            reduce_mode::log_sum_exp
+            cldnn::reduce_mode::log_sum_exp
         };
 
         for (auto& target_mode : modes)
