@@ -36,7 +36,6 @@ function(build_with_lto)
     endif()
 
     add_subdirectory(pugixml)
-    add_subdirectory(stb_lib)
     add_subdirectory(ade)
     add_subdirectory(fluid/modules/gapi)
 
