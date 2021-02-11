@@ -36,7 +36,7 @@ The ROI coordinates are specified as five element tuples: `[batch_id, x_1, y_1, 
 * *group_size*
 
   * **Description**: *group_size* is the number of horizontal bins per row to divide single ROI area. Total number of bins can be calculated as `group_size*group_size`. It defines pooled width and height, so output `H_out` and `W_out` dimensions (always equal).
-  Squared `group_size` is also the number to divide input channels `C_in` dimension and split it into `C_in \\ group_size*group_size` groups.
+  Square of the `group_size` is also the number to divide input channels `C_in` dimension and split it into `C_in \\ group_size*group_size` groups.
   Each group corresponds to the exactly one output channel and ROI's bins are spread over input channel group members.
 
   * **Range of values**: a positive integer
