@@ -79,9 +79,15 @@ class CTCLossReplacement(FrontReplacementSubgraph):
 
         # set output of the new sub-graph as a source for SparseToDense consumer
         output_ctc_loss_name = ctc_loss_tf.soft_get('name', ctc_loss_tf.id)
-        ctc_merge_repeated = ctc_loss_tf.soft_get('ctc_merge_repeated', ctc_loss_tf.id)
-        preprocess_collapse_repeated = ctc_loss_tf.soft_get('preprocess_collapse_repeated', ctc_loss_tf.id)
-        unique = ctc_loss_tf.soft_get('unique', ctc_loss_tf.id)
+        assert ctc_loss_tf.has_valid('preprocess_collapse_repeated'), \
+            'The CTCLoss node "{}" misses "preprocess_collapse_repeated" attribute'.format(output_ctc_loss_name)
+        assert ctc_loss_tf.has_valid('ctc_merge_repeated'), \
+            'The CTCLoss node "{}" misses "ctc_merge_repeated" attribute'.format(output_ctc_loss_name)
+        assert ctc_loss_tf.has_valid('unique'), \
+            'The CTCLoss node "{}" misses "unique" attribute'.format(output_ctc_loss_name)
+        preprocess_collapse_repeated = ctc_loss_tf.preprocess_collapse_repeated
+        ctc_merge_repeated = ctc_loss_tf.ctc_merge_repeated
+        unique = ctc_loss_tf.unique
         ctc_loss = CTCLoss(graph, {'name': output_ctc_loss_name,
                                    'preprocess_collapse_repeated': preprocess_collapse_repeated,
                                    'ctc_merge_repeated': ctc_merge_repeated,

@@ -28,7 +28,7 @@ from mo.ops.result import Result
 class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
     """
     TensorFlow CTCGreedyDecoder produces output in a sparse tensor that is not supported by Inference Engine and
-    Inference Engine's CTCGreedyDecoder has different output that is in a dense format. So this transformation
+    Inference Engine's CTCGreedyDecoderSeqLen has different output that is in a dense format. So this transformation
     intents to replace TF CTCGreedyDecoder+SparseToDense to CTCGreedyDecoderSeqLen which compatible with IE.
     """
     enabled = True
@@ -48,7 +48,6 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         )
 
     def replace_sub_graph(self, graph: Graph, match: dict):
-        # TODO: Once Inference Engine's CTCGreedyDecoder starts to support sequence length format like in TensorFlow,
         ctc_greedy_decoder_tf = match['decoder']
         cast = match['cast']
         sparse_to_dense = match['sparse_to_dense']
@@ -63,10 +62,9 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
                                                               'cmerge_repeated': merge_repeated_tf}).create_node()
         ctc_greedy_decoder.in_port(0).connect(ctc_data_permute.out_port(0))
         ctc_greedy_decoder_tf.in_port(1).get_source().connect(ctc_greedy_decoder.in_port(1))
-        ctc_res1 = Result(graph, {'name': ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id) + '/Result'}).create_node()
+
         # set output of the new sub-graph as a source for SparseToDense consumer
         sparse_to_dense.out_port(0).get_connection().set_source(ctc_greedy_decoder.out_port(0))
-        ctc_res1.in_port(0).get_connection().set_source(ctc_greedy_decoder.out_port(1))
 
         # remove no longer needed nodes
         graph.remove_nodes_from([sparse_to_dense.id, cast.id, ctc_greedy_decoder_tf.id])

@@ -36,7 +36,6 @@ class CTCGreedyDecoderReplacementTests(unittest.TestCase):
             'cast': {'kind': 'op', 'op': 'Cast'},
             'sparse_to_dense': {'kind': 'op', 'op': 'SparseToDense'},
             'last': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
-            'last2': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
 
             # new nodes
             'new_decoder': {'kind': 'op', 'op': 'CTCGreedyDecoderSeqLen', 'use_mask_format': True},
@@ -63,7 +62,6 @@ class CTCGreedyDecoderReplacementTests(unittest.TestCase):
                                  ('transpose', 'decoder', {'out': 0, 'in': 0}),
                                  ('seq_len', 'decoder', {'out': 0, 'in': 1}),
                                  ('decoder', 'last', {'out': 0, 'in': 0}),
-                                 ('decoder', 'last2', {'out': 1, 'in': 0}),
                                  ],
                                 nodes_with_edges_only=True)
 
