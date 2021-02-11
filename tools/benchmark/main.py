@@ -11,8 +11,8 @@ from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, config_network_inputs, get_number_iterations, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
-    get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, update_shapes, \
-    adjust_shapes_batch, load_config, dump_config
+    get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, get_inputs_info, \
+    get_batch_size, load_config, dump_config
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 
@@ -193,15 +193,10 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            shapes = {k: v.input_data.shape.copy() for k, v in ie_network.input_info.items()}
-            reshape = False
-            if args.shape:
-                reshape |= update_shapes(shapes, args.shape, ie_network.input_info)
-            if args.batch_size and args.batch_size != ie_network.batch_size:
-                reshape |= adjust_shapes_batch(shapes, args.batch_size, ie_network.input_info)
-
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, ie_network.input_info)
             if reshape:
                 start_time = datetime.utcnow()
+                shapes = { k : v.shape for k,v in app_inputs_info.items() }
                 logger.info(
                     'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, v) for k, v in shapes.items())))
                 ie_network.reshape(shapes)
@@ -213,13 +208,15 @@ def run(args):
                                                   ('reshape network time (ms)', duration_ms)
                                               ])
 
-            batch_size = ie_network.batch_size
-            logger.info('Network batch size: {}'.format(ie_network.batch_size))
+            # use batch size according to provided layout and shapes
+            batch_size = get_batch_size(app_inputs_info) if args.layout else ie_network.batch_size
+
+            logger.info('Network batch size: {}'.format(batch_size))
 
             # --------------------- 6. Configuring input of the model --------------------------------------------------
             next_step()
 
-            config_network_inputs(ie_network)
+            config_network_inputs(ie_network, app_inputs_info)
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
@@ -253,6 +250,7 @@ def run(args):
                                           [
                                               ('import network time (ms)', duration_ms)
                                           ])
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, exe_network.input_info)
             if batch_size == 0:
                 batch_size = 1
 
@@ -277,7 +275,7 @@ def run(args):
         if args.paths_to_input:
             for path in args.paths_to_input:
                 paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
-        set_inputs(paths_to_input, batch_size, exe_network.input_info, infer_requests)
+        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,

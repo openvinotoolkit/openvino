@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -320,6 +320,8 @@ int main(int argc, char *argv[]) {
         size_t batchSize = FLAGS_b;
         Precision precision = Precision::UNSPECIFIED;
         std::string topology_name = "";
+        benchmark_app::InputsInfo app_inputs_info;
+        std::string output_name;
         if (!isNetworkCompiled) {
             // ----------------- 4. Reading the Intermediate Representation network ----------------------------------------
             next_step();
@@ -345,15 +347,12 @@ int main(int argc, char *argv[]) {
             next_step();
             batchSize = cnnNetwork.getBatchSize();
             // Parse input shapes if specified
-            InferenceEngine::ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
             bool reshape = false;
-            if (!FLAGS_shape.empty()) {
-                reshape |= updateShapes(shapes, FLAGS_shape, inputInfo);
-            }
-            if ((FLAGS_b != 0) && (batchSize != FLAGS_b)) {
-                reshape |= adjustShapesBatch(shapes, FLAGS_b, inputInfo);
-            }
+            app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape, FLAGS_layout, FLAGS_b, inputInfo, reshape);
             if (reshape) {
+                InferenceEngine::ICNNNetwork::InputShapes shapes = {};
+                for (auto& item : app_inputs_info)
+                    shapes[item.first] = item.second.shape;
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
                 cnnNetwork.reshape(shapes);
@@ -365,7 +364,9 @@ int main(int argc, char *argv[]) {
                                                     {"reshape network time (ms)", duration_ms}
                                             });
             }
-            batchSize = cnnNetwork.getBatchSize();
+            // use batch size according to provided layout and shapes
+            batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info) : cnnNetwork.getBatchSize();
+
             topology_name = cnnNetwork.getName();
             slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize << slog::endl;
 
@@ -373,9 +374,10 @@ int main(int argc, char *argv[]) {
             next_step();
 
             for (auto& item : inputInfo) {
-                if (isImage(item.second)) {
+                if (app_inputs_info.at(item.first).isImage()) {
                     /** Set the precision of input data provided by the user, should be called before load of the network to the device **/
-                    item.second->setPrecision(Precision::U8);
+                    app_inputs_info.at(item.first).precision = Precision::U8;
+                    item.second->setPrecision(app_inputs_info.at(item.first).precision);
                 }
             }
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
@@ -407,6 +409,7 @@ int main(int argc, char *argv[]) {
                                           {
                                                   {"import network time (ms)", duration_ms}
                                           });
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape, FLAGS_layout, FLAGS_b, exeNetwork.GetInputsInfo());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -485,8 +488,7 @@ int main(int argc, char *argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
-        const InferenceEngine::ConstInputsDataMap info(exeNetwork.GetInputsInfo());
-        fillBlobs(inputFiles, batchSize, info, inferRequestsQueue.requests);
+        fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
 
         // ----------------- 10. Measuring performance ------------------------------------------------------------------
         size_t progressCnt = 0;

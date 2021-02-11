@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,7 @@ std::vector<std::string> filterFilesByExtensions(const std::vector<std::string>&
 void fillBlobImage(Blob::Ptr& inputBlob,
                   const std::vector<std::string>& filePaths,
                   const size_t& batchSize,
-                  const InputInfo& info,
+                  const benchmark_app::InputInfo& app_info,
                   const size_t& requestId,
                   const size_t& inputId,
                   const size_t& inputSize) {
@@ -60,7 +60,6 @@ void fillBlobImage(Blob::Ptr& inputBlob,
     // locked memory holder should be alive all time while access to its buffer happens
     auto minputHolder = minput->wmap();
     auto inputBlobData = minputHolder.as<uint8_t *>();
-    const TensorDesc& inputBlobDesc = inputBlob->getTensorDesc();
 
     /** Collect images data ptrs **/
     std::vector<std::shared_ptr<uint8_t>> vreader;
@@ -77,24 +76,30 @@ void fillBlobImage(Blob::Ptr& inputBlob,
         }
 
         /** Getting image data **/
-        TensorDesc desc = info.getTensorDesc();
-        std::shared_ptr<uint8_t> imageData(reader->getData(getTensorWidth(desc), getTensorHeight(desc)));
+        std::shared_ptr<uint8_t> imageData(reader->getData(app_info.width(), app_info.height()));
         if (imageData) {
             vreader.push_back(imageData);
         }
     }
 
     /** Fill input tensor with images. First b channel, then g and r channels **/
-    const size_t numChannels = getTensorChannels(inputBlobDesc);
-    const size_t imageSize = getTensorWidth(inputBlobDesc) * getTensorHeight(inputBlobDesc);
+    const size_t numChannels = app_info.channels();
+    const size_t width = app_info.width();
+    const size_t height = app_info.height();
     /** Iterate over all input images **/
     for (size_t imageId = 0; imageId < vreader.size(); ++imageId) {
-        /** Iterate over all pixel in image (b,g,r) **/
-        for (size_t pid = 0; pid < imageSize; pid++) {
-            /** Iterate over all channels **/
-            for (size_t ch = 0; ch < numChannels; ++ch) {
-                /**          [images stride + channels stride + pixel id ] all in bytes            **/
-                inputBlobData[imageId * imageSize * numChannels + ch * imageSize + pid] = vreader.at(imageId).get()[pid*numChannels + ch];
+        /** Iterate over all width **/
+        for (size_t w = 0; w < app_info.width(); ++w) {
+            /** Iterate over all height **/
+            for (size_t h = 0; h < app_info.height(); ++h) {
+                /** Iterate over all channels **/
+                for (size_t ch = 0; ch < numChannels; ++ch) {
+                    /**          [images stride + channels stride + pixel id ] all in bytes            **/
+                    size_t offset = imageId * numChannels * width * height +
+                            (((app_info.layout == "NCHW") || (app_info.layout == "CHW")) ?
+                             (ch * width * height + h * width + w) : (h * width * numChannels + w * numChannels + ch));
+                    inputBlobData[offset] = vreader.at(imageId).get()[h * width * numChannels + w * numChannels + ch];
+                }
             }
         }
     }
@@ -185,24 +190,23 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
 
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
-               const InferenceEngine::ConstInputsDataMap& info,
+               benchmark_app::InputsInfo& app_inputs_info,
                std::vector<InferReqWrap::Ptr> requests) {
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
-    for (const ConstInputsDataMap::value_type& item : info) {
-        if (isImage(item.second)) {
-            input_image_sizes.push_back(std::make_pair(getTensorWidth(item.second->getTensorDesc()),
-                                                       getTensorHeight(item.second->getTensorDesc())));
+    for (auto& item : app_inputs_info) {
+        if (item.second.isImage()) {
+            input_image_sizes.push_back(std::make_pair(item.second.width(), item.second.height()));
         }
-        slog::info << "Network input '" << item.first << "' precision " << item.second->getTensorDesc().getPrecision()
-                                                      << ", dimensions (" << item.second->getTensorDesc().getLayout() << "): ";
-        for (const auto& i : item.second->getTensorDesc().getDims()) {
+        slog::info << "Network input '" << item.first << "' precision " << item.second.precision
+                                                      << ", dimensions (" << item.second.layout << "): ";
+        for (const auto& i : item.second.shape) {
             slog::info << i << " ";
         }
         slog::info << slog::endl;
     }
 
     size_t imageInputCount = input_image_sizes.size();
-    size_t binaryInputCount = info.size() - imageInputCount;
+    size_t binaryInputCount = app_inputs_info.size() - imageInputCount;
 
     std::vector<std::string> binaryFiles;
     std::vector<std::string> imageFiles;
@@ -258,26 +262,28 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
 
         size_t imageInputId = 0;
         size_t binaryInputId = 0;
-        for (const ConstInputsDataMap::value_type& item : info) {
+        for (auto& item : app_inputs_info) {
             Blob::Ptr inputBlob = requests.at(requestId)->getBlob(item.first);
-            if (isImage(inputBlob)) {
+            auto app_info = app_inputs_info.at(item.first);
+            auto precision = app_info.precision;
+            if (app_info.isImage()) {
                 if (!imageFiles.empty()) {
                     // Fill with Images
-                    fillBlobImage(inputBlob, imageFiles, batchSize, *item.second, requestId, imageInputId++, imageInputCount);
+                    fillBlobImage(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
                     continue;
                 }
             } else {
                 if (!binaryFiles.empty()) {
                     // Fill with binary files
-                    if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
+                    if (precision == InferenceEngine::Precision::FP32) {
                         fillBlobBinary<float>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
+                    } else if (precision == InferenceEngine::Precision::FP16) {
                         fillBlobBinary<short>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
+                    } else if (precision == InferenceEngine::Precision::I32) {
                         fillBlobBinary<int32_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::I64) {
+                    } else if (precision == InferenceEngine::Precision::I64) {
                         fillBlobBinary<int64_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
+                    } else if (precision == InferenceEngine::Precision::U8) {
                         fillBlobBinary<uint8_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
                     } else {
                         THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
@@ -285,18 +291,18 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                     continue;
                 }
 
-                if (isImageInfo(inputBlob) && (input_image_sizes.size() == 1)) {
+                if (app_info.isImageInfo() && (input_image_sizes.size() == 1)) {
                     // Most likely it is image info: fill with image information
                     auto image_size = input_image_sizes.at(0);
                     slog::info << "Fill input '" << item.first << "' with image size " << image_size.first << "x"
                                                                                        << image_size.second << slog::endl;
-                    if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
+                    if (precision == InferenceEngine::Precision::FP32) {
                         fillBlobImInfo<float>(inputBlob, batchSize, image_size);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
+                    } else if (precision == InferenceEngine::Precision::FP16) {
                         fillBlobImInfo<short>(inputBlob, batchSize, image_size);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
+                    } else if (precision == InferenceEngine::Precision::I32) {
                         fillBlobImInfo<int32_t>(inputBlob, batchSize, image_size);
-                    } else if (item.second->getPrecision() == InferenceEngine::Precision::I64) {
+                    } else if (precision == InferenceEngine::Precision::I64) {
                         fillBlobImInfo<int64_t>(inputBlob, batchSize, image_size);
                     } else {
                         THROW_IE_EXCEPTION << "Input precision is not supported for image info!";
@@ -306,23 +312,23 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
             }
             // Fill random
             slog::info << "Fill input '" << item.first << "' with random values ("
-                       << std::string((isImage(inputBlob) ? "image" : "some binary data"))
+                       << std::string((app_info.isImage() ? "image" : "some binary data"))
                        << " is expected)" << slog::endl;
-            if (item.second->getPrecision() == InferenceEngine::Precision::FP32) {
+            if (precision == InferenceEngine::Precision::FP32) {
                 fillBlobRandom<float>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::FP16) {
+            } else if (precision == InferenceEngine::Precision::FP16) {
                 fillBlobRandom<short>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::I32) {
+            } else if (precision == InferenceEngine::Precision::I32) {
                 fillBlobRandom<int32_t>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::I64) {
+            } else if (precision == InferenceEngine::Precision::I64) {
                 fillBlobRandom<int64_t>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::U8) {
+            } else if (precision == InferenceEngine::Precision::U8) {
                 fillBlobRandom<uint8_t>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::I8) {
+            } else if (precision == InferenceEngine::Precision::I8) {
                 fillBlobRandom<int8_t>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::U16) {
+            } else if (precision == InferenceEngine::Precision::U16) {
                 fillBlobRandom<uint16_t>(inputBlob);
-            } else if (item.second->getPrecision() == InferenceEngine::Precision::I16) {
+            } else if (precision == InferenceEngine::Precision::I16) {
                 fillBlobRandom<int16_t>(inputBlob);
             } else {
                 THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
