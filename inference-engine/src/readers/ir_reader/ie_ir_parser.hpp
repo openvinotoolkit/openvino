@@ -25,7 +25,6 @@
 #include <memory>
 #include <set>
 #include <sstream>
-#include <stack>
 #include <string>
 #include <vector>
 
@@ -189,20 +188,6 @@ private:
 
         using NodeIdToIoIndex = std::unordered_map<size_t /*xml node id*/, uint64_t /*body io index*/>;
         using IoMap = std::unordered_map<io, NodeIdToIoIndex>;
-        using NodeIdToIoIndexStack = std::stack<IoMap>;
-
-        struct NextLevelOfIoMap {
-            NextLevelOfIoMap() {
-                io_map_stack.push(IoMap{{io::INPUTS, {}}, {io::OUTPUTS, {}}});
-            }
-            ~NextLevelOfIoMap() {
-                if (!io_map_stack.empty()) {
-                    io_map_stack.pop();
-                } else {
-                    assert(!"This should not happen");
-                }
-            }
-        };
 
         explicit XmlDeserializer(
             const pugi::xml_node& node,
@@ -321,11 +306,10 @@ private:
         std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables;
 
         ///
-        /// store information about parameters/results order in created function
-        /// which will be used in upper instance this class when Inputs/Outputs Description
-        /// will be created during SubGraph processing
+        /// store information about parameters/results order during function creation
+        /// it will be used during Inputs/Outputs Description creation in SubGraph processing
         ///
-        thread_local static NodeIdToIoIndexStack io_map_stack;
+        IoMap io_map;
 
         /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
         /// Shall be used only for ops which have port_map attribute.
@@ -339,7 +323,7 @@ private:
             const pugi::xml_node& node);
 
         //TODO consider to call only once per layer/TI-Loop node
-        static IoMap updated_io_map(const pugi::xml_node& node);
+        IoMap updated_io_map(const pugi::xml_node& node);
 
         /// \brief Traverses xml node representation in order to create nGraph function for it.
         /// \param node xml node representation
