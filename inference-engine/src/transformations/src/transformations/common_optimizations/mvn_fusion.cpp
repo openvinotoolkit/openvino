@@ -17,25 +17,58 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::MVNFusion, "MVNFusion", 0);
 
 ngraph::pass::MVNFusion::MVNFusion() {
     MATCHER_SCOPE(MVNFusion);
-    auto input = ngraph::pattern::any_input();
-    auto mean1_axes = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    auto mean1 = std::make_shared<ngraph::opset6::ReduceMean>(input, mean1_axes);
-    auto sub1 = std::make_shared<ngraph::opset6::Subtract>(input, mean1);
-    auto mean2_axes = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    auto mean2 = std::make_shared<ngraph::opset6::ReduceMean>(input, mean2_axes);
-    auto sub2 = std::make_shared<ngraph::opset6::Subtract>(input, mean2);
-    auto const_2 = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    auto power_sqr = std::make_shared<ngraph::opset6::Power>(sub2, const_2);
-    auto mean3_axes = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    auto mean3 = std::make_shared<ngraph::opset6::ReduceMean>(power_sqr, mean3_axes);
-    auto const_0_5 = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    auto power_sqrt = std::make_shared<ngraph::opset6::Power>(mean3, const_0_5);
-    auto eps = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    auto add_eps = std::make_shared<ngraph::opset6::Add>(power_sqrt, eps);
-    auto const_neg_1 = ngraph::pattern::wrap_type<ngraph::opset6::Constant>();
-    auto power_div = std::make_shared<ngraph::opset6::Power>(add_eps, const_neg_1);
-    auto div = std::make_shared<ngraph::opset6::Multiply>(sub1, power_div);
+    auto single_consumer = pattern::consumers_count(1);
 
+    // Detect MVN decomposition pattern:
+    // (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps)
+    auto x = pattern::any_input();
+
+    // (x - ReduceMean(x, axes))
+    //     `------mean1-------'
+    auto mean1_axes = pattern::wrap_type<opset6::Constant>();
+    auto mean1 = pattern::wrap_type<opset6::ReduceMean>({ x, mean1_axes }, single_consumer);
+
+    // (x - ReduceMean(x, axes))
+    // `-sub1------------------'
+    auto sub1 = pattern::wrap_type<opset6::Subtract>({ x, mean1 }, single_consumer);
+
+    // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
+    //                     `---mean2----------'
+    auto mean2_axes = pattern::wrap_type<opset6::Constant>();
+    auto mean2 = pattern::wrap_type<opset6::ReduceMean>({ x, mean2_axes }, single_consumer);
+
+    // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
+    //                 `-sub2------------------'
+    auto sub2 = pattern::wrap_type<opset6::Subtract>({ x, mean2 }, single_consumer);
+
+    // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
+    //                 `---------------------power--'
+    auto const_2 = pattern::wrap_type<opset6::Constant>();
+    auto power = pattern::wrap_type<opset6::Power>({ sub2, const_2 }, single_consumer);
+
+    // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
+    //     `---mean3--------------------------------'
+    auto mean3_axes = pattern::wrap_type<opset6::Constant>();
+    auto mean3 = pattern::wrap_type<opset6::ReduceMean>({ power, mean3_axes }, single_consumer);
+
+    // Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2))
+    // `--Power--------------------------------------'
+    auto const_0_5 = pattern::wrap_type<ngraph::opset6::Constant>();
+    auto power_sqrt = pattern::wrap_type<opset6::Power>({ mean3, const_0_5 }, single_consumer);
+    // TODO: use Or to accept opset6::Sqrt operation also.
+
+    // (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps)
+    // `-----------------------------------------------Add---'
+    auto eps = pattern::wrap_type<opset6::Constant>();
+    auto add_eps = pattern::wrap_type<opset6::Add>({ power_sqrt, eps }, single_consumer);
+
+    // Final Divide
+    auto const_neg_1 = pattern::wrap_type<opset6::Constant>();
+    auto power_div = pattern::wrap_type<opset6::Power>({ add_eps, const_neg_1 }, single_consumer);
+    auto div = pattern::wrap_type<opset6::Multiply>({ sub1, power_div });
+
+    // TODO: use Or to accept opset6::Divide operation. Also as root operation has multiple types
+    // we must handle it in GraphRewrite engine to perform efficient matching.
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
