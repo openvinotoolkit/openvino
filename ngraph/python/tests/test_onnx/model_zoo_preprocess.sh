@@ -62,7 +62,7 @@ function pull_and_postprocess_onnx_model_zoo() {
     find "$ONNX_MODELS_DIR" -name "*.onnx" | while read filename; do rm "$filename"; done;
 
     printf "Extracting tar.gz archives into %s\n" "$ONNX_MODELS_DIR"
-    find "$ONNX_MODELS_DIR" -name '*.tar.gz' -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && rm -rf $BASEDIR && mkdir -p $BASEDIR' \; -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && tar --warning=no-unknown-keyword -xzf "{}" -C $BASEDIR' \;
+    find "$ONNX_MODELS_DIR" -name '*.tar.gz' -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && rm -rf $BASEDIR && mkdir -p $BASEDIR' \; -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && tar --warning=no-unknown-keyword -xvzf "{}" -C $BASEDIR' \;
 
     echo "Postprocessing of ONNX Model Zoo models:"
 
