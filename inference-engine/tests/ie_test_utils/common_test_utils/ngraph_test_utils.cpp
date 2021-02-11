@@ -328,9 +328,9 @@ template <>
 struct Equal<ngraph::bfloat16> {
   static bool equal_value(ngraph::bfloat16 lhs, ngraph::bfloat16 rhs) {
     if (lhs.to_bits() == rhs.to_bits()) {
-      return true;
+        return true;
     }
-    return std::abs(lhs - rhs) < 1e-5;
+    return std::abs(lhs - rhs) < 1e-3;
   }
 };
 
@@ -338,16 +338,16 @@ template <>
 struct Equal<ngraph::float16> {
   static bool equal_value(ngraph::float16 lhs, ngraph::float16 rhs) {
     if (lhs.to_bits() == rhs.to_bits()) {
-      return true;
+        return true;
     }
-    return std::abs(lhs - rhs) < 1e-5;
+    return std::abs(lhs - rhs) < 1e-3;
   }
 };
 
 template <>
 struct Equal<float> {
     static bool equal_value(float lhs, float rhs) {
-        return std::abs(lhs - rhs) < 1e-5;
+        return std::abs(lhs - rhs) < 1e-4;
     }
 };
 
@@ -789,42 +789,39 @@ FunctionsComparator::Result FunctionsComparator::compare(
                     bool rc = false;
                     switch (c1t) {
                     case ngraph::element::Type_t::bf16: {
-                        auto c1v = c1->cast_vector<ngraph::bfloat16>();
-                        auto c2v = c2->cast_vector<ngraph::bfloat16>();
-                        rc = c1v.size() == c2v.size()
-                            ? Equal<std::vector<ngraph::bfloat16>>::equal_value(c1v, c2v)
-                            : false;
-                        break;
+                      auto c1v = c1->cast_vector<ngraph::bfloat16>();
+                      auto c2v = c2->cast_vector<ngraph::bfloat16>();
+                      rc = c1v.size() == c2v.size() &&
+                           Equal<std::vector<ngraph::bfloat16>>::equal_value(c1v, c2v);
+                      break;
                     }
                     case ngraph::element::Type_t::f16: {
-                        const auto &c1v = c1->cast_vector<ngraph::float16>();
-                        const auto &c2v = c2->cast_vector<ngraph::float16>();
-                        rc = c1v.size() == c2v.size()
-                            ? Equal<std::vector<ngraph::float16>>::equal_value(c1v, c2v)
-                            : false;
-                        break;
+                      const auto &c1v = c1->cast_vector<ngraph::float16>();
+                      const auto &c2v = c2->cast_vector<ngraph::float16>();
+                      rc = c1v.size() == c2v.size() &&
+                           Equal<std::vector<ngraph::float16>>::equal_value(c1v, c2v);
+                      break;
                     }
                     case ngraph::element::Type_t::f32: {
-                        const auto &c1v = c1->cast_vector<float>();
-                        const auto &c2v = c2->cast_vector<float>();
-                        rc = c1v.size() == c2v.size()
-                            ? Equal<std::vector<float>>::equal_value(c1v, c2v)
-                            : false;
-                        break;
+                      const auto &c1v = c1->cast_vector<float>();
+                      const auto &c2v = c2->cast_vector<float>();
+                      rc = c1v.size() == c2v.size() &&
+                           Equal<std::vector<float>>::equal_value(c1v, c2v);
+                      break;
                     }
                     default: {
-                        const auto &c1v = c1->cast_vector<double>();
-                        const auto &c2v = c2->cast_vector<double>();
-                        rc = c1v.size() == c2v.size()
-                            ? Equal<std::vector<double>>::equal_value(c1v, c2v)
-                            : false;
-                        break;
+                      const auto &c1v = c1->cast_vector<double>();
+                      const auto &c2v = c2->cast_vector<double>();
+                      rc = c1v.size() == c2v.size() &&
+                           Equal<std::vector<double>>::equal_value(c1v, c2v);
+                      break;
                     }
                     }
                     return rc;
                 };
 
                 if (const1 && const2 && !equal(const1, const2)) {
+                    equal(const1, const2);
                     err_log << "Different Constant values detected\n"
                             << node1->description() << " Input(" << i << ") and "
                             << node2->description() << " Input(" << i << ")" << std::endl;
