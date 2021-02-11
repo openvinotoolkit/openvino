@@ -32,14 +32,20 @@ The types of input scalars `on_value` and `off_value` should match and be equal 
 
 **Inputs**:
 
-* **1**: `indices`: input tensor with non-negative indices of any supported integer data type. Can be 0D. Required.
-* **2**: `depth`: positive scalar (0D tensor) of any supported integer type that specifies the number of classes and thus the size of the one-hot dimension. Required.
-* **3**: `on_value`: scalar (0D tensor) of any supported type that fills the locations in output tensor specified in `indices`. Required.
-* **4**: `off_value`: scalar (0D tensor) of the same type as `on_value` that fills the locations not represented in `indices`. Required.
+* **1**: `indices`: input tensor with non-negative indices of type T1. Can be 0D. Required.
+* **2**: `depth`: positive scalar (0D tensor) of type T1 that specifies the number of classes and thus the size of the one-hot dimension. Required.
+* **3**: `on_value`: scalar (0D tensor) of type T2 that fills the locations in output tensor specified in `indices`. Required.
+* **4**: `off_value`: scalar (0D tensor) of type T2 that fills the locations not represented in `indices`. Required.
 
 **Outputs**:
 
-* **1** A tensor of rank `N+1`, where `N` is a rank of the input tensor `indices`. A new axis of the size `depth` is inserted at the dimension `axis`. The output type is the same as the `on_value` type.
+* **1**: An `N+1` rank tensor of type T2, where `N` is a rank of the input tensor `indices`. A new axis of the size `depth` is inserted at the dimension `axis`.
+
+**Types**
+
+* *T1*: any supported integer data type.
+
+* *T2*: any supported data type.
 
 **Examples**
 
@@ -47,20 +53,45 @@ The types of input scalars `on_value` and `off_value` should match and be equal 
 <layer ... type="OneHot" ...>
     <data axis="-1"/>
     <input>
-        <port id="0">    <!-- indices value: [0, 1, 2] -->
-            <dim>3</dim>
+        <port id="0">    <!-- indices value: [0, 3, 1, 2] -->
+            <dim>4</dim>
         </port>
-        <port id="1">    <!-- depth value: 2 -->
+        <port id="1">    <!-- depth value: 3 -->
         </port>
-        <port id="2">    <!-- on_value 5 -->
+        <port id="2">    <!-- on_value 1 -->
         </port>
-        <port id="3">    <!-- off_value 10 -->
+        <port id="3">    <!-- off_value 2 -->
         </port>
     </input>
     <output>
-        <port id="0">    <!-- output value # [[5, 10], [10, 5], [10, 10]] -->
+        <port id="0">    <!-- output value # [[1, 2, 2], [2, 2, 2], [2, 1, 2], [2, 2, 1]] -->
+            <dim>4</dim>
             <dim>3</dim>
+        </port>
+    </output>
+</layer>
+```
+
+```xml
+<layer ... type="OneHot" ...>
+    <data axis="1"/>
+    <input>
+        <port id="0">    <!-- indices value: [[0, 3, 1], [1, 2, 4]] -->
             <dim>2</dim>
+            <dim>3</dim>
+        </port>
+        <port id="1">    <!-- depth value: 3 -->
+        </port>
+        <port id="2">    <!-- on_value 1 -->
+        </port>
+        <port id="3">    <!-- off_value 0 -->
+        </port>
+    </input>
+    <output>
+        <port id="0">    <!-- output value: [[[1, 0, 0], [0, 0, 1], [0, 0, 0]], -->
+            <dim>2</dim> <!--                [[0, 0, 0], [1, 0, 0], [0, 1, 0]]] -->
+            <dim>3</dim>
+            <dim>3</dim>
         </port>
     </output>
 </layer>
