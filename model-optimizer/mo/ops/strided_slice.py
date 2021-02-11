@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+from typing import List, Tuple
+
 import numpy as np
 
 from mo.front.common.partial_infer.utils import get_shape_from_slice
@@ -58,7 +60,8 @@ class StridedSlice(Op):
         begin = node.in_port(1).data.get_value()
         end = node.in_port(2).data.get_value()
         if begin is None or end is None:
-            raise Error('StridedSlice operation for node {} supports only constant begin and end inputs'.format(node_name))
+            raise Error(
+                'StridedSlice operation for node {} supports only constant begin and end inputs'.format(node_name))
 
         if node.is_in_port_connected(3):
             strides = node.in_port(3).data.get_value()
@@ -69,70 +72,49 @@ class StridedSlice(Op):
 
         data_shape = node.in_port(0).data.get_shape()
         data_value = node.in_port(0).data.get_value()
-        input_rank = len(data_shape)
         assert len(begin) == len(end) == len(strides), 'begin, end, and strides of StridedSlice node {} must ' \
                                                        'be of the same length'.format(node_name)
 
-        # masks aligment all masks should initial slice_rank (mask_aligment != mask_extending)
-        extend_mask = lambda mask, val=0: np.append(mask, [val] * (len(begin) - len(mask))).astype(int)
-        new_axis_mask = extend_mask(node.new_axis_mask)
-        shrink_axis_mask = extend_mask(node.shrink_axis_mask)
-        begin_mask = extend_mask(node.begin_mask, 1)  # differs from the case when we unroll ellipsis
-        end_mask = extend_mask(node.end_mask, 1)  # when we unroll ellipsis zeros should be inserted
-        # no need to extend ellipsis
+        StridedSlice.allign_mask_with_slice_rank(node, len(begin))
 
-        # unroll ellipsis
-        if np.any(node.ellipsis_mask):
-            i = np.nonzero(node.ellipsis_mask)
-            assert len(i[0]) == 1, 'only one nonzero value in ellipsis_mask is allowed'
-            ellipsis_start = i[0][0]
-            # since we don't expect values in begin, end values and take all range of values along ellipsis_start axis
-            begin_mask[ellipsis_start] = 0
-            end_mask[ellipsis_start] = 0
-
-            num = input_rank - len(begin) + np.count_nonzero(node.new_axis_mask)
-            unroll_ellipsis = lambda mask, val=0: np.insert(mask, ellipsis_start + 1, [val] * num).astype(int)
-
-            new_axis_mask = unroll_ellipsis(new_axis_mask)
-            shrink_axis_mask = unroll_ellipsis(shrink_axis_mask)
-            begin_mask, end_mask = unroll_ellipsis(begin_mask), unroll_ellipsis(end_mask)
-            begin, end, strides = unroll_ellipsis(begin), unroll_ellipsis(end), unroll_ellipsis(strides, 1)
-
-        # from now slices are without ellipsis
-        slice_rank = len(begin)
-        slices = [[]] * slice_rank
-        in_idx = 0  # index along input tensor shapes, note that input_rank not necessary is equal to slice_rank
-        for i in range(slice_rank):
-            if new_axis_mask[i]:
-                slices[i] = np.newaxis
-            elif shrink_axis_mask[i]:
-                slices[i] = int(begin[i])
-                if slices[i] < 0:
-                    slices[i] += int(data_shape[in_idx])
-            else:
-                start, stop = begin[i], end[i]
-                if not begin_mask[i]:  # if begin, and end are not specified take whole range
-                    start = 0 if strides[i] > 0 else -1
-                if not end_mask[i]:
-                    stop = data_shape[in_idx] if strides[i] > 0 else -data_shape[in_idx] - 1
-                slices[i] = slice(start, stop, strides[i])
-            in_idx += 1 if not new_axis_mask[i] else 0
-
+        slices = StridedSlice.get_slices(node, data_shape, begin, end, strides)
         if data_value is not None:
             node.out_port(0).data.set_value(data_value[tuple(slices)])
         else:
             node.out_port(0).data.set_shape(get_shape_from_slice(data_shape, slices))
 
-        # normalize slices attr which is used by ConvertGroupedStridedSlice
-        in_idx = 0
-        for i in range(slice_rank):
-            if new_axis_mask[i]:
-                slices[i] = slice(0, 1, 1)
-            elif shrink_axis_mask[i]:
-                slices[i] = slice(slices[i], slices[i] + 1, strides[i])
-            if not new_axis_mask[i]:
-                slices[i] = slice(*slices[i].indices(data_shape[in_idx]))  # will convert negative indices
-                in_idx += 1
-        node['slices'] = np.array(slices)
-
+        node['slices'] = slices
         node['force_precision_in_ports'] = {port: 'int64' for port in range(1, len(node.in_nodes()))}
+
+    @staticmethod
+    def get_slices(node: Node, data_shape: Tuple, begin: np.array, end: np.array, strides: np.array) -> List:
+        input_rank = len(data_shape)
+        slice_rank = len(begin)
+        # from now slices are without ellipsis
+        slices = [[]] * slice_rank
+        in_idx = 0  # index along input tensor shapes, note that input_rank not necessary is equal to slice_rank
+        for i in range(slice_rank):
+            if node.new_axis_mask[i]:
+                slices[i] = np.newaxis
+            elif node.shrink_axis_mask[i]:
+                slices[i] = int(begin[i])
+            elif node.ellipsis_mask[i]:
+                slices[i] = ...
+                in_idx += input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
+            else:
+                start, stop = begin[i], end[i]
+                if not node.begin_mask[i]:  # if begin, and end are not specified take the whole range
+                    start = None
+                if not node.end_mask[i]:
+                    stop = None
+                slices[i] = slice(start, stop, strides[i])
+            in_idx += 1 if not node.new_axis_mask[i] else 0
+        return slices
+
+    @staticmethod
+    def allign_mask_with_slice_rank(node: Node, slice_rank: int):
+        # align masks sizes with slice_rank (not confuse with extending mask_aligment != mask_extending)
+        for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
+            num_insertations = slice_rank - len(node[mask_name])
+            val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end
+            node[mask_name] = np.append(node[mask_name], [val] * num_insertations).astype(int)

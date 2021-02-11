@@ -17,11 +17,13 @@ import numpy as np
 
 from extensions.ops.split import VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array
+from mo.ops.strided_slice import StridedSlice
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
+from mo.utils.error import Error
 from mo.ops.const import Const
 from mo.ops.op import PermuteAttrs
 
@@ -98,9 +100,8 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         return [LayoutChangeForConstantShapePaths]
 
     def find_and_replace_pattern(self, graph: Graph):
-        ss_nodes = graph.get_op_nodes(op='StridedSlice')
-        for node in ss_nodes:
-            self.normalize_strided_slice(graph, node)
+        for node in graph.get_op_nodes(op='StridedSlice'):
+            StridedSliceNormalizer.normalize_strided_slice(graph, node)
             PermuteAttrs.create_permute_attrs(node, attrs=[('begin_mask', 'input:0'),  # but indeed depends from slice_rank
                                                            ('end_mask', 'input:0'),
                                                            ('new_axis_mask', 'input:0'),
@@ -111,42 +112,34 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:2', 'slice', 'dim_size')
             PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:3', 'slice', 'dim_size')
 
-    def normalize_strided_slice(self, graph: Graph, node: Node):
+    @staticmethod
+    def normalize_strided_slice(graph: Graph, node: Node):
         input_shape = node.in_port(0).data.get_shape()
         input_rank = len(input_shape)
         slice_rank = node.in_port(1).data.get_shape()[0]
 
-        slice_mask_names = ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']
-        # align masks sizes with slice_rank (not confuse with extending mask_aligment != mask_extending)
-        for mask_name in slice_mask_names:
-            num = slice_rank - len(node[mask_name])
-            val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end
-            node[mask_name] = np.append(node[mask_name], [val] * num).astype(int)
+        StridedSlice.allign_mask_with_slice_rank(node, slice_rank)  # if StridedSlice is created after partial_infer
+        StridedSliceNormalizer.normalize_slices_attr(node)
 
+        num_insertations = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
         if np.any(node.ellipsis_mask):
-            idx = np.nonzero(node.ellipsis_mask)
-            assert len(idx[0]) == 1, 'only one ellipsis_mask nonzero value is allowed'
-            ellipsis_start = idx[0][0]
+            assert len(np.nonzero(node.ellipsis_mask)) == 1, 'only one ellipsis_mask nonzero value is allowed'
+            ellipsis_start = np.nonzero(node.ellipsis_mask)[0][0]
             # since we don't expect values in begin and end: take the whole range along ellipsis_start
             node.begin_mask[ellipsis_start] = 0
             node.end_mask[ellipsis_start] = 0
-
-            num = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
-
-            # unroll ellipsis for masks
             node.ellipsis_mask[ellipsis_start] = 0
-            for mask_name in slice_mask_names:
-                node[mask_name] = np.insert(node[mask_name], ellipsis_start + 1, [0] * num).astype(int)
+            insertation_start_idx = ellipsis_start + 1
 
-            self.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num)
-        elif slice_rank - np.count_nonzero(node.new_axis_mask) < input_rank:
-            num = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
-            self.extend_inputs(node, num)
+            StridedSliceNormalizer.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num_insertations)
+        elif num_insertations > 0:
+            insertation_start_idx = slice_rank  # insert blank values to mask ends
+            StridedSliceNormalizer.extend_inputs(node, num_insertations)
 
-            # extend masks
-            for mask_name in slice_mask_names:
-                num = input_rank - len(node[mask_name]) + np.count_nonzero(node.new_axis_mask)
-                node[mask_name] = np.append(node[mask_name], [0] * num).astype(int)
+        if num_insertations > 0:
+            # insert blank values to masks for ellipsis unrolling or extending
+            for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
+                node[mask_name] = np.insert(node[mask_name], insertation_start_idx, [0] * num_insertations).astype(int)
 
     @staticmethod
     def unroll_ellipsis_for_inputs(graph: Graph, node: Node, ellipsis_start: int, num_ellipsis_ext: int):
@@ -203,3 +196,38 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                 node.in_port(i).get_connection().set_destination(concat.in_port(0))
                 concat.in_port(1).connect(placeholder_node.out_port(0))
                 concat.out_port(0).get_connection().set_destination(node.in_port(i))
+
+    @staticmethod
+    def normalize_slices_attr(node: Node):
+        # removes negative starts, ends and magic numbers from 'slice' attr which is used by ConvertGroupedStridedSlice
+        slice_rank = len(node['slices'])
+        data_shape = node.in_port(0).data.get_shape()
+
+        node_name = node.soft_get('name', node.id)
+        if node.is_in_port_connected(3):
+            strides = node.in_port(3).data.get_value()
+            if strides is None:
+                raise Error('StridedSlice operation for node {} supports only constant strides input'.format(node_name))
+        else:
+            strides = np.ones(slice_rank)
+
+        num_ellipsis_inserts = len(data_shape) - slice_rank + np.count_nonzero(node.new_axis_mask) + 1
+        res_slices = []
+
+        in_idx = 0
+        for i, s in enumerate(node['slices']):
+            if node.new_axis_mask[i]:
+                res_slices.append(slice(0, 1, 1))
+            elif node.shrink_axis_mask[i]:
+                res_slices.append(slice(s, s + 1, strides[i]))  # need strides if shrink index is negative
+            elif node.ellipsis_mask[i]:
+                for idx in range(num_ellipsis_inserts):
+                    res_slices.append(slice(0, data_shape[in_idx], 1))
+                    in_idx += 1
+            else:
+                res_slices.append(s)
+
+            if not (node.new_axis_mask[i] or node.ellipsis_mask[i]):
+                res_slices[-1] = slice(*res_slices[-1].indices(data_shape[in_idx]))  # convert negative begins/ends
+                in_idx += 1
+        node['slices'] = np.array(res_slices)

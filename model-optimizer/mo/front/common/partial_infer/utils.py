@@ -112,26 +112,31 @@ def broadcast_shape(first_shape, second_shape):
     return int64_array(new_shape)
 
 
-def get_shape_from_slice(input_shape: np.ndarray, slices: List[Union[int, slice]]) -> np.ndarray:
+def get_shape_from_slice(input_shape: np.ndarray, slices: List) -> np.ndarray:
     """
     Calculate shape of a tensor after slicing without actually creating the resulting tensor.
     Is introduced to prevent potentially large memory consumption.
     """
     output_shape = []
-    in_idx, out_idx = 0, 0
+    num_new_axes = np.count_nonzero(list(map(lambda x: x is np.newaxis, slices)))
+    num_ellipsis_inserts = len(input_shape) - len(slices) + num_new_axes + 1
+
+    in_idx = 0
     for i, s in enumerate(slices):
         if isinstance(s, slice):
             output_shape.append(len(range(*s.indices(input_shape[in_idx]))))
-            out_idx += 1
             in_idx += 1
-        elif s is None:  # new_axis
+        elif s is np.newaxis:
             output_shape.append(1)
-            out_idx += 1
         elif isinstance(s, int):  # shrink_axis
             in_idx += 1
+        elif s is Ellipsis:
+            for idx in range(num_ellipsis_inserts):
+                output_shape.append(input_shape[in_idx])
+                in_idx += 1
         else:
             raise Exception('Element type of a slice List is unacceptable. '
-                            'Allowed types are: slice, int, and None. Instead got: '. format(type(s)))
+                            'Allowed types are: Ellipsis, slice, int, and None. Instead got: '. format(type(s)))
     for i in range(in_idx, len(input_shape)):
         output_shape.append(input_shape[i])
     return int64_array(output_shape)
