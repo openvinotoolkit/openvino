@@ -2,7 +2,7 @@ jobs:
 - job: nGraph_ONNX_Lin
 
   # About 300% of total time
-  timeoutInMinutes: 190
+  timeoutInMinutes: 90
 
   pool:
     name: LIN_VMSS_VENV_ONNX_WU2
@@ -61,17 +61,17 @@ jobs:
   - script: |
       ##wget -O "$(TMP_DIR)/msft.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
       ##unzip "$(TMP_DIR)/msft.zip" -d "$(MODELS_DIR)/msft"
-      unzip "/mnt/onnxtestdata/models/20191107.zip" -d "$(MODELS_DIR)/msft"
-      mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_sorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_0
-      mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_unsorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_1
+      #unzip "/mnt/onnxtestdata/models/20191107.zip" -d "$(MODELS_DIR)/msft"
+      #mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_sorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_0
+      #mv $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/seq_lens_unsorted $(MODELS_DIR)/msft/opset9/LSTM_Seq_lens_unpacked/test_data_set_1
     displayName: 'Get MSFT models'
-    enabled: true
+    enabled: false
 
   - script: |
       ls -alR $(MODELS_DIR)
       ls -alR $(TMP_DIR)
     displayName: 'List models'
-    enabled: true
+    enabled: false
 
   - script: sudo fallocate -l 48G /swapfile ; sudo mkswap /swapfile ; sudo swapon /swapfile ; df ; free -h
     displayName: 'Create swap'
