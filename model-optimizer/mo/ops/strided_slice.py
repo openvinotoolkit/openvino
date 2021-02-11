@@ -90,7 +90,7 @@ class StridedSlice(Op):
             begin_mask[ellipsis_start] = 0
             end_mask[ellipsis_start] = 0
 
-            num = input_rank - len(begin) + np.count_nonzero(node.new_axis_mask[ellipsis_start:])
+            num = input_rank - len(begin) + np.count_nonzero(node.new_axis_mask)
             unroll_ellipsis = lambda mask, val=0: np.insert(mask, ellipsis_start + 1, [val] * num).astype(int)
 
             new_axis_mask = unroll_ellipsis(new_axis_mask)

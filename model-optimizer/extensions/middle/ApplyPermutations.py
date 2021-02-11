@@ -133,19 +133,14 @@ class ApplyPermutation(MiddleReplacementPattern):
             input_permutations = [(in_port, edge_attrs['input_permutation']) for in_port, edge_attrs in
                                   node.in_edges().items() if edge_attrs.get('input_permutation') is not None]
             for in_port, input_perm in input_permutations:
-                permutation, port_info = input_perm
+                permutation, port_info, check_shape = input_perm
                 direction, port = port_info.split(':')
                 port = int(port)
                 port_to_check = node.in_port(port) if direction == 'input' else node.out_port(port)
                 permutation_data_node = get_node_with_permutation(node, port_info)
 
                 if permutation_data_node.has_and_set('permutation') and \
-                        not is_input_data_in_correct_layout(node, in_port) and \
-                        (len(port_to_check.data.get_shape()) >= 4 or
-                         (node.soft_get('type') == 'StridedSlice' and node.in_port(in_port).data.get_shape()[0] >= 4)):
-                    # StridedSlice must be permuted even if inputs (or outputs) have rank lesser than 4,
-                    # e.g. input_shape = (1, 10, 10), out = input[..., newaxis]
-                    # input_shape = (1, 100, 100, 10), out = input[..., 0]
+                        not is_input_data_in_correct_layout(node, in_port) and check_shape(port_to_check):
                     permutation(node, port_info, in_port)
             if node.has_and_set('need_shape_inference'):
                 node.infer(node)

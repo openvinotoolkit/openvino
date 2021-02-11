@@ -28,12 +28,15 @@ from mo.ops.op import PermuteAttrs
 
 class StridedSliceNormalizer(MiddleReplacementPattern):
     """
-    This transformation normalizes StridedSlice by inserting blank colons ':' in slice expression so that it can be
-     correctly permuted from NHWC to NCHW layout. It changes mask values and inserts blank begin, end and strides values
-      of StridedSlice. Need to do by inserting nodes not by just rewritting constants in order to successfully run in ShapeOf subgraphs.
-      StridedSlice is not in normal in 2 cases:
-      1. rank of a slice expression is less than rank of input tensor
-      2. there is an ellipsis
+    StridedSlice is not normal if it cannot be permuted by ApplyPermutations. This normalizer
+    inserts blank colons ':' in slice expression so that it can be correctly permuted
+    from NHWC to NCHW layout. It changes masks and inserts blank begin, end and strides values.
+    In order to successfully run in ShapeOf subgraphs insertations  must be done by inserting nodes
+    not just by rewritting constants.
+
+    StridedSlice is not normal in 2 cases:
+        1. rank of a slice expression is less than rank of input tensor
+        2. there is an ellipsis
 
     1st case example
     BEFORE:
@@ -79,10 +82,12 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
            value=[1, 0, 0, 1, 1]
                   |
 
-    Input of a shape [16, 10, 100, 100, 3] in NDHWC layout output = input[1:4, ..., 1:51, 1:3], output_shape = [3, 10, 100, 50, 2].
-    In order to do correctly layout permutation in slice expression
-    input[1:4, ..., 1:51, 1:3] ellipsis should be exended => input[1:4, :, :, 1:51, 1:3].
-    after layour permutation [1:4, 1:3, :, : 1:5]. In the places of colons blank zero begin, end and strides values
+    Input of a shape [16, 10, 100, 100, 3] in NDHWC layout output = input[1:4, ..., 1:51, 1:3],
+    output_shape = [3, 10, 100, 50, 2]. In order to do correctly layout permutation in slice expression
+    input[1:4, ..., 1:51, 1:3] ellipsis should be exended => input[1:4, :, :, 1:51, 1:3]. After
+    layour permutation input[1:4, 1:3, :, : 1:5].
+
+    In the places of colons blank zero begin, end and strides values
     should be inserted. In order to do that we split begin, and concatenate with the blank zeros in the middle. Above
     is show only for begin input, for end and strides changes are analogously.
     """
@@ -96,15 +101,15 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         ss_nodes = graph.get_op_nodes(op='StridedSlice')
         for node in ss_nodes:
             self.normalize_strided_slice(graph, node)
-            PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0'),
+            PermuteAttrs.create_permute_attrs(node, attrs=[('begin_mask', 'input:0'),  # but indeed depends from slice_rank
+                                                           ('end_mask', 'input:0'),
                                                            ('new_axis_mask', 'input:0'),
-                                                           ('ellipsis_mask', 'input:0'),
-                                                           ('begin_mask', 'input:0'),
-                                                           ('end_mask', 'input:0')])
+                                                           ('shrink_axis_mask', 'input:0'),
+                                                           ('ellipsis_mask', 'input:0')])
 
-            PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
-            PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
-            PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'shape')
+            PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:1', 'slice', 'dim_size')
+            PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:2', 'slice', 'dim_size')
+            PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:3', 'slice', 'dim_size')
 
     def normalize_strided_slice(self, graph: Graph, node: Node):
         input_shape = node.in_port(0).data.get_shape()
@@ -122,11 +127,11 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             idx = np.nonzero(node.ellipsis_mask)
             assert len(idx[0]) == 1, 'only one ellipsis_mask nonzero value is allowed'
             ellipsis_start = idx[0][0]
-            # since we don't use begin, end values
+            # since we don't expect values in begin and end: take the whole range along ellipsis_start
             node.begin_mask[ellipsis_start] = 0
             node.end_mask[ellipsis_start] = 0
 
-            num = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask[ellipsis_start:])
+            num = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
 
             # unroll ellipsis for masks
             node.ellipsis_mask[ellipsis_start] = 0
