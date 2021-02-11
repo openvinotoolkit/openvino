@@ -223,11 +223,6 @@ ngraph::op::v5::Loop::SpecialBodyPorts V10Parser::XmlDeserializer::parsePurposeA
 }
 
 void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
-    static const std::unordered_set<std::string> skip_names = {
-        "input_descriptions",
-        "output_descriptions",
-        "special_body_ports"
-    };
     std::string val;
 
     // for TensorIterator look for 'port_map' as 'data' does not exist
@@ -243,7 +238,7 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
         }
     }
 
-    if (skip_names.count(name) && !getStrAttribute(node.child("data"), name, val)) return;
+    if (!getStrAttribute(node.child("data"), name, val)) return;
     if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::Type>>(&adapter)) {
         static_cast<ngraph::element::Type&>(*a) = details::convertPrecision(val);
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::PartialShape>>(&adapter)) {
@@ -296,44 +291,6 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
                                           ngraph::element::dynamic, variable_id});
         }
         a->set(variables[variable_id]);
-    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
-        std::string value;
-        pugi::xml_node dn = node.child("data");
-        auto type = XMLParseUtils::GetStrAttr(node, "type");
-
-        if (dn.empty())
-            THROW_IE_EXCEPTION << "No attrtibutes defined for " << type << " op!";
-
-        if (getStrAttribute(dn, name, value)) {
-            auto buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(value.size());
-            auto data = static_cast<char*>(buffer->get_ptr());
-            value.copy(data, value.size());
-            a->set(buffer);
-        } else if (name == "value" && type == "Const") {
-            std::vector<int64_t> shape;
-            std::string el_type_str;
-
-            size_t offset = XMLParseUtils::GetUInt64Attr(dn, "offset");
-            size_t size = XMLParseUtils::GetUInt64Attr(dn, "size");
-            if (!getStrAttribute(dn, "element_type", el_type_str)) return;
-            if (!getParameters<int64_t>(dn, "shape", shape)) return;
-
-            ngraph::element::Type el_type = details::convertPrecision(el_type_str);
-
-            size_t length = weights->byteSize();
-            if (!length)
-                THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
-            if (length < offset + size)
-                THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
-            if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
-                THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type << " op!";
-
-            char* data = weights->cbuffer().as<char*>() + offset;
-
-            using SharedBuffer = ngraph::runtime::SharedBuffer<const Blob::CPtr>;
-            auto buffer = std::make_shared<SharedBuffer>(data, size, weights);
-            a->set(buffer);
-        }
     } else {
         THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
                             << " parameter";
@@ -660,6 +617,17 @@ V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(con
 
         port.portId = GetIntAttr(parentNode, "id");
 
+        FOREACH_CHILD(node, parentNode, "dim") {
+            size_t dim = 0;
+            const pugi::char_t* dimVal = node.child_value();
+            std::stringstream ss(dimVal);
+            if (!(ss >> dim) || dim == 0) {
+                THROW_IE_EXCEPTION << "dimension (" << dimVal << ") in node " << node.name()
+                                   << " must be a positive integer: at offset " << node.offset_debug();
+            }
+            port.dims.push_back(dim);
+        }
+
         ngraph::element::Type type(ngraph::element::Type_t::undefined);
         // Input port hasn't precision
         if (!input) {
@@ -770,10 +738,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
         if (!ngraphNode) {
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
-        // Share Weights form constant blob
-        if (auto constant = std::dynamic_pointer_cast<ngraph::opset6::Constant>(ngraphNode)) {
-            constant->alloc_buffer_on_visit_attributes(false);
-        }
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, weights, opsets, variables);
         if (ngraphNode->visit_attributes(visitor)) {
@@ -782,6 +746,12 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
         // To be sure that all default values will be initialized:
         ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
+
+        // Constructor of Loop and TensorIterator do not call validate_and_infer_types function
+        // -> ticket 36145
+        if (const auto& subGraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(ngraphNode)) {
+            subGraph->validate_and_infer_types();
+        }
     }
 
     if (!ngraphNode) {
