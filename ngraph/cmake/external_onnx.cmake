@@ -26,15 +26,9 @@ set(ONNX_VERSION 1.8.1)
 # Download and install libonnx ...
 #------------------------------------------------------------------------------
 
-# Since this file is going to be modifying CMAKE_CXX_FLAGS we need to preserve
-# it so we won't overwrite the caller's CMAKE_CXX_FLAGS
-set(PUSH_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-
 set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
 set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
-
-set(CMAKE_CXX_FLAGS ${CMAKE_ORIGINAL_CXX_FLAGS})
 
 FetchContent_Declare(
     ext_onnx
@@ -77,6 +71,3 @@ endif()
 
 set(ONNX_INCLUDE_DIR ${ext_onnx_SOURCE_DIR})
 set(ONNX_PROTO_INCLUDE_DIR ${ext_onnx_BINARY_DIR})
-
-# Now make sure we restore the original CMAKE_CXX_FLAGS for the caller
-set(CMAKE_CXX_FLAGS ${PUSH_CMAKE_CXX_FLAGS})
