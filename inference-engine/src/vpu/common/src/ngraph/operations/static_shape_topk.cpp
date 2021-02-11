@@ -18,7 +18,7 @@ ngraph::vpu::op::StaticShapeTopK::StaticShapeTopK(
         const element::Type& index_element_type)
         : Op{{data, k}}
         , m_axis{axis}
-        , m_maximumK{-1}
+        , m_maximumK{ngraph::Dimension::dynamic()}
         , m_normalized_axis{0}
         , m_mode{as_enum<Mode>(mode)}
         , m_sort{as_enum<SortType>(sort)}
@@ -35,7 +35,7 @@ ngraph::vpu::op::StaticShapeTopK::StaticShapeTopK(
         const ngraph::element::Type &index_element_type)
         : Op{{data, k}}
         , m_axis{axis}
-        , m_maximumK{-1}
+        , m_maximumK{ngraph::Dimension::dynamic()}
         , m_normalized_axis{0}
         , m_mode{mode}
         , m_sort{sort}
@@ -92,12 +92,10 @@ void ngraph::vpu::op::StaticShapeTopK::validate_and_infer_types() {
     m_normalized_axis = ngraph::normalize_axis(this->description(), m_axis, output_shape.rank());
     if (k != 0) {
         output_shape[m_normalized_axis] = k;
-    } else if (m_maximumK == -1) {
-        auto max_k = maximum_value(input_value(1));
-        const auto is_max_value_calculated = max_k.first;
-        const auto calculated_max_value = max_k.second;
-        if (is_max_value_calculated) {
-            m_maximumK = calculated_max_value;
+    } else if (m_maximumK == ngraph::Dimension::dynamic()) {
+        PartialShape kAsShape;
+        if (ngraph::evaluate_as_partial_shape(input_value(1), kAsShape)) {
+            m_maximumK = kAsShape[0].get_max_length();
         }
     }
 
