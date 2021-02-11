@@ -187,7 +187,7 @@ private:
         enum class io { INPUTS, OUTPUTS };
 
         using NodeIdToIoIndex = std::unordered_map<size_t /*xml node id*/, uint64_t /*body io index*/>;
-        using IoMap = std::unordered_map<io, NodeIdToIoIndex>;
+        using IoMap = std::map<io, NodeIdToIoIndex>;
 
         explicit XmlDeserializer(
             const pugi::xml_node& node,
