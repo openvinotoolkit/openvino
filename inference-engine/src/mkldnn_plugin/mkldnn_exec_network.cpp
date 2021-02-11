@@ -232,10 +232,24 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
 
             if (weightsBlobIt != convLayer->blobs.end()) {
                 Blob::Ptr weightsBlob = weightsBlobIt->second;
-                std::vector<size_t> shape = { groupOC, groupIC };
-                for (int i = 1; i <= convLayer->_kernel.size(); i++) {
-                    shape.push_back(convLayer->_kernel[convLayer->_kernel.size() - i]);
+
+                std::vector<size_t> shape;
+
+                if (isGrouped) {
+                    shape.reserve(convLayer->_kernel.size() + 3);
+                    shape.emplace_back(groupNum);
+                    shape.emplace_back(groupOC);
+                    shape.emplace_back(groupIC);
+                } else {
+                    shape.reserve(convLayer->_kernel.size() + 2);
+                    shape.emplace_back(groupOC);
+                    shape.emplace_back(groupIC);
                 }
+
+                for (int i = 1; i <= convLayer->_kernel.size(); i++) {
+                    shape.emplace_back(convLayer->_kernel[convLayer->_kernel.size() - i]);
+                }
+
                 createConstInputTo(layer, weightsBlob, shape, "weights");
             }
 
