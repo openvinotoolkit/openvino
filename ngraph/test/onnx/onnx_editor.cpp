@@ -548,7 +548,7 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
 
 NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_3)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{3, "relu1"}, InputEdge{6, "relu1"}}},
@@ -566,7 +566,7 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
 
 NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_4)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{3, "relu1"}}},
@@ -585,7 +585,7 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
 
 NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_input_relu2)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{4, "relu2"}}}, {});
@@ -602,7 +602,7 @@ NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_input_relu2)
 
 NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{2, "in2"}}}, {});
@@ -619,7 +619,7 @@ NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer)
 
 NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_2)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{2, "in2"}, InputEdge{3, "in2"}}}, {});
@@ -637,7 +637,7 @@ NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_2)
 
 NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_relu2_and_init)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{5, "relu2"}, InputEdge{3, "in2"}}}, {});

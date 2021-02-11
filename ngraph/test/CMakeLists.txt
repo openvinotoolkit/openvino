@@ -375,12 +375,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
-    if(${BACKEND_NAME} MATCHES ^INTERPRETER$)
-        set(TEST_LOOPS 100)
-    else()
-        set(TEST_LOOPS 2)
-    endif()
-
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
     string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
     set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
@@ -422,9 +416,14 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
-    target_include_directories(unit-test
-        SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
-    target_link_libraries(unit-test PRIVATE ${Protobuf_LIBRARIES} ${ONNX_LIBRARIES})
+    # It's needed by onnx/onnx_import_library.cpp test and allows to NOT link statically
+    # to onnx lib, what conflicts with onnx_importer lib false failing onnx_editor tests.
+    foreach(_lib onnx onnx_proto libprotobuf)
+        get_target_property(_incl_dirs ${_lib} INTERFACE_INCLUDE_DIRECTORIES)
+        target_include_directories(unit-test PRIVATE ${_incl_dirs})
+    endforeach()
+    get_target_property(_cmpl_defs_from_onnx onnx INTERFACE_COMPILE_DEFINITIONS)
+    target_compile_definitions(unit-test PRIVATE ${_cmpl_defs_from_onnx})
 
     get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
