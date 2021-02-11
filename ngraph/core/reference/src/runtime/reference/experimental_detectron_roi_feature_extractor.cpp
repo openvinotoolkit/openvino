@@ -390,7 +390,7 @@ namespace ngraph
                     }
                 }
 
-                std::vector<int> dummy_mapping(num_rois, 0);
+                std::vector<int64_t> dummy_mapping(num_rois, 0);
                 reorder(output_rois_features_temp.data(),
                         original_rois_mapping.data(),
                         num_rois,
