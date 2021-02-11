@@ -20,7 +20,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
+TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 7 });
@@ -34,7 +34,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoder>();
+        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -111,7 +111,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderTest) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicInputShapeTest) {
+TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic());
@@ -125,7 +125,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicInputShapeTest) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoder>();
+        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -202,7 +202,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicInputShapeTest) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicBatchTest) {
+TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{Dimension::dynamic(), 3, 7});
@@ -216,7 +216,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicBatchTest) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoder>();
+        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -293,7 +293,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicBatchTest) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicSeqLenTest) {
+TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
@@ -307,7 +307,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderDynamicSeqLenTest) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoder>();
+        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
