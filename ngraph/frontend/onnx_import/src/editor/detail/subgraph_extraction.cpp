@@ -116,20 +116,25 @@ namespace
                      "Could not find an initializer in the graph: '",
                      edge.m_tensor_name);
 
-        const auto& initializer = *it;
-        auto& new_input = *(graph.add_input());
-
-        auto& new_input_tensor_type = *(new_input.mutable_type()->mutable_tensor_type());
-        new_input_tensor_type.set_elem_type(initializer.data_type());
-
-        auto& new_input_shape = *(new_input_tensor_type.mutable_shape());
-        for (const auto initializer_dim : initializer.dims())
+        if (!already_exists(graph.input(), new_input_name))
         {
-            auto& new_dim = *(new_input_shape.add_dim());
-            new_dim.set_dim_value(initializer_dim);
+            const auto& initializer = *it;
+            auto& new_input = *(graph.add_input());
+
+            auto& new_input_tensor_type = *(new_input.mutable_type()->mutable_tensor_type());
+            new_input_tensor_type.set_elem_type(initializer.data_type());
+
+            auto& new_input_shape = *(new_input_tensor_type.mutable_shape());
+            for (const auto initializer_dim : initializer.dims())
+            {
+                auto& new_dim = *(new_input_shape.add_dim());
+                new_dim.set_dim_value(initializer_dim);
+            }
+
+            *(new_input.mutable_name()) = new_input_name;
         }
 
-        *(new_input.mutable_name()) = new_input_name;
+        graph.mutable_initializer()->erase(it);
     }
 
     std::pair<bool, InputEdge> append_new_graph_input(ONNX_NAMESPACE::GraphProto& graph,
@@ -158,6 +163,7 @@ namespace
 
         if (is_graph_initializer(graph, edge.m_tensor_name))
         {
+            // TODO remove the last param?
             replace_initializer_with_new_input(graph, edge, new_input_name);
         }
         else
@@ -172,6 +178,51 @@ namespace
         *target_input = new_input_name;
 
         return {true, InputEdge{edge.m_node_idx, new_input_name}};
+    }
+
+    /// \brief Replaces a node or initializer (consumed by multiple nodes) with a new input
+    int replace_source_with_new_input(ONNX_NAMESPACE::GraphProto& graph, const InputEdge& edge)
+    {
+        if (already_exists(graph.input(), edge.m_tensor_name) &&
+            !is_graph_initializer(graph, edge.m_tensor_name))
+        {
+            // happens when a user specifies multiple input edges pointing to the same tensor name
+            return -1;
+        }
+
+        if (is_graph_initializer(graph, edge.m_tensor_name))
+        {
+            // replace an initializer with a new input but maintain the original name
+            // TODO remove the last param?
+            replace_initializer_with_new_input(graph, edge, edge.m_tensor_name);
+        }
+        else
+        {
+            auto& new_input = *(graph.add_input());
+            // copy the intermediate tensor properties to the newly created input
+            new_input.MergeFrom(find_tensor_descriptor(graph, edge.m_tensor_name));
+
+            const auto source_node_idx =
+                find_source_node_idx(graph, edge.m_node_idx, edge.m_tensor_name);
+            auto& source_node = *(graph.mutable_node(source_node_idx));
+            auto& node_outputs = *source_node.mutable_output();
+            auto target_output =
+                std::find(std::begin(node_outputs), std::end(node_outputs), edge.m_tensor_name);
+
+            NGRAPH_CHECK(target_output != std::end(node_outputs),
+                         "Output '",
+                         edge.m_tensor_name,
+                         "' not found in the outputs of node ",
+                         source_node_idx,
+                         ". Cannot remove the output from this node.");
+
+            // stop produsing tensor "edge.m_tensor_name" by the source node of the processed edge
+            *target_output = "";
+
+            return source_node_idx;
+        }
+
+        return -1;
     }
 
     void append_new_graph_output(ONNX_NAMESPACE::GraphProto& graph, const OutputEdge& edge)
@@ -254,6 +305,7 @@ SubgraphExtractor::SubgraphExtractor(ONNX_NAMESPACE::GraphProto& graph)
         for (const auto& node_input : graph.node(i).input())
         {
             m_node_inputs.insert({i, node_input});
+            m_tensor_consumers[node_input] += 1;
         }
     }
 }
@@ -264,11 +316,23 @@ void SubgraphExtractor::add_new_inputs(const std::vector<InputEdge>& new_inputs)
     {
         validate_node_index(m_onnx_graph, edge_to_replace.m_node_idx);
 
-        const auto& new_edge = append_new_graph_input(m_onnx_graph, edge_to_replace);
-        if (new_edge.first)
+        if (m_tensor_consumers[edge_to_replace.m_tensor_name] > 1)
         {
-            // TODO: all nodes with this input should be updated? additional edges creation uc
-            replace_input_edge(edge_to_replace, new_edge.second);
+            int idx = replace_source_with_new_input(m_onnx_graph, edge_to_replace);
+            if (idx != -1)
+            {
+                // if a node was replaced with an input, remove input edges from a helper multimap
+                // for this node because it won't end up in the target subgraph
+                m_node_inputs.erase(idx);
+            }
+        }
+        else
+        {
+            const auto& new_edge = append_new_graph_input(m_onnx_graph, edge_to_replace);
+            if (new_edge.first)
+            {
+                replace_input_edge(edge_to_replace, new_edge.second);
+            }
         }
     }
 }

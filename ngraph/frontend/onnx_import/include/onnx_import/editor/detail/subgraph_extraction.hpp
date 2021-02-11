@@ -138,6 +138,8 @@ namespace ngraph
 
             // Graph traversal helper: node index -> node inputs (one-to-many)
             std::unordered_multimap<int, std::string> m_node_inputs;
+            // Number of consumers of all tensors in the graph
+            std::map<std::string, int> m_tensor_consumers;
 
             /// \brief Replaces the old input edge with a new one in the helper struct.
             ///        This is used by the output contributors discovery.
