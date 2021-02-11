@@ -21,6 +21,7 @@
 #include <memory>
 
 #include "ngraph/partial_shape.hpp"
+#include "detail/subgraph_extraction.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_editor/onnx_editor_visibility.hpp"
 
