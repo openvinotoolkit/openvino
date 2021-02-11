@@ -416,12 +416,12 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     # It's needed by onnx/onnx_import_library.cpp test and allows to NOT link statically
     # to onnx lib, what conflicts with onnx_importer lib false failing onnx_editor tests.
-    foreach(_lib onnx onnx_proto ${Protobuf_LIBRARIES})
+    foreach(_lib onnx onnx_proto)
         get_target_property(_incl_dirs ${_lib} INTERFACE_INCLUDE_DIRECTORIES)
-        if(_incl_dirs)
-            target_include_directories(unit-test PRIVATE ${_incl_dirs})
-        endif()
+        target_include_directories(unit-test PRIVATE ${_incl_dirs})
     endforeach()
+    target_include_directories(unit-test SYSTEM PRIVATE ${Protobuf_INCLUDE_DIRS})
+
     get_target_property(_cmpl_defs_from_onnx onnx INTERFACE_COMPILE_DEFINITIONS)
     if(_cmpl_defs_from_onnx)
         target_compile_definitions(unit-test PRIVATE ${_cmpl_defs_from_onnx})
