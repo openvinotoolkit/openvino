@@ -1009,8 +1009,9 @@ namespace
             Shape output_rois_shape;
         };
 
-        EDROIFeatureOutputShapes infer_output_shapes(
-            const std::vector<std::shared_ptr<HostTensor>>& inputs, int64_t output_size)
+        EDROIFeatureOutputShapes
+            infer_output_shapes(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                int64_t output_size)
         {
             EDROIFeatureOutputShapes result = {
                 {Dimension::dynamic(), Dimension::dynamic(), output_size, output_size},
