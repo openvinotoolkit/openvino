@@ -16,6 +16,7 @@
 import unittest
 
 import numpy as np
+import numpy.testing as npt
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
@@ -58,7 +59,7 @@ class TestStridedSliceInfer(unittest.TestCase):
         node = Node(graph, 'sslice')
         StridedSlice.infer(node)
         res = node.out_port(0).data.get_shape() if is_shape else node.out_port(0).data.get_value()
-        self.assertTrue(np.array_equal(res, ref_res))
+        npt.assert_array_equal(res, ref_res)
 
     def test_slice_infer_value_1( self,  # out = inp[:4:1]
                                   inp=(1, 34, 34, 62), ref_res=(1, 34, 34, 62), is_shape=False,
@@ -274,9 +275,9 @@ class TestStridedSliceInfer(unittest.TestCase):
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
     def test_slice_infer_shape_18(
-            self,  # inp_shape = (1, 720, 1080, 3), out = inp[..., 2] => out_shape = (1, 720, 1080)
+            self,  # inp_shape = (1, 720, 1080, 3), out = inp[..., -2] => out_shape = (1, 720, 1080)
             inp=(1, 720, 1080, 3), ref_res=(1, 720, 1080), is_shape=True,
-            begin=(0, 2), end=(0, 0), strides=(1, 1), begin_mask=(0, 1), end_mask=(0, 0),
+            begin=(0, -2), end=(0, 0), strides=(1, 1), begin_mask=(0, 1), end_mask=(0, 0),
             shrink_axis_mask=(0, 1), new_axis_mask=(0, 0), ellipsis_mask=(1, 0)
     ):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
@@ -287,6 +288,222 @@ class TestStridedSliceInfer(unittest.TestCase):
             inp=(1, 720, 1080, 3), ref_res=(1, 720, 10, 3), is_shape=True,
             begin=(0, 0, 0), end=(0, 10, 3), strides=(1, 1, 1), begin_mask=(0, 1, 1), end_mask=(0, 1, 1),
             shrink_axis_mask=(0,), new_axis_mask=(0,), ellipsis_mask=(1,)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_0(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, ..., 0, :], out_shape=(1, 1, 100, 3)
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 1, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_1(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[..., np.newaxis, 0, :], out_shape=(1, 100, 1, 3)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 1, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(1, 0, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_2(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[0, np.newaxis, ..., :], out_shape=(1, 100, 200, 3)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 1, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_3(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[0, ..., np.newaxis, :], out_shape=(100, 200, 1, 3)
+            inp=(1, 100, 200, 3), ref_res=(100, 200, 1, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 1, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_4(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, 0, ..., :], out_shape=(1, 100, 200, 3)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_5(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[..., 0, np.newaxis, :], out_shape=(1, 100, 1, 3)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 1, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(1, 0, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_6(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, ..., :, 0], out_shape=(1, 1, 100, 200)
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 200),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 1, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_7(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[..., np.newaxis, :, 0], out_shape=(1, 100, 1, 200)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 1, 200),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(1, 0, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_8(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[0, np.newaxis, :, ...], out_shape=(1, 100, 200, 3)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 0, 1)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_9(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[0, ..., :, np.newaxis], out_shape=(100, 200, 3, 1)
+            inp=(1, 100, 200, 3), ref_res=(100, 200, 3, 1),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 1, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_10(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, 0, :, ...], out_shape=(1, 100, 200, 3)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 0, 1)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_11(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[..., 0, :, np.newaxis], out_shape=(1, 100, 3, 1)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 3, 1),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(1, 0, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_12(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, :, ..., 0], out_shape=(1, 1, 100, 200)
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 200),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_13(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[..., :, np.newaxis, 0], out_shape=(1, 100, 200, 1)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 1),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(1, 0, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_14(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[0, :, np.newaxis, ...], out_shape=(100, 1, 200, 3)
+            inp=(1, 100, 200, 3), ref_res=(100, 1, 200, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 0, 0, 1)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_15(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[0, :, ..., np.newaxis], out_shape=(100, 200, 3, 1)
+            inp=(1, 100, 200, 3), ref_res=(100, 200, 3, 1),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 0, 1, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_16(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, :, 0, ...], out_shape=(1, 1, 200, 3)
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 200, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 0, 1)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_17(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[..., :, 0, np.newaxis], out_shape=(1, 100, 200, 1)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 1),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(1, 0, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_18(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[:, np.newaxis, ..., 0], out_shape=(1, 1, 100, 200)
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 200),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 1, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_19(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[:, ..., np.newaxis, 0], out_shape=(1, 100, 200, 1)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 1),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 1, 0, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_20(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[:, 0, np.newaxis, ...], out_shape=(1, 1, 200, 3)
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 200, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 0, 0, 1)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_21(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[:, 0, ..., np.newaxis], out_shape=(1, 200, 3, 1)
+            inp=(1, 100, 200, 3), ref_res=(1, 200, 3, 1),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 0, 1, 0)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_22(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[:, np.newaxis, 0, ...], out_shape=(1, 1, 200, 3)
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 200, 3),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 0, 1)
+    ):
+        self.run_test(inp, is_shape, ref_res, begin, end, strides,
+                      begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    def test_strided_slice_23(
+            self, # inp_shape = (1, 100, 200, 3), out = inp[:, ..., 0, np.newaxis], out_shape=(1, 100, 200, 1)
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 1),  is_shape=True,
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 1, 0, 0)
     ):
         self.run_test(inp, is_shape, ref_res, begin, end, strides,
                       begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
