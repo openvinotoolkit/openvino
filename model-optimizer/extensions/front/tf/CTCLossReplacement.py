@@ -85,12 +85,17 @@ class CTCLossReplacement(FrontReplacementSubgraph):
         preprocess_collapse_repeated = ctc_loss_tf.preprocess_collapse_repeated
         ctc_merge_repeated = ctc_loss_tf.ctc_merge_repeated
         unique = ctc_loss_tf.unique
+        logits_time_major = ctc_loss_tf.logits_time_major
         ctc_loss = CTCLoss(graph, {'name': output_ctc_loss_name,
                                    'preprocess_collapse_repeated': preprocess_collapse_repeated,
                                    'ctc_merge_repeated': ctc_merge_repeated,
-                                   'unique': unique}).create_node()
+                                   'unique': unique,
+                                   'logits_time_major': logits_time_major}).create_node()
         ctc_loss_tf.out_port(0).get_connection().set_source(ctc_loss.out_port(0))
-        ctc_loss.in_port(0).connect(ctc_data_permute.out_port(0))
+        if ctc_loss_tf.logits_time_major:
+            ctc_loss.in_port(0).connect(ctc_data_permute.out_port(0))
+        else:
+            ctc_loss.in_port(0).connect(transpose_tf.out_port(0))
         ctc_loss.in_port(1).connect(ctc_greedy_decoder_tf.in_port(1).get_connection().get_source())
         ctc_loss.in_port(2).connect(ctc_greedy_decoder.out_port(0))
         ctc_loss.in_port(3).connect(ctc_greedy_decoder.out_port(1))

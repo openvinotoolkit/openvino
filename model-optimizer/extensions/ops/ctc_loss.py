@@ -39,7 +39,8 @@ class CTCLoss(Op):
 
             'preprocess_collapse_repeated': False,
             'ctc_merge_repeated': True,
-            'unique': False
+            'unique': False,
+            'logits_time_major': True
         }
         super().__init__(graph, mandatory_props, attrs)
 
