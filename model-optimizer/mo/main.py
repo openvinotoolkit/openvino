@@ -267,7 +267,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                                                            'offline_transformations.py')
             status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=100)
             if status.returncode != 0:
-                print("[ WARNING ] offline_transformations return code {}, using fallback".format(status.returncode))
+                print("[ WARNING ] offline_transformations return code {}".format(status.returncode))
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))

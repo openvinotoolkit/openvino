@@ -16,8 +16,6 @@
  limitations under the License.
 """
 
-import os
-
 from version import get_mo_version
 from extract_release_version import extract_release_version
 
@@ -33,13 +31,11 @@ def try_to_import_ie():
         if mo_version not in ie_version:
             extracted_release_version = extract_release_version()
             is_custom_mo_version = extracted_release_version == (None, None)
-            warning_message = "\n            ".join([
-                "MO and IE versions do no match: MO: {}, IE: {}".format(mo_version, ie_version),
-                "Some ModelOptimizer functionality may not work.",
-                "Please consider to build InferenceEngine python from source or install OpenVINO using pip install openvino{}".format(
-                    "" if is_custom_mo_version else "=={}.{}".format(*extracted_release_version))
-            ])
-            print("[ WARNING ] {}".format(warning_message))
+
+            print("[ WARNING ] MO and IE versions do no match: MO: {}, IE: {}".format(mo_version, ie_version))
+            print("[ WARNING ] Some ModelOptimizer functionality may not work.")
+            print("[ WARNING ] Please consider to build InferenceEngine python from source or reinstall OpenVINO using pip install openvino{} {}".format(
+                "", "(may be incompatible with current ModelOptimizer version)" if is_custom_mo_version else "=={}.{}".format(*extracted_release_version), ""))
 
         print("[ IMPORT ] Successfully imported InferenceEngine Python modules")
         return True

@@ -15,7 +15,11 @@
 """
 import re
 
-from version import get_mo_version
+try:
+    # needed by install_prerequisites which call extract_release_version as python script
+    from version import get_mo_version
+except ImportError:
+    from mo.utils.version import get_mo_version
 
 
 def extract_release_version():
