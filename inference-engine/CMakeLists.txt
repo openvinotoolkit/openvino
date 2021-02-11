@@ -180,6 +180,8 @@ endif()
 #
 
 ie_developer_export_targets(format_reader)
+ie_developer_export_targets(ie_samples_utils)
+ie_developer_export_targets(gflags)
 ie_developer_export_targets(${NGRAPH_LIBRARIES})
 
 # for Template plugin
