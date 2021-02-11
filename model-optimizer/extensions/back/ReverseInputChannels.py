@@ -97,7 +97,9 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
         'BatchNormalization': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
         'FakeQuantize': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
         'Multiply': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
+        'Divide': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
         'Add': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
+        'Subtract': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
         'Pow': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
         'Convert': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
 
@@ -198,9 +200,8 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
                 continue
             shape = port.data.get_shape()
             non_one_dims = np.where(shape != 1)[0]
-            if len(non_one_dims) == 0:
-                # shape contains only ones - nothing to flip for this input
-                continue
+            if shape[reverse_channels.axis] == 1:
+                continue  # nothing to flip for this input
             if len(non_one_dims) == 1 and shape[non_one_dims.item()] == reverse_channels.order.size:
                 new_axis = non_one_dims.item()
             elif np.array_equal(before_shape, shape):
@@ -238,7 +239,8 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
         """
         stops propagation of RIC through shape taking operations, due to RIC does not change shape
         """
-        reverse_channels.out_port(0).get_connection().set_source(reverse_channels.in_port(0).get_connection().get_source())
+        reverse_channels.out_port(0).get_connection().set_source(
+            reverse_channels.in_port(0).get_connection().get_source())
         return False
 
     @staticmethod
@@ -269,7 +271,9 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         'BatchNormalization': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'FakeQuantize': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Multiply': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
+        'Divide': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Add': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
+        'Subtract': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Pow': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Convert': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
     }
@@ -300,9 +304,8 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             shape = port.data.get_shape()
 
             non_one_dims = np.where(shape != 1)[0]
-            if len(non_one_dims) == 0:
-                # shape contains only ones - nothing to flip for this input
-                continue
+            if shape[reverse_channels.axis] == 1:
+                continue  # nothing to flip for this input
             if len(non_one_dims) == 1 and shape[non_one_dims.item()] == reverse_channels.order.size:
                 axis = non_one_dims.item()
             elif np.array_equal(before_shape, shape):
