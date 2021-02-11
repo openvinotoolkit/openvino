@@ -98,11 +98,6 @@ function(build_ngraph)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
     endif()
 
-    # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
-    if (UNIX)
-        ie_add_compiler_flags(-Wno-error=attributes)
-    endif()
-
     if(ENABLE_LTO)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
