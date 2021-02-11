@@ -231,12 +231,10 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     const bool isPerChannelLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isTailCFormat();
     params.maxDims += static_cast<size_t>(isBlockedLayout);
 
-    // preparing masks and parameters for layouts
     if (isBlockedLayout) {
         const size_t blk = params.srcDims.back();
         begin[1] = begin[1] / blk;
         end[1] = ceil(end[1] / static_cast<float>(blk));
-
         begin.push_back(0);
         end.push_back(0);
         stride.push_back(1);
@@ -333,6 +331,7 @@ void MKLDNNStridedSliceNode::createPrimitive() {
                 strideTemp.push_back(stride[axis]);
                 newSrcDims.push_back(params.srcDims[srcIdx]);
                 newDstDims.push_back(ceil(static_cast<float>(abs(e - b) + 1) / static_cast<float>(abs(strideTemp.back()))));
+
                 srcIdx++;
             }
         }
@@ -367,7 +366,7 @@ void MKLDNNStridedSliceNode::createPrimitive() {
         }
     }
 
-    if (indexes.back() == 0) {
+    if (indexes.back() < 2) {
         indexes[indexes.size() - 1] = 1;
         secondDim.first = 1;
     }
@@ -406,7 +405,7 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     params.lastDstDim = nGluingLastDims * params.dataSize;
     params.nDimsForWork = params.dstDims.size() - static_cast<size_t>(vLastDim);
 
-    if (stride.back() == 1 && params.nDimsForWork == 1 && params.maxDims > 2) {
+    if (params.nDimsForWork == 1 && params.maxDims > 2) {
         const size_t realSrcDim = newSrcDims[secondDim.first];
         const size_t realDstDim = newDstDims[secondDim.first];
 
@@ -425,10 +424,10 @@ void MKLDNNStridedSliceNode::createPrimitive() {
             params.dstDims.insert(params.dstDims.begin() + 1, realDstDim);
             params.srcDims.insert(params.srcDims.begin() + 1, realSrcDim);
         }
-
-        if (params.dstDims.size() > 2)
-            params.lastDstDim /= realDstDim;
     }
+
+    if (params.nDimsForWork == 1 && params.dstDims.size() > 2)
+        params.lastDstDim /= newDstDims[secondDim.first];
 }
 
 void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
