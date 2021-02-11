@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <algorithm>
+#include <sstream>
 
 #include "gtest/gtest.h"
 
@@ -22,7 +23,7 @@
 #include "ngraph/file_util.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset1.hpp"
-#include "onnx_import/editor/editor.hpp"
+#include "onnx_editor/editor.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/test_control.hpp"
 #include "utils/onnx_test_util.hpp"
@@ -66,7 +67,8 @@ NGRAPH_TEST(onnx_editor, types__single_input_type_substitution)
 
     editor.set_input_types({{"A", element::i64}});
 
-    const auto function = onnx_import::import_onnx_model(editor);
+    std::istringstream model_stream(editor.model_string());
+    const auto function = onnx_import::import_onnx_model(model_stream);
 
     const auto graph_inputs = function->get_parameters();
 
@@ -90,7 +92,8 @@ NGRAPH_TEST(onnx_editor, types__all_inputs_type_substitution)
 
     editor.set_input_types({{"A", element::i8}, {"B", element::i8}, {"C", element::i8}});
 
-    const auto function = onnx_import::import_onnx_model(editor);
+    std::istringstream model_stream(editor.model_string());
+    const auto function = onnx_import::import_onnx_model(model_stream);
 
     const auto graph_inputs = function->get_parameters();
 
@@ -147,7 +150,8 @@ NGRAPH_TEST(onnx_editor, types__elem_type_missing_in_input)
     // the "elem_type" is missing in the model but it should be possible to set the type anyway
     EXPECT_NO_THROW(editor.set_input_types({{"A", element::i64}}));
 
-    const auto function = onnx_import::import_onnx_model(editor);
+    std::istringstream model_stream(editor.model_string());
+    const auto function = onnx_import::import_onnx_model(model_stream);
 
     const auto graph_inputs = function->get_parameters();
 
@@ -169,7 +173,8 @@ NGRAPH_TEST(onnx_editor, shapes__modify_single_input)
 
     editor.set_input_shapes({{"B", new_shape}});
 
-    const auto function = onnx_import::import_onnx_model(editor);
+    std::istringstream model_stream(editor.model_string());
+    const auto function = onnx_import::import_onnx_model(model_stream);
 
     const auto graph_inputs = function->get_parameters();
 
@@ -185,7 +190,8 @@ NGRAPH_TEST(onnx_editor, shapes__modify_all_inputs)
 
     editor.set_input_shapes({{"A", new_shape}, {"B", new_shape}});
 
-    const auto function = onnx_import::import_onnx_model(editor);
+    std::istringstream model_stream(editor.model_string());
+    const auto function = onnx_import::import_onnx_model(model_stream);
 
     const auto graph_inputs = function->get_parameters();
 
@@ -205,7 +211,8 @@ NGRAPH_TEST(onnx_editor, shapes__dynamic_rank_in_model)
     const auto expected_shape_of_A = PartialShape{1, 2};
     EXPECT_NO_THROW(editor.set_input_shapes({{"A", expected_shape_of_A}}));
 
-    const auto function = onnx_import::import_onnx_model(editor);
+    std::istringstream model_stream(editor.model_string());
+    const auto function = onnx_import::import_onnx_model(model_stream);
 
     const auto graph_inputs = function->get_parameters();
 
@@ -222,7 +229,8 @@ NGRAPH_TEST(onnx_editor, shapes__set_dynamic_dimension)
 
     editor.set_input_shapes({{"A", new_shape}});
 
-    const auto function = onnx_import::import_onnx_model(editor);
+    std::istringstream model_stream(editor.model_string());
+    const auto function = onnx_import::import_onnx_model(model_stream);
 
     const auto graph_inputs = function->get_parameters();
 
@@ -239,7 +247,8 @@ NGRAPH_TEST(onnx_editor, shapes__set_mixed_dimensions)
 
     editor.set_input_shapes({{"A", new_shape_A}, {"B", new_shape_B}});
 
-    const auto function = onnx_import::import_onnx_model(editor);
+    std::istringstream model_stream(editor.model_string());
+    const auto function = onnx_import::import_onnx_model(model_stream);
 
     const auto graph_inputs = function->get_parameters();
 
@@ -259,7 +268,8 @@ NGRAPH_TEST(onnx_editor, shapes__set_scalar_inputs)
 
     editor.set_input_shapes({{"A", new_shape}, {"B", new_shape}});
 
-    const auto function = onnx_import::import_onnx_model(editor);
+    std::istringstream model_stream(editor.model_string());
+    const auto function = onnx_import::import_onnx_model(model_stream);
 
     const auto graph_inputs = function->get_parameters();
 
@@ -279,7 +289,8 @@ NGRAPH_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution)
 
     editor.set_input_shapes({{"A", new_shape}, {"B", new_shape}});
 
-    const auto function = onnx_import::import_onnx_model(editor);
+    std::istringstream model_stream(editor.model_string());
+    const auto function = onnx_import::import_onnx_model(model_stream);
 
     const auto graph_inputs = function->get_parameters();
 
