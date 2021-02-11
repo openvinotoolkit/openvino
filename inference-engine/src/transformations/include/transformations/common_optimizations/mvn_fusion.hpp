@@ -24,7 +24,7 @@ namespace pass {
 /**
  * @ingroup ie_transformation_common_api
  * @brief MVNFusion transformation replaces group of
- * operations: (x - ReduceMean(x, axes)) / Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) to MVN op.
+ * operations: (x - ReduceMean(x, axes)) / (Sqrt(ReduceMean((x - ReduceMean(x, axes)) ^ 2)) + eps) to MVN op.
  */
 class ngraph::pass::MVNFusion : public ngraph::pass::MatcherPass {
 public:
