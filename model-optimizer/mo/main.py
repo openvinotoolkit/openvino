@@ -259,7 +259,9 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
         if not find_ie_version():
-            print("[ WARNING ] No IE version was found, using fallback")
+            print("[ WARNING ] No InferenceEngine python was found. Some ModelOptimizer functionality may not work.")
+            print("[ WARNING ] Please consider to build InferenceEngine python from source or try to install OpenVINO using install_prerequisites.{}".format(
+                "bat" if sys.platform == "windows" else "sh"))
         else:
             path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)),
                                                            'offline_transformations.py')

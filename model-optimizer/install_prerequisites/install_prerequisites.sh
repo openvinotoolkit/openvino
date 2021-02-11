@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -119,40 +119,57 @@ check_ov_package() {
     fi
 }
 
-extract_release_from_version() {
-    version="$("$1" -c "import sys; import os; \
-                        sys.path.append(os.path.join(\"$SCRIPTDIR\", os.pardir)); \
-                        from mo.utils.version import extract_release_version; \
-                        print(\"{}.{}\".format(*extract_release_version()))")"
+print_warning() {
+    YELLOW='\033[1;33m'
+    NC='\033[0m'
+    printf "${YELLOW}[ WARNING ] %s ${NC}\n" "$1"
 }
 
 find_ie_bindings() {
     python_executable="$1"
     requires_sudo="$2"
 
+    mo_release_version="$("$python_executable" "$SCRIPTDIR"/../mo/utils/extract_release_version.py)"
+    if [[ $mo_release_version == "None.None" ]]; then
+      mo_is_custom=true
+      echo "[ INFO ] Custom ModelOptimizer version detected"
+    else
+      mo_is_custom=false
+      echo "[ INFO ] Release ModelOptimizer version $mo_release_version detected"
+    fi
+
     if ! check_ie "$python_executable"; then
         # check pip installed openvino package
         if check_ov_package "$python_executable" "$requires_sudo"; then
-            echo "[ WARNING ] Existing OpenVINO version doesn't work as expected."
-            return 1
+            if $mo_is_custom; then
+                print_warning "Existing OpenVINO pip version is incompatible with ModelOptimizer."
+                print_warning "For not release ModelOptimizer version please build InferenceEngine python from source (preferable) or install latest OpenVINO version using pip install openvino (may be incompatible)."
+            else
+                print_warning "Existing OpenVINO pip version is incompatible with ModelOptimizer."
+                print_warning "For release ModelOptimizer version which is $mo_release_version please install OpenVNO using pip install openvino==$mo_release_version or build InferenceEngine python from source."
+            fi
+            return 0
         fi
 
-        # try to find OpenVINO version that matches MO version
-        if extract_release_from_version "$python_executable"; then
-            if [[ $version == "None.None" ]]; then
-                echo "[ WARNING ] Can not extract release version from ModelOptimizer version. The latest OpenVINO version will be installed (may be incompatible with current ModelOptimizer version)"
-            elif install_ov "$python_executable" "$requires_sudo" "$version"; then
-                if check_ie "$python_executable"; then
-                    return 0
-                fi
-                echo "[ WARNING ] Installed OpenVINO version doesn't work as expected...Uninstalling"
-                uninstall_ov "$python_executable" "$requires_sudo"
-                return 1
-            else
-                echo "[ WARNING ] Can not find OpenVINO version that matches ModelOptimizer version. The latest OpenVINO version will be installed (may be incompatible with current ModelOptimizer version)"
+        print_warning "No available InferenceEngine python API was found. Trying to install OpenVINO using pip."
+
+        if $mo_is_custom; then
+            print_warning "Custom ModelOptimizer version detected."
+            print_warning "The desired version of InferenceEngine can be installed only for release ModelOptimizer version."
+            print_warning "The latest OpenVINO version will be installed (may be incompatible with current ModelOptimizer version)."
+        elif install_ov "$python_executable" "$requires_sudo" "$mo_release_version"; then
+            if check_ie "$python_executable"; then
+                return 0
             fi
+
+            print_warning "Installed OpenVINO version $mo_release_version doesn't work as expected...Uninstalling..."
+            print_warning "Please consider to build InferenceEngine python from source"
+
+            uninstall_ov "$python_executable" "$requires_sudo"
+            return 0
         else
-            echo "[ WARNING ] Can not detect ModelOptimizer release version. The latest OpenVINO version will be installed (may be incompatible with current ModelOptimizer version)"
+            print_warning "Can not find OpenVINO version $mo_release_version in pip."
+            print_warning "The latest OpenVINO version will be installed (may be incompatible with current ModelOptimizer version)"
         fi
 
         #install the latest OpenVINO pip version
@@ -160,13 +177,15 @@ find_ie_bindings() {
             if check_ie "$python_executable"; then
                 return 0
             else
-                echo "[ WARNING ] Installed OpenVINO version doesn't work as expected...Uninstalling"
+                print_warning "Installed latest OpenVINO version doesn't work as expected...Uninstalling..."
                 uninstall_ov "$python_executable" "$requires_sudo"
-                return 1
+                print_warning "Please consider to build InferenceEngine python from source."
+                return 0
             fi
         else
-            echo "[ WARNING ] No OpenVINO version is available for installation"
-            return 1
+            print_warning "No OpenVINO version is available in pip for installation."
+            print_warning "Please consider to build InferenceEngine python from source."
+            return 0
         fi
     fi
 
@@ -178,22 +197,16 @@ if [[ $V_ENV -eq 1 ]]; then
     source "$SCRIPTDIR/../venv${postfix}/bin/activate"
     venv_python_binary="$SCRIPTDIR/../venv${postfix}/bin/$python_binary"
     $venv_python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
-    if ! find_ie_bindings "$venv_python_binary" false; then
-        echo "[ WARNING ] Please build IneferenceEngine Python bindings from source"
-    fi
+    find_ie_bindings "$venv_python_binary" false
     echo
     echo "Before running the Model Optimizer, please activate virtualenv environment by running \"source ${SCRIPTDIR}/../venv${postfix}/bin/activate\""
 else
     if [[ "$OSTYPE" == "darwin"* ]]; then
         python3 -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
-        if ! find_ie_bindings python3 false; then
-            echo "[ WARNING ] Please build IneferenceEngine Python bindings from source"
-        fi
+        find_ie_bindings python3 false
     else
         sudo -E $python_binary -m pip install -r "$SCRIPTDIR/../requirements${postfix}.txt"
-        if ! find_ie_bindings $python_binary true; then
-            echo "[ WARNING ] Please build IneferenceEngine Python bindings from source"
-        fi
+        find_ie_bindings $python_binary true
     fi
     echo "[WARNING] All Model Optimizer dependencies are installed globally."
     echo "[WARNING] If you want to keep Model Optimizer in separate sandbox"

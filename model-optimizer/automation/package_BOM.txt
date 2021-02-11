@@ -968,6 +968,7 @@ mo/utils/cli_parser.py
 mo/utils/custom_replacement_config.py
 mo/utils/dsu.py
 mo/utils/error.py
+mo/utils/extract_release_version.py
 mo/utils/find_ie_version.py
 mo/utils/find_inputs.py
 mo/utils/get_ov_update_message.py

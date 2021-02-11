@@ -83,7 +83,7 @@ def find_ie_version():
             subprocess.run([sys.executable, path_to_script], env=os.environ)
 
     """
-    # print("[ IMPORT ] Checking default IE Python module")
+    print("[ IMPORT ] Checking existing InferenceEngine python API")
     if try_to_import_ie():
         return True
 
@@ -119,8 +119,11 @@ def find_ie_version():
     ]
 
     for item in bindings_paths:
-        # print("[ IMPORT ] Trying to find module in {}".format(item['module']))
-        if try_to_import_ie(module=item['module'], libs=item['libs'] if 'libs' in item else []):
+        module = item['module']
+        if not os.path.exists(module):
+            continue
+        print("[ IMPORT ] Searching InferenceEngine python API in: {}".format(os.path.normpath(module)))
+        if try_to_import_ie(module=module, libs=item['libs'] if 'libs' in item else []):
             return True
 
     return False

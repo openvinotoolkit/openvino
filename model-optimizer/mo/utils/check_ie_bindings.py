@@ -18,34 +18,33 @@
 
 import os
 
-
-def get_mo_version():
-    version_txt = os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "version.txt")
-    if not os.path.isfile(version_txt):
-        return "unknown version"
-    with open(version_txt) as f:
-        version = f.readline().replace('\n', '')
-    return version
+from version import get_mo_version
+from extract_release_version import extract_release_version
 
 
 def try_to_import_ie():
     try:
         from openvino.inference_engine import IECore, get_version
-        # print("[ IMPORT ]     Successfully Imported: IECore")
-
         from openvino.offline_transformations import ApplyMOCTransformations
-        # print("[ IMPORT ]     Successfully Imported: ApplyMOCTransformations")
 
         ie_version = get_version()
         mo_version = get_mo_version()
 
         if mo_version not in ie_version:
-            print("[ WARNING ] MO and IE versions do no match: MO: {}, IE: {}".format(mo_version, ie_version))
+            extracted_release_version = extract_release_version()
+            is_custom_mo_version = extracted_release_version == (None, None)
+            warning_message = "\n            ".join([
+                "MO and IE versions do no match: MO: {}, IE: {}".format(mo_version, ie_version),
+                "Some ModelOptimizer functionality may not work.",
+                "Please consider to build InferenceEngine python from source or install OpenVINO using pip install openvino{}".format(
+                    "" if is_custom_mo_version else "=={}.{}".format(*extracted_release_version))
+            ])
+            print("[ WARNING ] {}".format(warning_message))
 
         print("[ IMPORT ] Successfully imported InferenceEngine Python modules")
         return True
     except ImportError as e:
-        # print("[ IMPORT ]     ImportError: {}".format(e))
+        print("[ IMPORT ] ImportError: {}".format(e))
         return False
 
 
