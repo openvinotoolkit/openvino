@@ -76,6 +76,7 @@ void descriptor::Tensor::invalidate_values()
 
 void descriptor::Tensor::set_lower_value(const HostTensorPtr& value)
 {
+    NGRAPH_CHECK(value != nullptr);
     NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
     NGRAPH_CHECK(m_element_type == value->get_element_type());
     m_lower_value = value;
@@ -83,6 +84,7 @@ void descriptor::Tensor::set_lower_value(const HostTensorPtr& value)
 
 void descriptor::Tensor::set_upper_value(const HostTensorPtr& value)
 {
+    NGRAPH_CHECK(value != nullptr);
     NGRAPH_CHECK(m_partial_shape.same_scheme(value->get_partial_shape()));
     NGRAPH_CHECK(m_element_type == value->get_element_type());
     m_upper_value = value;
