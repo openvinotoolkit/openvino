@@ -113,6 +113,10 @@ The common workflow contains the following steps:
 
 7. **Get the output** - After inference is completed, get the output memory or read the memory you provided earlier. Do this with the `InferenceEngine::IInferRequest::GetBlob()` method.
 
+## Video: Inference Engine Concept
+[![](https://img.youtube.com/vi/e6R13V8nbak/0.jpg)](https://www.youtube.com/watch?v=e6R13V8nbak)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/e6R13V8nbak" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 ## Further Reading
 
 For more details on the Inference Engine API, refer to the [Integrating Inference Engine in Your Application](Integrate_with_customer_application_new_API.md) documentation.
