@@ -38,19 +38,16 @@ def pytest_addoption(parser):
     )
     parser.addoption(
         "--sea_runtool",
-        required=True,
         type=Path,
         help="Path to sea_runtool.py"
     )
     parser.addoption(
         "--benchmark_app",
-        required=True,
         type=Path,
         help="Path to the benchmark_app tool",
     )
     parser.addoption(
         "--collector_dir",
-        required=True,
         type=Path,
         help="Path to a directory with a collector binary",
     )
