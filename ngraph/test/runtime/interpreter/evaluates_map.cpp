@@ -38,6 +38,7 @@
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_detection_output.hpp>
 #include <ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp>
+#include <ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
 #include <ngraph/runtime/reference/gather_elements.hpp>
@@ -986,6 +987,124 @@ namespace
             output_boxes_shape,
             output_classes_shape,
             output_scores_shape);
+
+        return true;
+    }
+
+    namespace experimental_roi_feature
+    {
+        struct EDROIFeatureOutputShapes
+        {
+            PartialShape output_rois_features_shape;
+            PartialShape output_rois_shape;
+        };
+
+        struct InfoForEDROIFeature
+        {
+            ngraph::element::Type output_type;
+            std::vector<std::vector<float>> input_data;
+            std::vector<Shape> input_shapes;
+            op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes attrs;
+            Shape output_rois_features_shape;
+            Shape output_rois_shape;
+        };
+
+        EDROIFeatureOutputShapes infer_output_shapes(
+            const std::vector<std::shared_ptr<HostTensor>>& inputs, int64_t output_size)
+        {
+            EDROIFeatureOutputShapes result = {
+                {Dimension::dynamic(), Dimension::dynamic(), output_size, output_size},
+                {Dimension::dynamic(), 4}};
+
+            auto rois_shape = inputs[0]->get_partial_shape();
+
+            if (rois_shape.rank().is_static())
+            {
+                result.output_rois_features_shape[0] = rois_shape[0];
+                result.output_rois_shape[0] = rois_shape[0];
+            }
+
+            size_t num_of_inputs = inputs.size();
+            Dimension channels_intersection;
+
+            for (size_t i = 1; i < num_of_inputs; i++)
+            {
+                auto current_shape = inputs[i]->get_partial_shape();
+                auto current_rank = current_shape.rank();
+
+                if (current_rank.is_static())
+                {
+                    channels_intersection &= current_shape[1];
+                }
+            }
+
+            result.output_rois_features_shape[1] = channels_intersection;
+
+            return result;
+        }
+
+        InfoForEDROIFeature get_info_for_ed_roi_feature_eval(
+            const std::shared_ptr<op::v6::ExperimentalDetectronROIFeatureExtractor>& ed_roi,
+            const std::vector<std::shared_ptr<HostTensor>>& inputs)
+        {
+            InfoForEDROIFeature result;
+
+            auto attrs = ed_roi->get_attrs();
+            auto out_shapes = infer_output_shapes(inputs, attrs.output_size);
+
+            result.attrs = attrs;
+            result.output_rois_features_shape = out_shapes.output_rois_features_shape.to_shape();
+            result.output_rois_shape = out_shapes.output_rois_shape.to_shape();
+
+            for (const auto& input : inputs)
+            {
+                auto current_input_shape = input->get_shape();
+                auto current_input_value = nms_v5::get_floats(input, current_input_shape);
+
+                result.input_shapes.push_back(current_input_shape);
+                result.input_data.push_back(current_input_value);
+            }
+
+            result.output_type = ed_roi->get_input_element_type(0);
+
+            return result;
+        }
+    } // namespace experimental_roi_feature
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::ExperimentalDetectronROIFeatureExtractor>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        auto info = experimental_roi_feature::get_info_for_ed_roi_feature_eval(op, inputs);
+
+        const auto& output_rois_features_shape = result.output_rois_features_shape;
+        const auto& output_rois_shape = result.output_rois_shape;
+        const auto& output_type = result.output_type;
+
+        std::vector<float*> data_ptrs(result.input_data.size());
+        for (size_t i = 0; i < inputs.size(); ++i)
+        {
+            data_ptrs[i] = result.input_data[i].data();
+        }
+
+        std::vector<float> output_rois_features(shape_size(output_rois_features_shape));
+        std::vector<float> output_rois(shape_size(output_rois_shape));
+
+        runtime::reference::experimental_detectron_roi_feature_extractor(
+            data_ptrs,
+            result.input_shapes,
+            result.attrs,
+            output_rois_features.data(),
+            output_rois.data());
+
+        runtime::reference::experimental_detectron_roi_feature_extractor_postprocessing(
+            outputs,
+            output_type,
+            output_rois_features,
+            output_rois,
+            output_rois_features_shape,
+            output_rois_shape);
 
         return true;
     }
