@@ -30,10 +30,10 @@ namespace ngraph
                 {
                     std::vector<size_t> sizes;
                     sizes.reserve(in_shapes.size());
-                    for (size_t in_index = 0; in_index != in_shapes.size(); ++in_index)
-                    {
-                        sizes.push_back(shape_size(in_shapes[in_index]));
-                    }
+                    std::transform(begin(in_shapes),
+                                   end(in_shapes),
+                                   std::back_inserter(sizes),
+                                   [](const Shape& shape) { return shape_size(shape); });
                     return sizes;
                 }
             } // namespace
@@ -69,6 +69,6 @@ namespace ngraph
                     }
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
