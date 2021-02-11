@@ -588,6 +588,58 @@ NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_input_relu2)
     EXPECT_TRUE(result.is_ok) << result.error_message;
 }
 
+NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge{2, "in2"}}}, {});
+
+    const auto ref_model =
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/model_editor/reference/"
+                             "subgraph__multiple_consumers_of_graph_initializer.prototxt");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_2)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge{2, "in2"}, InputEdge{3, "in2"}}}, {});
+
+    // same as above
+    const auto ref_model =
+        file_util::path_join(SERIALIZED_ZOO,
+                             "onnx/model_editor/reference/"
+                             "subgraph__multiple_consumers_of_graph_initializer.prototxt");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
+NGRAPH_TEST(onnx_editor, subgraph__multiple_consumers_of_graph_initializer_relu2_and_init)
+{
+    onnx_import::ONNXModelEditor editor{file_util::path_join(
+        SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests_2.prototxt")};
+
+    editor.cut_graph_fragment({{InputEdge{5, "relu2"}, InputEdge{3, "in2"}}}, {});
+
+    const auto ref_model = file_util::path_join(
+        SERIALIZED_ZOO,
+        "onnx/model_editor/reference/"
+        "subgraph__multiple_consumers_of_graph_initializer_relu2_and_init.prototxt");
+
+    const auto result = compare_onnx_models(editor.model_string(), ref_model);
+
+    EXPECT_TRUE(result.is_ok) << result.error_message;
+}
+
 NGRAPH_TEST(onnx_editor, subgraph__invalid_edge_idx)
 {
     const auto model_path =
