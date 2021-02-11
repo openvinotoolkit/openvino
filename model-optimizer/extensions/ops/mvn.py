@@ -60,11 +60,13 @@ class MVN(Op):
         name = node.soft_get('name', node.id)
 
         assert node.eps is not None, 'MVN required attribute `eps` unspecified for node {}'.format(name)
-        assert node.eps_mode is not None, 'MVN required attribute `eps_mode` unspecified for node {}'.format(name)
         assert node.normalize_variance is not None, \
             'MVN required attribute `normalize_variance` unspecified for node {}'.format(name)
 
-        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
+        if node.version == 'opset6':
+            assert node.eps_mode is not None, 'MVN required attribute `eps_mode` unspecified for node {}'.format(name)
+            PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
+
         copy_shape_infer(node)
 
 
