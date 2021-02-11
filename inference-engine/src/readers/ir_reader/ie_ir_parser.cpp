@@ -23,6 +23,7 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
+#include <ngraph/op/util/variable.hpp>
 
 #include <cpp/ie_cnn_network.h>
 #include "ie_blob_stream.hpp"
@@ -223,6 +224,11 @@ ngraph::op::v5::Loop::SpecialBodyPorts V10Parser::XmlDeserializer::parsePurposeA
 }
 
 void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
+    static const std::unordered_set<std::string> skip_names = {
+        "input_descriptions",
+        "output_descriptions",
+        "special_body_ports"
+    };
     std::string val;
 
     // for TensorIterator look for 'port_map' as 'data' does not exist
@@ -238,7 +244,7 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
         }
     }
 
-    if (!getStrAttribute(node.child("data"), name, val)) return;
+    if (skip_names.count(name) && !getStrAttribute(node.child("data"), name, val)) return;
     if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::element::Type>>(&adapter)) {
         static_cast<ngraph::element::Type&>(*a) = details::convertPrecision(val);
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::PartialShape>>(&adapter)) {
@@ -281,6 +287,54 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
         if (!getParameters<size_t>(node.child("data"), name, shape)) return;
         std::vector<std::ptrdiff_t> coord_diff(shape.begin(), shape.end());
         static_cast<ngraph::CoordinateDiff&>(*a) = ngraph::CoordinateDiff(coord_diff);
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter
+            <std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+        std::string variable_id;
+        if (!getStrAttribute(node.child("data"), name, variable_id)) return;
+        if (!variables.count(variable_id)) {
+            variables[variable_id] = std::make_shared<ngraph::Variable>
+                    (ngraph::VariableInfo{ngraph::PartialShape::dynamic(),
+                                          ngraph::element::dynamic, variable_id});
+        }
+        a->set(variables[variable_id]);
+    } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+        std::string value;
+        pugi::xml_node dn = node.child("data");
+        auto type = XMLParseUtils::GetStrAttr(node, "type");
+
+        if (dn.empty())
+            THROW_IE_EXCEPTION << "No attrtibutes defined for " << type << " op!";
+
+        if (getStrAttribute(dn, name, value)) {
+            auto buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(value.size());
+            auto data = static_cast<char*>(buffer->get_ptr());
+            value.copy(data, value.size());
+            a->set(buffer);
+        } else if (name == "value" && type == "Const") {
+            std::vector<int64_t> shape;
+            std::string el_type_str;
+
+            size_t offset = XMLParseUtils::GetUInt64Attr(dn, "offset");
+            size_t size = XMLParseUtils::GetUInt64Attr(dn, "size");
+            if (!getStrAttribute(dn, "element_type", el_type_str)) return;
+            if (!getParameters<int64_t>(dn, "shape", shape)) return;
+
+            ngraph::element::Type el_type = details::convertPrecision(el_type_str);
+
+            size_t length = weights->byteSize();
+            if (!length)
+                THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
+            if (length < offset + size)
+                THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
+            if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
+                THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type << " op!";
+
+            char* data = weights->cbuffer().as<char*>() + offset;
+
+            using SharedBuffer = ngraph::runtime::SharedBuffer<const Blob::CPtr>;
+            auto buffer = std::make_shared<SharedBuffer>(data, size, weights);
+            a->set(buffer);
+        }
     } else {
         THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
                             << " parameter";
@@ -360,7 +414,7 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
     ngraph::ParameterVector parameter_nodes;
     ngraph::ResultVector result_nodes;
     ngraph::NodeVector allNodes;
-    ngraph::SinkVector assign_nodes;
+    ngraph::SinkVector sink_nodes;
     std::map<std::string, std::shared_ptr<ngraph::Node>> variable_id_to_read_value;
 
     //  Following topological order create nGraph operations
@@ -396,31 +450,33 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
         //            }
         //        }
 
-        if (auto parameter_node = std::dynamic_pointer_cast<ngraph::op::Parameter>(node)) {
+        if (const auto& parameter_node = std::dynamic_pointer_cast<ngraph::op::Parameter>(node)) {
             parameter_nodes.emplace_back(parameter_node);
         }
 
-        if (auto result_node = std::dynamic_pointer_cast<ngraph::op::Result>(node)) {
+        if (const auto& result_node = std::dynamic_pointer_cast<ngraph::op::Result>(node)) {
             result_nodes.emplace_back(result_node);
         }
 
-        if (auto assign_node = std::dynamic_pointer_cast<ngraph::op::Assign>(node)) {
-            assign_nodes.emplace_back(assign_node);
+        if (const auto& sink = std::dynamic_pointer_cast<ngraph::op::Sink>(node)) {
+            sink_nodes.emplace_back(sink);
         }
 
-        if (auto read_value_node = std::dynamic_pointer_cast<ngraph::op::ReadValue>(node)) {
-            variable_id_to_read_value[read_value_node->get_variable_id()] = read_value_node;
+        if (const auto& read_value = std::dynamic_pointer_cast<ngraph::op::ReadValueBase>(node)) {
+            variable_id_to_read_value[read_value->get_variable_id()] = read_value;
         }
+
         allNodes.emplace_back(node);
     }
 
     OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphFunction");
 
     ::ngraph::op::GenericIE::DisableReshape noReshape(allNodes);
-    auto function = std::make_shared<ngraph::Function>(result_nodes, assign_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
-    for (const auto& assign : assign_nodes) {
-        assign->add_control_dependency(
-            variable_id_to_read_value.at(std::dynamic_pointer_cast<ngraph::op::Assign>(assign)->get_variable_id()));
+    auto function = std::make_shared<ngraph::Function>(result_nodes, sink_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
+    for (const auto& sink : sink_nodes) {
+        if (const auto& assign = std::dynamic_pointer_cast<ngraph::op::AssignBase>(sink)) {
+            assign->add_control_dependency(variable_id_to_read_value.at(assign->get_variable_id()));
+        }
     }
 
     return function;
@@ -464,7 +520,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
 
 std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
     std::shared_ptr<ngraph::Function> function;
-    XmlDeserializer visitor(root, weights, opsets);
+    XmlDeserializer visitor(root, weights, opsets, variables);
     visitor.on_attribute("net", function);
 
     OV_ITT_SCOPED_TASK(itt::domains::V10Reader_RT, "ConstructCNNNetwork");
@@ -608,7 +664,7 @@ V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(con
 
         port.portId = GetIntAttr(parentNode, "id");
 
-        for (auto node = parentNode.child("dim"); !node.empty(); node = node.next_sibling("dim")) {
+        FOREACH_CHILD(node, parentNode, "dim") {
             size_t dim = 0;
             const pugi::char_t* dimVal = node.child_value();
             std::stringstream ss(dimVal);
@@ -628,7 +684,16 @@ V10Parser::GenericLayerParams V10Parser::XmlDeserializer::parseGenericParams(con
         port.precision = type;
         std::vector<std::string> names;
         if (getParameters<std::string>(parentNode, "names", names)) {
-            for (const auto& name : names) {
+            for (size_t i = 0; i < names.size(); i++) {
+                std::string name = names[i];
+                // Restore original name if it contains delimiter
+                // getParameters(...) returns the vector of names which were split by delimiter ','
+                // but some names can contain ',' as a part of name, in this case we use '\' to escape delimiter
+                // the cycle below is needed in order to find names which contained delimiter and restore the original name
+                while (i < names.size() && names[i].at(names[i].length() - 1) == '\\') {
+                    name.replace(names[i].length() - 1, 1, ",");
+                    name += names[++i];
+                }
                 port.names.emplace(name);
             }
         }
@@ -668,22 +733,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
                                                     const pugi::xml_node& node,
                                                     const Blob::CPtr& weights,
                                                     const GenericLayerParams& params) {
-    static const InferenceEngine::details::caseless_unordered_map<std::string, std::shared_ptr<LayerBaseCreator>> creators = {
-        { "ReorgYolo", std::make_shared<LayerCreator<ngraph::op::ReorgYolo>>("ReorgYolo") },
-        { "PSROIPooling", std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling") },
-        { "VariadicSplit", std::make_shared<LayerCreator<ngraph::op::VariadicSplit>>("VariadicSplit") },
-    };
-
-    // Check that operation in default opsets
-    auto isDefaultOpSet = [](const std::string& version) -> bool {
-        static char const * prefix = "opset";
-        static size_t const prefixLen = strlen(prefix);
-        return version.length() == prefixLen + 1
-                && version.compare(0, prefixLen, prefix) == 0
-                && version[prefixLen] >= '1'
-                && version[prefixLen] <= '6';
-    };
-
+    // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
             THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
@@ -698,69 +748,55 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
     // Find registerd opset
     auto opsetIt = opsets.find(params.version);
 
-    if (isDefaultOpSet(params.version)) {
-        // Try to create operation from creators
-        auto creatorIt = creators.find(params.type);
-        if (creatorIt != creators.end()) {
-            auto const & creator = creatorIt->second;
-            // Check that opset isn't registered
-            // or opset should contains the same version of operation
-            // or doesn't contain operation with current type
-            if (opsetIt == opsets.end()
-                || opsetIt->second.contains_type(creator->getNodeType())
-                || !opsetIt->second.contains_type(params.type))
-                ngraphNode = creator->createLayer(inputs, node, weights, params);
-        }
-    }
-
     // Try to create operation from loaded opsets
-    auto version = params.version;
-    static const std::unordered_set<std::string> experimental_detectrons = {"ExperimentalDetectronDetectionOutput",
-                                                                            "ExperimentalDetectronGenerateProposalsSingleImage",
-                                                                            "ExperimentalDetectronPriorGridGenerator",
-                                                                            "ExperimentalDetectronROIFeatureExtractor",
-                                                                            "ExperimentalDetectronTopKROIs"};
+    static const std::unordered_set<std::string> experimental_ops_added_to_opset = {
+            "ExperimentalDetectronDetectionOutput",
+            "ExperimentalDetectronGenerateProposalsSingleImage",
+            "ExperimentalDetectronPriorGridGenerator",
+            "ExperimentalDetectronROIFeatureExtractor",
+            "ExperimentalDetectronTopKROIs",
+            "GRUCell",
+            "RNNCell",
+            "Proposal"};
 
-    if (experimental_detectrons.count(params.type)) {
-        version = "opset6";
+    if (experimental_ops_added_to_opset.count(params.type) && (params.version == "experimental" || params.version == "extension")) {
+        opsetIt = opsets.find("opset6");
     }
 
-    if (!ngraphNode && opsets.count(version)) {
-        auto opset = opsets.at(version);
+    if (!ngraphNode && opsetIt != opsets.end()) {
         auto const & type = params.type == "Const"
                                 ? "Constant"
                                 : params.type;
 
         if (params.version == "opset1") {
-            // MVN and ROIPooling were missing in opset1
-            if (type == "MVN" || type == "ROIPooling") {
+            // MVN, ROIPooling and ReorgYolo were missing in opset1
+            if (type == "MVN" || type == "ROIPooling" || type == "ReorgYolo") {
                 opsetIt = opsets.find("opset2");
                 if (opsetIt == opsets.end()) {
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer " << params.name << " id:" << params.layerId
                         << " from unsupported opset: " << params.version;
                 }
-                opset = opsetIt->second;
             }
         }
+
+        auto const& opset = opsetIt->second;
 
         ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(type));
         if (!ngraphNode) {
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
         }
+        // Share Weights form constant blob
+        if (auto constant = std::dynamic_pointer_cast<ngraph::opset6::Constant>(ngraphNode)) {
+            constant->alloc_buffer_on_visit_attributes(false);
+        }
         ngraphNode->set_arguments(inputs);
-        XmlDeserializer visitor(node, weights, opsets);
+        XmlDeserializer visitor(node, weights, opsets, variables);
         if (ngraphNode->visit_attributes(visitor)) {
             ngraphNode->constructor_validate_and_infer_types();
         }
 
         // To be sure that all default values will be initialized:
         ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
-
-        // Constructor of Loop and TensorIterator do not call validate_and_infer_types function
-        // -> ticket 36145
-        if (const auto& subGraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(ngraphNode)) {
-            subGraph->validate_and_infer_types();
-        }
     }
 
     // Create GenericIE operation for backward compatibility
@@ -836,67 +872,3 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
     return ngraphNode;
 }
-
-namespace InferenceEngine {
-// VariadicSplit layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::VariadicSplit>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 3);
-    return std::make_shared<ngraph::op::VariadicSplit>(inputs[0], inputs[1], inputs[2]);
-}
-
-// DepthToSpace layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::DepthToSpace>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-        const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    return std::make_shared<ngraph::op::DepthToSpace>(inputs[0], GetStrAttr(dn, "mode"), GetIntAttr(dn, "block_size", 1));
-}
-
-// ReorgYolo layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ReorgYolo>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 1);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto stride = GetUIntAttr(dn, "stride");
-    return std::make_shared<ngraph::op::ReorgYolo>(inputs[0], ngraph::Strides {stride});
-}
-
-// PSROIPooling layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PSROIPooling>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto output_dim = GetIntAttr(dn, "output_dim");
-    auto group_size = GetIntAttr(dn, "group_size", 1);
-    auto spatial_bins_x = GetIntAttr(dn, "spatial_bins_x", 1);
-    auto spatial_bins_y = GetIntAttr(dn, "spatial_bins_y", 1);
-    auto spatial_scale = GetFloatAttr(dn, "spatial_scale");
-    auto mode = GetStrAttr(dn, "mode", "average");
-
-    return std::make_shared<ngraph::op::PSROIPooling>(inputs[0], inputs[1],
-                                                      output_dim, group_size, spatial_scale, spatial_bins_x,
-                                                      spatial_bins_y, mode);
-}
-
-}  // namespace InferenceEngine

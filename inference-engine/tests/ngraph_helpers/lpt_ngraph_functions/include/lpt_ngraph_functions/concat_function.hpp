@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,6 +62,14 @@ public:
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2);
 
+    static std::shared_ptr<ngraph::Function> getOriginalWithStridedSlice(
+        const ngraph::element::Type precision,
+        const ngraph::Shape inputShape,
+        const FakeQuantizeOnData& fq1,
+        const FakeQuantizeOnData& fq2,
+        const bool ssBeforeConcat,
+        const bool ssAfterConcat);
+
     static std::shared_ptr<ngraph::Function> getOriginalWithDifferentPrecisionOnChilds(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
@@ -89,13 +97,15 @@ public:
         const FakeQuantizeOnData& fakeQuantize2,
         const DequantizationOperations& dequantizationOperations);
 
-    static std::shared_ptr<ngraph::Function> getReference(
+    static std::shared_ptr<ngraph::Function> get(
         const ngraph::element::Type inputPrecision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnDataWithConstant& fakeQuantize1,
+        const DequantizationOperations::Convert& convert1,
+        const DequantizationOperations& dequantization1,
         const FakeQuantizeOnDataWithConstant& fakeQuantize2,
-        const ngraph::element::Type precisionBeforeOp,
-        const DequantizationOperations& dequantizationBefore,
+        const DequantizationOperations::Convert& convert2,
+        const DequantizationOperations& dequantization2,
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationAfter);
 
@@ -148,6 +158,19 @@ public:
         const ngraph::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2);
+
+    static std::shared_ptr<ngraph::Function> getReferenceWithStridedSlice(
+        const ngraph::element::Type inputPrecision,
+        const ngraph::Shape inputShape,
+        const FakeQuantizeOnData& fq1,
+        const FakeQuantizeOnData& fq2,
+        const DequantizationOperations& deqBefore,
+        const ngraph::element::Type precisionBeforeConcat,
+        const ngraph::element::Type precisionAfterConcat,
+        const bool ssBeforeConcat,
+        const bool ssAfterConcat,
+        const DequantizationOperations& deqAfter1,
+        const DequantizationOperations& deqAfter2);
 
     static std::shared_ptr<ngraph::Function> getReferenceWithDifferentPrecisionOnChilds(
         const ngraph::element::Type precision,

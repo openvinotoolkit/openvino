@@ -24,13 +24,6 @@ namespace InferenceEngine {
 
 namespace Builder {
 
-class INodeConverter {
-public:
-    virtual CNNLayer::Ptr createLayer(const std::shared_ptr<ngraph::Node>& layer) const = 0;
-    virtual bool canCreate(const std::shared_ptr<ngraph::Node>& node) const = 0;
-    virtual ~INodeConverter() = default;
-};
-
 template <class T>
 std::string asString(const T& value) {
     return std::to_string(value);
@@ -47,24 +40,25 @@ std::string asString(const std::vector<T>& value) {
 }
 
 template <>
-std::string asString<double>(const double& value);
+std::string asString<double>(const double& value) {
+    std::ostringstream sStrm;
+    sStrm.precision(std::numeric_limits<double>::digits10);
+    sStrm << std::fixed << value;
+    std::string result = sStrm.str();
+
+    auto pos = result.find_last_not_of("0");
+    if (pos != std::string::npos) result.erase(pos + 1);
+
+    pos = result.find_last_not_of(".");
+    if (pos != std::string::npos) result.erase(pos + 1);
+
+    return result;
+}
 
 template <>
-std::string asString<float>(const float& value);
-
-template <class NGT>
-class NodeConverter : public INodeConverter {
-public:
-    NodeConverter() = default;
-    ~NodeConverter() override = default;
-
-    CNNLayer::Ptr createLayer(const std::shared_ptr<ngraph::Node>& layer) const override;
-
-    bool canCreate(const std::shared_ptr<ngraph::Node>& node) const override {
-        auto castedPtr = ngraph::as_type_ptr<NGT>(node);
-        return castedPtr != nullptr;
-    }
-};
+std::string asString<float>(const float& value) {
+    return asString(static_cast<double>(value));
+}
 
 }  // namespace Builder
 }  // namespace InferenceEngine

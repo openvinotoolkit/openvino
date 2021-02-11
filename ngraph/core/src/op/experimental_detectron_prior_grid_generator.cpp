@@ -95,8 +95,9 @@ void op::v6::ExperimentalDetectronPriorGridGenerator::validate()
 
     const auto num_batches_featmap = featmap_shape[0];
     const auto num_batches_im_data = im_data_shape[0];
+    const auto batches_intersection = num_batches_featmap & num_batches_im_data;
     NODE_VALIDATION_CHECK(this,
-                          num_batches_featmap.same_scheme(num_batches_im_data),
+                          !batches_intersection.get_interval().empty(),
                           "The first dimension of both 'feature_map' and 'im_data' must match. "
                           "Feature_map: ",
                           num_batches_featmap,

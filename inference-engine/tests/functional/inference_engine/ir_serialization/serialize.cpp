@@ -60,6 +60,7 @@ TEST_P(SerializationTest, CompareFunctions) {
 INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
         testing::Values(std::make_tuple("add_abc.xml", "add_abc.bin"),
                         std::make_tuple("add_abc_f64.xml", ""),
+                        std::make_tuple("add_abc_bin.xml", ""),
                         std::make_tuple("split_equal_parts_2d.xml", "split_equal_parts_2d.bin"),
                         std::make_tuple("addmul_abc.xml", "addmul_abc.bin"),
                         std::make_tuple("add_abc_initializers.xml", "add_abc_initializers.bin"),
@@ -71,10 +72,15 @@ INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
                         std::make_tuple("shape_of.xml", ""),
                         std::make_tuple("pad_with_shape_of.xml", ""),
                         std::make_tuple("conv_with_rt_info.xml", ""),
-                        std::make_tuple("loop_2d_add.xml", "loop_2d_add.bin")));
+                        std::make_tuple("loop_2d_add.xml", "loop_2d_add.bin"),
+                        std::make_tuple("nms5_dynamism.xml", "nms5_dynamism.bin")));
+
+#ifdef NGRAPH_ONNX_IMPORT_ENABLE
 
 INSTANTIATE_TEST_CASE_P(ONNXSerialization, SerializationTest,
         testing::Values(std::make_tuple("add_abc.prototxt", ""),
                         std::make_tuple("split_equal_parts_2d.prototxt", ""),
                         std::make_tuple("addmul_abc.prototxt", ""),
                         std::make_tuple("add_abc_initializers.prototxt", "")));
+
+#endif

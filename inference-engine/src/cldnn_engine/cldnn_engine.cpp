@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,8 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -47,6 +49,7 @@
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
@@ -60,9 +63,11 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
+#include <low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
 #include <low_precision/strided_slice.hpp>
+#include <low_precision/network_helper.hpp>
 
 #include "cldnn_engine.h"
 #include "cldnn_executable_network.h"
@@ -135,8 +140,15 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         // Disable shape inference (WA for generic operations)
         ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
+        bool enableInt8;
         {
             ngraph::pass::Manager manager;
+            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+            if (enableInt8) {
+                manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
+                    std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+            }
+
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
             manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
@@ -268,13 +280,23 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
             pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
             pass_config->disable<ngraph::pass::ConvertBroadcast3>();
+            pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
 
             pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
+
+            if (enableInt8) {
+                pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
+                    return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
+                });
+
+                pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
+                    return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node);
+                });
+            }
 
             manager.run_passes(nGraphFunc);
         }
 
-        bool enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
         if (enableInt8) {
             OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
             using namespace ngraph::pass::low_precision;
@@ -445,11 +467,11 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
         auto context = std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
-        #ifdef WIN32
+#ifdef _WIN32
         auto context = std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
-        #else
+#else
         auto context = std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
-        #endif
+#endif
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else {
         THROW_IE_EXCEPTION << "Invalid remote context type" << contextTypeStr;

@@ -14,7 +14,6 @@
 :: See the License for the specific language governing permissions and
 :: limitations under the License.
 
-setlocal enableDelayedExpansion
 
 set ROOT=%~dp0
 call :GetFullPath "%ROOT%\.." ROOT
@@ -23,12 +22,13 @@ set SCRIPT_NAME=%~nx0
 set "INTEL_OPENVINO_DIR=%ROOT%"
 set "INTEL_CVSDK_DIR=%INTEL_OPENVINO_DIR%"
 
+set "python_version="
+
 :: command line arguments parsing
 :input_arguments_loop
 if not "%1"=="" (
     if "%1"=="-pyver" (
-        set python_version=%2
-        echo python_version = !python_version!
+        set "python_version=%2"
         shift
     )
     shift
@@ -83,8 +83,9 @@ if errorlevel 1 (
 )
 
 :: Check Python version if user did not pass -pyver
-if not defined python_version (
-    for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(str(sys.version_info[0])+'.'+str(sys.version_info[1]))"`) DO (
+
+if "%python_version%" == "" (
+    for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(str(sys.version_info[0])+'.'+str(sys.version_info[1]))" 2^>^&1`) DO (
        set python_version=%%F
     )
 )

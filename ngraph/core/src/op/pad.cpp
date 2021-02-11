@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/pad.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/except.hpp"
@@ -53,9 +54,8 @@ op::v1::Pad::Pad(const Output<Node>& arg,
 
 CoordinateDiff op::v1::Pad::get_pads_begin() const
 {
-    auto pads_begin_node = input_value(1).get_node_shared_ptr();
     CoordinateDiff pads_begin_coord{};
-    if (auto pads_begin_const = as_type_ptr<op::Constant>(pads_begin_node))
+    if (auto pads_begin_const = get_constant_from_source(input_value(1)))
     {
         pads_begin_coord = pads_begin_const->cast_vector<ptrdiff_t>();
     }
@@ -64,9 +64,8 @@ CoordinateDiff op::v1::Pad::get_pads_begin() const
 
 CoordinateDiff op::v1::Pad::get_pads_end() const
 {
-    auto pads_end_node = input_value(2).get_node_shared_ptr();
     CoordinateDiff pads_end_coord{};
-    if (auto pads_end_const = as_type_ptr<op::Constant>(pads_end_node))
+    if (auto pads_end_const = get_constant_from_source(input_value(2)))
     {
         pads_end_coord = pads_end_const->cast_vector<ptrdiff_t>();
     }
@@ -161,10 +160,7 @@ void op::v1::Pad::validate_and_infer_types()
     const auto& pads_begin_coord = get_pads_begin();
     const auto& pads_end_coord = get_pads_end();
 
-    auto pads_begin_node = input_value(1).get_node_shared_ptr();
-    auto pads_end_node = input_value(2).get_node_shared_ptr();
-    if (arg_shape_rank.is_static() && op::is_constant(pads_begin_node) &&
-        op::is_constant(pads_end_node))
+    if (arg_shape_rank.is_static() && !pads_begin_coord.empty() && !pads_end_coord.empty())
     {
         const auto implied_rank = pads_begin_coord.size();
         std::vector<Dimension> result_dims(implied_rank, Dimension::dynamic());
