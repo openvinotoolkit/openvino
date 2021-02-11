@@ -284,7 +284,6 @@ std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool const
 }
 
 void CNNNetworkNGraphImpl::reshape() {
-    // Disable reshape for generic nodes
     reshape({});
 }
 
