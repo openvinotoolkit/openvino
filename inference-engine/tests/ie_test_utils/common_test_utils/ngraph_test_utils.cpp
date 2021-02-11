@@ -325,6 +325,26 @@ struct Equal {
 };
 
 template <>
+struct Equal<ngraph::bfloat16> {
+  static bool equal_value(ngraph::bfloat16 lhs, ngraph::bfloat16 rhs) {
+    if (lhs.to_bits() == rhs.to_bits()) {
+      return true;
+    }
+    return std::abs(lhs - rhs) < 1e-5;
+  }
+};
+
+template <>
+struct Equal<ngraph::float16> {
+  static bool equal_value(ngraph::float16 lhs, ngraph::float16 rhs) {
+    if (lhs.to_bits() == rhs.to_bits()) {
+      return true;
+    }
+    return std::abs(lhs - rhs) < 1e-5;
+  }
+};
+
+template <>
 struct Equal<float> {
     static bool equal_value(float lhs, float rhs) {
         return std::abs(lhs - rhs) < 1e-5;
@@ -339,18 +359,33 @@ struct Equal<double> {
 };
 
 template <>
-struct Equal<std::vector<double>> {
-    static bool equal_value(const std::vector<double>& lhs, const std::vector<double>& rhs) {
+struct Equal<std::vector<ngraph::bfloat16>> {
+    static bool equal_value(const std::vector<ngraph::bfloat16>& lhs, const std::vector<ngraph::bfloat16>& rhs) {
         return lhs.size() == rhs.size() &&
-               std::equal(begin(lhs), end(lhs), begin(rhs), Equal<double>::equal_value);
+               std::equal(begin(lhs), end(lhs), begin(rhs), Equal<ngraph::bfloat16>::equal_value);
     }
 };
 
+template <>
+struct Equal<std::vector<ngraph::float16>> {
+    static bool equal_value(const std::vector<ngraph::float16>& lhs, const std::vector<ngraph::float16>& rhs) {
+        return lhs.size() == rhs.size() &&
+               std::equal(begin(lhs), end(lhs), begin(rhs), Equal<ngraph::float16>::equal_value);
+    }
+};
 template <>
 struct Equal<std::vector<float>> {
     static bool equal_value(const std::vector<float>& lhs, const std::vector<float>& rhs) {
         return lhs.size() == rhs.size() &&
                std::equal(begin(lhs), end(lhs), begin(rhs), Equal<float>::equal_value);
+    }
+};
+
+template <>
+struct Equal<std::vector<double>> {
+    static bool equal_value(const std::vector<double>& lhs, const std::vector<double>& rhs) {
+        return lhs.size() == rhs.size() &&
+               std::equal(begin(lhs), end(lhs), begin(rhs), Equal<double>::equal_value);
     }
 };
 
@@ -742,15 +777,51 @@ FunctionsComparator::Result FunctionsComparator::compare(
                 auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
                 auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
 
-                const auto equal = [](std::shared_ptr<Constant> c1, std::shared_ptr<Constant> c2) {
-                    const auto& c1v = c1->cast_vector<double>();
-                    const auto& c2v = c2->cast_vector<double>();
+                const auto equal = [](std::shared_ptr<Constant> c1,
+                                      std::shared_ptr<Constant> c2) {
+                    using namespace ::attr_comparison::equal;
+                    const auto c1t = c1->get_element_type();
+                    const auto c2t = c2->get_element_type();
+                    if (c1t != c2t) {
+                        return false;
+                    }
 
-                    return c1v.size() == c2v.size() && std::equal(
-                                                           begin(c1v), end(c1v), begin(c2v),
-                                                           [](const double& s1, const double& s2) {
-                                                               return std::abs(s1 - s2) < 0.001;
-                                                           });
+                    bool rc = false;
+                    switch (c1t) {
+                    case ngraph::element::Type_t::bf16: {
+                        auto c1v = c1->cast_vector<ngraph::bfloat16>();
+                        auto c2v = c2->cast_vector<ngraph::bfloat16>();
+                        rc = c1v.size() == c2v.size()
+                            ? Equal<std::vector<ngraph::bfloat16>>::equal_value(c1v, c2v)
+                            : false;
+                        break;
+                    }
+                    case ngraph::element::Type_t::f16: {
+                        const auto &c1v = c1->cast_vector<ngraph::float16>();
+                        const auto &c2v = c2->cast_vector<ngraph::float16>();
+                        rc = c1v.size() == c2v.size()
+                            ? Equal<std::vector<ngraph::float16>>::equal_value(c1v, c2v)
+                            : false;
+                        break;
+                    }
+                    case ngraph::element::Type_t::f32: {
+                        const auto &c1v = c1->cast_vector<float>();
+                        const auto &c2v = c2->cast_vector<float>();
+                        rc = c1v.size() == c2v.size()
+                            ? Equal<std::vector<float>>::equal_value(c1v, c2v)
+                            : false;
+                        break;
+                    }
+                    default: {
+                        const auto &c1v = c1->cast_vector<double>();
+                        const auto &c2v = c2->cast_vector<double>();
+                        rc = c1v.size() == c2v.size()
+                            ? Equal<std::vector<double>>::equal_value(c1v, c2v)
+                            : false;
+                        break;
+                    }
+                    }
+                    return rc;
                 };
 
                 if (const1 && const2 && !equal(const1, const2)) {
