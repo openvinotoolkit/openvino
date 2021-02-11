@@ -414,7 +414,10 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph::builder
                                         ngraph_backend
                                         libgtest)
-target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL)
+if (LINUX)
+    target_compile_options(unit-test PRIVATE -fno-lto)
+    target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL -fno-lto)
+endif()
 
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled

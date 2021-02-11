@@ -39,6 +39,9 @@ endif()
 
 # Defines macro in C++ to load backend plugin
 target_include_directories(${TARGET_NAME} PUBLIC ${REF_IMPL_INCLUDE_DIR} ${NGRAPH_INCLUDE_PATH})
+if (LINUX)
+    target_compile_options(${TARGET_NAME} PRIVATE -fno-lto)
+endif()
 
 # Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::reference ALIAS ${TARGET_NAME})
