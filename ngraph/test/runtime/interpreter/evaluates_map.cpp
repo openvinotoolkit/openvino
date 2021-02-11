@@ -1079,14 +1079,14 @@ namespace
     {
         auto info = experimental_roi_feature::get_info_for_ed_roi_feature_eval(op, inputs);
 
-        const auto& output_rois_features_shape = result.output_rois_features_shape;
-        const auto& output_rois_shape = result.output_rois_shape;
-        const auto& output_type = result.output_type;
+        const auto& output_rois_features_shape = info.output_rois_features_shape;
+        const auto& output_rois_shape = info.output_rois_shape;
+        const auto& output_type = info.output_type;
 
-        std::vector<float*> data_ptrs(result.input_data.size());
+        std::vector<float*> data_ptrs(info.input_data.size());
         for (size_t i = 0; i < inputs.size(); ++i)
         {
-            data_ptrs[i] = result.input_data[i].data();
+            data_ptrs[i] = info.input_data[i].data();
         }
 
         std::vector<float> output_rois_features(shape_size(output_rois_features_shape));
@@ -1094,8 +1094,8 @@ namespace
 
         runtime::reference::experimental_detectron_roi_feature_extractor(
             data_ptrs,
-            result.input_shapes,
-            result.attrs,
+            info.input_shapes,
+            info.attrs,
             output_rois_features.data(),
             output_rois.data());
 
