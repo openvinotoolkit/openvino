@@ -38,11 +38,12 @@ class StridedSlice(Op):
             'out_ports_count': 1,
             'infer': __class__.infer
         }, attrs)
-        assert 'new_axis_mask' in attrs, "Attribute 'new_axis_mask' of the StridedSlice node is not given."
-        assert 'shrink_axis_mask' in attrs, "Attribute 'shrink_axis_mask' of the StridedSlice node is not given."
-        assert 'ellipsis_mask' in attrs, "Attribute 'ellipsis_mask' of the StridedSlice node is not given."
-        assert 'begin_mask' in attrs, "Attribute 'begin_mask' of the StridedSlice node is not given."
-        assert 'end_mask' in attrs, "Attribute 'end_mask' of the StridedSlice node is not given."
+        for mask_name in StridedSlice.get_all_mask_names():
+            assert mask_name in attrs, 'Attribute {} of the StridedSlice node is not given.'.format(mask_name)
+
+    @staticmethod
+    def get_all_mask_names():
+        return ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']
 
     def backend_attrs(self):
         al = list()
@@ -50,7 +51,7 @@ class StridedSlice(Op):
         def convert(attr):
             return lambda node: array_to_str(node, attr)
 
-        for a in list(['new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask', 'begin_mask', 'end_mask']):
+        for a in StridedSlice.get_all_mask_names():
             al.append((a, convert(a)))
         return al
 
@@ -114,7 +115,7 @@ class StridedSlice(Op):
     @staticmethod
     def allign_mask_with_slice_rank(node: Node, slice_rank: int):
         # align masks sizes with slice_rank (not confuse with extending mask_aligment != mask_extending)
-        for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
+        for mask_name in StridedSlice.get_all_mask_names():
             num_insertations = slice_rank - len(node[mask_name])
             val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end
             node[mask_name] = np.append(node[mask_name], [val] * num_insertations).astype(int)

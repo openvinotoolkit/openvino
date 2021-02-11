@@ -137,8 +137,8 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             StridedSliceNormalizer.extend_inputs(node, num_insertations)
 
         if num_insertations > 0:
-            # insert blank values to masks for ellipsis unrolling or extending
-            for mask_name in ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']:
+            # insert blank values for ellipsis unrolling and extending
+            for mask_name in StridedSlice.get_all_mask_names():
                 node[mask_name] = np.insert(node[mask_name], insertation_start_idx, [0] * num_insertations).astype(int)
 
     @staticmethod
@@ -146,25 +146,26 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         node_name = node.soft_get('name', node.id)
         for i, slice_name in enumerate(('begin', 'end', 'strides')):
             i += 1
-            if ellipsis_start != 0:
-                split = create_op_with_const_inputs(graph, VariadicSplit, {1: 0, 2: int64_array([ellipsis_start, -1])},
-                                                    {'name': node_name + '/split_to_unroll_{}_ellipsis'.format(slice_name),
-                                                     'out_ports_count': 2})
-                node.in_port(i).get_connection().set_destination(split.in_port(0))
-
             placeholder_arr = np.zeros(num_ellipsis_ext) if i != 3 else np.ones(num_ellipsis_ext)
             placeholder_node = Const(graph, {'name': node_name + '/const_to_unroll_{}_ellipsis'.format(slice_name),
                                              'value': int64_array(placeholder_arr)}).create_node()
-            in_ports = 3 if ellipsis_start != 0 else 2
+
+            concat_in_ports_count = 3 if ellipsis_start != 0 else 2
             concat = Concat(graph, {'axis': 0, 'name': node_name + '/concat_{}'.format(slice_name),
-                                    'in_ports_count': in_ports}).create_node()
-            if ellipsis_start == 0:
-                concat.in_port(0).connect(placeholder_node.out_port(0))
-                node.in_port(i).get_connection().set_destination(concat.in_port(1))
-            else:
+                                    'in_ports_count': concat_in_ports_count}).create_node()
+
+            if ellipsis_start != 0:
+                split = create_op_with_const_inputs(graph, VariadicSplit, {1: 0, 2: int64_array([ellipsis_start, -1])},
+                                                    {'name': node_name + '/split_for_{}_ellipsis'.format(slice_name),
+                                                     'out_ports_count': 2})
+                node.in_port(i).get_connection().set_destination(split.in_port(0))
+
                 concat.in_port(0).connect(split.out_port(0))
                 concat.in_port(1).connect(placeholder_node.out_port(0))
                 concat.in_port(2).connect(split.out_port(1))
+            else:
+                concat.in_port(0).connect(placeholder_node.out_port(0))
+                node.in_port(i).get_connection().set_destination(concat.in_port(1))
 
             concat.out_port(0).get_connection().set_destination(node.in_port(i))
 
