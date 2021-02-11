@@ -112,7 +112,7 @@ limitations under the License.
                 </xi:include>
                 <!-- Tuning Utilities -->
                 <tab type="usergroup" title="Tuning Utilities" url="">
-                    <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='accuracy_checker'])">
+                    <xi:include href="omz_docs.xml" xpointer="omz_tools_accuracy_checker">
                         <xi:fallback/>
                     </xi:include>
                     <tab type="user" title="Using Cross Check Tool for Per-Layer Comparison Between Plugins" url="@ref openvino_inference_engine_tools_cross_check_tool_README"/>
@@ -152,10 +152,10 @@ limitations under the License.
         <!-- RESOURCES category -->
         <tab type="usergroup" title="RESOURCES">
             <!-- Models and Demos Documentation-->
-            <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='trained_models'])">
+            <xi:include href="omz_docs.xml" xpointer="omz_models">
                 <xi:fallback/>
             </xi:include>
-            <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='application_demos'])">
+            <xi:include href="omz_docs.xml" xpointer="omz_demos">
                 <xi:fallback/>
             </xi:include>
             <!-- IE Code Samples -->
