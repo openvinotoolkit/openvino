@@ -92,7 +92,7 @@ const auto oneHotParams_T = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        OneHotArgType,
+        smoke_OneHotArgType,
         OneHotLayerTest,
         oneHotParams_T,
         OneHotLayerTest::getTestCaseName
