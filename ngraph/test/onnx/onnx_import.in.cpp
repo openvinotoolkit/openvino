@@ -3942,9 +3942,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_not_const_training_mode)
     }
     catch (const ngraph::ngraph_error& e)
     {
-        EXPECT_HAS_SUBSTRING(
-            e.what(),
-            std::string("Not constant (or omitted) training_mode input is not supported."));
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("Non-constant training_mode input is not supported."));
     }
     catch (...)
     {
