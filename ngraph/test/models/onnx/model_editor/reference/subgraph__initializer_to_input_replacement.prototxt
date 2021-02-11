@@ -6,7 +6,7 @@ graph {
   node {
     input: "data_0"
     input: "conv1/7x7_s2_w_0"
-    input: "conv1/7x7_s2_1:conv1/7x7_s2_b_0"
+    input: "conv1/7x7_s2_b_0"
     output: "conv1/7x7_s2_1"
     name: ""
     op_type: "Conv"
@@ -79,7 +79,7 @@ graph {
   }
 
   input {
-    name: "conv1/7x7_s2_1:conv1/7x7_s2_b_0"
+    name: "conv1/7x7_s2_b_0"
     type {
       tensor_type {
         elem_type: 1

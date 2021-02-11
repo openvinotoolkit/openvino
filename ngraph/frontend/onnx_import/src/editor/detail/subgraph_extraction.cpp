@@ -105,8 +105,7 @@ namespace
     }
 
     void replace_initializer_with_new_input(ONNX_NAMESPACE::GraphProto& graph,
-                                            const InputEdge& edge,
-                                            const std::string& new_input_name)
+                                            const InputEdge& edge)
     {
         const auto it = std::find_if(std::begin(graph.initializer()),
                                      std::end(graph.initializer()),
@@ -116,7 +115,7 @@ namespace
                      "Could not find an initializer in the graph: '",
                      edge.m_tensor_name);
 
-        if (!already_exists(graph.input(), new_input_name))
+        if (!already_exists(graph.input(), edge.m_tensor_name))
         {
             const auto& initializer = *it;
             auto& new_input = *(graph.add_input());
@@ -131,7 +130,7 @@ namespace
                 new_dim.set_dim_value(initializer_dim);
             }
 
-            *(new_input.mutable_name()) = new_input_name;
+            *(new_input.mutable_name()) = edge.m_tensor_name;
         }
 
         graph.mutable_initializer()->erase(it);
@@ -163,8 +162,8 @@ namespace
 
         if (is_graph_initializer(graph, edge.m_tensor_name))
         {
-            // TODO remove the last param?
-            replace_initializer_with_new_input(graph, edge, new_input_name);
+            replace_initializer_with_new_input(graph, edge);
+            return {false, edge};
         }
         else
         {
@@ -172,12 +171,10 @@ namespace
             // copy the intermediate tensor properties to the newly created input
             new_input.MergeFrom(find_tensor_descriptor(graph, edge.m_tensor_name));
             *(new_input.mutable_name()) = new_input_name;
+            // attach the new graph input to the target node's input
+            *target_input = new_input_name;
+            return {true, InputEdge{edge.m_node_idx, new_input_name}};
         }
-
-        // attach the new graph input to the target node's input
-        *target_input = new_input_name;
-
-        return {true, InputEdge{edge.m_node_idx, new_input_name}};
     }
 
     /// \brief Replaces a node or initializer (consumed by multiple nodes) with a new input
@@ -192,9 +189,7 @@ namespace
 
         if (is_graph_initializer(graph, edge.m_tensor_name))
         {
-            // replace an initializer with a new input but maintain the original name
-            // TODO remove the last param?
-            replace_initializer_with_new_input(graph, edge, edge.m_tensor_name);
+            replace_initializer_with_new_input(graph, edge);
         }
         else
         {
