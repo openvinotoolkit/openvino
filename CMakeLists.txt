@@ -97,7 +97,7 @@ function(build_ngraph)
     elseif(WIN32)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
     endif()
-    
+
     if(ENABLE_LTO)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
