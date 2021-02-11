@@ -26,12 +26,9 @@ from mo.graph.graph import Graph
 class CTCLossReplacement(FrontReplacementSubgraph):
     """
     The CTCLoss appears along with CTCGreedyDecoder operation in particular. Since the TensorFlow* CTCGreedyDecoder
-    outputs sparse tensor format, the OpenVINO CTCGreedyDecoder has a different format and the CTCLoss is also affected
+    outputs sparse tensor format, the OpenVINO CTCGreedyDecoderSeqLen has a different format and the CTCLoss is also affected
     in terms of different format for its inputs. So the corresponding sub-graph with CTCGreedyDecoding and CTCLoss
     must be transformed properly.
-    Also, the transformation changes the input sequence length format into a mask format. For example, 1D tensor of
-    sequence lengths equal to [4 2] is coded as 2D tensor [[1 1 1 1 0], [1 1 0 0 0]] with a time dimension is
-    equal to 5.
     """
     enabled = True
 
