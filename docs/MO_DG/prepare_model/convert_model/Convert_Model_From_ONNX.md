@@ -35,6 +35,7 @@ The list of supported topologies is presented below:
 | [Torchvision Models](https://pytorch.org/docs/stable/torchvision/index.html) | alexnet, densenet121, densenet161, densenet169, densenet201, resnet101, resnet152, resnet18, resnet34, resnet50, vgg11, vgg13, vgg16, vgg19 |
 | [Pretrained Models](https://github.com/Cadene/pretrained-models.pytorch) | alexnet, fbresnet152, resnet101, resnet152, resnet18, resnet34, resnet152, resnet18, resnet34, resnet50, resnext101_32x4d, resnext101_64x4d, vgg11 |
 | [ESPNet Models](https://github.com/sacmehta/ESPNet/tree/master/pretrained) | |
+| [MobileNetV3](https://github.com/d-li14/mobilenetv3.pytorch) | |
 
 ## Supported PaddlePaddle* Models via ONNX Conversion
 Starting from the R5 release, the OpenVINO™ toolkit officially supports public PaddlePaddle* models via ONNX conversion.
