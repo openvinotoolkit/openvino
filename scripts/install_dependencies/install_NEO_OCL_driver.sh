@@ -27,6 +27,7 @@
 EXIT_FAILURE=1
 PKGS=
 CENTOS_MINOR=
+RHEL_VERSION=
 UBUNTU_VERSION=
 DISTRO=
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -103,6 +104,29 @@ _install_prerequisites_centos()
 
 }
 
+_install_prerequisites_redhat()
+{
+    # yum doesn't accept timeout in seconds as parameter
+    echo
+    echo "Note: if yum becomes non-responsive, try aborting the script and run:"
+    echo "      sudo -E $0"
+    echo
+
+    CMDS=("yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && yum install -y ocl-icd")
+
+    for cmd in "${CMDS[@]}"; do
+        echo "$cmd"
+        eval "$cmd"
+        if [[ $? -ne 0 ]]; then
+            echo "ERROR: failed to run $cmd" >&2
+            echo "Problem (or disk space)?" >&2
+            echo ". Verify that you have enough disk space, and run the script again." >&2
+            exit $EXIT_FAILURE
+        fi
+    done
+
+}
+
 _install_prerequisites_ubuntu()
 {
     CMDS=("apt-get -y update"
@@ -123,11 +147,12 @@ _install_prerequisites_ubuntu()
 
 install_prerequisites()
 {
+    echo "Installing prerequisites..."
     if [[ $DISTRO == "centos" ]]; then
-        echo "Installing prerequisites..."
         _install_prerequisites_centos
+    elif [[ $DISTRO == "redhat" ]]; then
+        _install_prerequisites_redhat
     elif [[ $DISTRO == "ubuntu" ]]; then
-        echo "Installing prerequisites..."
         _install_prerequisites_ubuntu
     else
         echo Unknown OS
@@ -178,7 +203,7 @@ install_user_mode()
 {
     echo "Installing user mode driver..."
     
-    if [[ $DISTRO == "centos" ]]; then
+    if [[ $DISTRO == "centos" || $DISTRO == "redhat" ]]; then
         _install_user_mode_centos
     else
         _install_user_mode_ubuntu
@@ -242,7 +267,7 @@ _uninstall_user_mode_ubuntu()
 
 uninstall_user_mode()
 {
-    if [[ $DISTRO == "centos" ]]; then
+    if [[ $DISTRO == "centos" || $DISTRO == "redhat" ]]; then
         _uninstall_user_mode_centos
     else
         _uninstall_user_mode_ubuntu
@@ -251,7 +276,7 @@ uninstall_user_mode()
 
 _is_package_installed()
 {
-    if [[ $DISTRO == "centos" ]]; then
+    if [[ $DISTRO == "centos" || $DISTRO == "redhat" ]]; then
         cmd="rpm -qa | grep $1"
     else
         cmd="dpkg-query -W -f='${binary:Package}\n' $pkg"
@@ -352,7 +377,7 @@ _verify_checksum_centos()
 
 verify_checksum()
 {
-    if [[ $DISTRO == "centos" ]]; then
+    if [[ $DISTRO == "centos" || $DISTRO == "redhat" ]]; then
         _verify_checksum_centos
     else
         _verify_checksum_ubuntu
@@ -435,6 +460,13 @@ _check_distro_version()
             echo "This script is supported only on CentOS 7 and above." >&2
             exit $EXIT_FAILURE
         fi
+    elif [[ $DISTRO == redhat ]]; then
+        RHEL_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "8.[0-9]{1,2}")
+        if [[ $? -ne 0 ]]; then
+            echo "Warning: This runtime can be installed only on RHEL 8" >&2
+            echo "Installation of Intel Compute Runtime interrupted"
+            exit $EXIT_FAILURE
+        fi
     elif [[ $DISTRO == ubuntu ]]; then
         UBUNTU_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "[0-9]{2}.[0-9]{2}") 
         if [[ $UBUNTU_VERSION != '18.04' && $UBUNTU_VERSION != '20.04' ]]; then
@@ -450,6 +482,8 @@ distro_init()
 {
     if [[ -f /etc/centos-release ]]; then
         DISTRO="centos"
+    if [[ -f /etc/redhat-release ]]; then
+        DISTRO="redhat"
     elif [[ -f /etc/lsb-release ]]; then
         DISTRO="ubuntu"
     fi
@@ -496,7 +530,7 @@ check_specific_generation()
 check_current_driver()
 {   
     echo "Checking current driver version..."
-    if [[ $DISTRO == centos ]]; then
+    if [[ $DISTRO == centos || $DISTRO == redhat ]]; then
         gfx_version=$(yum info intel-opencl | grep Version)
     elif [[ $DISTRO == ubuntu ]]; then
         gfx_version=$(apt show intel-opencl | grep Version)
