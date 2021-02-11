@@ -170,15 +170,19 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             concat.out_port(0).get_connection().set_destination(node.in_port(i))
 
     @staticmethod
-    def extend_inputs(node: Node, num: int):
+    def extend_inputs(node: Node, num_insertations: int):
         graph = node.graph
         node_name = node.soft_get('name', node.id)
 
         for i, slice_name in enumerate(('begin', 'end', 'strides')):
             i += 1
-            placeholder_arr = np.zeros(num) if i != 3 else np.ones(num)
-            placeholder_node = Const(graph, {'name': node_name + '/extend_{}_const'.format(slice_name),
-                                             'value': int64_array(placeholder_arr)}).create_node()
+            if node.in_port(3).disconnected():
+                break  # if strides are not specified no need for extending
+
+            # for strides blank ones should be inserted
+            blank_values_arr = np.zeros(num_insertations) if i != 3 else np.ones(num_insertations)
+            blank_values_node = Const(graph, {'name': node_name + '/extend_{}_const'.format(slice_name),
+                                             'value': int64_array(blank_values_arr)}).create_node()
 
             if node.in_port(i).get_source().node.soft_get('type') == 'Concat':
                 # concat already exists
@@ -189,13 +193,13 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                     format(concat.soft_get('name', node.id))
 
                 concat.add_input_port(last_in_port)
-                concat.in_port(last_in_port).connect(placeholder_node.out_port(0))
+                concat.in_port(last_in_port).connect(blank_values_node.out_port(0))
             else:
                 # have to create concat
                 concat = Concat(graph, {'axis': 0, 'name': node_name + '/concat_{}'.format(slice_name),
                                         'in_ports_count': 2}).create_node()
                 node.in_port(i).get_connection().set_destination(concat.in_port(0))
-                concat.in_port(1).connect(placeholder_node.out_port(0))
+                concat.in_port(1).connect(blank_values_node.out_port(0))
                 concat.out_port(0).get_connection().set_destination(node.in_port(i))
 
     @staticmethod

@@ -17,6 +17,7 @@
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.graph import Node
 from mo.utils.ir_reader.extender import Extender
+from mo.ops.strided_slice import StridedSlice
 
 
 class StridedSlice_extender(Extender):
@@ -24,8 +25,7 @@ class StridedSlice_extender(Extender):
 
     @staticmethod
     def extend(op: Node):
-        attrs = ['shrink_axis_mask', 'new_axis_mask', 'ellipsis_mask', 'begin_mask', 'end_mask']
-        for attr in attrs:
+        for attr in StridedSlice.get_all_mask_names():
             Extender.attr_to_list(op, attr)
 
         op.begin_mask = int64_array([1 - i for i in op.begin_mask])

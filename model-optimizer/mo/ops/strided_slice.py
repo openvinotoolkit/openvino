@@ -99,6 +99,8 @@ class StridedSlice(Op):
                 slices[i] = np.newaxis
             elif node.shrink_axis_mask[i]:
                 slices[i] = int(begin[i])
+                if slices[i] < 0:  # need for ConvertGroupedStridedSlice
+                    slices[i] += int(data_shape[in_idx])
             elif node.ellipsis_mask[i]:
                 slices[i] = ...
                 in_idx += input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
@@ -114,7 +116,7 @@ class StridedSlice(Op):
 
     @staticmethod
     def allign_mask_with_slice_rank(node: Node, slice_rank: int):
-        # align masks sizes with slice_rank (not confuse with extending mask_aligment != mask_extending)
+        # align masks sizes with slice_rank (not confuse with extending, mask_aligment != mask_extending)
         for mask_name in StridedSlice.get_all_mask_names():
             num_insertations = slice_rank - len(node[mask_name])
             val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end
