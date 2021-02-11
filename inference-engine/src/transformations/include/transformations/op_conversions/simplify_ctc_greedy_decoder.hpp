@@ -34,8 +34,8 @@ class TRANSFORMATIONS_API SimplifyCTCGreedyDecoder;
  *                    /         \
  *       class_index[N, T]    seq_len[N]
  *
- * Also the transformation has limitation. It not support blank_index input of CTCGreedyDecoderSeqLen.
- * Transformation support only case with default value when blank index = C-1.
+ * The transformation works only for case when the blank_index input is not provided as input to
+ * the CTCGreedyDecoderSeqLen.
  */
 class ngraph::pass::SimplifyCTCGreedyDecoder: public ngraph::pass::MatcherPass {
 public:

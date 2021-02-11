@@ -35,7 +35,6 @@ class CTCGreedyDecoderSeqLenOp(Op):
 
             'infer': self.infer,
             'type_infer': self.type_infer,
-            'reinterp_shape': True,
 
             'in_ports_count': 3,
             'out_ports_count': 2,
