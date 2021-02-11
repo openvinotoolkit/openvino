@@ -14,22 +14,24 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/experimental_detectron_roi_feature.hpp"
+#include "ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <cmath>
 #include <numeric>
 #include <queue>
 #include <vector>
-#include "ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp"
+#include "ngraph/op/experimental_detectron_roi_feature.hpp"
 #include "ngraph/shape.hpp"
 
 namespace
 {
-    void redistribute_rois(
-        const float* rois, int64_t* level_ids, const int64_t num_rois, const int64_t levels_num)
+    void redistribute_rois(const float* rois,
+                           int64_t* level_ids,
+                           const int64_t num_rois,
+                           const int64_t levels_num)
     {
         const float canonical_scale = 224.0f;
         const int64_t canonical_level = 2;
@@ -63,9 +65,10 @@ namespace
                  int64_t* dst_mapping)
     {
         std::iota(dst_mapping, dst_mapping + n, 0);
-        std::sort(dst_mapping,
-                  dst_mapping + n,
-                  [&ranks](size_t i1, size_t i2) {return ranks[i1] < ranks[i2];});
+        std::sort(dst_mapping, dst_mapping + n, [&ranks](size_t i1, size_t i2) {
+            return ranks[i1] < ranks[i2];
+        });
+
         for (int64_t i = 0; i < n; ++i)
         {
             const int64_t j = dst_mapping[i];
@@ -107,20 +110,19 @@ namespace
     };
 
     template <typename T>
-    void pre_calc_for_bilinear_interpolate(
-        const int64_t height,
-        const int64_t width,
-        const int64_t pooled_height,
-        const int64_t pooled_width,
-        const int64_t iy_upper,
-        const int64_t ix_upper,
-        T roi_start_h,
-        T roi_start_w,
-        T bin_size_h,
-        T bin_size_w,
-        int64_t roi_bin_grid_h,
-        int64_t roi_bin_grid_w,
-        std::vector<PreCalc<T>>& pre_calc)
+    void pre_calc_for_bilinear_interpolate(const int64_t height,
+                                           const int64_t width,
+                                           const int64_t pooled_height,
+                                           const int64_t pooled_width,
+                                           const int64_t iy_upper,
+                                           const int64_t ix_upper,
+                                           T roi_start_h,
+                                           T roi_start_w,
+                                           T bin_size_h,
+                                           T bin_size_w,
+                                           int64_t roi_bin_grid_h,
+                                           int64_t roi_bin_grid_w,
+                                           std::vector<PreCalc<T>>& pre_calc)
     {
         int64_t pre_calc_index = 0;
         for (int64_t ph = 0; ph < pooled_height; ph++)
@@ -130,13 +132,13 @@ namespace
                 for (int64_t iy = 0; iy < iy_upper; iy++)
                 {
                     const T yy = roi_start_h + ph * bin_size_h +
-                        static_cast<T>(iy + .5f) * bin_size_h /
-                            static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
+                                 static_cast<T>(iy + 0.5f) * bin_size_h /
+                                     static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
                     for (int64_t ix = 0; ix < ix_upper; ix++)
                     {
-                        const T xx = roi_start_w + pw * bin_size_w +
-                            static_cast<T>(ix + .5f) * bin_size_w /
-                                static_cast<T>(roi_bin_grid_w);
+                        const T xx =
+                            roi_start_w + pw * bin_size_w +
+                            static_cast<T>(ix + 0.5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
 
                         T x = xx;
                         T y = yy;
@@ -218,19 +220,18 @@ namespace
 
 
     template <typename T>
-    void ROIAlignForward_kernel(
-        const int64_t level_rois_num,
-        const T* bottom_data,
-        const T& spatial_scale,
-        const int64_t channels,
-        const int64_t height,
-        const int64_t width,
-        const int64_t pooled_height,
-        const int64_t pooled_width,
-        const int64_t sampling_ratio,
-        const T* bottom_rois,
-        const bool aligned,
-        T* top_data)
+    void ROIAlignForward_kernel(const int64_t level_rois_num,
+                                const T* bottom_data,
+                                const T& spatial_scale,
+                                const int64_t channels,
+                                const int64_t height,
+                                const int64_t width,
+                                const int64_t pooled_height,
+                                const int64_t pooled_width,
+                                const int64_t sampling_ratio,
+                                const T* bottom_rois,
+                                const bool aligned,
+                                T* top_data)
     {
         int64_t roi_cols = 4;
         // (n, c, ph, pw) is an element in the pooled output
@@ -254,32 +255,34 @@ namespace
             T bin_size_w = static_cast<T>(roi_width) / static_cast<T>(pooled_width);
 
             // We use roi_bin_grid to sample the grid and mimic integral
-            int64_t roi_bin_grid_h = (sampling_ratio > 0)
-                ? sampling_ratio
-                : static_cast<int64_t>(ceil(roi_height / pooled_height));  // e.g., = 2
-            int64_t roi_bin_grid_w = (sampling_ratio > 0) ? sampling_ratio : static_cast<int64_t>(std::ceil(roi_width / pooled_width));
+            int64_t roi_bin_grid_h =
+                (sampling_ratio > 0)
+                    ? sampling_ratio
+                    : static_cast<int64_t>(ceil(roi_height / pooled_height)); // e.g., = 2
+            int64_t roi_bin_grid_w =
+                (sampling_ratio > 0) ? sampling_ratio
+                                     : static_cast<int64_t>(std::ceil(roi_width / pooled_width));
 
             // We do average (integral) pooling inside a bin
-            const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w);  // e.g. = 4
+            const T count = static_cast<T>(roi_bin_grid_h * roi_bin_grid_w); // e.g. = 4
 
             // we want to precalculate indeces and weights shared by all chanels,
             // this is the key point of optimiation
-            std::vector<PreCalc<T>> pre_calc(
-                roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
-            pre_calc_for_bilinear_interpolate(
-                height,
-                width,
-                pooled_height,
-                pooled_width,
-                roi_bin_grid_h,
-                roi_bin_grid_w,
-                roi_start_h,
-                roi_start_w,
-                bin_size_h,
-                bin_size_w,
-                roi_bin_grid_h,
-                roi_bin_grid_w,
-                pre_calc);
+            std::vector<PreCalc<T>> pre_calc(roi_bin_grid_h * roi_bin_grid_w * pooled_width *
+                                             pooled_height);
+            pre_calc_for_bilinear_interpolate(height,
+                                              width,
+                                              pooled_height,
+                                              pooled_width,
+                                              roi_bin_grid_h,
+                                              roi_bin_grid_w,
+                                              roi_start_h,
+                                              roi_start_w,
+                                              bin_size_h,
+                                              bin_size_w,
+                                              roi_bin_grid_h,
+                                              roi_bin_grid_w,
+                                              pre_calc);
 
             for (int64_t c = 0; c < channels; c++)
             {
@@ -301,9 +304,9 @@ namespace
                             {
                                 PreCalc<T> pc = pre_calc[pre_calc_index];
                                 output_val += pc.w1 * offset_bottom_data[pc.pos1] +
-                                    pc.w2 * offset_bottom_data[pc.pos2] +
-                                    pc.w3 * offset_bottom_data[pc.pos3] +
-                                    pc.w4 * offset_bottom_data[pc.pos4];
+                                              pc.w2 * offset_bottom_data[pc.pos2] +
+                                              pc.w3 * offset_bottom_data[pc.pos3] +
+                                              pc.w4 * offset_bottom_data[pc.pos4];
 
                                 pre_calc_index += 1;
                             }
@@ -312,8 +315,8 @@ namespace
 
                         top_data[index] = output_val;
                     }  // for pw
-                }  // for ph
-            }  // for c
+                }      // for ph
+            }          // for c
         }
     }
 }
@@ -367,8 +370,10 @@ namespace ngraph
                     if (level_rois_num > 0)
                     {
                         const float* featuremap = inputs[1 + i];
-                        const int64_t featuremap_height = static_cast<int64_t>(input_shapes[1 + i][2]);
-                        const int64_t featuremap_width = static_cast<int64_t>(input_shapes[1 + i][3]);
+                        const int64_t featuremap_height =
+                            static_cast<int64_t>(input_shapes[1 + i][2]);
+                        const int64_t featuremap_width =
+                            static_cast<int64_t>(input_shapes[1 + i][3]);
                         ROIAlignForward_kernel<float>(
                             level_rois_num,
                             featuremap,
@@ -407,57 +412,3 @@ namespace ngraph
         }
     }
 }
-
-//         const int levels_num = inputs.size() - INPUT_FEATURES_START;
-//         const int num_rois = inputs[INPUT_ROIS]->getTensorDesc().getDims()[0];
-//         const int channels_num = inputs[INPUT_FEATURES_START]->getTensorDesc().getDims()[1];
-//         const int feaxels_per_roi = pooled_height_ * pooled_width_ * channels_num;
-//
-//         auto *input_rois = inputs[INPUT_ROIS]->buffer().as<const float *>();
-//         auto *output_rois_features = outputs[OUTPUT_ROI_FEATURES]->buffer().as<float *>();
-//         float *output_rois = nullptr;
-//         if (OUTPUT_ROIS < static_cast<int>(outputs.size())) {
-//             output_rois = outputs[OUTPUT_ROIS]->buffer().as<float *>();
-//         }
-//
-//         std::vector<int> level_ids(num_rois, 0);
-//         redistribute_rois(input_rois, reinterpret_cast<int *>(&level_ids[0]), num_rois, levels_num);
-//
-//         std::vector<float> reordered_rois(4 * num_rois, 0);
-//         std::vector<int> original_rois_mapping(num_rois, 0);
-//         reorder(input_rois, &level_ids[0], num_rois, 4, &reordered_rois[0], &original_rois_mapping[0]);
-//
-//         std::vector<int> rois_per_level;
-//         split_points(level_ids, rois_per_level, levels_num + 1);
-//
-//         std::vector<float> output_rois_features_temp(feaxels_per_roi * num_rois, 0);
-//         for (int i = 0; i < levels_num; ++i) {
-//             const int level_rois_offset = rois_per_level[i];
-//             const int level_rois_num = rois_per_level[i + 1] - level_rois_offset;
-//             if (level_rois_num > 0) {
-//                 auto *featuremap = inputs[INPUT_FEATURES_START + i]->buffer().as<const float *>();
-//                 const int featuremap_height = inputs[INPUT_FEATURES_START + i]->getTensorDesc().getDims()[2];
-//                 const int featuremap_width = inputs[INPUT_FEATURES_START + i]->getTensorDesc().getDims()[3];
-//                 ROIAlignForward_cpu_kernel<float>(feaxels_per_roi * level_rois_num,
-//                     featuremap,
-//                     1.0f / pyramid_scales_[i],
-//                     channels_num,
-//                     featuremap_height,
-//                     featuremap_width,
-//                     pooled_height_,
-//                     pooled_width_,
-//                     sampling_ratio_,
-//                     &reordered_rois[4 * level_rois_offset],
-//                     aligned_,
-//                     &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
-//             }
-//         }
-//
-//         std::vector<int> dummy_mapping(num_rois, 0);
-//         reorder(&output_rois_features_temp[0], &original_rois_mapping[0], num_rois, feaxels_per_roi,
-//                 output_rois_features, &dummy_mapping[0]);
-//         if (output_rois != nullptr) {
-//             cpu_memcpy(output_rois, input_rois, 4 * num_rois * sizeof(float));
-//         }
-//
-//         return OK;
