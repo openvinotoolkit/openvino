@@ -9,17 +9,17 @@
 **Detailed description**: [Reference](https://arxiv.org/abs/1703.06211).
 
 *DeformablePSROIPooling* operation takes two or three input tensors: with position score maps, with regions of interests (ROI, box coordinates) and an optional tensor with transformation values (normalized offsets for ROI bins coordinates).
-If only two inputs are provided, position sensitive pooling with regular ROI bins position is calculated (non deformable). 
-If third input is provided, each bin position is transformed by adding corresponding offset to the bin left top corner coordinates. Third input values are usually calculated by regular position sensitive pooling layer, so non deformable mode (DeformablePSROIPooling with two inputs).
+If only two inputs are provided, position sensitive pooling with regular ROI bins position is calculated (non-deformable).
+If third input is provided, each bin position is transformed by adding corresponding offset to the bin left top corner coordinates. Third input values are usually calculated by regular position sensitive pooling layer, so non-deformable mode (DeformablePSROIPooling with two inputs).
 
-The ROI coordinates are specified as five element tuples: *[batch_id, x_1, y_1, x_2, y_2]* in absolute values.
+The ROI coordinates are specified as five element tuples: `[batch_id, x_1, y_1, x_2, y_2]` in absolute values.
 
 
 **Attributes**
 
 * *output_dim*
 
-  * **Description**: *output_dim* is the number of output channels, size of output `C` dimension.
+  * **Description**: *output_dim* is the number of the output channels, size of output `C` dimension.
   * **Range of values**: a positive integer
   * **Type**: `int`
   * **Default value**: None
@@ -35,7 +35,7 @@ The ROI coordinates are specified as five element tuples: *[batch_id, x_1, y_1, 
 
 * *group_size*
 
-  * **Description**: *group_size* is the number of horizontal or vertical bins to divide single ROI area. Total number of bins can be calculated as `group_size*group_size`. It defines pooled width and height, so output `H_out` and `W_out` dimensions (always equal).
+  * **Description**: *group_size* is the number of horizontal bins per row to divide single ROI area. Total number of bins can be calculated as `group_size*group_size`. It defines pooled width and height, so output `H_out` and `W_out` dimensions (always equal).
   Squared `group_size` is also the number to divide input channels `C_in` dimension and split it into `C_in \\ group_size*group_size` groups.
   Each group corresponds to the exactly one output channel and ROI's bins are spread over input channel group members.
 
@@ -47,7 +47,7 @@ The ROI coordinates are specified as five element tuples: *[batch_id, x_1, y_1, 
 * *mode*
   * **Description**: *mode* specifies mode for pooling.
   * **Range of values**:
-    * *bilinear_deformable* - perform pooling with bilinear interpolation over single ROI bin. Then average of the interpolated `spatial_bins_x*spatial_bins_y` sub-bin values is calculated.
+    * *bilinear_deformable* - perform pooling with bilinear interpolation over single ROI bin. For each ROI bin average of his interpolated `spatial_bins_x*spatial_bins_y` sub-bins values is calculated.
   * **Type**: string
   * **Default value**: *bilinear_deformable*
   * **Required**: *no*
