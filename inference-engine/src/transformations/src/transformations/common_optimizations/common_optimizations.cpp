@@ -68,7 +68,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::RemoveFilteringBoxesBySize>(); // Resolves dynamism (replaces NonZero), CF needed
-    manager.register_pass<::ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
     // TODO: move to KMB
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
@@ -121,6 +120,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
+    decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
