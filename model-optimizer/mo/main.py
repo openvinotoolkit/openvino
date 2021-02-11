@@ -19,6 +19,7 @@ import datetime
 import logging as log
 import os
 import sys
+import subprocess
 import traceback
 from collections import OrderedDict
 
@@ -257,23 +258,12 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
-        import gc
-        import subprocess
-
-        # For huge models further model reading inside IE could double memory consumption so to avoid this
-        # we need to minimize current memory consumption to its minimum by deleting the graph object. But
-        # before deleting the graph we need to clean up its structure to reduce the number of object references.
-        # And only after graph clean-up we can delete graph object and call gc.
-        graph.clear()
-        del graph
-        gc.collect()
-
         if not find_ie_version():
             print("[ WARNING ] No IE version was found, using fallback")
         else:
             path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)),
                                                            'offline_transformations.py')
-            status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=600)
+            status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=100)
             if status.returncode != 0:
                 print("[ WARNING ] offline_transformations return code {}, using fallback".format(status.returncode))
 

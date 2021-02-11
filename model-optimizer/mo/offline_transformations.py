@@ -28,9 +28,5 @@ if __name__ == "__main__":
         print("[ WARNING ] offline_transformations import error: {}".format(e))
         exit(1)
 
-    orig_model_name = sys.argv[1]
-    ie = IECore()
-    net = ie.read_network(model=orig_model_name + ".xml", weights=orig_model_name + ".bin")
-    ApplyMOCTransformations(net, True)
     # TODO: call validation pass to check IE components
     print("[ OFFLINE TRANSFORMATIONS ] Success")
