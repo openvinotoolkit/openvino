@@ -48,7 +48,7 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_add_abc_set_precission)
     using DataType = TypeParam;
     const element::Type ng_type = element::from<DataType>();
 
-    onnx_import::ONNXModelEditor editor{
+    onnx_editor::ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc_3d.prototxt")};
 
     editor.set_input_types({{"A", ng_type}, {"B", ng_type}, {"C", ng_type}});
@@ -69,7 +69,7 @@ TYPED_TEST_P(ElemTypesTests, onnx_test_split_multioutput_set_precission)
     using DataType = TypeParam;
     const element::Type ng_type = element::from<DataType>();
 
-    onnx_import::ONNXModelEditor editor{
+    onnx_editor::ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/split_equal_parts_default.prototxt")};
 
     editor.set_input_types({{"input", ng_type}});

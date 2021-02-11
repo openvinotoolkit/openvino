@@ -16,7 +16,7 @@
 
 #include "ngraph/visibility.hpp"
 
-#ifdef onnx_editor_EXPORTS // defined if we are building the ONNX_IMPORTER
+#ifdef onnx_editor_EXPORTS // defined if we are building the ONNX_EDITOR
 #define ONNX_EDITOR_API NGRAPH_HELPER_DLL_EXPORT
 #else
 #define ONNX_EDITOR_API NGRAPH_HELPER_DLL_IMPORT

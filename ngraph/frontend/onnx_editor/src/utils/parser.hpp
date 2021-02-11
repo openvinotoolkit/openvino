@@ -25,7 +25,7 @@ namespace ONNX_NAMESPACE
 
 namespace ngraph
 {
-    namespace onnx_import
+    namespace onnx_editor
     {
         /// \brief   Parses an ONNX model from a file located on a storage device.
         ///
@@ -40,6 +40,6 @@ namespace ngraph
         ///
         /// \return  The parsed in-memory representation of the ONNX model
         ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream);
-    } // namespace onnx_import
+    } // namespace onnx_editor
 
 } // namespace ngraph

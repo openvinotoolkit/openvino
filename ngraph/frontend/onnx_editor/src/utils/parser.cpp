@@ -23,7 +23,7 @@
 
 namespace ngraph
 {
-    namespace onnx_import
+    namespace onnx_editor
     {
         ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path)
         {
@@ -73,5 +73,5 @@ namespace ngraph
 
             return model_proto;
         }
-    } // namespace onnx_import
+    } // namespace onnx_editor
 } // namespace ngraph

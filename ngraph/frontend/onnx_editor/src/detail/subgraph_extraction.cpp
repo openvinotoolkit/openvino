@@ -21,7 +21,7 @@
 #include "ngraph/check.hpp"
 #include "subgraph_extraction.hpp"
 
-using namespace ngraph::onnx_import;
+using namespace ngraph::onnx_editor;
 
 namespace
 {

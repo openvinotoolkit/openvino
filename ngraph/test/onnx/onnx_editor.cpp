@@ -32,6 +32,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 using namespace ngraph::onnx_import;
+using namespace ngraph::onnx_editor;
 
 static std::string s_manifest = "${MANIFEST}";
 
@@ -62,7 +63,7 @@ namespace
 NGRAPH_TEST(onnx_editor, types__single_input_type_substitution)
 {
     // the original model contains 2 inputs with i64 data type and one f32 input
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
 
     editor.set_input_types({{"A", element::i64}});
@@ -87,7 +88,7 @@ NGRAPH_TEST(onnx_editor, types__single_input_type_substitution)
 NGRAPH_TEST(onnx_editor, types__all_inputs_type_substitution)
 {
     // the original model contains 2 inputs with i64 data type and one f32 input
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
 
     editor.set_input_types({{"A", element::i8}, {"B", element::i8}, {"C", element::i8}});
@@ -109,7 +110,7 @@ NGRAPH_TEST(onnx_editor, types__all_inputs_type_substitution)
 
 NGRAPH_TEST(onnx_editor, types__missing_type_in_input_descriptor)
 {
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_type.prototxt")};
 
     // input A doesn't have the "type" field in the model and so the data type cannot be modified
@@ -118,7 +119,7 @@ NGRAPH_TEST(onnx_editor, types__missing_type_in_input_descriptor)
 
 NGRAPH_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/invalid_input_no_tensor_type.prototxt")};
 
     // input A doesn't have the "tensor_type" field in the model
@@ -127,7 +128,7 @@ NGRAPH_TEST(onnx_editor, types__missing_tensor_type_in_input_descriptor)
 
 NGRAPH_TEST(onnx_editor, types__unsupported_data_type_passed)
 {
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
 
     EXPECT_THROW(editor.set_input_types({{"A", element::dynamic}}), ngraph_error);
@@ -135,7 +136,7 @@ NGRAPH_TEST(onnx_editor, types__unsupported_data_type_passed)
 
 NGRAPH_TEST(onnx_editor, types__incorrect_input_name_passed)
 {
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/add_abc.prototxt")};
 
     EXPECT_THROW(editor.set_input_types({{"ShiaLaBeouf", element::i64}}), ngraph_error);
@@ -144,7 +145,7 @@ NGRAPH_TEST(onnx_editor, types__incorrect_input_name_passed)
 NGRAPH_TEST(onnx_editor, types__elem_type_missing_in_input)
 {
     // the original model contains 2 inputs with i64 data type and one f32 input
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/elem_type_missing_in_input.prototxt")};
 
     // the "elem_type" is missing in the model but it should be possible to set the type anyway
@@ -166,7 +167,7 @@ NGRAPH_TEST(onnx_editor, types__elem_type_missing_in_input)
 
 NGRAPH_TEST(onnx_editor, shapes__modify_single_input)
 {
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
 
     const auto new_shape = PartialShape{1};
@@ -183,7 +184,7 @@ NGRAPH_TEST(onnx_editor, shapes__modify_single_input)
 
 NGRAPH_TEST(onnx_editor, shapes__modify_all_inputs)
 {
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
 
     const auto new_shape = PartialShape{1, 2, 3, 5, 8, 13};
@@ -203,7 +204,7 @@ NGRAPH_TEST(onnx_editor, shapes__modify_all_inputs)
 
 NGRAPH_TEST(onnx_editor, shapes__dynamic_rank_in_model)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/shapes__dynamic_rank_in_model.prototxt")};
 
     // input A in the model doesn't have the "shape" field meaning it has dynamic rank
@@ -222,7 +223,7 @@ NGRAPH_TEST(onnx_editor, shapes__dynamic_rank_in_model)
 
 NGRAPH_TEST(onnx_editor, shapes__set_dynamic_dimension)
 {
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
 
     const auto new_shape = PartialShape{Dimension::dynamic()};
@@ -239,7 +240,7 @@ NGRAPH_TEST(onnx_editor, shapes__set_dynamic_dimension)
 
 NGRAPH_TEST(onnx_editor, shapes__set_mixed_dimensions)
 {
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
 
     const auto new_shape_A = PartialShape{21, Dimension::dynamic()};
@@ -261,7 +262,7 @@ NGRAPH_TEST(onnx_editor, shapes__set_mixed_dimensions)
 
 NGRAPH_TEST(onnx_editor, shapes__set_scalar_inputs)
 {
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
 
     const auto new_shape = PartialShape{};
@@ -282,7 +283,7 @@ NGRAPH_TEST(onnx_editor, shapes__set_scalar_inputs)
 
 NGRAPH_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution)
 {
-    onnx_import::ONNXModelEditor editor{
+    ONNXModelEditor editor{
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/shapes__add_two_inputs.prototxt")};
 
     const auto new_shape = PartialShape::dynamic();
@@ -302,7 +303,7 @@ NGRAPH_TEST(onnx_editor, shapes__static_to_dynamic_rank_substitution)
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge(1, "conv1/7x7_s2_1")}}, {});
@@ -317,7 +318,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut)
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge(1, "conv1/7x7_s2_1")}},
@@ -334,7 +335,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_head_cut_ins_and_outs)
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_head_cut)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge(2, "conv1/7x7_s2_2")}}, {});
@@ -350,7 +351,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_head_cut)
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
 
     editor.cut_graph_fragment({}, {{OutputEdge{1, "conv1/7x7_s2_2"}}});
@@ -365,7 +366,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut)
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{0, "data_0"}}}, {{OutputEdge{1, "conv1/7x7_s2_2"}}});
@@ -381,7 +382,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_tail_cut_ins_and_outs)
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_with_initializer_tail_cut)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head_with_initializer.prototxt")};
 
     editor.cut_graph_fragment({}, {{OutputEdge{1, "conv1/7x7_s2_2"}}});
@@ -397,7 +398,7 @@ NGRAPH_TEST(onnx_editor, subgraph__linear_model_with_initializer_tail_cut)
 
 NGRAPH_TEST(onnx_editor, subgraph__initializer_without_matching_input_tail_cut)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__initializer_without_matching_input.prototxt")};
 
     editor.cut_graph_fragment({}, {{OutputEdge{1, "conv1/7x7_s2_2"}}});
@@ -414,7 +415,7 @@ NGRAPH_TEST(onnx_editor, subgraph__initializer_without_matching_input_tail_cut)
 
 NGRAPH_TEST(onnx_editor, subgraph__linear_model_deeper_tail_cut)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
 
     editor.cut_graph_fragment({}, {{OutputEdge{0, "conv1/7x7_s2_1"}}});
@@ -433,7 +434,7 @@ NGRAPH_TEST(onnx_editor, subgraph__no_input_params)
     const auto model_path =
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt");
 
-    onnx_import::ONNXModelEditor editor{model_path};
+    ONNXModelEditor editor{model_path};
 
     editor.cut_graph_fragment({}, {});
 
@@ -444,7 +445,7 @@ NGRAPH_TEST(onnx_editor, subgraph__no_input_params)
 
 NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head_with_initializer.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{0, "conv1/7x7_s2_b_0"}}},
@@ -461,7 +462,7 @@ NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement)
 
 NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement_2)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__initializer_without_matching_input.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{0, "conv1/7x7_s2_b_0"}}},
@@ -478,7 +479,7 @@ NGRAPH_TEST(onnx_editor, subgraph__initializer_to_input_replacement_2)
 
 NGRAPH_TEST(onnx_editor, subgraph__multiout_op_output_edge)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
 
     editor.cut_graph_fragment({}, {{OutputEdge{5, "split2"}}});
@@ -493,7 +494,7 @@ NGRAPH_TEST(onnx_editor, subgraph__multiout_op_output_edge)
 
 NGRAPH_TEST(onnx_editor, subgraph__existing_inputs_and_outputs_based_extraction)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{1, "in2"}, InputEdge{2, "in3"}}},
@@ -511,7 +512,7 @@ NGRAPH_TEST(onnx_editor, subgraph__existing_inputs_and_outputs_based_extraction)
 
 NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{1, "relu1"}, InputEdge{6, "relu1"}}},
@@ -529,7 +530,7 @@ NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumer
 
 NGRAPH_TEST(onnx_editor, subgraph__input_edge_from_tensor_with_multiple_consumers_2)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph_extraction_tests.prototxt")};
 
     editor.cut_graph_fragment({{InputEdge{3, "relu1"}, InputEdge{3, "add1"}}},
@@ -656,7 +657,7 @@ NGRAPH_TEST(onnx_editor, subgraph__invalid_edge_idx)
     const auto model_path =
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt");
 
-    onnx_import::ONNXModelEditor editor{model_path};
+    ONNXModelEditor editor{model_path};
 
     EXPECT_THROW(editor.cut_graph_fragment({{InputEdge{15, "x"}}}, {}), ngraph::ngraph_error);
 }
@@ -666,14 +667,14 @@ NGRAPH_TEST(onnx_editor, subgraph__invalid_edge_name)
     const auto model_path =
         file_util::path_join(SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt");
 
-    onnx_import::ONNXModelEditor editor{model_path};
+    ONNXModelEditor editor{model_path};
 
     EXPECT_THROW(editor.cut_graph_fragment({{InputEdge{0, "x"}}}, {}), ngraph::ngraph_error);
 }
 
 NGRAPH_TEST(onnx_editor, subgraph__inputs_getter)
 {
-    onnx_import::ONNXModelEditor editor{file_util::path_join(
+    ONNXModelEditor editor{file_util::path_join(
         SERIALIZED_ZOO, "onnx/model_editor/subgraph__inception_head.prototxt")};
 
     EXPECT_EQ(editor.model_inputs(),

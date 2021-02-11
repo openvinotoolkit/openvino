@@ -50,7 +50,7 @@ namespace ngraph
         const int m_node_idx;
         const std::string m_tensor_name;
     };
-    namespace onnx_import
+    namespace onnx_editor
     {
         /// \brief Defines an edge connected to an input of any node in the graph.
         ///        It consists of a node index in the processed ONNX model and the input name.
@@ -160,5 +160,5 @@ namespace ngraph
             /// \param subgraph An object describing the subgraph to be extracted (elems to be kept)
             void extract_subgraph_from_onnx_model(const SubgraphComponents& subgraph);
         };
-    } // namespace onnx_import
+    } // namespace onnx_editor
 } // namespace ngraph

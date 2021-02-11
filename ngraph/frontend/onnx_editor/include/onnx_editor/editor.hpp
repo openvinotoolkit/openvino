@@ -34,14 +34,13 @@ namespace ONNX_NAMESPACE
 
 namespace ngraph
 {
-    namespace onnx_import
+    namespace onnx_editor
     {
         /// \brief A class representing a set of utilities allowing modification of an ONNX model
         ///
         /// \note This class can be used to modify an ONNX model before it gets translated to
         ///       an ngraph::Function by the import_onnx_model function. It lets you modify the
-        ///       model's input types and shapes, extract a subgraph and more. An instance of this
-        ///       class can be passed directly to the onnx_importer API.
+        ///       model's input types and shapes, extract a subgraph and more.
         class ONNX_EDITOR_API ONNXModelEditor final
         {
         public:
@@ -114,5 +113,5 @@ namespace ngraph
             struct Impl;
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
         };
-    } // namespace onnx_import
+    } // namespace onnx_editor
 } // namespace ngraph
