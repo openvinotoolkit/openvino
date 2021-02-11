@@ -182,6 +182,11 @@ bool DynamicToStaticShape::run_on_function(std::shared_ptr<ngraph::Function> fun
     // Operation-specific testing that needs to be performed in dynamic context before DSRs are introduced
     validateDynamicFunction(*function);
 
+    // Make sure all values are invalidated, we need it to correctly evaluate upper-bound
+    for (auto& node : function->get_ordered_ops()) {
+        node->invalidate_values();
+    }
+
     for (const auto& operation : function->get_ordered_ops()) {
         if (!isDynamic(*operation)) {
             continue;
