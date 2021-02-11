@@ -27,7 +27,7 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
         auto transpose = std::make_shared<ngraph::opset6::Transpose>(decoder_seq_len->input_value(0),
                                                                      ngraph::opset6::Constant::create(element::i32,
                                                                Shape({3}), {1, 0, 2}));
-        // Get T and N shapes and concatenate to [T, N] tensor shapes:
+        // Receive time and batch dimensions and concatenate to [T, N] tensor shapes:
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(decoder_seq_len->input_value(0));
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
@@ -54,10 +54,11 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
         auto transpose_upper_bounds = std::make_shared<ngraph::opset6::Transpose>(upper_bounds->output(0),
                                                                                   ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                    Shape({2}), {1, 0}));
-        // Calculating seq mask
+        // Compute boolean sequence mask
         auto bool_seq_mask = std::make_shared<ngraph::opset6::GreaterEqual>(transpose_upper_bounds->output(0),
                                                                             range1T->output(0));
 
+        // Generate resulted seq mask
         auto mask_val_true = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {1});
         auto mask_val_false = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto seq_mask = std::make_shared<ngraph::opset6::Select>(bool_seq_mask, mask_val_true, mask_val_false);
@@ -65,11 +66,13 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
                                                                               ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                Shape({2}), {1, 0}));
         auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), element::f32);
+        // Create CTCGreedyDecoder with original merge_repeated attribute and connect data and resulted seq_mask
         auto decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
                                                                                      transpose_seq_mask_f32->output(0),
                                                                                      decoder_seq_len->get_merge_repeated());
         decoder->set_friendly_name(decoder_seq_len->get_friendly_name());
 
+        // Normalize output from CTCGreedyDecoder = output_f and create second output with output_seq_len
         auto squeeze2_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {3});
         auto squeeze2_output_f = std::make_shared<ngraph::opset6::Squeeze>(decoder->output(0), squeeze2_axis);
         auto squeeze1_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {2});
@@ -77,16 +80,20 @@ ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
 
         element::Type ci_type = decoder_seq_len->get_classes_index_type();
         element::Type sl_type = decoder_seq_len->get_sequence_length_type();
-        // Normalize output from CTCGreedyDecoder = output_f and create second output with output_seq_len
+        // Receive the first output with correct classes_index_type
         auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), ci_type);
         auto minus1 = opset6::Constant::create(ci_type, Shape{}, {-1});
+        // Get to know where equal -1
         auto where_equal_minus1 = std::make_shared<ngraph::opset6::Equal>(output_i, minus1);
 
+        // Compute output seq mask
         auto seq_mask_const0 = opset6::Constant::create(ci_type, Shape{1}, {0});
         auto seq_mask_const1 = opset6::Constant::create(ci_type, Shape{1}, {1});
         auto output_seq_mask = std::make_shared<ngraph::opset6::Select>(where_equal_minus1, seq_mask_const0, seq_mask_const1);
         auto seq_mask_axis = opset6::Constant::create(ci_type, Shape{1}, {1});
+        // Receive the second output
         auto output_seq_len = std::make_shared<ngraph::opset6::ReduceSum>(output_seq_mask, seq_mask_axis);
+        // Receive the second output with correct seq_len_type
         auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
         ngraph::copy_runtime_info(decoder_seq_len, {transpose, decoder, data_shape, T, N, plusT, plusT_scalar, range1T, mask_shape, upper_bounds,
                                                squeeze2_output_f, squeeze1_output_f, transpose_upper_bounds, bool_seq_mask, seq_mask, transpose_seq_mask,
