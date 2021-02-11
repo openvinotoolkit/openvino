@@ -38,9 +38,10 @@ namespace ngraph
         namespace reference
         {
             void experimental_detectron_roi_feature_extractor(
-                const HostTensorVector& inputs,
+                const std::vector<float*>& inputs,
+                const std::vector<Shape>& input_shapes,
                 const op::v6::ExperimentalDetectronROIFeatureExtractor::Attributes& attrs,
-                float* output_roi_features,
+                float* output_rois_features,
                 float* output_rois);
 
             void experimental_detectron_roi_feature_extractor_postprocessing(
