@@ -4,17 +4,17 @@
 
 #include "itt.hpp"
 
-#include "transformations/op_conversions/simplify_ctc_greedy_decoder.hpp"
+#include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/rt_info.hpp>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoder, "SimplifyCTCGreedyDecoder", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLen, "SimplifyCTCGreedyDecoder", 0);
 
-ngraph::pass::SimplifyCTCGreedyDecoder::SimplifyCTCGreedyDecoder() {
-    MATCHER_SCOPE(SimplifyCTCGreedyDecoder);
+ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
+    MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLen);
     auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {

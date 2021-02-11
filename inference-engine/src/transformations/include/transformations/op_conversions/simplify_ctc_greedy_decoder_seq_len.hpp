@@ -13,7 +13,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API SimplifyCTCGreedyDecoder;
+class TRANSFORMATIONS_API SimplifyCTCGreedyDecoderSeqLen;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -37,8 +37,8 @@ class TRANSFORMATIONS_API SimplifyCTCGreedyDecoder;
  * The transformation works only for case when the blank_index input is not provided as input to
  * the CTCGreedyDecoderSeqLen.
  */
-class ngraph::pass::SimplifyCTCGreedyDecoder: public ngraph::pass::MatcherPass {
+class ngraph::pass::SimplifyCTCGreedyDecoderSeqLen: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    SimplifyCTCGreedyDecoder();
+    SimplifyCTCGreedyDecoderSeqLen();
 };
