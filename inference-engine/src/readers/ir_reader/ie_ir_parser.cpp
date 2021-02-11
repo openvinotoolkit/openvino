@@ -797,12 +797,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
         // To be sure that all default values will be initialized:
         ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
-
-        // Constructor of Loop and TensorIterator do not call validate_and_infer_types function
-        // -> ticket 36145
-        if (const auto& subGraph = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(ngraphNode)) {
-            subGraph->validate_and_infer_types();
-        }
     }
 
     // Create GenericIE operation for backward compatibility

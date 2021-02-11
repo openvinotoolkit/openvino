@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -22,21 +22,8 @@ from glob import glob
 from .constants import IMAGE_EXTENSIONS, BINARY_EXTENSIONS
 from .logging import logger
 
-def is_image(blob):
-    if blob.layout != "NCHW":
-        return False
-    channels = blob.shape[1]
-    return channels == 3
-
-
-def is_image_info(blob):
-    if blob.layout != "NC":
-        return False
-    channels = blob.shape[1]
-    return channels >= 2
-
-def set_inputs(paths_to_input, batch_size, input_info, requests):
-  requests_input_data = get_inputs(paths_to_input, batch_size, input_info, requests)
+def set_inputs(paths_to_input, batch_size, app_input_info, requests):
+  requests_input_data = get_inputs(paths_to_input, batch_size, app_input_info, requests)
   for i in range(len(requests)):
     inputs = requests[i].input_blobs
     for k, v in requests_input_data[i].items():
@@ -44,19 +31,20 @@ def set_inputs(paths_to_input, batch_size, input_info, requests):
             raise Exception("No input with name {} found!".format(k))
         inputs[k].buffer[:] = v
 
-def get_inputs(paths_to_input, batch_size, input_info, requests):
+def get_inputs(paths_to_input, batch_size, app_input_info, requests):
     input_image_sizes = {}
-    for key in sorted(input_info.keys()):
-        if is_image(input_info[key].input_data):
-            input_image_sizes[key] = (input_info[key].input_data.shape[2], input_info[key].input_data.shape[3])
+    for key in sorted(app_input_info.keys()):
+        info = app_input_info[key]
+        if info.is_image:
+            input_image_sizes[key] = (info.width, info.height)
         logger.info("Network input '{}' precision {}, dimensions ({}): {}".format(key,
-                                                                                  input_info[key].input_data.precision,
-                                                                                  input_info[key].input_data.layout,
+                                                                                  info.precision,
+                                                                                  info.layout,
                                                                                   " ".join(str(x) for x in
-                                                                                           input_info[key].input_data.shape)))
+                                                                                           info.shape)))
 
     images_count = len(input_image_sizes.keys())
-    binaries_count = len(input_info) - images_count
+    binaries_count = len(app_input_info) - images_count
 
     image_files = list()
     binary_files = list()
@@ -100,33 +88,34 @@ def get_inputs(paths_to_input, batch_size, input_info, requests):
     for request_id in range(0, len(requests)):
         logger.info("Infer Request {} filling".format(request_id))
         input_data = {}
-        keys = list(sorted(input_info.keys()))
+        keys = list(sorted(app_input_info.keys()))
         for key in keys:
-            if is_image(input_info[key].input_data):
+            info = app_input_info[key]
+            if info.is_image:
                 # input is image
                 if len(image_files) > 0:
                     input_data[key] = fill_blob_with_image(image_files, request_id, batch_size, keys.index(key),
-                                                           len(keys), input_info[key].input_data)
+                                                           len(keys), info)
                     continue
 
             # input is binary
             if len(binary_files):
                 input_data[key] = fill_blob_with_binary(binary_files, request_id, batch_size, keys.index(key),
-                                                        len(keys), input_info[key].input_data)
+                                                        len(keys), info)
                 continue
 
             # most likely input is image info
-            if is_image_info(input_info[key].input_data) and len(input_image_sizes) == 1:
+            if info.is_image_info and len(input_image_sizes) == 1:
                 image_size = input_image_sizes[list(input_image_sizes.keys()).pop()]
                 logger.info("Fill input '" + key + "' with image size " + str(image_size[0]) + "x" +
                             str(image_size[1]))
-                input_data[key] = fill_blob_with_image_info(image_size, input_info[key].input_data)
+                input_data[key] = fill_blob_with_image_info(image_size, info)
                 continue
 
             # fill with random data
-            logger.info("Fill input '{}' with random values ({} is expected)".format(key, "image" if is_image(
-                input_info[key].input_data) else "some binary data"))
-            input_data[key] = fill_blob_with_random(input_info[key].input_data)
+            logger.info("Fill input '{}' with random values ({} is expected)".format(key, "image"
+                if info.is_image else "some binary data"))
+            input_data[key] = fill_blob_with_random(info)
 
         requests_input_data.append(input_data)
 
@@ -150,8 +139,8 @@ def get_files_by_extensions(paths_to_input, extensions):
 
     return input_files
 
-def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_size, layer):
-    shape = layer.shape
+def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_size, info):
+    shape = info.shape
     images = np.ndarray(shape)
     image_index = request_id * batch_size * input_size + input_id
     for b in range(batch_size):
@@ -159,15 +148,11 @@ def fill_blob_with_image(image_paths, request_id, batch_size, input_id, input_si
         image_filename = image_paths[image_index]
         logger.info('Prepare image {}'.format(image_filename))
         image = cv2.imread(image_filename)
-
-        new_im_size = tuple(shape[2:])
+        new_im_size = tuple((info.width, info.height))
         if image.shape[:-1] != new_im_size:
             logger.warning("Image is resized from ({}) to ({})".format(image.shape[:-1], new_im_size))
             image = cv2.resize(image, new_im_size)
-
-        if image.shape[0] != shape[2]:
-            image = image.transpose((2, 1, 0))
-        else:
+        if info.layout in ['NCHW', 'CHW']:
             image = image.transpose((2, 0, 1))
         images[b] = image
 
@@ -189,11 +174,13 @@ def get_dtype(precision):
         return format_map[precision]
     raise Exception("Can't find data type for precision: " + precision)
 
-def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_size, layer):
-    binaries = np.ndarray(layer.shape)
-    shape = get_blob_shape(layer, 1) # get blob shape for batch 1
+def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_size, info):
+    binaries = np.ndarray(info.shape)
+    shape = info.shape.copy()
+    if 'N' in info.layout:
+        shape[info.layout.index('N')] = 1
     binary_index = request_id * batch_size * input_size + input_id
-    dtype = get_dtype(layer.precision)
+    dtype = get_dtype(info.precision)
     for b in range(batch_size):
         binary_index %= len(binary_paths)
         binary_filename = binary_paths[binary_index]
