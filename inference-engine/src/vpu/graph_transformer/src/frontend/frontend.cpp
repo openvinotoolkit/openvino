@@ -32,6 +32,7 @@
 #include <transformations/op_conversions/softplus_decomposition.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -167,6 +168,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
 
     ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
+    manager.register_pass<::ngraph::pass::SimplifyCTCGreedyDecoder>();
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<::ngraph::pass::ConvertPriorBox>();
     manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
