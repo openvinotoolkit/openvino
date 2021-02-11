@@ -92,33 +92,31 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_deformable_values_zero_2D_1b
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_deformable_values_zero_2D_1batch_1channel_padding)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_deformable_convolution_2D_1batch_1channel_1padding)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{1, 1};
     const Strides dilations{1, 1};
 
-    const Shape inputs_shape{1, 1, 4, 4};
-    const std::vector<float> inputs{1.0f, 3.0f, 5.0f, 7.0f,
-                                    7.0f, 5.0f, 3.0f, 1.0f,
-                                    2.0f, 4.0f, 6.0f, 8.0f,
-                                    8.0f, 6.0f, 4.0f, 2.0f};
+    const Shape inputs_shape{1, 1, 3, 3};
+    const std::vector<float> inputs{1.0f, 3.0f, 5.0f,
+                                    7.0f, 5.0f, 3.0f,
+                                    1.0f, 3.0f, 5.0f};
 
-    const Shape filter_shape{1, 1, 3, 3};
-    const std::vector<float> filters{1.0f, 2.0f, 3.0f,
-                                     0.0f, 1.0f, 0.0f,
-                                     2.0f, 1.0f, 2.0f};
+    const Shape filter_shape{1, 1, 2, 2};
+    const std::vector<float> filters{1.0f, 2.0f,
+                                     0.0f, 1.0f};
     
-    const Shape deformable_values_shape{1, 18, 4, 4};
-    const std::vector<float> deformable_values(1 * 18 * 4 * 4, 0);
+    const Shape deformable_values_shape{1, 8, 5, 5};
+    const std::vector<float> deformable_values(1 * 8 * 5 * 5, 0);
 
                                                
 
     const Shape outputs_shape{1, 1, 4, 4};
-    const std::vector<float> outputs{18.0f, 28.0f, 20.0f, 14.0f,
-                                     28.0f, 47.0f, 67.0f, 40.0f,
-                                     51.0f, 60.0f, 40.0f, 23.0f,
-                                     24.0f, 34.0f, 44.0f, 24.0f};
+    const std::vector<float> outputs{1.0f, 3.0f, 5.0f, 0.0f,
+                                     9.0f, 12.0f, 16.0f, 5.0f,
+                                     15.0f, 20.0f, 16.0f, 3.0f,
+                                     2.0f, 7.0f, 13.0f, 5.0f};
 
     DeformableConvolutionTest(inputs, inputs_shape, deformable_values, deformable_values_shape, filters,
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
