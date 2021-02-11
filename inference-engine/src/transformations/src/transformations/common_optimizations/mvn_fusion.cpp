@@ -71,7 +71,7 @@ ngraph::pass::MVNFusion::MVNFusion() {
     // we must handle it in GraphRewrite engine to perform efficient matching.
     ngraph::matcher_pass_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto exp_input = pattern_to_output.at(input);
+        auto exp_input = pattern_to_output.at(x);
 
         auto const_2_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_2).get_node_shared_ptr());
         auto const_0_5_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
@@ -111,7 +111,7 @@ ngraph::pass::MVNFusion::MVNFusion() {
                                    pattern_to_output.at(sub1).get_node_shared_ptr(),
                                    pattern_to_output.at(mean2).get_node_shared_ptr(),
                                    pattern_to_output.at(sub2).get_node_shared_ptr(),
-                                   pattern_to_output.at(power_sqr).get_node_shared_ptr(),
+                                   pattern_to_output.at(power).get_node_shared_ptr(),
                                    pattern_to_output.at(mean3).get_node_shared_ptr(),
                                    pattern_to_output.at(power_sqrt).get_node_shared_ptr(),
                                    pattern_to_output.at(add_eps).get_node_shared_ptr(),
