@@ -482,7 +482,7 @@ distro_init()
 {
     if [[ -f /etc/centos-release ]]; then
         DISTRO="centos"
-    if [[ -f /etc/redhat-release ]]; then
+    elif [[ -f /etc/redhat-release ]]; then
         DISTRO="redhat"
     elif [[ -f /etc/lsb-release ]]; then
         DISTRO="ubuntu"
