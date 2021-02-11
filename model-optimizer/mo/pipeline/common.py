@@ -22,6 +22,7 @@ from operator import itemgetter
 import networkx as nx
 
 from extensions.back.RemoveUselessConvert import RemoveUselessConvert
+from extensions.back.ResultRename import ResultRename
 from extensions.back.op_versioning import OpVersioning
 from extensions.ops.Cast import Cast
 from mo.back.ie_ir_ver_2.emitter import port_renumber, serialize_constants, generate_ie_ir, serialize_mean_image
@@ -31,7 +32,6 @@ from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.middle.passes.infer import type_infer
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.utils.error import Error
-from extensions.back.ResultRename import ResultRename
 
 
 def determined_sort(outputs: list):
