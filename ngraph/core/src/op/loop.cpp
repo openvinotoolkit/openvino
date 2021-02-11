@@ -86,10 +86,10 @@ void op::v5::Loop::validate_and_infer_types()
     }
 
     bool condition_always_true = false;
-    NODE_VALIDATION_CHECK(this,
-                          m_special_body_ports.body_condition_output_idx >= 0,
-                          "Condition body output is not provided. "
-                          "Condition is a mandatory output of the body in Loop op.");
+    if (m_special_body_ports.body_condition_output_idx < 0)
+        // special body ports were not set yet, so we can't calculate output shape
+        return;
+
     const auto& body_execution_condition =
         m_body->get_results().at(m_special_body_ports.body_condition_output_idx)->input_value(0);
     const auto& body_condition_rank = body_execution_condition.get_partial_shape().rank();
@@ -363,6 +363,7 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) con
     {
         dst.m_output_descriptions.push_back(output_description->copy());
     }
+    dst.validate_and_infer_types();
 }
 
 op::v5::Loop::Loop(const op::v5::Loop& other)

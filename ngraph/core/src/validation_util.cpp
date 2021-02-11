@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <ngraph/ops.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
 
@@ -30,7 +29,6 @@
 #include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/unsqueeze.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/util.hpp"
@@ -1227,6 +1225,35 @@ bool could_propagate(const Output<Node>& output, std::vector<Node*>& order)
     return status;
 }
 
+void propagate_rt_info(Node* node, const Output<Node>& final_port)
+{
+    auto node_outputs = node->outputs();
+    bool same_outputs =
+        std::all_of(node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
+            return output.get_tensor().has_and_set_bound();
+        });
+    if (same_outputs && op::is_constant(node)) // constant should not propagate it's rt_info
+    {
+        std::unordered_set<Node*> stop_nodes;
+        for (const auto& in : final_port.get_target_inputs())
+            stop_nodes.insert(in.get_node());
+
+        auto curr_node = node->shared_from_this();
+        for (const auto& output : node_outputs)
+        {
+            if (output == final_port)
+                continue;
+            for (auto& in : output.get_target_inputs())
+            {
+                if (stop_nodes.count(in.get_node()))
+                    continue;
+                auto consumer = in.get_node()->shared_from_this();
+                copy_runtime_info({curr_node, consumer}, consumer);
+            }
+        }
+    }
+}
+
 HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
 {
     // bound is already set in the tensor
@@ -1264,6 +1291,7 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
                 for (const auto& input : input_values)
                     if (input.get_target_inputs().size() == 1)
                         input.get_tensor().invalidate_values();
+                propagate_rt_info(node, output);
             }
             else
             {
@@ -1574,4 +1602,13 @@ shared_ptr<op::Constant> ngraph::get_constant_from_source(const Output<Node>& so
     if (const auto& c = as_type_ptr<op::Constant>(source.get_node_shared_ptr()))
         return c;
     return std::make_shared<op::Constant>(source.get_tensor().get_upper_value());
+}
+
+bool ngraph::validate_host_tensor_vector(const HostTensorVector& tensor_vector, const size_t& size)
+{
+    if (tensor_vector.size() != size)
+        return false;
+    return std::all_of(tensor_vector.begin(), tensor_vector.end(), [](const HostTensorPtr& t) {
+        return t != nullptr;
+    });
 }

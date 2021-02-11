@@ -70,6 +70,7 @@ bool op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& v
 bool op::util::BinaryElementwiseArithmetic::evaluate_upper(
     const HostTensorVector& output_values) const
 {
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     HostTensorVector lower_output_tensors;
     for (const auto& output : output_values)
         lower_output_tensors.push_back(
@@ -82,6 +83,7 @@ bool op::util::BinaryElementwiseArithmetic::evaluate_upper(
 bool op::util::BinaryElementwiseArithmetic::evaluate_lower(
     const HostTensorVector& output_values) const
 {
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     HostTensorVector upper_output_tensors;
     for (const auto& output : output_values)
         upper_output_tensors.push_back(

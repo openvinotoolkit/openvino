@@ -316,11 +316,6 @@ std::vector<std::shared_ptr<ngraph::Node>>
             auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
             // There is a friendly name for this node so copy it
             cloned_node->set_friendly_name(node->get_friendly_name());
-            //  TODO: workaround for shape inference, delete it after fix
-            if (std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(cloned_node))
-            {
-                cloned_node->validate_and_infer_types();
-            }
             auto rt_info = node->get_rt_info();
             cloned_node->get_rt_info() = rt_info;
 
@@ -384,11 +379,6 @@ std::list<std::shared_ptr<ngraph::Node>>
                 cloned_nodes.push_back(cloned_node);
                 // There is a friendly name for this node so copy it
                 cloned_node->set_friendly_name(node->get_friendly_name());
-                //  TODO: workaround for shape inference, delete it after fix
-                if (std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(cloned_node))
-                {
-                    cloned_node->validate_and_infer_types();
-                }
                 auto rt_info = node->get_rt_info();
                 cloned_node->get_rt_info() = rt_info;
 

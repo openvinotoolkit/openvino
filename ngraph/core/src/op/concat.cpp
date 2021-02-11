@@ -20,7 +20,6 @@
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 
 using namespace std;
@@ -150,6 +149,9 @@ namespace
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v0_Concat_evaluate);
+    NGRAPH_CHECK(this, !inputs.empty());
+    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, inputs.size()));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }
