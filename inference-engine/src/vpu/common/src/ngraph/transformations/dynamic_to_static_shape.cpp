@@ -26,6 +26,8 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_variadic_split.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_loop.hpp"
 
+#include "vpu/ngraph/operations/exp_gather_elements.hpp"
+
 #include "vpu/ngraph/utilities.hpp"
 #include "vpu/utils/error.hpp"
 
@@ -137,6 +139,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset5::Split::type_info,                 dynamicToStaticShapeSplit},
         {ngraph::opset5::GatherND::type_info,              dynamicToStaticShapeGatherND},
         {ngraph::opset6::GatherElements::type_info,        dynamicToStaticShapeGatherElements},
+        {ngraph::vpu::op::ExpGatherElements::type_info,    dynamicToStaticShapeGatherElements},
 
         // reduction
         {ngraph::opset3::ReduceLogicalAnd::type_info, dynamicToStaticShapeReduce},

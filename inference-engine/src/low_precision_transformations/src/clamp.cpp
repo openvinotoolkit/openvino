@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,15 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         if (sub == nullptr) {
             return false;
         }
-        const auto constant = as_type_ptr<ngraph::opset1::Constant>(sub->get_input_node_shared_ptr(1));
+
+        auto constant = as_type_ptr<ngraph::opset1::Constant>(sub->get_input_node_shared_ptr(1));
+        if (constant == nullptr) {
+            const auto convert = sub->get_input_node_shared_ptr(1);
+            if (!is_type<ngraph::opset1::Convert>(convert)) {
+                return false;
+            }
+            constant = as_type_ptr<ngraph::opset1::Constant>(convert->get_input_node_shared_ptr(0));
+        }
 
         if (constant == nullptr) {
             return false;
@@ -38,7 +46,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
         return false;
     }
 
-    const std::shared_ptr<Node> clamp = separateInStandaloneBranch(m.get_match_root());
+    std::shared_ptr<Node> clamp = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(clamp);
 
     const bool moveSubtract = subWithTheSameValues(dequantization.subtract);
@@ -46,26 +54,31 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
     if (!moveSubtract && (dequantization.subtract != nullptr)) {
         return false;
     }
+
     const auto newClamp = as_type_ptr<opset1::Clamp>(moveDequantizationAfter(context, clamp, dequantization, false, moveSubtract));
-    double min = newClamp->get_min();
-    double max = newClamp->get_max();
 
-    if (dequantization.multiply != nullptr) {
-        double scale = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<double>()[0];
-        if (scale < 0.0) {
-            std::swap(min, max);
+    std::shared_ptr<ngraph::opset1::Clamp> replacement;
+    {
+        double min = newClamp->get_min();
+        double max = newClamp->get_max();
+
+        if (dequantization.multiply != nullptr) {
+            double scale = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1))->cast_vector<double>()[0];
+            if (scale < 0.0) {
+                std::swap(min, max);
+            }
+            min /= scale;
+            max /= scale;
         }
-        min /= scale;
-        max /= scale;
-    }
 
-    if (dequantization.subtract != nullptr && moveSubtract) {
-        double shift = as_type_ptr<opset1::Constant>(dequantization.subtract->get_input_node_shared_ptr(1))->cast_vector<double>()[0];
-        min += shift;
-        max += shift;
-    }
+        if (dequantization.subtract != nullptr && moveSubtract) {
+            double shift = as_type_ptr<opset1::Constant>(dequantization.subtractConstant)->cast_vector<double>()[0];
+            min += shift;
+            max += shift;
+        }
 
-    const std::shared_ptr<ngraph::opset1::Clamp> replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->get_input_node_shared_ptr(0), min, max);
+        replacement = std::make_shared<ngraph::opset1::Clamp>(newClamp->get_input_node_shared_ptr(0), min, max);
+    }
     replace_node(newClamp, replacement);
 
     element::Type outputClampType = dequantization.multiply ?

@@ -5,16 +5,21 @@
 #include "ngraph_test_utils.hpp"
 
 #include <cassert>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <queue>
+#include <sstream>
 #include <string>
+#include <type_traits>
+#include <typeinfo>
 #include <vector>
 
 #include <ngraph/function.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
 namespace {
@@ -118,7 +123,7 @@ using SubGraphOpInputDescription =
 using SubGraphOpOutputDescription =
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>;
 
-using SpecialBodyPorts = ngraph::op::v5::Loop::SpecialBodyPorts;
+using SpecialBodyPorts = ngraph::opset6::Loop::SpecialBodyPorts;
 
 namespace storage {
 
@@ -235,27 +240,21 @@ public:
 class ReadAndStoreAttributes : public ngraph::AttributeVisitor, protected storage::Storage {
 public:
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        if (auto inputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+        if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
             insert(name, inputs->get());
-        } else if (
-            auto outputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+        } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
             insert(name, outputs->get());
-        } else if (
-            auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+        } else if (auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
             insert(name, ports->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+            const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
+            const auto end = beg + a->get()->size();
+            insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
         } else {
             m_read_result += "store   attr [ ERR ]: " + name +
                              " [drop `void` comparison which is '" + adapter.get_type_info().name +
                              "']";
         }
-    }
-
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override {
-        const auto beg = static_cast<unsigned char*>(adapter.get_ptr());
-        const auto end = beg + adapter.size();
-        insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
     }
 
 #define ON_ADAPTER(TYPE)                                                                      \
@@ -442,6 +441,55 @@ struct Equal<SpecialBodyPorts> {
 
 }  // namespace equal
 
+namespace str {
+template <typename...>
+struct Void_t {
+    using type = void;
+};
+
+template <typename T, typename = void>
+struct Get {
+    static std::string value(const T&) {
+        return std::string("[Ups can't convert this to value: ") + typeid(T).name() + "]";
+    }
+};
+
+template <typename T>
+struct Get<T, typename Void_t<decltype(std::to_string(std::declval<T>()))>::type> {
+    static std::string value(const T& v) {
+        return "[" + std::to_string(v) + "]";
+    }
+};
+
+template <>
+struct Get<std::string, void> {
+    static std::string value(const std::string& v) {
+        return "[" + v + "]";
+    }
+};
+
+template <typename T>
+struct Get<
+    T,
+    typename Void_t<decltype(begin(std::declval<T>())), decltype(end(std::declval<T>()))>::type> {
+    template <typename Container>
+    static std::string join(const Container& c, const char* glue = ", ") {
+        std::stringstream oss;
+        const char* s = "";
+        for (const auto& v : c) {
+            oss << s << v;
+            s = glue;
+        }
+        return oss.str();
+    }
+
+    static std::string value(const T& v) {
+        return "[" + join(v) + "]";
+    }
+};
+
+}  // namespace str
+
 class ReadAndCompareAttributes : public ngraph::AttributeVisitor {
 public:
     ReadAndCompareAttributes(const ReadAndStoreAttributes& ref)
@@ -452,38 +500,29 @@ public:
             return;
         }
         m_visited_attributes.insert(name);
-        if (auto inputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+        if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
             verify(name, inputs->get());
-        } else if (
-            auto outputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+        } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
             verify(name, outputs->get());
-        } else if (
-            auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+        } else if (auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
             verify(name, ports->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+            m_visited_attributes.insert(name);
+            const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
+            if (!ref_value) {
+                m_cmp_result += "missing attribute name: '" + name + "'";
+                return;
+            }
+
+            if (a->get()->size() != ref_value->size() ||
+                std::memcmp(ref_value->data(), a->get()->get_ptr(), ref_value->size()) != 0) {
+                m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
+                return;
+            }
         } else {
             m_cmp_result += "compare attr [ ERR ]: " + name +
                             " [drop `void` comparison which is '" + adapter.get_type_info().name +
                             "']";
-        }
-    }
-
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override {
-        if (should_return()) {
-            return;
-        }
-        m_visited_attributes.insert(name);
-        const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
-        if (!ref_value) {
-            m_cmp_result += "missing attribute name: " + name;
-            return;
-        }
-
-        if (adapter.size() != ref_value->size() ||
-            std::memcmp(ref_value->data(), adapter.get_ptr(), ref_value->size()) != 0) {
-            m_cmp_result += "mismatch in value: " + name;
-            return;
         }
     }
 
@@ -547,13 +586,14 @@ private:
         m_visited_attributes.insert(name);
         const auto ref_value = m_attr_ref.get<AttrValue>(name);
         if (!ref_value) {
-            m_cmp_result += "missing attribute name: " + name;
+            m_cmp_result += "missing attribute name: '" + name + "'";
             return;
         }
 
         if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
-            m_cmp_result += "mismatch in value: " + name;
-            return;
+            m_cmp_result += "mismatch in value: '" + name +
+                            "' : " + str::Get<AttrValue>::value(*ref_value) + " vs " +
+                            str::Get<AttrValue>::value(attr_value);
         }
     }
 
@@ -599,6 +639,7 @@ private:
     attr_comparison::ReadAndStoreAttributes m_store_attr;
     attr_comparison::ReadAndCompareAttributes m_compare_attr;
 };
+
 }  // namespace
 
 FunctionsComparator::Result FunctionsComparator::compare(
@@ -765,8 +806,22 @@ FunctionsComparator::Result FunctionsComparator::compare(
             const auto& tensor2 = node2->output(i).get_tensor();
 
             if (tensor1.get_names() != tensor2.get_names()) {
-                err_log << "Output tensors names are different for nodes: "
-                    << node1->get_friendly_name() << " and " << node2->get_friendly_name() << std::endl;
+                std::string names1 = "";
+                for (const auto& name : tensor1.get_names()) {
+                    if (!names1.empty())
+                        names1 += ", ";
+                    names1 += name;
+                }
+                names1 = "\"" + names1 + "\"";
+                std::string names2 = "";
+                for (const auto& name : tensor2.get_names()) {
+                    if (!names2.empty())
+                        names2 += ", ";
+                    names2 += name;
+                }
+                names2 = "\"" + names2 + "\"";
+                err_log << "Output tensors names " << names1 << " and " << names2 << " are different for nodes: "
+                        << node1->get_friendly_name() << " and " << node2->get_friendly_name() << std::endl;
             }
             if (!node1->output(i).get_partial_shape().same_scheme(
                     node2->output(i).get_partial_shape())) {

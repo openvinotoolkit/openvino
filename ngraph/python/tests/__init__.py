@@ -130,12 +130,6 @@ xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "If")
 xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop"
                                       "Not constant termination condition body output is not supported")
-xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(OneHot): y>':"
-                                      "While validating node 'v1::OneHot OneHot_<number>"
-                                      "(Convert_13525[0]:i64{3}, depth[0]:f32{},"
-                                      "Squeeze_13532[0]:i32{}, Squeeze_13529[0]:i32{}) -> (dynamic?)'"
-                                      "with friendly_name 'OneHot_13534':"
-                                      "Depth must be integral element type.")
 xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger"
                                       "and QLinearMatMul"
                                       "Input0 scale and input0 zero point shape must be same and 1")
@@ -207,9 +201,6 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
 
 
 xfail_issue_39704 = xfail_test(reason="ResNet101_DUC_HDC - AssertionError: zoo models results mismatch")
-xfail_issue_43208 = xfail_test(reason="GPT-2 - AssertionError: zoo models results mismatch")
-xfail_issue_43209 = xfail_test(reason="GPT-2-LM-HEAD - AssertionError: zoo models results mismatch")
-xfail_issue_43213 = xfail_test(reason="RetinaNet Resnet101 - AssertionError: zoo models results mismatch")
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")

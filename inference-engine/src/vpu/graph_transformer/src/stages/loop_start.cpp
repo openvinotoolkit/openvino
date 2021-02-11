@@ -1,20 +1,16 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu/frontend/frontend.hpp"
 #include "vpu/stages/iteration_rule.hpp"
 
-#include <utility>
-#include <map>
 #include <memory>
 #include <string>
 
 namespace vpu {
 
 namespace {
-
-const int32_t dynamicIterationNum = -1;
 
 class LoopStart : public StageNode {
 public:
@@ -44,9 +40,12 @@ protected:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        int32_t iterations_count = attrs().has("batchId") ? dynamicIterationNum : attrs().get<uint32_t>("iterations-count");
-        serializer.append(iterations_count);
+        const auto iterationsCount = static_cast<std::int32_t>(attrs().getOrDefault<std::uint32_t>("iterations-count", g_dynamicIterationCount));
+        serializer.append(iterationsCount);
         serializer.append(attrs().get<uint32_t>("stages-count"));
+
+        const auto& startCopies = attrs().getOrDefault<IterationComponents>("start-iteration-components", {});
+        serializer.append(checked_cast<uint32_t>(startCopies.size()));
 
         if (attrs().has("batchId")) {
             const auto batchId = attrs().get<uint32_t>("batchId");
@@ -55,8 +54,6 @@ protected:
             serializer.append(static_cast<uint32_t>(batchDimInd));
         }
 
-        const auto& startCopies = attrs().getOrDefault<IterationComponents>("start-iteration-components", {});
-        serializer.append(checked_cast<uint32_t>(startCopies.size()));
         for (const auto& component : startCopies) {
             const auto& rule = component.first.second;
             auto axis = rule.axis;
