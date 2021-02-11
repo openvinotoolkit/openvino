@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ def concat_infer(node):
     else:
         N = len(node.in_nodes())
 
-    shapes = [node.in_node(i).shape for i in range(N)]
+    shapes = [node.in_node(i).shape for i in range(N) if len(node.in_node(i).shape)!=0]
     if any(s is None for s in shapes):
         return
 

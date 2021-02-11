@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -51,7 +51,6 @@ class Shape(Op):
         else:
             raise Error('Unknown opset version "{}"'.format(version))
 
-
     @staticmethod
     def infer(node):
         name = node.soft_get('name', node.id)
@@ -67,11 +66,11 @@ class Shape(Op):
             '`output_type` attribute is not set for ShapeOf node `{}`'.format(name)
         assert node.output_type in [np.int64, np.int32], \
             'ShapeOf `output_type` attribute must be int32 or int64, `{}` found'.format(np.dtype(node.output_type).name)
-
         if node.has_and_set('stop_value_propagation'):
             node.out_port(0).data.set_shape(input_shape.shape)
         else:
             node.out_port(0).data.set_value(np.array(input_shape, dtype=node.output_type))
+
 
     @staticmethod
     def type_infer(node):

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -164,6 +164,7 @@ def add_constant_operations(graph):
 def shape_inference(graph):
     for node in graph.pseudo_topological_sort():
         if node.has_and_set('need_shape_inference'):
+
             old_out_shapes = [port.data.get_shape() for port in node.out_ports().values() if not port.disconnected()]
             node.infer(node)
             new_out_shapes = [port.data.get_shape() for port in node.out_ports().values() if not port.disconnected()]

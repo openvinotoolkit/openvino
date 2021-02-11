@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -112,7 +112,8 @@ def tf_strided_slice_infer(node):
     node['force_precision_in_ports'] = {port: 'int64' for port in range(1, len(node.in_nodes()))}
 
     node.out_node().value = value.copy() if node.in_node(0).value is not None else None
-    node.out_node().shape = np.array(value.shape, dtype=np.int64)
+    node.out_node().shape = np.array([] if len(value.shape) == 1 and np.sum(value.shape)==0 else value.shape,
+                                     dtype=np.int64)
 
 
 def convert_negative_indices(indices: np.array, shape: np.array):

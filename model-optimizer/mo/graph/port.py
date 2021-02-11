@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -106,6 +106,7 @@ class Port:
                 return self.node.out_node(self.idx, control_flow=self.control_flow).shape
 
     def _set_shape(self, shape):
+
         if self.node.graph.stage == 'front':
             raise NotImplementedError("set_shape not implemented for front phase")
         else:
@@ -135,24 +136,25 @@ class Port:
         if self.node.graph.stage == 'front':
             raise Error("set_value is not applicable for graph front phase")
         else:
+            value_shape = int64_array([]) if len(value.shape) == 1 and np.sum(value.shape)==0 else int64_array(value.shape)
             if self.type == 'in':
                 data_node = self.node.in_node(self.idx, control_flow=self.control_flow)
                 const_node = data_node.in_node(control_flow=self.control_flow)
 
                 # Set value to data node
                 data_node.value = value
-                data_node.shape = int64_array(value.shape)
+                data_node.shape = value_shape
 
                 # Set value to constant producer
                 if const_node.soft_get('type') == 'Const':
                     const_node.value = value
-                    const_node.shape = int64_array(value.shape)
+                    const_node.shape = value_shape
             else:
                 self.node.out_node(self.idx, control_flow=self.control_flow).value = value
-                self.node.out_node(self.idx, control_flow=self.control_flow).shape = int64_array(value.shape)
+                self.node.out_node(self.idx, control_flow=self.control_flow).shape = value_shape
                 if self.node.soft_get('type') == 'Const':
                     self.node.value = value
-                    self.node.shape = int64_array(value.shape)
+                    self.node.shape = value_shape
 
     def _get_attr(self, item: str):
         if self.node.graph.stage == 'front':
