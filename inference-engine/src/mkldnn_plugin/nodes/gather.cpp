@@ -22,7 +22,11 @@ using namespace mkldnn::impl::cpu;
 struct jGatherConfParams {
     int32_t beforeAxisSize;
     int32_t indicesSize;
+    int32_t axisDim;
     uint32_t dictTypeSize;
+    bool blockedIndices512 = false;
+    bool blockedIndices256 = false;
+    bool blockedIndices128 = false;
 };
 
 struct jGatherArgs {
@@ -38,6 +42,7 @@ struct jGatherArgs {
     const int* shufMask16bitUni;
     const int* permMask16bitA2;
     const int* permMask16bitA5;
+    const int* minusOne;
     size_t idxStartB;
     size_t workAmount;
     int* tmp; // remove
@@ -88,6 +93,9 @@ struct jitUniGatherKernel : public jitGatherKernelBase, public x64::jit_generato
 
         mov(regAux1, ptr[regParams + GET_OFF(axDimSum)]);
         uni_vpbroadcastd(vmmAxDimSum, ptr[regAux1]);
+
+        mov(regAux1, ptr[regParams + GET_OFF(minusOne)]);
+        uni_vpbroadcastd(vmmMinusOne, ptr[regAux1]);
 
         mov(regWorkAmount, ptr[regParams + GET_OFF(workAmount)]);
 
@@ -202,7 +210,7 @@ protected:
     int elPerVec;
 
     void tail() {
-        Xbyak::Label lTailLoop, lCalc, lFinish;
+        Xbyak::Label lTailLoop, lCalc, lCmpTop, lPositiveIdx, lFinish;
         Xbyak::Reg32 regDictTypeSize32(regAux1.getIdx());
         Xbyak::Reg32 regAxDimSum32(regAux2.getIdx());
         Xbyak::Reg32 regAux3_32(regAux3.getIdx());
@@ -223,6 +231,15 @@ protected:
 
             L(lCalc);
             mov(eax, ptr[regIndices + regIdxIter]);
+            cmp(rax, 0);
+            jge(lCmpTop, T_NEAR);
+            mov(rax, 0);
+            jmp(lPositiveIdx);
+            L(lCmpTop);
+            cmp(rax, jcp_.axisDim);
+            jl(lPositiveIdx, T_NEAR);
+            mov(rax, 0);
+            L(lPositiveIdx);
             mul(regDictTypeSize32);
             add(eax, regAxDimSum32);
             if (jcp_.dictTypeSize == 4) {
@@ -324,7 +341,9 @@ protected:
 
     void vpGatherDD(const Xbyak::Ymm& dst) {
         fillIndicies(vmmSrcShifts);
-        uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
+        vpcmpgtd(vmmOnesBit, vmmSrcShifts, vmmMinusOne);
+        vpand(vmmSrcShifts, vmmSrcShifts, vmmOnesBit);
+//        uni_vpcmpeqd(vmmOnesBit, vmmOnesBit, vmmOnesBit);
         vpgatherdd(dst, ptr[regSrc + vmmSrcShifts], vmmOnesBit);
     }
 
@@ -378,7 +397,7 @@ protected:
     Vmm vmmAux3 = Vmm(8);
     Vmm vmmAux4 = Vmm(9);
     Vmm vmmAux5 = Vmm(10);
-    Vmm vmmAux6 = Vmm(11);
+    Vmm vmmMinusOne = Vmm(11);
     Vmm vmmAux7 = Vmm(12);
     Vmm vmmAux8 = Vmm(13);
     Vmm vmmAux9 = Vmm(14);
@@ -462,9 +481,27 @@ public:
             jcp.beforeAxisSize = beforeAxisSize_;
             jcp.indicesSize = indicesSize_ * idxPrecision.size();
             jcp.dictTypeSize = dictTypeSize_;
+            jcp.axisDim = axisDim_;
+            const auto threadsNum = parallel_get_max_threads();
+            const auto vlen512 = x64::cpu_isa_traits<x64::avx512_common>::vlen;
+//            const auto vlen256 = x64::cpu_isa_traits<x64::avx2>::vlen;
+//            const auto vlen128 = x64::cpu_isa_traits<x64::sse41>::vlen;
             if (x64::mayiuse(x64::avx512_common)) {
+                if (threadsNum > 2 && indicesSize_ >= 4) {
+                    if (indicesSize_ >= vlen512)  {
+                        if (indicesSize_ % vlen512 == 0) {
+                            jcp.blockedIndices512 = true;
+                        }
+                    } else if (indicesSize_ >= 32 && indicesSize_ % 32 == 0) {
+                        jcp.blockedIndices256 = true;
+                    } else if (indicesSize_ >= 16 && indicesSize_ % 16 == 0) {
+                        jcp.blockedIndices128 = true;
+                    }
+                    idxPrecision.size();
+                }
                 jKernel_.reset(new jitUniGatherKernel<x64::avx512_common>(jcp));
             } else if (x64::mayiuse(x64::avx2)) {
+                x64::cpu_isa_traits<x64::avx2>::vlen;
                 jKernel_.reset(new jitUniGatherKernel<x64::avx2>(jcp));
             }
             if (jKernel_)
@@ -523,6 +560,7 @@ private:
                     const int dictTypeSize = dictTypeSize_;
                     const int axisDimB = axisDim_ * dictTypeSize_;
                     const int axDimSumB = axisDimB * basStart;
+                    const int minusOne = -1;
 
                     auto arg = jGatherArgs();
                     arg.src = srcDictData;
@@ -538,6 +576,7 @@ private:
                     arg.shufMask16bitUni = shufMask16bitUni_;
                     arg.permMask16bitA2  = permMask16bitA2_;
                     arg.permMask16bitA5  = permMask16bitA5_;
+                    arg.minusOne = &minusOne;
                     arg.workAmount = end - start;
 //                    arg.tmp = tmp;
 //                    arg.retVal = &retVal;
