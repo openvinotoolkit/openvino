@@ -224,9 +224,9 @@ ngraph::op::v5::Loop::SpecialBodyPorts V10Parser::XmlDeserializer::parsePurposeA
 
 void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
     static const std::unordered_set<std::string> skip_names = {
-            "input_descriptions",
-            "output_descriptions",
-            "special_body_ports"
+        "input_descriptions",
+        "output_descriptions",
+        "special_body_ports"
     };
     std::string val;
 
@@ -306,7 +306,7 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
 
         if (getStrAttribute(dn, name, value)) {
             auto buffer = std::make_shared<ngraph::runtime::AlignedBuffer>(value.size());
-            auto data = static_cast<char *>(buffer->get_ptr());
+            auto data = static_cast<char*>(buffer->get_ptr());
             value.copy(data, value.size());
             a->set(buffer);
         } else if (name == "value" && type == "Const") {
@@ -328,15 +328,15 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
             if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
                 THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type << " op!";
 
-            char *data = weights->cbuffer().as<char *>() + offset;
+            char* data = weights->cbuffer().as<char*>() + offset;
 
             using SharedBuffer = ngraph::runtime::SharedBuffer<const Blob::CPtr>;
             auto buffer = std::make_shared<SharedBuffer>(data, size, weights);
             a->set(buffer);
-        } else {
-            THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
-                               << " parameter";
         }
+    } else {
+        THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
+                           << " parameter";
     }
 }
 

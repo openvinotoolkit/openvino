@@ -179,7 +179,7 @@ public:
         if (opsets.empty()) {
             ngraph::OpSet opset;
             opset.insert<FakeTestOp>();
-            opsets["experimental"] = opset;
+            opsets["custom_opset"] = opset;
         }
         return opsets;
     }
@@ -213,7 +213,7 @@ protected:
             std::unique_ptr<InferenceEnginePluginPtr> score_engine1;
             score_engine1.reset(new InferenceEnginePluginPtr(make_plugin_name(p.plugin()).c_str()));
             (*score_engine1)->SetConfig(p.config);
-            
+
             std::unique_ptr<InferenceEnginePluginPtr> score_engine2;
             score_engine2.reset(new InferenceEnginePluginPtr(make_plugin_name(p.plugin()).c_str()));
             (*score_engine2)->SetConfig(p.config);
@@ -248,7 +248,7 @@ protected:
                         </port>
                     </output>
                 </layer>
-                <layer name="fake_layer" id="1" type="Fake" version="experimental" precision="FP32">
+                <layer name="fake_layer" id="1" type="Fake" version="custom_opset" precision="FP32">
                     <input>
                         <port id="1">
                             <dim>1</dim>
