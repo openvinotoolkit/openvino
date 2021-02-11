@@ -453,9 +453,7 @@ namespace ngraph
                     memcpy(output_rois_features_ptr,
                            output_rois_features.data(),
                            output_rois_features_size * sizeof(float));
-                    memcpy(output_rois_ptr,
-                           output_rois.data(),
-                           output_rois_size * sizeof(float));
+                    memcpy(output_rois_ptr, output_rois.data(), output_rois_size * sizeof(float));
                 }
                 break;
                 default:;
