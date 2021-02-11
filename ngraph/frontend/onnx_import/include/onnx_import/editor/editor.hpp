@@ -90,6 +90,7 @@ namespace ngraph
             /// \return A reference to ONNX ModelProto object containing the in-memory model
             ONNX_NAMESPACE::ModelProto& model() const;
 
+            /// \brief Returns a serialized ONNX model, possiblie modified by an instance of editor.
             std::string model_string() const;
 
             /// \brief Returns a list of all inputs of the in-memory model, including initializers.
