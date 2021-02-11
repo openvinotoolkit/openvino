@@ -426,7 +426,8 @@ void MKLDNNStridedSliceNode::createPrimitive() {
             params.srcDims.insert(params.srcDims.begin() + 1, realSrcDim);
         }
 
-        params.lastDstDim /= realDstDim;
+        if (params.dstDims.size() > 2)
+            params.lastDstDim /= realDstDim;
     }
 }
 
