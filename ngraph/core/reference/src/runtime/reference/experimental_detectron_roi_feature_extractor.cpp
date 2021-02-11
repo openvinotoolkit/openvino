@@ -50,7 +50,7 @@ namespace
                 area = std::sqrt(area) / canonical_scale;
                 area = std::log2(area + 1e-6f);
                 target_level = static_cast<int64_t>(std::floor(area + canonical_level));
-                target_level = (std::max)(0, (std::min)(levels_num - 1, target_level));
+                target_level = (std::max)(static_cast<int64_t>(0), (std::min)(levels_num - 1, target_level));
             }
 
             level_ids[i] = target_level;
@@ -342,8 +342,8 @@ namespace ngraph
                 const bool aligned = attrs.aligned;
 
                 const int64_t levels_num = static_cast<int64_t>(inputs.size() - 1);
-                const int64_t num_rois = static_cast<int64_t>(input_shapes[0]);
-                const int64_t channels_num = static_cast<int64_t>(input_shapes[1]);
+                const int64_t num_rois = static_cast<int64_t>(input_shapes[0][0]);
+                const int64_t channels_num = static_cast<int64_t>(input_shapes[1][1]);
                 const int64_t feaxels_per_roi = pooled_height * pooled_width * channels_num;
 
                 const float* input_rois = inputs[0];
