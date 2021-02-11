@@ -50,7 +50,8 @@ namespace
                 area = std::sqrt(area) / canonical_scale;
                 area = std::log2(area + 1e-6f);
                 target_level = static_cast<int64_t>(std::floor(area + canonical_level));
-                target_level = (std::max)(static_cast<int64_t>(0), (std::min)(levels_num - 1, target_level));
+                target_level =
+                    (std::max)(static_cast<int64_t>(0), (std::min)(levels_num - 1, target_level));
             }
 
             level_ids[i] = target_level;
@@ -133,7 +134,7 @@ namespace
                 {
                     const T yy = roi_start_h + ph * bin_size_h +
                                  static_cast<T>(iy + 0.5f) * bin_size_h /
-                                     static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
+                                     static_cast<T>(roi_bin_grid_h); // e.g., 0.5, 1.5
                     for (int64_t ix = 0; ix < ix_upper; ix++)
                     {
                         const T xx =
@@ -217,7 +218,6 @@ namespace
             }
         }
     }
-
 
     template <typename T>
     void ROIAlignForward_kernel(const int64_t level_rois_num,
@@ -314,9 +314,9 @@ namespace
                         output_val /= count;
 
                         top_data[index] = output_val;
-                    }  // for pw
-                }      // for ph
-            }          // for c
+                    } // for pw
+                }     // for ph
+            }         // for c
         }
     }
 }
