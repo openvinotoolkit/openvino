@@ -181,6 +181,8 @@ TEST(type_prop, binary_conv_v1_dyn_data_batch_and_filters)
     ASSERT_TRUE(bin_conv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
+// TODO: Remove it if input may be different than float point type
+#if 0
 TEST(type_prop, binary_conv_v1_invalid_data_batch_et)
 {
     const auto mode = op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT;
@@ -211,6 +213,7 @@ TEST(type_prop, binary_conv_v1_invalid_data_batch_et)
         FAIL() << "Data batch element type validation check failed for unexpected reason";
     }
 }
+#endif
 
 TEST(type_prop, binary_conv_v1_invalid_input_ranks)
 {
