@@ -226,17 +226,25 @@ TEST(type_prop, binary_conv_v1_incompatible_input_channels)
 
     try
     {
-        auto conv = make_shared<op::v1::BinaryConvolution>(
-            data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{}, mode, pad_value, auto_pad);
+        auto conv = make_shared<op::v1::BinaryConvolution>(data_batch,
+                                                           filters,
+                                                           Strides{},
+                                                           CoordinateDiff{},
+                                                           CoordinateDiff{},
+                                                           Strides{},
+                                                           mode,
+                                                           pad_value,
+                                                           auto_pad);
         FAIL() << "Incompatible input channel dimension in data batch and filters not detected";
     }
-    catch(const NodeValidationFailure& error)
+    catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch channel count"));
     }
-    catch(...)
+    catch (...)
     {
-        FAIL() << "Data batch and filters input channel count validation check failed for unexpected reason";
+        FAIL() << "Data batch and filters input channel count validation check failed for "
+                  "unexpected reason";
     }
 }
 

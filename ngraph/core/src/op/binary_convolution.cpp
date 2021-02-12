@@ -77,7 +77,7 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
     element::Type data_batch_et = get_input_element_type(0);
     const PartialShape& filters_pshape = get_input_partial_shape(1);
 
-    // TODO: Remove this if op also supports int element type inputs
+// TODO: Remove this if op also supports int element type inputs
 #if 0
     NODE_VALIDATION_CHECK(this,
                           data_batch_et.is_real(),
