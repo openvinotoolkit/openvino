@@ -215,6 +215,31 @@ TEST(type_prop, binary_conv_v1_invalid_data_batch_et)
 }
 #endif
 
+TEST(type_prop, binary_conv_v1_incompatible_input_channels)
+{
+    const auto mode = op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT;
+    const float pad_value = 1.0f;
+    const auto auto_pad = op::PadType::EXPLICIT;
+
+    auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5});
+    auto filters = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 3});
+
+    try
+    {
+        auto conv = make_shared<op::v1::BinaryConvolution>(
+            data_batch, filters, Strides{}, CoordinateDiff{}, CoordinateDiff{}, Strides{}, mode, pad_value, auto_pad);
+        FAIL() << "Incompatible input channel dimension in data batch and filters not detected";
+    }
+    catch(const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Data batch channel count"));
+    }
+    catch(...)
+    {
+        FAIL() << "Data batch and filters input channel count validation check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, binary_conv_v1_invalid_input_ranks)
 {
     const auto mode = op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT;
