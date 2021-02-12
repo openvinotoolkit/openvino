@@ -1283,8 +1283,9 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
 
     auto input_data = HasTo2DReshapeData(layer) ? Get2DReshapedData(inputs, 8) : inputs;
     auto in_dims = input_data->getDims();
-    uint32_t num_rows_in = InferenceEngine::details::product(in_dims) / in_dims.front();
-    uint32_t num_columns_in = in_dims.front();
+    auto batch_size = (in_dims.size() == 1) ? 1 : in_dims.front();
+    uint32_t num_rows_in = InferenceEngine::details::product(in_dims) / batch_size;
+    uint32_t num_columns_in = batch_size;
     uint32_t num_rows_out = isDiag ? num_rows_in : FROM_IR_DIM(outputs, 1);
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
     uint32_t num_padding_out = isDiag ? num_padding : 0;

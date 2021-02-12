@@ -1190,8 +1190,9 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     int inputNum = 0;
     for (auto &input : inputs) {
         auto inputLayout = input.second->getTensorDesc().getLayout();
-        if (inputLayout != Layout::NC && inputLayout != Layout::CN && inputLayout != Layout::CHW && inputLayout != Layout::NCHW) {
-            THROW_GNA_EXCEPTION << "Expected input blob to have Layout::NC or Layout::CN, but was: "
+        if (inputLayout != Layout::C && inputLayout != Layout::NC && inputLayout != Layout::CN &&
+            inputLayout != Layout::CHW && inputLayout != Layout::NCHW) {
+            THROW_GNA_EXCEPTION << "Expected input blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was: "
                                 << input.second->getTensorDesc().getLayout();
         }
 
@@ -1206,7 +1207,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             inputLayout = Layout::NC;
         }
 
-        auto is2D = input.second->getTensorDesc().getLayout() == Layout::NC || input.second->getTensorDesc().getLayout() == Layout::CN;
+        auto is1D = input.second->getTensorDesc().getLayout() == Layout::C;
         auto is3D = input.second->getTensorDesc().getLayout() == Layout::CHW;
 
         if (!inputsDesc->ptr_inputs_global_id.count(input.first)) {
@@ -1232,9 +1233,9 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             }
         }
 
-        auto  importedElements = is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3];
-        auto  importedFrames = is3D ? 1 : dims[0];
-        auto  targetGroups = is2D ? dims[dims.size() - 2] : dims[0]; // TODO: no proper support for groups yet
+        auto  importedElements = is1D ? dims[0] : details::product(++std::begin(dims), std::end(dims));
+        auto  importedFrames = (is3D || is1D) ? 1 : dims[0];
+        auto  targetGroups = is1D ? 1 : dims[0]; // TODO: no proper support for groups yet
 
         auto  importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : 2;
         auto  importedBytes = importedElements * importedFrames * importedElementSizeBytes;
@@ -1257,8 +1258,8 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 
         auto transpose_info = transpose_inputs_info.find(input.first);
         if (transpose_info != std::end(transpose_inputs_info)) {
-            size_t batchSize = dims[0];
-            size_t elementsPerBatch = InferenceEngine::details::product(dims) / dims[0];
+            size_t batchSize = (dims.size() > 1) ? dims[0] : 1;
+            size_t elementsPerBatch = (dims.size() > 1) ? InferenceEngine::details::product(dims) / dims[0] : dims[0];
             size_t transposed_data_size = 0;
             for (const auto &part_transposition_info : transpose_info->second) {
                 transposed_data_size += part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
@@ -1345,87 +1346,85 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN
-            || outputBlob->getTensorDesc().getLayout() == Layout::NCHW || outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
-            auto dims = outputBlob->getTensorDesc().getDims();
-            auto is2D = outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN;
-            auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
-            auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
-            auto batchSize = is3D ? 1 : exportOutputDims[0];
-            auto elementsPerBatch = is2D ? exportOutputDims[exportOutputDims.size() - 1]
-                : exportOutputDims[exportOutputDims.size() - 1]
-                * exportOutputDims[exportOutputDims.size() - 2]
-                * exportOutputDims[exportOutputDims.size() - 3];
-
-            auto transpose_output_info = transpose_outputs_info.find(outputBlobIt.first);
-            if (transpose_output_info != std::end(transpose_outputs_info)) {
-                size_t transposed_data_size = 0;
-                for (const auto &part_transposition_info : transpose_output_info->second) {
-                    transposed_data_size += part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
-                }
-                if (elementsPerBatch != transposed_data_size) {
-                    THROW_GNA_EXCEPTION << "Transposed data size (" << transposed_data_size
-                                        << ") do not match output buffer length of " << elementsPerBatch;
-                }
-                TransposeTensorFromNCHWToNHWC(outputDesc.num_bytes_per_element,
-                                              batchSize,
-                                              elementsPerBatch,
-                                              reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]),
-                                              true,
-                                              transpose_output_info->second);
-            }
-
-            ExportScores(outputBlob->buffer(),
-                         outputDesc.ptrs[request_idx],
-                         outputDesc.orientation,
-                         batchSize,
-                         batchSize,
-                         elementsPerBatch,
-                         elementsPerBatch,
-                         elementsPerBatch,
-                         outputDesc.num_bytes_per_element,
-                         sizeof(float));
-
-            if (gnadevice) {
-#ifdef PLOT
-                FILE* f = nullptr;
-                static int num_infers = 0;
-                {
-                    f = fopen("ex_scores.txt", "w");
-                }
-                num_infers++;
-                if (f) {
-                    auto dims = outputBlob->getTensorDesc().getDims();
-                    for (int i = 0; i < dims[dims.size() - 2]; i++) {
-                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                            fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t*>()[dims[dims.size() - 1] * i + j]);
-                        }
-                        fprintf(f, "\n");
-                    }
-                    fprintf(f, "\n\n");
-                }
-#endif
-                ConvertToFloat(outputBlob->buffer(),
-                    outputBlob->buffer(),
-                    elementsPerBatch,
-                    batchSize,
-                    outputDesc.scale_factor);
-#ifdef PLOT
-                if (f) {
-                    auto dims = outputBlob->getTensorDesc().getDims();
-                    for (int i = 0; i < dims[dims.size() - 2]; i++) {
-                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                            fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
-                        }
-                        fprintf(f, "\n");
-                    }
-                    fclose(f);
-                }
-#endif
-            }
-        } else {
-            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
+        if (!outputBlob->getTensorDesc().getLayout() == Layout::C && !outputBlob->getTensorDesc().getLayout() == Layout::NC &&
+            !outputBlob->getTensorDesc().getLayout() == Layout::CN && !outputBlob->getTensorDesc().getLayout() == Layout::NCHW &&
+            !outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
+            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
                 << outputBlob->getTensorDesc().getLayout();
+        }
+
+        auto dims = outputBlob->getTensorDesc().getDims();
+        auto is1D = outputBlob->getTensorDesc().getLayout() == Layout::C;
+        auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
+        auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
+        auto batchSize = (is1D || is3D) ? 1 : exportOutputDims[0];
+        auto elementsPerBatch = is1D ? exportOutputDims.front() :
+            details::product(++std::begin(exportOutputDims), std::end(exportOutputDims));
+
+        auto transpose_output_info = transpose_outputs_info.find(outputBlobIt.first);
+        if (transpose_output_info != std::end(transpose_outputs_info)) {
+            size_t transposed_data_size = 0;
+            for (const auto &part_transposition_info : transpose_output_info->second) {
+                transposed_data_size += part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
+            }
+            if (elementsPerBatch != transposed_data_size) {
+                THROW_GNA_EXCEPTION << "Transposed data size (" << transposed_data_size
+                                    << ") do not match output buffer length of " << elementsPerBatch;
+            }
+            TransposeTensorFromNCHWToNHWC(outputDesc.num_bytes_per_element,
+                                            batchSize,
+                                            elementsPerBatch,
+                                            reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]),
+                                            true,
+                                            transpose_output_info->second);
+        }
+
+        ExportScores(outputBlob->buffer(),
+                        outputDesc.ptrs[request_idx],
+                        outputDesc.orientation,
+                        batchSize,
+                        batchSize,
+                        elementsPerBatch,
+                        elementsPerBatch,
+                        elementsPerBatch,
+                        outputDesc.num_bytes_per_element,
+                        sizeof(float));
+
+        if (gnadevice) {
+#ifdef PLOT
+            FILE* f = nullptr;
+            static int num_infers = 0;
+            {
+                f = fopen("ex_scores.txt", "w");
+            }
+            num_infers++;
+            if (f) {
+                for (int i = 0; i < batchSize; i++) {
+                    for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                        fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t*>()[dims[dims.size() - 1] * i + j]);
+                    }
+                    fprintf(f, "\n");
+                }
+                fprintf(f, "\n\n");
+            }
+#endif
+            ConvertToFloat(outputBlob->buffer(),
+                outputBlob->buffer(),
+                elementsPerBatch,
+                batchSize,
+                outputDesc.scale_factor);
+#ifdef PLOT
+            if (f) {
+                auto dims = outputBlob->getTensorDesc().getDims();
+                for (int i = 0; i < batchSize; i++) {
+                    for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                        fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
+                    }
+                    fprintf(f, "\n");
+                }
+                fclose(f);
+            }
+#endif
         }
 
         output_idx++;
@@ -1455,11 +1454,22 @@ bool GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::Bl
     return  Wait(QueueInference(input, result));
 }
 
+static InferenceEngine::Layout GetLayoutForDims(const InferenceEngine::SizeVector &dims) {
+    switch (dims.size()) {
+    case 1: return C;
+    case 2: return NC;
+    case 3: return CHW;
+    case 4: return NCHW;
+    default:
+        THROW_GNA_EXCEPTION << "Unsupported dimensions size in GNA: " << dims.size();
+    }
+}
+
 Blob::Ptr GNAPlugin::GetOutputBlob(const std::string& name, InferenceEngine::Precision precision) {
     // need to have intermediate blob for interleave conversion
     InferenceEngine::Blob::Ptr outputBlob;
     auto outputDims = outputsDataMap[name]->getTensorDesc().getDims();
-    outputBlob = make_blob_with_precision(TensorDesc(precision, outputDims, outputDims.size() == 2 ? NC : (outputDims.size() == 3 ? CHW : NCHW)));
+    outputBlob = make_blob_with_precision(TensorDesc(precision, outputDims, GetLayoutForDims(outputDims)));
     outputBlob->allocate();
     return outputBlob;
 }
@@ -1469,7 +1479,7 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
     // need to have intermediate blob for interleave conversion
     // TODO: NCHW format support is experimental = c++ MO did insert reshape, while TF mo - not
     auto inputDims = inputsDataMap[name]->getTensorDesc().getDims();
-    inputBlob = make_blob_with_precision(TensorDesc(precision, inputDims, inputDims.size() == 2 ? NC : (inputDims.size() == 3 ? CHW : NCHW)));
+    inputBlob = make_blob_with_precision(TensorDesc(precision, inputDims, GetLayoutForDims(inputDims)));
     inputBlob->allocate();
     return inputBlob;
 }
