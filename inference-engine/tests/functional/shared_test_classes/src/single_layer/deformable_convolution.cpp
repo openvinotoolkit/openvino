@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,15 +16,15 @@ std::string DeformableConvolutionLayerTest::getTestCaseName(testing::TestParamIn
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) =
         obj.param;
     ngraph::op::PadType padType;
-    InferenceEngine::SizeVector deformable_vals, kernel, stride, dilation;
+    InferenceEngine::SizeVector offsets, filter, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t groups, deformable_groups, convOutChannels;
-    std::tie(deformable_vals, kernel, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType) = convParams;
+    std::tie(offsets, filter, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType) = convParams;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "DV" << CommonTestUtils::vec2str(deformable_vals) << "_";
-    result << "K" << CommonTestUtils::vec2str(kernel) << "_";
+    result << "DV" << CommonTestUtils::vec2str(offsets) << "_";
+    result << "K" << CommonTestUtils::vec2str(filter) << "_";
     result << "S" << CommonTestUtils::vec2str(stride) << "_";
     result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
     result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
@@ -47,9 +47,9 @@ InferenceEngine::Blob::Ptr DeformableConvolutionLayerTest::GenerateInput(const I
         const std::string name = info.name();
         if (name == "a_data") {
             blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
-        } else if (name == "b_defor_vals") {
+        } else if (name == "b_offset_vals") {
             blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 0, 0, 0, 7235346); // TODO
-        } else if (name == "c_kernel_vals") {
+        } else if (name == "c_filter_vals") {
             blobPtr = LayerTestsUtils::LayerTestsCommon::GenerateInput(info);
         }
         return blobPtr;
@@ -66,23 +66,23 @@ void DeformableConvolutionLayerTest::SetUp() {
     std::tie(convParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) =
         this->GetParam();
     ngraph::op::PadType padType;
-    InferenceEngine::SizeVector deformable_vals, kernel, stride, dilation;
+    InferenceEngine::SizeVector offsets, filter, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
     size_t groups, deformable_groups, convOutChannels;
-    std::tie(deformable_vals, kernel, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType) = convParams;
+    std::tie(offsets, filter, stride, padBegin, padEnd, dilation, groups, deformable_groups, convOutChannels, padType) = convParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape, deformable_vals, kernel});
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape, offsets, filter});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto data = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(inputShape));
     data->set_friendly_name("a_data");
-    auto defor_vals = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(deformable_vals));
-    defor_vals->set_friendly_name("b_defor_vals");
-    auto kernel_vals = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(kernel));
-    kernel_vals->set_friendly_name("c_kernel_vals");
-    auto deformable_conv = std::make_shared<ngraph::opset1::DeformableConvolution>(data, defor_vals, kernel_vals,
+    auto offset_vals = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(offsets));
+    offset_vals->set_friendly_name("b_offset_vals");
+    auto filter_vals = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(filter));
+    filter_vals->set_friendly_name("c_filter_vals");
+    auto deformable_conv = std::make_shared<ngraph::opset1::DeformableConvolution>(data, offset_vals, filter_vals,
                                                               stride, padBegin, padEnd, dilation, padType, groups, deformable_groups);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(deformable_conv)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{data, defor_vals, kernel_vals}, "deformable_convolution");
+    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{data, offset_vals, filter_vals}, "deformable_convolution");
 }
 }  // namespace LayerTestsDefinitions
