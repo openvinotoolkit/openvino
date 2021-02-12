@@ -17,8 +17,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
     InferenceEngine::Precision::I16, InferenceEngine::Precision::I32,
     InferenceEngine::Precision::I64};
-const std::vector<std::vector<size_t>> deformable_vals = {{1, 18, 28, 28}};
-const std::vector<std::vector<size_t>> kernels = {{1, 1, 3, 3}};
+const std::vector<std::vector<size_t>> offsets = {{1, 18, 28, 28}};
+const std::vector<std::vector<size_t>> filters = {{1, 1, 3, 3}};
 const std::vector<std::vector<size_t>> strides = {{1, 1}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0}};
 const std::vector<std::vector<ptrdiff_t>> padEnds ={{0, 0}};
@@ -28,14 +28,14 @@ const std::vector<size_t> defor_groups = {1};
 const std::vector<size_t> numOutChannels = {1};
 
 const auto conv2DParams_ExplicitPadding = ::testing::Combine(
-    ::testing::ValuesIn(deformable_vals), ::testing::ValuesIn(kernels),
+    ::testing::ValuesIn(offsets), ::testing::ValuesIn(filters),
     ::testing::ValuesIn(strides), ::testing::ValuesIn(padBegins),
     ::testing::ValuesIn(padEnds), ::testing::ValuesIn(dilations),
     ::testing::ValuesIn(groups), ::testing::ValuesIn(defor_groups),
     ::testing::ValuesIn(numOutChannels),
     ::testing::Values(ngraph::op::PadType::EXPLICIT));
 const auto conv2DParams_AutoPadValid = ::testing::Combine(
-    ::testing::ValuesIn(deformable_vals), ::testing::ValuesIn(kernels),
+    ::testing::ValuesIn(offsets), ::testing::ValuesIn(filters),
     ::testing::ValuesIn(strides),
     ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
     ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
