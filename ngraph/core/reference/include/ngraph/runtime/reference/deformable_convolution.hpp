@@ -175,15 +175,15 @@ namespace ngraph
 
             template <typename T>
             void deformable_convolution(const T* in,
-                             const T* f,
-                             T* out,
-                             const Shape& in_shape,
-                             const Shape& f_shape,
-                             const Shape& out_shape,
-                             const Strides& strides,
-                             const Strides& dilation,
-                             const CoordinateDiff& pads_begin,
-                             const CoordinateDiff& pads_end)
+                                        const T* f,
+                                        T* out,
+                                        const Shape& in_shape,
+                                        const Shape& f_shape,
+                                        const Shape& out_shape,
+                                        const Strides& strides,
+                                        const Strides& dilation,
+                                        const CoordinateDiff& pads_begin,
+                                        const CoordinateDiff& pads_end)
 
             {
                 // this implementation supports 1D, 2D and 3D convolutions
@@ -235,16 +235,16 @@ namespace ngraph
                       typename OUTPUT,
                       typename ACCU = typename widen<OUTPUT>::type>
             void deformable_convolution(const INPUT* in,
-                             const FILTER* f,
-                             OUTPUT* out,
-                             const Shape& in_shape,
-                             const Shape& f_shape,
-                             const Shape& out_shape,
-                             const Strides& strides,
-                             const Strides& dilation,
-                             const CoordinateDiff& pads_begin,
-                             const CoordinateDiff& pads_end,
-                             const Strides&)
+                                        const FILTER* f,
+                                        OUTPUT* out,
+                                        const Shape& in_shape,
+                                        const Shape& f_shape,
+                                        const Shape& out_shape,
+                                        const Strides& strides,
+                                        const Strides& dilation,
+                                        const CoordinateDiff& pads_begin,
+                                        const CoordinateDiff& pads_end,
+                                        const Strides&)
 
             {
                 static_assert(std::is_same<INPUT, FILTER>::value,
@@ -253,15 +253,15 @@ namespace ngraph
                               "input and output types must be the same");
 
                 deformable_convolution(in,
-                            f,
-                            out,
-                            in_shape,
-                            f_shape,
-                            out_shape,
-                            strides,
-                            dilation,
-                            pads_begin,
-                            pads_end);
+                                       f,
+                                       out,
+                                       in_shape,
+                                       f_shape,
+                                       out_shape,
+                                       strides,
+                                       dilation,
+                                       pads_begin,
+                                       pads_end);
             }
 
         } // namespace reference

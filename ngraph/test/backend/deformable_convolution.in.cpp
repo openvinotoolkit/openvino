@@ -34,18 +34,18 @@ static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 static void DeformableConvolutionTest(const std::vector<float>& inputs,
-                            const Shape inputs_shape,
-                            const std::vector<float>& offsets,
-                            const Shape offsets_shape,
-                            const std::vector<float>& filter,
-                            const Shape filter_shape,
-                            const std::vector<float>& outputs,
-                            const Shape outputs_shape,
-                            const Strides& strides,
-                            const CoordinateDiff& padding,
-                            const Strides& dilations,
-                            const int64_t group = 1,
-                            const int64_t deformable_group = 1)
+                                      const Shape inputs_shape,
+                                      const std::vector<float>& offsets,
+                                      const Shape offsets_shape,
+                                      const std::vector<float>& filter,
+                                      const Shape filter_shape,
+                                      const std::vector<float>& outputs,
+                                      const Shape outputs_shape,
+                                      const Strides& strides,
+                                      const CoordinateDiff& padding,
+                                      const Strides& dilations,
+                                      const int64_t group = 1,
+                                      const int64_t deformable_group = 1)
 {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
@@ -54,9 +54,18 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
     auto inputs_param = make_shared<op::Parameter>(element::f32, inputs_shape);
     auto offsets_param = make_shared<op::Parameter>(element::i32, offsets_shape);
     auto filter_param = make_shared<op::Parameter>(element::f32, filter_shape);
-    auto conv = make_shared<op::v1::DeformableConvolution>(
-        inputs_param, offsets_param, filter_param, strides, pads_begin, pads_end, dilations, auto_pad, group, deformable_group);
-    auto f = make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
+    auto conv = make_shared<op::v1::DeformableConvolution>(inputs_param,
+                                                           offsets_param,
+                                                           filter_param,
+                                                           strides,
+                                                           pads_begin,
+                                                           pads_end,
+                                                           dilations,
+                                                           auto_pad,
+                                                           group,
+                                                           deformable_group);
+    auto f =
+        make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>(inputs);
