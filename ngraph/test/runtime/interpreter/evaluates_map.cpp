@@ -246,7 +246,6 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        
         return true;
     }
 
