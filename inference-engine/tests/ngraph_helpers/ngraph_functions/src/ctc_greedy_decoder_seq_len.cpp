@@ -12,28 +12,54 @@ namespace builder {
 
 std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
         const ngraph::Output<Node>& inputData,
-        int blankIndex,
+        const ngraph::Output<Node>& sequenceLengthData,
+        int32_t blankIndex,
         bool mergeRepeated,
-        const element::Type& idxPrec) {
-    const auto& inputDataShape = inputData.get_shape();
-    const size_t B = inputDataShape[0];
-    const size_t T = inputDataShape[1];
+        const element::Type& idxPrecision) {
+    const auto blankIndexNode = [&] {
+        if (idxPrecision == element::i32) {
+            const auto blankIdxDataI32 = std::vector<int32_t>{blankIndex};
+            return makeConstant(idxPrecision, {1}, blankIdxDataI32);
+        } else if (idxPrecision == element::i64) {
+            const auto blankIdxDataI64 = std::vector<int64_t>{blankIndex};
+            return makeConstant(idxPrecision, {1}, blankIdxDataI64);
+        }
+        throw std::logic_error("Unsupported index precision");
+    }();
 
-    std::mt19937 gen(1);
-    std::uniform_int_distribution<unsigned long> dist(0, T);
-
-    std::vector<int> sequenceLenData(B);
-    for (int b = 0; b < B; b++) {
-        int len = dist(gen);
-        sequenceLenData[b] = len;
-    }
-
-    auto sequenceLenNode = makeConstant(idxPrec, {B}, sequenceLenData);
-
-    std::vector<int> blankIdxData = {blankIndex};
-    auto blankIndexNode = makeConstant(idxPrec, {1}, blankIdxData);
-
-    return std::make_shared<op::v6::CTCGreedyDecoderSeqLen>(inputData, sequenceLenNode, blankIndexNode, mergeRepeated, idxPrec, idxPrec);
+    return std::make_shared<op::v6::CTCGreedyDecoderSeqLen>(inputData,
+                                                            sequenceLengthData,
+                                                            blankIndexNode,
+                                                            mergeRepeated,
+                                                            idxPrecision,
+                                                            idxPrecision);
 }
+
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
+        const ngraph::Output<Node>& inputData,
+        int32_t blankIndex,
+        bool mergeRepeated,
+        const element::Type& idxPrecision) {
+    const auto sequenceLengthData = [&] {
+        const size_t N = inputData.get_shape().at(0);
+        const size_t T = inputData.get_shape().at(1);
+
+        if (idxPrecision == element::i32) {
+            const auto sequenceLengthI32 = std::vector<int32_t>(N, T);
+            return makeConstant(idxPrecision, {N}, sequenceLengthI32);
+        } else if (idxPrecision == element::i64) {
+            const auto sequenceLengthI64 = std::vector<int64_t>(N, T);
+            return makeConstant(idxPrecision, {N}, sequenceLengthI64);
+        }
+        throw std::logic_error("Unsupported index precision");
+    }();
+
+    return makeCTCGreedyDecoderSeqLen(inputData,
+                                      sequenceLengthData,
+                                      blankIndex,
+                                      mergeRepeated,
+                                      idxPrecision);
+}
+
 }  // namespace builder
 }  // namespace ngraph

@@ -36,6 +36,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 46755
         ".*DSR_GatherElements.*",
         // TODO: Issue 46756
-        ".*smoke_Gather_GatherElements.*"
+        ".*smoke_Gather_GatherElements.*",
+        // TODO: Issue 48183
+        R"(.*CTCGreedyDecoderSeqLen.*?\(1.1.1\).*)",
     };
 }
