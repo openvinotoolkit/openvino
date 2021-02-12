@@ -1986,11 +1986,6 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
     struct _graphPrivate_t *g = graphHandle->private_data;
 
     struct _devicePrivate_t *d = devices;
-    if (graphBufferLength > d->dev_attr.max_memory) {
-        mvLog(MVLOG_ERROR, "The graph file is bigger than the device memory");
-        return NC_OUT_OF_MEMORY;
-    }
-
     GLOBAL_LOCK();
     while (d) {
         if (d == deviceHandle->private_data)
@@ -2005,6 +2000,11 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
         return NC_INVALID_PARAMETERS;
     }
     GLOBAL_UNLOCK();
+
+    if (graphBufferLength > d->dev_attr.max_memory) {
+        mvLog(MVLOG_ERROR, "The graph file is bigger than the device memory");
+        return NC_OUT_OF_MEMORY;
+    }
 
     lockAllInferences();
     g->id = graphIdCount++;
