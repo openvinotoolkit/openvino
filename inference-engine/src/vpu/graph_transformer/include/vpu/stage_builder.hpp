@@ -348,6 +348,14 @@ public:
                                 const ie::CNNLayerPtr &layer,
                                 const Data &input, const Data &indices,
                                 const Data &output, int32_t axis);
+
+   Stage addCTCGreedyDecoderSeqLenStage(const Model& model,
+                                        const std::string& name,
+                                        const ie::CNNLayerPtr& layer,
+                                        const DataVector& inputs,
+                                        const DataVector& outputs,
+                                        bool mergeRepeated,
+                                        int32_t blankIndex);
 };
 
 }  // namespace vpu

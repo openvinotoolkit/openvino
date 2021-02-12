@@ -1435,12 +1435,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             THROW_IE_EXCEPTION << "Interp do not support mode '" << interp_attrs.mode << "'";
         }
 
-        bool align_corners;
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
-
-        std::istringstream(params.at("align_corners")) >> align_corners;
-        res->params["align_corners"] = align_corners ? "1" : "0";
+        res->params["align_corners"] = interp_attrs.align_corners ? "1" : "0";
         return res;
     });
 
