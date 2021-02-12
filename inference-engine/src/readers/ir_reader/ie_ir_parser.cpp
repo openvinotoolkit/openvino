@@ -392,7 +392,7 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
     // Read all layers and store their parameters in params map
     FOREACH_CHILD(node, root.child("layers"), "layer") {
         auto node_param = parseGenericParams(node);
-        if (opName.find(node_param.name) != opName.end())
+        if (opName.find(node_param.name) != opName.end() && node_param.type != "Result")
             THROW_IE_EXCEPTION << "Invalid IR! " << node_param.name << " name is not unique!";
         opName.insert(node_param.name);
         params[node_param.layerId] = {node, node_param};
