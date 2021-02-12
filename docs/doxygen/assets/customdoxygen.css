@@ -593,11 +593,11 @@ div.ovino-btn {
   font-size: 1rem;
   line-height: 1.25;
   border-radius: 0.25rem;
-  padding: 0.625rem 1.5rem;
   background: #003C71;
   color: #ffffff;
   white-space: nowrap;
   cursor: pointer;
+  display:inline-block;
 }
 
 div.ovino-btn:hover {
@@ -607,6 +607,8 @@ div.ovino-btn:hover {
 div.ovino-btn > a {
   color:white;
   width:100%;
+  padding: 0.625rem 1.5rem;
+  display:block;
 }
 
 div.inactive {
@@ -619,6 +621,7 @@ div.inactive {
 div.inactive > a {
   color:#555555;
 }
+
 
 #versionsSelector button.version-toggle {
   background: transparent url(images/icon-accordion-arrow-dn-black.svg) 97% 50%
@@ -833,7 +836,7 @@ div.old-version > p {
 
 .nav-placeholder {
   background:#ececec;
-  width:10%;
+  width:150px;
 }
 
 /* =========================================================== */
