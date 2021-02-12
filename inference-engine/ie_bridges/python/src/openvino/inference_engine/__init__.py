@@ -7,7 +7,7 @@ if sys.platform == "win32":
     #
     # If you're using a custom installation of openvino,
     # add the location of openvino dlls to your system PATH.
-    openvino_dll = os.path.join(os.path.dirname(__file__), "..", "..", "..", "openvino.libs")
+    openvino_dll = os.path.join(os.path.dirname(__file__), "..", "..", "openvino.libs")
     os.environ["PATH"] = os.path.abspath(openvino_dll) + ";" + os.environ["PATH"]
 
 from .ie_api import *
