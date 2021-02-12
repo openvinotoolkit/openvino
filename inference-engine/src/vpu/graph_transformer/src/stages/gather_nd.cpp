@@ -52,13 +52,13 @@ protected:
 
     void initialCheckImpl() const override {
         VPU_THROW_UNLESS(numInputs() == 2,
-                         "{} stage with name {} must have only 1 output, actually "
+                         "{} stage with name {} must have 2 inputs, actually "
                          "provided {} inputs",
                          type(), name(), numInputs());
         VPU_THROW_UNLESS(numOutputs() == 1,
-                         "{} stage with name {} must have only 1 output, actually "
+                         "{} stage with name {} must have 1 output, actually "
                          "provided {} outputs",
-                         type(), name(), numInputs());
+                         type(), name(), numOutputs());
         VPU_THROW_UNLESS(inputs()[0]->desc().type() == outputs()[0]->desc().type(),
                          "First input and output must have the same DataType, "
                          "actual input type is {} and output type is {}",
@@ -104,11 +104,11 @@ void FrontEnd::parseGatherND(const Model &model, const ie::CNNLayerPtr &layer,
                              const DataVector &outputs) const {
     VPU_THROW_UNLESS(layer, "CNNLayer pointer is null.");
     VPU_THROW_UNLESS(inputs.size() == 2,
-                     "{} layer with name {} must have only 1 output, actually "
-                     "provided {} outputs",
+                     "{} layer with name {} must have 2 inputs, actually "
+                     "provided {} inputs",
                      layer->type, layer->name, inputs.size());
     VPU_THROW_UNLESS(outputs.size() == 1,
-                     "{} layer with name {} must have only 1 output, actually "
+                     "{} layer with name {} must have 1 output, actually "
                      "provided {} outputs",
                      layer->type, layer->name, outputs.size());
 

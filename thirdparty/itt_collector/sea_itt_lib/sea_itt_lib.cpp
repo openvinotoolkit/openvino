@@ -29,7 +29,6 @@
 #ifdef _WIN32
     #define setenv _putenv
     #include <windows.h>
-    #include "IntelSEAPI.h"
     #undef API_VERSION
     #include <Dbghelp.h>
     #pragma comment(lib, "dbghelp")
@@ -187,9 +186,6 @@ extern "C" {
         if (!bInitialized) {
             bInitialized = true;
             sea::InitSEA();
-#ifdef _WIN32
-            EventRegisterIntelSEAPI();
-#endif
             atexit(AtExit);
         }
     }
@@ -204,9 +200,6 @@ extern "C" {
         g_bInitialized = false;
 
         sea::FinitaLaComedia();
-#ifdef _WIN32
-        EventUnregisterIntelSEAPI();
-#endif
     }
 
 }

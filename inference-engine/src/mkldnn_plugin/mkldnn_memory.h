@@ -164,6 +164,8 @@ public:
 
     static std::string formatToString(mkldnn::memory::format_tag fmt);
 
+    static void reorderData(const MKLDNNMemory& input, const MKLDNNMemory& output, size_t size = 0);
+
 private:
     std::shared_ptr<mkldnn::memory> prim;
     mkldnn::engine eng;

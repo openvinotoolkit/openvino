@@ -48,8 +48,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.8\).*)",
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.16\).*)",
         R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.32\).*)",
-        // TODO: Issue: 40960
-        R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 29577
         R"(.*CoreThreadingTests.smoke_QueryNetwork.*)",
         //TODO: Issue: 46416

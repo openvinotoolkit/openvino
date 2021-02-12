@@ -45,3 +45,10 @@ void op::CropIE::validate_and_infer_types() {
 
     set_output_type(0, get_input_element_type(0), PartialShape(output_shape));
 }
+
+bool op::CropIE::visit_attributes(AttributeVisitor &visitor) {
+    visitor.on_attribute("axis", axes);
+    visitor.on_attribute("dim", dim);
+    visitor.on_attribute("offset", offset);
+    return true;
+}
