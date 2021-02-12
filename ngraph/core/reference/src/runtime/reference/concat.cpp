@@ -24,6 +24,20 @@ namespace ngraph
     {
         namespace reference
         {
+            namespace
+            {
+                std::vector<size_t> calculate_shape_sizes(const std::vector<Shape>& in_shapes)
+                {
+                    std::vector<size_t> sizes;
+                    sizes.reserve(in_shapes.size());
+                    std::transform(begin(in_shapes),
+                                   end(in_shapes),
+                                   std::back_inserter(sizes),
+                                   [](const Shape& shape) { return shape_size(shape); });
+                    return sizes;
+                }
+            } // namespace
+
             void concat(const std::vector<const char*>& args,
                         char* out,
                         const std::vector<Shape>& in_shapes,
@@ -37,13 +51,15 @@ namespace ngraph
                     steps *= out_shape[i];
                 }
 
+                const auto& shape_sizes = calculate_shape_sizes(in_shapes);
+
                 size_t out_offset = 0;
                 for (size_t step = 0; step < steps; ++step)
                 {
                     for (size_t in_index = 0; in_index < args.size(); ++in_index)
                     {
-                        size_t size = shape_size(in_shapes[in_index]) / steps;
-                        size_t in_offset = step * size;
+                        const size_t size = shape_sizes[in_index] / steps;
+                        const size_t in_offset = step * size;
 
                         std::memcpy(&out[out_offset * elem_size],
                                     &args[in_index][in_offset * elem_size],
@@ -53,6 +69,6 @@ namespace ngraph
                     }
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
