@@ -17,7 +17,6 @@
 #include "ngraph/op/min.hpp"
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/shape_util.hpp"
@@ -82,6 +81,8 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceMin_evaluate);
+    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
     return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }
 
