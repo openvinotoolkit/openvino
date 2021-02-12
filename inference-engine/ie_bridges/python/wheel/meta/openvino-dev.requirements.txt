@@ -11,3 +11,4 @@ tqdm==4.31.1
 py-cpuinfo==4.0.0
 pandas==0.24.2
 hyperopt==0.1.2
+openvino==2021.3.0
