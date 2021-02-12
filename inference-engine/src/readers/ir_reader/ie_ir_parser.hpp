@@ -184,11 +184,6 @@ private:
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
         /// TODO: move whole class to src file
-        enum class io { INPUTS, OUTPUTS };
-
-        using NodeIdToIoIndex = std::unordered_map<size_t /*xml node id*/, uint64_t /*body io index*/>;
-        using IoMap = std::map<io, NodeIdToIoIndex>;
-
         explicit XmlDeserializer(
             const pugi::xml_node& node,
             const Blob::CPtr& weights,
@@ -299,6 +294,12 @@ private:
 
 
     private:
+        struct IoMap {
+            using NodeIdToIoIndex = std::unordered_map<size_t /*xml node id*/, uint64_t /*body io index*/>;
+            NodeIdToIoIndex inputs;
+            NodeIdToIoIndex outputs;
+        };
+
         //TODO move data to the bottom (or top)
         const pugi::xml_node node;
         const Blob::CPtr& weights;

@@ -62,10 +62,10 @@ V10Parser::XmlDeserializer::IoMap V10Parser::XmlDeserializer::updated_io_map(con
 
         if (type == "Parameter") {
             auto id = XMLParseUtils::GetUIntAttr(layer, "id");
-            extend_io_map[io::INPUTS].insert({id, -1});
+            extend_io_map.inputs.insert({id, -1}); // try add as unconnected
         } else if (type == "Result") {
             auto id = XMLParseUtils::GetUIntAttr(layer, "id");
-            extend_io_map[io::OUTPUTS].insert({id, -1});
+            extend_io_map.outputs.insert({id, -1}); // try add as unconnected
         }
     }
     return extend_io_map;
@@ -97,7 +97,7 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10
             int64_t end = XMLParseUtils::GetInt64Attr(xml_input, "end", -1);
             int64_t part_size = XMLParseUtils::GetInt64Attr(xml_input, "part_size", 1);
 
-            const auto input_index = up_io_map.at(io::INPUTS).at(body_parameter_index);
+            const auto input_index = up_io_map.inputs.at(body_parameter_index);
 
             inputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::SliceInputDescription>
                     (ti_input_index,
@@ -116,8 +116,8 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10
                 if (to_layer == body_parameter_index) {
                     size_t from_layer = XMLParseUtils::GetUIntAttr(xml_edge, "from-layer");
 
-                    const auto input_index = up_io_map.at(io::INPUTS).at(body_parameter_index);
-                    const auto output_index = up_io_map.at(io::OUTPUTS).at(from_layer);
+                    const auto input_index = up_io_map.inputs.at(body_parameter_index);
+                    const auto output_index = up_io_map.outputs.at(from_layer);
 
                     inputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::MergedInputDescription>
                         (ti_input_index,
@@ -132,7 +132,7 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> V10
             // ti_input_index = -1 means that Parameter of the body is not connected to inputs of TensorIterator
             // and is used only for internal needs.
             if (!is_back_edge_exist && ti_input_index >= 0) {
-                const auto input_index = up_io_map.at(io::INPUTS).at(body_parameter_index);
+                const auto input_index = up_io_map.inputs.at(body_parameter_index);
 
                 inputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::InvariantInputDescription>
                     (ti_input_index,
@@ -171,7 +171,7 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> V1
                 int64_t end = XMLParseUtils::GetInt64Attr(xml_output, "end", -1);
                 int64_t part_size = XMLParseUtils::GetInt64Attr(xml_output, "part_size", 1);
 
-                const auto output_index = up_io_map.at(io::OUTPUTS).at(body_result_index);
+                const auto output_index = up_io_map.outputs.at(body_result_index);
 
                 outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::ConcatOutputDescription>
                         (output_index,
@@ -183,7 +183,7 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> V1
                         axis));
             } else {
                 // otherwise create ngraph::TensorIterator::BodyOutput. -1 means last iteration.
-                const auto output_index = up_io_map.at(io::OUTPUTS).at(body_result_index);
+                const auto output_index = up_io_map.outputs.at(body_result_index);
 
                 outputs.push_back(std::make_shared<ngraph::op::util::SubGraphOp::BodyOutputDescription>
                         (output_index,
@@ -200,7 +200,7 @@ ngraph::op::v5::Loop::SpecialBodyPorts V10Parser::XmlDeserializer::parsePurposeA
     ngraph::op::v5::Loop::SpecialBodyPorts result = {-1, -1};
     const auto up_io_map = updated_io_map(node);
 
-    NGRAPH_CHECK(!up_io_map.at(io::INPUTS).empty() || !up_io_map.at(io::OUTPUTS).empty(),
+    NGRAPH_CHECK(!up_io_map.inputs.empty() || !up_io_map.outputs.empty(),
                  "No parameters or results found in body Function.");
 
     // Parse PortMap: external_port_id for inputs/outputs does not always appear in consecutive order
@@ -220,7 +220,7 @@ ngraph::op::v5::Loop::SpecialBodyPorts V10Parser::XmlDeserializer::parsePurposeA
         auto purpose = XMLParseUtils::GetStrAttr(xml_input, "purpose", "");
         size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_input, "internal_layer_id");
         if (purpose == "current_iteration") {
-            result.current_iteration_input_idx = up_io_map.at(io::INPUTS).at(body_parameter_index);
+            result.current_iteration_input_idx = up_io_map.inputs.at(body_parameter_index);
         }
     }
 
@@ -229,7 +229,7 @@ ngraph::op::v5::Loop::SpecialBodyPorts V10Parser::XmlDeserializer::parsePurposeA
         auto purpose = XMLParseUtils::GetStrAttr(xml_output, "purpose", "");
         size_t body_parameter_index = XMLParseUtils::GetUIntAttr(xml_output, "internal_layer_id");
         if (purpose == "execution_condition") {
-            result.body_condition_output_idx = up_io_map.at(io::OUTPUTS).at(body_parameter_index);
+            result.body_condition_output_idx = up_io_map.outputs.at(body_parameter_index);
         }
     }
 
@@ -425,12 +425,12 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
         //        }
 
         if (const auto& parameter_node = std::dynamic_pointer_cast<ngraph::op::Parameter>(node)) {
-            io_map[io::INPUTS].insert({layer_id, parameter_nodes.size()});
+            io_map.inputs.insert({layer_id, parameter_nodes.size()});
             parameter_nodes.emplace_back(parameter_node);
         }
 
         if (const auto& result_node = std::dynamic_pointer_cast<ngraph::op::Result>(node)) {
-            io_map[io::OUTPUTS].insert({layer_id, result_nodes.size()});
+            io_map.outputs.insert({layer_id, result_nodes.size()});
             result_nodes.emplace_back(result_node);
         }
 
