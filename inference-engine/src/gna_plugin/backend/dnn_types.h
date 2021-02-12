@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,10 @@ struct DnnActivation {
             float scale;
             float offset;
         } pow;
+        struct {
+            float low;
+            float high;
+        } clamp;
         struct {
             int32_t levels;
             // if input is per-channel quantization - input pointers contains per-channel ranges

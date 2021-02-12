@@ -730,6 +730,30 @@ void InsertIdentityLayerPass::run() {
                     break;
                 }
             }
+            // check if prev layer have id layer already connected to output
+            // if so reuse it instead of create new one
+            bool reconnected = false;
+            for (auto prev_layer_output : prev->outData) {
+                // prev ---------+--> identity --> layer XYZ
+                //               |
+                //               |  <= here we want to inject identity
+                //               |
+                //               +--> l layer
+                // but we may just connect l layer with existing identity
+                for (auto&& next_layer : getInputTo(prev_layer_output)) {
+                    auto child_of_prev_layer = next_layer.second;
+                    if (child_of_prev_layer.get() == true_layer.get()) {
+                        continue;
+                    } else if (LayerInfo(child_of_prev_layer).isIdentity()) {
+                        CNNNetworkReconnectLayer(prev, child_of_prev_layer, true_layer);
+                        reconnected = true;
+                        break;
+                    }
+                }
+            }
+            if (reconnected)
+                continue;
+
             int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
             // actual insertion
             auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
@@ -760,7 +784,7 @@ void InsertIdentityLayerPass::run() {
                                             activationLayer;
             getCreatorLayer(dataPtr) = activationLayerWithQuant;
             activationLayerWithQuant->outData.push_back(dataPtr);
-            // wether 1 identity or all outputs TODO possible grouping here, need to implement special groupped inserter
+            // wether 1 identity or all outputs TODO possible grouping here, need to implement special grouped inserter
             bool notAll = false;
             for (auto && nextData  : prev->outData) {
                 for (auto && nextLayer : getInputTo(nextData)) {
@@ -1399,6 +1423,8 @@ void EltwiseSplitOverChannelsPass::run() {
 
 void SubstituteScaleShiftBroadCastPass::run() {
     std::map<std::string, InferenceEngine::SizeVector> reshaped_data;
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+
     for (auto & l : *pLayers) {
         LayerInfo layerInfo(l);
 
@@ -1461,12 +1487,14 @@ void SubstituteScaleShiftBroadCastPass::run() {
                 scaleShift->_biases = tileBlob(scaleShift->_biases, nElements);
             }
 
-            // currently data type no providing reshape method of tensor desc
-            scaleShift->outData.front()->reshape({batchSize, nElements}, Layout::NC);
-            if (!was_reshaped) {
-                reshaped_data[insData->getName()] = insData->getDims();
-                insData->reshape({batchSize, nElements}, Layout::NC);
-            }
+            auto tensor = InferenceEngine::TensorDesc(insData->getTensorDesc());
+            tensor.reshape(SizeVector{ batchSize, nElements }, Layout::NC);
+            auto reshapeName = scaleShift->name + "_input_" + std::to_string(0) + "_reshape";
+            auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
+            auto layer_before_scale_shift = getCreatorLayer(insData);
+
+            CNNNetworkInsertLayer(layer_before_scale_shift.lock(), l, reshape);
+            gnalog() << "\tInserted " << reshapeName << " between " << layer_before_scale_shift.lock()->name << " and " << l->name << std::endl;
         } else {
             THROW_GNA_EXCEPTION << "Not implemented substitution of scaleshift broadcast policy of "
                                 << getPassManager()->getPolicy().ScaleShiftPolicy <<  "using layers tiling, layer: " << l->name;
@@ -1968,13 +1996,15 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 }
 
 int PassManager::run(int index) {
-#ifdef PLOT
+#if defined PLOT || defined ENABLE_V7_SERIALIZE
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
+#ifdef PLOT
         std::ofstream out(name + ".dot");
         saveGraphToDot(network, out, [](const CNNLayerPtr layer,
                                         ordered_properties &printed_properties,
                                         ordered_properties &node_properties) {});
+#endif
         network.serialize(name + ".xml", name + ".bin");
     };
 #else

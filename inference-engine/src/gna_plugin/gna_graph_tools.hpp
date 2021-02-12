@@ -712,4 +712,64 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
     // removing layer->osp, and layer->isp connection not necessary - layer will delete it by itself
 }
 
+/**
+ * @brief reconnects given layer to different parent
+ * before:
+ *   old_prev_layer --> layer
+ * after:
+ *   new_prev_layer --> layer
+ * limitations:
+ *    - new & old prev layer must have exactly one outgoing port
+ */
+inline void CNNNetworkReconnectLayer(CNNLayerPtr old_prev_layer, CNNLayerPtr new_prev_layer, CNNLayerPtr layer, bool checkDims = true) {
+    gnalog() << "Reconnecting " << old_prev_layer->name << " --> " << layer->name << " layer to "
+        << new_prev_layer->name << " -- > " << layer->name << "layer\n";
+    if (!layer) {
+        THROW_IE_EXCEPTION << "Cannot reconnect layer pointed to NULL";
+    }
+    if (!old_prev_layer) {
+        THROW_IE_EXCEPTION << "Cannot reconnect layer old parent is NULL";
+    }
+    if (!new_prev_layer) {
+        THROW_IE_EXCEPTION << "Cannot reconnect layer new parent is NULL";
+    }
+
+    if (layer->insData.size() < 1) {
+        THROW_IE_EXCEPTION << "Cannot reconnect layer : " << layer->name
+            << " operation supports only layers with at least 1 incomming port";
+    }
+
+    if (old_prev_layer->outData.size() != 1) {
+        THROW_IE_EXCEPTION << "Cannot reconnect layer : " << old_prev_layer->name << " must have exactly 1 outgoing port";
+    }
+
+    if (new_prev_layer->outData.size() != 1) {
+        THROW_IE_EXCEPTION << "Cannot reconnect layer : " << new_prev_layer->name << " must have exactly 1 outgoing port";
+    }
+    // layer has ports
+    // each port has several layers connected to port
+    // we are assuming that old & new prev has only one outgoing port
+    auto old_prev_layer_out_port_0 = old_prev_layer->outData.front();
+    auto new_prev_layer_out_port_0 = new_prev_layer->outData.front();
+
+    if (checkDims && old_prev_layer_out_port_0->getDims() != new_prev_layer_out_port_0->getDims()) {
+        THROW_IE_EXCEPTION << "Cannot reconnect layer : " << old_prev_layer->name << " as its output have different dims than"
+            << new_prev_layer->name;
+    }
+
+    // find connection between old_prev & layer connection in layer input collection
+    for (auto layer_input_port : CNNLayerFindInsDataIdxes(old_prev_layer_out_port_0, layer)) {
+        layer->insData[layer_input_port] = new_prev_layer_out_port_0;
+    }
+
+    // remove old_prev->layer connection
+    for (auto i = getInputTo(old_prev_layer_out_port_0).begin(); i != getInputTo(old_prev_layer_out_port_0).end(); i++) {
+        if (i->second.get() == layer.get()) {
+            getInputTo(new_prev_layer_out_port_0).insert({ layer->name, layer });
+            getInputTo(old_prev_layer_out_port_0).erase(i);
+            break;
+        }
+    }
+}
+
 }  // namespace InferenceEngine
