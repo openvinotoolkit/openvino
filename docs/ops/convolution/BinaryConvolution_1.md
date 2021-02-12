@@ -95,7 +95,7 @@
 2D Convolution
 ```xml
 <layer type="BinaryConvolution" ...>
-    <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" mode="xnor-popcount" auto_pad="explicit"/>
+    <data dilations="1,1" pads_begin="2,2" pads_end="2,2" strides="1,1" mode="xnor-popcount" pad_value="0" auto_pad="explicit"/>
     <input>
         <port id="0">
             <dim>1</dim>
