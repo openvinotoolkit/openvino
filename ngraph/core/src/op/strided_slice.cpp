@@ -186,9 +186,9 @@ void op::v1::StridedSlice::validate_and_infer_types()
     set_input_is_relevant_to_shape(2);
     set_input_is_relevant_to_shape(3);
 
-    auto begin_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
-    auto end_const = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
-    auto strides = as_type_ptr<op::Constant>(input_value(3).get_node_shared_ptr());
+    auto begin_const = get_constant_from_source(input_value(1));
+    auto end_const = get_constant_from_source(input_value(2));
+    auto strides = get_constant_from_source(input_value(3));
 
     if (begin_const && end_const && strides)
     {
@@ -285,6 +285,9 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate);
+    // FIXME: 4th input is optional, but it is required by the following code
+    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 4));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     return strided_slice::evaluate_strided_slice(input_values[0],
                                                  input_values[1],
                                                  input_values[2],
@@ -295,4 +298,22 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                                  convert_mask_to_axis_set(get_shrink_axis_mask()),
                                                  convert_mask_to_axis_set(get_ellipsis_mask()),
                                                  output_values[0]);
+}
+
+bool op::v1::StridedSlice::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        !input_value(2).get_tensor().has_and_set_bound() ||
+        !input_value(3).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::StridedSlice::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound() ||
+        !input_value(2).get_tensor().has_and_set_bound() ||
+        !input_value(3).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }

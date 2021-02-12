@@ -52,23 +52,22 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
     }
 
     std::unordered_map<std::string, ngraph::pass::low_precision::FakeQuantizeDequantization> dequantizations;
-    std::vector<QuantizationDetails> quantizationLayersDetails;
-
     for (size_t i = 0; i < subgraph.quantizationLayers.size(); ++i) {
-        const std::shared_ptr<ngraph::Node> fakeQuantizeLayer = subgraph.quantizationLayers[i];
-
-        const ngraph::Shape shape = fakeQuantizeLayer->get_output_shape(0);
-        if (shape.size() < 4ul) {
-            return false;
-        }
-
-        const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(fakeQuantizeLayer->shared_from_this());
+        const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(subgraph.quantizationLayers[i]);
         if (fq == nullptr) {
             return false;
         }
 
+        if (!NetworkHelper::isQuantizeSupported(fq)) {
+            return false;
+        }
+
         const QuantizationDetails& quantizationDetails = QuantizationDetails::getDetails(fq);
-        quantizationLayersDetails.push_back(quantizationDetails);
+
+        // per tensor scale is supported only
+        if (quantizationDetails.inputHighValues.size() != 1ul) {
+            return false;
+        }
 
         const DataPrecision dataPrecision2 = getDataPrecision(subgraph.quantizationLayers[i]->shared_from_this(), quantizationDetails, false);
         if (dataPrecision2.precision == ngraph::element::undefined) {
@@ -86,9 +85,27 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         return false;
     }
 
-    // per tensor scale is supported only
-    if (quantizationLayersDetails.empty() || (quantizationLayersDetails[0].inputHighValues.size() != 1ul)) {
-        return false;
+    std::vector<QuantizationDetails> quantizationLayersDetails;
+    for (size_t i = 0; i < subgraph.quantizationLayers.size(); ++i) {
+        std::shared_ptr<opset1::FakeQuantize> fakeQuantize = as_type_ptr<opset1::FakeQuantize>(subgraph.quantizationLayers[i]);
+        auto newFakeQuantize = NetworkHelper::fuseConvert(fakeQuantize);
+        if (newFakeQuantize == nullptr) {
+            subgraph.quantizationLayers[i] = fakeQuantize;
+            quantizationLayersDetails.push_back(QuantizationDetails::getDetails(fakeQuantize));
+            continue;
+        }
+
+        fakeQuantize = newFakeQuantize;
+        newFakeQuantize = NetworkHelper::composeFakeQuantize(fakeQuantize);
+        if (newFakeQuantize == nullptr) {
+            subgraph.quantizationLayers[i] = fakeQuantize;
+            quantizationLayersDetails.push_back(QuantizationDetails::getDetails(fakeQuantize));
+            continue;
+        }
+
+        fakeQuantize = newFakeQuantize;
+        subgraph.quantizationLayers[i] = fakeQuantize;
+        quantizationLayersDetails.push_back(QuantizationDetails::getDetails(fakeQuantize));
     }
 
     FakeQuantizeDequantization dequantization;
@@ -250,6 +267,7 @@ void ConcatTransformation::addDequantizationLayers(
 
                 if (subgraph.layers.find(child.get_friendly_name()) == subgraph.layers.end()) {
                     if (layerDequantizations.size() == 0ul) {
+                        // fill layerDequantizations collection
                         getLayerDequantizationCallback(layer, layer->get_friendly_name(), layerDequantizations);
                     }
 
@@ -259,6 +277,7 @@ void ConcatTransformation::addDequantizationLayers(
                         std::vector<std::shared_ptr<ngraph::Node>> subtractNodes;
                         std::vector<std::shared_ptr<ngraph::Node>> multiplyNodes;
 
+                        // forming nodes for concatenation
                         if (layerDequantizations.size() > 1ul) {
                             auto broadcastElementWiseConst = [](
                                 // FakeQuantize constant shape must be broadcastable to the shape on data.
@@ -295,12 +314,8 @@ void ConcatTransformation::addDequantizationLayers(
                                 }
 
                                 const ngraph::element::Type precision = dequantization.data.get_element_type();
-                                ngraph::Shape targetShape = dequantization.data.get_shape();
-
-                                targetShape[0] = 1ul;
-                                for (size_t i = 2; i < targetShape.size(); ++i) {
-                                    targetShape[i] = 1ul;
-                                }
+                                ngraph::Shape targetShape(dequantization.data.get_shape().size(), 1ul);
+                                targetShape[1] = dequantization.data.get_shape()[1];
 
                                 if (!allDequantizationShiftAreZero) {
                                     subtractNodes.push_back(dequantization.subtract == nullptr ?
