@@ -281,6 +281,7 @@ set(MULTI_TEST_SRC
     backend/dynamic.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
+    backend/experimental_detectron_prior_grid.in.cpp
     backend/floor.in.cpp
     backend/function_name.in.cpp
     backend/fused_op.in.cpp
