@@ -14,6 +14,7 @@
 namespace LayerTestsDefinitions {
 typedef std::tuple<
         InferenceEngine::SizeVector,   // Input shape
+        int,                           // Sequence lengths
         InferenceEngine::Precision,    // Probabilities precision
         InferenceEngine::Precision,    // Indices precision
         int,                           // Blank index
