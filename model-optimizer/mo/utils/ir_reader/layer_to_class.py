@@ -280,6 +280,42 @@ postprocessing_op_nodes = {
     'TopK': TopKNormalizer.normalize_outputs,
 }
 
+def restore_and_provide_tensor_names(op: Node):
+    debug_dict = {}
+
+    for out_port in op.ports:
+        # op.ports is our internal attribute, dictionary, where keys are numbers of output ports
+        # and values are tuples with shape and tensor name:
+        # {out_port_idx_1: (out_port_idx_1_shape, out_port_idx_1_tensor_name),
+        #  out_port_idx_1: (out_port_idx_1_shape, out_port_idx_1_tensor_name)}
+        out_tensor_names = op.ports[out_port][1]
+
+        # handle Constant operations with old style output port numbering
+        if op.soft_get('type') == 'Const':
+            assert len(op.ports) == 1, 'Something wrong with Constant node: {}, wrong number ' \
+                                       'of output ports: {}!'.format(op.soft_get('name'), len(op.ports))
+            out_port = 0
+
+        debug_dict[out_port] = []
+        if out_tensor_names is not None:
+            # handle tensor names with commas and add them to dictionary as separated
+            if out_tensor_names.find(',') >= 0:
+                str_to_replace = '<comma_in_tensor_name>'
+                out_tensor_names = (out_tensor_names.replace('\\,', str_to_replace)).split(',')
+                for out_tensor_name in out_tensor_names:
+                    debug_dict[out_port].append((out_tensor_name, out_port,
+                                                 out_tensor_name.replace(str_to_replace, ',')))
+            else:
+                debug_dict[out_port] = [(out_tensor_names, out_port, out_tensor_names)]
+        else:
+            debug_dict[out_port] = None
+
+    # provide tensor names to data nodes
+    if len(debug_dict) > 0:
+        for out in op.out_nodes():
+            if debug_dict[out + len(op.in_nodes())] is not None:
+                op.out_node(out)['fw_tensor_debug_info'] = debug_dict[out + len(op.in_nodes())]
+
 
 def copy_graph_with_ops(graph: Graph) -> Graph:
     """
@@ -343,36 +379,7 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     # Nodes postprocessing stage in new graph
     for op in new_graph.get_op_nodes():
         # tensor names restoring
-        debug_dict = {}
-
-        for out_port in op.ports:
-            out_tensor_names = op.ports[out_port][1]
-
-            # handle Constant operations with old style output port numbering
-            if op.soft_get('type') == 'Const':
-                assert len(op.ports) == 1, 'Something wrong with Constant node: {}, wrong number ' \
-                                           'of output ports: {}!'.format(op.soft_get('name'), len(op.ports))
-                if out_port == 1:
-                    out_port = 0
-
-            debug_dict[out_port] = []
-            if out_tensor_names is not None:
-                # handle tensor names with commas and add them to dictionary as separated
-                if out_tensor_names.find(',') >= 0:
-                    out_tensor_names = (out_tensor_names.replace('\\,', '<comma_in_tensor_name>')).split(',')
-                    for out_tensor_name in out_tensor_names:
-                        debug_dict[out_port].append((out_tensor_name, out_port,
-                                                     out_tensor_name.replace('<comma_in_tensor_name>', ',')))
-                else:
-                    debug_dict[out_port] = [(out_tensor_names, out_port, out_tensor_names)]
-            else:
-                debug_dict[out_port] = None
-
-        # provide tensor names to data nodes
-        if len(debug_dict) > 0:
-            for out in op.out_nodes():
-                if debug_dict[out + len(op.in_nodes())] is not None:
-                    op.out_node(out)['fw_tensor_debug_info'] = debug_dict[out + len(op.in_nodes())]
+        restore_and_provide_tensor_names(op)
 
         # operations postprocessing with some special types
         if op.soft_get('type') in postprocessing_op_nodes:
