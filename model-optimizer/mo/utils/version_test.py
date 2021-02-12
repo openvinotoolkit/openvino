@@ -19,7 +19,8 @@ import unittest.mock as mock
 from unittest.mock import mock_open
 from unittest.mock import patch
 
-from mo.utils.version import get_version, extract_release_version
+from mo.utils.version import get_version
+from mo.utils.extract_release_version import extract_release_version
 
 
 class TestingVersion(unittest.TestCase):
