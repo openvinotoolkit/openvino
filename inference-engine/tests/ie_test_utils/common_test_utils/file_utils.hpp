@@ -162,4 +162,13 @@ inline int createDirectoryRecursive(const std::string& dirPath) {
     }
     return 0;
 }
+
+inline std::string replaceExt(std::string file, const std::string& newExt) {
+    std::string::size_type i = file.rfind('.', file.length());
+
+    if (i != std::string::npos) {
+        file.replace(i + 1, newExt.length(), newExt);
+    }
+    return file;
+}
 }  // namespace CommonTestUtils

@@ -1,9 +1,7 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <sstream>
-// TODO: c++17 code
-//#include <filesystem>
 #include <ngraph/validation_util.hpp>
 #include <ops_cache.hpp>
 #include "inference_engine.hpp"
@@ -12,8 +10,6 @@
 
 using namespace SubgraphsDumper;
 
-// TODO: c++17 code
-//namespace fs = std::filesystem;
 
 void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
                                const std::string &source_model) {
@@ -21,7 +17,7 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
     if (!m_ops_cache.empty()) {
         for (auto &it : m_ops_cache) {
             // TODO: Extend for subgraphs comparison if num_neighbors_to_cache != 0
-            if (ngraph::ops_identical(it.first, op)) {
+            if (manager.match_any(it.first, op)) {
                 op_found = true;
                 it.second += 1;
                 break;
@@ -48,8 +44,6 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
         if (input_shapes_static) {
             auto op_clone = op->clone_with_new_inputs(op_inputs);
             if (!source_model.empty()) {
-// TODO: c++17 code
-//                auto source_model_name = fs::path(source_model).filename();
                 auto source_model_name = source_model;
                 ngraph::Node::RTMap &rt_info = op_clone->get_rt_info();
                 // TODO: Store both list of model where OP appears and the model from which it cached
@@ -73,10 +67,6 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Function> &func, co
 }
 
 void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
-// TODO: c++17 code
-//    if (!fs::is_directory(serialization_dir)) {
-//        fs::create_directories(serialization_dir);
-//    }
     if (!CommonTestUtils::directoryExists(serialization_dir)) {
         CommonTestUtils::createDirectoryRecursive(serialization_dir);
     }
@@ -120,18 +110,9 @@ void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
             function->validate_nodes_and_infer_types();
             // TODO: How to define element type for multi-output ops
             auto op_el_type = op.first->get_output_element_type(0).get_type_name();
-// TODO: c++17 code
-//            auto current_op_folder = fs::path(serialization_dir) / op.first->get_type_info().name / op_el_type;
-//            if (!fs::is_directory(current_op_folder)) {
-//                fs::create_directories(current_op_folder);
-//            }
             auto current_op_folder =
                     serialization_dir + CommonTestUtils::FileSeparator + op.first->get_type_info().name + CommonTestUtils::FileSeparator + op_el_type;
             std::cout << current_op_folder << std::endl;
-// TODO: c++17 code
-//            if (!fs::is_directory(current_op_folder)) {
-//                fs::create_directories(current_op_folder);
-//            }
             if (!CommonTestUtils::directoryExists(current_op_folder)) {
                 CommonTestUtils::createDirectoryRecursive(current_op_folder);
             }

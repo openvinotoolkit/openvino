@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <fstream>
@@ -46,7 +46,11 @@ int main(int argc, char *argv[]) {
         for (const auto &file : input_folder_content) {
             if (CommonTestUtils::fileExists(file) && std::regex_match(file, std::regex(R"(.*\.xml)"))) {
                 std::cout << "Processing model: " << file << std::endl;
-
+                std::string bin_file = CommonTestUtils::replaceExt(file, "bin");
+                if (!CommonTestUtils::fileExists(bin_file)) {
+                    std::cerr << "Corresponding .bin file for the model " << file <<  " doesn't exist" << std::endl;
+                    continue;
+                }
                 InferenceEngine::CNNNetwork net = ie.ReadNetwork(file);
                 auto function = net.getFunction();
                 cache->update_ops_cache(function, file);

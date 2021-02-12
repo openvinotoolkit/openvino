@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -132,30 +132,58 @@ bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node, const std
     } else {
         return false;
     }
-    // TODO: Figure Out with visitors
-//    ngraph::AttributeVisitor visitor();
-//    node->visit_attributes(visitor);
+    // Compare node attributes
+    CompareNodesAttributes attrs_comparator;
+    auto &node_visitor = attrs_comparator.get_cmp_reader();
+    auto &ref_visitor = attrs_comparator.get_ref_reder();
+    // TODO: Need to apply readers wise-versa, otherwise comparison fails, why?
+    node->visit_attributes(ref_visitor);
+    ref->visit_attributes(node_visitor);
+    // TODO: Implement equal() with attributes mask - which attributes to compare and which not
+    if (!attrs_comparator.equal()) {
+        return false;
+    }
     // Match ports values
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
-        if (std::find(ignore_const_port_vals.begin(), ignore_const_port_vals.end(), port_id) !=
-            ignore_const_port_vals.end()) {
+        std::vector<size_t> ignored_ports;
+
+        if (matcher_configs_unwraped.find(node->get_type_info().name) != matcher_configs_unwraped.end()) {
+            ignored_ports = matcher_configs_unwraped[node->get_type_info().name].ignored_ports;
+        } else {
+            ignored_ports = matcher_configs_unwraped["default"].ignored_ports;
+        }
+        if (std::find(ignored_ports.begin(), ignored_ports.end(), port_id) != ignored_ports.end()) {
             continue;
         }
         const auto &cur_node_input = node->input_value(port_id).get_node_shared_ptr();
         const auto &ref_node_input = ref->input_value(port_id).get_node_shared_ptr();
 
         const auto &cur_const_input = std::dynamic_pointer_cast<ngraph::op::Constant>(cur_node_input);
-        const auto &ref_const_input = std::dynamic_pointer_cast<ngraph::op::Constant>(cur_node_input);
+        const auto &ref_const_input = std::dynamic_pointer_cast<ngraph::op::Constant>(ref_node_input);
 
         // Check that both OP an reference port inputs are constant and have same data
         if (cur_const_input != nullptr && ref_const_input != nullptr &&
             !compare_constants_data(cur_const_input, ref_const_input)) {
             return false;
-            // Check that input nodes on the port both not constants
+        // Check that input nodes on the port both not constants
         } else if ((cur_const_input != nullptr && ref_const_input == nullptr) ||
                    (cur_const_input == nullptr && ref_const_input != nullptr)) {
             return false;
         }
     }
     return true;
+}
+
+SingleOpMatcher::SingleOpMatcher() {
+    default_configs = {
+            // Default config - only ignore constants on 1st port
+            MatcherConfig<>({}, {}, {0}),
+            // Convolutions, MatMul and eltwise config - ignore zero and 1st ports to not compare data and weights
+            MatcherConfig<ngraph::op::v1::Convolution, ngraph::op::v1::ConvolutionBackpropData>({"Convolution", "GroupConvolution", "ConvolutionBackpropData",
+                           "GroupConvolutionBackpropData", "MatMul", "Add", "Multiply", "Subtract", "Power",
+                           "ReduceMax", "ReduceMin"},
+                          {}, {0, 1}),
+            // FakeQuantize config - ignore 0-4 ports to not compare data and limits
+            MatcherConfig<ngraph::op::v0::FakeQuantize>({"FakeQuantize"}, {}, {0, 1, 2, 3, 4})
+    };
 }

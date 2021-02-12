@@ -1,5 +1,4 @@
-// TODO: c++17 code
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -7,10 +6,10 @@
 #include <utility>
 #include <vector>
 #include <string>
-//#include <filesystem>
 #include <any>
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include "matchers/matchers_manager.hpp"
 
 namespace SubgraphsDumper {
 
@@ -18,6 +17,7 @@ class OPCache {
 public:
     OPCache() : num_neighbours_to_cache(0) {
         m_ops_cache = std::vector<std::pair<std::shared_ptr<ngraph::Node>, size_t>>();
+        manager = MatchersManager();
     }
 
     static std::unique_ptr<OPCache> make_cache() {
@@ -31,7 +31,7 @@ public:
 
 protected:
     std::vector<std::pair<std::shared_ptr<ngraph::Node>, size_t>> m_ops_cache;
-
+    MatchersManager manager;
     size_t num_neighbours_to_cache = 0;
 };
 }  // namespace SubgraphsDumper

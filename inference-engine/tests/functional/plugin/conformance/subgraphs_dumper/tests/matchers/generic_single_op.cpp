@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ protected:
 
 
 // Check that different values of constant nodes on port 0 (default value) are ignored in match()
-TEST_F(SingleOpMatcherTest, AllPortsAreParams_IgnoreConstPortVals) {
+TEST_F(SingleOpMatcherTest, AllPortsAreConsts_IgnoreConstPortVals) {
     const auto const1 = std::make_shared<Constant>(Type_t::f32, Shape({5, 5}), 1);
     const auto shape_pattern = std::make_shared<Constant>(Type_t::i64, Shape({2}), std::vector<int>{1, 25});
     const auto op1 = std::make_shared<v1::Reshape>(const1, shape_pattern, false);
@@ -64,3 +64,14 @@ TEST_F(SingleOpMatcherTest, AllPortsAreParams_TypesNotEqual) {
     ASSERT_FALSE(matcher.match(op1, op2));
 }
 
+// Check nodes doesn't match - different input element types
+TEST_F(SingleOpMatcherTest, AllPortsAreParams_AttrsNotEqual) {
+    const auto param1 = std::make_shared<Parameter>(element::Type_t::f32, Shape({10, 10, 10}));
+    const auto param2 = std::make_shared<Parameter>(element::Type_t::f32, Shape({10, 10, 10}));
+    const auto op1 = std::make_shared<::Concat>(OutputVector({param1, param2}), 1);
+
+    const auto param3 = std::make_shared<Parameter>(element::Type_t::f32, Shape({10, 10, 10}));
+    const auto param4 = std::make_shared<Parameter>(element::Type_t::f32, Shape({10, 10, 10}));
+    const auto op2 = std::make_shared<::Concat>(OutputVector({param3, param4}), 2);
+    ASSERT_FALSE(matcher.match(op1, op2));
+}
