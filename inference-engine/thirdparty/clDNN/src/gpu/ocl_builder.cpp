@@ -49,8 +49,7 @@ std::map<std::string, device_impl::ptr> ocl_builder::get_available_devices(void*
 
     std::map<std::string, device_impl::ptr> ret;
     for (auto& dptr : dev_orig) {
-        auto flag = dptr->get_device().getInfo<CL_DEVICE_HOST_UNIFIED_MEMORY>();
-        if (flag != 0)
+        if (dptr->get_info().dev_type == device_type::integrated_gpu)
             dev_sorted.insert(dev_sorted.begin(), dptr);
         else
             dev_sorted.push_back(dptr);
