@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ class DeformableConvolutionLayerTest : public testing::WithParamInterface<deform
 public:
     static std::string getTestCaseName(testing::TestParamInfo<deformableConvLayerTestParamsSet> obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
-    void Validate();
+    void Validate() override;
 
 protected:
     void SetUp() override;
