@@ -453,8 +453,8 @@ struct Equal<SpecialBodyPorts> {
 
 using Constant = ngraph::opset1::Constant;
 template <> struct Equal<std::shared_ptr<Constant>> {
-    static bool equal_value(const std::shared_ptr<Constant> lhs,
-                            const std::shared_ptr<Constant> rhs) {
+    static bool equal_value(const std::shared_ptr<Constant>& lhs,
+                            const std::shared_ptr<Constant>& rhs) {
         const auto lhs_t = lhs->get_element_type();
         const auto rhs_t = rhs->get_element_type();
         if (lhs_t != rhs_t) {
