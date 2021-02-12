@@ -94,7 +94,7 @@ fi
 if [ "$os" == "auto" ] ; then
     os=$( . /etc/os-release ; echo "${ID}${VERSION_ID}" )
     case $os in
-        centos7|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
+        centos7|rhel8.2|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
         *) echo "Unsupported OS: ${os:-detection failed}" >&2 ; exit 1 ;;
     esac
 fi
@@ -194,6 +194,22 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         python3-gst-1.0
         vainfo
     )
+
+elif [ "$os" == "rhel8.2" ] ; then
+
+    pkgs_opencv_req=(gtk3)
+    pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl)
+    pkgs_myriad=()
+    pkgs_installer=()
+    pkgs_pot=()
+    pkgs_opencv_opt=(
+        gstreamer1
+        gstreamer1-plugins-bad-free
+        gstreamer1-plugins-good
+        gstreamer1-plugins-ugly-free
+    )
+    pkgs_dlstreamer=()
 
 elif [ "$os" == "centos7" ] ; then
 
@@ -357,7 +373,7 @@ if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] ; then
 
     apt-get update && apt-get install --no-install-recommends $iopt ${pkgs[@]}
 
-elif [ "$os" == "centos7" ] ; then
+elif [ "$os" == "centos7" ] || [ "$os" == "rhel8.2" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"

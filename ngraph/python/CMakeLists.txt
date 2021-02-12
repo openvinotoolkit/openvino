@@ -60,6 +60,9 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     add_link_options(-stdlib=libc++)
     add_compile_options(-Wno-unused-value)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
+    add_compile_options(-Wno-error=attributes)
 endif()
 
 # create target
