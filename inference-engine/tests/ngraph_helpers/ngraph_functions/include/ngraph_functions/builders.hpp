@@ -12,6 +12,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/opsets/opset6.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -143,9 +144,16 @@ std::shared_ptr<ngraph::Node> makeCTCGreedyDecoder(
 
 std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
         const ngraph::Output<Node>& inputData,
+        const ngraph::Output<Node>& sequenceLength,
         int blankIndex,
         bool mergeRepeated,
-        const element::Type& idxPrec);
+        const element::Type& idxPrecision = element::i32);
+
+std::shared_ptr<ngraph::Node> makeCTCGreedyDecoderSeqLen(
+        const ngraph::Output<Node>& inputData,
+        int blankIndex,
+        bool mergeRepeated,
+        const element::Type& idxPrecision = element::i32);
 
 std::shared_ptr<ngraph::Node> makeCTCLoss(
         const ngraph::Output<Node>& logitsNode,
