@@ -95,36 +95,26 @@ namespace ngraph
                          size_t one_hot_axis,
                          const char* on_value,
                          const char* off_value) {
+
+                const size_t num_ind = shape_size(indices_shape);
+                const size_t depth = out_shape[one_hot_axis];
+
                 // Step 1: Set off_value to the output.
-                size_t num_ind = shape_size(indices_shape);
-                for(auto p=out; p < out + num_ind * out_elem_size; p += out_elem_size)
+                for(auto p=out; p < out + num_ind * depth * out_elem_size; p += out_elem_size)
                     std::copy(off_value, off_value + out_elem_size, p);
                 // Number of elements between one-hot values in the output memory layout
                 size_t inner_block = 1;
                 for(auto i=one_hot_axis; i < indices_shape.size(); ++i)
                     inner_block *= indices_shape[i];
-
-                auto depth = out_shape[one_hot_axis];
                 // Step 2: Write on_value at needed positions, throwing exceptions when invalid
                 // conditions are encountered.
                 for(auto outer_i=0; outer_i < num_ind; outer_i+=inner_block){
                     for(auto inner_i=0; inner_i < inner_block; inner_i++){
                         auto input_val = indices[outer_i + inner_i];
-                        if(input_val < 0) {
-                            std::cout << "Shape: \n";
-                            for(auto a: indices_shape)
-                                std::cout << a << " ";
-                            std::cout << "\n";
-                            std::cout << "Indices: \n";
-                            for(int i=0; i<num_ind; ++i)
-                                std::cout << indices[i] << " ";
-                            std::cout << "\n";
-                            //NGRAPH_CHECK(input_val >= 0, "Only non-negative input indices are allowed, got ",
-                            //             input_val);
-                            continue;
-                        }
-                        if( input_val < depth) {
-                            auto output_offset = ( outer_i * depth + inner_i + input_val * inner_block ) * out_elem_size;
+                        // Enable the check, if negative indices are not allowed
+                        //NGRAPH_CHECK(input_val >= 0, "Only non-negative input indices are allowed, got ", input_val);
+                        if ( (input_val >= 0) && (input_val < depth) ) {
+                            auto output_offset = (outer_i * depth + inner_i + input_val * inner_block) * out_elem_size;
                             std::copy(on_value, on_value + out_elem_size, out + output_offset);
                         }
                     }
