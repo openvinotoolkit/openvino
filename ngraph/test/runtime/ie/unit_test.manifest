@@ -1608,3 +1608,6 @@ evaluate_mvn_6_inside_sqrt
 evaluate_mvn_6_across_chanells
 evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
+
+# TODO: Remove when ref impl is completed
+binary_convolution_2D_1batch_1channel

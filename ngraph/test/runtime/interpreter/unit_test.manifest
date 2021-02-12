@@ -161,3 +161,6 @@ quantize_clamp_int32
 
 # u16 type is not supported in Minimum evaluate method
 minimum_u16
+
+# TODO: Remove when ref impl is completed
+binary_convolution_2D_1batch_1channel
