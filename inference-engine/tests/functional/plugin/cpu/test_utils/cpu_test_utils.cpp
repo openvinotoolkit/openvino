@@ -260,6 +260,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificPar
             continue;
         if (selectedTypeStr.find("sse42") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
             continue;
+        if (selectedTypeStr.find("avx") != std::string::npos && !InferenceEngine::with_cpu_x86_avx())
+            continue;
         if (selectedTypeStr.find("avx2") != std::string::npos && !InferenceEngine::with_cpu_x86_avx2())
             continue;
         if (selectedTypeStr.find("avx512") != std::string::npos && !InferenceEngine::with_cpu_x86_avx512f())
