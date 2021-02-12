@@ -103,28 +103,28 @@ Batch indices must be in the range of `[0, N_in-1]`.
 * Two inputs (without offsets)
 ```xml
 <layer id="6" name="rfcn_cls_offset" type="DeformablePSROIPooling" version="opset1">
-			<data spatial_scale="0.0625" output_dim="882" group_size="3" mode="bilinear_deformable" spatial_bins_x="4" spatial_bins_y="4" pooled_width="3" pooled_height="3" trans_std="0.0" part_size="3"/>
-			<input>
-				<port id="0">
-					<dim>1</dim>
-					<dim>7938</dim>
-					<dim>63</dim>
-					<dim>38</dim>
-				</port>
-				<port id="1">
-					<dim>300</dim>
-					<dim>5</dim>
-				</port>
-			</input>
-			<output>
-				<port id="2" precision="FP32">
-					<dim>300</dim>
-					<dim>882</dim>
-					<dim>3</dim>
-					<dim>3</dim>
-				</port>
-			</output>
-		</layer>
+    <data spatial_scale="0.0625" output_dim="882" group_size="3" mode="bilinear_deformable" spatial_bins_x="4" spatial_bins_y="4" pooled_width="3" pooled_height="3" trans_std="0.0" part_size="3"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>7938</dim>
+            <dim>63</dim>
+            <dim>38</dim>
+        </port>
+        <port id="1">
+            <dim>300</dim>
+            <dim>5</dim>
+        </port>
+    </input>
+    <output>
+        <port id="2" precision="FP32">
+            <dim>300</dim>
+            <dim>882</dim>
+            <dim>3</dim>
+            <dim>3</dim>
+        </port>
+    </output>
+</layer>
 ```
 * Three inputs (with offsets)
 ```xml
