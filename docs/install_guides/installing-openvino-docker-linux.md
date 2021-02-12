@@ -10,7 +10,8 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 
 - Ubuntu\* 18.04 long-term support (LTS), 64-bit
 - Ubuntu\* 20.04 long-term support (LTS), 64-bit
-- CentOS\* 7.6
+- CentOS\* 7
+- RHEL\* 8
 
 **Host Operating Systems**
 
@@ -51,7 +52,8 @@ Before building a Docker* image on GPU, add the following commands to a Dockerfi
 **Ubuntu 18.04/20.04**:
 ```sh
 WORKDIR /tmp/opencl
-RUN usermod -aG video openvino
+RUN useradd -ms /bin/bash -G video,users openvino && \
+    chown openvino -R /home/openvino
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ocl-icd-libopencl1 && \
     rm -rf /var/lib/apt/lists/* && \
@@ -64,12 +66,14 @@ RUN apt-get update && \
     ldconfig && \
     rm /tmp/opencl
 ```
-**CentOS 7.6**:
+**CentOS 7/RHEL 8**:
 ```sh
 WORKDIR /tmp/opencl
+RUN useradd -ms /bin/bash -G video,users openvino && \
+    chown openvino -R /home/openvino
 RUN groupmod -g 44 video
 
-RUN yum update -y && yum install -y epel-release && \
+RUN yum update -y && yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
     yum update -y && yum install -y ocl-icd ocl-icd-devel && \ 
     yum clean all && rm -rf /var/cache/yum && \
     curl -L https://sourceforge.net/projects/intel-compute-runtime/files/19.41.14441/centos-7/intel-gmmlib-19.3.2-1.el7.x86_64.rpm/download -o intel-gmmlib-19.3.2-1.el7.x86_64.rpm && \
@@ -117,8 +121,6 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends ${BUILD_DEPENDENCIES} && \
     rm -rf /var/lib/apt/lists/*
 
-RUN usermod -aG users openvino
-
 WORKDIR /opt
 RUN curl -L https://github.com/libusb/libusb/archive/v1.0.22.zip --output v1.0.22.zip && \
     unzip v1.0.22.zip
@@ -140,7 +142,7 @@ RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
     cp /opt/intel/openvino/deployment_tools/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/ && \
     ldconfig
 ```
-   - **CentOS 7.6**:
+   - **CentOS 7**:
 ```sh
 ARG BUILD_DEPENDENCIES="autoconf \
                         automake \
@@ -219,7 +221,7 @@ RUN apt-get update && \
         libxxf86vm-dev && \
     rm -rf /var/lib/apt/lists/* && rm -rf /tmp/*
 ```
-   - **CentOS 7.6**:
+   - **CentOS 7**:
 ```sh
 WORKDIR /tmp
 RUN yum update -y && yum install -y \
