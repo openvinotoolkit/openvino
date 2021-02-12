@@ -22,6 +22,7 @@ from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul, Add
 from extensions.ops.mvn import MVN
 from extensions.ops.range import Range
+from extensions.ops.rank import Rank
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
@@ -123,7 +124,8 @@ class GroupNormToMVN(MiddleReplacementPattern):
         mvn_node.in_port(0).connect(reshape_for_mvn_node.out_port(0))
 
         # MVN axes
-        _, rank = get_shape_and_rank_nodes_by_port(mvn_node.in_port(0), return_as_a_scalar=True)
+        # _, rank = get_shape_and_rank_nodes_by_port(mvn_node.in_port(0), return_as_a_scalar=True)
+        rank = Rank(graph, {'name': mvn_node.name + '/Rank'}).create_node()
         rng = create_op_with_const_inputs(graph, Range, {0: int64_array(1), 2: int64_array(1)},
                                           {'name': group_norm_node.name + '/Range', 'output_type': np.int64})
         mvn_node.in_port(1).connect(rng.out_port(0))

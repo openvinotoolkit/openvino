@@ -24,7 +24,7 @@ from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, res
 
 nodes = {
     **regular_op_with_empty_data('input', {'type': 'Parameter'}),
-    **regular_op_with_empty_data('mvn_caffe', {'op': 'MVNCaffe'}),
+    **regular_op_with_empty_data('mvn_caffe', {'op': 'AttributedMVN'}),
     **result(),
 
     # nodes after replacement

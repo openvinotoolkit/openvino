@@ -70,8 +70,8 @@ class MVN(Op):
         copy_shape_infer(node)
 
 
-class MVNCaffe(Op):
-    op = 'MVNCaffe'
+class AttributedMVN(Op):
+    op = 'AttributedMVN'
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
@@ -81,8 +81,6 @@ class MVNCaffe(Op):
             'op': self.op,
             'version': None,
             'eps': 1e-9,
-            'normalize_variance': 1,
-            'across_channels': 0,
             'in_ports_count': 1,
             'out_ports_count': 1,
             'infer': None

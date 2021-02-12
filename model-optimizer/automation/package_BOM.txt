@@ -293,6 +293,7 @@ extensions/front/onnx/mask_rcnn.json
 extensions/front/onnx/mask_rcnn_conversion.py
 extensions/front/onnx/matmul_ext.py
 extensions/front/onnx/mean_variance_normalization_ext.py
+extensions/front/onnx/MVNNormalize.py
 extensions/front/onnx/non_max_suppression_ext.py
 extensions/front/onnx/non_zero_ext.py
 extensions/front/onnx/normalize_ext.py
