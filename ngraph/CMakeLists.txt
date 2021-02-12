@@ -382,8 +382,6 @@ if (NGRAPH_TEST_UTIL_ENABLE)
 endif()
 
 add_subdirectory(test)
-set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
-add_subdirectory(benchmarks)
 
 if (NGRAPH_PYTHON_BUILD_ENABLE)
     add_subdirectory(python)

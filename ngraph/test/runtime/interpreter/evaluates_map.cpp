@@ -1499,31 +1499,23 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
+        using INPUT_TYPE = typename element_type_traits<ET>::value_type;
         switch (inputs[0]->get_element_type())
         {
         case element::Type_t::i32:
-            runtime::reference::
-                one_hot<typename element_type_traits<element::Type_t::i32>::value_type, T>(
-                    inputs[0]->get_data_ptr<element::Type_t::i32>(),
-                    outputs[0]->get_data_ptr<T>(),
-                    inputs[0]->get_shape(),
-                    outputs[0]->get_shape(),
-                    op->get_axis(),
-                    inputs[2]->get_data_ptr<T>()[0],
-                    inputs[3]->get_data_ptr<T>()[0]);
-            break;
         case element::Type_t::i64:
-            runtime::reference::
-                one_hot<typename element_type_traits<element::Type_t::i64>::value_type, T>(
-                    inputs[0]->get_data_ptr<element::Type_t::i64>(),
-                    outputs[0]->get_data_ptr<T>(),
-                    inputs[0]->get_shape(),
-                    outputs[0]->get_shape(),
-                    op->get_axis(),
-                    inputs[2]->get_data_ptr<T>()[0],
-                    inputs[3]->get_data_ptr<T>()[0]);
+        {
+            auto axis = op->get_axis();
+            runtime::reference::one_hot<INPUT_TYPE>(inputs[0]->get_data_ptr<INPUT_TYPE>(),
+                                                    inputs[0]->get_shape(),
+                                                    outputs[0]->get_data_ptr<char>(),
+                                                    outputs[0]->get_element_type().size(),
+                                                    outputs[0]->get_shape()[axis],
+                                                    axis,
+                                                    inputs[2]->get_data_ptr<char>(),
+                                                    inputs[3]->get_data_ptr<char>());
             break;
+        }
         default:
             std::stringstream ss;
             ss << "Unhandled input precision " << inputs[0]->get_element_type().get_type_name()
@@ -1532,7 +1524,6 @@ namespace
         }
         return true;
     }
-
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::RNNCell>& op,
                   const HostTensorVector& outputs,

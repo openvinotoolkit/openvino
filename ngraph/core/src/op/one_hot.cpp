@@ -127,81 +127,8 @@ shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_a
         new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
 }
 
-/*
-namespace detail
+namespace one_hot
 {
-    template <typename ind_t, typename out_t>
-    bool evaluate(const HostTensorVector& output_values,
-                  const HostTensorVector& input_values,
-                  const int64_t axis)
-    {
-        const auto& indices = input_values[0];
-        const auto& on_value = input_values[2];
-        const auto& off_value = input_values[3];
-
-        const auto& out = output_values[0];
-
-        runtime::reference::one_hot<ind_t, out_t>(indices->get_data_ptr<ind_t>(),
-                                                  out->get_data_ptr<out_t>(),
-                                                  indices->get_shape(),
-                                                  out->get_shape(),
-                                                  axis,
-                                                  on_value->get_data_ptr<out_t>()[0],
-                                                  off_value->get_data_ptr<out_t>()[0]);
-        return true;
-    }
-
-#define TYPE_OUT_CASE(a, ...)                                                                      \
-    case element::Type_t::a:                                                                       \
-    {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_one_hot_out, _, a));                                   \
-        using IT = typename element_type_traits<element::Type_t::a>::value_type;                   \
-        using OT = typename element_type_traits<out_t>::value_type;                                \
-        rc = evaluate<IT, OT>(__VA_ARGS__);                                                        \
-    }                                                                                              \
-    break
-
-    template <element::Type_t out_t>
-    bool evaluate(const HostTensorVector& output_values,
-                  const HostTensorVector& input_values,
-                  const int64_t axis)
-    {
-        const auto& indices = input_values[0];
-
-        bool rc = true;
-        switch (indices->get_element_type())
-        {
-            TYPE_OUT_CASE(i32, output_values, input_values, axis);
-            TYPE_OUT_CASE(i64, output_values, input_values, axis);
-        default: rc = false; break;
-        }
-
-        return rc;
-    }
-#undef TYPE_OUT_CASE
-    bool evaluate_onehot(const HostTensorVector& output_values,
-                         const HostTensorVector& input_values,
-                         const int64_t axis)
-    {
-        const auto& on_value = input_values[2];
-
-        bool rc = false;
-        switch (on_value->get_element_type())
-        {
-            NGRAPH_TYPE_CASE(evaluate_onehot, boolean, output_values, input_values, axis);
-            NGRAPH_TYPE_CASE(evaluate_onehot, f32, output_values, input_values, axis);
-            NGRAPH_TYPE_CASE(evaluate_onehot, i32, output_values, input_values, axis);
-            NGRAPH_TYPE_CASE(evaluate_onehot, i64, output_values, input_values, axis);
-        default: rc = false;
-        }
-        return rc;
-    }
-
-
-
-} // namespace detail
-*/
-namespace detail_new{
     template <element::Type_t T>
     bool evaluate(const HostTensorVector& output_values,
                   const HostTensorVector& input_values,
@@ -213,27 +140,26 @@ namespace detail_new{
         const auto& off_value = input_values[3];
         const auto& out = output_values[0];
         runtime::reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
-                                             out->get_data_ptr<char>(),
-                                             indices->get_shape(),
-                                             out->get_shape(),
-                                             out->get_element_type().size(),
-                                             axis,
-                                             on_value->get_data_ptr<char>(),
-                                             off_value->get_data_ptr<char>());
+                                                indices->get_shape(),
+                                                out->get_data_ptr<char>(),
+                                                out->get_element_type().size(),
+                                                out->get_shape()[axis],
+                                                axis,
+                                                on_value->get_data_ptr<char>(),
+                                                off_value->get_data_ptr<char>());
         return true;
     }
-
-    bool evaluate_onehot_new(const HostTensorVector& output_values,
-                             const HostTensorVector& input_values,
-                             const int64_t axis)
+    bool evaluate_onehot(const HostTensorVector& output_values,
+                         const HostTensorVector& input_values,
+                         const int64_t axis)
     {
         bool rc = true;
         const auto& indices = input_values[0];
         switch (indices->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_onehot_new, i32, output_values, input_values, axis);
-            NGRAPH_TYPE_CASE(evaluate_onehot_new, i64, output_values, input_values, axis);
-            default: rc = false;
+            NGRAPH_TYPE_CASE(evaluate_onehot, i32, output_values, input_values, axis);
+            NGRAPH_TYPE_CASE(evaluate_onehot, i64, output_values, input_values, axis);
+        default: rc = false;
         }
         return rc;
     }
@@ -243,13 +169,5 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
-    return detail_new::evaluate_onehot_new(output_values, input_values, get_axis());
+    return one_hot::evaluate_onehot(output_values, input_values, get_axis());
 }
-/*
-bool op::v1::OneHot::evaluate_old(const HostTensorVector& output_values,
-                              const HostTensorVector& input_values) const
-{
-    NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
-    return detail::evaluate_onehot(output_values, input_values, get_axis());
-}
-*/
