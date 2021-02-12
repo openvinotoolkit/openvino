@@ -8,6 +8,12 @@
 
 **Detailed description**: The operation bahaves as regular *Convolution* but uses specialized algorithm for computations on binary data. More thorough explanation can be found in [Understanding Binary Neural Networks](https://sushscience.wordpress.com/2017/10/01/understanding-binary-neural-networks/) and [Bitwise Neural Networks](https://saige.sice.indiana.edu/wp-content/uploads/icml2015_mkim.pdf).  
 
+
+Computation algorithm for mode *xnor-popcount*: 
+- X = XNOR(input_patch, filter) // bitwise XNOR operation on two bit streams
+- P = popcount(X) // count the number of `1`in the resulting bit stream  
+- Output = 2 * P - B, where B is the total number of bits in the bit stream 
+
 **Attributes**:
 
 * *strides*
