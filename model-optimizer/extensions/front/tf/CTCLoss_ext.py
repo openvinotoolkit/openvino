@@ -26,7 +26,7 @@ class CTCLossFrontExtractor(FrontExtractorOp):
         # For CTCLoss default value is [N, T]
         logits_time_major = True
         if 'logits_time_major' in node.pb.attr:
-            logits_time_major = not node.pb.attr['logits_time_major'].b
+            logits_time_major = node.pb.attr['logits_time_major'].b
 
         attrs = {
             'ctc_merge_repeated': node.pb.attr['ctc_merge_repeated'].b,
