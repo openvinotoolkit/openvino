@@ -4,7 +4,7 @@
 
 **Category**: Object detection
 
-**Short description**: *DeformablePSROIPooling* computes deformable position-sensitive pooling on regions of interest specified by input.
+**Short description**: *DeformablePSROIPooling* computes deformable position-sensitive pooling of regions of interest specified by input.
 
 **Detailed description**: [Reference](https://arxiv.org/abs/1703.06211).
 
@@ -27,7 +27,7 @@ The ROI coordinates are specified as five element tuples: `[batch_id, x_1, y_1, 
 
 * *spatial_scale*
 
-  * **Description**: *spatial_scale* is a multiplicative spatial scale factor to translate ROI coordinates from their input original size to the pooling input. Ratio of the input score map size to the original image. 
+  * **Description**: *spatial_scale* is a multiplicative spatial scale factor to translate ROI coordinates from their input original size to the pooling input. Ratio of the input score map size to the original image size. 
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
   * **Default value**: None
@@ -83,12 +83,12 @@ The ROI coordinates are specified as five element tuples: `[batch_id, x_1, y_1, 
 
 **Inputs**:
 
-*   **1**: 4D input tensor of type *T* and shape `[N_in, C_in, H_in, W_in]` with position sensitive score map. Required.
+*   **1**: 4D input tensor of type *T* and shape `[N_in, C_in, H_in, W_in]` with position sensitive score maps. Required.
 
 *   **2**: 2D input tensor of type *T* and shape `[NUM_ROIS, 5]`. It contains a list of five element tuples describing a single ROI (region of interest): `[batch_id, x_1, y_1, x_2, y_2]`. Required.
 Batch indices must be in the range of `[0, N_in-1]`.
 
-*   **3**: 4D input tensor of type *T* and shape `[NUM_ROIS, 2*NUM_CLASSES, group_size, group_size]` with transformation values. It contains normalized `[0, 1]` offsets for each ROI bin left top corner coordinates. Channel dimension is multiplied by `2` because of encoding two `(x, y)` coords. Optional.
+*   **3**: 4D input tensor of type *T* and shape `[NUM_ROIS, 2*NUM_CLASSES, group_size, group_size]` with transformation values. It contains normalized `[0, 1]` offsets for each ROI bin left top corner coordinates. Channel dimension is multiplied by `2` because of encoding two `(x, y)` coordinates. Optional.
 
 **Outputs**:
 *   **1**: 4D output tensor of type *T* shape `[NUM_ROIS, output_dim, group_size, group_size]` with ROIs score maps.
