@@ -3,8 +3,11 @@ jstyleson==0.0.2
 numpy>=1.16.3
 addict==2.2.1
 PyYAML
+Pymongo
 defusedxml
 networkx
 networkx==2.2
 tqdm==4.31.1
 py-cpuinfo==4.0.0
+pandas==0.24.2
+hyperopt==0.1.2
