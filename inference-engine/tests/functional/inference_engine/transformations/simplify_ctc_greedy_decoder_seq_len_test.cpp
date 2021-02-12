@@ -383,3 +383,40 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
     auto res = compare_functions(f, f_ref, false, false, false, false);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenBlankIndexTest) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
+        auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
+        //auto blank_index = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{1});
+        auto blank_index = op::Constant::create(element::i32, Shape{}, {6});
+
+        auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, blank_index, true, ngraph::element::i64, ngraph::element::i64);
+        auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
+        auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data, seq_len });
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
+        manager.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto data1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
+        auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
+        auto blank_index1 = op::Constant::create(element::i32, Shape{}, {6});
+
+        auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data1, seq_len1, blank_index1, true, ngraph::element::i64, ngraph::element::i64);
+        auto res_1 = std::make_shared<opset6::Result>(decoder_v6->output(0));
+        auto res_2 = std::make_shared<opset6::Result>(decoder_v6->output(1));
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data1, seq_len1 });
+    }
+
+    auto res = compare_functions(f, f_ref, false, false, false, false);
+    ASSERT_TRUE(res.first) << res.second;
+}

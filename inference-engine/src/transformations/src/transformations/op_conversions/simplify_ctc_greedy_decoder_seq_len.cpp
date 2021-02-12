@@ -22,12 +22,27 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         if (!decoder_seq_len) {
             return false;
         }
+
+        if (decoder_seq_len->get_input_size() > 2) {
+            const auto seq_len_pshape = decoder_seq_len->get_input_partial_shape(0);
+            auto blank_index = std::dynamic_pointer_cast<ngraph::opset6::Constant>(decoder_seq_len->input_value(2).get_node_shared_ptr());
+            if (!blank_index || seq_len_pshape.rank().is_dynamic() || seq_len_pshape[2].is_dynamic()) {
+                return false;
+            }
+
+            const std::vector<int64_t> &blank_index_values = blank_index->cast_vector<int64_t>();
+            const auto num_classes = decoder_seq_len->get_input_partial_shape(0)[2].get_length();
+            if (blank_index_values[0] == (num_classes - 1)) {
+                return false;
+            }
+        }
+
         element::Type seq_len_type = decoder_seq_len->input_value(1).get_element_type();
         // Transposing input data channels from [N, T, C] to [T, N, C]. Need for compatible with CTCGreedyDecoder v1
         auto transpose = std::make_shared<ngraph::opset6::Transpose>(decoder_seq_len->input_value(0),
                                                                      ngraph::opset6::Constant::create(element::i32,
                                                                Shape({3}), {1, 0, 2}));
-        // Receive time and batch dimensions and concatenate to [T, N] tensor shapes:
+        // Receive time and batch dimensions and concatenate to [T, N] tensor shapes
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(decoder_seq_len->input_value(0));
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
         auto indexT = ngraph::opset6::Constant::create(seq_len_type, Shape{1}, {1});
@@ -80,6 +95,7 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
 
         element::Type ci_type = decoder_seq_len->get_classes_index_type();
         element::Type sl_type = decoder_seq_len->get_sequence_length_type();
+        // CTCGreedyDecoder return floating point output. For Normalize output we need to convert output to classes_index_type
         // Receive the first output with correct classes_index_type
         auto output_i = std::make_shared<ngraph::opset6::Convert>(squeeze1_output_f->output(0), ci_type);
         auto minus1 = opset6::Constant::create(ci_type, Shape{}, {-1});
