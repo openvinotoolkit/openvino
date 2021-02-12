@@ -83,8 +83,8 @@ TEST_P(OneHotLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-const std::vector<Precision> inPrc = {Precision::FP32, Precision::I32, Precision::BF16};
-const std::vector<Precision> outPrc = {Precision::FP32, Precision::BF16};
+const std::vector<Precision> inPrc = {Precision::I32};
+const std::vector<Precision> outPrc = {Precision::FP32, Precision::BF16, Precision::I8, Precision::U8};
 
 // 0d -> 1d, depth
 const auto testCase_1d = ::testing::Combine(

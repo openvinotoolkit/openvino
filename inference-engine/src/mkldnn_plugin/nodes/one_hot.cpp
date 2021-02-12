@@ -5,6 +5,7 @@
 #include "base.hpp"
 #include "ie_parallel.hpp"
 #include "common/utils.hpp"
+#include "common/tensor_desc_creator.h"
 #include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
 
@@ -17,6 +18,8 @@ namespace Extensions {
 namespace Cpu {
 
 class OneHotImpl: public ExtLayerBase {
+    typedef PrecisionTrait<Precision::I32>::value_type in_type;
+
 public:
     explicit OneHotImpl(const CNNLayer* layer) {
         try {
@@ -40,50 +43,71 @@ public:
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimensions!";
 
             // check a precision of the input tensor
-            input_precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
-            if (!one_of(input_precision, Precision::I32, Precision::FP32, Precision::BF16)) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for the input. Only I32, FP32 and BF16 are supported!";
+            auto input_precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
+            if (input_precision != Precision::I32) {
+                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for the input. Only I32 is supported!";
             }
             output_precision = layer->outData[0]->getTensorDesc().getPrecision();
-            if (!one_of(output_precision, Precision::FP32, Precision::BF16)) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect precision for the output. Only FP32 and BF16 are supported!";
+            if (!one_of(output_precision, Precision::FP32, Precision::I32, Precision::BF16, Precision::U8, Precision::I8)) {
+                THROW_IE_EXCEPTION << layer->name << " Incorrect precision for the output. Only FP32, I32, BF16, U8 and I8 are supported!";
             }
 
-            addConfig(layer, { DataConfigurator(ConfLayout::PLN, input_precision) }, { DataConfigurator(ConfLayout::PLN, output_precision) });
+            LayerConfig config;
+            DataConfig dataConfig;
+            config.dynBatchSupport = false;
+
+            auto& creators = MKLDNNPlugin::TensorDescCreator::getCommonCreators();
+
+            dataConfig.desc = creators.at(MKLDNNPlugin::TensorDescCreatorTypes::ncsp)->createDesc(input_precision, src_dims);
+            config.inConfs.push_back(dataConfig);
+
+            dataConfig.desc = creators.at(MKLDNNPlugin::TensorDescCreatorTypes::ncsp)->createDesc(output_precision, dst_dims);
+            config.outConfs.push_back(dataConfig);
+
+            confs.push_back(config);
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
-        OneHotContext ctx = {this, inputs[0], outputs[0], false};
-        OV_SWITCH(MKLDNNPlugin, OneHotExecute, ctx, std::tie(input_precision, output_precision),
-                  OV_CASE2(Precision::FP32, Precision::FP32, float, float),
-                  OV_CASE2(Precision::I32, Precision::FP32, int, float),
-                  OV_CASE2(Precision::BF16, Precision::FP32, MKLDNNPlugin::bfloat16_t, float),
-                  OV_CASE2(Precision::FP32, Precision::BF16, float, MKLDNNPlugin::bfloat16_t),
-                  OV_CASE2(Precision::I32, Precision::BF16, int, MKLDNNPlugin::bfloat16_t),
-                  OV_CASE2(Precision::BF16, Precision::BF16, MKLDNNPlugin::bfloat16_t, MKLDNNPlugin::bfloat16_t))
+        try {
+            std::size_t prefix_size = 1;
+            auto input_dims = inputs.front()->getTensorDesc().getDims();
 
-        if (!ctx.executed) {
+            std::size_t actual_axis = (axis == -1) ? src_dims.size() : axis;
+            for (size_t i = 0; i < actual_axis; ++i)
+                prefix_size *= input_dims[i];
+
+            std::size_t suffix_size = inputs.front()->size() / prefix_size;
+
+            OneHotContext ctx = {this, inputs[0], outputs[0], prefix_size, suffix_size, false};
+            OV_SWITCH(MKLDNNPlugin, OneHotExecute, ctx, output_precision,
+                      OV_CASE(Precision::FP32, PrecisionTrait<Precision::FP32>::value_type),
+                      OV_CASE(Precision::I32, PrecisionTrait<Precision::I32>::value_type),
+                      OV_CASE(Precision::BF16, MKLDNNPlugin::bfloat16_t),
+                      OV_CASE(Precision::I8, PrecisionTrait<Precision::I8>::value_type),
+                      OV_CASE(Precision::U8, PrecisionTrait<Precision::U8>::value_type))
+
+            if (!ctx.executed) {
+                return GENERAL_ERROR;
+            }
+        }
+        catch (const std::exception& excp) {
+            snprintf(resp->msg, sizeof(resp->msg), "%s", excp.what());
+            return GENERAL_ERROR;
+        }
+        catch(...) {
             return GENERAL_ERROR;
         }
         return OK;
     }
 
 private:
-    template <typename in_type, typename out_type>
-    void one_hot(Blob::Ptr input, Blob::Ptr output) {
+    template<typename out_type>
+    void one_hot(const Blob::Ptr& input, const Blob::Ptr& output, size_t prefix_size, size_t suffix_size) {
         const auto *src_data = input->cbuffer().as<const in_type *>();
         auto *dst_data = output->buffer().as<out_type *>();
-        std::size_t prefix_size = 1;
-        auto input_dims = input->getTensorDesc().getDims();
-
-        std::size_t actual_axis = (axis == -1) ? src_dims.size() : axis;
-        for (size_t i = 0; i < actual_axis; ++i)
-            prefix_size *= input_dims[i];
-
-        std::size_t suffix_size = input->size() / prefix_size;
 
         // fill the output with off_value
         std::size_t dst_size = prefix_size * depth * suffix_size;
@@ -107,16 +131,15 @@ private:
         OneHotImpl* nodePtr;
         Blob::Ptr input;
         Blob::Ptr output;
+        size_t prefix_size;
+        size_t suffix_size;
         bool executed;
     };
 
-    template<typename T>
+    template<typename dst_t>
     struct OneHotExecute {
-        using src_t = typename std::tuple_element<0, T>::type;
-        using dst_t = typename std::tuple_element<1, T>::type;
-
         void operator()(OneHotContext & ctx) {
-            ctx.nodePtr->one_hot<src_t, dst_t>(ctx.input, ctx.output);
+            ctx.nodePtr->one_hot<dst_t>(ctx.input, ctx.output, ctx.prefix_size, ctx.suffix_size);
             ctx.executed = true;
         }
     };
@@ -128,7 +151,6 @@ private:
     SizeVector src_dims;
     SizeVector dst_dims;
 
-    Precision input_precision;
     Precision output_precision;
 };
 
