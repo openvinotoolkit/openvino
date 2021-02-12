@@ -14,12 +14,15 @@
  limitations under the License.
 """
 
-from extensions.back.TopKNormalizer import TopKNormalizer
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
 
 
 class ResultRename(BackReplacementPattern):
+    # This transformation sets the Result operation name equal to the incoming tensor name.
+    # For some frameworks like kaldi and onnx this may result in appearance of nodes with identical names,
+    # which can lead to errors in other transformations.
+    # So ResultRename should be launched at the end of back phase.
     enabled = False
 
     def find_and_replace_pattern(self, graph: Graph):
