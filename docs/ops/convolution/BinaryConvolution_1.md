@@ -76,8 +76,8 @@
   
 **Inputs**:
 
-*   **1**: Input tensor of type *T* and rank 3, 4 or 5. Layout is NCZYX (number of batches, number of channels, spatial axes Z, Y, X). Required.
-*   **2**: Kernel tensor of type *T* and rank 3, 4 or 5. Layout is OIZYX (number of output channels, number of input channels, spatial axes Z, Y, X). Required.
+*   **1**: Input tensor of type *T1* and rank 3, 4 or 5. Layout is NCZYX (number of batches, number of channels, spatial axes Z, Y, X). Required.
+*   **2**: Kernel tensor of type *T2* and rank 3, 4 or 5. Layout is OIZYX (number of output channels, number of input channels, spatial axes Z, Y, X). Required.
 *   **Note**: Interpretation of tensor values is defined by *mode* attribute.
 *   **Note**: Type of the convolution (1D, 2D or 3D) is derived from the rank of the input tensors and not specified by any attribute:
       * 1D convolution (input tensors rank 3) means that there is only one spatial axis X
@@ -86,11 +86,13 @@
 
 **Outputs**:
 
-*   **1**: Output tensor of type *T* and rank 3, 4 or 5. Layout is NOZYX (number of batches, number of kernel output channels, spatial axes Z, Y, X).
+*   **1**: Output tensor of type *T3* and rank 3, 4 or 5. Layout is NOZYX (number of batches, number of kernel output channels, spatial axes Z, Y, X).
   
 **Types**:
 
-* *T*: any floating point type with values `0` or `1`.
+* *T1*: floating point type with values `0` or `1`.
+* *T2*: `u1` type with binary values `0` or `1`.
+* *T3*: *T1* type with full range of values.
 
 **Example**:
 
