@@ -107,7 +107,7 @@ DEFINE_string(m, "", model_message);
 DEFINE_string(p, "", plugin_message);
 
 /// \brief device the target device to infer on <br>
-DEFINE_string(d, "GNA_AUTO", target_device_message);
+DEFINE_string(d, "CPU", target_device_message);
 
 /// \brief Enable per-layer performance report
 DEFINE_bool(pc, false, performance_counter_message);

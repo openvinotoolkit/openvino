@@ -168,7 +168,8 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
         if (!(CaselessEq<std::string>()(layer->type, "memory") ||
             CaselessEq<std::string>()(layer->type, "memoryinput") ||
             CaselessEq<std::string>()(layer->type, "output") ||
-            CaselessEq<std::string>()(layer->type, "reorder"))) {
+            CaselessEq<std::string>()(layer->type, "reorder") ||
+            CaselessEq<std::string>()(layer->type, "convert"))) {
             THROW_IE_EXCEPTION << "Inappropriate layer type: " << layer->type << " name: " << layer->name;
         }
     }
@@ -1193,11 +1194,9 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const InferenceEngine::CNNLayerPtr&
 
     //  WA-start : TI node requires all attributes to construct internal subgpath
     //             including extManager, socket and mkldnn::eng.
-#if defined (COMPILED_CPU_MKLDNN_TENSORITERATOR_NODE)
     MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
     if (ti != nullptr)
         ti->setExtManager(extMgr);
-#endif
     //  WA-end
 
     if (!newNode)

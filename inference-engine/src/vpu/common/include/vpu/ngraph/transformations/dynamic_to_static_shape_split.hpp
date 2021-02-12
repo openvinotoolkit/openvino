@@ -8,6 +8,7 @@
 
 namespace vpu {
 
+void validateSplit(const ngraph::Node& node);
 void dynamicToStaticShapeSplit(std::shared_ptr<ngraph::Node> target);
 
 }  // namespace vpu

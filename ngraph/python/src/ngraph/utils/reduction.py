@@ -20,7 +20,7 @@ from ngraph.impl import Node
 
 
 def get_reduction_axes(node: Node, reduction_axes: Optional[Iterable[int]]) -> Iterable[int]:
-    """! Get reduction axes if it is None and convert it to set if its type is different.
+    """Get reduction axes if it is None and convert it to set if its type is different.
 
     If reduction_axes is None we default to reduce all axes.
 
