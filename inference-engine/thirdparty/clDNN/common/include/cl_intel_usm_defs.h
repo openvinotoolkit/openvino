@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once
-#include "cl2.hpp"
+
+#include <CL/cl2.hpp>
 
 #define CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL 0x4190
 #define CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL 0x4191

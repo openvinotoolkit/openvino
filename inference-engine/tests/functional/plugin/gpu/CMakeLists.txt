@@ -5,6 +5,8 @@
 
 set(TARGET_NAME gpuFuncTests)
 
+find_package(OpenCL REQUIRED)
+
 addIeTargetTest(
         NAME
             ${TARGET_NAME}
@@ -17,7 +19,7 @@ addIeTargetTest(
             clDNNPlugin
         LINK_LIBRARIES
             funcSharedTests
-            ${CLDNN__IOCL_ICD_LIBPATH}
+            OpenCL::OpenCL
         ADD_CPPLINT
         LABELS
             GPU

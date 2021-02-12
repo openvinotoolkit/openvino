@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,9 @@
 ///
 
 #pragma once
-#include "cl2.hpp"
+
+#include <CL/cl2.hpp>
+
 #define NOMINMAX
 #ifdef _WIN32
 #include <CL/cl_d3d11.h>
@@ -29,7 +31,6 @@ typedef cl_d3d11_device_set_khr    cl_device_set_intel;
 typedef cl_va_api_device_source_intel cl_device_source_intel;
 typedef cl_va_api_device_set_intel    cl_device_set_intel;
 #endif
-#include <CL/cl_intel_planar_yuv.h>
 #include "cl_intel_usm_defs.h"
 
 #include <memory>
@@ -269,7 +270,7 @@ typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromMediaSurfaceINTEL)(
             std::vector<cl_mem>& surfaces,
             cl_int * err = NULL)
             : m_queue(queue), m_surfaces(surfaces), m_errPtr(err) {
-            
+
             if (pfn_acquire!=NULL && m_surfaces.size()) {
                 cl_int error = pfn_acquire(m_queue,
                     static_cast<cl_uint>(m_surfaces.size()),
@@ -496,7 +497,7 @@ typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromMediaSurfaceINTEL)(
 
         explicit PlatformVA(const cl_platform_id &platform, bool retainObject = false) :
             Platform(platform, retainObject) { }
-        
+
         cl_int getDevices(
             cl_device_source_intel media_adapter_type,
             void *                 media_adapter,

@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,11 @@
 #ifndef __cplusplus
     #error This header can be used in C++ only.
 #endif
+
+// we want exceptions
+#define CL_HPP_ENABLE_EXCEPTIONS
+#define CL_HPP_MINIMUM_OPENCL_VERSION 120
+#define CL_HPP_TARGET_OPENCL_VERSION 120
 
 // Check for compiler and change specific diagnostics.
 #if defined __INTEL_COMPILER
@@ -64,7 +69,6 @@
 
 
 #include "cl2_ext.hpp"
-
 
 // Restore specific diagnostics.
 #if defined __INTEL_COMPILER

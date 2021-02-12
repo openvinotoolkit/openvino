@@ -22,6 +22,8 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
+find_package(OpenCL REQUIRED)
+
 target_link_libraries(${TARGET_NAME} PRIVATE clDNN_lib pugixml
                                              inference_engine
                                              inference_engine_transformations
@@ -32,7 +34,7 @@ set(CLDNN_TOP_FOLDER "${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN")
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-        ${CLDNN__IOCL_ICD_INCDIRS}
+        OpenCL::OpenCL
         ${CLDNN_TOP_FOLDER})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
