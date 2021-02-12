@@ -9,7 +9,6 @@
 
 
 #include <ngraph/function.hpp>
-#include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
@@ -389,7 +388,6 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenBlankIndexTest) {
     {
         auto data = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
         auto seq_len = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
-        //auto blank_index = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{1});
         auto blank_index = op::Constant::create(element::i32, Shape{}, {6});
 
         auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data, seq_len, blank_index, true, ngraph::element::i64, ngraph::element::i64);
