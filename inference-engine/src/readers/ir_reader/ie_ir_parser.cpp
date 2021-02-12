@@ -65,7 +65,7 @@ V10Parser::XmlDeserializer::IoMap V10Parser::XmlDeserializer::updated_io_map(con
             extend_io_map[io::INPUTS].insert({id, -1});
         } else if (type == "Result") {
             auto id = XMLParseUtils::GetUIntAttr(layer, "id");
-            extend_io_map[io::INPUTS].insert({id, -1});
+            extend_io_map[io::OUTPUTS].insert({id, -1});
         }
     }
     return extend_io_map;
