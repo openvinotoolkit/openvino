@@ -15,7 +15,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLen, "SimplifyCT
 
 ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
     MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLen);
-    auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>();
+    auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>(pattern::has_static_dim(0));
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto decoder_seq_len = std::dynamic_pointer_cast<opset6::CTCGreedyDecoderSeqLen> (m.get_match_root());
@@ -26,7 +26,7 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         if (decoder_seq_len->get_input_size() > 2) {
             const auto seq_len_pshape = decoder_seq_len->get_input_partial_shape(0);
             auto blank_index = std::dynamic_pointer_cast<ngraph::opset6::Constant>(decoder_seq_len->input_value(2).get_node_shared_ptr());
-            if (!blank_index || seq_len_pshape.rank().is_dynamic() || seq_len_pshape[2].is_dynamic()) {
+            if (!blank_index) {
                 return false;
             }
 
