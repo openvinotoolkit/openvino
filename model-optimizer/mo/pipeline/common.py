@@ -22,6 +22,7 @@ from operator import itemgetter
 import networkx as nx
 
 from extensions.back.RemoveUselessConvert import RemoveUselessConvert
+from extensions.back.ResultRename import ResultRename
 from extensions.back.op_versioning import OpVersioning
 from extensions.ops.Cast import Cast
 from mo.back.ie_ir_ver_2.emitter import port_renumber, serialize_constants, generate_ie_ir, serialize_mean_image
@@ -207,6 +208,8 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
     # the TensorIterator nodes
     type_infer(graph)
     RemoveUselessConvert().find_and_replace_pattern(graph)
+
+    ResultRename().find_and_replace_pattern(graph)
 
     for sub_graph in [graph] + collect_sub_graphs(graph):
         op_order, data_order = determined_sort(get_sorted_outputs(sub_graph))
