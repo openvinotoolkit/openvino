@@ -1037,6 +1037,7 @@ telemetry/backend/backend.py
 telemetry/backend/backend_ga.py
 telemetry/telemetry.py
 telemetry/utils/__init__.py
+telemetry/utils/guid.py
 telemetry/utils/isip.py
 telemetry/utils/message.py
 telemetry/utils/sender.py

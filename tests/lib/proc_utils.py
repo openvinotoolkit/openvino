@@ -21,7 +21,7 @@ def get_env_from(script):
     if sys.platform == "win32":
         cmd = f'"{script}" && set'
     else:
-        cmd = f'source "{script}" && env'
+        cmd = f'. "{script}" && env'
     dump = subprocess.check_output(cmd, shell=True, universal_newlines=True).strip()
     for line in dump.split("\n"):
         # split by first '='
