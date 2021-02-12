@@ -128,6 +128,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
 
     void Export(const std::string &fileName);
+    void Export(std::ostream &networkModel);
     InferenceEngine::ExecutableNetwork ImportNetwork(const std::string &modelFileName,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";

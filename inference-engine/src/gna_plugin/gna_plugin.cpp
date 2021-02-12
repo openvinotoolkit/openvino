@@ -1583,6 +1583,11 @@ InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networ
 }
 
 void GNAPlugin::Export(const std::string &fileName) {
+    std::fstream outStream(fileName, ios_base::out | ios_base::binary);
+    Export(outStream);
+}
+
+void GNAPlugin::Export(std::ostream &outStream) {
     if (inputsDesc->ptr_inputs_global_id.empty() || outputsDesc.empty()) {
         THROW_GNA_EXCEPTION << " network not loaded";
     }
@@ -1592,8 +1597,6 @@ void GNAPlugin::Export(const std::string &fileName) {
         THROW_GNA_EXCEPTION << " exporting network with multiple inputs not supported";
     }
 #endif
-
-    std::fstream outStream(fileName, ios_base::out | ios_base::binary);
 
     // TODO: nnet group parameter looks only used in application - so can we move this line into load network.
     IE_ASSERT(!inputsDataMap.empty());

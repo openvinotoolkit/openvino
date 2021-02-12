@@ -27,4 +27,14 @@ namespace {
             ::testing::ValuesIn(orders)),
             HoldersTest::getTestCaseName);
 
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTestImportNetwork,
+            ::testing::Combine(
+            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+            ::testing::ValuesIn(orders)),
+            HoldersTest::getTestCaseName);
+
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTestOnImportedNetwork,
+            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+            HoldersTestOnImportedNetwork::getTestCaseName);
+
 }  // namespace
