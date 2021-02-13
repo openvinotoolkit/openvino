@@ -54,14 +54,14 @@ namespace ngraph
                         auto class_max_element =
                             std::max_element(class_index, class_index + class_count);
                         const auto max_class_ind = std::distance(class_index, class_max_element);
-                        if (max_class_ind < blank_index[0] &&
+                        if (max_class_ind != blank_index[0] &&
                             !(ctc_merge_repeated && previous_class_index == max_class_ind))
                         {
                             out1[out_index++] = max_class_ind;
                         }
                         previous_class_index = max_class_ind;
                     }
-                    out2[batch_ind] = seq_len;
+                    out2[batch_ind] = out_index - batch_ind * seq_len_max;
                 }
             }
         } // namespace reference

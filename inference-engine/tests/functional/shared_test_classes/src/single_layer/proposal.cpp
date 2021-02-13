@@ -63,6 +63,54 @@ std::string ProposalLayerTest::getTestCaseName(testing::TestParamInfo<proposalLa
     return proposalPramString + result.str();
 }
 
+void ProposalLayerTest::Compare(
+    const std::vector<std::vector<std::uint8_t>> &expectedOutputs,
+    const std::vector<InferenceEngine::Blob::Ptr> &actualOutputs) {
+    num_selected_boxes = 0;
+    for (std::size_t outputIndex = 0; outputIndex < expectedOutputs.size(); ++outputIndex) {
+        const auto &expected = expectedOutputs[outputIndex];
+        const auto &actual = actualOutputs[outputIndex];
+        ASSERT_EQ(expected.size(), actual->byteSize());
+        const auto &expectedBuffer = expected.data();
+
+        auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
+        IE_ASSERT(memory);
+        const auto lockedMemory = memory->rmap();
+        const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
+
+        const auto &precision = actual->getTensorDesc().getPrecision();
+        auto size = actual->size();
+
+        // verifying the first output if there was less proposals than space
+        // provided,
+        // num_selected_boxes was set, take this into consideration while verifying the 2nd
+        // output
+        if (outputIndex == 1 && num_selected_boxes) {
+            size = num_selected_boxes;
+        }
+
+        switch (precision) {
+        case InferenceEngine::Precision::BF16:
+            Compare(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
+                    reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size,
+                    ngraph::bfloat16(threshold), outputIndex);
+            break;
+        case InferenceEngine::Precision::FP16:
+            Compare(reinterpret_cast<const ngraph::float16 *>(expectedBuffer),
+                    reinterpret_cast<const ngraph::float16 *>(actualBuffer), size,
+                    ngraph::float16(threshold), outputIndex);
+            break;
+        case InferenceEngine::Precision::FP32:
+            Compare<float>(reinterpret_cast<const float *>(expectedBuffer),
+                            reinterpret_cast<const float *>(actualBuffer), size,
+                            threshold, outputIndex);
+            break;
+        default:
+        FAIL() << "Comparator for " << precision << " precision isn't supported";
+    }
+  }
+}
+
 void ProposalLayerTest::SetUp() {
     proposalSpecificParams proposalParams;
     std::vector<float> img_info = {225.0f, 225.0f, 1.0f};
@@ -98,10 +146,11 @@ void ProposalLayerTest::SetUp() {
     std::vector<size_t> imageInfoShape = {3};
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(InferenceEngine::Precision::FP16);
-    auto params = ngraph::builder::makeParams(ngPrc, {{"scores", scoresShape}, {"boxes", boxesShape}});
+        // a_ and b_ are a workaround to solve alphabetic param sorting that destroys ordering
+    auto params = ngraph::builder::makeParams(ngPrc, {{"a_scores", scoresShape}, {"b_boxes", boxesShape}});
     auto paramOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(
+    auto proposal = std::dynamic_pointer_cast<ngraph::opset4::Proposal>(
              ngraph::builder::makeProposal(paramOuts[0], paramOuts[1], img_info, ngPrc,
                                            base_size,
                                            pre_nms_topn,
@@ -118,7 +167,9 @@ void ProposalLayerTest::SetUp() {
                                            box_coordinate_scale,
                                            framework));
 
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(proposal)};
+    ngraph::ResultVector results{
+        std::make_shared<ngraph::opset1::Result>(proposal->output(0)),
+        std::make_shared<ngraph::opset1::Result>(proposal->output(1))};
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
 }
 
@@ -126,15 +177,12 @@ InferenceEngine::Blob::Ptr ProposalLayerTest::GenerateInput(const InferenceEngin
     InferenceEngine::Blob::Ptr blobPtr;
 
     const std::string name = info.name();
-    if (name == "scores") {
+    if (name == "a_scores") {
         blobPtr = FuncTestUtils::createAndFillBlobFloat(info.getTensorDesc(), 1, 0, 1000, 8234231);
-    } else if (name == "boxes") {
+    } else if (name == "b_boxes") {
         blobPtr = FuncTestUtils::createAndFillBlobFloatNormalDistribution(info.getTensorDesc(), 0.0f, 0.2f, 7235346);
     }
 
     return blobPtr;
 }
-
-// TODO: for validation, reference version is required (#28373)
-void ProposalLayerTest::Validate() {}
 }  // namespace LayerTestsDefinitions

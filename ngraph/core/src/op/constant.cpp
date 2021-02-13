@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/log.hpp"
@@ -58,7 +59,7 @@ op::Constant::Constant(const shared_ptr<runtime::Tensor>& tensor)
 }
 
 op::Constant::Constant(const element::Type& type,
-                       Shape shape,
+                       const Shape& shape,
                        const std::vector<std::string>& values)
     : Constant(type, shape)
 {
@@ -627,9 +628,13 @@ bool op::Constant::are_all_data_elements_bitwise_identical() const
 bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_Constant_visit_attributes);
+    Shape prev_shape = m_shape;
+    element::Type prev_type = m_element_type;
     visitor.on_attribute("element_type", m_element_type);
     visitor.on_attribute("shape", m_shape);
-    if (m_data == nullptr)
+
+    bool need_to_reallocate = (m_shape != prev_shape || prev_type != m_element_type);
+    if (m_alloc_buffer_on_visit_attributes && need_to_reallocate)
     {
         // Filling in a fresh constant
         allocate_buffer();
@@ -645,6 +650,15 @@ bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
     auto output = outputs[0];
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;
+}
+
+bool op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const
+{
+    return evaluate(outputs, {});
+}
+bool op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const
+{
+    return evaluate(outputs, {});
 }
 
 //

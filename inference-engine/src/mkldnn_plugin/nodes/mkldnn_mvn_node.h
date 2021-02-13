@@ -17,10 +17,11 @@ struct jit_mvn_config_params {
     bool planar_layout;
     bool across_channels;
     bool normalize_variance;
-    mkldnn::memory::data_type src_dt;
-    mkldnn::memory::data_type dst_dt;
+    InferenceEngine::Precision src_prc;
+    InferenceEngine::Precision dst_prc;
     int src_data_size;
     int dst_data_size;
+    int C, D, H, W;
 };
 
 struct jit_mvn_call_args {
@@ -84,12 +85,14 @@ public:
         return false;
     }
 
-private:
-    template <typename in_data_t, typename out_data_t>
-    void mvn_pln(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+    static bool checkAxesSuitability(const std::shared_ptr<const ngraph::Node>&);
 
-    template <typename in_data_t, typename out_data_t>
-    void mvn_blk(const in_data_t* src_data, out_data_t* dst_data, const InferenceEngine::SizeVector& dims);
+private:
+    void mvn_pln(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+
+    void mvn_blk(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+
+    void mvn_ref(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
@@ -98,6 +101,12 @@ private:
     bool across_channels = false;
     bool normalize_variance = true;
     float eps = 1e-9f;
+    // Defines way to add epsilon: inside sqrt or outside.
+    enum epsType {
+        insideSqrt,
+        outsideSqrt
+    };
+    epsType epsMode_;
 
     InferenceEngine::Precision input_prec, output_prec;
     size_t src_data_size, dst_data_size;
