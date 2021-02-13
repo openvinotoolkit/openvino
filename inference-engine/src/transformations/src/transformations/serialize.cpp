@@ -267,16 +267,8 @@ public:
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<std::string>& adapter) override {
-        if ((m_node_type_name == "GenericIE") &&
-            (name == "__generic_ie_type__")) {
-            // __generic_ie_type__  in GenericIE should not be serialized as a
-            // <data> since it's purpose is to hold name of the layer type
-            // it is a WA to not introduce dependency on plugin_api library
-            m_node_type_name = adapter.get();
-        } else {
-            m_xml_node.append_attribute(name.c_str())
-                .set_value(adapter.get().c_str());
-        }
+        m_xml_node.append_attribute(name.c_str())
+            .set_value(adapter.get().c_str());
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<int64_t>& adapter) override {
