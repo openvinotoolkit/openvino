@@ -29,7 +29,6 @@
 #include "ie_blob_stream.hpp"
 #include "caseless.hpp"
 #include <ie_ngraph_utils.hpp>
-#include "generic_ie.hpp"
 #include "precision_utils.h"
 #include "blob_factory.hpp"
 
@@ -350,7 +349,7 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
         }
     } else {
         THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
-                            << " parameter";
+                           << " parameter";
     }
 }
 
@@ -367,8 +366,6 @@ void V10Parser::XmlDeserializer::on_adapter(const std::string& name, ngraph::Val
     } else {
         THROW_IE_EXCEPTION << "Error: not recognized adapter name: " << name << ".";
     }
-    // Disabled reshape for generic operations in the TI body
-    ngraph::op::GenericIE::DisableReshape noReshape(ngraph_function);
     adapter.set(ngraph_function);
 }
 
@@ -490,7 +487,6 @@ std::shared_ptr<ngraph::Function> V10Parser::XmlDeserializer::parse_function(con
 
     OV_ITT_TASK_NEXT(taskChain, "ConstructNgraphFunction");
 
-    ::ngraph::op::GenericIE::DisableReshape noReshape(allNodes);
     auto function = std::make_shared<ngraph::Function>(result_nodes, sink_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
     for (const auto& sink : sink_nodes) {
         if (const auto& assign = std::dynamic_pointer_cast<ngraph::op::AssignBase>(sink)) {
@@ -764,7 +760,7 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
     std::shared_ptr<ngraph::Node> ngraphNode;
 
-    // Find registerd opset
+    // Find registered opset
     auto opsetIt = opsets.find(params.version);
 
     // Try to create operation from loaded opsets
@@ -816,52 +812,6 @@ std::shared_ptr<ngraph::Node> V10Parser::XmlDeserializer::createNode(
 
         // To be sure that all default values will be initialized:
         ngraphNode = ngraphNode->clone_with_new_inputs(ngraphNode->input_values());
-    }
-
-    // Create GenericIE operation for backward compatibility
-    if (!ngraphNode && (params.version == "experimental" || params.version == "extension")) {
-        // Try to create Generic node for backward compatibility
-        std::map<std::string, Parameter> parameters;
-        pugi::xml_node dn = node.child("data");
-        if (dn) {
-            for (const auto& attr : dn.attributes()) {
-                parameters[attr.name()] = std::string(attr.value());
-            }
-        }
-
-        auto blobs = node.child("blobs");
-        if (!blobs.empty()) {
-            size_t length = weights->byteSize();
-
-            for (pugi::xml_node blob = blobs.first_child(); !blob.empty(); blob = blob.next_sibling()) {
-                size_t size = GetUInt64Attr(blob, "size", 0);
-                uint64_t offset = GetUInt64Attr(blob, "offset", 0);
-                Precision precision(Precision::U8);
-                const std::string& preStr = GetStrAttr(blob, "precision", "");
-                if (!preStr.empty())
-                    precision = Precision::FromStr(preStr);
-                if (!size) continue;
-                if (!length)
-                    THROW_IE_EXCEPTION << "Cannot read network! The model requires weights data! "
-                        << "Bin file cannot be found! Please specify the path to bin file.";
-                if (static_cast<uint64_t>(length) < offset + size)
-                    THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer with name: " << params.name
-                                       << ". Layer has incorrect weights!";
-                uint8_t* data = weights->cbuffer().as<uint8_t*>() + offset;
-                Blob::Ptr wBlob = make_shared_blob<uint8_t>({Precision::U8, { size / precision.size() }, C }, data);
-
-                parameters[blob.name()] = wBlob;
-            }
-        }
-        std::vector<ngraph::op::GenericIE::PortIE> outputs;
-        for (const auto& port : params.outputPorts) {
-            ngraph::op::GenericIE::PortIE iePort;
-            iePort.dims = port.dims;
-            iePort.precision = InferenceEngine::details::convertPrecision(port.precision);
-            outputs.emplace_back(iePort);
-        }
-
-        ngraphNode = std::make_shared<ngraph::op::GenericIE>(inputs, parameters, params.type, outputs);
     }
 
     if (!ngraphNode) {
