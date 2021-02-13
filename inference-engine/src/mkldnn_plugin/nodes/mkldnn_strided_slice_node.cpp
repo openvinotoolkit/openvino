@@ -455,7 +455,11 @@ void MKLDNNStridedSliceNode::stridedSliceV() {
     const size_t dstShift = params.dstStrides[1] * params.dataSize;
     const size_t srcShift = stride[1] * params.srcStrides[1] * params.dataSize;
 
+    std::cout << getName() << ": " << dstIdx << " " << srcIdx << " " << dstShift << " " << srcShift << " " << params.dstDims[0] << " "
+              << params.dstDims[1] << " " << begin[0] << " " << begin[1] << " " << params.srcStrides[0] << " " << params.srcStrides[1] << " "
+              << params.lastDstDim << std::endl;
     if (params.dstDims.size() > 2) {
+        std::cout << "2d" << std::endl;
         parallel_for2d(params.dstDims[0], params.dstDims[1], [&](const size_t i, const size_t j) {
             cpu_memcpy(&dstData[i * dstIdx + j * dstShift], &srcData[i * srcIdx + j * srcShift], params.lastDstDim);
         });
