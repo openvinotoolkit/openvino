@@ -15,7 +15,6 @@
 #include <vector>
 #include <tuple>
 #include <ie_system_conf.h>
-#include <generic_ie.hpp>
 #include <nodes/list.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_transformer.h>
@@ -107,8 +106,6 @@ Engine::~Engine() {
 
 static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
