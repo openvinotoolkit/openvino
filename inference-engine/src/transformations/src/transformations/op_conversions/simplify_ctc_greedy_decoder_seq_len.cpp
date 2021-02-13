@@ -11,13 +11,10 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLen, "SimplifyCTCGreedyDecoder", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLen, "SimplifyCTCGreedyDecoderSeqLen", 0);
 
-ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
-    MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLen);
-    auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>();
-
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+ngraph::matcher_pass_callback ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::simplify_ctc_greedy_decoder_seq_len() {
+    return [=](ngraph::pattern::Matcher& m) {
         auto decoder_seq_len = std::dynamic_pointer_cast<opset6::CTCGreedyDecoderSeqLen> (m.get_match_root());
         if (!decoder_seq_len) {
             return false;
@@ -26,13 +23,13 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         if (decoder_seq_len->get_input_size() > 2) {
             const auto seq_len_pshape = decoder_seq_len->get_input_partial_shape(0);
             auto blank_index = std::dynamic_pointer_cast<ngraph::opset6::Constant>(decoder_seq_len->input_value(2).get_node_shared_ptr());
-            if (!blank_index || seq_len_pshape.rank().is_dynamic() || seq_len_pshape[2].is_dynamic()) {
+            if (!blank_index) {
                 return false;
             }
 
             const std::vector<int64_t> &blank_index_values = blank_index->cast_vector<int64_t>();
             const auto num_classes = decoder_seq_len->get_input_partial_shape(0)[2].get_length();
-            if (blank_index_values[0] == (num_classes - 1)) {
+            if (blank_index_values[0] != (num_classes - 1)) {
                 return false;
             }
         }
@@ -41,7 +38,7 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         // Transposing input data channels from [N, T, C] to [T, N, C]. Need for compatible with CTCGreedyDecoder v1
         auto transpose = std::make_shared<ngraph::opset6::Transpose>(decoder_seq_len->input_value(0),
                                                                      ngraph::opset6::Constant::create(element::i32,
-                                                               Shape({3}), {1, 0, 2}));
+                                                                                                      Shape({3}), {1, 0, 2}));
         // Receive time and batch dimensions and concatenate to [T, N] tensor shapes
         auto data_shape = std::make_shared<ngraph::opset6::ShapeOf>(decoder_seq_len->input_value(0));
         auto axisT = ngraph::opset6::Constant::create(seq_len_type, Shape{}, {0});
@@ -83,8 +80,8 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), element::f32);
         // Create CTCGreedyDecoder with original merge_repeated attribute and connect data and resulted seq_mask
         auto decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
-                                                                                     transpose_seq_mask_f32->output(0),
-                                                                                     decoder_seq_len->get_merge_repeated());
+                                                                          transpose_seq_mask_f32->output(0),
+                                                                          decoder_seq_len->get_merge_repeated());
         decoder->set_friendly_name(decoder_seq_len->get_friendly_name());
 
         // Normalize output from CTCGreedyDecoder = output_f and create second output with output_seq_len
@@ -112,8 +109,8 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         // Receive the second output with correct seq_len_type
         auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
         ngraph::copy_runtime_info(decoder_seq_len, {transpose, decoder, data_shape, T, N, plusT, plusT_scalar, range1T, mask_shape, upper_bounds,
-                                               squeeze2_output_f, squeeze1_output_f, transpose_upper_bounds, bool_seq_mask, seq_mask, transpose_seq_mask,
-                                               transpose_seq_mask_f32, output_i, where_equal_minus1, output_seq_mask, output_seq_len, output_seq_len_i});
+                                                    squeeze2_output_f, squeeze1_output_f, transpose_upper_bounds, bool_seq_mask, seq_mask, transpose_seq_mask,
+                                                    transpose_seq_mask_f32, output_i, where_equal_minus1, output_seq_mask, output_seq_len, output_seq_len_i});
 
         output_i->set_friendly_name(decoder_seq_len->get_friendly_name()+".0");
         output_seq_len_i->set_friendly_name(decoder_seq_len->get_friendly_name()+".1");
@@ -121,6 +118,28 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
 
         return true;
     };
+}
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLenWithoutBlankIndex, "SimplifyCTCGreedyDecoderSeqLenWithoutBlankIndex", 0);
+
+ngraph::pass::SimplifyCTCGreedyDecoderSeqLenWithoutBlankIndex::SimplifyCTCGreedyDecoderSeqLenWithoutBlankIndex() {
+    MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLenWithoutBlankIndex);
+    auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>();
+    ngraph::matcher_pass_callback callback = ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::simplify_ctc_greedy_decoder_seq_len();
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(decoder, matcher_name);
+    register_matcher(m, callback);
+}
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLenWithBlankIndex, "SimplifyCTCGreedyDecoderSeqLenWithBlankIndex", 0);
+
+ngraph::pass::SimplifyCTCGreedyDecoderSeqLenWithBlankIndex::SimplifyCTCGreedyDecoderSeqLenWithBlankIndex() {
+    MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLenWithBlankIndex);
+    auto data = ngraph::pattern::any_input(pattern::has_static_dims({2}));
+    auto seq_len = ngraph::pattern::any_input();
+    auto blank_index = ngraph::pattern::any_input();
+    auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>({data, seq_len, data});
+    ngraph::matcher_pass_callback callback = ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::simplify_ctc_greedy_decoder_seq_len();
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(decoder, matcher_name);
     register_matcher(m, callback);
