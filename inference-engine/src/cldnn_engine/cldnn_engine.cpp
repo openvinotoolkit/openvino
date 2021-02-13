@@ -21,7 +21,6 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <generic_ie.hpp>
 #include <ie_ngraph_utils.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
@@ -137,8 +136,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
     if (clonedNetwork.getFunction()) {
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork");
         auto nGraphFunc = clonedNetwork.getFunction();
-        // Disable shape inference (WA for generic operations)
-        ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         bool enableInt8;
         {

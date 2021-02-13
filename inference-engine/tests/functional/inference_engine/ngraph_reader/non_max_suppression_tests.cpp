@@ -17,7 +17,6 @@
 #include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "generic_ie.hpp"
 
 #include "legacy/convert_function_to_cnn_network.hpp"
 

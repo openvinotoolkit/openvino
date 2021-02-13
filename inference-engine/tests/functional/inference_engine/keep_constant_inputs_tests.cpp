@@ -20,7 +20,6 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
-#include "generic_ie.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 using namespace testing;

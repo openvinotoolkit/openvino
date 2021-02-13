@@ -25,8 +25,8 @@
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
 #include <ie_ngraph_utils.hpp>
-#include "generic_ie.hpp"
 #include <ngraph/variant.hpp>
+#include <ngraph/ngraph.hpp>
 #include "cldnn_itt.h"
 
 using namespace InferenceEngine;
@@ -464,7 +464,6 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         create_ngraph_node(pi);
     }
 
-    ngraph::op::GenericIE::DisableReshape reshape(nodes);
     auto function = std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
     InferenceEngine::CNNNetwork net(function);
     return net;
