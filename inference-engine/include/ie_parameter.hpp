@@ -265,11 +265,11 @@ private:
     struct HasOperatorEqual : CheckOperatorEqual<T, EqualTo>::type {};
 
     struct Any {
-#ifdef __clang__
+#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
         virtual ~Any();
 #else
         virtual ~Any() = default;
-#endif
+#endif  // __clang__ && !__SYCL_COMPILER_VERSION
         virtual bool is(const std::type_info&) const = 0;
         virtual Any* copy() const = 0;
         virtual bool operator==(const Any& rhs) const = 0;
@@ -326,7 +326,7 @@ private:
     Any* ptr = nullptr;
 };
 
-#ifdef __clang__
+#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<int>);
 extern template struct INFERENCE_ENGINE_API_CLASS(InferenceEngine::Parameter::RealData<bool>);
@@ -341,6 +341,6 @@ extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>);
 extern template struct INFERENCE_ENGINE_API_CLASS(
     InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>);
-#endif  // __clang__
+#endif  // __clang__ && !__SYCL_COMPILER_VERSION
 
 }  // namespace InferenceEngine
