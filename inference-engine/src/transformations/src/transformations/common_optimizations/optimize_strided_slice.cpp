@@ -7,9 +7,11 @@
 
 #include "itt.hpp"
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
+#include "transformations/utils/utils.hpp"
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/graph_util.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOptimization", 0);
 
@@ -220,11 +222,12 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
             size_splits.push_back(item.second);
         auto size_splits_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{size_splits.size()}, size_splits);
         auto variadic_split = std::make_shared<ngraph::opset1::VariadicSplit>(pair.first, axis_const, size_splits_const);
-
         auto i = 0;
         NodeVector ops_to_replace;
         for (auto & record : output_to_size) {
             if (record.first != fake_output) {
+                const auto out_name = record.first.get_node_shared_ptr()->get_friendly_name();
+                variadic_split->get_output_tensor(i).set_names({out_name});
                 record.first.replace(variadic_split->output(i));
                 ops_to_replace.push_back(record.first.get_node_shared_ptr());
             }

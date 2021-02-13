@@ -48,10 +48,16 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
 
 inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& output) {
     const auto& prev_layer = output.get_node_shared_ptr();
-    std::string out_name = prev_layer->get_friendly_name();
-    if (prev_layer->get_output_size() != 1)
-        out_name += "." + std::to_string(output.get_index());
-    return out_name;
+
+    const auto& tensor_names = prev_layer->get_output_tensor(output.get_index()).get_names();
+    if (tensor_names.size() == 1) {
+        return *tensor_names.begin();
+    } else {
+        std::string out_name = prev_layer->get_friendly_name();
+        if (prev_layer->get_output_size() != 1)
+            out_name += "." + std::to_string(output.get_index());
+        return out_name;
+    }
 }
 
 template <typename T>
