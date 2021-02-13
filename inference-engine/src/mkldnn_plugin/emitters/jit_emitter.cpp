@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "emitter.hpp"
+#include "jit_emitter.hpp"
 #include "utils/general_utils.h"
 #include <vector>
 
@@ -166,7 +166,7 @@ void jit_emitter::emitter_postamble() const {
     aux_gpr_idxs.clear();
 }
 
-void jit_emitter::emit_table() {
+void jit_emitter::emit_data() const {
     h->align(64);
     h->L(*l_table.get());
 
@@ -197,8 +197,8 @@ void jit_emitter::prepare_table() {
     }
 }
 
-void jit_emitter::emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                       const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
+void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                            const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, nullptr);
@@ -206,9 +206,9 @@ void jit_emitter::emit(const std::vector<size_t> &in_idxs, const std::vector<siz
     emitter_postamble();
 }
 
-void jit_emitter::emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                       const std::shared_ptr<const emitter_context> &emit_context,
-                       const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
+void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                            const std::shared_ptr<const emitter_context> &emit_context,
+                            const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
     emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, emit_context.get());

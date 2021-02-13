@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "emitters/emitter.hpp"
-#include "jit_load_store_emitters.h"
+#include "jit_emitter.hpp"
+#include "jit_load_store_emitters.hpp"
 #include "legacy/ie_layers.h"
 #include <cpu/x64/jit_generator.hpp>
 #include "utils/bfloat16.hpp"
@@ -26,7 +26,7 @@ jit_load_emitter::jit_load_emitter(jit_generator *host, cpu_isa_t host_isa, cons
     v_len_elt = get_vec_length() / exec_prc.size();
 }
 
-size_t jit_load_emitter::get_inputs_num() { return 1; }
+size_t jit_load_emitter::get_inputs_num() const { return 1; }
 
 // 0 for temp reg for mask load, 1 for table address
 size_t jit_load_emitter::aux_gprs_count() const {
@@ -508,7 +508,7 @@ size_t jit_store_emitter::aux_vecs_count() const {
     return 1;
 }
 
-size_t jit_store_emitter::get_inputs_num() { return 1; }
+size_t jit_store_emitter::get_inputs_num() const { return 1; }
 
 void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
@@ -829,7 +829,7 @@ template <typename Vmm>
             if (mayiuse(cpu::x64::avx512_core_bf16)) {
                 h->vcvtneps2bf16(ymm, zmm);
             } else {
-                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
+                emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(ymm.getIdx())});
             }
             if (store_num == 16) {
                 h->vmovdqu16(ptr[reg + offset], ymm);

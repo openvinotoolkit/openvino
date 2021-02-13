@@ -38,14 +38,14 @@ public:
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
     }
 
-    virtual void emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                      const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const;
+    virtual void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                   const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const;
+    virtual void emit_data() const;
 
-    virtual void emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+    virtual void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                       const std::shared_ptr<const emitter_context> &emit_context,
                       const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {});
-    virtual void emit_table();
-    virtual size_t get_inputs_num() = 0;
+    virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
     static std::set<InferenceEngine::Precision> get_supported_precisions();
 

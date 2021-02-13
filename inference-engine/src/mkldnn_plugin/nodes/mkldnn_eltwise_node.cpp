@@ -16,9 +16,10 @@
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_pooling_node.h"
 
-#include "emitters/emitter.hpp"
+#include "emitters/jit_emitter.hpp"
 #include "emitters/jit_eltwise_emitters.hpp"
 #include "emitters/jit_mkldnn_emitters.hpp"
+#include "emitters/jit_bf16_emitters.hpp"
 #include <mkldnn_selective_build.h>
 
 #include <string>
@@ -294,11 +295,11 @@ struct jit_uni_eltwise_generic : public MKLDNNPlugin::jit_uni_eltwise_kernel, pu
         this->postamble();
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_table();
+            emu_vcvtneps2bf16->emit_data();
 
-        eltwise_emitter->emit_table();
+        eltwise_emitter->emit_data();
         for (int i = 0; i < post_op_emitters.size(); i++) {
-            post_op_emitters[i]->emit_table();
+            post_op_emitters[i]->emit_data();
         }
     }
 
@@ -485,7 +486,7 @@ private:
         std::vector<size_t> out_idxs;
         out_idxs.push_back(vmm_dst.getIdx());
 
-        eltwise_emitter->emit(in_idxs, out_idxs, aux_idxs);
+        eltwise_emitter->emit_code(in_idxs, out_idxs, aux_idxs);
     }
 
     inline void apply_post_ops(bool is_scalar, int offset = 0) {
@@ -505,7 +506,7 @@ private:
                 std::vector<size_t> out_idxs;
                 out_idxs.push_back(vmm_dst.getIdx());
 
-                post_op_emitters[eltwise_post_op_idx]->emit(in_idxs, out_idxs, aux_idxs);
+                post_op_emitters[eltwise_post_op_idx]->emit_code(in_idxs, out_idxs, aux_idxs);
 
                 eltwise_post_op_idx++;
             } else {
@@ -647,7 +648,7 @@ private:
                 if (mayiuse(avx512_core_bf16))
                     vcvtneps2bf16(ymm_dst, vmm_dst);
                 else
-                    emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                    emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
                 vmovdqu16(op, ymm_dst);
                 break;
             case Precision::I16:

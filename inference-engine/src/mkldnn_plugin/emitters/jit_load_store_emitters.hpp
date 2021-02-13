@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "emitters/emitter.hpp"
+#include "jit_emitter.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include "mkldnn_node.h"
-#include "utils/bfloat16.hpp"
+#include "jit_bf16_emitters.hpp"
 
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
@@ -68,7 +68,7 @@ public:
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) const override;
 
-    size_t get_inputs_num() override;
+    size_t get_inputs_num() const override;
 
 private:
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
@@ -122,7 +122,7 @@ public:
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
                   const emitter_context *emit_context) const override;
 
-    size_t get_inputs_num() override;
+    size_t get_inputs_num() const override;
 
     std::shared_ptr<jit_emu_vcvtneps2bf16> get_emu_vcvtneps2bf16() const {
         return emu_vcvtneps2bf16;
