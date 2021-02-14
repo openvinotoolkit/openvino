@@ -32,7 +32,7 @@ class CTCGreedyDecoderReplacementTests(unittest.TestCase):
             'seq_len': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
             'order_arr': {'kind': 'op', 'op': 'Const'},
             'transpose': {'type': 'Transpose', 'kind': 'op', 'op': 'Transpose'},
-            'decoder': {'kind': 'op', 'op': 'CTCGreedyDecoderSeqLen'},
+            'decoder': {'kind': 'op', 'op': 'CTCGreedyDecoderSeqLen', 'merge_repeated': True},
             'cast': {'kind': 'op', 'op': 'Cast'},
             'sparse_to_dense': {'kind': 'op', 'op': 'SparseToDense'},
             'last': {'type': None, 'value': None, 'kind': 'op', 'op': 'Result'},
