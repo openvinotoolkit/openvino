@@ -431,6 +431,7 @@ void MKLDNNStridedSliceNode::createPrimitive() {
 }
 
 void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
+    std::cout << getName() << " execute " << std::endl;
     if (params.dstDims.size() > 1 && params.nDimsForWork == 1)
         stridedSliceV();
     else
@@ -455,9 +456,27 @@ void MKLDNNStridedSliceNode::stridedSliceV() {
     const size_t dstShift = params.dstStrides[1] * params.dataSize;
     const size_t srcShift = stride[1] * params.srcStrides[1] * params.dataSize;
 
-    std::cout << getName() << ": " << dstIdx << " " << srcIdx << " " << dstShift << " " << srcShift << " " << params.dstDims[0] << " "
+    std::cout  << std::endl << getName() << ": " << dstIdx << " " << srcIdx << " " << dstShift << " " << srcShift << " " << params.dstDims[0] << " "
               << params.dstDims[1] << " " << begin[0] << " " << begin[1] << " " << params.srcStrides[0] << " " << params.srcStrides[1] << " "
               << params.lastDstDim << std::endl;
+    for (auto v : this->getParentEdgeAt(DATA_ID)->getDims().ToSizeVector())
+        std::cout << v << " ";
+    std::cout << std::endl;
+    for (auto v : this->getChildEdgeAt(DATA_ID)->getDims().ToSizeVector())
+        std::cout << v << " ";
+    std::cout << std::endl;
+    for (auto v : params.srcDims)
+        std::cout << v << " ";
+    std::cout << std::endl;
+    for (auto v : params.dstDims)
+        std::cout << v << " ";
+    std::cout << std::endl;
+    for (auto v : params.srcStrides)
+        std::cout << v << " ";
+    std::cout << std::endl;
+    for (auto v : params.dstStrides)
+        std::cout << v << " ";
+    std::cout << getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getLayout() << std::endl;
     if (params.dstDims.size() > 2) {
         std::cout << "2d" << std::endl;
         parallel_for2d(params.dstDims[0], params.dstDims[1], [&](const size_t i, const size_t j) {
