@@ -26,6 +26,7 @@ std::vector<bool> mergeRepeated{true, false};
 
 const auto basicCases = ::testing::Combine(
     ::testing::ValuesIn(inputShape),
+    ::testing::Values(10),
     ::testing::ValuesIn(probPrecisions),
     ::testing::ValuesIn(idxPrecisions),
     ::testing::Values(0),
@@ -38,7 +39,8 @@ INSTANTIATE_TEST_CASE_P(smoke_set1, CTCGreedyDecoderSeqLenLayerTest,
 
 INSTANTIATE_TEST_CASE_P(smoke_set2, CTCGreedyDecoderSeqLenLayerTest,
         ::testing::Combine(
-                        ::testing::Values(std::vector<size_t>{2, 8, 11}),
+                        ::testing::ValuesIn(std::vector<std::vector<size_t>>{{2, 8, 11}, {4, 10, 55}}),
+                        ::testing::ValuesIn(std::vector<int>{5, 100}),
                         ::testing::ValuesIn(probPrecisions),
                         ::testing::ValuesIn(idxPrecisions),
                         ::testing::ValuesIn(std::vector<int>{0, 5, 10}),
