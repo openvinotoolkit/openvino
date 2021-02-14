@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "emitter.h"
+#include "jit_emitter.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include "mkldnn_node.h"
-#include "utils/bfloat16.hpp"
+#include "jit_bf16_emitters.hpp"
 
 using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu::x64;
@@ -66,9 +66,9 @@ public:
     */
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+                  const emitter_context *emit_context) const override;
 
-    size_t get_inputs_num() override;
+    size_t get_inputs_num() const override;
 
 private:
     template <mkldnn::impl::cpu::x64::cpu_isa_t isa>
@@ -94,6 +94,7 @@ private:
 
     size_t aux_gprs_count() const override;
 
+    std::string name;
     int v_len_elt;  // 4/8/16
 };
 
@@ -119,9 +120,9 @@ public:
     */
     void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                  const emitter_context *emit_context) override;
+                  const emitter_context *emit_context) const override;
 
-    size_t get_inputs_num() override;
+    size_t get_inputs_num() const override;
 
     std::shared_ptr<jit_emu_vcvtneps2bf16> get_emu_vcvtneps2bf16() const {
         return emu_vcvtneps2bf16;
@@ -144,6 +145,7 @@ private:
     size_t aux_gprs_count() const override;
     size_t aux_vecs_count() const override;
 
+    std::string name;
     int v_len_elt;  // 4/8/16
     std::shared_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
 };

@@ -16,7 +16,8 @@
 #include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include <algorithm>
-#include "common/jit_load_store_emitters.h"
+#include "emitters/jit_load_store_emitters.hpp"
+#include "emitters/jit_bf16_emitters.hpp"
 
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise.hpp>
@@ -200,7 +201,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
         this->postamble();
 
-        load_emitter->emit_table();
+        load_emitter->emit_data();
     }
 
 private:
@@ -241,7 +242,7 @@ private:
 
     inline void worker_full_size() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                             std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, step),
                             {}, {load_pool_gpr_idxs});
 
@@ -263,7 +264,7 @@ private:
 
     inline void worker_tail_blk() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                             std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num),
                             {}, {load_pool_gpr_idxs});
 
@@ -307,7 +308,7 @@ private:
 
     inline void worker_tail_planar() {
         Precision dst_prc = isFloatCompatible(jcp_.src_prc) ? Precision::FP32 : Precision::I32;
-        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
                             std::make_shared<load_emitter_context>(jcp_.src_prc, dst_prc, tail_num, true, "zero"),
                             {}, {load_pool_gpr_idxs});
 
@@ -478,9 +479,9 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
         this->postamble();
 
-        load_emitter->emit_table();
+        load_emitter->emit_data();
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && store_emitter != nullptr && store_emitter->get_emu_vcvtneps2bf16() != nullptr)
-            store_emitter->get_emu_vcvtneps2bf16()->emit_table();
+            store_emitter->get_emu_vcvtneps2bf16()->emit_data();
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
@@ -531,7 +532,7 @@ private:
 
     inline void worker_mvn(bool is_tail) {
         int elt_num = is_tail ? tail_num : step;
-        load_emitter->emit({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
+        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
             std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, elt_num),
             {}, {load_pool_gpr_idxs});
 
@@ -541,7 +542,7 @@ private:
 
         apply_post_ops(jcp_.dst_prc, jcp_.planar_layout);
 
-        store_emitter->emit({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
+        store_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
             std::make_shared<store_emitter_context>(Precision::FP32, jcp_.dst_prc, elt_num),
             {store_pool_vec_idxs}, {store_pool_gpr_idxs});
     }
