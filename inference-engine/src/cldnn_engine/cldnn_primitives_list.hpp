@@ -201,5 +201,8 @@ REGISTER_FACTORY(v5, Round);
 // REGISTER_FACTORY(v5, Loop);
 // REGISTER_FACTORY(v5, RNNSequence);
 
+// ------------------------------ Supported v6 ops ------------------------------ //
+REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);

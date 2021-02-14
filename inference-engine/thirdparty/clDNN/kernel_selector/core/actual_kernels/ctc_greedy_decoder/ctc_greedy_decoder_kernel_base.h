@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2020 Intel Corporation
+﻿// Copyright (c) 2020-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ struct ctc_greedy_decoder_params : public base_params {
     ctc_greedy_decoder_params() : base_params(KernelType::CTC_GREEDY_DECODER) {}
 
     bool merge_repeated = true;
+    uint32_t blank_index;
+    uint32_t outputs_num = 1;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
