@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2019-2021 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -6,6 +6,7 @@
 set(TARGET_NAME ieFuncTests)
 
 set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine)
+
 set(LINK_LIBRARIES
     gmock
     funcTestUtils
@@ -14,25 +15,20 @@ set(LINK_LIBRARIES
     inference_engine_transformations
     openvino::itt
     openvino::conditional_compilation
+    sharedTestClasses
 )
+
 set(DEPENDENCIES
     mock_engine
     inference_engine_ir_reader
     inference_engine_ir_v7_reader
     template_extension
     lptNgraphFunctions
+    sharedTestClasses
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
-    list(APPEND INCLUDES "${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op")
-    list(APPEND LINK_LIBRARIES onnx_custom_op)
-    list(APPEND DEPENDENCIES onnx_custom_op)
-else()
+if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_USE_PROTOBUF_LITE)
     set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
-endif()
-
-if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NOT ENABLE_MKL_DNN)
-    set(EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS} "${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp")
 endif()
 
 addIeTargetTest(
@@ -47,15 +43,16 @@ addIeTargetTest(
         IE
 )
 
-ie_faster_build(${TARGET_NAME}
-    PCH PRIVATE "precomp.hpp"
-)
-
-if(TARGET inference_engine_onnx_reader)
+if(NGRAPH_ONNX_IMPORT_ENABLE)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        NGRAPH_ONNX_IMPORT_ENABLE
+        ONNX_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()
 
-target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/")
+ie_faster_build(${TARGET_NAME}
+    PCH PRIVATE "precomp.hpp"
+)
 
 include(CMakeParseArguments)
 

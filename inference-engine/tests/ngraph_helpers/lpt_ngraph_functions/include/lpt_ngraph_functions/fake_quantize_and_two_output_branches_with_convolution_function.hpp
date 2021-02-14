@@ -6,9 +6,11 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
+
 #include <low_precision/layer_transformation.hpp>
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -16,41 +18,24 @@ namespace subgraph {
 
 class FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction {
 public:
-    class ActualValues {
-    public:
-        FakeQuantizeOnData fqOnData;
-        FakeQuantizeOnWeights fqOnWeights1;
-        FakeQuantizeOnWeights fqOnWeights2;
-    };
-
-    class ExpectedValues {
-    public:
-        FakeQuantizeOnData fqOnData;
-        FakeQuantizeOnWeights fqOnWeights1;
-        std::vector<float> multiplay1Values;
-        FakeQuantizeOnWeights fqOnWeights2;
-        std::vector<float> multiplay2Values;
-    };
-
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const ActualValues& values);
+        const FakeQuantizeOnData& fqOnData,
+        const FakeQuantizeOnWeights fqOnWeights1,
+        FakeQuantizeOnWeights fqOnWeights2);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const ExpectedValues& values);
+        const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData,
+        const ngraph::element::Type precisionBeforeOp,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+        const ngraph::element::Type precisionAfterOp,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter1,
+        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter2);
 };
-
-inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues& values) {
-    return out << "_" << values.fqOnData << "_" << values.fqOnWeights1 << "_" << values.fqOnWeights2;
-}
-
-inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ExpectedValues& values) {
-    return out << "_" << values.fqOnData << "_" << values.fqOnWeights1 << "_" << values.fqOnWeights2;
-}
 
 }  // namespace subgraph
 }  // namespace builder

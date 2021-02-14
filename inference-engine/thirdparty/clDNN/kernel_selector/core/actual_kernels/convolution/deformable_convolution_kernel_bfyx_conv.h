@@ -27,6 +27,7 @@ public:
     virtual ~DeformableConvolutionKernel_bfyx_conv() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 protected:
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;

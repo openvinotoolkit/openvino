@@ -43,6 +43,7 @@ void BF16Transformer::convertToFloat(InferenceEngine::CNNNetwork &network) {
         for (size_t o = 0; o < iter->outData.size(); o++) {
             if (inputs.find(iter->outData[o]->getName()) == inputs.end()
                 && outputs.find(iter->outData[o]->getName()) == outputs.end()
+                && !CaselessEq<std::string>()(iter->type, "const")
                 && iter->outData[o]->getPrecision() == Precision::BF16) {
                 iter->outData[o]->setPrecision(Precision::FP32);
             }
@@ -56,12 +57,6 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
     for (auto iter : sortedLayers) {
-        if (CaselessEq<std::string>()(iter->type, "convolution")) {
-            auto dims = iter->insData[0].lock()->getDims();
-            if ((dims.size() == 4 || dims.size() == 5) && (dims[1] == 1 || dims[1] == 3))
-                continue;
-        }
-
         //  check, if memory output node needs to be transformed
         if (iter->type == "Memory" && iter->outData.size() == 0 &&
             iter->insData[0].lock()->getPrecision() == Precision::FP32) {
@@ -210,7 +205,7 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
                     }
                     bool marked = tryToMarkFP32(inputTo.second->outData[o], immutable);
                     if (marked) {
-                        toAnalyzeTensors.insert(layer->outData[o]);
+                        toAnalyzeTensors.insert(inputTo.second->outData[o]);
                     }
                 }
             }
@@ -347,6 +342,9 @@ void BF16Transformer::addLayerToCNNNetworkAfterData(
 void BF16Transformer::insertConvertAfterInput(InferenceEngine::CNNNetwork &network) {
     auto inputLayers = InferenceEngine::CNNNetGetAllInputLayers(network);
     for (auto inputIter : inputLayers) {
+        if (inputIter->type == "Const") {
+            continue;
+        }
         for (size_t o = 0; o < inputIter->outData.size(); o++) {
             for (auto bfInitIter : getInputTo(inputIter->outData[o])) {
                 if (inputIter->outData[o]->getPrecision() == Precision::BF16) {

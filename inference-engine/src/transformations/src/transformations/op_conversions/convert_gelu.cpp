@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include <memory>
 #include <ngraph/opsets/opset2.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -9,16 +10,17 @@
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGELU, "ConvertGELU", 0);
 
 ngraph::pass::ConvertGELU::ConvertGELU() {
-    auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto gelu = std::make_shared<ngraph::opset2::Gelu>(input);
+    MATCHER_SCOPE(ConvertGELU);
+    auto gelu = pattern::wrap_type<ngraph::opset2::Gelu>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto gelu = std::dynamic_pointer_cast<ngraph::opset2::Gelu>(m.get_match_root());
-        if (!gelu || m_transformation_callback(gelu))
+        if (!gelu || transformation_callback(gelu))
             return false;
         auto input = gelu->input_value(0);
         auto input_type = input.get_element_type();
@@ -37,6 +39,6 @@ ngraph::pass::ConvertGELU::ConvertGELU() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(gelu, "ConvertGELU");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(gelu, matcher_name);
     register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

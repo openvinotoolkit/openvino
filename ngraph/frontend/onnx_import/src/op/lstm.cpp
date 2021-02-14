@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,9 @@
 #include <string>
 #include <vector>
 
-#include "lstm.hpp"
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/enum_names.hpp"
@@ -33,10 +35,8 @@
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/op/lstm.hpp"
+#include "op/lstm.hpp"
+#include "op/lstm.hpp"
 
 namespace ngraph
 {
@@ -67,8 +67,6 @@ namespace ngraph
                         const auto& ng_inputs = node.get_ng_inputs();
                         // We have input, output, forget and cell gates
                         constexpr std::size_t gates_count{4};
-                        // Peepholes add additional connections to input, output and forget gates.
-                        constexpr std::size_t peepholes_count{3};
 
                         // ----- Mandatory inputs ------
                         // Packed input sequences.

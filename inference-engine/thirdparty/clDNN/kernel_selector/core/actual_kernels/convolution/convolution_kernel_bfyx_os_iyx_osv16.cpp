@@ -166,8 +166,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
     const auto of_maps_per_group = of_maps / cp.groups;
     const size_t of_threads_per_batch = RoundUp(of_maps_per_group, sub_group_size) * cp.groups;
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
@@ -193,6 +191,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
     dispatchData.lws[2] = sub_group_size;
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 bool ConvolutionKernel_bfyx_os_iyx_osv16::Validate(const Params& p, const optional_params& o) const {

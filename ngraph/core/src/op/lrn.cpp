@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/lrn.hpp"
+#include <ngraph/validation_util.hpp>
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/multiply.hpp"
@@ -49,15 +51,14 @@ AxisSet op::LRN::get_reduction_axes() const
 {
     AxisSet axes{1}; // channel axis as default
     auto axes_input_node = input_value(1).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
-    {
+    if (const auto& const_op = get_constant_from_source(axes_input_node))
         axes = const_op->get_axis_set_val();
-    }
     return axes;
 }
 
 void op::LRN::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_LRN_validate_and_infer_types);
     element::Type arg_type = get_input_element_type(0);
     PartialShape arg_shape = get_input_partial_shape(0);
     set_output_type(0, arg_type, arg_shape);
@@ -114,6 +115,7 @@ void op::LRN::validate_and_infer_types()
 
 bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_LRN_visit_attributes);
     visitor.on_attribute("alpha", m_alpha);
     visitor.on_attribute("beta", m_beta);
     visitor.on_attribute("bias", m_bias);
@@ -123,6 +125,7 @@ bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor)
 
 shared_ptr<Node> op::LRN::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_LRN_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::LRN>(new_args.at(0), new_args.at(1), m_alpha, m_beta, m_bias, m_size);
 }

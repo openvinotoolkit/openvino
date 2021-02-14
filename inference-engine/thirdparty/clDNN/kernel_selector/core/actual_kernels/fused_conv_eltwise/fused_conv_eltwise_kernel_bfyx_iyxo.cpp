@@ -56,8 +56,6 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_iyxo
     int) const {
     DispatchData dispatchData = fused_conv_eltwise_kernel_base::SetDefault(cp);
 
-    dispatchData.efficiency = FORCE_PRIORITY_9;
-
     dispatchData.gws[0] = CeilDiv(cp.output.X().v, sub_group_size) / 4 / 2;
     dispatchData.gws[1] = cp.output.Y().v / 2;
     dispatchData.gws[2] = sub_group_size;
@@ -67,6 +65,10 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_iyxo
     dispatchData.lws[2] = sub_group_size;
 
     return dispatchData;
+}
+
+KernelsPriority fused_conv_eltwise_kernel_bfyx_iyxo::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 
 bool fused_conv_eltwise_kernel_bfyx_iyxo::Validate(const Params& p, const optional_params& o) const {

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ shared_ptr<Node> op::v4::ReduceL1::get_default_value() const
 
 shared_ptr<Node> op::v4::ReduceL1::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_ReduceL1_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v4::ReduceL1>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
@@ -67,16 +68,11 @@ namespace reduce_l1
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(i64)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(bf16)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f16)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f32)(arg, out, axes, keep_dims);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_reducel1_sum, i32, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reducel1_sum, i64, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reducel1_sum, bf16, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reducel1_sum, f16, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_reducel1_sum, f32, arg, out, axes, keep_dims);
         default: rc = false; break;
         }
         return rc;
@@ -86,6 +82,6 @@ namespace reduce_l1
 bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v4::ReduceL1::evaluate");
+    NGRAPH_OP_SCOPE(v4_ReduceL1_evaluate);
     return reduce_l1::evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

@@ -39,8 +39,7 @@ MultiDeviceAsyncInferRequest::MultiDeviceAsyncInferRequest(
                _multiDeviceExecutableNetwork->_thisPreferredDeviceName = "";
                // if any input is remote (e.g. was set with SetBlob), let' use the corresponding device
                for (const auto &it : _multiDeviceExecutableNetwork->GetInputsInfo()) {
-                   Blob::Ptr b;
-                   _inferRequest->GetBlob(it.first.c_str(), b);
+                   auto b = _inferRequest->GetBlob(it.first);
                    auto r = b->as<RemoteBlob>();
                    if (r) {
                        const auto name = r->getDeviceName();
@@ -87,8 +86,9 @@ void MultiDeviceAsyncInferRequest::Infer_ThreadUnsafe() {
     InferUsingAsync();
 }
 
-void MultiDeviceAsyncInferRequest::GetPerformanceCounts_ThreadUnsafe(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
-    perfMap = std::move(_perfMap);
+std::map<std::string, InferenceEngineProfileInfo> MultiDeviceAsyncInferRequest::GetPerformanceCounts() const {
+    CheckState();
+    return std::move(_perfMap);
 }
 
 MultiDeviceAsyncInferRequest::~MultiDeviceAsyncInferRequest() {

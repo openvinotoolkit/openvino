@@ -62,11 +62,12 @@ CommonDispatchData DeformableConvolutionKernel_bfyx_interp::SetDefault(const con
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
-
     return dispatchData;
 }
 
+KernelsPriority DeformableConvolutionKernel_bfyx_interp::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
+}
 
 JitConstants DeformableConvolutionKernel_bfyx_interp::GetJitConstants(const convolution_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);

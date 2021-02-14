@@ -55,8 +55,7 @@ NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normaliz
 }
 
 KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
-                                                      const optional_params& options,
-                                                      float estimated_time) const {
+                                                      const optional_params& options) const {
     assert(params.GetType() == KernelType::NORMALIZE);
     if (!Validate(params, options))
         return {};
@@ -85,8 +84,6 @@ KernelsData NormalizeKernelBase::GetCommonKernelsData(const Params& params,
                      GetFusedPrimitiveInputsCount(params));
 
     kernel.arguments.push_back({ArgumentDescriptor::Types::SCALE_TABLE, 0});
-
-    kd.estimatedTime = estimated_time;
 
     return {kd};
 }

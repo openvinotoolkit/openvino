@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ op::Ceiling::Ceiling(const Output<Node>& arg)
 
 shared_ptr<Node> op::Ceiling::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Ceiling_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Ceiling>(new_args.at(0));
 }
@@ -64,28 +65,17 @@ namespace ceiling
 
         switch (arg0->get_element_type())
         {
-            COPY_TENSOR(boolean)(arg0, out, count);
-            break;
-            COPY_TENSOR(i8)(arg0, out, count);
-            break;
-            COPY_TENSOR(i16)(arg0, out, count);
-            break;
-            COPY_TENSOR(i32)(arg0, out, count);
-            break;
-            COPY_TENSOR(i64)(arg0, out, count);
-            break;
-            COPY_TENSOR(u8)(arg0, out, count);
-            break;
-            COPY_TENSOR(u16)(arg0, out, count);
-            break;
-            COPY_TENSOR(u32)(arg0, out, count);
-            break;
-            COPY_TENSOR(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, boolean, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, i8, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, i16, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, i32, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, i64, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, u8, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, u16, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, u32, arg0, out, count);
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_ceiling, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_ceiling, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -94,6 +84,6 @@ namespace ceiling
 
 bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Ceiling::evaluate");
+    NGRAPH_OP_SCOPE(v0_Ceiling_evaluate);
     return ceiling::evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

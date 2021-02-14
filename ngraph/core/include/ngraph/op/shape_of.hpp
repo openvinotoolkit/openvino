@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,6 +55,8 @@ namespace ngraph
                 bool get_is_foldable() const { return m_is_foldable; }
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const override;
+                bool evaluate_lower(const HostTensorVector& output_values) const override;
+                bool evaluate_upper(const HostTensorVector& output_values) const override;
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& input_values) override;
 
@@ -91,6 +93,8 @@ namespace ngraph
                 bool get_is_foldable() const { return m_is_foldable; }
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const override;
+                bool evaluate_lower(const HostTensorVector& output_values) const override;
+                bool evaluate_upper(const HostTensorVector& output_values) const override;
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& input_values) override;
 

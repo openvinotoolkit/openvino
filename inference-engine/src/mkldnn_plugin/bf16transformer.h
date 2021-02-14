@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,21 +14,22 @@ namespace MKLDNNPlugin {
 
 class BF16Transformer {
     const InferenceEngine::details::caseless_set<std::string> _initbf16 =
-        { "convolution", "fullyconnected", "innerproduct", "gemm", "RegionYolo", "Interpolate" };
+        { "convolution", "fullyconnected", "innerproduct", "gemm", "RegionYolo", "Interpolate", "PSROIPooling", "Deconvolution" };
+
     const InferenceEngine::details::caseless_set<std::string> _complementbf16 =
         { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "normalize",
           "sigmoid", "ReLU6", "not", "activation", "HSwish", "mish", "logistic", "mod", "resample",
-          "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather", "memory", "mvn", "crop", "activation",
+          "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather", "gather_elements", "memory", "mvn", "crop", "activation",
           "broadcast", "convert", "BatchToSpace", "DepthToSpace", "ExtractImagePatches", "concat", "power", "lrn",
           "permute", "ScatterUpdate", "ScatterElementsUpdate", "ScatterNDUpdate", "depthwise",
           "select", "ShuffleChannels", "SpaceToBatch", "SpaceToDepth", "squeeze", "StridedSlice", "unsqueeze", "eltwise",
-          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin" };
+          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin", "ScaleShift"};
 
     const InferenceEngine::details::caseless_set<std::string> _multiinput =
         { "concat", "eltwise" };
     //  prevent fallback to fp32 without considering both input and output nodes
     const InferenceEngine::details::caseless_set<std::string> _skipmarking =
-        { "memory" };
+        { "memory", "Split" };
 
     /**
     * Tries to mark tensor as FP32 by analyzing of local consumers of the tensor. Do not mark if

@@ -19,22 +19,23 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
         R"(.*(IEClassBasicTestP).*smoke_registerPluginsXMLUnicodePath.*)",
-        // TODO: Issue: 34206
-        R"(.*(IEClassLoadNetwork).*(QueryNetworkMULTIWithHETERONoThrow_V10|QueryNetworkHETEROWithMULTINoThrow_V10).*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 40473
         R"(.*TopKLayerTest.*mode=min.*sort=index.*)",
         // TODO: Issue: 40961
         R"(.*(ConstantResultSubgraphTest).*)",
-        // TODO: Issue: 43795
-        R"(.*(PreprocessTest).*(SetMeanValuePreProcess).*)",
-        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
         // TODO: Issue: 42828
         R"(.*DSR_NonMaxSuppression.*NBoxes=(5|20|200).*)",
         // TODO: Issue: 42721
         R"(.*(DSR_GatherND).*)",
-        // TODO: Issue 43781
-        ".*ROIPoolingLayerTest.*"
+        // TODO: Issue 26090
+        ".*DSR_GatherStaticDataDynamicIdx.*f32.*1.3.200.304.*",
+        // TODO: Issue 47315
+        ".*ProposalLayerTest.*",
+        // TODO: Issue 46755
+        ".*DSR_GatherElements.*",
+        // TODO: Issue 46756
+        ".*smoke_Gather_GatherElements.*"
     };
 }

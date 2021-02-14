@@ -166,6 +166,18 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
             ADD_DUMP_PASS("reshapeDilationConv");
         }
 
+        //
+        // "reshapeBeforeConvTiling" pass changes geometry of convolution stages in order
+        // to get more efficient HW tiling (pass "hwConvTiling") using reshape stages.
+        //
+        // Pass should be located before "adjustDataBatch" because "adjustDataBatch" specifies "origConvOutput" attribute
+        // for convolution in order to provide that information to "hwConvTiling" pass.
+        // Otherwise, "hwConvTiling" will see incorrect values in "origConvOutput" attribute.
+        if (env.config.enableCustomReshapeParam) {
+            ADD_PASS(reshapeBeforeConvTiling);
+            ADD_DUMP_PASS("reshapeBeforeConvTiling");
+        }
+
         ADD_PASS(upliftActivationStages);
         ADD_DUMP_PASS("upliftActivationStages");
 

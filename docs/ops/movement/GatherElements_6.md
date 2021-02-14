@@ -20,53 +20,53 @@ For instance, in the 3D case (`r = 3`), the output is determined by the followin
 ```
 Example 1 with concrete values:
 ```
-  data = [
-      [1, 2],
-      [3, 4],
-  ]
-  indices = [
-      [0, 1],
-      [0, 0],
-  ]
-  axis = 0
-  output = [
-        [1, 4],
-        [1, 2],
-  ]
+data = [
+    [1, 2],
+    [3, 4],
+]
+indices = [
+    [0, 1],
+    [0, 0],
+]
+axis = 0
+output = [
+    [1, 4],
+    [1, 2],
+]
 ```
 Example 2 with `axis` = 1 and `indices` having greater (than `data`) shape:
 ```
 data = [
-      [1, 7],
-      [4, 3],
-  ]
-  indices = [
-      [1, 1, 0],
-      [1, 0, 1],
-  ]
-  axis = 1
-  output = [
-        [7, 7, 1],
-        [3, 4, 3],
-  ]
+    [1, 7],
+    [4, 3],
+]
+indices = [
+    [1, 1, 0],
+    [1, 0, 1],
+]
+axis = 1
+output = [
+    [7, 7, 1],
+    [3, 4, 3],
+]
 ```
 
 Example 3 `indices` has lesser (than `data`) shape:
 ```
 data = [
-      [1, 2, 3],
-      [4, 5, 6],
-      [7, 8, 9],
-  ]
-  indices = [
-      [1, 0, 1],
-      [1, 2, 0],
-  ]
-  axis = 0
-  output = [
-        [4, 2, 6],
-        [4, 8, 3],
-  ]
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9],
+]
+indices = [
+    [1, 0, 1],
+    [1, 2, 0],
+]
+axis = 0
+output = [
+    [4, 2, 6],
+    [4, 8, 3],
+]
 ```
 
 **Attributes**:

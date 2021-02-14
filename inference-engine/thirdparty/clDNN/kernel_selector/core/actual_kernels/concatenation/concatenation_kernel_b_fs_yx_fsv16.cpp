@@ -123,9 +123,11 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_b_fs_yx_fsv16::SetDefa
     dispatchData.lws[1] = 16;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
+}
+
+KernelsPriority ConcatenationKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 JitConstants ConcatenationKernel_b_fs_yx_fsv16::GetJitConstants(const concatenation_params& params) const {

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/region_yolo.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "test_utils/cpu_test_utils.hpp"
 
@@ -82,7 +81,7 @@ TEST_P(RegionYoloCPULayerTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "RegionYolo");
+    CheckPluginRelatedResults(executableNetwork, "RegionYolo");
 }
 
 namespace {
@@ -118,9 +117,6 @@ const std::vector<std::vector<int64_t>> masks = {
 const std::vector<bool> do_softmax = {true, false};
 const std::vector<size_t> classes = {80, 20};
 const std::vector<size_t> num_regions = {5, 9};
-const size_t coords = 4;
-const int start_axis = 1;
-const int end_axis = 3;
 
 const regionYoloAttributes yoloV3attr = {80, 4, 9, false, 1, 3};
 

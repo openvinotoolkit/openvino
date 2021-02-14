@@ -11,13 +11,13 @@
 #include <ngraph/variant.hpp>
 
 #include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "execution_graph_tests/num_inputs_fusing_bin_conv.hpp"
 
-std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network);
+std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::CNNNetwork& network);
 
 namespace ExecutionGraphTests {
 
@@ -79,8 +79,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
             if (layerType == "BinaryConvolution") {
                 auto originalLayersNames = getExecValue("originalLayersNames");
                 ASSERT_TRUE(originalLayersNames.find("BinaryConvolution") != std::string::npos);
-                ASSERT_TRUE(originalLayersNames.find("Add") != std::string::npos);
-                ASSERT_EQ(op->get_input_size(), 1);
+                ASSERT_EQ(op->get_input_size(), 2);
             }
 
             // IR v7 does not have output nodes
@@ -89,7 +88,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
 
             IE_SUPPRESS_DEPRECATED_START
             InferenceEngine::CNNLayerPtr cnnLayer;
-            ASSERT_NO_THROW(cnnLayer = CommonTestUtils::getLayerByName(convertedExecGraph.get(), op->get_friendly_name()));
+            ASSERT_NO_THROW(cnnLayer = CommonTestUtils::getLayerByName(InferenceEngine::CNNNetwork(convertedExecGraph), op->get_friendly_name()));
             ASSERT_EQ(cnnLayer->name, op->get_friendly_name());
             auto variantType = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(
                 op->get_rt_info()[ExecGraphInfoSerialization::LAYER_TYPE]);;
@@ -109,8 +108,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
             if (node->type == "BinaryConvolution") {
                 std::string originalLayersNames = node->params["originalLayersNames"];
                 ASSERT_TRUE(originalLayersNames.find("BinaryConvolution") != std::string::npos);
-                ASSERT_TRUE(originalLayersNames.find("Add") != std::string::npos);
-                ASSERT_EQ(node->insData.size(), 1);
+                ASSERT_EQ(node->insData.size(), 2);
             }
         }
         IE_SUPPRESS_DEPRECATED_END

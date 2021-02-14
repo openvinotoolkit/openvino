@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
+#include <ngraph/validation_util.hpp>
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
@@ -54,11 +56,39 @@ void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arith
 
 void op::util::BinaryElementwiseArithmetic::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_validate_and_infer_types);
     validate_and_infer_elementwise_arithmetic(m_autob);
 }
 
 bool op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_util_BinaryElementwiseArithmetic_visit_attributes);
     visitor.on_attribute("auto_broadcast", m_autob);
+    return true;
+}
+
+bool op::util::BinaryElementwiseArithmetic::evaluate_upper(
+    const HostTensorVector& output_values) const
+{
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    HostTensorVector lower_output_tensors;
+    for (const auto& output : output_values)
+        lower_output_tensors.push_back(
+            std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
+    if (!interval_bound_evaluator(this, lower_output_tensors, output_values))
+        return false;
+    return true;
+}
+
+bool op::util::BinaryElementwiseArithmetic::evaluate_lower(
+    const HostTensorVector& output_values) const
+{
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    HostTensorVector upper_output_tensors;
+    for (const auto& output : output_values)
+        upper_output_tensors.push_back(
+            std::make_shared<HostTensor>(output->get_element_type(), output->get_partial_shape()));
+    if (!interval_bound_evaluator(this, output_values, upper_output_tensors))
+        return false;
     return true;
 }

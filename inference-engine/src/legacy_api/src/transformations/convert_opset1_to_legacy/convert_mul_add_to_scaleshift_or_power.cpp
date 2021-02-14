@@ -40,14 +40,14 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
     bool is_power = false;
     auto in_it = const_shape.rbegin();
     auto out_it = input_shape.rbegin();
-    for (int idx = 0; in_it != const_shape.rend() && out_it != input_shape.rend(); ++in_it, ++out_it, ++idx) {
+    for (size_t idx = 0; in_it != const_shape.rend() && out_it != input_shape.rend(); ++in_it, ++out_it, ++idx) {
         if (idx != feature_index && *in_it != 1) {
             return CONVERSION_RESULT::NONE;
         }
 
         if (idx == feature_index && *in_it == 1) {
             is_power = true;
-        } else if (idx == feature_index && (out_it->is_dynamic() || *in_it != out_it->get_length())) {
+        } else if (idx == feature_index && (out_it->is_dynamic() || static_cast<int64_t>(*in_it) != out_it->get_length())) {
             return CONVERSION_RESULT::NONE;
         }
     }
@@ -57,7 +57,7 @@ CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMulAddToScaleShiftOrPower, "ConvertMulAddToScaleShiftOrPower", 0);
 
-void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshift_or_power() {
+ngraph::pass::ConvertMulAddToScaleShiftOrPower::ConvertMulAddToScaleShiftOrPower() {
     auto data_batch = std::make_shared<pattern::op::Label>(element::f32, Shape {1});
 
     auto weights = std::make_shared<ngraph::opset1::Constant>(element::f32, Shape {1}, std::vector<float> {0});
@@ -66,7 +66,7 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
     auto mul = std::make_shared<ngraph::opset1::Multiply>(data_batch, weights);
     auto add = std::make_shared<ngraph::opset1::Add>(mul, bias);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto add_node = ngraph::as_type_ptr<ngraph::opset1::Add>(m.get_match_root());
 
         if (!add_node) {
@@ -209,6 +209,6 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "CPUFusion.MulAddToScaleShiftOrPower");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "MulAddToScaleShiftOrPower");
+    register_matcher(m, callback);
 }

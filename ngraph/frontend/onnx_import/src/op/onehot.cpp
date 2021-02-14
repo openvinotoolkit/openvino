@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 #include <cstdint>
 #include <memory>
 
-#include "onehot.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "default_opset.hpp"
+#include "op/onehot.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -34,8 +34,8 @@ namespace ngraph
                     OutputVector inputs{node.get_ng_inputs()};
                     auto indices =
                         std::make_shared<default_opset::Convert>(inputs.at(0), element::i64);
-                    auto depth = reshape::interpret_as_scalar(inputs.at(1));
-
+                    auto depth = std::make_shared<default_opset::Convert>(
+                        reshape::interpret_as_scalar(inputs.at(1)), element::i64);
                     // Rank 1 tensor containing exactly two elements: [off_value, on_value]
                     auto values = inputs.at(2);
                     auto split_axis = default_opset::Constant::create(element::i64, {}, {0});

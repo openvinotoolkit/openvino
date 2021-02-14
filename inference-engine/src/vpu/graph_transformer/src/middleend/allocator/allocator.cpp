@@ -100,8 +100,9 @@ int getInUse(const Data& data) {
     }
     for (const auto& childEdge : data->childDataToShapeEdges()) {
         auto const& child = childEdge->child();
-        if (child->usage() == DataUsage::Output) {
-            VPU_THROW_UNLESS(child->parentData() == nullptr, "Output data object must not have parent");
+        if (child->usage() == DataUsage::Input || child->usage() == DataUsage::Output) {
+            VPU_THROW_UNLESS(child->parentData() == nullptr,
+                             "Data object {} with usage {} must not have parent", child->name(), child->usage());
             inUse++;
         } else if (child->getTopParentData() == child) {
             inUse += getInUse(child);
@@ -316,8 +317,18 @@ ShapeLocation Allocator::allocateShape(const Data& data) {
     } else {
         // Static allocation
         shapeLocation.dimsLocation = Location::Blob;
-        shapeLocation.dimsOffset = _blobMemOffset;
-        _blobMemOffset += dimsByteSize;
+
+        // Prevent allocation of same shapes multiple times
+        auto dimOrder = data->desc().dimsOrder().toPermutation();
+        auto dimValues = data->desc().dims();
+        auto itr = _staticShapeOffsets.find({dimOrder, dimValues});
+        if (itr != _staticShapeOffsets.end()) {
+            shapeLocation.dimsOffset = itr->second;
+        } else {
+            shapeLocation.dimsOffset = _blobMemOffset;
+            _blobMemOffset += dimsByteSize;
+            _staticShapeOffsets.insert({{dimOrder, dimValues}, shapeLocation.dimsOffset});
+        }
     }
 
 

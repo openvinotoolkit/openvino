@@ -434,7 +434,7 @@ bool checkHWRestrictions(
     // widht and  small height
     // More details available with the ticket #-33366
 
-    if (inTileWidth > 507 && inTileHeight < 64 && type != HwOpType::POOL) {
+    if (inTileWidth > 507 && inTileHeight > 1 && inTileHeight < 64 && type != HwOpType::POOL) {
                 return false;
     }
 

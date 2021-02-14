@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -87,13 +87,7 @@ namespace ngraph
 
     AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::AttributeAdapter(
         shared_ptr<runtime::AlignedBuffer>& value)
-        : m_ref(value)
+        : DirectValueAccessor<shared_ptr<runtime::AlignedBuffer>>(value)
     {
     }
-
-    void* AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::get_ptr()
-    {
-        return m_ref->get_ptr();
-    }
-    size_t AttributeAdapter<shared_ptr<runtime::AlignedBuffer>>::size() { return m_ref->size(); }
 }

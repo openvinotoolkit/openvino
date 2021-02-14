@@ -1,6 +1,24 @@
+# ******************************************************************************
+# Copyright 2017-2021 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ******************************************************************************
+
 import argparse
 import os
 import re
+from distutils.util import strtobool
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -10,13 +28,13 @@ def parse_arguments():
                         help='Path to doxygen ignore list')
     parser.add_argument('--strip', type=str, required=False, default=os.path.abspath('../../'),
                         help='Strip from warning paths')
-    parser.add_argument('--include_omz', type=bool, required=False, default=False,
+    parser.add_argument('--include_omz', type=strtobool, required=False, default=False,
                         help='Include link check for omz docs')
-    parser.add_argument('--include_wb', type=bool, required=False, default=False,
+    parser.add_argument('--include_wb', type=strtobool, required=False, default=False,
                         help='Include link check for workbench docs')
-    parser.add_argument('--include_pot', type=bool, required=False, default=False,
+    parser.add_argument('--include_pot', type=strtobool, required=False, default=False,
                         help='Include link check for pot docs')
-    parser.add_argument('--include_gst', type=bool, required=False, default=False,
+    parser.add_argument('--include_gst', type=strtobool, required=False, default=False,
                         help='Include link check for gst docs')
     return parser.parse_args()
 

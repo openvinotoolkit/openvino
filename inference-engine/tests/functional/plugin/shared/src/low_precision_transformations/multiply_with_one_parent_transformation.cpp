@@ -16,29 +16,28 @@
 namespace LayerTestsDefinitions {
 
 std::string MultiplyWithOneParentTransformation::getTestCaseName(testing::TestParamInfo<MultiplyWithOneParentTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
     MultiplyWithOneParentTransformationValues values;
 
     std::tie(netPrecision, inputShape, targetDevice, values) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision.name() << "_" << CommonTestUtils::vec2str(inputShape);
+    result << netPrecision << "_" << CommonTestUtils::vec2str(inputShape);
     return result.str();
 }
 
 void MultiplyWithOneParentTransformation::SetUp() {
     threshold = 0.01f;
 
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     MultiplyWithOneParentTransformationValues values;
     std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    function = ngraph::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(precision, inputShape, values.fakeQuantize);
+    function = ngraph::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(netPrecision, inputShape, values.fakeQuantize);
 }
 
 TEST_P(MultiplyWithOneParentTransformation, CompareWithRefImpl) {

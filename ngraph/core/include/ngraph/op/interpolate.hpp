@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -234,6 +234,8 @@ namespace ngraph
                 std::vector<int64_t> get_axes() const;
 
             private:
+                bool evaluate_interpolate(const HostTensorVector& outputs,
+                                          const HostTensorVector& inputs) const;
                 InterpolateAttrs m_attrs;
 
                 /// \brief Corrects pads_begin and pads_end attributes.

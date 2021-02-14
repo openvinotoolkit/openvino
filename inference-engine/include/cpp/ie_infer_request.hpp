@@ -162,10 +162,13 @@ public:
         CALL_STATUS_FNC_NO_ARGS(Infer);
     }
 
-    StatusCode Cancel() {
-        ResponseDesc resp;
-        if (actual == nullptr) THROW_IE_EXCEPTION << "InferRequest was not initialized.";
-        return actual->Cancel(&resp);
+    /**
+     * @copybrief IInferRequest::Cancel
+     *
+     * Wraps IInferRequest::Cancel
+     */
+    void Cancel() {
+        CALL_STATUS_FNC_NO_ARGS(Cancel);
     }
 
     /**
@@ -241,7 +244,7 @@ public:
         auto res = actual->Wait(millis_timeout, &resp);
         if (res != OK && res != RESULT_NOT_READY &&
             res != INFER_NOT_STARTED && res != INFER_CANCELLED) {
-            InferenceEngine::details::extract_exception(res, resp.msg);
+            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << res << resp.msg;
         }
         return res;
     }
@@ -267,6 +270,7 @@ public:
      * @return A vector of Memory State objects
      */
     std::vector<VariableState> QueryState() {
+        IE_SUPPRESS_DEPRECATED_START
         if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
         IVariableState::Ptr pState = nullptr;
         auto res = OK;
@@ -281,6 +285,7 @@ public:
                 controller.push_back(VariableState(pState, plg));
             }
         }
+        IE_SUPPRESS_DEPRECATED_END
 
         return controller;
     }

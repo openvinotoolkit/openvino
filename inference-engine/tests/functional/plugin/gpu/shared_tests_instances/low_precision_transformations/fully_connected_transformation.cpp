@@ -12,8 +12,8 @@ using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<ngraph::element::Type> netPrecisions = {
-        ngraph::element::f32,
-        // ngraph::element::f16
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
 const std::vector<MatMulShapes> shapes = {
