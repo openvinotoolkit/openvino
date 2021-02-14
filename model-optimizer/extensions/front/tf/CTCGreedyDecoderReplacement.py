@@ -57,13 +57,13 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
                                                             {'name': ctc_greedy_decoder_tf.name + '/ctc_data_permute'})
 
-        output_ctc_greedy_decoder_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
+        ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
         assert ctc_greedy_decoder_tf.has_valid('merge_repeated'), \
-            'The CTCGreedyDecoderSeqLen node "{}" misses "merge_repeated" attribute'.format(output_ctc_greedy_decoder_name)
+            'The CTCGreedyDecoderSeqLen node "{}" misses "merge_repeated" attribute'.format(ctc_greedy_decoder_tf_name)
 
         ctc_greedy_decoder_tf.in_port(0).get_source().connect(ctc_data_permute.in_port(0))
         merge_repeated_tf = ctc_greedy_decoder_tf.merge_repeated
-        ctc_greedy_decoder = CTCGreedyDecoderSeqLenOp(graph, {'name': ctc_greedy_decoder_tf.name,
+        ctc_greedy_decoder = CTCGreedyDecoderSeqLenOp(graph, {'name': ctc_greedy_decoder_tf_name,
                                                               'merge_repeated': merge_repeated_tf}).create_node()
         ctc_greedy_decoder.in_port(0).connect(ctc_data_permute.out_port(0))
         ctc_greedy_decoder_tf.in_port(1).get_source().connect(ctc_greedy_decoder.in_port(1))
