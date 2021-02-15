@@ -6,6 +6,11 @@
 
 **Short description**: *Sin* performs element-wise sine operation with given tensor.
 
+**Detailed description**: *sin* does the following with the input tensor *a*:
+\f[
+a_{i} = sin(a_{i})
+\f]
+
 **Attributes**:
 
     No attributes available.
@@ -22,11 +27,6 @@
 
 * *T*: any numeric type.
 
-*sin* does the following with the input tensor *a*:
-
-\f[
-a_{i} = sin(a_{i})
-\f]
 
 **Examples**
 
