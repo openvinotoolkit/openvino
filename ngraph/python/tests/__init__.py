@@ -76,8 +76,6 @@ xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error
 xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
                                       "Pad. Cannot parse parameter pads_end  from IR for layer B. "
                                       "Value -1,0 cannot be casted to int.")
-xfail_issue_35915 = xfail_test(reason="RuntimeError: Eltwise node with unsupported combination "
-                                      "of input and output types")
 xfail_issue_35916 = xfail_test(reason="RuntimeError: Unsupported input dims count for layer Z")
 xfail_issue_35917 = xfail_test(reason="RuntimeError: Unsupported input dims count for "
                                       "layer MatMul")
