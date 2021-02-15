@@ -33,8 +33,7 @@ namespace ngraph
                 {
                     if (node.get_outputs_size() > 1)
                     {
-                        NGRAPH_WARN
-                            << "MaxPool: Indices output is not supported and was ignored";
+                        NGRAPH_WARN << "MaxPool: Indices output is not supported and was ignored";
                     }
                     auto max_pool = pooling::PoolingFactory(node).make_max_pool();
                     max_pool.emplace_back(std::make_shared<NullNode>()); // Indices (optional)
