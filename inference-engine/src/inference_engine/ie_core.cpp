@@ -160,7 +160,6 @@ class Core::Impl : public ICore {
 
     class CoreConfig {
         std::string _modelCacheDir {};
-        std::string _blobFileName {};
         bool _isModelCacheEnabled = false;
         std::map<std::string, std::string> _config;
 
@@ -184,21 +183,12 @@ class Core::Impl : public ICore {
                     config.erase(it);
                 }
             }
-
-            {
-                auto it = config.find(CONFIG_KEY(COMPILED_BLOB));
-                if (it != config.end()) {
-                    _config[it->first] = it->second;
-                    _blobFileName = it->second;
-                    _isModelCacheEnabled = true;
-                    config.erase(it);
-                }
-            }
         }
+
+        const std::map<std::string, std::string> & getConfig() const { return _config; }
 
         bool isModelCacheEnabled() const { return _isModelCacheEnabled; }
         std::string getModelCacheDir() const { return _modelCacheDir; }
-        std::string getBlobFileName() const { return _blobFileName; }
     };
 
     // Core settings for specific devices
@@ -277,8 +267,7 @@ class Core::Impl : public ICore {
         CoreConfig localCoreConfig(config, coreConfig[deviceFamily]);
         bool modelCacheEnabled = localCoreConfig.isModelCacheEnabled(),
             cachingIsAvailable = false, networkIsImported = false;
-        std::string blobFileName = localCoreConfig.getBlobFileName();
-        std::string modelCacheDir = localCoreConfig.getModelCacheDir();
+        std::string blobFileName, modelCacheDir = localCoreConfig.getModelCacheDir();
 
         // TEST CODE: FORCE MODEL CACHE
         {
@@ -286,7 +275,7 @@ class Core::Impl : public ICore {
             modelCacheDir = getIELibraryPath();
         }
 
-        if (modelCacheEnabled && blobFileName.empty() && deviceSupportsImport(this)) {
+        if (modelCacheEnabled && deviceSupportsImport(this)) {
             OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::hashing");
 
             // Note: the following information from remote context is taken into account:
@@ -304,10 +293,10 @@ class Core::Impl : public ICore {
             std::string("caching is available") :
             std::string("caching is not available")) << " for " << deviceName << std::endl;
 
-        auto removeCacheEntry = [&deviceName] (const std::string & blobFileName) {
-            std::cout << "Removed cache entry " << blobFileName << " " << deviceName << std::endl;
-            if (FileUtils::fileExist(blobFileName))
-                std::remove(blobFileName.c_str());
+        auto removeCacheEntry = [&deviceName] (const std::string & blobFileNameToRemove) {
+            std::cout << "Removed cache entry " << blobFileNameToRemove << " " << deviceName << std::endl;
+            if (FileUtils::fileExist(blobFileNameToRemove))
+                std::remove(blobFileNameToRemove.c_str());
         };
 
         auto getImportConfig = [] (const std::map<std::string, std::string> & loadConfig) {
