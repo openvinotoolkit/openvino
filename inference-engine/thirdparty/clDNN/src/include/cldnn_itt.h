@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright 2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,33 +14,19 @@
 // limitations under the License.
 //*****************************************************************************
 
+/**
+ * @brief Defines openvino domains for tracing
+ * @file cldnn_itt.h
+ */
+
 #pragma once
 
-#include "onnx_import/core/node.hpp"
+#include <openvino/itt.hpp>
 
-namespace ngraph
-{
-    namespace onnx_import
-    {
-        namespace op
-        {
-            namespace set_12
-            {
-                OutputVector dropout(const Node& node);
-            } // namespace set_12
-
-            namespace set_7
-            {
-                OutputVector dropout(const Node& node);
-            } // namespace set_7
-
-            namespace set_1
-            {
-                OutputVector dropout(const Node& node);
-            } // namespace set_1
-
-        } // namespace op
-
-    } // namespace onnx_import
-
-} // namespace ngraph
+namespace cldnn {
+namespace itt {
+namespace domains {
+    OV_ITT_DOMAIN(CLDNN);
+}
+}
+}
