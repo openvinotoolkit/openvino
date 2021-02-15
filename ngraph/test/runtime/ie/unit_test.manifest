@@ -1607,5 +1607,8 @@ evaluate_mvn_6_across_chanells
 evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
 
-# TODO: Remove when ref impl is completed
-binary_convolution_2D_1batch_1channel
+# CPU plugin only supports 2D
+bin_convolution_1D_1batch_1channel_no_padding
+
+# Incorrect result given by CPU plugin
+bin_convolution_2D_1batch_1channel_no_padding

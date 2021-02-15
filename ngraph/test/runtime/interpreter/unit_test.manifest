@@ -175,6 +175,3 @@ INTERPRETER.onnx_model_experimental_detectron_prior_grid_generator
 
 # Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
 INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor
-
-# TODO: Remove when ref impl is completed
-binary_convolution_2D_1batch_1channel
