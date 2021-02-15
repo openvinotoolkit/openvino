@@ -68,3 +68,6 @@ if(NOT ext_onnx_POPULATED)
 else()
     onnx_set_target_properties()
 endif()
+
+set(ONNX_INCLUDE_DIR ${ext_onnx_SOURCE_DIR})
+set(ONNX_PROTO_INCLUDE_DIR ${ext_onnx_BINARY_DIR})
