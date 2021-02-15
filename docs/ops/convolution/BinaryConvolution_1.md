@@ -10,9 +10,9 @@
 
 
 Computation algorithm for mode *xnor-popcount*: 
-- X = XNOR(input_patch, filter) // bitwise XNOR operation on two bit streams
-- P = popcount(X) // count the number of `1`in the resulting bit stream  
-- Output = 2 * P - B, where B is the total number of bits in the bit stream 
+- `X = XNOR(input_patch, filter)`, where XNOR is bitwise operation on two bit streams
+- `P = popcount(X)`, where popcount is the number of `1` bits in the `X` bit stream  
+- `Output = 2 * P - B`, where `B` is the total number of bits in the `P` bit stream 
 
 **Attributes**:
 
