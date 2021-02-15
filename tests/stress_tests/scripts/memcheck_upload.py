@@ -125,7 +125,7 @@ def parse_memcheck_log(log_path):
                 test_name=test_name,
                 model_name=os.path.splitext(model['name'])[0],
                 precision=next(pr for pr in PRECISSIONS if pr.upper() in model['precision'].upper()),
-                model=os.path.join(model['path'], model['precision'], model['name']),
+                model=model['path'],
                 device=model['device'].upper(),
                 status='passed' if passed_match else 'failed' if failed_match else 'started'
             )

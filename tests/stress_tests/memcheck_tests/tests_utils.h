@@ -58,7 +58,6 @@ private:
     std::vector<long> vmsize_v, vmpeak_v, vmrss_v, vmhwm_v;
 public:
     std::array<long, MeasureValueMax> references;
-    std::string separator = "/";
 
     TestReferences () {
         std::fill(references.begin(), references.end(), -1);
@@ -69,12 +68,6 @@ public:
         for (pugi::xml_node node = values.first_child(); node; node = node.next_sibling()) {
             for (pugi::xml_attribute_iterator ait = node.attributes_begin(); ait != node.attributes_end(); ait++) {
                 if (strncmp(ait->name(), "path", strlen(ait->name())) == 0) {
-                    model_name_v.push_back(ait->value());
-                    model_name_v.push_back(separator);
-                } else if (strncmp(ait->name(), "precision", strlen(ait->name())) == 0) {
-                    model_name_v.push_back(ait->value());
-                    model_name_v.push_back(separator);
-                } else if (strncmp(ait->name(), "name", strlen(ait->name())) == 0) {
                     model_name_v.push_back(ait->value());
                 } else if (strncmp(ait->name(), "test", strlen(ait->name())) == 0) {
                     test_name_v.push_back(ait->value());
