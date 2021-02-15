@@ -32,10 +32,14 @@ target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX
                                                        $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 
-target_link_libraries(${TARGET_NAME} PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} PRIVATE ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} ngraph)
 
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH}
-        ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
+target_include_directories(${TARGET_NAME}
+        SYSTEM PRIVATE
+                $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
+                ${Protobuf_INCLUDE_DIRS}
+                ${NGRAPH_INCLUDE_PATH})
 
 if(NGRAPH_USE_PROTOBUF_LITE)
         target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)

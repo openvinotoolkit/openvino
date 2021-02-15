@@ -59,7 +59,7 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-target_link_libraries(onnx_importer PRIVATE onnx onnx_common ngraph::builder
+target_link_libraries(onnx_importer PRIVATE onnx onnx_proto onnx_common ngraph::builder
                                     PUBLIC ngraph)
 
 set(ONNX_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
