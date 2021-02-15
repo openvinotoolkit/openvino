@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <cstdlib>
 #include <sstream>
 
 #include "shared_utils.hpp"
