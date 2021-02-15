@@ -382,24 +382,23 @@ void FrontEnd::processTrivialCases(const Model& model) {
     std::unordered_map<ie::DataPtr, std::pair<Data, Data>> ieDataToTrivialCase;
     for (const auto& data : model->datas()) {
         const auto& origData = data->origData();
-        if (origData != nullptr) {
-            if (data->usage() == DataUsage::Output) {
-                VPU_THROW_UNLESS(ieDataToTrivialCase.count(origData) == 0 || ieDataToTrivialCase[origData].second == nullptr,
-                                 "There can't be two data output objects associated with the same original IE data object with name {}",
-                                 origData->getName());
-                ieDataToTrivialCase[origData].second = data;
-            } else {
-                VPU_THROW_UNLESS(ieDataToTrivialCase.count(origData) == 0 || ieDataToTrivialCase[origData].first == nullptr,
-                                 "There can't be two data input/const objects associated with the same original IE data object with name {}",
-                                 origData->getName());
-                ieDataToTrivialCase[origData].first = data;
-            }
+        if (origData == nullptr) {
+            continue;
         }
+
+        auto& trivialCase = ieDataToTrivialCase[origData];
+        auto& destination = data->usage() == DataUsage::Output ? trivialCase.second : trivialCase.first;
+        VPU_THROW_UNLESS(ieDataToTrivialCase.count(origData) == 0 || destination == nullptr,
+            "Encountered IE data object {} which has two vpu data objects {} and {} of the same type {} associated with it, while only one is permitted",
+            origData->getName(), destination->name(), data->name(), destination->usage());
+        destination = data;
     }
 
     for (const auto& trivialCase : ieDataToTrivialCase) {
-        const auto& unconnectedInput = trivialCase.second.first;
-        const auto& unconnectedOutput = trivialCase.second.second;
+        const auto& trivialCasePair = trivialCase.second;
+
+        const auto& unconnectedInput = trivialCasePair.first;
+        const auto& unconnectedOutput = trivialCasePair.second;
 
         if (!unconnectedInput || !unconnectedOutput) {
             continue;
