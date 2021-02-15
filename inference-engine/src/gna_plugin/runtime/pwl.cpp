@@ -504,11 +504,11 @@ void PwlDesignOpt16(const DnnActivation activation_type,
     double err_pct = 0.0;
     switch (activation_type) {
         case kActSigmoid:
-            pwl = pwl_search(activation_type, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = pwl_search(activation_type, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, PWL_DESIGN_THRESHOLD, 0.17 * PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, scale_in, scale_out, ptr_segment);
             break;
         case kActTanh:
-            pwl = pwl_search(activation_type, -TANH_DOMAIN, TANH_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = pwl_search(activation_type, -TANH_DOMAIN, TANH_DOMAIN, PWL_DESIGN_THRESHOLD, 0.17 * PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, -TANH_DOMAIN, TANH_DOMAIN, scale_in, scale_out, ptr_segment);
             break;
         case kActSoftSign:
@@ -522,6 +522,7 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
             break;
         case kActIdentity:
+        case kActFakeQuantize:
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
             break;
         case kActKaldiLstmClipping:
@@ -980,15 +981,14 @@ void PwlApply32(intel_dnn_component_t *component,
             break;
         case kActKaldiLstmClipping: {
             float upper_limit = component->op.pwl.func_id.args.clamp.high;
-            float lowwer_limit = component->op.pwl.func_id.args.clamp.low;
+            float lower_limit = component->op.pwl.func_id.args.clamp.low;
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
                     float val = ptr_in[i * num_columns + j];
-
                     if (val > upper_limit) {
                         ptr_out[i * num_columns + j] = upper_limit;
-                    } else if (val < lowwer_limit) {
-                        ptr_out[i * num_columns + j] = lowwer_limit;
+                    } else if (val < lower_limit) {
+                        ptr_out[i * num_columns + j] = lower_limit;
                     } else {
                         ptr_out[i * num_columns + j] = val;
                     }
@@ -1050,16 +1050,16 @@ void PwlApply32(intel_dnn_component_t *component,
             }
             break;
         case kActFakeQuantize: {
-            auto levels  = transform->func_id.args.fakeQuantize.levels;
+            auto levels  = transform->func_id.fqParams.levels;
 
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
-                auto inputChannel  = transform->func_id.args.fakeQuantize.inputPerChannel ? i : 0;
-                auto outputChannel = transform->func_id.args.fakeQuantize.outputPerChannel ? i : 0;
+                auto inputChannel  = transform->func_id.fqParams.inputPerChannel ? i : 0;
+                auto outputChannel = transform->func_id.fqParams.outputPerChannel ? i : 0;
 
-                auto input_low   = transform->func_id.args.fakeQuantize.input_low[inputChannel];
-                auto input_high  = transform->func_id.args.fakeQuantize.input_high[inputChannel];
-                auto output_low  = transform->func_id.args.fakeQuantize.output_low[outputChannel];
-                auto output_high = transform->func_id.args.fakeQuantize.output_high[outputChannel];
+                auto input_low   = transform->func_id.fqParams.input_low[inputChannel];
+                auto input_high  = transform->func_id.fqParams.input_high[inputChannel];
+                auto output_low  = transform->func_id.fqParams.output_low[outputChannel];
+                auto output_high = transform->func_id.fqParams.output_high[outputChannel];
 
                 // TODO: this special modification for spedup-compute give different result with straight FQ formulae
                 // but this used in reference graph FakeQuantize implementations so we need to honor it for a while

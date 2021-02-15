@@ -1477,7 +1477,8 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     uint32_t num_rows_copied = 0;
     // in case of left alignment succeed, but due to number of elements not multiple of 8 we need to insert align_filter
     // we are improving it by inserting copy layer of size that covers most of elements - remained max of 32x31 affine filter
-    if (policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST &&  0 == numRowsPadded && ALIGN(num_rows_in, 32) > 32) {
+    if (policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST &&  0 == numRowsPadded && ALIGN(num_rows_in, 32) > 32 &&
+        (!quantized || (quantized && std::abs(quantized->_weights_quant.GetScale() - 1.0f) <= 0.0001f))) {
         // can we use copy at all
         num_rows_copied = ALIGN(num_rows_in, 32) - 32;
 
@@ -1668,14 +1669,6 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
     }
 }
 
-void GNAGraphCompiler::FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr layer) {
-    // in FP32 mode lets use special form of activation that satisfies fakeQuantize formula
-    if (gnaFlags->sw_fp32) {
-        PWLPrimitive(layer);
-        return;
-    }
-}
-
 void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto* generic = dynamic_cast<GenericLayer*>(layer.get());
     std::string type;
@@ -1768,6 +1761,18 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         THROW_GNA_EXCEPTION << "Activation function type not yet supported: " << type;
     }
     auto activation_type = DnnActivation::fromType(it->second);
+    activation_type.fqParams.set = false;
+    if (quantized != nullptr && quantized->_dst_quant.IsStatsSet()) {
+        activation_type.fqParams.set = true;
+        activation_type.fqParams.levels = quantized->_dst_quant.GetLevels();
+        activation_type.fqParams.inputPerChannel = false;
+        activation_type.fqParams.input_low = &(quantized->_dst_quant.GetMinValues(true).front());
+        activation_type.fqParams.input_high = &(quantized->_dst_quant.GetMaxValues(true).front());
+        //activation_type.fqParams.outputPerChannel = false;
+        //activation_type.fqParams.output_low = &(quantized->_dst_quant.GetMinValues(false).front());
+        //activation_type.fqParams.output_high = &(quantized->_dst_quant.GetMaxValues(false).front());
+    }
+
     if (it->second == kActRelu) {
         auto reluLayer = dynamic_cast<ReLULayer*>(layer.get());
         activation_type.args.lrelu.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
@@ -1775,11 +1780,9 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         activation_type.args.lrelu.negative_slope = 0.0f;
     }
 
-    if (it->second == kActFakeQuantize) {
+    if (quantized == nullptr && it->second == kActFakeQuantize) {
         activation_type = GNAFakeQuantizeLayer(layer).parseAsActivation();
-    }
-
-    if (it->second == kActKaldiLstmClipping) {
+    } else if (it->second == kActKaldiLstmClipping) {
         auto clamp_layer = dynamic_cast<ClampLayer*>(layer.get());
         if (clamp_layer) {
             if (clamp_layer->min_value == 0 && clamp_layer->max_value == 0) {
@@ -2001,7 +2004,7 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{DelayedCopyLayerName}, CREATE(CopyPrimitive)},
         {{"TensorIterator"}, SKIP},
         {{"LSTMCell"}, SKIP},
-        {{"FakeQuantize"}, CREATE(FakeQuantizePrimitive)}  // TODO: fakequantize layer should be properly converted to GNA scale factors for integer case
+        {{"FakeQuantize"}, CREATE(PWLPrimitive)}
     };
     (void)layersBuilder;
     auto it = LayersBuilder::getStorage().find(layer->type);

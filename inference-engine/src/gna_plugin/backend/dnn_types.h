@@ -37,6 +37,19 @@ enum DnnActivationType : uint8_t {
 struct DnnActivation {
     // for prelu
     DnnActivationType type;
+    struct  FakeQuantizeParams {
+        int8_t set;
+        int32_t levels;
+        // if input is per-channel quantization - input pointers contains per-channel ranges
+        int8_t  inputPerChannel;
+        float* input_low;
+        float* input_high;
+        // if output is per-channel quantization - output pointers contains per-channel ranges
+        int8_t  outputPerChannel;
+        float* output_low;
+        float* output_high;
+    } fqParams;
+
     union {
         struct {
             float negative_slope;
@@ -50,17 +63,6 @@ struct DnnActivation {
             float low;
             float high;
         } clamp;
-        struct {
-            int32_t levels;
-            // if input is per-channel quantization - input pointers contains per-channel ranges
-            int8_t  inputPerChannel;
-            float  *input_low;
-            float  *input_high;
-            // if output is per-channel quantization - output pointers contains per-channel ranges
-            int8_t  outputPerChannel;
-            float  *output_low;
-            float  *output_high;
-        } fakeQuantize;
     } args;
     operator DnnActivationType () const noexcept {
         return type;

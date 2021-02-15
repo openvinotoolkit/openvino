@@ -223,7 +223,16 @@ void make_gna_pwl(const DnnActivation  fun,
             else
                 gnalog() << "=========================== LeakyReLU Segments ======================\n";
             int32_t x_lower = INT32_MIN;
+            int32_t x_upper = INT32_MAX;
             int16_t y_lower = INT16_MIN;
+            int16_t y_upper = INT16_MAX;
+            if (fun.fqParams.set) {
+                x_lower = *fun.fqParams.input_low * in_scale;
+                x_upper = *fun.fqParams.input_high * in_scale;
+                y_lower = *fun.fqParams.input_low * out_scale;
+                y_upper = *fun.fqParams.input_high * out_scale;
+            }
+
             if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
             if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
             gna_pwl[0].yBase = y_lower * fun.args.lrelu.negative_slope;
@@ -244,6 +253,18 @@ void make_gna_pwl(const DnnActivation  fun,
                     << " " << 0.0
                     << " " << (gna_pwl[1].slope * in_scale) / (out_scale*s.slope_scale)
                     << "\n";
+
+            if (fun.fqParams.set) {  // need a right segment
+                gna_pwl.push_back({
+                    static_cast<int32_t>(x_upper & XBASEMASK),  // zero out the 2 lsb
+                    y_upper,
+                    0 });
+
+                gnalog() << (x_upper & XBASEMASK) / in_scale
+                    << " " << gna_pwl[n_segments].yBase / out_scale
+                    << " " << 0
+                    << "\n";
+            }
             break;
         }
         case kActSign: {
@@ -281,11 +302,18 @@ void make_gna_pwl(const DnnActivation  fun,
             break;
         }
         case kActIdentity:
-        case kActKaldiLstmClipping: {
+        case kActKaldiLstmClipping:
+        case kActFakeQuantize: {
             int32_t x_lower = INT32_MIN;
             int32_t x_upper = INT32_MAX;
             int16_t y_lower = INT16_MIN;
             int16_t y_upper = INT16_MAX;
+            if (fun.fqParams.set) {
+                x_lower = *fun.fqParams.input_low * in_scale;
+                x_upper = *fun.fqParams.input_high * in_scale;
+                y_lower = *fun.fqParams.input_low * out_scale;
+                y_upper = *fun.fqParams.input_high * out_scale;
+            }
             auto n_segments = 2;
             if (fun == kActKaldiLstmClipping) {
                 gnalog()  << "=========================== Clipping Segments ===========================\n";
@@ -307,10 +335,12 @@ void make_gna_pwl(const DnnActivation  fun,
                 }
             } else if (fun == kActIdentity) {
                 gnalog() << "=========================== Identity Segments ===========================\n";
-                if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
-                if (x_upper > y_upper * in_scale / out_scale) x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
-                if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
-                if (y_upper > x_upper * out_scale / in_scale) y_upper = FLOAT_TO_INT16(x_upper * out_scale / in_scale);
+                if (!fun.fqParams.set) {
+                    if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
+                    if (x_upper > y_upper * in_scale / out_scale) x_upper = FLOAT_TO_INT32(y_upper * in_scale / out_scale);
+                    if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
+                    if (y_upper > x_upper * out_scale / in_scale) y_upper = FLOAT_TO_INT16(x_upper * out_scale / in_scale);
+                }
             }
             gna_pwl.resize(n_segments);
             gna_pwl[0].xBase = INT32_MIN & XBASEMASK;  // zero out the 2 lsb
@@ -330,7 +360,7 @@ void make_gna_pwl(const DnnActivation  fun,
                     << " " << gna_pwl[1].yBase / out_scale
                     << " " << 1.0
                     << "\n";
-            if (INT32_MAX > x_upper) {  // need a right segment
+            if (INT32_MAX > x_upper || fun.fqParams.set) {  // need a right segment
                 gna_pwl.push_back({
                     static_cast<int32_t>(x_upper & XBASEMASK),  // zero out the 2 lsb
                     y_upper,
