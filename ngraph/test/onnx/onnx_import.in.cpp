@@ -3834,3 +3834,118 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_mvn_v6)
          1.2906139,  1.1860244,  -0.92945826, 0.0721334,   -0.38174,    -1.7799333});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout1_no_training_no_return_mask)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout1_no_training_no_return_mask.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data(3 * 4 * 5, 2.0f);
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout1_no_training_return_mask)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout1_no_training_return_mask.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data(3 * 4 * 5, 2.0f);
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
+    test_case.add_expected_output<int32_t>(
+        Shape{3, 4, 5}, std::vector<int32_t>(3 * 4 * 5, 1)); // // bool converted to i32
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout7_no_return_mask)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout7_no_return_mask.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data(3 * 4 * 5, 2.0f);
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_no_return_mask)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_no_training_no_return_mask.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data(3 * 4 * 5, 2.0f);
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_training_return_mask)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_no_training_return_mask.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    const std::vector<float> data(3 * 4 * 5, 2.0f);
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{3, 4, 5}, data);
+    test_case.add_expected_output<int32_t>(
+        Shape{3, 4, 5}, std::vector<int32_t>(3 * 4 * 5, 1)); // bool converted to i32
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_no_traning_no_const_rato)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_no_traning_no_const_rato.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1, 2, 3, 4});
+    // test_case.add_input<float>(Shape{}, {0.5}); // ratio input is ignored
+
+    test_case.add_expected_output<float>(Shape{1, 4}, {1., 2., 3., 4.});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_training_mode)
+{
+    try
+    {
+        auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/dropout12_training_mode.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("Training mode is not supported for Dropout op"));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception was not thrown";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_not_const_training_mode)
+{
+    try
+    {
+        auto function = onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/dropout12_not_const_training_mode.prototxt"));
+        FAIL() << "Expected exception was not thrown";
+    }
+    catch (const ngraph::ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("Non-constant training_mode input is not supported."));
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph_error exception was not thrown";
+    }
+}

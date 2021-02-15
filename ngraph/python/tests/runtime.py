@@ -18,10 +18,10 @@ import logging
 from typing import Dict, List, Union
 
 import numpy as np
-from openvino.inference_engine import IECore, IENetwork, Blob
+from openvino.inference_engine import IECore, IENetwork, Blob, DataPtr
 
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, Node, PartialShape
+from ngraph.impl import Function, Node, PartialShape, Type
 from ngraph.opset1.ops import result
 from ngraph.utils.types import NumericData, get_shape, get_dtype
 
@@ -53,6 +53,18 @@ def _convert_inputs(cnn_network: IENetwork) -> None:
             cnn_network.input_info[cnn_input].precision = _precision
         except KeyError:
             pass
+
+
+def apply_ng_type(output: DataPtr, ng_type: Type):
+    ng_ie_supported_type_map = {
+        Type.boolean.get_type_name(): "BOOL",
+        Type.f32.get_type_name(): "FP32",
+        Type.i8.get_type_name(): "I8",
+        Type.i32.get_type_name(): "I32",
+        Type.u8.get_type_name(): "U8",
+    }
+    if ng_type.get_type_name() in ng_ie_supported_type_map:
+        output.precision = ng_ie_supported_type_map[ng_type.get_type_name()]
 
 
 class Runtime(object):
@@ -103,18 +115,30 @@ class Computation(object):
         params_string = ", ".join([param.name for param in self.parameters])
         return "<Computation: {}({})>".format(self.function.get_name(), params_string)
 
-    def __get_ie_output_blob_buffer(self, output_blobs: Dict[str, Blob], ng_result: result) -> np.ndarray:
+    def __get_ie_output_blob_name(self, outputs: Dict, ng_result: result) -> str:
         if len(self.results) == 1:
-            return next(iter(output_blobs.values())).buffer
+            return next(iter(outputs.keys()))
         else:
             prev_layer = ng_result.input(0).get_source_output()
             out_name = prev_layer.get_node().get_friendly_name()
             if prev_layer.get_node().get_output_size() != 1:
                 out_name += "." + str(prev_layer.get_index())
-            return output_blobs[out_name].buffer
+            return out_name
+
+    def __get_ie_output_blob_buffer(self, output_blobs: Dict[str, Blob], ng_result: result) -> np.ndarray:
+        out_name = self.__get_ie_output_blob_name(output_blobs, ng_result)
+        return output_blobs[out_name].buffer
 
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
+        # Input validation
+        if len(input_values) < len(self.parameters):
+            raise UserInputError(
+                "Expected %s params, received not enough %s values.", len(self.parameters), len(input_values)
+            )
+        # ignore not needed input values
+        input_values = input_values[:len(self.parameters)]
+
         input_values = [np.array(input_value) for input_value in input_values]
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
@@ -131,13 +155,13 @@ class Computation(object):
         else:
             cnn_network = self.network_cache[str(input_shapes)]
 
+        # set output blobs precission based on nG results
+        for ng_result in self.results:
+            ie_out_name = self.__get_ie_output_blob_name(cnn_network.outputs, ng_result)
+            apply_ng_type(cnn_network.outputs[ie_out_name], ng_result.get_output_element_type(0))
+
         executable_network = self.runtime.backend.load_network(cnn_network, self.runtime.backend_name)
 
-        # Input validation
-        if len(input_values) != len(self.parameters):
-            raise UserInputError(
-                "Expected %s parameters, received %s.", len(self.parameters), len(input_values)
-            )
         for parameter, input in zip(self.parameters, input_values):
             parameter_shape = parameter.get_output_partial_shape(0)
             input_shape = PartialShape(input.shape)

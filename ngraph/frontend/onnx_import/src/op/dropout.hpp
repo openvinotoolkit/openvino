@@ -16,10 +16,6 @@
 
 #pragma once
 
-#include <memory>
-
-#include "core/null_node.hpp"
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
 
 namespace ngraph
@@ -28,15 +24,19 @@ namespace ngraph
     {
         namespace op
         {
+            namespace set_12
+            {
+                OutputVector dropout(const Node& node);
+            } // namespace set_12
+
+            namespace set_7
+            {
+                OutputVector dropout(const Node& node);
+            } // namespace set_7
+
             namespace set_1
             {
-                inline OutputVector dropout(const Node& node)
-                {
-                    // First value is actual output of Dropout,
-                    // the second one is just a placeholder for optional trailing output.
-                    return {node.get_ng_inputs().at(0).get_node_shared_ptr(),
-                            std::make_shared<NullNode>()};
-                }
+                OutputVector dropout(const Node& node);
             } // namespace set_1
 
         } // namespace op

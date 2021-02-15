@@ -223,7 +223,6 @@ def test_reshape_v1():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_40957
 def test_shape_of():
     input_tensor = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype=np.float32)
 
