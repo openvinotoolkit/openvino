@@ -392,222 +392,1058 @@ class TestStridedSliceShapeInferAfterNormalizer(unittest.TestCase):
         self.run_infer_test(inp, ref_res, begin, end, strides,
                             begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
+    # automatically generated the whole range of 2d slices over 2d, 3d and 4d input tensors
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_0(self):
+        """
+        inp_shape = (1, 100), out = inp[:, :] => out_shape = (1, 100)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(1, 100),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
 
-    def test_normalize_strided_slice_0(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[0, np.newaxis, ..., :], out_shape=(1, 100, 200, 3)
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_1(self):
+        """
+        inp_shape = (1, 100), out = inp[:, None] => out_shape = (1, 1, 100)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(1, 1, 100),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_2(self):
+        """
+        inp_shape = (1, 100), out = inp[:, 0] => out_shape = (1,)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(1,),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_3(self):
+        """
+        inp_shape = (1, 100), out = inp[..., :] => out_shape = (1, 100)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(1, 100),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 0), ellipsis_mask=(1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_4(self):
+        """
+        inp_shape = (1, 100), out = inp[..., None] => out_shape = (1, 100, 1)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(1, 100, 1),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 1), ellipsis_mask=(1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_5(self):
+        """
+        inp_shape = (1, 100), out = inp[..., 0] => out_shape = (1,)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(1,),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(0, 0), ellipsis_mask=(1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_6(self):
+        """
+        inp_shape = (1, 100), out = inp[None, :] => out_shape = (1, 1, 100)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(1, 1, 100),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(1, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_7(self):
+        """
+        inp_shape = (1, 100), out = inp[None, None] => out_shape = (1, 1, 1, 100)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(1, 1, 1, 100),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(1, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_8(self):
+        """
+        inp_shape = (1, 100), out = inp[None, 0] => out_shape = (1, 100)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(1, 100),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(1, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_9(self):
+        """
+        inp_shape = (1, 100), out = inp[0, :] => out_shape = (100,)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(100,),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_10(self):
+        """
+        inp_shape = (1, 100), out = inp[0, None] => out_shape = (1, 100)
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(1, 100),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_2d_11(self):
+        """
+        inp_shape = (1, 100), out = inp[0, 0] => out_shape = ()
+        """
+        self.run_infer_test(
+            inp=(1, 100), ref_res=(),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_0(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[:, :] => out_shape = (1, 100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_1(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[:, None] => out_shape = (1, 1, 100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_2(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[:, 0] => out_shape = (1, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_3(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[..., :] => out_shape = (1, 100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 0), ellipsis_mask=(1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_4(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[..., None] => out_shape = (1, 100, 200, 1)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 100, 200, 1),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 1), ellipsis_mask=(1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_5(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[..., 0] => out_shape = (1, 100)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 100),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(0, 0), ellipsis_mask=(1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_6(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[None, :] => out_shape = (1, 1, 100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(1, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_7(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[None, None] => out_shape = (1, 1, 1, 100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 1, 1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(1, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_8(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[None, 0] => out_shape = (1, 100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(1, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_9(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[0, :] => out_shape = (100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_10(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[0, None] => out_shape = (1, 100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_3d_11(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[0, 0] => out_shape = (200,)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(200,),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_0(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[:, :] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
-            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 1, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
 
-    def test_normalize_strided_slice_1(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[0, ..., np.newaxis, :], out_shape=(100, 200, 1, 3)
-            inp=(1, 100, 200, 3), ref_res=(100, 200, 1, 3),
-            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 1, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_1(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[:, None] => out_shape = (1, 1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 1), ellipsis_mask=(0, 0)
+        )
 
-    def test_normalize_strided_slice_2(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, 0, ..., :], out_shape=(1, 100, 200, 3)
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_2(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[:, 0] => out_shape = (1, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_3(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., :] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
-            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 0), ellipsis_mask=(1, 0)
+        )
 
-    def test_normalize_strided_slice_3(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[..., 0, np.newaxis, :], out_shape=(1, 100, 1, 3)
-            inp=(1, 100, 200, 3), ref_res=(1, 100, 1, 3),
-            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(1, 0, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_4(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., None] => out_shape = (1, 100, 200, 3, 1)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3, 1),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 1), ellipsis_mask=(1, 0)
+        )
 
-    def test_normalize_strided_slice_4(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, ..., 0, :], out_shape=(1, 1, 100, 3)
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_5(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., 0] => out_shape = (1, 100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(0, 0), ellipsis_mask=(1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_6(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, :] => out_shape = (1, 1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(1, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_7(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, None] => out_shape = (1, 1, 1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 1, 100, 200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(1, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_8(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, 0] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(1, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_9(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, :] => out_shape = (100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(100, 200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_10(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, None] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_2d_over_4d_11(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, 0] => out_shape = (200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(200, 3),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    # automatically generated slices from 3d to 5d d input tensors
+    # fixed number of ellipsis, newaxis and shrink_axis
+    def test_normalizer_auto_infer_strided_slice_3d_over_3d_0(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[None, ..., 0] => out_shape = (1, 1, 100)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 1, 100),
+            begin=(0, 0, 0), end=(0, 0, 0), strides=(1, 1, 1), begin_mask=(0, 0, 0), end_mask=(0, 0, 0),
+            shrink_axis_mask=(0, 0, 1), new_axis_mask=(1, 0, 0), ellipsis_mask=(0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_3d_1(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[..., None, 0] => out_shape = (1, 100, 1)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 100, 1),
+            begin=(0, 0, 0), end=(0, 0, 0), strides=(1, 1, 1), begin_mask=(0, 0, 0), end_mask=(0, 0, 0),
+            shrink_axis_mask=(0, 0, 1), new_axis_mask=(0, 1, 0), ellipsis_mask=(1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_3d_2(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[0, None, ...] => out_shape = (1, 100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 100, 200),
+            begin=(0, 0, 0), end=(0, 0, 0), strides=(1, 1, 1), begin_mask=(0, 0, 0), end_mask=(0, 0, 0),
+            shrink_axis_mask=(1, 0, 0), new_axis_mask=(0, 1, 0), ellipsis_mask=(0, 0, 1)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_3d_3(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[0, ..., None] => out_shape = (100, 200, 1)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(100, 200, 1),
+            begin=(0, 0, 0), end=(0, 0, 0), strides=(1, 1, 1), begin_mask=(0, 0, 0), end_mask=(0, 0, 0),
+            shrink_axis_mask=(1, 0, 0), new_axis_mask=(0, 0, 1), ellipsis_mask=(0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_3d_4(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[None, 0, ...] => out_shape = (1, 100, 200)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 100, 200),
+            begin=(0, 0, 0), end=(0, 0, 0), strides=(1, 1, 1), begin_mask=(0, 0, 0), end_mask=(0, 0, 0),
+            shrink_axis_mask=(0, 1, 0), new_axis_mask=(1, 0, 0), ellipsis_mask=(0, 0, 1)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_3d_5(self):
+        """
+        inp_shape = (1, 100, 200), out = inp[..., 0, None] => out_shape = (1, 100, 1)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200), ref_res=(1, 100, 1),
+            begin=(0, 0, 0), end=(0, 0, 0), strides=(1, 1, 1), begin_mask=(0, 0, 0), end_mask=(0, 0, 0),
+            shrink_axis_mask=(0, 1, 0), new_axis_mask=(0, 0, 1), ellipsis_mask=(1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_4d_0(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, ..., 0, :] => out_shape = (1, 1, 100, 3)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 3),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
             shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 1, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+        )
 
-    def test_normalize_strided_slice_5(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[..., np.newaxis, 0, :], out_shape=(1, 100, 1, 3)
+    def test_normalizer_auto_infer_strided_slice_3d_over_4d_1(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., None, 0, :] => out_shape = (1, 100, 1, 3)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 100, 1, 3),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
             shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(1, 0, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+        )
 
-    def test_normalize_strided_slice_6(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[0, np.newaxis, :, ...], out_shape=(1, 100, 200, 3)
+    def test_normalizer_auto_infer_strided_slice_3d_over_4d_2(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, None, ..., :] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 0, 1)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 1, 0)
+        )
 
-    def test_normalize_strided_slice_7(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[0, ..., :, np.newaxis], out_shape=(100, 200, 3, 1)
-            inp=(1, 100, 200, 3), ref_res=(100, 200, 3, 1),
+    def test_normalizer_auto_infer_strided_slice_3d_over_4d_3(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, ..., None, :] => out_shape = (100, 200, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(100, 200, 1, 3),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 1, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 1, 0, 0)
+        )
 
-    def test_normalize_strided_slice_8(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, 0, :, ...], out_shape=(1, 100, 200, 3)
+    def test_normalizer_auto_infer_strided_slice_3d_over_4d_4(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, 0, ..., :] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 0, 1)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0)
+        )
 
-    def test_normalize_strided_slice_9(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[..., 0, :, np.newaxis], out_shape=(1, 100, 3, 1)
-            inp=(1, 100, 200, 3), ref_res=(1, 100, 3, 1),
+    def test_normalizer_auto_infer_strided_slice_3d_over_4d_5(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., 0, None, :] => out_shape = (1, 100, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 1, 3),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(1, 0, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(1, 0, 0, 0)
+        )
 
-    def test_normalize_strided_slice_10(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, ..., :, 0], out_shape=(1, 1, 100, 200)
+    def test_normalizer_auto_infer_strided_slice_3d_over_5d_0(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[None, ..., 0, :, :] => out_shape = (1, 1, 100, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 1, 100, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0, 0), new_axis_mask=(1, 0, 0, 0, 0), ellipsis_mask=(0, 1, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_5d_1(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[..., None, 0, :, :] => out_shape = (1, 100, 1, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 1, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0, 0), new_axis_mask=(0, 1, 0, 0, 0), ellipsis_mask=(1, 0, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_5d_2(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[0, None, ..., :, :] => out_shape = (1, 100, 200, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 200, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0, 0), new_axis_mask=(0, 1, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_5d_3(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[0, ..., None, :, :] => out_shape = (100, 200, 1, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(100, 200, 1, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0, 0), new_axis_mask=(0, 0, 1, 0, 0), ellipsis_mask=(0, 1, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_5d_4(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[None, 0, ..., :, :] => out_shape = (1, 100, 200, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 200, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0, 0), new_axis_mask=(1, 0, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_3d_over_5d_5(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[..., 0, None, :, :] => out_shape = (1, 100, 1, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 1, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0, 0), new_axis_mask=(0, 0, 1, 0, 0), ellipsis_mask=(1, 0, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_0(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, ..., 0, :] => out_shape = (1, 1, 100, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 3),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_1(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., None, 0, :] => out_shape = (1, 100, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 1, 3),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(1, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_2(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, None, ..., :] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_3(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, ..., None, :] => out_shape = (100, 200, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(100, 200, 1, 3),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_4(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, 0, ..., :] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_5(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., 0, None, :] => out_shape = (1, 100, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 1, 3),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(1, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_6(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, ..., :, 0] => out_shape = (1, 1, 100, 200)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 200),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
             shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 1, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+        )
 
-    def test_normalize_strided_slice_11(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[..., np.newaxis, :, 0], out_shape=(1, 100, 1, 200)
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_7(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., None, :, 0] => out_shape = (1, 100, 1, 200)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 100, 1, 200),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
             shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(1, 0, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+        )
 
-    def test_normalize_strided_slice_12(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[0, :, np.newaxis, ...], out_shape=(100, 1, 200, 3)
-            inp=(1, 100, 200, 3), ref_res=(100, 1, 200, 3),
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_8(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, None, :, ...] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 0, 0, 1)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 0, 1)
+        )
 
-    def test_normalize_strided_slice_13(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[0, :, ..., np.newaxis], out_shape=(100, 200, 3, 1)
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_9(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, ..., :, None] => out_shape = (100, 200, 3, 1)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(100, 200, 3, 1),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 0, 1, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 1, 0, 0)
+        )
 
-    def test_normalize_strided_slice_14(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, :, 0, ...], out_shape=(1, 1, 200, 3)
-            inp=(1, 100, 200, 3), ref_res=(1, 1, 200, 3),
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_10(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, 0, :, ...] => out_shape = (1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 3),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 0, 1)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 0, 1)
+        )
 
-    def test_normalize_strided_slice_15(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[..., :, 0, np.newaxis], out_shape=(1, 100, 200, 1)
-            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 1),
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_11(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., 0, :, None] => out_shape = (1, 100, 3, 1)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 3, 1),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(1, 0, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(1, 0, 0, 0)
+        )
 
-    def test_normalize_strided_slice_16(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[np.newaxis, :, ..., 0], out_shape=(1, 1, 100, 200)
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_12(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, :, ..., 0] => out_shape = (1, 1, 100, 200)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 200),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
             shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+        )
 
-    def test_normalize_strided_slice_17(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[..., :, np.newaxis, 0], out_shape=(1, 100, 200, 1)
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_13(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., :, None, 0] => out_shape = (1, 100, 200, 1)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 1),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
             shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(1, 0, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+        )
 
-    def test_normalize_strided_slice_18(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[:, 0, np.newaxis, ...], out_shape=(1, 1, 200, 3)
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_14(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, :, None, ...] => out_shape = (100, 1, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(100, 1, 200, 3),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 0, 0, 1)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_15(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[0, :, ..., None] => out_shape = (100, 200, 3, 1)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(100, 200, 3, 1),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_16(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[None, :, 0, ...] => out_shape = (1, 1, 200, 3)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 1, 200, 3),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 0, 0, 1)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(1, 0, 0, 0), ellipsis_mask=(0, 0, 0, 1)
+        )
 
-    def test_normalize_strided_slice_19(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[:, 0, ..., np.newaxis], out_shape=(1, 200, 3, 1)
-            inp=(1, 100, 200, 3), ref_res=(1, 200, 3, 1),
-            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 0, 1, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
-
-    def test_normalize_strided_slice_20(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[:, np.newaxis, 0, ...], out_shape=(1, 1, 200, 3)
-            inp=(1, 100, 200, 3), ref_res=(1, 1, 200, 3),
-            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 0, 1)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
-
-    def test_normalize_strided_slice_21(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[:, ..., 0, np.newaxis], out_shape=(1, 100, 200, 1)
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_17(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[..., :, 0, None] => out_shape = (1, 100, 200, 1)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 1),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
-            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 1, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(1, 0, 0, 0)
+        )
 
-    def test_normalize_strided_slice_22(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[:, np.newaxis, ..., 0], out_shape=(1, 1, 100, 200)
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_18(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[:, None, ..., 0] => out_shape = (1, 1, 100, 200)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 200),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
             shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 1, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+        )
 
-    def test_normalize_strided_slice_23(
-            self, # inp_shape = (1, 100, 200, 3), out = inp[:, ..., np.newaxis, 0], out_shape=(1, 100, 200, 1)
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_19(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[:, ..., None, 0] => out_shape = (1, 100, 200, 1)
+        """
+        self.run_infer_test(
             inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 1),
             begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
             shrink_axis_mask=(0, 0, 0, 1), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 1, 0, 0)
-    ):
-        self.run_infer_test(inp, ref_res, begin, end, strides,
-                            begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_20(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[:, 0, None, ...] => out_shape = (1, 1, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 200, 3),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 1, 0), ellipsis_mask=(0, 0, 0, 1)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_21(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[:, 0, ..., None] => out_shape = (1, 200, 3, 1)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 200, 3, 1),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_22(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[:, None, 0, ...] => out_shape = (1, 1, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 200, 3),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 1, 0, 0), ellipsis_mask=(0, 0, 0, 1)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_4d_23(self):
+        """
+        inp_shape = (1, 100, 200, 3), out = inp[:, ..., 0, None] => out_shape = (1, 100, 200, 1)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200, 1),
+            begin=(0, 0, 0, 0), end=(0, 0, 0, 0), strides=(1, 1, 1, 1), begin_mask=(0, 0, 0, 0), end_mask=(0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0), new_axis_mask=(0, 0, 0, 1), ellipsis_mask=(0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_0(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[None, ..., 0, :, :] => out_shape = (1, 1, 100, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 1, 100, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0, 0), new_axis_mask=(1, 0, 0, 0, 0), ellipsis_mask=(0, 1, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_1(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[..., None, 0, :, :] => out_shape = (1, 100, 1, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 1, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0, 0), new_axis_mask=(0, 1, 0, 0, 0), ellipsis_mask=(1, 0, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_2(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[0, None, ..., :, :] => out_shape = (1, 100, 200, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 200, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0, 0), new_axis_mask=(0, 1, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_3(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[0, ..., None, :, :] => out_shape = (100, 200, 1, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(100, 200, 1, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0, 0), new_axis_mask=(0, 0, 1, 0, 0), ellipsis_mask=(0, 1, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_4(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[None, 0, ..., :, :] => out_shape = (1, 100, 200, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 200, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0, 0), new_axis_mask=(1, 0, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_5(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[..., 0, None, :, :] => out_shape = (1, 100, 1, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 1, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0, 0), new_axis_mask=(0, 0, 1, 0, 0), ellipsis_mask=(1, 0, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_6(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[None, ..., :, 0, :] => out_shape = (1, 1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 1, 100, 200, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1, 0), new_axis_mask=(1, 0, 0, 0, 0), ellipsis_mask=(0, 1, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_7(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[..., None, :, 0, :] => out_shape = (1, 100, 1, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 1, 200, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1, 0), new_axis_mask=(0, 1, 0, 0, 0), ellipsis_mask=(1, 0, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_8(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[0, None, :, ..., :] => out_shape = (1, 100, 200, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 200, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0, 0), new_axis_mask=(0, 1, 0, 0, 0), ellipsis_mask=(0, 0, 0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_9(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[0, ..., :, None, :] => out_shape = (100, 200, 10, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(100, 200, 10, 1, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0, 0), new_axis_mask=(0, 0, 0, 1, 0), ellipsis_mask=(0, 1, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_10(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[None, 0, :, ..., :] => out_shape = (1, 100, 200, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 200, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0, 0), new_axis_mask=(1, 0, 0, 0, 0), ellipsis_mask=(0, 0, 0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_11(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[..., 0, :, None, :] => out_shape = (1, 100, 10, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 10, 1, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0, 0), new_axis_mask=(0, 0, 0, 1, 0), ellipsis_mask=(1, 0, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_12(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[None, :, ..., 0, :] => out_shape = (1, 1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 1, 100, 200, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1, 0), new_axis_mask=(1, 0, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_13(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[..., :, None, 0, :] => out_shape = (1, 100, 200, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 200, 1, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1, 0), new_axis_mask=(0, 0, 1, 0, 0), ellipsis_mask=(1, 0, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_14(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[0, :, None, ..., :] => out_shape = (100, 1, 200, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(100, 1, 200, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0, 0), new_axis_mask=(0, 0, 1, 0, 0), ellipsis_mask=(0, 0, 0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_15(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[0, :, ..., None, :] => out_shape = (100, 200, 10, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(100, 200, 10, 1, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(1, 0, 0, 0, 0), new_axis_mask=(0, 0, 0, 1, 0), ellipsis_mask=(0, 0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_16(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[None, :, 0, ..., :] => out_shape = (1, 1, 200, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 1, 200, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0, 0), new_axis_mask=(1, 0, 0, 0, 0), ellipsis_mask=(0, 0, 0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_17(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[..., :, 0, None, :] => out_shape = (1, 100, 200, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 200, 1, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0, 0), new_axis_mask=(0, 0, 0, 1, 0), ellipsis_mask=(1, 0, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_18(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[:, None, ..., 0, :] => out_shape = (1, 1, 100, 200, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 1, 100, 200, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1, 0), new_axis_mask=(0, 1, 0, 0, 0), ellipsis_mask=(0, 0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_19(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[:, ..., None, 0, :] => out_shape = (1, 100, 200, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 200, 1, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 0, 1, 0), new_axis_mask=(0, 0, 1, 0, 0), ellipsis_mask=(0, 1, 0, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_20(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[:, 0, None, ..., :] => out_shape = (1, 1, 200, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 1, 200, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0, 0), new_axis_mask=(0, 0, 1, 0, 0), ellipsis_mask=(0, 0, 0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_21(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[:, 0, ..., None, :] => out_shape = (1, 200, 10, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 200, 10, 1, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 1, 0, 0, 0), new_axis_mask=(0, 0, 0, 1, 0), ellipsis_mask=(0, 0, 1, 0, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_22(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[:, None, 0, ..., :] => out_shape = (1, 1, 200, 10, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 1, 200, 10, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0, 0), new_axis_mask=(0, 1, 0, 0, 0), ellipsis_mask=(0, 0, 0, 1, 0)
+        )
+
+    def test_normalizer_auto_infer_strided_slice_4d_over_5d_23(self):
+        """
+        inp_shape = (1, 100, 200, 10, 3), out = inp[:, ..., 0, None, :] => out_shape = (1, 100, 200, 1, 3)
+        """
+        self.run_infer_test(
+            inp=(1, 100, 200, 10, 3), ref_res=(1, 100, 200, 1, 3),
+            begin=(0, 0, 0, 0, 0), end=(0, 0, 0, 0, 0), strides=(1, 1, 1, 1, 1), begin_mask=(0, 0, 0, 0, 0),
+            end_mask=(0, 0, 0, 0, 0),
+            shrink_axis_mask=(0, 0, 1, 0, 0), new_axis_mask=(0, 0, 0, 1, 0), ellipsis_mask=(0, 1, 0, 0, 0)
+        )
 
 
 class TestStridedSlicePermute(unittest.TestCase):
@@ -812,6 +1648,7 @@ class TestStridedSlicePermute(unittest.TestCase):
     ):
         self.run_permute_test(inp, ref_res, begin, end, strides,
                               begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
     def test_strided_slice_permute_19(
             self,  # inp_shape = (1, 720, 1080, 3), out = input[..., 0:10, 0:3] => out_shape = (1, 720, 10, 3)
             inp=(1, 720, 1080, 3), ref_res=(1, 3, 720, 10),
@@ -820,3 +1657,148 @@ class TestStridedSlicePermute(unittest.TestCase):
     ):
         self.run_permute_test(inp, ref_res, begin, end, strides,
                               begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
+
+    # automatically generated permutation  tests
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_0(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[:, :],
+        out_nchw = inp[:, :, :, :] => out_shape = (1, 3, 100, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 3, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_1(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[:, None],
+        out_nchw = inp[:, :, None, :, :] => out_shape = (1, 3, 1, 100, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 3, 1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_2(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[:, 0],
+        out_nchw = inp[:, :, 0, :] => out_shape = (1, 3, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 3, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_3(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[..., :],
+        out_nchw = inp[:, :, :, ...] => out_shape = (1, 3, 100, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 3, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 0), ellipsis_mask=(1, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_4(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[..., None],
+        out_nchw = inp[:, None, :, :, ...] => out_shape = (1, 1, 3, 100, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 3, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(0, 1), ellipsis_mask=(1, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_5(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[..., 0],
+        out_nchw = inp[:, 0, :, ...] => out_shape = (1, 100, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(0, 0), ellipsis_mask=(1, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_6(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[None, :],
+        out_nchw = inp[None, :, :, :, :] => out_shape = (1, 1, 3, 100, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 3, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(1, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_7(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[None, None],
+        out_nchw = inp[None, :, None, :, :, :] => out_shape = (1, 1, 1, 3, 100, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 1, 3, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 0), new_axis_mask=(1, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_8(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[None, 0],
+        out_nchw = inp[None, :, 0, :, :] => out_shape = (1, 1, 100, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(1, 1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(0, 1), new_axis_mask=(1, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_9(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[0, :],
+        out_nchw = inp[0, :, :, :] => out_shape = (3, 100, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(3, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_10(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[0, None],
+        out_nchw = inp[0, :, None, :, :] => out_shape = (3, 1, 100, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(3, 1, 100, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 0), new_axis_mask=(0, 1), ellipsis_mask=(0, 0)
+        )
+
+    def test_permute_auto_infer_strided_slice_2d_slice_over_4d_11(self):
+        """
+        inp_shape = (1, 100, 200, 3) in NHWC, (1, 3, 100, 200) in NCHW,
+        out_nhwc = inp[0, 0],
+        out_nchw = inp[0, :, 0, :] => out_shape = (3, 200)
+        """
+        self.run_permute_test(
+            inp=(1, 100, 200, 3), ref_res=(3, 200),
+            begin=(0, 0), end=(0, 0), strides=(1, 1), begin_mask=(0, 0), end_mask=(0, 0),
+            shrink_axis_mask=(1, 1), new_axis_mask=(0, 0), ellipsis_mask=(0, 0)
+        )

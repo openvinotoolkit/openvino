@@ -123,7 +123,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
 
         num_insertations = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
         if np.any(node.ellipsis_mask):
-            assert len(np.nonzero(node.ellipsis_mask)) == 1, 'only one ellipsis_mask nonzero value is allowed'
+            assert np.count_nonzero(node.ellipsis_mask) == 1, 'only one ellipsis_mask nonzero value is allowed'
             ellipsis_start = np.nonzero(node.ellipsis_mask)[0][0]
             # since we don't expect values in begin and end: take the whole range along ellipsis_start
             node.begin_mask[ellipsis_start] = 0
