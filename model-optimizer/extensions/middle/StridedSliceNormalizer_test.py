@@ -1574,13 +1574,12 @@ class TestStridedSlicePermute(unittest.TestCase):
         self.run_permute_test(inp, ref_res, begin, end, strides,
                               begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
 
-    @unittest.skip('Untypical case when batch dims is shrinked')
     def test_strided_slice_permute_11(
             self,  # inp[0, :, 0:34, 20:22, new_axis], both new_axis and shrink_axis are present
-            inp=(1, 3, 35, 35), ref_res=(1, 3, 34, 2),
+            inp=(1, 35, 35, 3), ref_res=(1, 3, 34, 2),
             begin=(0, 0, 0, 20, 0), end=(1, 0, 34, 22, 0), strides=(1, 1, 1, 1, 1),
             begin_mask=(1, 0, 1, 1, 1), end_mask=(1, 0, 1, 1, 1),
-            shrink_axis_mask=(1,), new_axis_mask=(0, 0, 0, 0, 1), ellipsis_mask=(0,)
+            shrink_axis_mask=(1, 0, 0, 0), new_axis_mask=(0, 0, 0, 0, 1), ellipsis_mask=(0,)
     ):
         self.run_permute_test(inp, ref_res, begin, end, strides,
                               begin_mask, end_mask, shrink_axis_mask, new_axis_mask, ellipsis_mask)
