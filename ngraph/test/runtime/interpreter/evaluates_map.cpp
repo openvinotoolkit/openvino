@@ -31,8 +31,8 @@
 #include <ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp>
 #include <ngraph/runtime/reference/ctc_loss.hpp>
 #include <ngraph/runtime/reference/cum_sum.hpp>
-#include <ngraph/runtime/reference/detection_output.hpp>
 #include <ngraph/runtime/reference/deformable_convolution.hpp>
+#include <ngraph/runtime/reference/detection_output.hpp>
 #include <ngraph/runtime/reference/elu.hpp>
 #include <ngraph/runtime/reference/embedding_bag_offsets_sum.hpp>
 #include <ngraph/runtime/reference/embedding_bag_packed_sum.hpp>

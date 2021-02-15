@@ -35,11 +35,11 @@ namespace ngraph
                 int64_t deformable_groups;
 
                 DeformableConvolutionParams(const Strides& strides_,
-                                    const Strides& dilation_,
-                                    const CoordinateDiff& pads_begin_,
-                                    const CoordinateDiff& pads_end_,
-                                    const int64_t groups_,
-                                    const int64_t deformable_groups_)
+                                            const Strides& dilation_,
+                                            const CoordinateDiff& pads_begin_,
+                                            const CoordinateDiff& pads_end_,
+                                            const int64_t groups_,
+                                            const int64_t deformable_groups_)
                     : strides{strides_.begin(), strides_.end()}
                     , dilation{dilation_.begin(), dilation_.end()}
                     , pads_begin{pads_begin_.begin(), pads_begin_.end()}
@@ -64,17 +64,14 @@ namespace ngraph
 
             {
                 // this implementation supports 2D convolutions
-                NGRAPH_CHECK(in_shape.size() == 4,
-                             "Unsupported input rank: ",
-                             in_shape);
+                NGRAPH_CHECK(in_shape.size() == 4, "Unsupported input rank: ", in_shape);
 
-                NGRAPH_CHECK(f_shape.size() == 4,
-                             "Unsupported kernel rank: ",
-                             f_shape);
+                NGRAPH_CHECK(f_shape.size() == 4, "Unsupported kernel rank: ", f_shape);
 
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later
-                DeformableConvolutionParams params{strides, dilation, pads_begin, pads_end, groups, deformable_groups};
+                DeformableConvolutionParams params{
+                    strides, dilation, pads_begin, pads_end, groups, deformable_groups};
 
                 const T* group_batch = in;
                 const Shape group_batch_shape = [&]() {
