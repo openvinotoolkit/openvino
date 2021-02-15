@@ -38,11 +38,11 @@ class StridedSlice(Op):
             'out_ports_count': 1,
             'infer': __class__.infer
         }, attrs)
-        for mask_name in StridedSlice.get_all_mask_names():
+        for mask_name in StridedSlice.get_mask_names():
             assert mask_name in attrs, 'Attribute {} of the StridedSlice node is not given.'.format(mask_name)
 
     @staticmethod
-    def get_all_mask_names():
+    def get_mask_names():
         return ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']
 
     def backend_attrs(self):
@@ -51,7 +51,7 @@ class StridedSlice(Op):
         def convert(attr):
             return lambda node: array_to_str(node, attr)
 
-        for a in StridedSlice.get_all_mask_names():
+        for a in StridedSlice.get_mask_names():
             al.append((a, convert(a)))
         return al
 
@@ -76,7 +76,7 @@ class StridedSlice(Op):
         assert len(begin) == len(end) == len(strides), 'begin, end, and strides of StridedSlice node {} must ' \
                                                        'be of the same length'.format(node_name)
 
-        StridedSlice.allign_mask_with_slice_rank(node, len(begin))
+        StridedSlice.align_mask_with_slice_rank(node, len(begin))
 
         slices = StridedSlice.get_slices(node, data_shape, begin, end, strides)
         if data_value is not None:
@@ -86,6 +86,9 @@ class StridedSlice(Op):
 
         node['slices'] = slices
         node['force_precision_in_ports'] = {port: 'int64' for port in range(1, len(node.in_nodes()))}
+
+        # InputPermutations will be set after Normalizer, this is exceptional case
+        # if we specify input permute here ApplyPermutations will be wrong
 
     @staticmethod
     def get_slices(node: Node, data_shape: Tuple, begin: np.array, end: np.array, strides: np.array) -> List:
@@ -115,9 +118,9 @@ class StridedSlice(Op):
         return slices
 
     @staticmethod
-    def allign_mask_with_slice_rank(node: Node, slice_rank: int):
+    def align_mask_with_slice_rank(node: Node, slice_rank: int):
         # align masks sizes with slice_rank (not confuse with extending, mask_aligment != mask_extending)
-        for mask_name in StridedSlice.get_all_mask_names():
+        for mask_name in StridedSlice.get_mask_names():
             num_insertations = slice_rank - len(node[mask_name])
             val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end
             node[mask_name] = np.append(node[mask_name], [val] * num_insertations).astype(int)

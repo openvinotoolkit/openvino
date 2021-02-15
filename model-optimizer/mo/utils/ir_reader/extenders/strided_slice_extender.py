@@ -15,9 +15,9 @@
 """
 
 from mo.front.common.partial_infer.utils import int64_array
+from mo.ops.strided_slice import StridedSlice
 from mo.utils.graph import Node
 from mo.utils.ir_reader.extender import Extender
-from mo.ops.strided_slice import StridedSlice
 
 
 class StridedSlice_extender(Extender):
@@ -25,7 +25,7 @@ class StridedSlice_extender(Extender):
 
     @staticmethod
     def extend(op: Node):
-        for attr in StridedSlice.get_all_mask_names():
+        for attr in StridedSlice.get_mask_names():
             Extender.attr_to_list(op, attr)
 
         op.begin_mask = int64_array([1 - i for i in op.begin_mask])
