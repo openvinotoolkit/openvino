@@ -15,6 +15,7 @@
 """
 import numpy as np
 
+from extensions.middle.MakeKaldiConstReshapable import create_const_with_batch_from_input
 from extensions.ops.elementwise import Equal
 from extensions.ops.select import Select
 from mo.front.common.partial_infer.utils import int64_array
@@ -91,8 +92,7 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
 
         # add Select before saving state to avoid saving garbage
         select_node = Select(graph, {'name': 'select_' + node.name}).create_node()
-        zero_else = Const(graph, {'name': 'init_value_' + select_node.name,
-                                  'value': np.zeros(in_node_shape), 'shape': in_node_shape}).create_node()
+        zero_else = create_const_with_batch_from_input(in_node_port, in_node_shape[1])
         select_node.in_port(1).connect(in_node_port)
         select_node.in_port(2).connect(zero_else.out_port(0))
 

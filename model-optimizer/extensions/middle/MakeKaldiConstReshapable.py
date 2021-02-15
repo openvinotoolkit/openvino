@@ -127,7 +127,8 @@ class MakeKaldiConstReshapable(MiddleReplacementPattern):
                 new_const = create_const_with_batch_from_input(params[0].out_port(0),
                                                                const.out_port(0).data.get_shape()[1],
                                                                value=const.value[0], precision=const.data_type)
-                read.in_port(0).get_connection().set_source(new_const.out_port(0))
+                for dest in const.out_port(0).get_destinations():
+                    dest.get_connection().set_source(new_const.out_port(0))
 
             for dest in read.out_port(0).get_destinations():
                 if dest.node.op == 'Crop':
@@ -135,7 +136,7 @@ class MakeKaldiConstReshapable(MiddleReplacementPattern):
                         if dest_crop.node.op == 'Concat':
                             concat = dest_crop.node
                             for inp in concat.in_ports():
-                                if concat.in_port(inp).get_source().node.op == 'Const':
+                                if not concat.in_port(inp).disconnected() and concat.in_port(inp).get_source().node.op == 'Const':
                                     const = concat.in_port(inp).get_source().node
                                     if len(const.out_port(0).data.get_shape()) != 2 or \
                                             const.out_port(0).data.get_shape()[0] != batch:
