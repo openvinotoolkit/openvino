@@ -7,6 +7,7 @@
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
 # include <ngraph/op/util/sub_graph_base.hpp>
+# include <ngraph/op/util/variable.hpp>
 # include <ngraph/opsets/opset.hpp>
 # include <ie_ngraph_utils.hpp>
 # include <ngraph/opsets/opset5.hpp>
@@ -61,12 +62,12 @@ public:
 
 private:
     std::unordered_map<std::string, ngraph::OpSet> opsets;
+    std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>> variables;
     const std::vector<IExtensionPtr> _exts;
 
     struct GenericLayerParams {
         struct LayerPortData {
             size_t portId;
-            // Precision and dimensions are needed only for GenericIE op
             ngraph::element::Type_t precision;
             SizeVector dims;
             std::unordered_set<std::string> names;
@@ -181,8 +182,14 @@ private:
 
     class XmlDeserializer : public ngraph::AttributeVisitor {
     public:
-        explicit XmlDeserializer(const pugi::xml_node& node, const Blob::CPtr& weights,
-        const std::unordered_map<std::string, ngraph::OpSet>& opsets) : node(node), weights(weights), opsets(opsets) {}
+        /// TODO: move whole class to src file
+        explicit XmlDeserializer(
+            const pugi::xml_node& node,
+            const Blob::CPtr& weights,
+            const std::unordered_map<std::string, ngraph::OpSet>& opsets,
+            std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables)
+            : node(node), weights(weights), opsets(opsets), variables(variables) {}
+
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::string>& value) override {
             std::string val;
             if (!getStrAttribute(node.child("data"), name, val)) return;
@@ -211,43 +218,6 @@ private:
             double value;
             stringToType<double>(val, value);
             adapter.set(value);
-        }
-        void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override  {
-            std::string value;
-            pugi::xml_node dn = node.child("data");
-            auto type = XMLParseUtils::GetStrAttr(node, "type");
-
-            if (dn.empty())
-                THROW_IE_EXCEPTION << "No attrtibutes defined for " << type << " op!";
-
-            if (getStrAttribute(dn, name, value)) {
-                auto data = static_cast<char*>(adapter.get_ptr());
-                size_t length = std::min(value.size(), adapter.size());
-                value.copy(data, length);
-            } else if (name == "value" && type == "Const") {
-                std::vector<int64_t> shape;
-                std::string el_type_str;
-
-                size_t offset = XMLParseUtils::GetUInt64Attr(dn, "offset");
-                size_t size = XMLParseUtils::GetUInt64Attr(dn, "size");
-                if (!getStrAttribute(dn, "element_type", el_type_str)) return;
-                if (!getParameters<int64_t>(dn, "shape", shape)) return;
-
-                ngraph::element::Type el_type = details::convertPrecision(el_type_str);
-
-                size_t length = weights->byteSize();
-                if (!length)
-                    THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
-                if (length < offset + size)
-                    THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
-                if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
-                    THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type << " op!";
-
-                auto data = static_cast<char*>(adapter.get_ptr());
-                char* weights_data = weights->cbuffer().as<char*>() + offset;
-
-                std::memcpy(data, weights_data, size);
-            }
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
             std::string val;
@@ -284,10 +254,26 @@ private:
             adapter.set(value);
         }
 
+
     private:
+        struct IoMap {
+            using NodeIdToIoIndex = std::unordered_map<size_t /*xml node id*/, uint64_t /*body io index*/>;
+            NodeIdToIoIndex inputs;
+            NodeIdToIoIndex outputs;
+        };
+
+        //TODO move data to the bottom (or top)
         const pugi::xml_node node;
         const Blob::CPtr& weights;
         const std::unordered_map<std::string, ngraph::OpSet>& opsets;
+        std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables;
+
+        ///
+        /// store information about parameters/results order during function creation
+        /// it will be used during Inputs/Outputs Description creation in SubGraph processing
+        ///
+        IoMap io_map;
+
         /// \brief Traverses port_map in order to create vector of InputDescription shared_ptrs.
         /// Shall be used only for ops which have port_map attribute.
         /// \param node xml op representation
@@ -298,12 +284,10 @@ private:
         /// \param node xml op representation
         std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>> parseOutputDescription(
             const pugi::xml_node& node);
-        /// \brief Traverses nGraph body function for specified op type and creates a map of all
-        ///  op iterations. Map constains type id and assigned to it consecutive number starting from 0.
-        /// \param node xml op representation
-        /// \param type op type name to find
-        /// \return map container
-        std::map<uint64_t, uint64_t> map_type_in_function(const pugi::xml_node& node, std::string type);
+
+        //TODO consider to call only once per layer/TI-Loop node
+        IoMap updated_io_map(const pugi::xml_node& node);
+
         /// \brief Traverses xml node representation in order to create nGraph function for it.
         /// \param node xml node representation
         /// \param weights weights attached to current node

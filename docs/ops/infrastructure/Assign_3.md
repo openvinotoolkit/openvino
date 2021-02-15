@@ -8,8 +8,7 @@
 
 **Detailed description**:
 
-*Assign* operation sets an input value to the `variable_id` variable and 
-optionally returns it as an output. This value will be returned by *ReadValue* operation on next infer if variable was not reset.
+*Assign* operation sets an input value to the `variable_id` variable. This value will be returned by *ReadValue* operation on next infer if variable was not reset.
 The operation checks that the type and shape of the input are the same as 
 declared in `variable_id` and returns an error otherwise.
 
@@ -29,7 +28,7 @@ declared in `variable_id` and returns an error otherwise.
 
 **Outputs**
 
-*   **1**: tensor with the same shape and type as `new_value`
+*   **1**: tensor with the same shape and type as `new_value`.
 
 **Example**
 

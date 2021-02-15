@@ -15,11 +15,9 @@
 //*****************************************************************************
 
 #include <algorithm>
-#include <iostream>
 #include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
-#include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/runtime/opt_kernel/reshape.hpp"
@@ -337,6 +335,8 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_Reshape_evaluate);
+    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
     return evaluate_reshape(outputs, inputs);
 }
 

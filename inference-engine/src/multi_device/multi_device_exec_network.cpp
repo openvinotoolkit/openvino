@@ -201,7 +201,7 @@ IInferRequest::Ptr MultiDeviceExecutableNetwork::CreateInferRequest() {
                                                                              _needPerfCounters,
                                                                              std::static_pointer_cast<MultiDeviceExecutableNetwork>(shared_from_this()),
                                                                              _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase<MultiDeviceAsyncInferRequest>(asyncTreadSafeImpl), [](IInferRequest *p) { p->Release(); });
+    asyncRequest.reset(new InferRequestBase(asyncTreadSafeImpl), [](IInferRequest *p) { p->Release(); });
     asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     return asyncRequest;
 }

@@ -97,7 +97,7 @@ function(build_ngraph)
     elseif(WIN32)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
     endif()
-    
+
     if(ENABLE_LTO)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
@@ -108,6 +108,7 @@ function(build_ngraph)
     set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
+    set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
 endfunction()
 
 function(openvino_developer_export_targets)
@@ -156,6 +157,7 @@ add_subdirectory(docs)
 ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
                       SKIP "${OpenVINO_MAIN_SOURCE_DIR}/bin"
                            "${OpenVINO_MAIN_SOURCE_DIR}/build"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest"
                            "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
