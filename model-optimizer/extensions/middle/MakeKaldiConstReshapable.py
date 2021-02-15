@@ -118,6 +118,7 @@ class MakeKaldiConstReshapable(MiddleReplacementPattern):
         for p in params:
             assert(p.shape[0] == batch)
 
+        # make constants for initialization of ReadValue reshapable
         reads = graph.get_op_nodes(op='ReadValue')
         for read in reads:
             if read.in_port(0).get_source().node.op == "Const":
@@ -130,13 +131,16 @@ class MakeKaldiConstReshapable(MiddleReplacementPattern):
                 for dest in const.out_port(0).get_destinations():
                     dest.get_connection().set_source(new_const.out_port(0))
 
+            # often we use ReadValue result to remove last with Crop and add first with Concat, new added values
+            # should have correct batch too
             for dest in read.out_port(0).get_destinations():
                 if dest.node.op == 'Crop':
                     for dest_crop in dest.node.out_port(0).get_destinations():
                         if dest_crop.node.op == 'Concat':
                             concat = dest_crop.node
                             for inp in concat.in_ports():
-                                if not concat.in_port(inp).disconnected() and concat.in_port(inp).get_source().node.op == 'Const':
+                                if not concat.in_port(inp).disconnected() and \
+                                        concat.in_port(inp).get_source().node.op == 'Const':
                                     const = concat.in_port(inp).get_source().node
                                     if len(const.out_port(0).data.get_shape()) != 2 or \
                                             const.out_port(0).data.get_shape()[0] != batch:
@@ -145,4 +149,5 @@ class MakeKaldiConstReshapable(MiddleReplacementPattern):
                                                                                    const.out_port(0).data.get_shape()[1],
                                                                                    value=const.value[0],
                                                                                    precision=const.data_type)
-                                    concat.in_port(inp).get_connection().set_source(new_const.out_port(0))
+                                    for const_dest in const.out_port(0).get_destinations():
+                                        const_dest.get_connection().set_source(new_const.out_port(0))
