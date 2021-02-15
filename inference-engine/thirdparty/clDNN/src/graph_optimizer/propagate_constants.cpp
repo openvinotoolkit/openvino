@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include "program_impl.h"
 #include "network_impl.h"
 #include "data_inst.h"
+#include "cldnn_itt.h"
 #include <vector>
 #include <list>
 #include <memory>
@@ -31,6 +32,7 @@ using namespace cldnn;
 
 // ToDo remove friendship relation from  program_node and program_impl
 void propagate_constants::run(program_impl& p) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::PropagateConstants");
     for (auto& node : p.get_processing_order()) {
         if (node->is_constant())
             handle_constant(p, *node);

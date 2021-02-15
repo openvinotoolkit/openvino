@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -113,7 +113,6 @@ InferenceEngine::Parameter CLDNNExecNetwork::GetConfig(const std::string &name) 
 }
 
 InferenceEngine::Parameter CLDNNExecNetwork::GetMetric(const std::string &name) const {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecNetwork::GetMetric");
     if (name == METRIC_KEY(NETWORK_NAME)) {
         IE_ASSERT(!m_graphs.empty());
         IE_SET_METRIC_RETURN(NETWORK_NAME, m_graphs[0]->getName());

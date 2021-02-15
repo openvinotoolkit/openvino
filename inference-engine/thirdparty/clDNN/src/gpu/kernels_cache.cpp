@@ -27,6 +27,7 @@
 #include <utility>
 
 #include "kernel_selector_helper.h"
+#include "cldnn_itt.h"
 
 #ifndef ENABLE_UNICODE_PATH_SUPPORT
 # ifdef _WIN32
@@ -202,6 +203,7 @@ size_t kernels_cache::get_max_kernels_per_batch() const {
 }
 
 kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code& kernels_source_code) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll::GetProgramSource");
     sorted_code scode;
 
     for (const auto& code : kernels_source_code) {
@@ -312,6 +314,7 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
 }
 
 kernels_cache::kernels_map kernels_cache::build_program(const program_code& program_source) const {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram");
     static uint32_t current_file_index = 0;
 
     bool dump_sources = !_context.get_configuration().ocl_sources_dumps_dir.empty() || program_source.dump_custom_program;
@@ -361,7 +364,10 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
                 // Run compilation
                 if (precompiled_kernels.empty()) {
                     cl::Program program(_context.context(), sources_bucket_to_compile);
-                    program.build({_context.device()}, program_source.options.c_str());
+                    {
+                        OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram::RunCompilation");
+                        program.build({_context.device()}, program_source.options.c_str());
+                    }
 
                     if (dump_sources && dump_file.good()) {
                         dump_file << "\n/* Build Log:\n";
@@ -427,6 +433,7 @@ kernels_cache::kernel_type kernels_cache::get_kernel(kernel_id id, bool one_time
 }
 
 void kernels_cache::build_all() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildAll");
     if (!_pending_compilation)
         return;
 

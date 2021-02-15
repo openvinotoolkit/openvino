@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
 }
 
 void CLDNNRemoteBlobImpl::allocate_if_needed() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::allocate_if_needed");
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::AllocateIfNeeded");
     auto _impl = getContextImpl(m_context.lock());
     _impl->acquire_lock();
 
@@ -118,7 +118,6 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
 }
 
 void CLDNNRemoteBlobImpl::allocate() noexcept {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::allocate");
     assert(m_memObject == nullptr);
 
     std::shared_ptr<const cldnn::engine> eng = getContextImpl(m_context.lock())->GetEngine();
@@ -227,7 +226,6 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     m_type(ContextType::OCL),
     m_config(config),
     m_va_display(nullptr) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecutionContextImpl");
     lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;

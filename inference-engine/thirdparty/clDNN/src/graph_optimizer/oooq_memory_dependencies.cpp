@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2020 Intel Corporation
+// Copyright (c) 2018-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include "layout_optimizer.h"
 #include "program_impl.h"
 #include "program_helpers.h"
+#include "cldnn_itt.h"
 #include <vector>
 #include <memory>
 #include <list>
@@ -81,6 +82,7 @@ protected:
 }  // namespace
 
 void oooq_memory_dependencies::run(program_impl& p) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "CLDNN::pass::OooqMemoryDependencies");
     // For oooq memory dependencies nodes A and B can't share memory if
     // processing_num(A) < processing_num(B) and there is no path from A to B.
     // Assuming precalculation of reachability this function has complexity O(N^2 log N).
