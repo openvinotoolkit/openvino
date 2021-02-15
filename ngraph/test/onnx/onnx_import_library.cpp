@@ -15,8 +15,6 @@
 //*****************************************************************************
 
 #include <onnx/onnx_pb.h>
-#include "onnx/defs/function.h"
-#include "onnx/defs/schema.h"
 
 #include "gtest/gtest.h"
 #include "util/test_control.hpp"
@@ -24,16 +22,6 @@
 using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
-
-NGRAPH_TEST(onnx, get_function_op_with_version)
-{
-    const auto* schema =
-        ONNX_NAMESPACE::OpSchemaRegistry::Schema("MeanVarianceNormalization", 9, "");
-    EXPECT_TRUE(schema);
-    EXPECT_TRUE(schema->HasFunction());
-    auto func = schema->GetFunction();
-    EXPECT_EQ(func->name(), "MeanVarianceNormalization");
-}
 
 NGRAPH_TEST(onnx, check_ir_version_support)
 {

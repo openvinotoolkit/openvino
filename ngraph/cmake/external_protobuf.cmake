@@ -143,7 +143,7 @@ else()
             message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
         endif()
 
-        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR})
+        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR}/src)
         if(NGRAPH_USE_PROTOBUF_LITE)
             set(Protobuf_LIBRARIES libprotobuf-lite)
         else()
