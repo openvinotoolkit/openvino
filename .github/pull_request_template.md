@@ -4,6 +4,3 @@
 
 ### Tickets:
  - *ticket-id*
-
-### Connected PRs:
- - PR1
