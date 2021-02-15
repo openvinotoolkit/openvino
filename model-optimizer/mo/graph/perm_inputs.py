@@ -243,8 +243,8 @@ class PermuteInputs:
         input port info 'input' or 'output' + <port_number> that points on the input with PermuteAttr.Permutation which
         current input depends on.
 
-        shape_check_rule defines the rule by which the op node will be checked if it need to be permuted.
-        In most cases by default 'rank' rule is applied, 'dim_size' so far is used only by StridedSlice.
+        shape_check_rule defines the check rule if the op node inputs need to be permuted.
+        By default 'rank' rule is applied, 'dim_size' is used only for StridedSlice so far.
         """
         assert permutation_rule in self.input_permutes, 'No `{}` permutation rule in {}'.format(permutation_rule,
                                                                                                 __class__.__name__)

@@ -33,8 +33,8 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
     StridedSlice is not normal if it cannot be permuted by ApplyPermutations. This normalizer
     inserts blank colons ':' in slice expression so that it can be correctly permuted
     from NHWC to NCHW layout. It changes masks and inserts blank begin, end and strides values.
-    In order to successfully run in ShapeOf subgraphs insertations  must be done by inserting nodes
-    not just by rewritting constants.
+    In order to successfully handle StridedSlice in ShapeOf subgraphs
+    changes must be done by inserting nodes not just by overwriting constants.
 
     StridedSlice is not normal in 2 cases:
         1. rank of a slice expression is less than rank of input tensor
@@ -57,9 +57,10 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                  value=[0, 0, 0, 0]
                         |
 
-    Input of a shape [16, 100, 100, 3] in NHWC layout, output = input[:, 0:50] will be extended to input[:, 0:50, :, :]
-    after permutation to NCHW output = input[:, :, 0:50, :]. Above is show only for begin input, for end and strides
-    changes are analogously.
+    Input of a shape [16, 100, 100, 3] in NHWC layout, output = input[:, 0:50].
+    StridedSlice ill be extended to input[:, 0:50, :, :].
+    After permutation to NCHW output = input[:, :, 0:50, :].
+    Above is show only for begin input, for end and strides changes are analogous.
 
     2nd case example
     BEFORE:
@@ -84,14 +85,14 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
            value=[1, 0, 0, 1, 1]
                   |
 
-    Input of a shape [16, 10, 100, 100, 3] in NDHWC layout output = input[1:4, ..., 1:51, 1:3],
-    output_shape = [3, 10, 100, 50, 2]. In order to do correctly layout permutation in slice expression
-    input[1:4, ..., 1:51, 1:3] ellipsis should be exended => input[1:4, :, :, 1:51, 1:3]. After
-    layour permutation input[1:4, 1:3, :, : 1:5].
+    Input of a shape [16, 10, 100, 100, 3] in NDHWC layout, output = input[1:4, ..., 1:51, 1:3],
+    output_shape = [3, 10, 100, 50, 2]. In order to perform correct layout permutation
+    ellipsis should be exended: input[1:4, ..., 1:51, 1:3] => input[1:4, :, :, 1:51, 1:3].
+    Afterc layour permutation input[1:4, 1:3, :, : 1:5].
 
     In the places of colons blank zero begin, end and strides values
-    should be inserted. In order to do that we split begin, and concatenate with the blank zeros in the middle. Above
-    is show only for begin input, for end and strides changes are analogously.
+    should be inserted. In order to do that we split begin, and concatenate with the blank zeros in the middle.
+    Above is show only for begin input, for end and strides changes are analogous.
     """
     enabled = True
 
