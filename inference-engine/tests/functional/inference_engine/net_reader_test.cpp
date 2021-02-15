@@ -167,7 +167,7 @@ TEST(NetReaderTest, IRSupportModelDetection) {
                 </port>
             </output>
         </layer>
-        <layer name="Abs" id="1" type="Abs" version="experimental">
+        <layer name="Abs" id="1" type="Abs" version="opset1">
             <input>
                 <port id="1" precision="FP32">
                     <dim>1</dim>

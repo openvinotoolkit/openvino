@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -231,7 +231,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
 }
 
 void Config::adjustKeyMapValues() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Config::adjustKeyMapValues");
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "Config::AdjustKeyMapValues");
     if (useProfiling)
         key_config_map[PluginConfigParams::KEY_PERF_COUNT] = PluginConfigParams::YES;
     else

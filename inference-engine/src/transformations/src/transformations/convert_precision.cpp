@@ -14,6 +14,8 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 
+#include <ngraph/runtime/reference/convert.hpp>
+
 using namespace ngraph;
 
 bool fuse_type_to_constant(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, const std::vector<ngraph::Input<ngraph::Node>> & consumers);
@@ -27,7 +29,6 @@ bool fuse_type_to_nms5(std::shared_ptr<ngraph::Node> & node, ngraph::element::Ty
 bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
-bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
 bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
@@ -89,7 +90,6 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset4::TopK::type_info, fuse_type_to_topk},
         {opset4::NonZero::type_info, fuse_type_to_nonzero},
         {opset4::Bucketize::type_info, fuse_type_to_bucketize},
-        {NodeTypeInfo("GenericIE", 1), fuse_type_to_generic_ie},
         {opset4::Equal::type_info, fuse_type_to_binary_comparision<opset4::Equal>},
         {opset4::NotEqual::type_info, fuse_type_to_binary_comparision<opset4::NotEqual>},
         {opset4::Greater::type_info, fuse_type_to_binary_comparision<opset4::Greater>},
@@ -280,12 +280,6 @@ bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::elemen
     return false;
 }
 
-bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
-    node->set_output_type(idx, to, node->output(idx).get_partial_shape());
-    // return false as we do not replace original node
-    return false;
-}
-
 bool fuse_type_to_shapeof_v0(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     if (auto type_relaxed = std::dynamic_pointer_cast<op::TypeRelaxedBase>(node)) {
         type_relaxed->set_overridden_output_type(to);
@@ -341,25 +335,44 @@ inline int32_t convert_value<uint32_t, int32_t>(uint32_t val) {
     return static_cast<int32_t>(val);
 }
 
-template <element::Type_t PREC_FROM, element::Type_t PREC_TO>
-static std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant>& constant) {
-    using src_type = typename element_type_traits<PREC_FROM>::value_type;
-    using dst_type = typename element_type_traits<PREC_TO>::value_type;
+namespace {
+    template <element::Type_t PREC_FROM, element::Type_t PREC_TO>
+    std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant>& constant) {
+        using src_type = typename element_type_traits<PREC_FROM>::value_type;
+        using dst_type = typename element_type_traits<PREC_TO>::value_type;
 
-    const auto * src_data = constant->get_data_ptr<src_type>();
-    const auto size = shape_size(constant->get_shape());
+        const auto * src_data = constant->get_data_ptr<src_type>();
+        const auto size = shape_size(constant->get_shape());
 
-    auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
-    auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
-    if (dst_data == nullptr)
-        throw ngraph_error("Can't get destination data pointer");
+        auto new_constant = std::make_shared<ngraph::opset4::Constant>(PREC_TO, constant->get_shape());
+        auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
+        if (dst_data == nullptr)
+            throw ngraph_error("Can't get destination data pointer");
 
-    std::vector<dst_type> final_data;
-    for (size_t i = 0; i < size; ++i) {
-        dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
+        for (size_t i = 0; i < size; ++i) {
+            dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
+        }
+        return new_constant;
     }
-    return new_constant;
-}
+
+    template <>
+    std::shared_ptr<Node> change_constant_precision<element::Type_t::f16, element::Type_t::f32>(std::shared_ptr<opset4::Constant>& constant) {
+        using src_type = typename element_type_traits<element::Type_t::f16>::value_type;
+        using dst_type = typename element_type_traits<element::Type_t::f32>::value_type;
+
+        const auto * src_data = constant->get_data_ptr<src_type>();
+        const auto size = shape_size(constant->get_shape());
+
+        auto new_constant = std::make_shared<ngraph::opset4::Constant>(element::Type_t::f32, constant->get_shape());
+        auto * dst_data = const_cast<dst_type *>(reinterpret_cast<const dst_type *>(new_constant->get_data_ptr()));
+        if (dst_data == nullptr)
+            throw ngraph_error("Can't get destination data pointer");
+
+        ngraph::runtime::reference::convert<src_type, dst_type>(src_data, dst_data, size);
+
+        return new_constant;
+    }
+}   // namespace
 
 bool fuse_type_to_constant(std::shared_ptr<Node> & node, element::Type to, const std::vector<Input<Node>> & consumers) {
     if (auto constant = as_type_ptr<opset4::Constant>(node)) {
@@ -391,9 +404,7 @@ bool fuse_type_to_constant(std::shared_ptr<Node> & node, element::Type to, const
         }
 
         new_const->validate_and_infer_types();
-        if (constant->get_output_target_inputs(0).size() == consumers.size()) {
-            new_const->set_friendly_name(constant->get_friendly_name());
-        }
+        new_const->set_friendly_name(constant->get_friendly_name());
     }
     return false;
 }

@@ -435,10 +435,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         currentComponent.orientation_out = kDnnInterleavedOrientation;
     }
 
-    size_t num_data_bytes_out =
-        InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
-        * outputs->getPrecision().size();
-
+    size_t num_data_bytes_out = num_columns_out * outputs->getPrecision().size();
     size_t num_data_bytes_in = (num_inputs + num_input_padding) * inputs->getPrecision().size();
 
     auto connectedInputLayer = connectInput(layer, ptr_inputs, num_data_bytes_in).input;
@@ -456,30 +453,6 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     }
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
-
-    // When there's a NCHW convolution as a last layer, the output needs to be transposed back to NCHW
-    // TODO: Jira: 43659 - the issue also appears when after conv there's an eltwise or activation
-    // For last layer or when next ones are only non functional, the data can be reordered when exporting scores
-    // For other cases inserting permute is required if data are reordered
-    auto isNonFunctional = [](CNNLayerPtr l) {
-        return LayerInfo(l).isNonFunctional();
-    };
-    if (getInputTo(outputs).empty() || !CNNNetHasNextLayerSkipCertain(layer, 0, 0, isNonFunctional)) {
-        // if height dim and width dim both equal 1, the permute is not needed to return correct results
-        // if height dim doesn't equal 1, the case requires additional permute
-        auto inputDimsCheck = (outputs->getLayout() == Layout::NHWC ||
-                               in_channels != 1 ||
-                               (in_height == 1 && in_width == 1) ||
-                               in_height != 1);
-
-        //if kernel is pow of 2 and heigher than 8, then the issue doesn't appear
-        auto kernelCheck = convolution._kernel_x > 15 && !(convolution._kernel_x & (convolution._kernel_x - 1));
-        if (!inputDimsCheck && !kernelCheck) {
-            dnn->do_rotate_output = true;
-            dnn->num_rotate_output_rows = out_width;
-            dnn->num_rotate_output_columns = out_channels;
-        }
-    }
 
     std::vector<uint8_t> transposedWeights;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
@@ -1058,15 +1031,21 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         offset.push_back(cropLayer->offset[n]);
     }
 
-    if (axis.size() > 1) {
+    if (axis.size() != 1) {
         THROW_GNA_EXCEPTION <<
             "Crop layer does not support the number of (non-trivial) cropped dimensions more than 1, provided: "
             << axis.size() << ".";
     }
 
+
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
     size_t cropOffset = offset.front() * cropLayer->precision.size();
     size_t cropOutputSize = dim.front() * cropLayer->precision.size();
+    // fix for crop on tensor dim > 2D
+    for (int n = axis[0]+1; n < cropLayer->dim.size(); n++) {
+        cropOffset *= cropLayer->dim[n];
+        cropOutputSize *= cropLayer->dim[n];
+    }
 
     if (!LayerInfo(cropLayer).isCropAffined()) {
         // leave crop as it is
@@ -1303,8 +1282,10 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
     auto inputPrecision = quantized ? Precision(Precision::I16) : inputs->getPrecision();
 
     auto input_data = HasTo2DReshapeData(layer) ? Get2DReshapedData(inputs, 8) : inputs;
-    uint32_t num_rows_in = FROM_IR_DIM(input_data, 1);
-    uint32_t num_columns_in = FROM_IR_DIM(input_data, 2);
+    auto in_dims = input_data->getDims();
+    auto batch_size = (in_dims.size() == 1) ? 1 : in_dims.front();
+    uint32_t num_rows_in = InferenceEngine::details::product(in_dims) / batch_size;
+    uint32_t num_columns_in = batch_size;
     uint32_t num_rows_out = isDiag ? num_rows_in : FROM_IR_DIM(outputs, 1);
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
     uint32_t num_padding_out = isDiag ? num_padding : 0;
@@ -1804,6 +1785,23 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         activation_type = GNAFakeQuantizeLayer(layer).parseAsActivation();
     }
 
+    if (it->second == kActKaldiLstmClipping) {
+        auto clamp_layer = dynamic_cast<ClampLayer*>(layer.get());
+        if (clamp_layer) {
+            if (clamp_layer->min_value == 0 && clamp_layer->max_value == 0) {
+                // Clamp layer may be not initialized due to backward compatibility
+                // use in such case old default values
+                activation_type.args.clamp.low = KALDI_LSTM_CLIP_LOWER;
+                activation_type.args.clamp.high = KALDI_LSTM_CLIP_UPPER;
+            } else {
+                activation_type.args.clamp.low = clamp_layer->min_value;
+                activation_type.args.clamp.high = clamp_layer->max_value;
+            }
+        } else {
+            activation_type.args.clamp.low = KALDI_LSTM_CLIP_LOWER;
+            activation_type.args.clamp.high = KALDI_LSTM_CLIP_UPPER;
+        }
+    }
     string actName = "unknown";
 
 #ifdef PLOT
@@ -2370,7 +2368,6 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         gnalog()  << "Skipping trivial permute layer: " << prevLayer->name << "\n";
         return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
     }
-
 
     THROW_GNA_EXCEPTION << "Cannot connect input for: " << layer->name;
 }

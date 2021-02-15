@@ -301,5 +301,6 @@ std::shared_ptr<Node>
     {
         op->m_output_descriptions.push_back(output_description->copy());
     }
+    op->validate_and_infer_types();
     return op;
 }

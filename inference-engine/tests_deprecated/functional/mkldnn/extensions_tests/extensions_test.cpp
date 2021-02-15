@@ -23,55 +23,6 @@ struct extension_params {
     std::map<std::string, std::string> config;
 };
 
-class FakePrimitiveImpl : public InferenceEngine::ILayerExecImpl {
-public:
-    FakePrimitiveImpl(const InferenceEngine::CNNLayer *layer) {
-        cnnLayer = const_cast<InferenceEngine::CNNLayer *>(layer);
-    }
-    InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf, InferenceEngine::ResponseDesc *resp) noexcept override {
-        InferenceEngine::LayerConfig config;
-        config.dynBatchSupport = true;
-        if (cnnLayer->outData.size() != 1 && cnnLayer->insData.size() != 1)
-            return InferenceEngine::GENERAL_ERROR;
-        InferenceEngine::DataConfig cfg;
-        cfg.constant = false;
-        cfg.inPlace = 0;
-        InferenceEngine::SizeVector order;
-        for(size_t i = 0; i < cnnLayer->outData[0]->getTensorDesc().getDims().size(); i++) {
-            order.push_back(i);
-        }
-        cfg.desc = InferenceEngine::TensorDesc(cnnLayer->outData[0]->getTensorDesc().getPrecision(),
-                                               cnnLayer->outData[0]->getTensorDesc().getDims(),
-                                               {cnnLayer->outData[0]->getTensorDesc().getDims(), order});
-        config.outConfs.push_back(cfg);
-        config.inConfs.push_back(cfg);
-        conf.push_back(config);
-        return InferenceEngine::OK;
-    }
-    InferenceEngine::StatusCode init(InferenceEngine::LayerConfig& config, InferenceEngine::ResponseDesc *resp) noexcept override {
-        return InferenceEngine::OK;
-    }
-    InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs, InferenceEngine::ResponseDesc *resp) noexcept override {
-        return InferenceEngine::OK;
-    }
-
-private:
-    InferenceEngine::CNNLayer* cnnLayer;
-};
-
-class TestExtension : public InferenceEngine::IExtension {
-public:
-    void Release() noexcept override { delete this; }
-
-    void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override
-    {
-        static const InferenceEngine::Version VERSION{{}, "", ""};
-        versionInfo = &VERSION;
-    }
-
-    void Unload() noexcept override {}
-};
-
 class NewFakePrimitiveImpl : public InferenceEngine::ILayerExecImpl {
 public:
     NewFakePrimitiveImpl(const std::shared_ptr<ngraph::Node>& node): node(node) {}
@@ -179,7 +130,7 @@ public:
         if (opsets.empty()) {
             ngraph::OpSet opset;
             opset.insert<FakeTestOp>();
-            opsets["experimental"] = opset;
+            opsets["custom_opset"] = opset;
         }
         return opsets;
     }
@@ -213,7 +164,7 @@ protected:
             std::unique_ptr<InferenceEnginePluginPtr> score_engine1;
             score_engine1.reset(new InferenceEnginePluginPtr(make_plugin_name(p.plugin()).c_str()));
             (*score_engine1)->SetConfig(p.config);
-            
+
             std::unique_ptr<InferenceEnginePluginPtr> score_engine2;
             score_engine2.reset(new InferenceEnginePluginPtr(make_plugin_name(p.plugin()).c_str()));
             (*score_engine2)->SetConfig(p.config);
@@ -248,7 +199,7 @@ protected:
                         </port>
                     </output>
                 </layer>
-                <layer name="fake_layer" id="1" type="Fake" version="experimental" precision="FP32">
+                <layer name="fake_layer" id="1" type="Fake" version="custom_opset" precision="FP32">
                     <input>
                         <port id="1">
                             <dim>1</dim>
@@ -291,20 +242,14 @@ protected:
 
             Blob::Ptr weights;
             CNNNetwork cnnNet1 = ie.ReadNetwork(model, weights);
-            CNNNetwork cnnNet2 = ie2.ReadNetwork(model, weights);
             ASSERT_NO_THROW(ie.LoadNetwork(cnnNet1, device));
-            ASSERT_THROW(ie2.LoadNetwork(cnnNet2, device), details::InferenceEngineException);
+            ASSERT_THROW(ie2.ReadNetwork(model, weights), details::InferenceEngineException);
         } catch (const InferenceEngine::details::InferenceEngineException& e) {
             FAIL() << e.what();
         }
     }
 };
 
-/*************************************************
- * !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!!
- * All ref values was obtained from Caffe scoring
- * !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!! !!!
- *************************************************/
 #ifndef ENABLE_MKL_DNN
  #include "disable_tests.hpp"
 #endif

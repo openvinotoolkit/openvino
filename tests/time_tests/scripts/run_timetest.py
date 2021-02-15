@@ -16,6 +16,7 @@ import subprocess
 import logging
 import argparse
 import sys
+import os
 from pprint import pprint
 import yaml
 
@@ -75,7 +76,7 @@ def run_timetest(args: dict, log=None):
     # Run executable and collect statistics
     stats = {}
     for run_iter in range(args["niter"]):
-        tmp_stats_path = tempfile.NamedTemporaryFile().name     # create temp file, get path and delete temp file
+        tmp_stats_path = tempfile.NamedTemporaryFile().name
         retcode, msg = run_cmd(cmd_common + ["-s", str(tmp_stats_path)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
@@ -85,6 +86,8 @@ def run_timetest(args: dict, log=None):
         # Read raw statistics
         with open(tmp_stats_path, "r") as file:
             raw_data = yaml.safe_load(file)
+
+        os.unlink(tmp_stats_path)
         log.debug("Raw statistics after run of executable #{}: {}".format(run_iter, raw_data))
 
         # Combine statistics from several runs

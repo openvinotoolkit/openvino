@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_eltwise_node.h"
 #include "utils/bfloat16.hpp"
+#include "emitters/jit_bf16_emitters.hpp"
 #include "mkldnn_extension_utils.h"
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
 #include <cpu/x64/jit_uni_depthwise_injector.hpp>
@@ -207,7 +208,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
         this->postamble();
 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
-            emu_vcvtneps2bf16->emit_table();
+            emu_vcvtneps2bf16->emit_data();
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
     }
@@ -603,7 +604,7 @@ private:
             if (mayiuse(avx512_core_bf16))
                 vcvtneps2bf16(ymm_dst, vmm_dst);
             else
-                emu_vcvtneps2bf16->emit({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
+                emu_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_dst.getIdx())}, {static_cast<size_t>(ymm_dst.getIdx())});
             vmovdqu16(op, ymm_dst);
         } else if (dst_dt == memory::data_type::u8) {
             uni_vcvtps2dq(vmm_dst, vmm_dst);
@@ -1398,8 +1399,9 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
                     (*normalize_kernel)(&arg);
                 });
             } else {
+                std::vector<float> fused_weight_modulo(weights_padding.size(), 0);
                 for (size_t c = 0; c < C; c++) {
-                    weights_padding[c] = weights_padding[c] * modulo_inv;
+                    fused_weight_modulo[c] = weights_padding[c] * modulo_inv;
                 }
                 parallel_for2d(CB, H, [&](size_t cb, size_t h) {
                     const in_data_t *src_data_b_cb_h = src_data_b + cb * H * W * blk_size + h * W * blk_size;
@@ -1407,7 +1409,7 @@ void MKLDNNNormalizeNode::normalize_blk(const in_data_t* src_data, out_data_t* d
                     auto arg = jit_normalize_call_args();
                     arg.src = src_data_b_cb_h;
                     arg.dst = dst_data_b_cb_h;
-                    arg.fused_factor = static_cast<float*>(&weights_padding[cb * blk_size]);  // load once
+                    arg.fused_factor = static_cast<float*>(&fused_weight_modulo[cb * blk_size]);  // load once
                     arg.work_amount = static_cast<size_t>(W);
                     arg.oc_off = cb * blk_size  * sizeof(float);
                     (*normalize_kernel)(&arg);

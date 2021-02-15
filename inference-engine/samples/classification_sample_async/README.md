@@ -49,7 +49,7 @@ Options:
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-To run the sample, use AlexNet and GoogLeNet or other public or pre-trained image classification models. To download the pre-trained models, use the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the sample, use AlexNet and GoogLeNet or other public or pre-trained image classification models. You can download [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models using the [Model Downloader](@ref omz_tools_downloader_README).
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 > 
