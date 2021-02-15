@@ -76,6 +76,7 @@ ngraph::pass::MVNFusion::MVNFusion() {
         auto const_2_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_2).get_node_shared_ptr());
         auto const_0_5_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_0_5).get_node_shared_ptr());
         auto const_neg_1_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(const_neg_1).get_node_shared_ptr());
+
         if (!const_2_node || !const_0_5_node || !const_neg_1_node) {
             return false;
         }
@@ -95,6 +96,10 @@ ngraph::pass::MVNFusion::MVNFusion() {
         auto axes_1_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean1_axes).get_node_shared_ptr());
         auto axes_2_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean2_axes).get_node_shared_ptr());
         auto axes_3_node = std::dynamic_pointer_cast<ngraph::opset6::Constant>(pattern_to_output.at(mean3_axes).get_node_shared_ptr());
+
+        if (!axes_1_node || !axes_2_node || !axes_3_node) {
+            return false;
+        }
 
         auto axes_1_value = axes_1_node->cast_vector<int64_t>();
         auto axes_2_value = axes_2_node->cast_vector<int64_t>();
