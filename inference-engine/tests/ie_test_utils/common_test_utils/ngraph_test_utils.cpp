@@ -291,13 +291,20 @@ public:
 class ReadAndStoreAttributes : public ngraph::AttributeVisitor, protected storage::Storage {
 public:
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+        if (auto inputs =
+                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
             insert(name, inputs->get());
-        } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+        } else if (
+            auto outputs =
+                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
             insert(name, outputs->get());
-        } else if (auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+        } else if (
+            auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
             insert(name, ports->get());
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+        } else if (
+            auto a = ngraph::as_type<
+                ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+                &adapter)) {
             const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
             const auto end = beg + a->get()->size();
             insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
@@ -377,22 +384,22 @@ struct Equal {
 
 template <>
 struct Equal<ngraph::bfloat16> {
-  static bool equal_value(ngraph::bfloat16 lhs, ngraph::bfloat16 rhs) {
-    if (lhs.to_bits() == rhs.to_bits()) {
-        return true;
+    static bool equal_value(ngraph::bfloat16 lhs, ngraph::bfloat16 rhs) {
+        if (lhs.to_bits() == rhs.to_bits()) {
+            return true;
+        }
+        return std::abs(lhs - rhs) < 1e-3;
     }
-    return std::abs(lhs - rhs) < 1e-3;
-  }
 };
 
 template <>
 struct Equal<ngraph::float16> {
-  static bool equal_value(ngraph::float16 lhs, ngraph::float16 rhs) {
-    if (lhs.to_bits() == rhs.to_bits()) {
-        return true;
+    static bool equal_value(ngraph::float16 lhs, ngraph::float16 rhs) {
+        if (lhs.to_bits() == rhs.to_bits()) {
+            return true;
+        }
+        return std::abs(lhs - rhs) < 1e-3;
     }
-    return std::abs(lhs - rhs) < 1e-3;
-  }
 };
 
 template <>
@@ -503,9 +510,10 @@ struct Equal<SpecialBodyPorts> {
 };
 
 using Constant = ngraph::opset1::Constant;
-template <> struct Equal<std::shared_ptr<Constant>> {
-    static bool equal_value(const std::shared_ptr<Constant>& lhs,
-                            const std::shared_ptr<Constant>& rhs) {
+template <>
+struct Equal<std::shared_ptr<Constant>> {
+    static bool equal_value(
+        const std::shared_ptr<Constant>& lhs, const std::shared_ptr<Constant>& rhs) {
         const auto lhs_t = lhs->get_element_type();
         const auto rhs_t = rhs->get_element_type();
         if (lhs_t != rhs_t) {
@@ -520,20 +528,20 @@ template <> struct Equal<std::shared_ptr<Constant>> {
             break;
         }
         case ngraph::element::Type_t::f16: {
-            const auto &lhs_v = lhs->cast_vector<ngraph::float16>();
-            const auto &rhs_v = rhs->cast_vector<ngraph::float16>();
+            const auto& lhs_v = lhs->cast_vector<ngraph::float16>();
+            const auto& rhs_v = rhs->cast_vector<ngraph::float16>();
             return Equal<std::vector<ngraph::float16>>::equal_value(lhs_v, rhs_v);
             break;
         }
         case ngraph::element::Type_t::f32: {
-            const auto &lhs_v = lhs->cast_vector<float>();
-            const auto &rhs_v = rhs->cast_vector<float>();
+            const auto& lhs_v = lhs->cast_vector<float>();
+            const auto& rhs_v = rhs->cast_vector<float>();
             return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
             break;
         }
         default: {
-            const auto &lhs_v = lhs->cast_vector<double>();
-            const auto &rhs_v = rhs->cast_vector<double>();
+            const auto& lhs_v = lhs->cast_vector<double>();
+            const auto& rhs_v = rhs->cast_vector<double>();
             return Equal<std::vector<double>>::equal_value(lhs_v, rhs_v);
             break;
         }
@@ -602,13 +610,20 @@ public:
             return;
         }
         m_visited_attributes.insert(name);
-        if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+        if (auto inputs =
+                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
             verify(name, inputs->get());
-        } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+        } else if (
+            auto outputs =
+                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
             verify(name, outputs->get());
-        } else if (auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+        } else if (
+            auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
             verify(name, ports->get());
-        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+        } else if (
+            auto a = ngraph::as_type<
+                ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(
+                &adapter)) {
             m_visited_attributes.insert(name);
             const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
             if (!ref_value) {
@@ -851,11 +866,10 @@ Comparator::Result Comparator::compare(
             auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
             using namespace ::attr_comparison::equal;
             if (const1 && const2 &&
-                    !Equal<std::shared_ptr<Constant>>::equal_value(const1, const2)) {
+                !Equal<std::shared_ptr<Constant>>::equal_value(const1, const2)) {
                 err_log << "Different Constant values detected\n"
                         << node1->description() << " Input(" << i << ") and "
-                            << node2->description() << " Input(" << i << ")"
-                            << std::endl;
+                        << node2->description() << " Input(" << i << ")" << std::endl;
             }
         }
 

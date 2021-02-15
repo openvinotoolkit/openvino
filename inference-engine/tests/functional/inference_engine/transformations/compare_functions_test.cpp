@@ -523,7 +523,7 @@ TEST(TransformationTests, DummyOpNegativeNotSupportedType) {
     EXPECT_THAT(res.message, HasSubstr(" [drop `void` comparison which is '"));
 }
 
-TEST(TransformationTests, DifferentPrecisionNegative) {
+TEST(TransformationTests, DifferentPrecisionVersusAttributes) {
     const auto createReadValueFunc = [](ngraph::element::Type t) {
         using namespace ngraph::opset5;
 
@@ -536,12 +536,28 @@ TEST(TransformationTests, DifferentPrecisionNegative) {
     const auto& f1 = createReadValueFunc(ngraph::element::f16);
     const auto& f2 = createReadValueFunc(ngraph::element::i16);
 
+    ///
     /// if FunctionComparator::ATTRIBUTES is select error from Attribute comparator override error
-    /// found when only FunctionComparator::PRECISION is enabled
-    const auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
-    const auto res = fc.compare(f1, f2);
-    EXPECT_FALSE(res.valid);
-    EXPECT_THAT(res.message, HasSubstr("Different element type detected"));
-    EXPECT_THAT(res.message, HasSubstr("f16"));
-    EXPECT_THAT(res.message, HasSubstr("i16"));
+    /// found when FunctionComparator::PRECISION is enabled
+    ///
+
+    {  // check precision only
+        const auto fc = FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS);
+        const auto res = fc.compare(f1, f2);
+        EXPECT_FALSE(res.valid);
+        EXPECT_THAT(res.message, HasSubstr("Different element type detected"));
+        EXPECT_THAT(res.message, HasSubstr("f16"));
+        EXPECT_THAT(res.message, HasSubstr("i16"));
+    }
+
+    {  // check precision and attributes
+        const auto fc = FunctionsComparator::no_default()
+                            .enable(FunctionsComparator::PRECISIONS)
+                            .enable(FunctionsComparator::ATTRIBUTES);
+        const auto res = fc.compare(f1, f2);
+        EXPECT_FALSE(res.valid);
+        EXPECT_THAT(res.message, HasSubstr("Comparison of attributes failed for nodes "));
+        EXPECT_THAT(res.message, HasSubstr("f16"));
+        EXPECT_THAT(res.message, HasSubstr("i16"));
+    }
 }
