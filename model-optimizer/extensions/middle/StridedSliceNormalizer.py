@@ -17,15 +17,15 @@ import numpy as np
 
 from extensions.ops.split import VariadicSplit
 from mo.front.common.partial_infer.utils import int64_array
-from mo.ops.strided_slice import StridedSlice
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.concat import Concat
-from mo.utils.error import Error
 from mo.ops.const import Const
 from mo.ops.op import PermuteAttrs
+from mo.ops.strided_slice import StridedSlice
+from mo.utils.error import Error
 
 
 class StridedSliceNormalizer(MiddleReplacementPattern):
@@ -161,7 +161,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             blank_values_node = Const(graph, {'name': node_name + '/const_to_unroll_{}_ellipsis'.format(input_name),
                                               'value': int64_array(blank_values_arr)}).create_node()
 
-            if input_name == 'strides' and node.in_port(3).disconnected():
+            if i == 3 and node.in_port(3).disconnected():
                 continue  # no need to extend strides if they are not connected
 
             concat_in_ports_count = 3 if ellipsis_start != 0 else 2
@@ -194,7 +194,7 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             blank_values_node = Const(graph, {'name': node_name + '/extend_{}_const'.format(input_name),
                                               'value': int64_array(blank_values_arr)}).create_node()
 
-            if input_name == 'strides' and node.in_port(3).disconnected():
+            if i == 3 and node.in_port(3).disconnected():
                 continue  # no need to extend strides if they are not connected
 
             if node.in_port(i).get_source().node.soft_get('type') == 'Concat':
@@ -248,4 +248,4 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             if not (node.new_axis_mask[i] or node.ellipsis_mask[i]):
                 res_slices[-1] = slice(*res_slices[-1].indices(data_shape[in_idx]))  # convert negative begins/ends
                 in_idx += 1
-        node['slices'] = np.array(res_slices)
+        node.slices = np.array(res_slices)
