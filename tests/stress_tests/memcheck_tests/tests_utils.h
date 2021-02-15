@@ -58,7 +58,7 @@ private:
     std::vector<long> vmsize_v, vmpeak_v, vmrss_v, vmhwm_v;
 public:
     std::array<long, MeasureValueMax> references;
-    std::string separator = "/"
+    std::string separator = "/";
 
     TestReferences () {
         std::fill(references.begin(), references.end(), -1);

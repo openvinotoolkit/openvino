@@ -47,7 +47,7 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> fie
             values = test_config.child("attributes").child("models");
             for (pugi::xml_node val = values.first_child(); val; val = val.next_sibling()) {
                 std::string full_path = val.attribute("full_path").as_string();
-                std::string separator = "/"
+                std::string separator = "/";
                 std::string path = val.attribute("path").as_string() + separator +
                                    val.attribute("precision").as_string() + separator +
                                    val.attribute("name").as_string();
