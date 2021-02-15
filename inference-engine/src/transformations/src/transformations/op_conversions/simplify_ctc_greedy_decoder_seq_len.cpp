@@ -32,7 +32,7 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
 
             const std::vector<int64_t> &blank_index_values = blank_index->cast_vector<int64_t>();
             const auto num_classes = decoder_seq_len->get_input_partial_shape(0)[2].get_length();
-            if (blank_index_values[0] == (num_classes - 1)) {
+            if (blank_index_values[0] != (num_classes - 1)) {
                 return false;
             }
         }
