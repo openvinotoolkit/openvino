@@ -48,7 +48,7 @@ public:
     const mkldnn::memory& getWeights() const;
     const mkldnn::memory& getBias() const;
 
-    bool canBeExecutedInInt8();
+    bool canBeExecutedInInt8() const;
 
     InferenceEngine::Precision getRuntimePrecision() const override;
 
@@ -57,11 +57,10 @@ public:
     std::vector<int32_t> outputCompensation;
 
 protected:
-    void addScaleToPrimitiveAttr(mkldnn::primitive_attr attr) const;
     InferenceEngine::Precision fusedEltwisePrecision(MKLDNNEltwiseNode *eltwiseNode, int findex);
 
 private:
-    mkldnn::memory::data_type precisionToDataType(InferenceEngine::Precision prec);
+    mkldnn::memory::data_type precisionToDataType(InferenceEngine::Precision prec) const;
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
 
     bool withBiases;
@@ -84,8 +83,6 @@ private:
     std::vector<ptrdiff_t> dw_conv_strides;
     mkldnn::memory::data_type dw_conv_in_dt;
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-
-    InferenceEngine::Blob::Ptr wScale, oScale;
 
     size_t groupNum;
     int baseInputsNumber;
