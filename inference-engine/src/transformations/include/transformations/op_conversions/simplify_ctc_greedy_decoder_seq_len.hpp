@@ -11,11 +11,11 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
-    namespace pass {
+namespace pass {
 
-        class TRANSFORMATIONS_API SimplifyCTCGreedyDecoderSeqLen;
+class TRANSFORMATIONS_API SimplifyCTCGreedyDecoderSeqLen;
 
-    }  // namespace pass
+}  // namespace pass
 }  // namespace ngraph
 
 /**
