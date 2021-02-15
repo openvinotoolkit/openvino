@@ -10,7 +10,6 @@
 #include <string>
 
 #include <ie_core.hpp>
-#include "generic_ie.hpp"
 
 #include <legacy/net_pass.h>
 #include <legacy/graph_transformer.h>
@@ -79,8 +78,6 @@ InferenceEngine::CNNNetwork convert(std::shared_ptr<ngraph::Function> function) 
                 std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
         };
         auto nGraphFunc = clonedNetwork.getFunction();
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::Manager manager;

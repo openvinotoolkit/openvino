@@ -168,7 +168,7 @@ void remove_redundant_reorders::run(program_impl& p) {
 
         bool no_output_optimization = remove_output_reorders ?
             r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
-                r_node.get_dependency(0).can_be_optimized()) : r_node.is_output();
+                r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
 
         if (r_node.has_mean() ||
             !r_node.get_primitive()->subtract_per_feature.empty() ||
