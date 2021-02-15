@@ -2323,6 +2323,103 @@ inline v_uint16x8 v_mulhi(const v_uint16x8& a, uint16_t b) {
     return result;
 }
 
+CV_ALWAYS_INLINE v_int16x8 v_mulhrs(const v_int16x8& a, const v_int16x8& b) {
+    // Multiply
+    int32x4_t mul_lo = vmull_s16(vget_low_s16(a.val),
+                                 vget_low_s16(b.val));
+    int32x4_t mul_hi = vmull_s16(vget_high_s16(a.val),
+                                 vget_high_s16(b.val));
+
+    // Rounding narrowing shift right
+    // narrow = (int16_t)((mul + 16384) >> 15);
+    int16x4_t narrow_lo = vrshrn_n_s32(mul_lo, 15);
+    int16x4_t narrow_hi = vrshrn_n_s32(mul_hi, 15);
+
+    // Join together
+    return v_int16x8(vcombine_s16(narrow_lo, narrow_hi));
+}
+
+CV_ALWAYS_INLINE v_int16x8 v_mulhrs(const v_int16x8& a, short b) {
+    return v_mulhrs(a, v_setall_s16(b));
+}
+
+CV_ALWAYS_INLINE void v_gather_channel(v_uint8x16& vec, const uint8_t tmp[],
+                                       const short* index, int chanNum, int c,
+                                       int shift)
+{
+    int32x4_t result;
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 0)) + c)]), result, 0);
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 1)) + c)]), result, 1);
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 0) + 1) + c)]), result, 2);
+    result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 1) + 1) + c)]), result, 3);
+
+    vec.val = vreinterpretq_u8_s32(result);
+}
+
+namespace {
+template<int chanNum>
+CV_ALWAYS_INLINE v_int16x8 v_gather_channel(const uchar src[], const short* index, int channel, int pos) {
+    int16x8_t result;
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*index + pos) + channel]), result, 0);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 1) + pos) + channel]), result, 1);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 2) + pos) + channel]), result, 2);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 3) + pos) + channel]), result, 3);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 4) + pos) + channel]), result, 4);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 5) + pos) + channel]), result, 5);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 6) + pos) + channel]), result, 6);
+    result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 7) + pos) + channel]), result, 7);
+    return v_int16x8(result);
+}
+}  // namespace
+
+template<int imm>
+CV_ALWAYS_INLINE v_uint8x16 v_blend(const v_uint8x16& a, const v_uint8x16& b)
+{
+    const uint16_t _mask[8] = { ((imm) & (1 << 0)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 1)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 2)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 3)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 4)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 5)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 6)) ? 0xFFFF : 0x0000,
+                                ((imm) & (1 << 7)) ? 0xFFFF : 0x0000 };
+    uint16x8_t _mask_vec = vld1q_u16(_mask);
+    uint16x8_t _a = vreinterpretq_u16_u8(a.val);
+    uint16x8_t _b = vreinterpretq_u16_u8(b.val);
+    return v_uint8x16(vreinterpretq_u8_u16(vbslq_u16(_mask_vec, _b, _a)));
+}
+
+CV_ALWAYS_INLINE v_uint8x16 v_shuffle(const v_uint8x16& a, const v_uint8x16& mask)
+{
+
+    uint8x16_t tbl = a.val;   // input a
+    uint8x16_t idx = mask.val;  // input mask
+    uint8x16_t idx_masked =
+               vandq_u8(idx, vdupq_n_u8(0x8F));  // avoid using meaningless bits
+#if defined(__aarch64__)
+    return v_uint8x16(vqtbl1q_u8(tbl, idx_masked));
+#elif defined(__GNUC__)
+    uint8x16_t ret;
+    // %e and %f represent the even and odd D registers
+    // respectively.
+    __asm__ __volatile__(
+        "vtbl.8  %e[ret], {%e[tbl], %f[tbl]}, %e[idx]\n"
+        "vtbl.8  %f[ret], {%e[tbl], %f[tbl]}, %f[idx]\n"
+        : [ret] "=&w"(ret)
+        : [tbl] "w"(tbl), [idx] "w"(idx_masked));
+
+    return v_uint8x16(ret);
+#else
+
+    // use this line if testing on aarch64
+    uint8x8x2_t a_split = { vget_low_u8(tbl), vget_high_u8(tbl) };
+
+    return v_uint8x16(vcombine_u8(
+                                vtbl2_u8(a_split, vget_low_u8(idx_masked)),
+                                vtbl2_u8(a_split, vget_high_u8(idx_masked))));
+
+#endif
+}
 
 
 CV_CPU_OPTIMIZATION_HAL_NAMESPACE_END
