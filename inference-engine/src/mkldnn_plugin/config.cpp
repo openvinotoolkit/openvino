@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// avoiding clash of the "max" macro with std::max
-#define NOMINMAX
-
 #include "config.h"
 
 #include <string>
@@ -13,16 +10,34 @@
 
 #include "ie_plugin_config.hpp"
 #include "ie_common.h"
+#include "ie_parallel.hpp"
+#include "ie_system_conf.h"
 
 #include <cpp_interfaces/exception2status.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <ie_parallel.hpp>
-#include <ie_system_conf.h>
-
 
 namespace MKLDNNPlugin {
 
 using namespace InferenceEngine;
+
+Config::Config() {
+#if (defined(__APPLE__) || defined(_WIN32))
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO) && (TBB_INTERFACE_VERSION >= 11100)
+    // If we sure that TBB has NUMA aware API part.
+    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NUMA;
+#else
+    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::NONE;
+#endif
+#else
+    streamExecutorConfig._threadBindingType = InferenceEngine::IStreamsExecutor::CORES;
+#endif
+
+    if (!with_cpu_x86_bfloat16())
+        enforceBF16 = false;
+
+    updateProperties();
+}
+
 
 void Config::readProperties(const std::map<std::string, std::string> &prop) {
     auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
@@ -34,7 +49,13 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
-            int val_i = std::stoi(val);
+            int val_i = -1;
+            try {
+                val_i = std::stoi(val);
+            } catch (const std::exception&) {
+                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_LIMIT
+                                    << ". Expected only integer numbers";
+            }
             // zero and any negative value will be treated
             // as default batch size
             batchLimit = std::max(val_i, 0);
@@ -73,11 +94,17 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else if (key.compare(PluginConfigParams::KEY_DUMP_QUANTIZED_GRAPH_AS_IR) == 0) {
             dumpQuantizedGraphToIr = val;
         } else if (key == PluginConfigParams::KEY_ENFORCE_BF16) {
-            if (val == PluginConfigParams::YES) enforceBF16 = true;
-            else if (val == PluginConfigParams::NO) enforceBF16 = false;
-            else
+            if (val == PluginConfigParams::YES) {
+                if (with_cpu_x86_avx512_core())
+                    enforceBF16 = true;
+                else
+                    THROW_IE_EXCEPTION << "Platform doesn't support BF16 format";
+            } else if (val == PluginConfigParams::NO) {
+                enforceBF16 = false;
+            } else {
                 THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
+            }
         } else {
             THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property " << key << " by CPU plugin";
         }

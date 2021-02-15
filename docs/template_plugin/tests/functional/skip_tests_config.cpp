@@ -9,5 +9,10 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
+        ".*ExclusiveAsyncRequests.*",
+        ".*reusableCPUStreamsExecutor.*",
+        R"(.*SplitLayerTest.*numSplits\=30.*)",
+        // CVS-44774
+        ".*PreprocessTest.*",
     };
 }

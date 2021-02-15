@@ -8,11 +8,8 @@
 #include "tests_common.hpp"
 #include "single_layer_common.hpp"
 
-#include <cnn_network_stats_impl.hpp>
-
 #include <string>
 
-#include "network_stats.h"
 #include <format_reader/format_reader_ptr.h>
 #include "common_test_utils/data_utils.hpp"
 
@@ -20,7 +17,7 @@ using namespace ::testing;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-struct conv_base_params {
+struct conv_int8_base_params {
     struct {
         size_t w;
         size_t h;
@@ -45,11 +42,11 @@ struct conv_base_params {
     } out;
 };
 
-struct conv_test_int8_params : conv_base_params {
+struct conv_test_int8_params : conv_int8_base_params {
     std::string device_name;
 
-    conv_test_int8_params(std::string name, conv_base_params params) :
-            conv_base_params(params), device_name(name) {}
+    conv_test_int8_params(std::string name, conv_int8_base_params params) :
+            conv_int8_base_params(params), device_name(name) {}
 };
 
 template <typename data_t>
@@ -209,25 +206,6 @@ class smoke_ConvolutionInt8Test: public TestsCommon,
 protected:
     const char* DEFAULT_PATH_P = "./lib";
 
-    std::map<std::string, NetworkNodeStatsPtr> collectStatistics(const void *model, size_t size, const InferenceEngine::TBlob<uint8_t>::Ptr &weights, const std::vector<std::string> outputNodes, const std::vector<std::string> images) {
-        InferenceEngine::Core ie;
-
-        std::shared_ptr<NetworkStatsCollector> netStats = std::shared_ptr<NetworkStatsCollector>(new NetworkStatsCollector(ie, "CPU"));
-
-        size_t batchSize = images.size();
-
-        std::cout << "Batch size: " << batchSize << std::endl;
-
-        std::map<std::string, NetworkNodeStatsPtr> netNodesStats;
-
-        netStats->ReadNetworkAndSetWeights(model, size, weights, batchSize);
-
-        std::cout << "Inferencing and collecting statistics..." << std::endl;
-        netStats->InferAndCollectStats(images, netNodesStats);
-
-        return netNodesStats;
-    }
-
     static void compare_NRMSD(InferenceEngine::Blob &res, InferenceEngine::Blob &ref, float max_nrmsd = 0.01f) {
         float *res_ptr = res.buffer().as<float*>();
         size_t res_size = res.size();
@@ -291,7 +269,6 @@ protected:
             // TODO Load nodes stats from file
             std::string imageFilename = TestDataHelpers::get_data_path() + "/validation_set/224x224/dog.bmp";
             std::cout << "Using image file: " << imageFilename << std::endl;
-            std::map<std::string, NetworkNodeStatsPtr> netNodesStats = collectStatistics(model.data(), model.length(), weights_ptr, { "conv1" }, { imageFilename });
 
             Core ie;
             auto network = ie.ReadNetwork(model, weights_ptr);
@@ -306,10 +283,6 @@ protected:
             // Setting the statistics data
 
             CNNNetwork myNetwork = ie.ReadNetwork(model, weights_ptr);
-
-            ICNNNetworkStats* pstats;
-            ((ICNNNetwork&)myNetwork).getStats(&pstats, nullptr);
-            pstats->setNodesStats(netNodesStats);
 
             SizeVector dims_src = {p.in.w,
                                    p.in.h,
@@ -430,19 +403,19 @@ protected:
 */
 // Wo=(Wi−F+2P)/S+1
 
-#define case_1 conv_base_params({{4, 4, 3}, 1, 1, 1, 1, 0, 0, 0, 0, 3, 1})
-#define case_2 conv_base_params({{16, 32, 3}, 2, 4, 1, 1, 0, 0, 0, 0, 17, 1})
-#define case_3 conv_base_params({{16, 32, 3}, 2, 4, 2, 1, 0, 0, 0, 0, 17, 1})
-#define case_4 conv_base_params({{40, 40, 3}, 3, 3, 1, 2, 0, 0, 0, 0, 20, 1})
-#define case_5 conv_base_params({{32, 16, 3}, 7, 7, 2, 2, 3, 3, 0, 0, 17, 1})
-#define case_6 conv_base_params({{224, 224, 3}, 7, 7, 2, 2, 2, 2, 0, 0, 64, 1, {112, 112}})
-/*#define case_7 conv_base_params({{40, 40, 16}, 3, 3, 1, 1, 0, 0, 0, 0, 16, 16})
-#define case_8 conv_base_params({{32, 16, 32}, 7, 7, 2, 2, 3, 3, 0, 0, 32, 32})*/
+#define case_1 conv_int8_base_params({{4, 4, 3}, 1, 1, 1, 1, 0, 0, 0, 0, 3, 1})
+#define case_2 conv_int8_base_params({{16, 32, 3}, 2, 4, 1, 1, 0, 0, 0, 0, 17, 1})
+#define case_3 conv_int8_base_params({{16, 32, 3}, 2, 4, 2, 1, 0, 0, 0, 0, 17, 1})
+#define case_4 conv_int8_base_params({{40, 40, 3}, 3, 3, 1, 2, 0, 0, 0, 0, 20, 1})
+#define case_5 conv_int8_base_params({{32, 16, 3}, 7, 7, 2, 2, 3, 3, 0, 0, 17, 1})
+#define case_6 conv_int8_base_params({{224, 224, 3}, 7, 7, 2, 2, 2, 2, 0, 0, 64, 1, {112, 112}})
+/*#define case_7 conv_int8_base_params({{40, 40, 16}, 3, 3, 1, 1, 0, 0, 0, 0, 16, 16})
+#define case_8 conv_int8_base_params({{32, 16, 32}, 7, 7, 2, 2, 3, 3, 0, 0, 32, 32})*/
 
 // These tests use dilated convolution and don't work yet
-/*#define case_9 conv_base_params({{40, 40, 16}, 3, 3, 1, 1, 0, 0, 8, 8, 16, 16})
-#define case_10 conv_base_params({{32, 16, 32}, 7, 7, 2, 2, 3, 3, 8, 8, 32, 32})
-#define case_11 conv_base_params({{32, 16, 4}, 7, 7, 2, 2, 3, 3, 8, 8, 4, 4})*/
+/*#define case_9 conv_int8_base_params({{40, 40, 16}, 3, 3, 1, 1, 0, 0, 8, 8, 16, 16})
+#define case_10 conv_int8_base_params({{32, 16, 32}, 7, 7, 2, 2, 3, 3, 8, 8, 32, 32})
+#define case_11 conv_int8_base_params({{32, 16, 4}, 7, 7, 2, 2, 3, 3, 8, 8, 4, 4})*/
 
 TEST_P(smoke_ConvolutionInt8Test, TestsConvolution) {
 }

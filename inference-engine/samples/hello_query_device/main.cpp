@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
     try {
         // ------------------------------ Parsing and validation of input args ---------------------------------
         if (argc != 1) {
-            std::cout << "Usage : ./hello_query_device" << std::endl;
+            std::cout << "Usage : "<< argv[0] << std::endl;
             return EXIT_FAILURE;
         }
 

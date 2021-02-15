@@ -3,10 +3,12 @@ import pytest
 import warnings
 import numpy as np
 
-from openvino.inference_engine import IENetwork, IENetLayer, DataPtr, LayersStatsMap, LayerStats, IECore
+from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
 from conftest import model_path
 
+
 test_net_xml, test_net_bin = model_path()
+
 
 def test_create_ie_network_deprecated():
     with warnings.catch_warnings(record=True) as w:
@@ -40,43 +42,59 @@ def test_incorrect_bin_deprecated():
                "Please, use IECore.read_network() method instead" in str(w[0].message)
 
 
-@pytest.mark.skip(reason="name) returns wrong name, problem somewhere in ngraph")
 def test_name():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert net.name == "model"
+    assert net.name == "test_model"
 
 
-def test_inputs():
+def test_inputs_deprecated():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert isinstance(net.inputs['data'], DataPtr)
-    assert net.inputs['data'].layout == "NCHW"
-    assert net.inputs['data'].precision == "FP32"
-    assert net.inputs['data'].shape == [1, 3, 32, 32]
+    with warnings.catch_warnings(record=True) as w:
+        inp = net.inputs
+        assert isinstance(inp['data'], DataPtr)
+        assert inp['data'].layout == "NCHW"
+        assert inp['data'].precision == "FP32"
+        assert inp['data'].shape == [1, 3, 32, 32]
+    assert len(w) == 1
+    assert "'inputs' property of IENetwork class is deprecated. " \
+               "To access DataPtrs user need to use 'input_data' property " \
+               "of InputInfoPtr objects which " \
+               "can be accessed by 'input_info' property." in str(w[-1].message)
 
 
-def test_input_precision_setter():
+def test_input_info():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert net.inputs['data'].layout == "NCHW"
-    net.inputs['data'].layout = "NHWC"
-    assert net.inputs['data'].layout == "NHWC"
+    assert isinstance(net.input_info['data'], InputInfoPtr)
+    assert net.input_info['data'].layout == "NCHW"
+    assert net.input_info['data'].precision == "FP32"
+    assert isinstance(net.input_info['data'].input_data, DataPtr)
+    assert isinstance(net.input_info['data'].preprocess_info, PreProcessInfo)
 
 
-def test_input_layout_setter():
+def test_input_info_precision_setter():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert net.inputs['data'].precision == "FP32"
-    net.inputs['data'].precision = "I8"
-    assert net.inputs['data'].precision == "I8"
+    assert net.input_info['data'].layout == "NCHW"
+    net.input_info['data'].layout = "NHWC"
+    assert net.input_info['data'].layout == "NHWC"
+
+
+def test_input_input_info_layout_setter():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.input_info['data'].precision == "FP32"
+    net.input_info['data'].precision = "I8"
+    assert net.input_info['data'].precision == "I8"
 
 
 def test_input_unsupported_precision_setter():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(ValueError) as e:
-        net.inputs['data'].precision = "BLA"
+        net.input_info['data'].precision = "BLA"
     assert "Unsupported precision BLA! List of supported precisions: " in str(e.value)
 
 
@@ -84,7 +102,7 @@ def test_input_unsupported_layout_setter():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(ValueError) as e:
-        net.inputs['data'].layout = "BLA"
+        net.input_info['data'].layout = "BLA"
     assert "Unsupported layout BLA! List of supported layouts: " in str(e.value)
 
 
@@ -148,81 +166,33 @@ def test_batch_size_setter():
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.batch_size = 4
     assert net.batch_size == 4
-    assert net.inputs['data'].shape == [4, 3, 32, 32]
+    assert net.input_info['data'].input_data.shape == [4, 3, 32, 32]
+
 
 def test_batch_size_after_reshape():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    net.reshape({'data' : [4, 3, 32, 32]})
+    net.reshape({'data': [4, 3, 32, 32]})
     assert net.batch_size == 4
-    assert net.inputs['data'].shape == [4, 3, 32, 32]
-    net.reshape({'data' : [8, 3, 32, 32]})
+    assert net.input_info['data'].input_data.shape == [4, 3, 32, 32]
+    net.reshape({'data': [8, 3, 32, 32]})
     assert net.batch_size == 8
-    assert net.inputs['data'].shape == [8, 3, 32, 32]
-
-def test_layers():
-    ie = IECore()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    layers_name = [key for key in net.layers]
-    assert sorted(layers_name) == ['19/Fused_Add_', '21', '22', '23', '24/Fused_Add_', '26', '27', '29', 'data', 'fc_out']
-    assert isinstance(net.layers['19/Fused_Add_'], IENetLayer)
+    assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
 
-def test_get_stats_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        ie = IECore()
-        net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-        stats = net.stats
-        assert isinstance(stats, LayersStatsMap)
-        assert len(w) == 1
-        assert issubclass(w[-1].category, DeprecationWarning)
-        assert "stats property of IENetwork is deprecated." in str(w[-1].message)
-
-
-@pytest.mark.skip(reason="Test is failed due-to ngraph conversion")
-def test_set_new_stats_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        ie = IECore()
-        net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-        new_stats = LayerStats(min=(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0),
-                               max=(10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0))
-        stats = net.stats
-        stats.update({"fc_out": new_stats})
-        assert net.stats["fc_out"].min == new_stats.min
-        assert net.stats["fc_out"].max == new_stats.max
-        assert len(w) == 3
-        for warns in w:
-            assert issubclass(warns.category, DeprecationWarning)
-            assert "stats property of IENetwork is deprecated." in str(warns.message)
-
-
-@pytest.mark.skip(reason="Test is failed due-to ngraph conversion")
-def test_update_stats_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        ie = IECore()
-        net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-        initial_stats = LayerStats(min=(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0),
-                                   max=(10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0))
-        stats = net.stats
-        stats.update({"fc_out": initial_stats})
-        new_stats = LayerStats(min=(10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0),
-                               max=(10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0))
-        stats.update({"fc_out": new_stats})
-        assert net.stats["fc_out"].min == new_stats.min
-        assert net.stats["fc_out"].max == new_stats.max
-        assert len(w) == 3
-        for warns in w:
-            assert issubclass(warns.category, DeprecationWarning)
-            assert "stats property of IENetwork is deprecated." in str(warns.message)
-
-
-@pytest.mark.skip(reason="Test is failed due-to ngraph conversion")
 def test_serialize():
+    import ngraph as ng
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.serialize("./serialized_net.xml", "./serialized_net.bin")
     serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")
-    assert net.layers.keys() == serialized_net.layers.keys()
+    func_net = ng.function_from_cnn(net)
+    ops_net = func_net.get_ordered_ops()
+    ops_net_names = [op.friendly_name for op in ops_net]
+    func_serialized_net = ng.function_from_cnn(serialized_net)
+    ops_serialized_net = func_serialized_net.get_ordered_ops()
+    ops_serialized_net_names = [op.friendly_name for op in ops_serialized_net]
+    assert ops_serialized_net_names == ops_net_names
     os.remove("./serialized_net.xml")
     os.remove("./serialized_net.bin")
 
@@ -248,26 +218,25 @@ def test_read_net_from_buffer_deprecated():
 
 
 def test_net_from_buffer_valid_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        with open(test_net_bin, 'rb') as f:
-            bin = f.read()
-        with open(test_net_xml, 'rb') as f:
-            xml = f.read()
-        net = IENetwork(model=xml, weights=bin, init_from_buffer=True)
-        net2 = IENetwork(model=test_net_xml, weights=test_net_bin)
-        for name, l in net.layers.items():
-            for blob, data in l.blobs.items():
-                assert np.allclose(data, net2.layers[name].blobs[blob]), \
-                    "Incorrect weights for layer {} and blob {}".format(name, blob)
-        assert len(w) == 2
-        for warns in w:
-            assert issubclass(warns.category, DeprecationWarning)
-            assert "Reading network using constructor is deprecated. " \
-                   "Please, use IECore.read_network() method instead" in str(warns.message)
+    ie = IECore()
+    with open(test_net_bin, 'rb') as f:
+        bin = f.read()
+    with open(model_path()[0], 'rb') as f:
+        xml = f.read()
+    net = ie.read_network(model=xml, weights=bin, init_from_buffer=True)
+    ref_net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.name == ref_net.name
+    assert net.batch_size == ref_net.batch_size
+    ii_net = net.input_info
+    ii_net2 = ref_net.input_info
+    o_net = net.outputs
+    o_net2 = ref_net.outputs
+    assert ii_net.keys() == ii_net2.keys()
+    assert o_net.keys() == o_net2.keys()
 
 
 def test_multi_out_data():
-    # Regression test CVS-23965
+    # Regression test 23965
     # Check that DataPtr for all output layers not copied between outputs map  items
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
@@ -278,3 +247,61 @@ def test_multi_out_data():
     assert net.outputs["28/Reshape"].name == "28/Reshape" and net.outputs["28/Reshape"].shape == [1, 5184]
     assert net.outputs["fc_out"].name == "fc_out" and net.outputs["fc_out"].shape == [1, 10]
     pass
+
+def test_tensor_names():
+    model = """
+            <net name="Network" version="10">
+                <layers>
+                    <layer name="in1" type="Parameter" id="0" version="opset1">
+                        <data element_type="f32" shape="1,3,22,22"/>
+                        <output>
+                            <port id="0" precision="FP32" names="input">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer name="activation" id="1" type="ReLU" version="opset1">
+                        <input>
+                            <port id="1" precision="FP32">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </input>
+                        <output>
+                            <port id="2" precision="FP32" names="relu_t, identity_t">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer name="output" type="Result" id="2" version="opset1">
+                        <input>
+                            <port id="0" precision="FP32">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </input>
+                    </layer>
+                </layers>
+                <edges>
+                    <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+                    <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+                </edges>
+            </net>
+            """
+    ie = IECore()
+    weights = b''
+    net = ie.read_network(model=model.encode('utf-8'), weights=weights, init_from_buffer=True)
+    assert net.get_ov_name_for_tensor("relu_t") == "activation"
+    assert net.get_ov_name_for_tensor("identity_t") == "activation"
+    assert net.get_ov_name_for_tensor("input") == "in1"
+    assert net.get_ov_name_for_operation("output") == "activation"

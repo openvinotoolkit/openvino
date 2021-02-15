@@ -47,7 +47,8 @@ class PadTFToPad(FrontReplacementPattern):
                 if not tfpad.in_port(2).disconnected():
                     tfpad.in_port(2).get_connection().set_destination(new_pad.in_port(3))
                 else:
-                    new_pad.in_port(3).connect(Const(graph, {'value': 0.0}).create_node().out_port(0))
+                    new_pad.in_port(3).connect(Const(graph, {'value': 0.0, 'name': new_pad.name + '/value'}
+                                                     ).create_node().out_port(0))
 
             # convert TF representation of the pads as [N, 2] to MO representation: [N] and [N]
             transposed_pads = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0])})

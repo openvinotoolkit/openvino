@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ from typing import List, Union
 import numpy as np
 
 from ngraph.exceptions import NgraphTypeError
-from ngraph.impl import Node, Shape
+from ngraph.impl import Node, Shape, Output
 from ngraph.impl import Type as NgraphType
 from ngraph.impl.op import Constant
 
@@ -124,6 +124,15 @@ def get_ndarray(data: NumericData) -> np.ndarray:
     return np.array(data)
 
 
+def get_shape(data: NumericData) -> TensorShape:
+    """Return a shape of NumericData."""
+    if type(data) == np.ndarray:
+        return data.shape  # type: ignore
+    elif type(data) == list:
+        return [len(data)]  # type: ignore
+    return []
+
+
 def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constant:
     """Return an ngraph Constant node with the specified value."""
     ndarray = get_ndarray(value)
@@ -138,6 +147,8 @@ def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constan
 def as_node(input_value: NodeInput) -> Node:
     """Return input values as nodes. Scalars will be converted to Constant nodes."""
     if issubclass(type(input_value), Node):
+        return input_value
+    if issubclass(type(input_value), Output):
         return input_value
     return make_constant_node(input_value)
 

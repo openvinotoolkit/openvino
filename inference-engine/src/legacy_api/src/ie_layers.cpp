@@ -2,9 +2,37 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 using namespace InferenceEngine;
+
+CNNLayer::CNNLayer(const LayerParams& prms)
+    : node(nullptr), name(prms.name), type(prms.type), precision(prms.precision), userValue({0}) {}
+
+CNNLayer::CNNLayer(const CNNLayer& other)
+    : node(other.node), name(other.name), type(other.type), precision(other.precision),
+    outData(other.outData), insData(other.insData), _fusedWith(other._fusedWith),
+    userValue(other.userValue), affinity(other.affinity),
+    params(other.params), blobs(other.blobs) {}
+
+LayerParams::LayerParams() {}
+
+LayerParams::LayerParams(const std::string & name, const std::string & type, Precision precision)
+    : name(name), type(type), precision(precision) {}
+
+LayerParams::LayerParams(const LayerParams & other)
+    : name(other.name), type(other.type), precision(other.precision) {}
+
+LayerParams & LayerParams::operator= (const LayerParams & other) {
+    if (&other != this) {
+        name = other.name;
+        type = other.type;
+        precision = other.precision;
+    }
+    return *this;
+}
+
+WeightableLayer::WeightableLayer(const LayerParams& prms) : CNNLayer(prms) {}
 
 const DataPtr CNNLayer::input() const {
     if (insData.empty()) {
@@ -276,6 +304,16 @@ std::string CNNLayer::GetParamAsString(const char* param) const {
         THROW_IE_EXCEPTION << "No such parameter name '" << param << "' for layer " << name;
     }
     return (*it).second;
+}
+
+std::string CNNLayer::getBoolStrParamAsIntStr(const char *param) const {
+    std::string val = GetParamAsString(param);
+    if (val == "true" || val == "True") {
+        return "1";
+    } else if (val == "false" || val == "False") {
+        return "0";
+    }
+    return val;
 }
 
 std::vector<std::string> CNNLayer::GetParamAsStrings(const char* param, std::vector<std::string> def) const {

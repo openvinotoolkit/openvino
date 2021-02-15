@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <limits>
 #include "ie_parallel.hpp"
-#include "common/simple_copy.h"
+#include "common/cpu_memcpy.h"
 #include "common/fp16_utils.h"
 
 namespace InferenceEngine {
@@ -27,7 +27,7 @@ public:
 
             Precision inIdxPrecision = layer->insData[GATHER_INDEXES].lock()->getTensorDesc().getPrecision();
             if (inIdxPrecision != Precision::FP32 && inIdxPrecision != Precision::I32 && inIdxPrecision != Precision::FP16)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision. Only FP32, FP16 or I32 are supported!";
+                inIdxPrecision = Precision::I32;
 
             axis = layer->GetParamAsInt("axis");
 
@@ -52,7 +52,7 @@ public:
 
             LayerConfig config;
             DataConfig dataConfigIdx, dataConfigDct;
-            Precision dataPrecision = layer->outData[0]->getTensorDesc().getPrecision();
+            Precision dataPrecision = layer->insData[GATHER_DICTIONARY].lock()->getTensorDesc().getPrecision();
             dataConfigDct.desc = TensorDesc(dataPrecision, dictionary_dims,
                     layer->insData[GATHER_DICTIONARY].lock()->getTensorDesc().getLayoutByDims(dictionary_dims));
             config.inConfs.push_back(dataConfigDct);
@@ -125,7 +125,7 @@ private:
             if (idx < indexRange) {
                 //  Copying data to destination from Dictionary
                 for (size_t j = 0; j < numDictionaries; j++) {
-                    simple_copy(&dst_data[len * (i + j * src_indexSize)],
+                    cpu_memcpy_s(&dst_data[len * (i + j * src_indexSize)],
                                 output->byteSize() - (len * (i + j * src_indexSize)),
                                 &src_dataDict[len * (idx + j * indexRange)],
                                 len);

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2020 Intel Corporation
+﻿// Copyright (c) 2020-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <string>
 
@@ -25,6 +25,8 @@ struct ctc_greedy_decoder_params : public base_params {
     ctc_greedy_decoder_params() : base_params(KernelType::CTC_GREEDY_DECODER) {}
 
     bool merge_repeated = true;
+    uint32_t blank_index;
+    uint32_t outputs_num = 1;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,15 +39,15 @@ struct ctc_greedy_decoder_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CTCGreedyDecoderKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class CTCGreedyDecoderKernelBase : public common_kernel_base {
+class CTCGreedyDecoderKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~CTCGreedyDecoderKernelBase() {}
     using DispatchData = CommonDispatchData;
 
 protected:
-    virtual JitConstants GetJitConstants(const ctc_greedy_decoder_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const ctc_greedy_decoder_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const ctc_greedy_decoder_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 };
 }  // namespace kernel_selector

@@ -11,13 +11,11 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <details/ie_exception.hpp>
 #include <memory>
 #include <ostream>
 #include <string>
 #include <vector>
-
-#include "ie_unicode.hpp"
+#include <map>
 
 namespace InferenceEngine {
 /**
@@ -27,20 +25,6 @@ namespace InferenceEngine {
  * first.
  */
 using SizeVector = std::vector<size_t>;
-
-/**
- * @brief This class represents the generic layer.
- */
-class CNNLayer;
-
-/**
- * @brief A smart pointer to the CNNLayer
- */
-using CNNLayerPtr = std::shared_ptr<CNNLayer>;
-/**
- * @brief A smart weak pointer to the CNNLayer
- */
-using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
 
 /**
  * @brief The main data representation node
@@ -95,10 +79,11 @@ enum Layout : uint8_t {
     SCALAR = 95,  //!< A scalar layout
 
     // bias layouts
-    C = 96,  //!< A bias layout for opearation
+    C = 96,  //!< A bias layout for operation
 
     // Single image layouts
     CHW = 128,  //!< A single image layout (e.g. for mean image)
+    HWC = 129,  //!< A single image layout (e.g. for mean image)
 
     // 2D
     HW = 192,  //!< HW 2D layout
@@ -107,6 +92,13 @@ enum Layout : uint8_t {
 
     BLOCKED = 200,  //!< A blocked layout
 };
+
+/**
+ * @brief Prints a string representation of InferenceEngine::Layout to a stream
+ * @param out An output stream to send to
+ * @param p A layout value to print to a stream
+ * @return A reference to the `out` stream
+ */
 inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
     switch (p) {
 #define PRINT_LAYOUT(name) \
@@ -122,6 +114,7 @@ inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
         PRINT_LAYOUT(OIHW);
         PRINT_LAYOUT(C);
         PRINT_LAYOUT(CHW);
+        PRINT_LAYOUT(HWC);
         PRINT_LAYOUT(HW);
         PRINT_LAYOUT(NC);
         PRINT_LAYOUT(CN);
@@ -147,6 +140,13 @@ enum ColorFormat : uint32_t {
     NV12,      ///< NV12 color format represented as compound Y+UV blob
     I420,      ///< I420 color format represented as compound Y+U+V blob
 };
+
+/**
+ * @brief Prints a string representation of InferenceEngine::ColorFormat to a stream
+ * @param out An output stream to send to
+ * @param fmt A color format value to print to a stream
+ * @return A reference to the `out` stream
+ */
 inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
     switch (fmt) {
 #define PRINT_COLOR_FORMAT(name) \
@@ -182,7 +182,7 @@ struct InferenceEngineProfileInfo {
      * @brief Defines the general status of the layer
      */
     enum LayerStatus {
-        NOT_RUN,  //!< A layer is not exectued
+        NOT_RUN,  //!< A layer is not executed
         OPTIMIZED_OUT,  //!< A layer is optimized out during graph optimization phase
         EXECUTED  //!< A layer is executed
     };
@@ -237,7 +237,8 @@ enum StatusCode : int {
     RESULT_NOT_READY = -9,
     NOT_ALLOCATED = -10,
     INFER_NOT_STARTED = -11,
-    NETWORK_NOT_READ = -12
+    NETWORK_NOT_READ = -12,
+    INFER_CANCELLED = -13
 };
 
 /**
@@ -249,6 +250,28 @@ struct ResponseDesc {
      * @brief A character buffer that holds the detailed information for an error.
      */
     char msg[4096] = {};
+};
+
+/**
+ * @brief Response structure encapsulating information about supported layer
+ */
+struct QueryNetworkResult {
+    /**
+     * @brief A map of supported layers:
+     * - key - a layer name
+     * - value - a device name on which layer is assigned
+     */
+    std::map<std::string, std::string> supportedLayersMap;
+
+    /**
+     * @brief A status code
+     */
+    StatusCode rc = OK;
+
+    /**
+     * @brief Response message
+     */
+    ResponseDesc resp;
 };
 
 /** @brief This class represents StatusCode::GENERIC_ERROR exception */
@@ -305,12 +328,18 @@ class NotAllocated : public std::logic_error {
 class InferNotStarted : public std::logic_error {
     using std::logic_error::logic_error;
 };
-}  // namespace InferenceEngine
 
 /** @brief This class represents StatusCode::NETWORK_NOT_READ exception */
 class NetworkNotRead : public std::logic_error {
     using std::logic_error::logic_error;
 };
+
+/** @brief This class represents StatusCode::INFER_CANCELLED exception */
+class InferCancelled : public std::logic_error {
+    using std::logic_error::logic_error;
+};
+
+}  // namespace InferenceEngine
 
 #if defined(_WIN32)
 #define __PRETTY_FUNCTION__ __FUNCSIG__

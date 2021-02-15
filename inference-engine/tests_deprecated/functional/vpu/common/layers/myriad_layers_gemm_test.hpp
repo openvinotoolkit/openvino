@@ -62,7 +62,6 @@ static void gemm_ref(int M, int N, int K,
 
     const int stride_a = (transposeA ? M : K);
     const int stride_b = (transposeB ? K : N);
-    const int stride_d = N;
 
     const int strideMB2_src1 = (MB2 != MB2_A) ? 0 : 1;
     const int strideMB2_src2 = (MB2 != MB2_B) ? 0 : 1;
@@ -166,9 +165,9 @@ TEST_P(myriadLayerGEMM_smoke, GEMM) {
                                               };
 
     if (MB1_D > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
 
 
     ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("GEMM").params(params), NetworkInitParams().layoutPreference(layoutPreference)));

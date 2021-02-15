@@ -36,9 +36,9 @@ TEST_P(myriadLayersTestsIOConvert_smoke, TestsIOConvert) {
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
-    _config[VPU_CONFIG_KEY(DISABLE_CONVERT_STAGES)] = CONFIG_VALUE(YES);
+    _config[InferenceEngine::MYRIAD_DISABLE_CONVERT_STAGES] = CONFIG_VALUE(YES);
 
     SetInputTensors({dims});
     SetOutputTensors({dims});
@@ -110,16 +110,18 @@ TEST_P(myriadLayersTestsConvertWithFP16_smoke, TestsConvertWithFP16)
 }
 
 std::vector<SizeVector> inputsDims = {
-    {       224, 224 },
-    {    3, 224, 224 },
+    // TODO: rewrite to ngraph to have reshape functionality
+    // {       224, 224 },
+    // {    3, 224, 224 },
     { 1, 1, 224, 224 },
     { 1, 1, 416, 416 },
     { 1, 1,  62,  62 },
     { 1, 1, 227, 227 },
     { 1, 3, 224, 224 },
 
+    // TODO: rewrite to ngraph to have reshape functionality
     // 5D case
-    { 2, 2, 3, 224, 224 },
+    // { 2, 2, 3, 224, 224 },
 };
 
 std::vector<SizeVector> inputsDims4D = {
@@ -134,7 +136,8 @@ std::vector<SizeVector> inputsDims4D = {
 std::vector<PrecisionPair> precisionsIO = {
     {Precision::U8,   Precision::FP16},
     {Precision::FP32, Precision::FP16},
-    {Precision::FP16, Precision::FP32}
+    {Precision::FP16, Precision::FP32},
+    {Precision::I32, Precision::U8}
 };
 
 std::vector<Precision> withFP16Precisions = {

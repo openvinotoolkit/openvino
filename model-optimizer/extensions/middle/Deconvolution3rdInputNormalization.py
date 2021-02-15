@@ -24,7 +24,6 @@ from mo.ops.op import PermuteAttrs
 
 class Deconvolution3rdInputNormalization(MiddleReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
     force_clean_up = True
 
     @staticmethod
@@ -47,9 +46,11 @@ class Deconvolution3rdInputNormalization(MiddleReplacementPattern):
 
             data_node = node.in_node(2)
 
-            const = Const(graph, {'value': permutation.perm, 'need_shape_inference': True}).create_node_with_data()
-            axis_const = Const(graph, {'value': int64_array(0)}).create_node_with_data()
-            gather = Gather(graph, {'name': node.name + '/ShapeGather',
+            name = node.soft_get('name', node.id) + '/ShapeGather'
+            const = Const(graph, {'value': permutation.perm, 'name': name + '/Const',
+                                  'need_shape_inference': True}).create_node_with_data()
+            axis_const = Const(graph, {'value': int64_array(0), 'name': name + '/Axis'}).create_node_with_data()
+            gather = Gather(graph, {'name': name,
                                     'need_shape_inference': True}).create_node_with_data([data_node, const, axis_const])
             attrs = graph.get_edge_data(data_node.id, node.id, key=0).copy()
 

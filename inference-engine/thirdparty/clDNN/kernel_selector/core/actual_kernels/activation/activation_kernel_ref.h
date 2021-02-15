@@ -26,10 +26,13 @@ public:
     virtual ~ActivationKernelRef() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
-    JitConstants GetJitConstants(const activation_params& params, DispatchData kd) const override;
+    JitConstants GetJitConstants(const activation_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE };
+        return {FusedOpType::QUANTIZE,
+                FusedOpType::SCALE,
+                FusedOpType::ACTIVATION};
     }
 };
 }  // namespace kernel_selector

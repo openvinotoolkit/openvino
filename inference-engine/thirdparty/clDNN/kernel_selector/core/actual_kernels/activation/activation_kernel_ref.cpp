@@ -38,12 +38,11 @@ ParamsKey ActivationKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableGradient();
     return k;
 }
 
-JitConstants ActivationKernelRef::GetJitConstants(const activation_params& params, DispatchData kd) const {
-    auto jit = ActivationKernelBase::GetJitConstants(params, kd);
+JitConstants ActivationKernelRef::GetJitConstants(const activation_params& params, DispatchData dispatchData) const {
+    auto jit = ActivationKernelBase::GetJitConstants(params, dispatchData);
     auto input_dt = params.inputs[0].GetDType();
 
     if (!params.fused_ops.empty()) {
@@ -63,5 +62,9 @@ JitConstants ActivationKernelRef::GetJitConstants(const activation_params& param
 
 KernelsData ActivationKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority ActivationKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

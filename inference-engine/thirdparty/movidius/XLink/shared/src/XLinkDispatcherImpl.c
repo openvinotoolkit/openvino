@@ -340,7 +340,7 @@ int dispatcherRemoteEventGetResponse(xLinkEvent_t* event, xLinkEvent_t* response
                         stream->name[0] = '\0';
                     }
 #ifndef __PC__
-                    if(sem_destroy(&stream->sem))
+                    if(XLink_sem_destroy(&stream->sem))
                         perror("Can't destroy semaphore");
 #endif
                 }
@@ -452,7 +452,7 @@ void dispatcherCloseLink(void* fd, int fullClose)
         XLinkStreamReset(stream);
     }
 
-    if(sem_destroy(&link->dispatcherClosedSem)) {
+    if(XLink_sem_destroy(&link->dispatcherClosedSem)) {
         mvLog(MVLOG_DEBUG, "Cannot destroy dispatcherClosedSem\n");
     }
 }

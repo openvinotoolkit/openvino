@@ -4,12 +4,12 @@
 
 #include "classification_matcher.hpp"
 #include <gtest/gtest.h>
-#include <xml_helper.hpp>
+#include <fstream>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 using namespace Regression ;
 using namespace Regression :: Matchers ;
 
-IE_SUPPRESS_DEPRECATED_START
 ClassificationMatcher::ClassificationMatcher(RegressionConfig &config)
     : BaseMatcher(config) {
     // Get file names for files with weights and labels
@@ -21,23 +21,6 @@ ClassificationMatcher::ClassificationMatcher(RegressionConfig &config)
 
     // Try to read labels file
     readLabels(labelFileName);
-
-    if (config._stat_file != "") {
-        InferenceEngine::NetworkStatsMap stat = testing::loadStatisticFromFile(config._stat_file);
-
-        ICNNNetworkStats *pstats;
-        ((ICNNNetwork&)cnnNetwork).getStats(&pstats, nullptr);
-        pstats->setNodesStats(stat);
-
-        // iterating over layers and fixing suppress_normalization->quantization_level
-        // because we have in tests IR which has old name for fp32 layers
-        for (auto& layer : cnnNetwork) {
-            if (layer->params.find("suppress_normalization") != layer->params.end() &&
-                layer->params["suppress_normalization"] == "I8") {
-                layer->params["quantization_level"] = "FP32";
-            }
-        }
-    }
 
     if (config._reshape) {
         auto inputShapes = cnnNetwork.getInputShapes();
@@ -84,7 +67,6 @@ ClassificationMatcher::ClassificationMatcher(RegressionConfig &config)
 
     top = (-1 == config.topKNumbers) ? 5 : config.topKNumbers;
 }
-IE_SUPPRESS_DEPRECATED_END
 
 void ClassificationMatcher::to(const std::vector <Regression::Reference::ClassificationScoringResultsForTests> &expected) {
     checkResultNumber = 0;
@@ -231,18 +213,14 @@ inline void TopResults(unsigned int n, TBlob<T>& input, std::vector<unsigned>& o
 
 void ClassificationMatcher::match_n(size_t top, int index) {
     try {
-        InferenceEngine::IInferRequest::Ptr inferRequest;
-        if (_executableNetworks[index]->CreateInferRequest(inferRequest, &_resp) != OK) {
-            THROW_IE_EXCEPTION << "Can not create infer request: " << _resp.msg;
-        }
+        auto inferRequest = _executableNetworks[index].CreateInferRequest();
         std::string prevImageName = "";
 
         auto batchSize = config.batchSize;
 
         if (config.useDynamicBatching) {
             batchSize = config.dynBatch;
-            InferenceEngine::ResponseDesc resp;
-            inferRequest->SetBatch(batchSize, &resp);
+            inferRequest.SetBatch(batchSize);
         }
 
         if (config._paths_to_images.size() % batchSize != 0) {
@@ -267,25 +245,14 @@ void ClassificationMatcher::match_n(size_t top, int index) {
                 for (int j = 0; j != batchSize; j++) {
                     const auto & imageName  = config._paths_to_images[i + j];
 
-                    InferenceEngine::Blob::Ptr inputBlob;
-                    if (inferRequest->GetBlob(_inputsInfo.begin()->first.c_str(), inputBlob, &_resp) != OK) {
-                        THROW_IE_EXCEPTION << "Can not get input with name: " << _inputsInfo.begin()->first
-                                           << " error message: " << _resp.msg;
-                    }
+                    auto inputBlob = inferRequest.GetBlob(_inputsInfo.begin()->first.c_str());
                     loadImage(imageName, inputBlob, true, j);
                 }
             }
 
-            StatusCode status = inferRequest->Infer(&_resp);
-            if (status != OK) {
-                THROW_IE_EXCEPTION << "Can not do infer: " << _resp.msg;
-            }
+            inferRequest.Infer();
 
-            InferenceEngine::Blob::Ptr outputBlobPtr;
-            if (inferRequest->GetBlob(_outputsInfo.begin()->first.c_str(), outputBlobPtr, &_resp) != OK) {
-                THROW_IE_EXCEPTION << "Can not get output with name: " << _outputsInfo.begin()->first
-                                   << " error message: " << _resp.msg;
-            }
+            auto outputBlobPtr = inferRequest.GetBlob(_outputsInfo.begin()->first.c_str());
 
             InferenceEngine::TBlob<float>::Ptr outputFP32;
                 if (outputBlobPtr->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {

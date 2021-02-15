@@ -19,9 +19,6 @@ void graphTransformerFunctionalTests::SetUp() {
     vpuLayersTests::SetUp();
 
     _stageBuilder = std::make_shared<StageBuilder>();
-    _frontEnd = std::make_shared<FrontEnd>(_stageBuilder);
-    _backEnd = std::make_shared<BackEnd>();
-    _passManager = std::make_shared<PassManager>(_stageBuilder, _backEnd);
     _platform = CheckMyriadX() ? Platform::MYRIAD_X : Platform::MYRIAD_2;
 }
 
@@ -56,8 +53,8 @@ void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     // For the new network plugin tries to find new free device first (already booted or not booted),
     // then to reuse busy devices. If we release the executable network, it marks its device as free and booted.
     // Next network will find such device and will use it without boot, which is the fastest case.
-    _executableNetwork = ExecutableNetwork();
-    _inferRequest = nullptr;
+    _executableNetwork = {};
+    _inferRequest = {};
 
     CreateModel();
 }
@@ -104,8 +101,7 @@ int64_t graphTransformerFunctionalTests::CompileAndInfer(Blob::Ptr& inputBlob, B
 
     IE_ASSERT(Infer());
 
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-    _inferRequest->GetPerformanceCounts(perfMap, nullptr);
+    auto perfMap = _inferRequest.GetPerformanceCounts();
 
     int64_t executionMicroseconds = 0;
     for (const auto& perfPair : perfMap) {

@@ -87,7 +87,7 @@ int calcOutputSize(
         int padBefore, int padAfter,
         bool useCeil) {
     if (useCeil) {
-        return std::ceil(static_cast<double>(inputSize - kernelSize + padBefore + padAfter) / kernelStride + 1);
+        return static_cast<int>(std::ceil(static_cast<double>(inputSize - kernelSize + padBefore + padAfter) / kernelStride + 1));
     } else {
         return (inputSize - kernelSize + padBefore + padAfter) / kernelStride + 1;
     }
@@ -430,6 +430,14 @@ bool checkHWRestrictions(
         int kernelSizeX, int kernelSizeY,
         int kernelStride,
         HwOpMode mode, HwOpType type) {
+    // Workaround for HW ops failure if too wide input
+    // widht and  small height
+    // More details available with the ticket #-33366
+
+    if (inTileWidth > 507 && inTileHeight > 1 && inTileHeight < 64 && type != HwOpType::POOL) {
+                return false;
+    }
+
     const int chansPerBlock = 1 << static_cast<int>(mode);
     int noOfBlocks    = divUp(inTileChannels, chansPerBlock);
 

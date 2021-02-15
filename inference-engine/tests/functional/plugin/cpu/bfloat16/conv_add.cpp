@@ -111,9 +111,7 @@ protected:
         // STAGE3:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["Convolution_0"] = "BF16";
-        expectedPrecisions["Convolution_1"] = "BF16";
-        expectedPrecisions["Elt_sum"] = "FP32";
+        expectedPrecisions["Elt_sum"] = "BF16";
     }
 };
 
@@ -123,7 +121,7 @@ TEST_P(ConvAdd, CompareWithRefImpl) {
 
 //    CPU plug-in failure in that case
 
-//INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, ConvAdd,
+//INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ConvAdd,
 //                        ::testing::Combine(
 //                                ::testing::Values(Precision::FP32),
 //                                ::testing::Values(Precision::FP32),
@@ -132,7 +130,7 @@ TEST_P(ConvAdd, CompareWithRefImpl) {
 //                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
 //                        ConvAdd::getTestCaseName);
 //
-//INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, ConvAdd,
+//INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, ConvAdd,
 //                        ::testing::Combine(
 //                                ::testing::Values(Precision::FP32),
 //                                ::testing::Values(Precision::BF16),
@@ -141,7 +139,7 @@ TEST_P(ConvAdd, CompareWithRefImpl) {
 //                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
 //                        ConvAdd::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, ConvAdd,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, ConvAdd,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -150,7 +148,7 @@ INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, ConvAdd,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvAdd::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, ConvAdd,
+INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, ConvAdd,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),

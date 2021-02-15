@@ -34,7 +34,6 @@ target_compile_definitions(${TARGET_NAME}
         PRIVATE
             USE_GNA=ON
             GNA_LIB_VER=${GNA_LIBRARY_VERSION_NUMBER}
-            INSTANTIATE_TESTS=1
         PUBLIC ${ARGV}
             DATA_PATH=\"${DATA_PATH}\"
             MODELS_PATH=\"${MODELS_PATH}\")

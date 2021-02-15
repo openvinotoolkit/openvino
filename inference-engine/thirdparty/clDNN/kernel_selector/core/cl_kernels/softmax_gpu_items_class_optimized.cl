@@ -63,12 +63,24 @@ KERNEL(softmax_items_class_optimized)(__global INPUT0_TYPE* input, __global OUTP
     ACCUMULATOR_TYPE denominator = 0.0;
     for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
     {
+// This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries 
+// for current kernel but driver doesn't report any errors (JIRA CVS-32211)
+#if HAS_DRIVER_PROBLEMS
+        data[cls] = data[cls] == max_value ? 1.0 : native_exp(data[cls] - max_value);
+#else
         data[cls] = native_exp(data[cls] - max_value);
+#endif
         denominator += data[cls];
     }
     if(simd_lane < LEFTOVERS)
     {
+// This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries 
+// for current kernel but driver doesn't report any errors (JIRA CVS-32211)
+#if HAS_DRIVER_PROBLEMS
+        data[DATA_PER_WORKITEM-1] = data[DATA_PER_WORKITEM-1] == max_value ? 1.0 : native_exp(data[DATA_PER_WORKITEM-1] - max_value);
+#else
         data[DATA_PER_WORKITEM-1] = native_exp(data[DATA_PER_WORKITEM-1] - max_value);
+#endif
         denominator += data[DATA_PER_WORKITEM-1];
     }
 

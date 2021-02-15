@@ -1,5 +1,5 @@
 /*******************************************************************************
-* Copyright 2019 Intel Corporation
+* Copyright (c) 2020 Intel Corporation
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 *******************************************************************************/
-#include "include/unit_type.cl"
 #include "include/include_all.cl"
 
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
@@ -28,18 +27,29 @@
 #define HAS_PAD_Y (PADDING_SIZE_Y != 0)
 #define HAS_PAD_X (PADDING_SIZE_X != 0)
 
-#if MAX_POOLING
-#define INIT_VAL INPUT0_VAL_MIN
-#elif AVG_POOLING
-#define INIT_VAL 0
-#endif
+#define INPUT_VEC8 MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)
+
+#define ACCUMULATOR_VEC8 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 8)
+#define TO_ACCUMULATOR_VEC8 CAT(convert_, ACCUMULATOR_VEC8)
+
+#define ACTIVATION_VEC8 MAKE_VECTOR_TYPE(ACTIVATION_TYPE, 8)
+#define TO_ACTIVATION_VEC8 CAT(convert_, ACTIVATION_VEC8)
+
+#define OUTPUT_VEC8 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8)
+#define TO_OUTPUT_VEC8 CAT(convert_, OUTPUT_VEC8)
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
-inline UNIT_TYPE8 FUNC(apply_pooling)(UNIT_TYPE8 tmp, UNIT_TYPE8 in)
+#if MAX_POOLING
+    #define INIT_VAL ACCUMULATOR_VAL_MIN
+#elif AVG_POOLING
+    #define INIT_VAL ACCUMULATOR_VAL_ZERO
+#endif
+
+inline ACCUMULATOR_VEC8 FUNC(apply_pooling)(ACCUMULATOR_VEC8 tmp, ACCUMULATOR_VEC8 in)
 {
 #if MAX_POOLING
-    return INPUT0_MAX_FUNC(tmp, in);
+    return ACCUMULATOR_MAX_FUNC(tmp, in);
 #elif AVG_POOLING
     return tmp + in;
 #endif
@@ -49,7 +59,13 @@ __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 #if SUB_GROUP_SIZE != 1
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 #endif
-KERNEL(pooling_gpu_bsv16_fsv16)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
+KERNEL(pooling_gpu_bsv16_fsv16)(
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+)
 {
     const int oc = get_group_id(0) * OC_BLOCK;
     const int sp = get_group_id(1);
@@ -71,7 +87,7 @@ KERNEL(pooling_gpu_bsv16_fsv16)(const __global UNIT_TYPE* input, __global UNIT_T
     int in_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     int pool_elementes = 0;
 
-    __global UNIT_TYPE *dst_write0 = output
+    __global OUTPUT_TYPE *dst_write0 = output
             + b * OUTPUT_FEATURE_NUM * (OUTPUT_SIZE_Z * OUTPUT_SIZE_Y * OUTPUT_SIZE_X)
             + oc * (OUTPUT_SIZE_Z * OUTPUT_SIZE_Y * OUTPUT_SIZE_X) * OC_BLOCK
             + z * OUTPUT_SIZE_Y * OUTPUT_SIZE_X * OC_BLOCK * MB_BLOCK
@@ -84,8 +100,8 @@ KERNEL(pooling_gpu_bsv16_fsv16)(const __global UNIT_TYPE* input, __global UNIT_T
             + in_y * INPUT0_SIZE_X_WITH_PADDING * IC_BLOCK * MB_BLOCK
             + in_z * INPUT0_SIZE_Y_WITH_PADDING * INPUT0_SIZE_X_WITH_PADDING * IC_BLOCK * MB_BLOCK;
 
-    UNIT_TYPE8 blockC00 = (UNIT_TYPE8)(INIT_VAL);
-    UNIT_TYPE8 blockC01 = (UNIT_TYPE8)(INIT_VAL);
+    ACCUMULATOR_VEC8 blockC00 = (ACCUMULATOR_VEC8)(INIT_VAL);
+    ACCUMULATOR_VEC8 blockC01 = (ACCUMULATOR_VEC8)(INIT_VAL);
 
 #if ((HAS_PAD_Z && POOL_SIZE_Z == 1) || (HAS_PAD_Y && POOL_SIZE_Y == 1) || (HAS_PAD_X && POOL_SIZE_X == 1))
     if (!(in_z < 0 || in_z >= INPUT0_SIZE_Z_WITH_PADDING || in_y < 0 || in_y >= INPUT0_SIZE_Y_WITH_PADDING || in_x < 0 || in_x >= INPUT0_SIZE_X_WITH_PADDING)) {
@@ -105,26 +121,25 @@ KERNEL(pooling_gpu_bsv16_fsv16)(const __global UNIT_TYPE* input, __global UNIT_T
 #endif
                     continue;
                 }
-
                 const uint idx = p_z * INPUT0_SIZE_Y_WITH_PADDING * INPUT0_SIZE_X_WITH_PADDING * IC_BLOCK * MB_BLOCK
                                  + p_y * INPUT0_SIZE_X_WITH_PADDING * IC_BLOCK * MB_BLOCK
                                  + p_x * IC_BLOCK * MB_BLOCK;
-                const __global UNIT_TYPE *src1 = input + idx;
+                const __global INPUT0_TYPE *src1 = input + idx;
 #else
-                const __global UNIT_TYPE *src1 = input;
+                const __global INPUT0_TYPE *src1 = input;
 #endif
+                INPUT_VEC8 blockA;
 
-                UNIT_TYPE8 blockA;
+                blockA = DT_INPUT_BLOCK_READ8(src1, 0);
 
-                blockA = UNIT_BLOCK_READ8(src1, 0);
+                blockC00 = FUNC_CALL(apply_pooling)(blockC00, TO_ACCUMULATOR_VEC8(blockA));
 
-                blockC00 = FUNC_CALL(apply_pooling)(blockC00, blockA);
+                blockA = DT_INPUT_BLOCK_READ8(src1, 8 * IC_BLOCK);
 
-                blockA = UNIT_BLOCK_READ8(src1, 8 * IC_BLOCK);
-
-                blockC01 = FUNC_CALL(apply_pooling)(blockC01, blockA);
+                blockC01 = FUNC_CALL(apply_pooling)(blockC01, TO_ACCUMULATOR_VEC8(blockA));
 
                 pool_elementes++;
+
 #if POOL_SIZE_Y != 1 || POOL_SIZE_X != 1 || POOL_SIZE_Z != 1
             }
 #endif
@@ -135,20 +150,43 @@ KERNEL(pooling_gpu_bsv16_fsv16)(const __global UNIT_TYPE* input, __global UNIT_T
 #if defined AVG_POOLING
 
 #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-    blockC00 /= max(pool_elementes, (int)1);
-    blockC01 /= max(pool_elementes, (int)1);
+    blockC00 /= (ACCUMULATOR_TYPE)max(pool_elementes, (int)1);
+    blockC01 /= (ACCUMULATOR_TYPE)max(pool_elementes, (int)1);
 #else
-    blockC00 /= (POOL_SIZE_Z * POOL_SIZE_Y * POOL_SIZE_X);
-    blockC01 /= (POOL_SIZE_Z * POOL_SIZE_Y * POOL_SIZE_X);
+    blockC00 /= (ACCUMULATOR_TYPE)POOL_SIZE_Z * POOL_SIZE_Y * POOL_SIZE_X;
+    blockC01 /= (ACCUMULATOR_TYPE)POOL_SIZE_Z * POOL_SIZE_Y * POOL_SIZE_X;
 #endif
 
 #endif
+    ACTIVATION_VEC8 pool_result;
+    OUTPUT_VEC8 final_result;
 
-    blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
-    blockC01 = ACTIVATION(blockC01, ACTIVATION_PARAMS);
+    #if HAS_FUSED_OPS
+    {
+        #define BLOCK_NUM 0
+        pool_result = TO_ACTIVATION_VEC8(blockC00);
+        FUSED_OPS;
+        final_result = FUSED_OPS_RESULT;
+        DT_OUTPUT_BLOCK_WRITE8(dst_write0, 0, final_result);
+        #undef BLOCK_NUM
+    }
+    {
+        #define BLOCK_NUM 1
+        pool_result = TO_ACTIVATION_VEC8(blockC01);
+        FUSED_OPS;
+        final_result = FUSED_OPS_RESULT;
+        DT_OUTPUT_BLOCK_WRITE8(dst_write0, 8 * OC_BLOCK, final_result);
+        #undef BLOCK_NUM
+    }
+    #else
+        pool_result = TO_ACTIVATION_VEC8(blockC00);
+        final_result = TO_OUTPUT_VEC8(ACTIVATION(pool_result, ACTIVATION_PARAMS));
+        DT_OUTPUT_BLOCK_WRITE8(dst_write0, 0, final_result);
 
-    UNIT_BLOCK_WRITE8(dst_write0, 0, blockC00);
-    UNIT_BLOCK_WRITE8(dst_write0, 8 * OC_BLOCK, blockC01);
+        pool_result = TO_ACTIVATION_VEC8(blockC01);
+        final_result = TO_OUTPUT_VEC8(ACTIVATION(pool_result, ACTIVATION_PARAMS));
+        DT_OUTPUT_BLOCK_WRITE8(dst_write0, 8 * OC_BLOCK, final_result);
+    #endif
 }
 
 #undef INPUT0_SIZE_X_WITH_PADDING
@@ -164,3 +202,13 @@ KERNEL(pooling_gpu_bsv16_fsv16)(const __global UNIT_TYPE* input, __global UNIT_T
 #undef HAS_PAD_X
 
 #undef unroll_for
+#undef INPUT_VEC8
+
+#undef ACCUMULATOR_VEC8
+#undef TO_ACCUMULATOR_VEC8
+
+#undef ACTIVATION_VEC8
+#undef TO_ACTIVATION_VEC8
+
+#undef OUTPUT_VEC8
+#undef TO_OUTPUT_VEC8

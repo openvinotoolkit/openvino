@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,11 +24,18 @@ public:
     virtual ~PoolingKernelGPUBfyxBlockOpt() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     bool Validate(const Params&, const optional_params&) const override;
-    JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const override;
+    JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const override;
     DispatchData SetDefault(const pooling_params& params) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ELTWISE,
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
 };
 }  // namespace kernel_selector

@@ -14,8 +14,9 @@
 #include <set>
 #include <utility>
 
+#include <ie_icore.hpp>
 #include <ie_icnn_network.hpp>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/perf_report.hpp>
@@ -43,11 +44,10 @@ struct CompilationConfig final {
     int numSHAVEs = -1;
     int numCMXSlices = -1;
     int numExecutors = -1;
+    int tilingCMXLimitKB = -1;
 
     bool hwOptimization = true;
     bool hwExtraSplit = false;
-
-    bool ignoreIRStatistic = false;
 
     std::string irWithVpuScalesDir;
 
@@ -61,6 +61,7 @@ struct CompilationConfig final {
     bool mergeHwPoolToConv = true;
     bool hwDilation = false;
     bool forceDeprecatedCnnConversion = false;
+    bool enableEarlyEltwiseReLUFusion = true;
 
     std::map<std::string, std::vector<int>> ioStrides;
 
@@ -109,6 +110,9 @@ struct CompilationConfig final {
     bool enableReplaceWithReduceMean = true;
     bool enableTensorIteratorUnrolling = false;
     bool forcePureTensorIterator = false;
+    bool enableMemoryTypesAnnotation = false;
+    bool enableWeightsAnalysis = true;
+    bool enableCustomReshapeParam = false;
 
     //
     // Deprecated options
@@ -161,25 +165,17 @@ struct CompiledGraph final {
 // compileNetwork
 //
 
-CompiledGraph::Ptr compileNetwork(
-        ie::ICNNNetwork& network,
-        Platform platform,
-        const CompilationConfig& config,
-        const Logger::Ptr& log);
+CompiledGraph::Ptr compileNetwork(const ie::CNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+    const ie::ICore* core);
 
-CompiledGraph::Ptr compileSubNetwork(
-        ie::ICNNNetwork& network,
-        const CompilationConfig& subConfig);
+CompiledGraph::Ptr compileSubNetwork(const ie::CNNNetwork& network, const CompilationConfig& subConfig, const ie::ICore* core);
 
 //
 // getSupportedLayers
 //
 
-std::set<std::string> getSupportedLayers(
-        const ie::ICNNNetwork& network,
-        Platform platform,
-        const CompilationConfig& config,
-        const Logger::Ptr& log);
+std::set<std::string> getSupportedLayers(const ie::CNNNetwork& network, Platform platform, const CompilationConfig& config, const Logger::Ptr& log,
+    const ie::ICore* core);
 
 //
 // Blob version and checks

@@ -31,4 +31,4 @@ class ATen(Op):
         }, attrs)
 
     def supported_attrs(self):
-        return ['mode', 'operator', 'scale_grad_by_freq']
+        return ['mode', 'operator']

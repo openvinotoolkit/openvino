@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,6 +40,8 @@ ParamsKey ResampleKernelRef::GetSupportedKey() const {
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
     k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
+    k.EnableReampleType(ResampleType::CUBIC);
+    k.EnableReampleType(ResampleType::LINEAR_ONNX);
     return k;
 }
 
@@ -61,8 +63,6 @@ static size_t packing_factor(const resample_params& params) {
             return 16;
         case DataLayout::b_fs_yx_fsv4:
             return 4;
-        case DataLayout::byxf_af32:
-            return 16;
         default:
             break;
         }
@@ -72,7 +72,9 @@ static size_t packing_factor(const resample_params& params) {
     size_t input_factor = get_layout_packing_factor(params.inputs[0].GetLayout());
     size_t output_factor = get_layout_packing_factor(params.output.GetLayout());
 
-    return std::min(input_factor, output_factor);
+    if (input_factor % output_factor == 0 || output_factor % input_factor == 0)
+        return std::min(input_factor, output_factor);
+    return 1;
 }
 
 static bool use_packing(const resample_params& params) {
@@ -83,14 +85,13 @@ static bool use_packing(const resample_params& params) {
     if (pack == 1)
         return false;
 
-    if (params.inputs[0].Feature().v % pack != 0 || params.output.Feature().v % pack != 0 ||
-        params.inputs[0].Feature().pad.before % pack != 0 || params.output.Feature().pad.before % pack != 0)
+    if (params.inputs[0].Feature().pad.before % pack != 0 || params.output.Feature().pad.before % pack != 0)
         return false;
 
     auto packed_work_items = params.output.X().v * params.output.Y().v * params.output.Z().v
         * CeilDiv(params.output.Feature().v, pack) * params.output.Batch().v;
     // TODO Loosen this requirement to minimum EUs needed to saturate cache bandwidth
-    constexpr size_t max_work_items_per_eu = 32 * 7;
+    size_t max_work_items_per_eu = 32 * static_cast<size_t>(params.engineInfo.maxThreadsPerExecutionUnit);
     auto minimum_work_items = params.engineInfo.computeUnitsCount * max_work_items_per_eu;
 
     if (packed_work_items < minimum_work_items)
@@ -115,7 +116,7 @@ JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) c
             idx_order = {"batch", "OF_ID", "oz", "oy", "ox"};
         }
 
-        FusedOpsConfiguration conf = {"", idx_order, "interp_val", params.inputs[0].GetDType(), 1};
+        FusedOpsConfiguration conf = {"", idx_order, "interp_val", GetAccumulatorType(params), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
@@ -123,25 +124,18 @@ JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) c
 }
 
 ResampleKernelBase::DispatchData ResampleKernelRef::SetDefault(const resample_params& arg) const {
-    auto dispatch = Parent::SetDefault(arg);
+    auto dispatchData = Parent::SetDefault(arg);
 
     if (use_packing(arg)) {
         auto pack = packing_factor(arg);
-        std::vector<size_t> global;
-        std::vector<size_t> local;
-
-        global = { arg.output.X().v, arg.output.Y().v * arg.output.Z().v, CeilDiv(arg.output.Feature().v, pack) * arg.output.Batch().v };
-        local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
-
-        dispatch.gws0 = global[0];
-        dispatch.gws1 = global[1];
-        dispatch.gws2 = global[2];
-
-        dispatch.lws0 = local[0];
-        dispatch.lws1 = local[1];
-        dispatch.lws2 = local[2];
+        dispatchData.gws = { arg.output.X().v, arg.output.Y().v * arg.output.Z().v, CeilDiv(arg.output.Feature().v, pack) * arg.output.Batch().v };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
     }
 
-    return dispatch;
+    return dispatchData;
+}
+
+KernelsPriority ResampleKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

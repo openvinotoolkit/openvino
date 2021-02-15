@@ -27,6 +27,7 @@ public:
     virtual ~MVNKernel_b_fs_yx_fsv16_imad() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -40,7 +41,7 @@ protected:
 
     bool Validate(const Params&, const optional_params&) const override;
     DispatchData SetDefault(const mvn_params& params) const override;
-    JitConstants GetJitConstants(const mvn_params& params, DispatchData kd) const override;
+    JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
             FusedOpType::ACTIVATION,
@@ -50,7 +51,7 @@ protected:
         };
     }
 
-    KernelsData GetMultiStageKernelsData(const mvn_params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetMultiStageKernelsData(const mvn_params& params, const optional_params&) const;
     MultiDispatchData SetDefaultForMulti(const mvn_params& params) const;
 };
 }  // namespace kernel_selector

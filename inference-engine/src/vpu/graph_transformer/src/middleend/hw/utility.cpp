@@ -88,8 +88,4 @@ int calculateHwBufferSize(const DimValues& dims, const DimsOrder& order) {
     return calcTotalByteSize(desc, strides);
 }
 
-int tilingCMXLimit(int numSlices) {
-    return (numSlices / 2) * CMX_SLICE_SIZE + CMX_SLICE_SIZE / 2;
-}
-
 }  // namespace vpu

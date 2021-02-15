@@ -3,8 +3,8 @@
 //
 
 #include "mkldnn_softmax_node.h"
-#include "desc_iterator.hpp"
-#include <ie_layers.h>
+
+#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
@@ -41,7 +41,7 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
     }
 
     if (getParentEdgeAt(0)->getDims().ndims() == 3) {
-        MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType, memory::format::blocked);
+        MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::abc);
         createDescriptor({in_candidate}, {});
     }
 
@@ -73,18 +73,22 @@ void MKLDNNSoftMaxNode::createPrimitive() {
     auto prim_desc = softmax_forward::primitive_desc(*selected_desc_ptr, getEngine());
     primitive_desc_iterator itpd = descs[0].createPrimitiveDescriptorIterator(getEngine());
 
-    while (itpd.is_not_end()) {
-        impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+    while (itpd) {
+        impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
         auto primitiveDescriptor = getSelectedPrimitiveDescriptor();
         if ((primitiveDescriptor != nullptr) && (impl_type == primitiveDescriptor->getImplementationType())) {
-            itpd.getPrimitiveDescriptor(prim_desc);
+            prim_desc = itpd.get();
             break;
         }
-        itpd++;
+        if (!itpd.next_impl())
+            break;
     }
 
-    prim.reset(new softmax_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
-                                getChildEdgeAt(0)->getMemory().GetPrimitive()));
+    prim.reset(new softmax_forward(prim_desc));
+
+    auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+    primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}};
 }
 
 bool MKLDNNSoftMaxNode::created() const {
@@ -123,4 +127,4 @@ void MKLDNNSoftMaxNode::createDescriptor(const std::vector<InferenceEngine::Tens
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
     descs.push_back(desc);
 }
-REG_MKLDNN_PRIM_FOR(MKLDNNSoftMaxNode, Softmax);
+REG_MKLDNN_PRIM_FOR(MKLDNNSoftMaxNode, SoftMax);

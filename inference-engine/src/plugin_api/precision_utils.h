@@ -12,6 +12,9 @@
 #include <ie_api.h>
 
 #include <cstddef>
+#include <type_traits>
+#include <limits>
+#include <algorithm>
 
 /**
  * @brief Inference Engine Plugin API namespace
@@ -35,8 +38,8 @@ namespace InferenceEngine {
  * @defgroup ie_dev_api_async_infer_request_api Asynchronous Inference Request base classes
  * @brief A set of base and helper classes to implement asynchronous inference request class
  * 
- * @defgroup ie_dev_api_mem_state_api Memory state base classes
- * @brief A set of base and helper classes to implement memory state
+ * @defgroup ie_dev_api_variable_state_api Variable state base classes
+ * @brief A set of base and helper classes to implement variable state
  * 
  * @defgroup ie_dev_api_threading Threading utilities
  * @brief Threading API providing task executors for asynchronous operations
@@ -49,6 +52,9 @@ namespace InferenceEngine {
  * 
  * @defgroup ie_dev_api_system_conf System configuration utilities
  * @brief API to get information about the system, core processor capabilities
+ * 
+ * @defgroup ie_dev_exec_graph Execution graph utilities
+ * @brief Contains `ExecutionNode` and its properties
  * 
  * @defgroup ie_dev_api_error_debug Error handling and debug helpers
  * @brief Utility methods to works with errors or exceptional situations
@@ -122,6 +128,110 @@ f16tof32Arrays(float* dst, const ie_fp16* src, size_t nelem, float scale = 1.f, 
  */
 INFERENCE_ENGINE_API_CPP(void)
 f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, float bias = 0.f);
+
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4018)
+#endif
+
+namespace details {
+
+// To overcame syntax parse error, when `>` comparison operator is threated as template closing bracket
+constexpr inline bool Greater(size_t v1, size_t v2) {
+    return v1 > v2;
+}
+
+}  // namespace details
+
+/**
+ * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
+ *             into destination type range
+ * @ingroup    ie_dev_api_precision
+ *
+ * @param      value   Value to be converted
+ * @return     A saturated value
+ */
+template <class OutT, class InT, typename std::enable_if<
+        std::is_integral<OutT>::value && std::is_integral<InT>::value &&
+        std::is_signed<InT>::value &&
+        !std::is_same<OutT, InT>::value
+        >::type* = nullptr>
+inline OutT saturate_cast(const InT& value) {
+    using MaxT = typename std::conditional<
+            details::Greater(sizeof(OutT), sizeof(InT)),
+            typename std::make_unsigned<OutT>::type,
+            typename std::make_unsigned<InT>::type
+        >::type;
+    using MinT = typename std::conditional<
+            details::Greater(sizeof(OutT), sizeof(InT)),
+            typename std::make_signed<OutT>::type,
+            typename std::make_signed<InT>::type
+        >::type;
+
+    static const MaxT OUT_MAX = static_cast<MaxT>(std::numeric_limits<OutT>::max());
+    static const MaxT IN_MAX = static_cast<MaxT>(std::numeric_limits<InT>::max());
+
+    static const MinT OUT_MIN = static_cast<MinT>(std::numeric_limits<OutT>::min());
+    static const MinT IN_MIN = static_cast<MinT>(std::numeric_limits<InT>::min());
+
+    if (OUT_MAX > IN_MAX && OUT_MIN < IN_MIN) {
+        return static_cast<OutT>(value);
+    }
+
+    const InT max = static_cast<InT>(OUT_MAX < IN_MAX ? OUT_MAX : IN_MAX);
+    const InT min = static_cast<InT>(OUT_MIN > IN_MIN ? OUT_MIN : IN_MIN);
+
+    return static_cast<OutT>(std::min(std::max(value, min), max));
+}
+
+/**
+ * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
+ *             into destination type range
+ * @ingroup    ie_dev_api_precision
+ *
+ * @param      value   Value to be converted
+ * @return     A saturated value
+ */
+template <class OutT, class InT, typename std::enable_if<
+        std::is_integral<OutT>::value && std::is_integral<InT>::value &&
+        std::is_unsigned<InT>::value &&
+        !std::is_same<OutT, InT>::value
+        >::type* = nullptr>
+inline OutT saturate_cast(const InT& value) {
+    using MaxT = typename std::conditional<
+            details::Greater(sizeof(OutT), sizeof(InT)),
+            typename std::make_unsigned<OutT>::type,
+            typename std::make_unsigned<InT>::type
+        >::type;
+
+    static const MaxT OUT_MAX = static_cast<MaxT>(std::numeric_limits<OutT>::max());
+    static const MaxT IN_MAX = static_cast<MaxT>(std::numeric_limits<InT>::max());
+
+    if (OUT_MAX > IN_MAX) {
+        return static_cast<OutT>(value);
+    }
+
+    const InT max = static_cast<InT>(OUT_MAX < IN_MAX ? OUT_MAX : IN_MAX);
+
+    return static_cast<OutT>(std::min(value, max));
+}
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
+/**
+ * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
+ *             into destination type range
+ * @ingroup    ie_dev_api_precision
+ *
+ * @param      value   Value to be converted
+ * @return     A saturated value
+ */
+template <class InT>
+inline InT saturate_cast(const InT& value) {
+    return value;
+}
 
 }  // namespace PrecisionUtils
 

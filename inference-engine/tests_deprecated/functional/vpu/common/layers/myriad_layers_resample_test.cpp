@@ -4,13 +4,26 @@
 
 #include "myriad_layers_resample_test.hpp"
 
-// #-31522
 INSTANTIATE_TEST_CASE_P(
-	DISABLED_accuracy, myriadResampleLayerTests_smoke,
+	accuracy, myriadResampleLayerTests_smoke,
 	::testing::Combine(
 		::testing::ValuesIn(s_ResampleInput),
 		::testing::Values<Factor>(2.0f, 0.5f),
+		::testing::Values<Antialias>(false),
+		::testing::Values<HwOptimization>(false, true),
+		::testing::Values(""))
+);
+
+#ifdef VPU_HAS_CUSTOM_KERNELS
+
+INSTANTIATE_TEST_CASE_P(
+	accuracy_custom, myriadResampleLayerTests_smoke,
+	::testing::Combine(
+		::testing::ValuesIn(s_ResampleInput),
+		::testing::Values<Factor>(2.0f),
 		::testing::Values<Antialias>(false, true),
 		::testing::Values<HwOptimization>(false, true),
-		::testing::ValuesIn(s_CustomConfig))
+		::testing::Values(s_CustomConfig[1]))
 );
+
+#endif

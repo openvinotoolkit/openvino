@@ -21,8 +21,7 @@ import numpy as np
 from extensions.ops.non_max_suppression import NonMaxSuppression
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, \
-    connect, FakeAttr
+from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, result, connect
 
 
 class TestNonMaxSuppressionInfer(unittest.TestCase):
@@ -30,7 +29,7 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         nodes = {
             **regular_op_with_shaped_data('boxes', [10, 100, 4], {'type': 'Parameter'}),
             **regular_op_with_shaped_data('scores', [10, 5, 100], {'type': 'Parameter'}),
-            **valued_const_with_data('max_output_per_class', int64_array(10)),
+            **valued_const_with_data('max_output_per_class', int64_array(7)),
             **regular_op_with_shaped_data('nms', None, {'op': 'NonMaxSuppression', 'type': 'NonMaxSuppression',
                                                         'name': 'nms'}),
             **result('output'),
@@ -43,20 +42,7 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
             *connect('nms', 'output'),
         ], nodes_with_edges_only=True)
 
-    def test_nms_infer_v7(self):
-        self.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=False, ir_version=7)
-
-        nms_node = Node(self.graph, 'nms')
-        nms_node['version'] = 'opset1'
-        NonMaxSuppression.infer(nms_node)
-        NonMaxSuppression.type_infer(nms_node)
-
-        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), [100, 3]))
-        self.assertTrue(nms_node.out_port(0).get_data_type() == np.int32)
-
-    def test_nms_infer_v10_opset1(self):
-        self.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=True, ir_version=10)
-
+    def test_nms_infer_opset1(self):
         nms_node = Node(self.graph, 'nms')
         nms_node['version'] = 'opset1'
         NonMaxSuppression.infer(nms_node)
@@ -65,9 +51,7 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), [100, 3]))
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
 
-    def test_nms_infer_v10_i64_opset3(self):
-        self.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=True, ir_version=10)
-
+    def test_nms_infer_i64_opset3(self):
         nms_node = Node(self.graph, 'nms')
         nms_node['version'] = 'opset3'
         nms_node['output_type'] = np.int64
@@ -77,9 +61,7 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), [100, 3]))
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
 
-    def test_nms_infer_v10_i32_opset3(self):
-        self.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=True, ir_version=10)
-
+    def test_nms_infer_i32_opset3(self):
         nms_node = Node(self.graph, 'nms')
         nms_node['version'] = 'opset3'
         nms_node['output_type'] = np.int32
@@ -88,3 +70,23 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
 
         self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), [100, 3]))
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int32)
+
+    def test_nms_infer_i32_opset4(self):
+        nms_node = Node(self.graph, 'nms')
+        nms_node['version'] = 'opset4'
+        nms_node['output_type'] = np.int32
+        NonMaxSuppression.infer(nms_node)
+        NonMaxSuppression.type_infer(nms_node)
+
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), [10 * 5 * 7, 3]))
+        self.assertTrue(nms_node.out_port(0).get_data_type() == np.int32)
+
+    def test_nms_infer_i64_opset4(self):
+        nms_node = Node(self.graph, 'nms')
+        nms_node['version'] = 'opset4'
+        nms_node['output_type'] = np.int64
+        NonMaxSuppression.infer(nms_node)
+        NonMaxSuppression.type_infer(nms_node)
+
+        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), [10 * 5 * 7, 3]))
+        self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)

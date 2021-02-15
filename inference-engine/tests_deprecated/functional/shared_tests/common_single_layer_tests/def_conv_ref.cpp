@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <precision_utils.h>
 #include <math.h>
 #include <ie_parallel.hpp>
@@ -193,8 +193,6 @@ void ref_def_conv_common(const std::vector<InferenceEngine::Blob::Ptr> srcs,
     size_t OH = dst_dims[1];
     size_t OD = dst_dims.size() == 5lu ? dst_dims[2] : 1lu;
     size_t OC = prm.out_c;
-
-    size_t DG = prm.deformable_group;
 
     const auto* src_data = srcs[0]->cbuffer().as<const ie_fp16 *>();
     const auto* trans_data = srcs[1]->cbuffer().as<const ie_fp16 *>();

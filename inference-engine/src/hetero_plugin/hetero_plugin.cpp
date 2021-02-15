@@ -13,20 +13,13 @@
 #include <unordered_set>
 #include "ie_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "hetero_executable_network.hpp"
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::HeteroConfigParams;
 using namespace HeteroPlugin;
-using namespace std;
-
-static Version heteroPluginDescription = {
-        {2, 1},  // plugin API version
-        CI_BUILD_NUMBER,
-        "heteroPlugin"  // plugin description message
-};
 
 Engine::Engine() {
     _pluginName = "HETERO";
@@ -45,26 +38,33 @@ Engine::Configs mergeConfigs(Engine::Configs config, const Engine::Configs & loc
 
 }  // namespace
 
-InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork&    network,
+InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&    network,
                                                                            const Configs&                   config) {
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
     }
+    auto tconfig = mergeConfigs(_config, config);
+    auto it = tconfig.find("TARGET_FALLBACK");
+    if (it == tconfig.end()) {
+        THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+    }
+    DeviceMetaInformationMap metaDevices = GetDevicePlugins(it->second, tconfig);
 
-    return std::make_shared<HeteroExecutableNetwork>(*cloneNet(network), mergeConfigs(_config, config), this);
+    auto function = network.getFunction();
+    if (function == nullptr) {
+        THROW_IE_EXCEPTION << "HETERO plugin supports just ngraph network representation";
+    }
+
+    return std::make_shared<HeteroExecutableNetwork>(network, mergeConfigs(_config, config), this);
 }
 
-ExecutableNetwork Engine::ImportNetworkImpl(std::istream& heteroModel, const Configs& config) {
+InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(std::istream& heteroModel, const Configs& config) {
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
     }
 
-    IExecutableNetwork::Ptr executableNetwork;
-    executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(
-                                std::make_shared<HeteroExecutableNetwork>(heteroModel, mergeConfigs(_config, config), this)),
-                            [](InferenceEngine::details::IRelease *p) {p->Release();});
-
-    return ExecutableNetwork{executableNetwork};
+    return make_executable_network(std::make_shared<HeteroExecutableNetwork>(heteroModel,
+        mergeConfigs(_config, config), this));
 }
 
 Engine::Configs Engine::GetSupportedConfig(const Engine::Configs& config, const std::string & deviceName) const {
@@ -102,6 +102,11 @@ Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& tar
         if (metaDevices.end() == itPlugin) {
             metaDevices[deviceName] = getDeviceConfig(deviceName);
         }
+        std::vector<std::string> supportedConfigKeys = GetCore()->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+        if (std::find(std::begin(supportedConfigKeys), std::end(supportedConfigKeys), CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN))
+            != std::end(supportedConfigKeys)) {
+            metaDevices[deviceName].emplace(CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN), "");
+        }
     }
     return metaDevices;
 }
@@ -112,60 +117,9 @@ void Engine::SetConfig(const Configs &configs) {
     }
 }
 
-HeteroLayerColorer::HeteroLayerColorer(const std::vector<std::string>& devices) {
-    static const std::vector<std::string> colors = {"#5A5DF0", "#20F608", "#F1F290", "#11F110"};
-    for (auto&& device : devices) {
-        deviceColorMap[device] = colors[std::distance(&device, devices.data()) % colors.size()];
-    }
-}
-
-void HeteroLayerColorer::operator()(const CNNLayerPtr layer,
-                ordered_properties &printed_properties,
-                ordered_properties &node_properties) {
-    auto device = layer->affinity;
-    printed_properties.insert(printed_properties.begin(), std::make_pair("device", device));
-    node_properties.emplace_back("fillcolor", deviceColorMap[device]);
-}
-
-void Engine::SetAffinity(InferenceEngine::ICNNNetwork &network, const Configs &config) {
+QueryNetworkResult Engine::QueryNetwork(const CNNNetwork &network, const Configs& config) const {
     QueryNetworkResult qr;
-    QueryNetwork(network, config, qr);
 
-    details::CNNNetworkIterator i(&network);
-    while (i != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *i;
-        auto it = qr.supportedLayersMap.find(layer->name);
-        if (it != qr.supportedLayersMap.end()) {
-            layer->affinity = it->second;
-        }
-        i++;
-    }
-
-    auto dumpDot = [](const Configs & config) {
-        auto it = config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
-        return it != config.end() ? it->second == YES : false;
-    };
-
-    if (dumpDot(config) || dumpDot(_config)) {
-        std::unordered_set<std::string> devicesSet;
-        details::CNNNetworkIterator i(&network);
-        while (i != details::CNNNetworkIterator()) {
-            CNNLayer::Ptr layer = *i;
-            if (!layer->affinity.empty()) {
-                devicesSet.insert(layer->affinity);
-            }
-            i++;
-        }
-        std::vector<std::string> devices{std::begin(devicesSet), std::end(devicesSet)};
-        std::stringstream stream(std::stringstream::out);
-        stream << "hetero_affinity_" << network.getName() << ".dot";
-
-        std::ofstream file(stream.str());
-        saveGraphToDot(network, file, HeteroLayerColorer{devices});
-    }
-}
-
-void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, QueryNetworkResult &qr) const {
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
     }
@@ -179,8 +133,12 @@ void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, Que
     std::string fallbackDevicesStr = it->second;
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, tconfig);
 
+    auto function = network.getFunction();
+    if (function == nullptr) {
+        THROW_IE_EXCEPTION << "HETERO plugin supports just ngraph network representation";
+    }
+
     std::map<std::string, QueryNetworkResult> queryResults;
-    // go over devices and call query network
     for (auto&& metaDevice : metaDevices) {
         auto& deviceName = metaDevice.first;
         queryResults[deviceName] = GetCore()->QueryNetwork(network, deviceName, metaDevice.second);
@@ -189,21 +147,16 @@ void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, Que
     //  WARNING: Here is devices with user set priority
     auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(fallbackDevicesStr);
 
-    details::CNNNetworkIterator i(&network);
-    while (i != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *i;
-        for (auto&& deviceName : fallbackDevices) {
-            auto& deviceQueryResult = queryResults[deviceName];
-            if (deviceQueryResult.supportedLayersMap.find(layer->name) != deviceQueryResult.supportedLayersMap.end()) {
-                qr.supportedLayersMap[layer->name] = deviceName;
-                break;
-            }
+    for (auto&& deviceName : fallbackDevices) {
+        for (auto&& layerQueryResult : queryResults[deviceName].supportedLayersMap) {
+            qr.supportedLayersMap.emplace(layerQueryResult);
         }
-        i++;
     }
 
     // set OK status
     qr.rc = StatusCode::OK;
+
+    return qr;
 }
 
 Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter> & /*options*/) const {
@@ -216,7 +169,8 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{
             HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
             "TARGET_FALLBACK",
-            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)});
+            CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
+            CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN)});
     } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, std::string{"HETERO"});
     } else {
@@ -242,17 +196,10 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     }
 }
 
-IE_SUPPRESS_DEPRECATED_START
+static Version heteroPluginDescription = {
+        {2, 1},  // plugin API version
+        CI_BUILD_NUMBER,
+        "heteroPlugin"  // plugin description message
+};
 
-INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
-        InferenceEngine::IInferencePlugin *&plugin,
-        InferenceEngine::ResponseDesc *resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "heteroPlugin"},
-                                           std::make_shared<Engine>());
-        return OK;
-    }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, heteroPluginDescription)

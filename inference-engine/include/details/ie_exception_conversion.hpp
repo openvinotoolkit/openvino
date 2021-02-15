@@ -8,7 +8,9 @@
  * @file ie_exception_conversion.hpp
  */
 #pragma once
-#include <ie_common.h>
+
+#include "ie_common.h"
+#include "details/ie_exception.hpp"
 
 #define CALL_STATUS_FNC(function, ...)               \
     if (!actual)    THROW_IE_EXCEPTION << "Wrapper used in the CALL_STATUS_FNC was not initialized."; \
@@ -34,7 +36,7 @@
 namespace InferenceEngine {
 namespace details {
 
-inline void extract_exception(StatusCode status, char* msg) {
+inline void extract_exception(StatusCode status, const char* msg) {
     switch (status) {
     case NOT_IMPLEMENTED:
         throw NotImplemented(msg);
@@ -58,6 +60,8 @@ inline void extract_exception(StatusCode status, char* msg) {
         throw InferNotStarted(msg);
     case NETWORK_NOT_READ:
         throw NetworkNotRead(msg);
+    case INFER_CANCELLED:
+        throw InferCancelled(msg);
     default:
         THROW_IE_EXCEPTION << msg << InferenceEngine::details::as_status << status;
     }

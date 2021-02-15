@@ -138,7 +138,7 @@ PRETTY_PARAM(Epsilon, float)
 
 typedef myriadLayerTestBaseWithParam<std::tuple<Dims, AcrossChannels, Normalize, Epsilon, IRVersion, std::string>> myriadLayersTestsMVN_smoke;
 
-TEST_P(myriadLayersTestsMVN_smoke, MVN)
+TEST_P(myriadLayersTestsMVN_smoke, DISABLED_MVN)
 {
     tensor_test_params dims  = std::get<0>(GetParam());
     int acrossChannels       = std::get<1>(GetParam());
@@ -150,7 +150,7 @@ TEST_P(myriadLayersTestsMVN_smoke, MVN)
     if(!customConfig.empty() && !CheckMyriadX()) {
         GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     SetInputTensor(dims);
     SetOutputTensor(dims);

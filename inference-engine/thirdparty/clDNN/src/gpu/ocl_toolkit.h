@@ -62,7 +62,6 @@ protected:
 
 struct gpu_program_state {
     kernels_cache _kernels_cache;
-    kernels_binaries_container _binaries;
 
     gpu_program_state(gpu_toolkit& context, uint32_t prog_id) :
         _kernels_cache(context, prog_id) {}
@@ -87,7 +86,6 @@ public:
     device_info_internal get_device_info() const { return _device->get_info(); }
     std::shared_ptr<kernel_selector::TuningCache> get_device_cache() const { return _device_cache; }
     kernels_cache& get_kernels_cache(uint32_t prog_id);
-    void store_binaries(kernels_binaries_vector binaries, uint32_t prog_id);
     bool get_serialization_flag() { return _serialize; }
     void set_serialization_flag(bool serialization_flag) { _serialize = serialization_flag; }
 
@@ -136,7 +134,6 @@ private:
     std::map<uint32_t, std::shared_ptr<gpu_program_state>> _program_states;
     std::map<uint32_t, gpu_queue> _command_queues_w;
     std::shared_ptr<kernel_selector::TuningCache> _device_cache;
-    kernels_binaries_container _binaries;
     bool _serialize = false;
 
     std::string _extensions;

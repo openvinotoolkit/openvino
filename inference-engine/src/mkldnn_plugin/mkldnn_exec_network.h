@@ -14,7 +14,7 @@
 #include <memory>
 #include <map>
 #include <string>
-#include <cnn_network_impl.hpp>
+#include <legacy/cnn_network_impl.hpp>
 #include <unordered_map>
 
 namespace MKLDNNPlugin {
@@ -27,37 +27,38 @@ public:
     CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
               InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
 
-    MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network, const Config &cfg,
+    MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
                       const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);
 
     ~MKLDNNExecNetwork() override = default;
 
     void setProperty(const std::map<std::string, std::string> &properties);
 
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
-    void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
+    InferenceEngine::CNNNetwork GetExecGraphInfo() override;
 
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> QueryState() override;
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
 
     InferenceEngine::ThreadLocal<MKLDNNGraph::Ptr>  _graphs;
 
 protected:
     friend class MKLDNNInferRequest;
     MKLDNNExtensionManager::Ptr extensionManager;
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> memoryStates;
-    InferenceEngine::details::CNNNetworkImplPtr _clonedNetwork;
+    std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
+    InferenceEngine::CNNNetwork                 _clonedNetwork;
     std::mutex                                  _cfgMutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
 
 
-    bool CanProcessDynBatch(const InferenceEngine::ICNNNetwork &network) const;
+    bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
 };
 
 }  // namespace MKLDNNPlugin

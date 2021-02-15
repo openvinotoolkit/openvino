@@ -22,6 +22,7 @@ from operator import itemgetter
 import networkx as nx
 
 from extensions.back.RemoveUselessConvert import RemoveUselessConvert
+from extensions.back.ResultRename import ResultRename
 from extensions.back.op_versioning import OpVersioning
 from extensions.ops.Cast import Cast
 from mo.back.ie_ir_ver_2.emitter import port_renumber, serialize_constants, generate_ie_ir, serialize_mean_image
@@ -110,7 +111,7 @@ def collect_sub_graphs(graph: Graph):
 def relabel_nodes_inplace_safe(graph: Graph, new_labels: dict):
     """ Safely relabels graph in-place without graph copy.
         
-        Safety in this place means that it is guarantied that
+        Safety in this place means that it is guaranteed that
         there won't be collisions during relabeling process.
     """
     # Relabel nodes in two stages
@@ -199,16 +200,16 @@ def prepare_emit_ir(graph: Graph, data_type: str, output_dir: str, output_model_
         convert_data_type.convert_blobs(sub_graph, data_type)
 
     # restore data type for specific inputs/outputs of specific ops to the data types required by nGraph
-    if not graph.graph['cmd_params'].generate_deprecated_IR_V7:
-        for_graph_and_each_sub_graph_recursively(graph, convert_inputs_of_specific_ops)
+    for_graph_and_each_sub_graph_recursively(graph, convert_inputs_of_specific_ops)
 
-    if graph.graph['cmd_params'].generate_experimental_IR_V10:
-        for_graph_and_each_sub_graph_recursively(graph, OpVersioning().find_and_replace_pattern)
+    for_graph_and_each_sub_graph_recursively(graph, OpVersioning().find_and_replace_pattern)
 
     # do not run the type inference in sub-graphs. It will be called automatically as part of the type inference of
     # the TensorIterator nodes
     type_infer(graph)
     RemoveUselessConvert().find_and_replace_pattern(graph)
+
+    ResultRename().find_and_replace_pattern(graph)
 
     for sub_graph in [graph] + collect_sub_graphs(graph):
         op_order, data_order = determined_sort(get_sorted_outputs(sub_graph))
@@ -242,10 +243,4 @@ def get_ir_version(argv: argparse.Namespace):
     :param argv: the parsed command line arguments
     :return: the IR version
     """
-    if argv.generate_experimental_IR_V10:
-        version = 10
-    elif argv.generate_deprecated_IR_V2:
-        version = 2
-    else:
-        version = 7
-    return version
+    return 10

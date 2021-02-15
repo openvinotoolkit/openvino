@@ -6,13 +6,19 @@
 
 #include <gtest/gtest.h>
 
+#include <string>
+
 namespace CommonTestUtils {
 
-class TestsCommon : public ::testing::Test {
+class TestsCommon : virtual public ::testing::Test {
 protected:
     TestsCommon();
 
     ~TestsCommon() override;
+
+    static std::string GetTimestamp();
+
+    std::string GetTestName() const;
 };
 
 }  // namespace CommonTestUtils

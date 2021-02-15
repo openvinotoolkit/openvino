@@ -92,6 +92,28 @@ void updateChildDataAllocation(const Data& data, int offsetLimitation) {
     }
 }
 
+int getInUse(const Data& data) {
+    int inUse = 0;
+    inUse += data->numConsumers();
+    for (const auto& childData : data->childDatas()) {
+        inUse += getInUse(childData);
+    }
+    for (const auto& childEdge : data->childDataToShapeEdges()) {
+        auto const& child = childEdge->child();
+        if (child->usage() == DataUsage::Input || child->usage() == DataUsage::Output) {
+            VPU_THROW_UNLESS(child->parentData() == nullptr,
+                             "Data object {} with usage {} must not have parent", child->name(), child->usage());
+            inUse++;
+        } else if (child->getTopParentData() == child) {
+            inUse += getInUse(child);
+        } else {
+            inUse += child->numConsumers();
+        }
+    }
+    return inUse;
+}
+
+
 }  // namespace
 
 bool Allocator::allocateData(const Data& data) {
@@ -247,13 +269,8 @@ bool Allocator::allocateData(const Data& data) {
     if (data->usage() == DataUsage::Temp) {
         inUse = 1;
     } else {
-        loopOverData(data, [&inUse](const Data& subData) {
-            inUse += subData->numConsumers();
-            return DataLoopStatus::NextChild;
-        });
+        inUse = getInUse(data);
     }
-
-    inUse += data->childDataToShapeEdges().size();
 
     VPU_INTERNAL_CHECK(inUse >= 1,
         "allocateData failed: data {} with usage {} isn't used by anything",
@@ -280,7 +297,7 @@ bool Allocator::allocateData(const Data& data) {
     return chunk->memType == memoryType;
 }
 
-ShapeLocation Allocator::allocateShape(Data& data) {
+ShapeLocation Allocator::allocateShape(const Data& data) {
     ShapeLocation shapeLocation;
 
     const auto dimsByteSize = data->desc().dimsByteSize();
@@ -292,7 +309,7 @@ ShapeLocation Allocator::allocateShape(Data& data) {
         shapeLocation.dimsLocation = dataLocation.location;
         shapeLocation.dimsOffset = dataLocation.offset;
 
-        if (data->usage() == DataUsage::Output) {
+        if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Input) {
             // We need to allocate memory for maximum dims values also
             data->attrs().set<int>("ioDimsUpperBoundOffset", _blobMemOffset);
             _blobMemOffset += dimsByteSize;
@@ -300,8 +317,18 @@ ShapeLocation Allocator::allocateShape(Data& data) {
     } else {
         // Static allocation
         shapeLocation.dimsLocation = Location::Blob;
-        shapeLocation.dimsOffset = _blobMemOffset;
-        _blobMemOffset += dimsByteSize;
+
+        // Prevent allocation of same shapes multiple times
+        auto dimOrder = data->desc().dimsOrder().toPermutation();
+        auto dimValues = data->desc().dims();
+        auto itr = _staticShapeOffsets.find({dimOrder, dimValues});
+        if (itr != _staticShapeOffsets.end()) {
+            shapeLocation.dimsOffset = itr->second;
+        } else {
+            shapeLocation.dimsOffset = _blobMemOffset;
+            _blobMemOffset += dimsByteSize;
+            _staticShapeOffsets.insert({{dimOrder, dimValues}, shapeLocation.dimsOffset});
+        }
     }
 
 
@@ -356,16 +383,18 @@ void Allocator::freeData(const Data& data, DeallocationMode mode) {
     // Release the chunk
     //
 
-    if (const auto& parentDataToShapeEdge = data->parentDataToShapeEdge()) {
-        auto const& parent = parentDataToShapeEdge->parent();
+    auto topParent = data->getTopParentData();
+    if (topParent != data) {
+        if (const auto& parentDataToShapeEdge = data->parentDataToShapeEdge()) {
+            const auto& parent = parentDataToShapeEdge->parent();
 
-        if (parent->usage() == DataUsage::Intermediate || parent->usage() == DataUsage::Temp) {
-            auto chunk = getChunk(parent);
-            decreaseChunkUsage(chunk, parent);
+            if (parent->usage() == DataUsage::Intermediate || parent->usage() == DataUsage::Temp) {
+                const auto dtopParent = parent->getTopParentData();
+                const auto chunk = getChunk(dtopParent);
+                decreaseChunkUsage(chunk, dtopParent);
+            }
         }
     }
-
-    auto topParent = data->getTopParentData();
 
     if (topParent->usage() == DataUsage::Intermediate ||
         topParent->usage() == DataUsage::Temp) {
@@ -373,6 +402,16 @@ void Allocator::freeData(const Data& data, DeallocationMode mode) {
 
         switch (mode) {
         case DeallocationMode::JustFree: {
+            if (const auto& parentDataToShapeEdge = topParent->parentDataToShapeEdge()) {
+                const auto& parent = parentDataToShapeEdge->parent();
+
+                if (parent->usage() == DataUsage::Intermediate || parent->usage() == DataUsage::Temp) {
+                    const auto dtopParent = parent->getTopParentData();
+                    const auto dchunk = getChunk(dtopParent);
+                    decreaseChunkUsage(dchunk, dtopParent);
+                }
+            }
+
             decreaseChunkUsage(chunk, topParent);
             break;
         }

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,17 +53,4 @@ namespace
         }
         bool run_on_function(std::shared_ptr<ngraph::Function> /* f */) override { return false; }
     };
-}
-
-// Regression test: We've had an issue in the past where enabling per-pass validation and
-// per-pass serialization at the same time causes a crash.
-TEST(pass_manager, serialize_with_revalidate_does_not_crash)
-{
-    pass::Manager pass_manager;
-    pass_manager.set_per_pass_validation(true);
-    pass_manager.set_pass_serialization(true);
-    shared_ptr<DummyPass> dummy = pass_manager.register_pass<DummyPass>();
-
-    auto graph = make_test_graph();
-    pass_manager.run_passes(graph);
 }

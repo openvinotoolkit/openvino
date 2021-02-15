@@ -26,6 +26,7 @@ public:
     virtual ~LRNKernelRef() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 private:
@@ -35,6 +36,6 @@ private:
                  FusedOpType::SCALE,
                  FusedOpType::ACTIVATION };
     }
-    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const override;
 };
 }  // namespace kernel_selector

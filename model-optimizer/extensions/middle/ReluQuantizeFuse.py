@@ -47,7 +47,7 @@ class ReluFakeQuantizeMark(MiddleReplacementPattern):
             nodes=[
                 ('relu', dict(op='ReLU')),
                 ('relu_d', dict()),
-                ('quantize', dict(op='FakeQuantize', keep_in_IR=True)),
+                ('quantize', dict(op='FakeQuantize')),
             ],
             edges=[
                 ('relu', 'relu_d'),
@@ -109,7 +109,7 @@ class ClampQuantizeMark(MiddleReplacementPattern):
             nodes=[
                 ('clamp', dict(op='Clamp')),
                 ('clamp_d', dict()),
-                ('quantize', dict(op='FakeQuantize', keep_in_IR=True)),
+                ('quantize', dict(op='FakeQuantize')),
             ],
             edges=[
                 ('clamp', 'clamp_d'),
@@ -142,7 +142,7 @@ class ClampQuantizeMark(MiddleReplacementPattern):
                 return
             max_value = quantize.in_port(2).data.get_value()
             if max_value is None:
-                log.debug('ReluQuantizeFuse: cannot fuse because FakeQuantize op has dynamic input on the 2st port, '
+                log.debug('ReluQuantizeFuse: cannot fuse because FakeQuantize op has dynamic input on the 2nd port, '
                           'levels=`{}`'.format(quantize.levels))
                 return
             if np.all(min_value >= clamp_min) and np.all(max_value <= clamp_max):
@@ -172,7 +172,7 @@ class ReluQuantizeFuse(MiddleReplacementPattern):
             nodes=[
                 ('relu', dict(removable_before_quantize=True)),
                 ('relu_d', dict()),
-                ('quantize', dict(op='FakeQuantize', keep_in_IR=True)),
+                ('quantize', dict(op='FakeQuantize')),
             ],
             edges=[
                 ('relu', 'relu_d'),

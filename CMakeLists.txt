@@ -1,41 +1,24 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_policy(SET CMP0054 NEW)
-
-# TODO: for make instal / package we need to use 3.13.3 version because
-# it allows to install targets created outside of current projects
-# See https://blog.kitware.com/cmake-3-13-0-available-for-download/
-
-if (APPLE)
-    if(CMAKE_GENERATOR STREQUAL "Xcode")
-        # due to https://gitlab.kitware.com/cmake/cmake/issues/14254
-        cmake_minimum_required(VERSION 3.12.0 FATAL_ERROR)
-    else()
-        # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
-        cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-    endif()
-else()
-    cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
-endif()
+cmake_minimum_required(VERSION 3.13)
 
 project(OpenVINO)
 
 set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(IE_MAIN_SOURCE_DIR ${OpenVINO_MAIN_SOURCE_DIR}/inference-engine)
-list(APPEND CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake")
+
+find_package(IEDevScripts REQUIRED
+             PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+             NO_CMAKE_FIND_ROOT_PATH
+             NO_DEFAULT_PATH)
 
 include(CTest)
-include(features)
+include(cmake/features.cmake)
 
-# include developer package
-include(developer_package)
-
-# These options are shared with 3rdparty plugins
-# by means of developer package
-include(check_features)
-include(dependencies)
+# These options are shared with 3rdparty plugins by means of developer package
+include(cmake/dependencies.cmake)
 
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
@@ -47,8 +30,15 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 
 # remove file with exported developer targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
-file(REMOVE "${CMAKE_BINARY_DIR}/targets.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
+foreach(component IN LISTS openvino_export_components)
+    file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+    unset(${component} CACHE)
+endforeach()
+
+#
+# Build
+#
 
 function(build_ngraph)
     function(ngraph_set option value)
@@ -57,67 +47,130 @@ function(build_ngraph)
         endif()
     endfunction()
 
-    set(NGRAPH_BUILD_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} CACHE STRING "" FORCE)
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${OpenVINO_MAIN_SOURCE_DIR}/ngraph/cmake/Modules/")
-
     if (ENABLE_SANITIZER)
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER TRUE)
+        ngraph_set(NGRAPH_ADDRESS_SANITIZER ON)
     else ()
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER FALSE)
+        ngraph_set(NGRAPH_ADDRESS_SANITIZER OFF)
     endif ()
-    ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE FALSE)
-    if (NOT ANDROID)
-        if(ENABLE_TESTS)
-            ngraph_set(NGRAPH_UNIT_TEST_ENABLE TRUE)
-            ngraph_set(NGRAPH_IE_ENABLE TRUE)
-        else()
-            ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
-            ngraph_set(NGRAPH_IE_ENABLE FALSE)
-        endif()
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
+    ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
+
+    if(ENABLE_TESTS AND NOT ANDROID)
+        ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)
     else()
-        ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
-        ngraph_set(NGRAPH_TEST_UTIL_ENABLE FALSE)
-        ngraph_set(NGRAPH_IE_ENABLE FALSE)
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)
+        ngraph_set(NGRAPH_UNIT_TEST_ENABLE OFF)
     endif()
-    ngraph_set(NGRAPH_INTERPRETER_ENABLE TRUE)
+
+    if(NOT (ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)) ))
+        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE ON)
+    else()
+        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE OFF)
+    endif()
+    ngraph_set(NGRAPH_INTERPRETER_ENABLE ON)
+
+    if(TREAT_WARNING_AS_ERROR)
+        ngraph_set(NGRAPH_WARNINGS_AS_ERRORS ON)
+    else()
+        ngraph_set(NGRAPH_WARNINGS_AS_ERRORS OFF)
+    endif()
+
+    if(ENABLE_SANITIZER)
+        ngraph_set(NGRAPH_ADDRESS_SANITIZER_ENABLE ON)
+    else()
+        ngraph_set(NGRAPH_ADDRESS_SANITIZER_ENABLE OFF)
+    endif()
+
+    if(ENABLE_THREAD_SANITIZER)
+        ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE ON)
+    else()
+        ngraph_set(NGRAPH_THREAD_SANITIZER_ENABLE OFF)
+    endif()
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
     elseif(UNIX)
-        ie_add_compiler_flags(-Wno-error=maybe-uninitialized -Wno-error=return-type -fPIC)
-    endif()
-    if(ANDROID)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=defaulted-function-deleted -Wno-error=unused-command-line-argument")
+        ie_add_compiler_flags(-Wno-error=maybe-uninitialized -Wno-error=return-type)
     endif()
 
     # WA for GCC 7.0
     if (UNIX)
         ie_add_compiler_flags(-Wno-error=return-type -Wno-undef)
     elseif(WIN32)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
     endif()
 
     if(ENABLE_LTO)
-        ie_enable_lto()
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
 
     ie_cpack_add_component(ngraph)
 
     set(SDL_cmake_included ON)
-    # set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
+    set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
+    set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
 endfunction()
 
+function(openvino_developer_export_targets)
+    cmake_parse_arguments(EXPORT "" "COMPONENT" "TARGETS" ${ARGN})
+
+    if(EXPORT_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "openvino_developer_export_targets has unparsed arguments: ${EXPORT_UNPARSED_ARGUMENTS}")
+    endif()
+
+    set(${EXPORT_COMPONENT} "${${EXPORT_COMPONENT}};${EXPORT_TARGETS}")
+
+    # to allow exporting of aliased targets with the original names
+    foreach(target_name IN LISTS ${EXPORT_COMPONENT})
+        if(TARGET "${target_name}")
+            get_target_property(original_name ${target_name} ALIASED_TARGET)
+            if(TARGET "${original_name}")
+                message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
+                        "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
+                list(REMOVE_ITEM ${EXPORT_COMPONENT} ${target_name})
+                list(APPEND ${EXPORT_COMPONENT} ${original_name})
+            endif()
+        endif()
+    endforeach()
+
+    list(REMOVE_DUPLICATES ${EXPORT_COMPONENT})
+    set(${EXPORT_COMPONENT} "${${EXPORT_COMPONENT}}" CACHE INTERNAL
+        "A list of OpenVINO ${EXPORT_COMPONENT} exported targets" FORCE)
+
+    list(APPEND openvino_export_components ${EXPORT_COMPONENT})
+    list(REMOVE_DUPLICATES openvino_export_components)
+    set(openvino_export_components "${openvino_export_components}" CACHE INTERNAL
+        "A list of OpenVINO exported components" FORCE)
+endfunction()
+
+add_subdirectory(thirdparty)
+add_subdirectory(openvino)
 build_ngraph()
-
 add_subdirectory(inference-engine)
-
+add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 
+#
+# Shellcheck
+#
+
+ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
+                      SKIP "${OpenVINO_MAIN_SOURCE_DIR}/bin"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/build"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest"
+                           "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/temp"
+                           # TODO fix and enable back:
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/demo"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/ngraph"
+                           "${IE_MAIN_SOURCE_DIR}/scripts")
+
+#
 # cpack
+#
 
 # install setupvars
 

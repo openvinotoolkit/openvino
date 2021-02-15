@@ -171,7 +171,7 @@ void PassImpl::run(const Model& model) {
                     .childSW(swStage)
                     .done();
 
-            auto allocRes = runAllocator(model, true);
+            auto allocRes = runAllocator(model, EnableShapeAllocation::NO, CheckOnlyCMX::YES);
             if (allocRes.status == AllocationStatus::OK) {
                 // TODO: try to merge more than one SW stage?
                 break;

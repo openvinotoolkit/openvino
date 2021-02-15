@@ -26,7 +26,6 @@ class LRN_normalization(BackReplacementPattern):
     Transforming LRN with `region` attribute to LRN with second `axis`-input
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def pattern(self):
         return dict(

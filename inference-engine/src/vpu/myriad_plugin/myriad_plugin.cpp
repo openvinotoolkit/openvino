@@ -9,17 +9,17 @@
 
 #include <ie_metric_helpers.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/parsed_config.hpp>
+#include <vpu/frontend/frontend.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
+#include <vpu/ngraph/query_network.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-
-#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
-#include "generic_ie.hpp"
+#include <ngraph/pass/manager.hpp>
 
 #include "myriad_plugin.h"
 
@@ -28,22 +28,16 @@ using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::VPUConfigParams;
 using namespace vpu::MyriadPlugin;
 
+
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-        const ICNNNetwork& network,
+        const CNNNetwork& network,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    auto clonedNetwork = cloneNetwork(network);
-    if (auto function = clonedNetwork->getFunction()) {
-        ngraph::op::GenericIE::DisableReshape noReshape(function);
-        ngraph::pass::CommonOptimizations().run_on_function(function);
-        vpu::DynamicToStaticShape().transform(function);
-    }
-
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork, _mvnc, _devicePool, parsedConfigCopy);
+    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, parsedConfigCopy, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -69,11 +63,11 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     return result;
 }
 
-void Engine::QueryNetwork(
-        const ICNNNetwork& network,
-        const std::map<std::string, std::string>& config,
-        QueryNetworkResult& res) const {
+QueryNetworkResult Engine::QueryNetwork(
+        const CNNNetwork& network,
+        const std::map<std::string, std::string>& config) const {
     VPU_PROFILE(QueryNetwork);
+    QueryNetworkResult res;
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
@@ -85,19 +79,29 @@ void Engine::QueryNetwork(
     }
 
     const auto log = std::make_shared<Logger>(
-        "GraphCompiler",
-        parsedConfigCopy.logLevel(),
-        defaultOutput(parsedConfigCopy.compilerLogFilePath()));
+            "GraphCompiler",
+            parsedConfigCopy.logLevel(),
+            defaultOutput(parsedConfigCopy.compilerLogFilePath()));
 
-    const auto layerNames = getSupportedLayers(
-        network,
-        static_cast<Platform>(parsedConfigCopy.platform()),
-        parsedConfigCopy.compileConfig(),
-        log);
+    const auto supportedLayers = getSupportedLayers(
+            network,
+            static_cast<Platform>(parsedConfigCopy.platform()),
+            parsedConfigCopy.compileConfig(),
+            log,
+            GetCore());
 
-    for (const auto& layerName : layerNames) {
-        res.supportedLayersMap.insert({ layerName, GetName() });
+    if (auto function = network.getFunction()) {
+        auto clonedNetwork = cloneNetwork(network);
+        auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
+
+        res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
+    } else {
+        for (const auto& layerName : supportedLayers) {
+            res.supportedLayersMap.insert({ layerName, GetName() });
+        }
     }
+
+    return res;
 }
 
 Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
@@ -107,19 +111,28 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
 
     _pluginName = "MYRIAD";
 
+IE_SUPPRESS_DEPRECATED_START
     _config = {
-        { KEY_VPU_HW_STAGES_OPTIMIZATION, "ON" },
-        { KEY_LOG_LEVEL, "LOG_NONE" },
-        { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, "OFF" },
+        { MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
+        { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO) },
+        { MYRIAD_CUSTOM_LAYERS, "" },
+        { MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO) },
+        { MYRIAD_THROUGHPUT_STREAMS, "-1" },
+
+        // Deprecated
+        { KEY_VPU_HW_STAGES_OPTIMIZATION, CONFIG_VALUE(YES) },
+        { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, CONFIG_VALUE(NO) },
         { KEY_VPU_CUSTOM_LAYERS, "" },
-        { KEY_VPU_IGNORE_IR_STATISTIC, "OFF" },
-        { KEY_VPU_MYRIAD_FORCE_RESET, "OFF" },
+        { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
-        { KEY_EXCLUSIVE_ASYNC_REQUESTS, "OFF" },
-        { KEY_PERF_COUNT, "OFF" },
+
+        { KEY_LOG_LEVEL, CONFIG_VALUE(LOG_NONE) },
+        { KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(NO) },
+        { KEY_PERF_COUNT, CONFIG_VALUE(NO) },
         { KEY_CONFIG_FILE, "" },
         { KEY_DEVICE_ID, "" },
     };
+IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
@@ -132,14 +145,13 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
 
     const auto executableNetwork =
             std::make_shared<ExecutableNetwork>(
-                model, _mvnc, _devicePool, parsedConfigCopy);
+                model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    executableNetwork->SetPointerToPlugin(shared_from_this());
 
-    return InferenceEngine::ExecutableNetwork{IExecutableNetwork::Ptr(
-        new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
-        [](ie::details::IRelease *p) {p->Release();})};
+    return make_executable_network(executableNetwork);
 }
 
-IExecutableNetwork::Ptr Engine::ImportNetwork(
+InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
         const std::string& modelFileName,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(ImportNetwork);
@@ -203,5 +215,5 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
             return Parameter();
         }
     }
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
 }

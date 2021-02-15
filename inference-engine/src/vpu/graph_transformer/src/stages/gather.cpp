@@ -13,20 +13,26 @@
 
 namespace vpu {
 
-void FrontEnd::parseGather(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 2);
-    IE_ASSERT(outputs.size() == 1);
-    auto layer = std::dynamic_pointer_cast<ie::GatherLayer>(_layer);
-    IE_ASSERT(layer != nullptr);
+void FrontEnd::parseGather(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+    VPU_THROW_UNLESS(layer != nullptr, "Encountered nullptr CNN layer");
+    VPU_THROW_UNLESS(inputs.size() == 3, "Expected {} inputs (data, indices, axis), got {}", 3, inputs.size());
+    VPU_THROW_UNLESS(outputs.size() == 1, "Expected {} outputs, got {}", 1, outputs.size());
+
+    VPU_THROW_UNLESS(inputs[2]->usage() == DataUsage::Const, "Only constant axis is supported, but got {} data object", inputs[2]->usage());
+    VPU_THROW_UNLESS(inputs[2]->desc().type() == DataType::S32, "Only {} is supported as axis data type, got {}", DataType::S32, inputs[2]->desc().type());
+    VPU_THROW_UNLESS(inputs[2]->desc().numDims() == 1, "Only single value axis is supported, got {}D data object", inputs[2]->desc().numDims());
+    VPU_THROW_UNLESS(inputs[2]->desc().totalDimSize() == 1, "Only single value axis is supported, got {} elements", inputs[2]->desc().totalDimSize());
 
     auto input = inputs[0];
+    const auto axis = inputs[2]->content()->get<std::int32_t>()[0];
+    const auto ieNormalizedAxis = axis < 0 ? input->desc().numDims() + axis : axis;
+    VPU_THROW_UNLESS(ieNormalizedAxis >= 0 && ieNormalizedAxis < input->desc().numDims(),
+        "Axis value must fit into input tensor, got axis = {}, input rank = {}", axis, input->desc().numDims());
 
-    IE_ASSERT(layer->axis < input->desc().numDims());
+    const auto perm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
+    const auto axisDim = perm[input->desc().numDims() - 1 - ieNormalizedAxis];
 
-    auto perm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
-    auto axis = perm[input->desc().numDims() - 1 - layer->axis];
-
-    _stageBuilder->addGatherStage(model, layer->name, layer, inputs[0], inputs[1], outputs[0], axis);
+    _stageBuilder->addGatherStage(model, layer->name, layer, inputs[0], inputs[1], outputs[0], axisDim);
 }
 
 namespace {

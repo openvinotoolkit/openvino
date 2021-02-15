@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,10 +65,10 @@ TEST(replace_node, replace_nodes)
     auto y = make_shared<op::Parameter>(element::f32, Shape{2});
     auto z = make_shared<op::Parameter>(element::f32, Shape{2});
 
-    auto add = x + y;
+    auto add = make_shared<op::v1::Add>(x, y);
     auto k = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{1, 2});
-    auto mul = add * k;
-    auto sub = mul - z;
+    auto mul = make_shared<op::v1::Multiply>(add, k);
+    auto sub = make_shared<op::v1::Subtract>(mul, z);
 
     auto f = make_shared<Function>(NodeVector{sub}, ParameterVector{x, y, z});
 
@@ -79,7 +79,7 @@ TEST(replace_node, replace_nodes)
     unordered_map<shared_ptr<Node>, shared_ptr<Node>> body_replacement_map;
     auto y_replacement = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{3, 4});
     auto k_replacement = make_shared<op::Constant>(element::f32, Shape{2}, vector<float>{5, 6});
-    auto z_replacement = x_replacement + mul;
+    auto z_replacement = make_shared<op::v1::Add>(x_replacement, mul);
     body_replacement_map[y] = y_replacement;
     body_replacement_map[k] = k_replacement;
     body_replacement_map[z] = z_replacement;
@@ -119,60 +119,4 @@ TEST(replace_node, replace_nodes)
     // z_replacement's arguments should be x_replacement and mul.
     ASSERT_EQ(z_replacement->get_input_node_shared_ptr(0), x_replacement);
     ASSERT_EQ(z_replacement->get_input_node_shared_ptr(1), mul);
-}
-
-TEST(replace_node, replace_nodes_output_order)
-{
-    auto data = make_shared<op::Parameter>(element::f16, Shape{4, 3});
-    auto topk_v0 = make_shared<op::v0::TopK>(data, 0, element::i32, 2, true);
-
-    auto topk_v1 = make_shared<op::v1::TopK>(data,
-                                             op::Constant::create(element::i32, Shape{}, {2}),
-                                             0,
-                                             op::v1::TopK::Mode::MAX,
-                                             op::v1::TopK::SortType::SORT_VALUES,
-                                             element::i32);
-
-    auto values = make_shared<op::GetOutputElement>(topk_v1, 0);
-    auto indices = make_shared<op::GetOutputElement>(topk_v1, 1);
-
-    ASSERT_EQ(values->get_input_element_type(0), element::f16);
-    ASSERT_EQ(indices->get_input_element_type(0), element::i32);
-
-    std::vector<int64_t> output_order{1, 0};
-    replace_node(topk_v1, topk_v0, output_order);
-
-    ASSERT_EQ(values->get_input_element_type(0), element::f16);
-    ASSERT_EQ(indices->get_input_element_type(0), element::i32);
-}
-
-TEST(replace_node, replace_nodes_output_order_incorrect_size)
-{
-    auto data = make_shared<op::Parameter>(element::f16, Shape{4, 3});
-    auto topk_v0 = make_shared<op::v0::TopK>(data, 0, element::i32, 2, true);
-
-    auto topk_v1 = make_shared<op::v1::TopK>(data,
-                                             op::Constant::create(element::i32, Shape{}, {2}),
-                                             0,
-                                             op::v1::TopK::Mode::MAX,
-                                             op::v1::TopK::SortType::SORT_VALUES,
-                                             element::i32);
-
-    auto values = make_shared<op::GetOutputElement>(topk_v1, 0);
-    auto indices = make_shared<op::GetOutputElement>(topk_v1, 1);
-
-    std::vector<int64_t> output_order{2, 1, 0};
-    try
-    {
-        replace_node(topk_v1, topk_v0, output_order);
-        FAIL() << "Incorrect output order size exception not detected";
-    }
-    catch (const ngraph_error& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Target output size: "));
-    }
-    catch (...)
-    {
-        FAIL() << "Incorrect output order size exception not thrown for unexpected reason";
-    }
 }

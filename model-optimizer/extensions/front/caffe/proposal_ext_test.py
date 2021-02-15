@@ -55,7 +55,6 @@ class TestProposalExt(unittest.TestCase):
 
         fake_pl = FakeProposalProtoLayer(FakeMultiParam(params))
         fake_node = FakeNode(fake_pl, None)
-        fake_node.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=False)
 
         ProposalFrontExtractor.extract(fake_node)
 

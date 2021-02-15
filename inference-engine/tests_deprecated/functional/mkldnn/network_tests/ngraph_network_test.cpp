@@ -6,8 +6,6 @@
 #include <tests_common.hpp>
 #include <tests_common_func.hpp>
 #include <memory>
-#include "xml_helper.hpp"
-#include <ie_ir_reader.hpp>
 #include <ie_core.hpp>
 
 #define XBYAK_NO_OP_NAMES
@@ -54,12 +52,9 @@ struct ngraph_network_param {
 class smoke_NGraphNetworkTest : public TestsCommon, public TestsCommonFunc {
 protected:
     Blob::Ptr classifyV7(ngraph_network_param p, size_t batch_size = 1, float threshold = 0.005f) {
-        IRReader reader;
-        auto ngraph = reader.read(p.v7model());
-
-        auto network = CNNNetwork(ngraph);
-
         Core ie;
+        CNNNetwork network = ie.ReadNetwork(p.v7model());
+
         ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "CPU");
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
 
@@ -144,7 +139,7 @@ TEST_F(smoke_NGraphNetworkTest, reshapeLoadTest) {
             </output>
         </layer>
         <layer id="1" name="13/Output_0/Data__const" type="Const" version="opset1">
-            <data offset="0" size="2000"/>
+            <data element_type="f32" offset="0" shape="20,1,5,5" size="2000"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>20</dim>
@@ -180,7 +175,7 @@ TEST_F(smoke_NGraphNetworkTest, reshapeLoadTest) {
             </output>
         </layer>
         <layer id="3" name="conv1/Dims215/copy_const" type="Const" version="opset1">
-            <data offset="2000" size="80"/>
+            <data element_type="f32" offset="2000" shape="1,20,1,1" size="80"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>1</dim>
@@ -234,7 +229,7 @@ TEST_F(smoke_NGraphNetworkTest, reshapeLoadTest) {
             </output>
         </layer>
         <layer id="6" name="11/Output_0/Data__const" type="Const" version="opset1">
-            <data offset="2080" size="100000"/>
+            <data element_type="f32" offset="2080" shape="50,20,5,5" size="100000"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>50</dim>
@@ -270,7 +265,7 @@ TEST_F(smoke_NGraphNetworkTest, reshapeLoadTest) {
             </output>
         </layer>
         <layer id="8" name="conv2/Dims209/copy_const" type="Const" version="opset1">
-            <data offset="102080" size="200"/>
+            <data element_type="f32" offset="102080" shape="1,50,1,1" size="200"/>
             <output>
                 <port id="1" precision="FP32">
                     <dim>1</dim>

@@ -2,107 +2,83 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "low_precision_transformations/concat_transformation.hpp"
+
 #include <memory>
 #include <tuple>
 #include <vector>
 #include <string>
-
 #include <ie_core.hpp>
 
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-
-#include "ngraph_functions/pass/convert_prc.hpp"
-
-#include "low_precision_transformations/concat_transformation.hpp"
-
+#include <transformations/init_node_info.hpp>
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "lpt_ngraph_functions/concat_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShapes;
     std::string targetDevice;
-    std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
+    ConcatTransformationTestValues testValues;
+    std::tie(precision, inputShapes, targetDevice, testValues) = obj.param;
+
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
 
     std::ostringstream result;
-    result << "inputShapes=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    result << "netPrecision=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetDevice;
+    result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) << testValues.fqOnData1 << testValues.fqOnData2;
     return result.str();
 }
 
-void ConcatTransformation::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::IE);
-
+InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    ngraph::element::Type netPrecision;
+    std::string targetDevice;
+    ConcatTransformationTestValues testValues;
+    std::tie(netPrecision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    const auto paramNode1 = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(inputShape));
-    const auto fakeQuantize1 = makeFakeQuantize(paramNode1->output(0));
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2] / 2, inputShape[3] / 2 };
-    const auto paramNode2 = std::make_shared<ngraph::opset1::Parameter>(ngPrc, ngraph::Shape(inputShape2));
+    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
+    return LayerTransformation::GenerateInput(
+        params.precisionsOnActivations[0],
+        info.getTensorDesc(),
+        k);
+}
 
-    const auto fakeQuantize2 = makeFakeQuantize(paramNode2->output(0));
-    const auto interpolateShape = std::make_shared<ngraph::op::Constant>(
-        ngraph::element::i64,
-        ngraph::Shape{ 2 },
-        std::vector<int64_t>({ static_cast<int64_t>(inputShape[2]), static_cast<int64_t>(inputShape[3]) }));
-    ngraph::op::InterpolateAttrs interpolateAttrs;
-    interpolateAttrs.align_corners = false;
-    interpolateAttrs.antialias = false;
-    interpolateAttrs.axes = ngraph::AxisSet{2, 3};
-    interpolateAttrs.mode = "nearest";
-    interpolateAttrs.pads_begin = { 0 };
-    interpolateAttrs.pads_end = { 0 };
-    const auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(fakeQuantize2->output(0), interpolateShape, interpolateAttrs);
+void ConcatTransformation::SetUp() {
+    InferenceEngine::SizeVector inputShape;
+    ngraph::element::Type precision;
+    ConcatTransformationTestValues testValues;
+    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
-        ngraph::OutputVector{ fakeQuantize1->output(0), interpolate->output(0)}, 1);
+    function = ngraph::builder::subgraph::ConcatFunction::getOriginal(
+        precision,
+        inputShape,
+        testValues.fqOnData1,
+        testValues.fqOnData2);
 
-    ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(concat)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { paramNode1, paramNode2 }, "ConcatTransformation");
-
-    // TODO: move to some another place
     validate();
 }
 
-std::shared_ptr<ngraph::opset1::FakeQuantize> ConcatTransformation::makeFakeQuantize(const ngraph::Output<ngraph::Node>& input) {
-    auto inputLowConst = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{ 1, 1, 1, 1 }, std::vector<float>({ 1.f }));
-    auto inputHighConst = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{ 1, 1, 1, 1 }, std::vector<float>({ 1.f }));
-    auto outputLowConst = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{ 1, 1, 1, 1 }, std::vector<float>({ 1.f }));
-    auto outputHighConst = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape{ 1, 1, 1, 1 }, std::vector<float>({ 1.f }));
-    auto fakeQuantize = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowConst, inputHighConst, outputLowConst, outputHighConst, 256ul);
-    return fakeQuantize;
-}
-
 void ConcatTransformation::validate() {
-    const InferenceEngine::CNNNetwork network = transform();
+    ngraph::element::Type precision;
+    ngraph::Shape inputShapes;
+    std::string targetDevice;
+    ConcatTransformationTestValues testValues;
+    std::tie(precision, inputShapes, targetDevice, testValues) = GetParam();
 
-    IE_SUPPRESS_DEPRECATED_START
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
 
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = it->second->getCreatorLayer().lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("ScaleShift", outputLayer->type);
-
-    IE_SUPPRESS_DEPRECATED_END
+    const auto output = transformed->get_output_op(0);
+    const auto scaleShift = output->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShift->get_type_name();
+    ASSERT_EQ("ScaleShiftIE", typeName);
 }
 
 TEST_P(ConcatTransformation, CompareWithRefImpl) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 };
 
 }  // namespace LayerTestsDefinitions

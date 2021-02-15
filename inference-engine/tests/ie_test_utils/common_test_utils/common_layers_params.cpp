@@ -209,14 +209,18 @@ void get_common_dims(const InferenceEngine::Blob &blob,
     }
 }
 
-void fillStatistic(Statistic &out, size_t size, float min, float max) {
-    float ampl = (max - min) / 4.f;
-    float center1 = min + ampl;
-    float center2 = max - ampl;
-    out.min.resize(size);
-    out.max.resize(size);
-    CommonTestUtils::fill_data_sine(out.min.data(), size, center1, ampl, 1);
-    CommonTestUtils::fill_data_sine(out.max.data(), size, center2, ampl, 1);
+std::ostream& operator<<(std::ostream & os, OpType type) {
+    switch (type) {
+        case OpType::SCALAR:
+            os << "SCALAR";
+            break;
+        case OpType::VECTOR:
+            os << "VECTOR";
+            break;
+        default:
+            THROW_IE_EXCEPTION << "NOT_SUPPORTED_OP_TYPE";
+    }
+    return os;
 }
 
 }  // namespace CommonTestUtils

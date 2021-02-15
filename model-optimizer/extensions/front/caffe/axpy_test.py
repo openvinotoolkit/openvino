@@ -29,10 +29,10 @@ class TestAxpyReplacer(unittest.TestCase):
             'axpy': {'type': 'Axpy', 'kind': 'op', 'op': 'Axpy'},
             'node_4': {'kind': 'op', 'type': 'Identity', 'op': 'Parameter'}}
         edges = [
-            ('node_1', 'axpy', {'in': 0}),
-            ('node_2', 'axpy', {'in': 1}),
-            ('node_3', 'axpy', {'in': 2}),
-            ('axpy', 'node_4', {'in': 0})]
+            ('node_1', 'axpy', {'in': 0, 'out': 0}),
+            ('node_2', 'axpy', {'in': 1, 'out': 0}),
+            ('node_3', 'axpy', {'in': 2, 'out': 0}),
+            ('axpy', 'node_4', {'in': 0, 'out': 0})]
         graph = build_graph_with_edge_attrs(nodes, edges)
         node = Node(graph, 'axpy')
         replacer = AxpyToSSandAdd()

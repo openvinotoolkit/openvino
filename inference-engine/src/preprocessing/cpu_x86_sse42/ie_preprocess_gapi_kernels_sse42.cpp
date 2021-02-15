@@ -42,6 +42,11 @@
 #error CV_SIMD128 is required!
 #endif
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstrict-overflow"
+#endif
+
 #include <cstring>
 
 using namespace cv;
@@ -50,30 +55,18 @@ namespace InferenceEngine {
 namespace gapi {
 namespace kernels {
 
-//----------------------------------------------------------------------
-
-static inline v_uint16x8 v_expand_low(const v_uint8x16& a) {
-    return v_uint16x8(_mm_unpacklo_epi8(a.val, _mm_setzero_si128()));
-}
-
-static inline v_uint16x8 v_expand_high(const v_uint8x16& a) {
-    return v_uint16x8(_mm_unpackhi_epi8(a.val, _mm_setzero_si128()));
-}
-
-//------------------------------------------------------------------------------
-
-// Resize (bi-linear, 8U)
-void calcRowLinear_8U(uint8_t *dst[],
-                const uint8_t *src0[],
-                const uint8_t *src1[],
-                const short    alpha[],
-                const short    clone[],  // 4 clones of alpha
-                const short    mapsx[],
-                const short    beta[],
-                      uint8_t  tmp[],
-                const Size   & inSz,
-                const Size   & outSz,
-                      int      lpi) {
+// 8UC1 Resize (bi-linear)
+void calcRowLinear_8UC1(uint8_t       *dst[],
+                        const uint8_t *src0[],
+                        const uint8_t *src1[],
+                        const short    alpha[],
+                        const short    clone[],  // 4 clones of alpha
+                        const short    mapsx[],
+                        const short    beta[],
+                              uint8_t  tmp[],
+                        const Size&    inSz,
+                        const Size&    outSz,
+                              int      lpi) {
     bool xRatioEq1 = inSz.width  == outSz.width;
     bool yRatioEq1 = inSz.height == outSz.height;
 
@@ -485,9 +478,12 @@ void calcRowLinear_8U(uint8_t *dst[],
     }
 }
 
+// Resize 3C/4C universal intrinsic implementation for SSE42 version is a bit slower than original sometimes.
+// Remove original implementation when I find a cause.
+#if 1
 // Resize (bi-linear, 8U, generic number of channels)
 template<int chanNum>
-void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
+void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                   const uint8_t *src0[],
                   const uint8_t *src1[],
                   const short    alpha[],
@@ -498,9 +494,11 @@ void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                   const Size    &inSz,
                   const Size    &outSz,
                         int      lpi) {
+    const int half_nlanes = (v_uint8::nlanes / 2);
+
     if (4 == lpi) {
         // vertical pass
-        GAPI_DbgAssert(inSz.width >= 8);
+        GAPI_DbgAssert(inSz.width >= half_nlanes);
 
         __m128i b0 = _mm_set1_epi16(beta[0]);
         __m128i b1 = _mm_set1_epi16(beta[1]);
@@ -508,7 +506,7 @@ void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
         __m128i b3 = _mm_set1_epi16(beta[3]);
 
         for (int w = 0; w < inSz.width*chanNum; ) {
-            for (; w <= inSz.width*chanNum - 8 && w >= 0; w += 8) {
+            for (; w <= inSz.width*chanNum - half_nlanes && w >= 0; w += half_nlanes) {
                 //--------------------------------------------
                 // reworked from: ie_preprocess_data_sse42.cpp
                 //      function: resize_bilinear_u8
@@ -558,14 +556,14 @@ void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
             }
 
             if (w < inSz.width*chanNum) {
-                w = inSz.width*chanNum - 8;
+                w = inSz.width*chanNum - half_nlanes;
             }
         }
 
         // horizontal pass
-        GAPI_DbgAssert(outSz.width >= 8);
+        GAPI_DbgAssert(outSz.width >= half_nlanes);
         for (int x = 0; x < outSz.width; ) {
-            for (; x <= outSz.width - 8 && x >= 0; x += 8) {
+            for (; x <= outSz.width - half_nlanes && x >= 0; x += half_nlanes) {
                 //--------------------------------------------
                 // reworked from: ie_preprocess_data_sse42.cpp
                 //      function: resize_bilinear_u8
@@ -645,49 +643,224 @@ void calcRowLinear_8UC_Impl(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
             }
 
             if (x < outSz.width) {
-                x = outSz.width - 8;
+                x = outSz.width - half_nlanes;
             }
         }
+
     } else {  // if any lpi
         for (int l = 0; l < lpi; l++) {
             short beta0 = beta[l];
 
             // vertical pass
-            GAPI_DbgAssert(inSz.width*chanNum >= 8);
+            GAPI_DbgAssert(inSz.width*chanNum >= half_nlanes);
             for (int w = 0; w < inSz.width*chanNum; ) {
-                for (; w <= inSz.width*chanNum - 8; w += 8) {
-                    v_int16x8 s0 = v_reinterpret_as_s16(v_load_expand(&src0[l][w]));
-                    v_int16x8 s1 = v_reinterpret_as_s16(v_load_expand(&src1[l][w]));
-                    v_int16x8 t = v_mulhrs(s0 - s1, beta0) + s1;
+                for (; w <= inSz.width*chanNum - half_nlanes; w += half_nlanes) {
+                    v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(&src0[l][w]));
+                    v_int16 s1 = v_reinterpret_as_s16(vx_load_expand(&src1[l][w]));
+                    v_int16 t = v_mulhrs(s0 - s1, beta0) + s1;
                     v_pack_u_store(tmp + w, t);
                 }
 
                 if (w < inSz.width*chanNum) {
-                    w = inSz.width*chanNum - 8;
+                    w = inSz.width*chanNum - half_nlanes;
                 }
             }
 
             // horizontal pass
-            GAPI_DbgAssert(outSz.width >= 8);
+            GAPI_DbgAssert(outSz.width >= half_nlanes);
             for (int x = 0; x < outSz.width; ) {
-                for (; x <= outSz.width - 8 && x >= 0; x += 8) {
+                for (; x <= outSz.width - half_nlanes && x >= 0; x += half_nlanes) {
                     for (int c = 0; c < chanNum; c++) {
-                        v_int16x8 a0 = v_load(&alpha[x]);        // as signed Q1.1.14
-                        v_int16x8 sx = v_load(&mapsx[x]);        // as integer (int16)
-                        v_int16x8 t0 = v_gather_chan<chanNum>(tmp, sx, c, 0);
-                        v_int16x8 t1 = v_gather_chan<chanNum>(tmp, sx, c, 1);
-                        v_int16x8 d = v_mulhrs(t0 - t1, a0) + t1;
+                        v_int16 a0 = vx_load(&alpha[x]);        // as signed Q1.1.14
+                        v_int16 sx = vx_load(&mapsx[x]);        // as integer (int16)
+                        v_int16 t0 = v_gather_chan<chanNum>(tmp, sx, c, 0);
+                        v_int16 t1 = v_gather_chan<chanNum>(tmp, sx, c, 1);
+                        v_int16 d = v_mulhrs(t0 - t1, a0) + t1;
                         v_pack_u_store(&dst[c][l][x], d);
                     }
                 }
 
                 if (x < outSz.width) {
-                    x = outSz.width - 8;
+                    x = outSz.width - half_nlanes;
                 }
             }
         }
     }
 }
+#else
+// Resize 3C/4C universal intrinsic implementation for SSE42 version is a bit slower sometimes.
+// Gonna turn it on when I find a cause.
+template<int chanNum>
+void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
+                            const uint8_t *src0[],
+                            const uint8_t *src1[],
+                            const short    alpha[],
+                            const short    clone[],  // 4 clones of alpha
+                            const short    mapsx[],
+                            const short    beta[],
+                            uint8_t  tmp[],
+                            const Size    &inSz,
+                            const Size    &outSz,
+                            int      lpi) {
+    const int half_nlanes = (v_uint8::nlanes / 2);
+
+    if (4 == lpi) {
+        // vertical pass
+        GAPI_DbgAssert(inSz.width >= half_nlanes);
+
+        v_int16 b0 = vx_setall_s16(beta[0]);
+        v_int16 b1 = vx_setall_s16(beta[1]);
+        v_int16 b2 = vx_setall_s16(beta[2]);
+        v_int16 b3 = vx_setall_s16(beta[3]);
+
+        for (int w = 0; w < inSz.width*chanNum; ) {
+            for (; w <= inSz.width*chanNum - half_nlanes && w >= 0; w += half_nlanes) {
+                v_int16 val0_0 = v_reinterpret_as_s16(vx_load_expand(&src0[0][w]));
+                v_int16 val0_1 = v_reinterpret_as_s16(vx_load_expand(&src0[1][w]));
+                v_int16 val0_2 = v_reinterpret_as_s16(vx_load_expand(&src0[2][w]));
+                v_int16 val0_3 = v_reinterpret_as_s16(vx_load_expand(&src0[3][w]));
+
+                v_int16 val1_0 = v_reinterpret_as_s16(vx_load_expand(&src1[0][w]));
+                v_int16 val1_1 = v_reinterpret_as_s16(vx_load_expand(&src1[1][w]));
+                v_int16 val1_2 = v_reinterpret_as_s16(vx_load_expand(&src1[2][w]));
+                v_int16 val1_3 = v_reinterpret_as_s16(vx_load_expand(&src1[3][w]));
+
+                v_int16 t0 = v_mulhrs(v_sub_wrap(val0_0, val1_0), b0);
+                v_int16 t1 = v_mulhrs(v_sub_wrap(val0_1, val1_1), b1);
+                v_int16 t2 = v_mulhrs(v_sub_wrap(val0_2, val1_2), b2);
+                v_int16 t3 = v_mulhrs(v_sub_wrap(val0_3, val1_3), b3);
+
+                v_int16 r0 = v_add_wrap(val1_0, t0);
+                v_int16 r1 = v_add_wrap(val1_1, t1);
+                v_int16 r2 = v_add_wrap(val1_2, t2);
+                v_int16 r3 = v_add_wrap(val1_3, t3);
+
+                v_uint8 q0 = v_packus(r0, r1);
+                v_uint8 q1 = v_packus(r2, r3);
+
+                v_uint8 q2 = v_blend_shiftleft<0xCC  /*0b11001100*/, 4>(q0, q1);
+                v_uint8 q3 = v_blend_shiftright<0xCC  /*0b11001100*/, 4>(q0, q1);
+
+                v_uint8 mask = v_setr_s8(0, 8, 4, 12, 1, 9, 5, 13, 2, 10, 6, 14, 3, 11, 7, 15);
+
+                v_uint8 q4 = v_shuffle_s8(q2, mask);
+                v_uint8 q5 = v_shuffle_s8(q3, mask);
+
+                vx_store(&tmp[4 * w + 0], q4);
+                vx_store(&tmp[4 * w + 2 * half_nlanes], q5);
+            }
+
+            if (w < inSz.width*chanNum) {
+                w = inSz.width*chanNum - half_nlanes;
+            }
+        }
+
+        // horizontal pass
+        GAPI_DbgAssert(outSz.width >= half_nlanes);
+        for (int x = 0; x < outSz.width; ) {
+            for (; x <= outSz.width - half_nlanes && x >= 0; x += half_nlanes) {
+                v_int16 a10 = vx_load(&clone[4 * x]);
+                v_int16 a32 = vx_load(&clone[4 * (x + 2)]);
+                v_int16 a54 = vx_load(&clone[4 * (x + 4)]);
+                v_int16 a76 = vx_load(&clone[4 * (x + 6)]);
+
+                v_uint8 val_0 = vx_setzero_u8();
+                v_uint8 val_1 = vx_setzero_u8();
+                v_uint8 val_2 = vx_setzero_u8();
+                v_uint8 val_3 = vx_setzero_u8();
+
+                for (int c = 0; c < chanNum; ++c) {
+                    int shift = (half_nlanes / 4);
+
+                    v_gather_channel(val_0, tmp, mapsx, chanNum, c, x, 0);
+                    v_gather_channel(val_1, tmp, mapsx, chanNum, c, x, shift);
+                    v_gather_channel(val_2, tmp, mapsx, chanNum, c, x, shift * 2);
+                    v_gather_channel(val_3, tmp, mapsx, chanNum, c, x, shift * 3);
+
+                    v_int16 val0_0 = v_reinterpret_as_s16(v_expand_low(val_0));
+                    v_int16 val0_1 = v_reinterpret_as_s16(v_expand_low(val_1));
+                    v_int16 val0_2 = v_reinterpret_as_s16(v_expand_low(val_2));
+                    v_int16 val0_3 = v_reinterpret_as_s16(v_expand_low(val_3));
+
+                    v_int16 val1_0 = v_reinterpret_as_s16(v_expand_high(val_0));
+                    v_int16 val1_1 = v_reinterpret_as_s16(v_expand_high(val_1));
+                    v_int16 val1_2 = v_reinterpret_as_s16(v_expand_high(val_2));
+                    v_int16 val1_3 = v_reinterpret_as_s16(v_expand_high(val_3));
+
+                    v_int16 t0 = v_mulhrs(v_sub_wrap(val0_0, val1_0), a10);
+                    v_int16 t1 = v_mulhrs(v_sub_wrap(val0_1, val1_1), a32);
+                    v_int16 t2 = v_mulhrs(v_sub_wrap(val0_2, val1_2), a54);
+                    v_int16 t3 = v_mulhrs(v_sub_wrap(val0_3, val1_3), a76);
+
+                    v_int16 r0 = v_add_wrap(val1_0, t0);
+                    v_int16 r1 = v_add_wrap(val1_1, t1);
+                    v_int16 r2 = v_add_wrap(val1_2, t2);
+                    v_int16 r3 = v_add_wrap(val1_3, t3);
+
+                    v_uint8 q0 = v_packus(r0, r1);
+                    v_uint8 q1 = v_packus(r2, r3);
+
+                    v_uint8 mask = v_setr_s8(0, 4, 8, 12, 2, 6, 10, 14, 1, 5, 9, 13, 3, 7, 11, 15);
+
+                    v_uint8 q2 = v_shuffle_s8(q0, mask);
+                    v_uint8 q3 = v_shuffle_s8(q1, mask);
+
+                    v_uint8 q4 = v_blend_shiftleft<0xCC /*0b11001100*/, 4>(q2, q3);
+                    v_uint8 q5 = v_blend_shiftright<0xCC /*0b11001100*/, 4>(q2, q3);
+
+                    v_store_low(&dst[c][0][x], q4);
+                    v_store_high(&dst[c][1][x], q4);
+                    v_store_low(&dst[c][2][x], q5);
+                    v_store_high(&dst[c][3][x], q5);
+                }
+            }
+
+            if (x < outSz.width) {
+                x = outSz.width - half_nlanes;
+            }
+        }
+
+    } else {  // if any lpi
+        for (int l = 0; l < lpi; ++l) {
+            short beta0 = beta[l];
+
+            // vertical pass
+            GAPI_DbgAssert(inSz.width*chanNum >= half_nlanes);
+            for (int w = 0; w < inSz.width*chanNum; ) {
+                for (; w <= inSz.width*chanNum - half_nlanes; w += half_nlanes) {
+                    v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(&src0[l][w]));
+                    v_int16 s1 = v_reinterpret_as_s16(vx_load_expand(&src1[l][w]));
+                    v_int16 t = v_mulhrs(s0 - s1, beta0) + s1;
+                    v_pack_u_store(tmp + w, t);
+                }
+
+                if (w < inSz.width*chanNum) {
+                    w = inSz.width*chanNum - half_nlanes;
+                }
+            }
+
+            // horizontal pass
+            GAPI_DbgAssert(outSz.width >= half_nlanes);
+            for (int x = 0; x < outSz.width; ) {
+                for (; x <= outSz.width - half_nlanes && x >= 0; x += half_nlanes) {
+                    for (int c = 0; c < chanNum; ++c) {
+                        v_int16 a0 = vx_load(&alpha[x]);        // as signed Q1.1.14
+                        v_int16 sx = vx_load(&mapsx[x]);        // as integer (int16)
+                        v_int16 t0 = v_gather_chan<chanNum>(tmp, sx, c, 0);
+                        v_int16 t1 = v_gather_chan<chanNum>(tmp, sx, c, 1);
+                        v_int16 d = v_mulhrs(t0 - t1, a0) + t1;
+                        v_pack_u_store(&dst[c][l][x], d);
+                    }
+                }
+
+                if (x < outSz.width) {
+                    x = outSz.width - half_nlanes;
+                }
+            }
+        }
+    }
+}
+#endif
 
 // Resize (bi-linear, 8UC3)
 void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
@@ -703,7 +876,7 @@ void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,
                         int      lpi) {
     constexpr const int chanNum = 3;
 
-    calcRowLinear_8UC_Impl<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
+    calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
 // Resize (bi-linear, 8UC4)
@@ -719,135 +892,20 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4> &dst,
                   const Size    &outSz,
                         int      lpi) {
     constexpr const int chanNum = 4;
-    calcRowLinear_8UC_Impl<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
+    calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
 // Resize (bi-linear, 32F)
 void calcRowLinear_32F(float *dst[],
-                 const float *src0[],
-                 const float *src1[],
-                 const float  alpha[],
-                 const int    mapsx[],
-                 const float  beta[],
-                 const Size & inSz,
-                 const Size & outSz,
-                       int    lpi) {
-    bool xRatioEq1 = inSz.width  == outSz.width;
-    bool yRatioEq1 = inSz.height == outSz.height;
-
-    if (!xRatioEq1 && !yRatioEq1) {
-        for (int l = 0; l < lpi; l++) {
-            float beta0 = beta[l];
-            float beta1 = 1 - beta0;
-
-            int x = 0;
-
-        #if CV_SIMD128
-            for (; x <= outSz.width - 4; x += 4) {
-                v_float32x4 alpha0 = v_load(&alpha[x]);
-            //  v_float32x4 alpha1 = 1.f - alpha0;
-
-                v_int32x4 sx = v_load(&mapsx[x]);
-
-                v_float32x4 s0l, s0h, s00, s01;
-                v_gather_pairs(src0[l], sx, s0l, s0h);
-                v_deinterleave(s0l, s0h, s00, s01);
-
-            //  v_float32x4 res0 = s00*alpha0 + s01*alpha1;
-                v_float32x4 res0 = v_fma(s00 - s01, alpha0, s01);
-
-                v_float32x4 s1l, s1h, s10, s11;
-                v_gather_pairs(src1[l], sx, s1l, s1h);
-                v_deinterleave(s1l, s1h, s10, s11);
-
-            //  v_float32x4 res1 = s10*alpha0 + s11*alpha1;
-                v_float32x4 res1 = v_fma(s10 - s11, alpha0, s11);
-
-            //  v_float32x4 d = res0*beta0 + res1*beta1;
-                v_float32x4 d = v_fma(res0 - res1, beta0, res1);
-
-                v_store(&dst[l][x], d);
-            }
-        #endif
-
-            for (; x < outSz.width; x++) {
-                float alpha0 = alpha[x];
-                float alpha1 = 1 - alpha0;
-                int   sx0 = mapsx[x];
-                int   sx1 = sx0 + 1;
-                float res0 = src0[l][sx0]*alpha0 + src0[l][sx1]*alpha1;
-                float res1 = src1[l][sx0]*alpha0 + src1[l][sx1]*alpha1;
-                dst[l][x] = beta0*res0 + beta1*res1;
-            }
-        }
-
-    } else if (!xRatioEq1) {
-        GAPI_DbgAssert(yRatioEq1);
-
-        for (int l = 0; l < lpi; l++) {
-            int x = 0;
-
-        #if CV_SIMD128
-            for (; x <= outSz.width - 4; x += 4) {
-                v_float32x4 alpha0 = v_load(&alpha[x]);
-            //  v_float32x4 alpha1 = 1.f - alpha0;
-
-                v_int32x4 sx = v_load(&mapsx[x]);
-
-                v_float32x4 s0l, s0h, s00, s01;
-                v_gather_pairs(src0[l], sx, s0l, s0h);
-                v_deinterleave(s0l, s0h, s00, s01);
-
-            //  v_float32x4 d = s00*alpha0 + s01*alpha1;
-                v_float32x4 d = v_fma(s00 - s01, alpha0, s01);
-
-                v_store(&dst[l][x], d);
-            }
-        #endif
-
-            for (; x < outSz.width; x++) {
-                float alpha0 = alpha[x];
-                float alpha1 = 1 - alpha0;
-                int   sx0 = mapsx[x];
-                int   sx1 = sx0 + 1;
-                dst[l][x] = src0[l][sx0]*alpha0 + src0[l][sx1]*alpha1;
-            }
-        }
-
-    } else if (!yRatioEq1) {
-        GAPI_DbgAssert(xRatioEq1);
-        int length = inSz.width;  // == outSz.width
-
-        for (int l = 0; l < lpi; l++) {
-            float beta0 = beta[l];
-            float beta1 = 1 - beta0;
-
-            int x = 0;
-
-        #if CV_SIMD128
-            for (; x <= length - 4; x += 4) {
-                v_float32x4 s0 = v_load(&src0[l][x]);
-                v_float32x4 s1 = v_load(&src1[l][x]);
-
-            //  v_float32x4 d = s0*beta0 + s1*beta1;
-                v_float32x4 d = v_fma(s0 - s1, beta0, s1);
-
-                v_store(&dst[l][x], d);
-            }
-        #endif
-
-            for (; x < length; x++) {
-                dst[l][x] = beta0*src0[l][x] + beta1*src1[l][x];
-            }
-        }
-
-    } else {
-        GAPI_DbgAssert(xRatioEq1 && yRatioEq1);
-        int length = inSz.width;  // == outSz.width
-        for (int l = 0; l < lpi; l++) {
-            memcpy(dst[l], src0[l], length * sizeof(float));
-        }
-    }
+                       const float *src0[],
+                       const float *src1[],
+                       const float  alpha[],
+                       const int    mapsx[],
+                       const float  beta[],
+                       const Size&  inSz,
+                       const Size&  outSz,
+                               int  lpi) {
+    calcRowLinear_32FC1(dst, src0, src1, alpha, mapsx, beta, inSz, outSz, lpi);
 }
 
 //------------------------------------------------------------------------------

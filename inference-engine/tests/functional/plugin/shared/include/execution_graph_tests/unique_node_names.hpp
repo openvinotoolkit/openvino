@@ -9,24 +9,21 @@
 #include <string>
 #include <memory>
 
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
-namespace LayerTestsDefinitions {
+namespace ExecutionGraphTests {
 
-typedef std::tuple<
-        InferenceEngine::Precision,
-        InferenceEngine::Precision,
-        InferenceEngine::SizeVector,
-        std::string> basicParams;
-
-class ExecGraphUniqueNodeNames : public LayerTestsUtils::LayerTestsCommonDeprecated<LayerTestsUtils::basicParams> {
+class ExecGraphUniqueNodeNames : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
+                                 public CommonTestUtils::TestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
-
+    std::string targetDevice;
+    std::shared_ptr<ngraph::Function> fnPtr;
 protected:
     void SetUp() override;
+
     void TearDown() override;
 };
 
-}  // namespace LayerTestsDefinitions
+}  // namespace ExecutionGraphTests

@@ -65,7 +65,7 @@ void HwConstData::fillTempBuf(void* outBuf) const {
         const auto inChannelStride  = K * kernelStride;
         const auto outerStride      = IC * inChannelStride;
 
-        ie::parallel_for(numOC, [=](int oc) {
+        ie::parallel_for(numOC, [=](size_t oc) {
             const auto ocSlice = oc;
             oc += startOC;
 

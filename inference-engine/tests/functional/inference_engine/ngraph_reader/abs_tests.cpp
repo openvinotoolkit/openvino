@@ -20,7 +20,7 @@ public:
     void validate_and_infer_types() override {
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
     }
-    std::shared_ptr<ngraph::Node> copy_with_new_args(const ngraph::NodeVector& new_args) const override {
+    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         return std::make_shared<FakeAbs>(new_args.at(0));
     }
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override {

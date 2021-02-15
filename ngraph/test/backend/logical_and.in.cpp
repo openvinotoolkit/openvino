@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,37 +16,31 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/runtime/tensor.hpp"
-#include "runtime/backend.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, logical_and)
 {
-    Shape shape{2, 2, 2};
+    Shape shape{3, 4};
     auto A = make_shared<op::Parameter>(element::boolean, shape);
     auto B = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(make_shared<op::And>(A, B), ParameterVector{A, B});
+    auto f =
+        make_shared<Function>(std::make_shared<op::v1::LogicalAnd>(A, B), ParameterVector{A, B});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<bool> a{true, true, true, true, true, false, true, false, false, true, true, true};
+    std::vector<bool> b{true, true, true, true, true, false, true, false, false, true, true, false};
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::boolean, shape);
-    copy_data(a, vector<char>{1, 0, 1, 1, 1, 0, 1, 0});
-    auto b = backend->create_tensor(element::boolean, shape);
-    copy_data(b, vector<char>{0, 0, 1, 0, 0, 1, 1, 0});
-    auto result = backend->create_tensor(element::boolean, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_EQ((vector<char>{0, 0, 1, 0, 0, 0, 1, 0}), read_vector<char>(result));
+    auto test_case_1 = test::TestCase<TestEngine>(f);
+    test_case_1.add_multiple_inputs<bool>({a, b});
+    test_case_1.add_expected_output<float>(shape, {1., 1., 1., 1., 1., 0., 1., 0., 0., 1., 1., 0.});
+    test_case_1.run();
 }

@@ -4,17 +4,14 @@
 
 #pragma once
 
-#include <vector>
 #include <string>
 #include <map>
-#include <unordered_map>
 
 #include <ie_parameter.hpp>
 
-namespace TemplatePlugin {
+#include <threading/ie_istreams_executor.hpp>
 
-template<typename T>
-using IOMap = std::unordered_map<std::string, T>;
+namespace TemplatePlugin {
 
 // ! [configuration:header]
 using ConfigMap = std::map<std::string, std::string>;
@@ -34,6 +31,7 @@ struct Configuration {
 
     int deviceId                = 0;
     bool perfCount              = true;
+    InferenceEngine::IStreamsExecutor::Config _streamsExecutorConfig;
 };
 // ! [configuration:header]
 

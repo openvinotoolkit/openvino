@@ -19,7 +19,7 @@ PRETTY_PARAM(SliceTestParams, SliceParams);
 typedef myriadLayerTestBaseWithParam<SliceTestParams> myriadLayersTestsSlice_smoke;
 
 TEST_P(myriadLayersTestsSlice_smoke, Slice) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     const SliceParams testParams = GetParam();
 

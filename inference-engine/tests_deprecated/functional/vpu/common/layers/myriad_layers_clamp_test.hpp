@@ -21,7 +21,7 @@ struct clamp_test_params {
 typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, clamp_test_params>> myriadLayersTestsClampParams_smoke;
 
 TEST_P(myriadLayersTestsClampParams_smoke, TestsClamp) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     auto param = GetParam();
     SizeVector tensor = std::get<0>(param);
     clamp_test_params p = std::get<1>(param);

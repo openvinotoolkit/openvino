@@ -26,6 +26,7 @@ public:
     virtual ~MVNKernelBfyxOpt() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     using Parent = MVNKernelBase;
 
@@ -39,6 +40,6 @@ private:
         };
     }
     DispatchData SetDefault(const mvn_params& params) const override;
-    JitConstants GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData kd) const override;
+    JitConstants GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData dispatchData) const override;
 };
 }  // namespace kernel_selector

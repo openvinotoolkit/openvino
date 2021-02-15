@@ -10,6 +10,9 @@ addIeTargetTest(
             ${TARGET_NAME}
         ROOT
             ${CMAKE_CURRENT_SOURCE_DIR}
+        INCLUDES
+            ${CLDNN__IOCL_ICD_INCDIRS}
+            ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             clDNNPlugin
         LINK_LIBRARIES
@@ -19,4 +22,9 @@ addIeTargetTest(
         LABELS
             GPU
 )
-target_include_directories(${TARGET_NAME} PRIVATE ${CLDNN__IOCL_ICD_INCDIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(LIBVA_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
+    target_include_directories(${TARGET_NAME} PRIVATE ${LIBVA_INCLUDE_DIRS})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${LIBVA_LINK_LIBRARIES})
+endif()

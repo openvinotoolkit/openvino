@@ -1,66 +1,41 @@
 ﻿// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-#include "low_precision_transformations/transparent_base_transformation.hpp"
-#include "low_precision_transformations/network_helper.hpp"
+#include "low_precision/transparent_base_transformation.hpp"
 
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+#include "low_precision/network_helper.hpp"
 
-void TransparentBaseTransformation::transform(TransformationContext& context, CNNLayer& layer) const {
-    const CNNLayerPtr scaleShift = CNNNetworkHelper::getParent(layer, 0);
-    if (scaleShift == nullptr) {
-        return;
-    }
+using namespace ngraph;
+using namespace ngraph::pass;
+using namespace ngraph::pass::low_precision;
 
-    if (scaleShift->type == "Concat") {
-        if (updatePrecisions) {
-            // TODO: looks like as workaround for Concat -> Pooling -> Concat: refactor later
-            CNNNetworkHelper::setOutDataPrecision(layer, CNNNetworkHelper::getPrecisionParent(layer, 0ul));
-        }
-    } else if (scaleShift->type == "ScaleShift") {
-        if (updatePrecisions) {
-            CNNNetworkHelper::setOutDataPrecision(layer, getPrecisionBeforeParentDequantizationScaleShift(layer));
-        }
+bool TransparentBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    auto operation = m.get_match_root();
+    const std::shared_ptr<Node> dequantization = operation->input_value(0).get_node_shared_ptr();
+    // const std::shared_ptr<Node> dequantizationParent = dequantization->input_value(0).get_node_shared_ptr();
 
-        const Blob::Ptr weights_blob = CNNNetworkHelper::getBlob(scaleShift, "weights");
-        auto weights = CNNNetworkHelper::getFloatData(weights_blob);
-        const std::vector<float> scales = std::vector<float>(weights.get(), weights.get() + weights_blob->size());
+    // auto newOperation = operation->copy_with_new_inputs({ dequantizationParent });
+    // const auto newDequantization = dequantization->copy_with_new_inputs({
+    //    newOperation,
+    //    dequantization->input_value(1),
+    //    dequantization->input_value(2) });
 
-        const Blob::Ptr biases_blob = CNNNetworkHelper::getBlob(scaleShift, "biases");
-        auto biases = CNNNetworkHelper::getFloatData(biases_blob);
-        const std::vector<float> shifts = std::vector<float>(biases.get(), biases.get() + biases_blob->size());
+    // const std::string friendlyName = operation->get_friendly_name();
+    //// TODO: new operation name has to be unique
+    // newOperation->set_friendly_name(friendlyName + "_original");
+    // newDequantization->set_friendly_name(friendlyName);
 
-        CNNNetworkHelper::removeLayer(context.network, scaleShift);
-        context.removeLayer(*scaleShift);
+    // replace_node(operation, newDequantization);
 
-        const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(layer);
-        if (children.size() == 0) {
-            const std::string originalName = layer.name;
-            CNNNetworkHelper::renameLayer(context.network, layer.name, layer.name + LayerTransformation::lastLayerPrefix);
+    // NetworkHelper::moveDequantization(operation, dequantization);
+    return true;
+}
 
-            CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                context,
-                std::make_shared<CNNLayer>(layer),
-                nullptr,
-                DequantizationDetails(scales, shifts),
-                originalName);
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-        } else {
-            for (const CNNLayerPtr& child : children) {
-                CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                    context,
-                    std::make_shared<CNNLayer>(layer),
-                    child,
-                    DequantizationDetails(scales, shifts));
-                context.dequantizationLayersNames.insert(dequantizationLayer->name);
-            }
-        }
-    }
+bool TransparentBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
+    return true;
 }

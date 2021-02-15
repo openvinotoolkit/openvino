@@ -26,34 +26,34 @@ void calcRowArea_32F(float dst[], const float *src[], const Size &inSz, const Si
                      const float xalpha[], float vbuf[]);
 
 #if USE_CVKL
-void calcRowArea_CVKL_U8_SSE42(const uchar  * src[],
-                                     uchar    dst[],
-                               const Size   & inSz,
-                               const Size   & outSz,
-                                     int      y,
-                               const uint16_t xsi[],
-                               const uint16_t ysi[],
-                               const uint16_t xalpha[],
-                               const uint16_t yalpha[],
-                                     int      x_max_count,
-                                     int      y_max_count,
-                                     uint16_t vert_sum[]);
+void calcRowArea_CVKL_U8(const uchar  * src[],
+                                 uchar    dst[],
+                           const Size   & inSz,
+                           const Size   & outSz,
+                                 int      y,
+                           const uint16_t xsi[],
+                           const uint16_t ysi[],
+                           const uint16_t xalpha[],
+                           const uint16_t yalpha[],
+                                 int      x_max_count,
+                                 int      y_max_count,
+                                 uint16_t vert_sum[]);
 #endif
 
 //-----------------------------------------------------------------------------
 
-// Resize (bi-linear, 8U)
-void calcRowLinear_8U(uint8_t *dst[],
-                      const uint8_t *src0[],
-                      const uint8_t *src1[],
-                      const short    alpha[],
-                      const short    clone[],
-                      const short    mapsx[],
-                      const short    beta[],
-                      uint8_t  tmp[],
-                      const Size   & inSz,
-                      const Size   & outSz,
-                      int      lpi);
+// Resize (bi-linear, 8UC1)
+void calcRowLinear_8UC1(uint8_t *dst[],
+                        const uint8_t *src0[],
+                        const uint8_t *src1[],
+                        const short    alpha[],
+                        const short    clone[],
+                        const short    mapsx[],
+                        const short    beta[],
+                        uint8_t  tmp[],
+                        const Size   & inSz,
+                        const Size   & outSz,
+                        int      lpi);
 
 // Resize (bi-linear, 8UC3)
 void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3> &dst,

@@ -20,57 +20,8 @@ using namespace InferenceEngine;
 using ExtensionTests = ::testing::Test;
 
 std::string getExtensionPath() {
-    return FileUtils::makeSharedLibraryName<char>({},
-            std::string("extension_tests") + IE_BUILD_POSTFIX);
-}
-
-TEST(ExtensionTests, testGetFactoryFor) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
-    CNNLayer testLayer({"test1", "test", Precision::FP32});
-    ILayerImplFactory* factory = nullptr;
-    ResponseDesc resp;
-    ASSERT_EQ(OK, extension->getFactoryFor(factory, &testLayer, &resp));
-}
-
-TEST(ExtensionTests, testGetIncorrectFactoryFor) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
-    CNNLayer testLayer({"test1", "test_incorrect", Precision::FP32});
-    ILayerImplFactory* factory = nullptr;
-    ResponseDesc resp;
-    ASSERT_NE(OK, extension->getFactoryFor(factory, &testLayer, &resp));
-}
-
-TEST(ExtensionTests, testGetPrimitiveTypes) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
-    ResponseDesc resp;
-    char **types;
-    unsigned int size(0);
-    ASSERT_EQ(OK, extension->getPrimitiveTypes(types, size, &resp));
-    ASSERT_EQ(1, size);
-}
-
-TEST(ExtensionTests, testGetShapeInferTypes) {
-    IShapeInferExtensionPtr extension = make_so_pointer<IShapeInferExtension>(getExtensionPath());
-    ResponseDesc resp;
-    char **types;
-    unsigned int size(0);
-    ASSERT_EQ(OK, extension->getShapeInferTypes(types, size, &resp));
-    ASSERT_EQ(1, size);
-}
-
-TEST(ExtensionTests, testGetShapeInferImpl) {
-    IShapeInferExtensionPtr extension = make_so_pointer<IShapeInferExtension>(getExtensionPath());
-    IShapeInferImpl::Ptr impl;
-    ResponseDesc resp;
-    ASSERT_EQ(OK, extension->getShapeInferImpl(impl, "test", &resp));
-}
-
-TEST(ExtensionTests, testGetIncorrectShapeInferImpl) {
-    IShapeInferExtensionPtr extension = make_so_pointer<IShapeInferExtension>(getExtensionPath());
-    CNNLayer testLayer({"test1", "test", Precision::FP32});
-    IShapeInferImpl::Ptr impl;
-    ResponseDesc resp;
-    ASSERT_NE(OK, extension->getShapeInferImpl(impl, "test_incorrect", &resp));
+    return FileUtils::makePluginLibraryName<char>({},
+            std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
 TEST(ExtensionTests, testGetOpSets) {
@@ -96,7 +47,7 @@ TEST(ExtensionTests, testGetImplTypesThrowsIfNgraphNodeIsNullPtr) {
 TEST(ExtensionTests, testGetImplementation) {
     IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
     auto opset = extension->getOpSets().begin()->second;
-    std::shared_ptr<ngraph::Node> op(opset.create(opset.get_types_info().begin()->name));
+    std::shared_ptr<ngraph::Node> op(opset.create("Template"));
     ASSERT_NE(nullptr, extension->getImplementation(op, extension->getImplTypes(op)[0]));
 }
 

@@ -24,13 +24,12 @@ from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph, Node
 from mo.middle.pattern_match import find_pattern_matches
 from mo.ops.const import Const
-from mo.ops.crop import Crop
 
 
 class SsdPatternAnchorReshape(FrontReplacementSubgraph):
     """
     Find ssd anchors and setup variants values.
-    Need to provide compatibility wit IE DetectionOutpyt layer.
+    Need to provide compatibility with IE DetectionOutput layer.
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]

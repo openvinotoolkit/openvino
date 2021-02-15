@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,12 +25,20 @@ namespace py = pybind11;
 
 void regclass_pyngraph_op_util_IndexReduction(py::module m)
 {
-    py::class_<ngraph::op::util::IndexReduction,
-               std::shared_ptr<ngraph::op::util::IndexReduction>,
-               ngraph::op::Op>
+    py::class_<ngraph::op::util::IndexReduction, std::shared_ptr<ngraph::op::util::IndexReduction>>
         indexReduction(m, "IndexRedection");
-    indexReduction.def_property_readonly("reduction_axis",
-                                         &ngraph::op::util::IndexReduction::get_reduction_axis);
-    indexReduction.def_property_readonly("index_element_type",
-                                         &ngraph::op::util::IndexReduction::get_index_element_type);
+
+    indexReduction.def("get_reduction_axis", &ngraph::op::util::IndexReduction::get_reduction_axis);
+    indexReduction.def("set_reduction_axis", &ngraph::op::util::IndexReduction::set_reduction_axis);
+    indexReduction.def("get_index_element_type",
+                       &ngraph::op::util::IndexReduction::get_index_element_type);
+    indexReduction.def("set_index_element_type",
+                       &ngraph::op::util::IndexReduction::set_index_element_type);
+
+    indexReduction.def_property("reduction_axis",
+                                &ngraph::op::util::IndexReduction::get_reduction_axis,
+                                &ngraph::op::util::IndexReduction::set_reduction_axis);
+    indexReduction.def_property("index_element_type",
+                                &ngraph::op::util::IndexReduction::get_index_element_type,
+                                &ngraph::op::util::IndexReduction::set_index_element_type);
 }

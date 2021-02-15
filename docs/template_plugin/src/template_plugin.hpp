@@ -4,18 +4,11 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
-#include <description_buffer.hpp>
+#include "template_config.hpp"
+#include "template_executable_network.hpp"
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 
-#include <memory>
-#include <string>
-#include <map>
-#include <unordered_map>
-#include <vector>
-
-#include "template_executable_network.hpp"
-#include "template_config.hpp"
+#include "backend.hpp"
 
 //! [plugin:header]
 namespace TemplatePlugin {
@@ -25,14 +18,14 @@ public:
     using Ptr = std::shared_ptr<Plugin>;
 
     Plugin();
-    ~Plugin() override = default;
+    ~Plugin() override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
-    void QueryNetwork(const InferenceEngine::ICNNNetwork &network,
-                      const std::map<std::string, std::string>& config,
-                      InferenceEngine::QueryNetworkResult &res) const override;
+    InferenceEngine::QueryNetworkResult
+    QueryNetwork(const InferenceEngine::CNNNetwork &network,
+                 const std::map<std::string, std::string>& config) const override;
     InferenceEngine::ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+    LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                        const std::map<std::string, std::string> &config) override;
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
     InferenceEngine::Parameter GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const override;
@@ -40,7 +33,12 @@ public:
     InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) override;
 
 private:
-    Configuration                    _cfg;
+    friend class ExecutableNetwork;
+    friend class TemplateInferRequest;
+
+    std::shared_ptr<ngraph::runtime::Backend>   _backend;
+    Configuration                               _cfg;
+    InferenceEngine::ITaskExecutor::Ptr         _waitExecutor;
 };
 
 }  // namespace TemplatePlugin

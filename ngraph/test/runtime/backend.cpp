@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,9 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
+#error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
+#endif
 #elif defined(__linux) || defined(__APPLE__)
 #include <dlfcn.h>
 #endif
@@ -52,9 +55,11 @@ static string find_my_pathname()
     Dl_info dl_info;
     dladdr(reinterpret_cast<void*>(ngraph::to_lower), &dl_info);
     return dl_info.dli_fname;
+#else
+#error "Unsupported OS"
 #endif
 #else
-    return "";
+    return {};
 #endif
 }
 
@@ -83,6 +88,7 @@ std::shared_ptr<runtime::Backend> runtime::Backend::create(const string& t,
     {
         return make_shared<runtime::dynamic::DynamicBackend>(inner_backend);
     }
+    return inner_backend;
 }
 
 vector<string> runtime::Backend::get_registered_devices()
@@ -95,14 +101,6 @@ std::shared_ptr<ngraph::runtime::Tensor>
                                             const PartialShape& /* shape */)
 {
     throw std::invalid_argument("This backend does not support dynamic tensors");
-}
-
-std::shared_ptr<runtime::Executable>
-    runtime::Backend::compile(std::shared_ptr<Function> func,
-                              ngraph::pass::PassConfig& /* pass_config */,
-                              bool enable_performance_data)
-{
-    return compile(func, enable_performance_data);
 }
 
 bool runtime::Backend::is_supported(const Node& /* node */) const

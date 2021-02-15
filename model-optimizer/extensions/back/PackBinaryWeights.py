@@ -53,7 +53,7 @@ class PackBinaryWeights(BackReplacementPattern):
         packed = np.packbits(weights_rounded)
         conv.in_port(1).data.set_value(packed)
         conv['packed_weights'] = 1
-        if graph.graph['cmd_params'].generate_experimental_IR_V10:
-            conv.in_node(1)['force_shape'] = initial_shape.copy()
-            conv.in_node(1)['shape'] = initial_shape.copy()
-            conv.in_node(1)['force_type'] = 'U1'
+
+        conv.in_node(1)['force_shape'] = initial_shape.copy()
+        conv.in_node(1)['shape'] = initial_shape.copy()
+        conv.in_node(1)['force_type'] = 'U1'

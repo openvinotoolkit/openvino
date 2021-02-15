@@ -10,11 +10,10 @@
 #include <memory>
 #include <vector>
 
+#include <legacy/ie_layers.h>
 #include "ie_icnn_network.hpp"
 
 namespace InferenceEngine {
-
-IE_SUPPRESS_DEPRECATED_START
 
 class MockNotEmptyICNNNetwork : public ICNNNetwork {
 public:
@@ -23,21 +22,21 @@ public:
     static constexpr const char* OUTPUT_BLOB_NAME = "first_output";
     const SizeVector OUTPUT_DIMENTIONS = { 1, 3, 299, 299 };
     const std::string name = "test";
-    Precision getPrecision() const noexcept override {
-        return Precision::FP32;
-    }
     const std::string& getName() const noexcept override {
         return name;
     }
     void getOutputsInfo(OutputsDataMap& out) const noexcept override {
+        IE_SUPPRESS_DEPRECATED_START
         auto data = std::make_shared<Data>(MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME, Precision::UNSPECIFIED);
-        data->getInputTo()[""] = std::make_shared<CNNLayer>(LayerParams{
+        getInputTo(data)[""] = std::make_shared<CNNLayer>(LayerParams{
             MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME,
             "FullyConnected",
             Precision::FP32 });
         out[MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME] = data;
+        IE_SUPPRESS_DEPRECATED_END
     };
     void getInputsInfo(InputsDataMap &inputs) const noexcept override {
+        IE_SUPPRESS_DEPRECATED_START
         auto inputInfo = std::make_shared<InputInfo>();
 
         auto inData = std::make_shared<Data>(MockNotEmptyICNNNetwork::INPUT_BLOB_NAME, Precision::UNSPECIFIED);
@@ -45,7 +44,7 @@ public:
             MockNotEmptyICNNNetwork::INPUT_BLOB_NAME,
             "Input",
             Precision::FP32 });
-        inData->getInputTo()[MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME] = inputLayer;
+        getInputTo(inData)[MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME] = inputLayer;
         inData->setDims(MockNotEmptyICNNNetwork::INPUT_DIMENTIONS);
         inData->setLayout(Layout::NCHW);
         inputInfo->setInputData(inData);
@@ -53,7 +52,7 @@ public:
         auto outData = std::make_shared<Data>(MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME, Precision::UNSPECIFIED);
         outData->setDims(MockNotEmptyICNNNetwork::OUTPUT_DIMENTIONS);
         outData->setLayout(Layout::NCHW);
-        outData->getInputTo()[""] = std::make_shared<CNNLayer>(LayerParams{
+        getInputTo(outData)[""] = std::make_shared<CNNLayer>(LayerParams{
             MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME,
             "FullyConnected",
             Precision::FP32 });
@@ -61,8 +60,8 @@ public:
         inputLayer->outData.push_back(outData);
 
         inputs[MockNotEmptyICNNNetwork::INPUT_BLOB_NAME] = inputInfo;
+        IE_SUPPRESS_DEPRECATED_END
     };
-    void addLayer(const CNNLayerPtr& layer) noexcept override {}
     std::shared_ptr<ngraph::Function> getFunction() noexcept override {
         return nullptr;
     }
@@ -70,21 +69,14 @@ public:
         return nullptr;
     }
     MOCK_QUALIFIED_METHOD1(getInput, const noexcept, InputInfo::Ptr(const std::string &inputName));
-    MOCK_QUALIFIED_METHOD2(getName, const noexcept, void(char* pName, size_t len));
     MOCK_QUALIFIED_METHOD0(layerCount, const noexcept, size_t());
-    MOCK_QUALIFIED_METHOD1(getData, noexcept, DataPtr&(const char* dname));
     MOCK_QUALIFIED_METHOD3(addOutput, noexcept, StatusCode(const std::string &, size_t , ResponseDesc*));
-    MOCK_QUALIFIED_METHOD3(getLayerByName, const noexcept, StatusCode(const char* , CNNLayerPtr& , ResponseDesc*));
-    MOCK_QUALIFIED_METHOD1(setBatchSize, noexcept, StatusCode(const size_t size));
     MOCK_QUALIFIED_METHOD2(setBatchSize, noexcept, StatusCode(const size_t size, ResponseDesc*));
     MOCK_QUALIFIED_METHOD0(getBatchSize, const noexcept, size_t());
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
     MOCK_QUALIFIED_METHOD1(getInputShapes, const noexcept, void(ICNNNetwork::InputShapes &));
     MOCK_QUALIFIED_METHOD2(reshape, noexcept, StatusCode(const ICNNNetwork::InputShapes &, ResponseDesc *));
-    MOCK_QUALIFIED_METHOD2(AddExtension, noexcept, StatusCode(const IShapeInferExtensionPtr &, ResponseDesc *));
     MOCK_QUALIFIED_METHOD3(serialize, const noexcept, StatusCode(const std::string &, const std::string &, InferenceEngine::ResponseDesc*));
 };
-
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

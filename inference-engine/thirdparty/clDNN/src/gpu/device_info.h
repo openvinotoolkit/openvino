@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,15 +26,18 @@ namespace gpu {
 
 struct device_info_internal : cldnn::device_info {
     std::uint32_t compute_units_count;
-    uint32_t dev_type;
     uint32_t vendor_id;
     uint8_t supports_usm;
+    bool supports_optimization_hints;
+    bool supports_local_block_io;
 
     explicit device_info_internal(const cl::Device& device);
 
     device_info convert_to_api() {
         return { cores_count,
          core_frequency,
+         max_threads_per_execution_unit,
+         max_threads_per_device,
          max_work_group_size,
          max_local_mem_size,
          max_global_mem_size,
@@ -49,7 +52,8 @@ struct device_info_internal : cldnn::device_info {
          supports_immad,
          supports_usm,
          dev_name,
-         driver_version
+         driver_version,
+         dev_type
         };
     }
 };

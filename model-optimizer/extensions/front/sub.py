@@ -23,8 +23,8 @@ from mo.graph.graph import Graph, Node, rename_node
 
 
 class Sub(FrontReplacementPattern):
-    enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
+    # This transformation is called directly from the 'model-optimizer/extensions/middle/fusings.py' transformation
+    enabled = False
 
     @staticmethod
     def sub_to_add_replacement(sub: Node):

@@ -143,7 +143,7 @@ public:
         _output_tensor[2] = std::floor((_input_tensor[2] + 2. * _pad_val.y - _kernel_val.y) / _stride_val.y) + 1;
         _output_tensor[1] = _input_tensor[1];
         _output_tensor[0] = _input_tensor[0];
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
         ASSERT_EQ(_input_tensor.size(), 4);
         _testNet.addLayer(LayerInitParams("Pooling")
                  .params(_params)
@@ -301,7 +301,6 @@ public:
         if (add_bias) {
             sz_bias = _par.out_c;
         }
-        size_t sz = sz_weights + sz_bias;
         // @todo: FullyConnected is not present in IRv10. Need to move to MatMul somehow. MatMul need different initializetion here.
         _testNet.addLayer(LayerInitParams(_irVersion == IRVersion::v10 ? "MatMul" : "FullyConnected")
                   .params(params)

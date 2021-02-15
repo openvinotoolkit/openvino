@@ -46,7 +46,7 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
     channel_dim = gconv.channel_dims[0]
     split_axis = start_node.in_port(1).data.get_value()
     if channel_dim != split_axis or channel_dim != last_node.axis:
-        log.debug('Grouped convolutions fusion : split or concat has wierd axis!')
+        log.debug('Grouped convolutions fusion : split or concat has weird axis!')
         return False
 
     # Check that all convolutions has the same parameters
@@ -100,7 +100,7 @@ def concat_convolutions(graph: Graph, start_node: Node, last_node: Node):
     weights_value = np.array(weights_node.value)
     bias_value = np.array(bias_node.value) if has_biases else None
 
-    feature_dim = 3 if graph.graph['layout'] == 'NHWC' else 1
+    feature_dim = 3 if graph.graph['layout'] == 'NHWC' else 0
 
     for conv in conv_nodes[1:]:
         weights_value = np.concatenate((weights_value, conv.in_node(1).value), axis=feature_dim)

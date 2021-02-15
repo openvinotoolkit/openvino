@@ -109,11 +109,10 @@ void ref_tile(const InferenceEngine::Blob::Ptr src,
 typedef myriadLayerTestBaseWithParam<tuple<test_params, tiles>> myriadLayerTestTile_smoke;
 
 TEST_P(myriadLayerTestTile_smoke, Tile) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     tile_test::nd_tensor_test_params input_dims = get<0>(GetParam());
     int tiles = get<1>(GetParam());
-    int ndims = input_dims.dims.size();
     int axis = input_dims.axis;
     auto dims = input_dims.dims;
     SetInputTensors({dims});

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,16 @@
 
 #include "ie_executable.hpp"
 #include "ie_tensor.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/opset1_upgrade.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "pass/opset1_upgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace
 {
@@ -55,11 +56,13 @@ namespace
         switch (elem_type)
         {
         case element::Type_t::f32: blob = MAKE_IE_TBLOB(float, FP32, shape, layout); break;
+        case element::Type_t::f64: blob = MAKE_IE_TBLOB(double, FP64, shape, layout); break;
         case element::Type_t::i16: blob = MAKE_IE_TBLOB(int16_t, I16, shape, layout); break;
         case element::Type_t::u8: blob = MAKE_IE_TBLOB(uint8_t, U8, shape, layout); break;
         case element::Type_t::i8: blob = MAKE_IE_TBLOB(int8_t, I8, shape, layout); break;
         case element::Type_t::u16: blob = MAKE_IE_TBLOB(uint16_t, U16, shape, layout); break;
         case element::Type_t::i32: blob = MAKE_IE_TBLOB(int32_t, I32, shape, layout); break;
+        case element::Type_t::u32: blob = MAKE_IE_TBLOB(uint32_t, U32, shape, layout); break;
         case element::Type_t::i64: blob = MAKE_IE_TBLOB(int64_t, I64, shape, layout); break;
         case element::Type_t::u64: blob = MAKE_IE_TBLOB(uint64_t, U64, shape, layout); break;
         case element::Type_t::boolean: blob = MAKE_IE_TBLOB(uint8_t, BOOL, shape, layout); break;
@@ -83,6 +86,10 @@ namespace
         ie_ops.insert(opset2.begin(), opset2.end());
         auto& opset3 = get_opset3().get_type_info_set();
         ie_ops.insert(opset3.begin(), opset3.end());
+        auto& opset4 = get_opset4().get_type_info_set();
+        ie_ops.insert(opset4.begin(), opset4.end());
+        auto& opset5 = get_opset5().get_type_info_set();
+        ie_ops.insert(opset5.begin(), opset5.end());
         return ie_ops;
     }
 }
@@ -99,16 +106,8 @@ runtime::ie::IE_Executable::IE_Executable(shared_ptr<Function> func, string devi
     {
         if (ie_ops.find(node->get_type_info()) == ie_ops.end())
         {
-            if (node->get_type_info() == op::GetOutputElement::type_info)
-            {
-                // IE currently can handle GetOutuputElement op;
-                continue;
-            }
-            else
-            {
-                cout << "UNSUPPORTED OP DETECTED: " << node->get_type_info().name << endl;
-                THROW_IE_EXCEPTION << "Detected op not belonging to opset1!";
-            }
+            cout << "UNSUPPORTED OP DETECTED: " << node->get_type_info().name << endl;
+            THROW_IE_EXCEPTION << "Detected op not belonging to opset1!";
         }
     }
 
@@ -156,7 +155,10 @@ bool runtime::ie::IE_Executable::call(const vector<shared_ptr<runtime::Tensor>>&
     }
 
     //  Prepare output blobs
-    string output_name = m_network.getOutputsInfo().begin()->first;
+    auto outInfo = m_network.getOutputsInfo();
+    if (outInfo.size() != 1)
+        THROW_IE_EXCEPTION << "Networks should contain only one output!";
+    string output_name = outInfo.begin()->first;
 
     infer_request.Infer();
     InferenceEngine::Blob::Ptr output = infer_request.GetBlob(output_name);

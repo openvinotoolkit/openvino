@@ -36,7 +36,7 @@ nodes = {
     'ma_o': {'kind': 'op', 'op': 'Const'},
     'ma_o_d': {'kind': 'data', 'shape': np.array([1, 3, 224, 224]), 'value': None},
 
-    'quantize': {'kind': 'op', 'op': 'FakeQuantize', 'keep_in_IR': True},
+    'quantize': {'kind': 'op', 'op': 'FakeQuantize'},
     'quantize_d': {'kind': 'data', 'shape': None},
 
     'mul_val': {'kind': 'op', 'op': 'Const'},

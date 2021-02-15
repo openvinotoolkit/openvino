@@ -46,10 +46,10 @@ void ref_quantize(const std::vector<Blob::Ptr> &srcs, std::vector<Blob::Ptr> &ds
     size_t W = prm.in.w;
     size_t ICB = prm.ic_const_blobs;
 
-    for (int n = 0; n < N; n++) {
-        for (int c = 0; c < C; c++) {
-            for (int h = 0; h < H; h++) {
-                for (int w = 0; w < W; w++) {
+    for (size_t n = 0; n < N; n++) {
+        for (size_t c = 0; c < C; c++) {
+            for (size_t h = 0; h < H; h++) {
+                for (size_t w = 0; w < W; w++) {
                     size_t idx = n*C*H*W + c*H*W + h*W + w;
 
                     if (src_data[idx] <= input_low_data[c % ICB])
@@ -240,7 +240,7 @@ protected:
             Blob::Ptr output_low_data = make_shared_blob<float>({Precision::FP32, { p.ic_const_blobs }, Layout::C});
             output_low_data->allocate();
             if (p.levels == 2) {
-                CommonTestUtils::fill_data_const(output_low_data->buffer().as<float*>(), output_low_data->size(), low_val);
+                CommonTestUtils::fill_data_const(output_low_data, low_val);
             } else {
                 CommonTestUtils::fill_data_sine(output_low_data->buffer().as<float*>(), output_low_data->size(), low_center, 2.f, 0.3f);
             };
@@ -249,7 +249,7 @@ protected:
             Blob::Ptr output_high_data = make_shared_blob<float>({Precision::FP32, {p.ic_const_blobs}, Layout::C});
             output_high_data->allocate();
             if (p.levels == 2) {
-                CommonTestUtils::fill_data_const(output_high_data->buffer().as<float*>(), output_high_data->size(), high_val);
+                CommonTestUtils::fill_data_const(output_high_data, high_val);
             } else {
                 CommonTestUtils::fill_data_sine(output_high_data->buffer().as<float*>(), output_high_data->size(), high_center, 2.f, 0.3f);
             };

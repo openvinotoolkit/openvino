@@ -6,8 +6,7 @@
 
 #include "behavior/infer_request_callback.hpp"
 
-using namespace LayerTestsDefinitions;
-
+using namespace BehaviorTestsDefinitions;
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -30,9 +29,9 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CallbackTests,
         CallbackTests::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, CallbackTests,
-                        ::testing::Combine(
-                                ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                ::testing::ValuesIn(multiConfigs)),
-                        CallbackTests::getTestCaseName);
+        ::testing::Combine(
+            ::testing::ValuesIn(netPrecisions),
+            ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+            ::testing::ValuesIn(multiConfigs)),
+        CallbackTests::getTestCaseName);
 }  // namespace

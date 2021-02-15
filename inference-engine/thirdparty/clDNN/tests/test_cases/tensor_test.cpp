@@ -105,16 +105,4 @@ TEST(tensor_api, linear_offsets) {
     test_tensor_offset({ 2, 19, 4, 3 }, { 1, 18, 3, 2 }, cldnn::format::b_fs_yx_fsv16, 754);
     test_tensor_offset({ 2, 5, 4, 3 }, { 1, 3, 1, 2 }, cldnn::format::fs_b_yx_fsv32, 675);
     test_tensor_offset({ 2, 37, 4, 3 }, { 1, 35, 3, 2 }, cldnn::format::fs_b_yx_fsv32, 1507);
-
-    // Formats with alignment:
-    test_tensor_offset({ 2, 5, 4, 3 }, { 1, 3, 1, 2 }, cldnn::format::byxf_af32, 675);
-    test_tensor_offset({ 2, 37, 4, 3 }, { 1, 35, 3, 2 }, cldnn::format::byxf_af32, 1507);
-    test_tensor_offset({ 2, 5, 4, 3 }, { 1, 3, 1, 2 }, cldnn::format::byx8_f4, 331);
-    test_tensor_offset({ 2, 37, 4, 3 }, { 1, 35, 3, 2 }, cldnn::format::byx8_f4, 1755);
-
-    // Non-standard blocked formats:
-    // bf8_xy16 - b_fs_es_fsv8_esv16, where e is flattened yx := x + y * size_x
-    test_tensor_offset({ 2, 5, 4, 3 }, { 1, 3, 1, 2 }, cldnn::format::bf8_xy16, 185);
-    test_tensor_offset({ 2, 19, 7, 3 }, { 1, 18, 3, 2 }, cldnn::format::bf8_xy16, 1441);
-
 }

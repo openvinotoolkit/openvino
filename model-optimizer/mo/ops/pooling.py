@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,13 +16,46 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import tf_window_op_pad_infer
-from mo.front.extractor import attr_getter
-# from mo.front.common.partial_infer.pooling import pool_explicit_padding_infer
-from mo.front.extractor import spatial_getter
+from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, float_array
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
+from mo.utils.error import Error
+from mo.front.extractor import bool_to_str
+
+
+class PoolingV2(Op):
+    """
+    TensorFlow MaxPoolV2 and AvgPoolV2 operations expect windows_size and strides values from inputs not from
+    attributes. This internal operation is introduced to handle that. Only constant windows_size and strides
+    values are supported. Eventually will be replaced with the standard pooling operations from the opset.
+    """
+    op = 'PoolingV2'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'type': None,
+            'op': self.op,
+            'version': None,
+            'infer': self.infer,
+            'in_ports_count': 3,
+            'out_ports_count': 1,
+        }, attrs)
+
+    @staticmethod
+    def infer(node: Node):
+        assert (len(node.in_nodes()) == 3), 'MaxPoolV2 node {} from must have only 3 inputs: input, window size, and strides ' \
+                                            'but instead got {} inputs'.format(node.soft_get('name', node.id), len(node.in_nodes()))
+        node['window'] = node.in_port(1).data.get_value()
+        node['stride'] = node.in_port(2).data.get_value()
+
+        if node['window'] is None:
+            raise Error('The non-constant window size for MaxPoolV2 node {} is not supported'.format(node.soft_get('name', node.id)))
+        if node['stride'] is None:
+            raise Error('The non-constant strides for MaxPoolV2 node {} is not supported'.format(node.soft_get('name', node.id)))
+
+        Pooling.pool_infer(node)
 
 
 class Pooling(Op):
@@ -30,10 +63,10 @@ class Pooling(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
-            'infer': __class__.infer,
+            'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
@@ -46,34 +79,21 @@ class Pooling(Op):
             ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0)))),
             ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1)))),
 
-            ('pool-method', 'pool_method'),
-            ('exclude-pad', 'exclude_pad'),
+            ('exclude-pad', lambda node: bool_to_str(node, 'exclude_pad')),
 
             'rounding_type',
-            'auto_pad',
-        ]
-
-    def backend_attrs_v2(self):
-        return [
-            ('stride', lambda node: attr_getter(node, 'stride')),
-
-            spatial_getter('stride-x', 'stride', 1),
-            spatial_getter('stride-y', 'stride', 0),
-            spatial_getter('kernel-x', 'window', 1),
-            spatial_getter('kernel-y', 'window', 0),
-            spatial_getter('pad-x', 'pad', 1, lambda x: x[0]),
-            spatial_getter('pad-y', 'pad', 0, lambda x: x[0]),
-
-            ('pool-method', 'pool_method'),
-            ('exclude-pad', 'exclude_pad'),
-
-            'rounding_type',
-            'auto_pad',
+            ('auto_pad', lambda node: node.auto_pad if node.has_valid('auto_pad') else 'explicit'),
         ]
 
     @staticmethod
     def infer(node: Node):
-        assert (len(node.in_nodes()) == 1)
+        assert (len(node.in_nodes()) == 1), 'MaxPool node {} from must have only one input but instead got ' \
+                                            '{} inputs'.format(node.soft_get('name', node.id), len(node.in_nodes()))
+
+        Pooling.pool_infer(node)
+
+    @staticmethod
+    def pool_infer(node: Node):
         input_shape = node.in_node(0).shape
         if input_shape is None:
             return
@@ -84,13 +104,14 @@ class Pooling(Op):
 
         input_spatial_shape = input_shape[node.spatial_dims]
 
-        # Setting default pad and stride attrs in case of None specified
+        # Setting default pad and stride attrs in case if None specified
         if not node.has_valid('pad'):
-            node['pad'] = np.array([[0, 0] for x in range(len(input_shape))], dtype=np.int64)
+            node['pad'] = int64_array([[0, 0] for x in range(len(input_shape))])
         if not node.has_valid('pad_spatial_shape'):
             node['pad_spatial_shape'] = node.pad[node.spatial_dims]
+
         if not node.has_valid('stride'):
-            node['stride'] = np.array([1 for x in range(len(input_shape))], dtype=np.int64)
+            node['stride'] = int64_array([1 for x in range(len(input_shape))])
 
         if node.has_and_set('global_pool'):
             node['window'] = np.zeros(len(input_shape), dtype=np.int64)
@@ -100,7 +121,7 @@ class Pooling(Op):
         stride_spatial = node.stride[node.spatial_dims]
         assert any(stride_spatial), 'Stride can not be zero in node {}'.format(node.id)
 
-        if node.has_valid('auto_pad'):
+        if node.has_valid('auto_pad') and node.auto_pad != 'explicit':
             node.pad_spatial_shape, node.output_spatial_shape = tf_window_op_pad_infer(input_spatial_shape,
                                                                                        window_spatial_shape,
                                                                                        stride_spatial, node.auto_pad)
@@ -114,9 +135,13 @@ class Pooling(Op):
             rounding = np.floor
             if node.soft_get('pooling_convention') == 'full' or node.soft_get('rounding_type') == 'ceil':
                 rounding = np.ceil
-            output_spatial_shape = np.array(rounding(
-                np.array(input_spatial_shape + pad_spatial_shape - window_spatial_shape,
-                         dtype=np.float) / stride_spatial), dtype=np.int64) + 1
+
+            padded_spatial_shape = input_spatial_shape + pad_spatial_shape - window_spatial_shape
+            if np.any(padded_spatial_shape < 0):
+                raise Error("Data after padding has dimension less than window size. " +
+                            "Possible reason of error is incorrectly specified model input shape(s).")
+
+            output_spatial_shape = int64_array(rounding(float_array(padded_spatial_shape) / stride_spatial)) + 1
 
             original_pads = np.array([i[1] for i in node.pad_spatial_shape])
 

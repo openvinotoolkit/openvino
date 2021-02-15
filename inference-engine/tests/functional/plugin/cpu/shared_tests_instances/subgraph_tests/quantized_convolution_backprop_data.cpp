@@ -7,7 +7,7 @@
 #include "subgraph_tests/quantized_convolution_backprop_data.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 using namespace ngraph::helpers;
 
 namespace {
@@ -19,7 +19,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<size_t> numOutChannels = {16, 32};
 
 const std::vector<size_t > levels = {256};
-// FIXME: Perchannel tests fail because of bug in LPT
 const std::vector<QuantizationGranularity > granularity = {Pertensor, Perchannel};
 
 /* ============= 2D GroupConvolutionBackpropData ============= */
@@ -43,7 +42,7 @@ const auto quantConvBackpropData2DParams = ::testing::Combine(
         ::testing::ValuesIn(granularity)
 );
 
-INSTANTIATE_TEST_CASE_P(QuantConvBackpropData2D, QuantConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_QuantConvBackpropData2D, QuantConvBackpropDataLayerTest,
                         ::testing::Combine(
                                 quantConvBackpropData2DParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -71,7 +70,7 @@ const auto quantConvBackpropData3DParams = ::testing::Combine(
         ::testing::ValuesIn(granularity)
 );
 
-INSTANTIATE_TEST_CASE_P(QuantConvBackpropData3D, QuantConvBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_QuantConvBackpropData3D, QuantConvBackpropDataLayerTest,
                         ::testing::Combine(
                                 quantConvBackpropData3DParams,
                                 ::testing::ValuesIn(netPrecisions),

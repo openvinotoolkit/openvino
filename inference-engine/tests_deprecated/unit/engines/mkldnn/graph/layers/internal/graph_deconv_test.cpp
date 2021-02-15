@@ -398,7 +398,7 @@ INSTANTIATE_TEST_CASE_P(
 //                                   2, {MKLDNNPlugin::impl_desc_type::jit}},
                 deconv_test_params{{1, 48, 3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, 96, 3, true, "", 2, {MKLDNNPlugin::impl_desc_type::jit}},
         // 5D
-        /*17*/  deconv_test_params{{1, 2, 8, 5, 5}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 4, 1, true, "", 4,
+                deconv_test_params{{1, 2, 8, 5, 5}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 4, 1, true, "", 4,
                                    {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any} },
                 deconv_test_params{{1, 6, 5, 5, 5}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 9, 3, true, "", 2,
                                    {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any} },
@@ -537,7 +537,8 @@ TEST_P(MKLDNNGraphDynBatchDeconvolutionalTests, TestsDynBatchDeconvolutional) {}
 INSTANTIATE_TEST_CASE_P(
         TestsDynBatchDeconvolutional, MKLDNNGraphDynBatchDeconvolutionalTests,
         ::testing::Values(
-                deconv_test_params{{1, 3, 3, 3}, {3, 3}, {1, 1}, {0, 0}, {0, 0}, 2, 1, false, "", 5, {MKLDNNPlugin::impl_desc_type::jit} },
+                // TODO: rewrite to ngraph to have reshape functionality
+                // deconv_test_params{{1, 3, 3, 3}, {3, 3}, {1, 1}, {0, 0}, {0, 0}, 2, 1, false, "", 5, {MKLDNNPlugin::impl_desc_type::jit} },
                 deconv_test_params{{3, 3, 3, 3}, {4, 3}, {1, 1}, {0, 0}, {0, 0}, 2, 1, false, "", 5, {MKLDNNPlugin::impl_desc_type::jit} },
                 deconv_test_params{ {2, 8, 5, 5}, {4, 4}, {2, 2}, {1, 1}, {0, 0}, 8, 8, false, "", 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw} },
                 deconv_test_params{ {2, 8, 5, 5}, {8, 8}, {4, 4}, {1, 1}, {0, 0}, 8, 8, false, "", 4, {MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_dw} },

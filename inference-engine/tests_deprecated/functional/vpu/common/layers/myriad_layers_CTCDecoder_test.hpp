@@ -3,6 +3,7 @@
 //
 
 #include <cmath>
+#include <functional_test_utils/skip_tests_config.hpp>
 #include "myriad_layers_tests.hpp"
 
 using namespace InferenceEngine;
@@ -84,6 +85,7 @@ void refCTCDecoder(const Blob::Ptr src, const Blob::Ptr seq_ind, Blob::Ptr dst) 
 }
 
 TEST_P(myriadCTCDecoderLayerTests_smoke, CTCGreedyDecoder) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     const tensor_test_params dims = std::get<0>(GetParam());
     const bool hwOptimization = std::get<1>(GetParam());
     _irVersion = std::get<2>(GetParam());
@@ -93,7 +95,7 @@ TEST_P(myriadCTCDecoderLayerTests_smoke, CTCGreedyDecoder) {
 		GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
 	}
 
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     const auto inputTensors = IN_OUT_desc{{dims.c, dims.h, dims.w}, {dims.h, dims.c}};
     const auto outputTensors = IN_OUT_desc{{1, 1, dims.h, dims.c}};

@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_reshape_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
@@ -36,22 +36,19 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     if (inputDataType != outputDataType)
         inputDataType = outputDataType;
 
-    auto& outDims = getChildEdgeAt(0)->getDims();
-    memory::format outFormat = MKLDNNMemory::GetPlainFormat(outDims);
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
     config.inConfs.resize(getParentEdges().size());
     for (size_t i = 0; i <getParentEdges().size(); i++) {
         config.inConfs[i].inPlace = -1;
         config.inConfs[i].constant = false;
-        config.inConfs[i].desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType,
-                                                  MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
+        config.inConfs[i].desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType);
     }
     config.outConfs.resize(1);
     config.outConfs[0].inPlace = 0;
     config.outConfs[0].constant = false;
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, outFormat);
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);
+    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MKLDNNReshapeNode::createPrimitive() {
@@ -69,3 +66,4 @@ bool MKLDNNReshapeNode::created() const {
     return getType() == Reshape || getType() == Flatten;
 }
 REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Reshape);
+REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Flatten);

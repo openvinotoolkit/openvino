@@ -1,7 +1,6 @@
 import sys,argparse
 from fnmatch import fnmatch
 
-from openvino.tools.benchmark.utils.constants import XML_EXTENSION_PATTERN, BLOB_EXTENSION_PATTERN
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
 def str2bool(v):
@@ -12,15 +11,11 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-
-def validate_args(args):
-    if args.number_iterations is not None and args.number_iterations < 0:
-        raise Exception("Number of iterations should be positive (invalid -niter option value)")
-    if args.number_infer_requests and args.number_infer_requests < 0:
-        raise Exception("Number of inference requests should be positive (invalid -nireq option value)")
-    if not (fnmatch(args.path_to_model, XML_EXTENSION_PATTERN) or fnmatch(args.path_to_model, BLOB_EXTENSION_PATTERN)):
-        raise Exception('Path {} is not xml or blob file.')
-
+def check_positive(value):
+    ivalue = int(value)
+    if ivalue <= 0:
+        raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
+    return ivalue
 
 class print_help(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -37,7 +32,7 @@ def parse_args():
                       help='Optional. '
                            'Path to a folder with images and/or binaries or to specific image or binary file.')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
-                      help='Required. Path to an .xml file with a trained model or '
+                      help='Required. Path to an .xml/.onnx/.prototxt file with a trained model or '
                            'to a .blob file with a trained compiled model.')
     args.add_argument('-d', '--target_device', type=str, required=False, default='CPU',
                       help='Optional. Specify a target device to infer on (the list of available devices is shown below). '
@@ -52,10 +47,10 @@ def parse_args():
                            'kernels description.')
     args.add_argument('-api', '--api_type', type=str, required=False, default='async', choices=['sync', 'async'],
                       help='Optional. Enable using sync/async API. Default value is async.')
-    args.add_argument('-niter', '--number_iterations', type=int, required=False, default=None,
+    args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,
                       help='Optional. Number of iterations. '
                            'If not specified, the number of iterations is calculated depending on a device.')
-    args.add_argument('-nireq', '--number_infer_requests', type=int, required=False, default=None,
+    args.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=None,
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
     args.add_argument('-b', '--batch_size', type=int, required=False, default=0,
                       help='Optional. ' +
@@ -73,20 +68,26 @@ def parse_args():
     args.add_argument('-shape', type=str, required=False, default='',
                       help='Optional. '
                            'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.')
+    args.add_argument('-layout', type=str, required=False, default='',
+                      help='Optional. '
+                           'Prompts how network layouts should be treated by application. '
+                           'For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.')
     args.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,
-                      help='Optional. Number of streams to use for inference on the CPU/GPU in throughput mode '
+                      help='Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD '
                            '(for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> '
                            'or just <nstreams>). '
                            'Default value is determined automatically for a device. Please note that although the automatic selection '
                            'usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small networks. '
+                           'Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency '
+                           'estimations the number of streams should be set to 1. '
                            'See samples README for more details.')
     args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.')
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
-                      help='Number of threads to use for inference on the CPU '
+                      help='Number of threads to use for inference on the CPU, GNA '
                            '(including HETERO and MULTI cases).')
     args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False, default='YES', choices=['YES', 'NO', 'NUMA'],
-                      help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')' 
+                      help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')'
                            'CPU threads pinning for CPU-involved inference.')
     args.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')
@@ -107,8 +108,8 @@ def parse_args():
     args.add_argument('-load_config', type=str, required=False, default='',
                       help="Optional. Path to JSON file to load custom IE parameters."
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
+    args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
+                      help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
     parsed_args = parser.parse_args()
-
-    validate_args(parsed_args)
 
     return parsed_args

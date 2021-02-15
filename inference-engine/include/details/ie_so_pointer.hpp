@@ -13,12 +13,11 @@
 #include <string>
 #include <type_traits>
 
+#include "ie_common.h"
+#include "ie_so_loader.h"
 #include "details/ie_exception.hpp"
 #include "details/ie_no_release.hpp"
 #include "details/ie_irelease.hpp"
-#include "details/os/os_filesystem.hpp"
-#include "ie_common.h"
-#include "ie_so_loader.h"
 
 namespace InferenceEngine {
 namespace details {
@@ -32,8 +31,6 @@ private:
     std::shared_ptr<Loader> _so_loader;
 
 public:
-    IE_SUPPRESS_DEPRECATED_START
-
     /**
      * @brief The main constructor
      * @param loader Library to load from
@@ -51,7 +48,6 @@ public:
      */
     template <class T>
     T* instantiateSymbol(const std::string& name) const {
-        IE_SUPPRESS_DEPRECATED_START
         T* instance = nullptr;
         ResponseDesc desc;
         StatusCode sts = bind_function<StatusCode(T*&, ResponseDesc*)>(name)(instance, &desc);
@@ -59,7 +55,6 @@ public:
             THROW_IE_EXCEPTION << desc.msg;
         }
         return instance;
-        IE_SUPPRESS_DEPRECATED_END
     }
 
 private:
@@ -73,8 +68,6 @@ private:
         std::function<T> ptr(reinterpret_cast<T*>(_so_loader->get_symbol(functionName.c_str())));
         return ptr;
     }
-
-    IE_SUPPRESS_DEPRECATED_END
 };
 
 /**
@@ -85,13 +78,19 @@ template <class T>
 class SOCreatorTrait {};
 
 /**
+ * @brief Enables only `char` or `wchar_t` template specializations
+ * @tparam C A char type
+ */
+template <typename C>
+using enableIfSupportedChar = typename std::enable_if<(std::is_same<C, char>::value || std::is_same<C, wchar_t>::value)>::type;
+
+/**
  * @brief This class instantiate object using shared library
  * @tparam T An type of object SOPointer can hold
  * @tparam Loader A loader used to load a library
  */
 template <class T, class Loader = SharedObjectLoader>
 class SOPointer {
-    IE_SUPPRESS_DEPRECATED_START
     template <class U, class W>
     friend class SOPointer;
 
@@ -206,7 +205,6 @@ protected:
      * @brief Gets a smart pointer to the custom object
      */
     std::shared_ptr<T> _pointedObj;
-    IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace details
@@ -218,6 +216,9 @@ protected:
  * @return A created object
  */
 template <class T>
-inline std::shared_ptr<T> make_so_pointer(const file_name_t& name) = delete;
+inline std::shared_ptr<T> make_so_pointer(const std::string & name) = delete;
+
+template <class T>
+inline std::shared_ptr<T> make_so_pointer(const std::wstring & name) = delete;
 
 }  // namespace InferenceEngine

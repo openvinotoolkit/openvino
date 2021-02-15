@@ -58,6 +58,11 @@
 //  For more details and description of intel_sub_group_block_read/write functions please,
 //  refer to cl_intel_subgroups extension documentation.
 //
+// BLOCK_READN_SLM(type, vector_size, ptr, offset)
+//    - performs same operation as BLOCK_READN, but with "ptr" being in __local address space.
+// BLOCK_WRITEN_SLM(type, vector_size, ptr, offset, val)
+//    - performs same operation as BLOCK_READN, but with "ptr" being in __local address space.
+//
 // type        [PP] - Must evaluate to non-vectorized type, ex. float, half, char, etc..
 // vector_size [PP] - Number of elements to read/write, ex 2 for intel_sub_group_block_read2.
 // ptr              - Pointer to global memory where to read from/write to.
@@ -101,17 +106,22 @@
 #define BLOCK_WRITEN_FUNC_size4(vector_size)                BLOCK_WRITEN_FUNC_SIZE_DEF(4, vector_size)
 #define BLOCK_WRITEN_FUNC(type_size, vector_size)           CAT(BLOCK_WRITEN_FUNC_size, type_size)(vector_size)
 
-#define BLOCK_READN_RAW(type_size, vector_size, ptr, offset)                                                    \
-    BLOCK_READN_FUNC(type_size, vector_size)((const __global BLOCK_RW_TYPE(type_size)*)(ptr) + (offset))
-#define BLOCK_WRITEN_RAW(type_size, vector_size, ptr, offset, val)                                              \
+#define BLOCK_READN_RAW(type_size, vector_size, addr_space, ptr, offset)                                        \
+    BLOCK_READN_FUNC(type_size, vector_size)((const addr_space BLOCK_RW_TYPE(type_size)*)(ptr) + (offset))
+#define BLOCK_WRITEN_RAW(type_size, vector_size, addr_space, ptr, offset, val)                                  \
     BLOCK_WRITEN_FUNC(type_size, vector_size)(                                                                  \
-        (__global BLOCK_RW_TYPE(type_size)*)(ptr) + (offset),                                                   \
+        (addr_space BLOCK_RW_TYPE(type_size)*)(ptr) + (offset),                                                 \
         AS_TYPE(MAKE_VECTOR_TYPE(BLOCK_RW_TYPE(type_size), vector_size), val))
 
 #define BLOCK_READN(type, vector_size, ptr, offset)                                                             \
-    AS_TYPE(MAKE_VECTOR_TYPE(type, vector_size), BLOCK_READN_RAW(TYPE_SIZE(type), vector_size, ptr, offset))
+    AS_TYPE(MAKE_VECTOR_TYPE(type, vector_size), BLOCK_READN_RAW(TYPE_SIZE(type), vector_size, __global, ptr, offset))
 #define BLOCK_WRITEN(type, vector_size, ptr, offset, val)                                                       \
-    BLOCK_WRITEN_RAW(TYPE_SIZE(type), vector_size, ptr, offset, val)
+    BLOCK_WRITEN_RAW(TYPE_SIZE(type), vector_size, __global, ptr, offset, val)
+
+#define BLOCK_READN_SLM(type, vector_size, ptr, offset)                                                         \
+    AS_TYPE(MAKE_VECTOR_TYPE(type, vector_size), BLOCK_READN_RAW(TYPE_SIZE(type), vector_size, __local, ptr, offset))
+#define BLOCK_WRITEN_SLM(type, vector_size, ptr, offset, val)                                                   \
+    BLOCK_WRITEN_RAW(TYPE_SIZE(type), vector_size, __local, ptr, offset, val)
 
 #define DT_INPUT_BLOCK_READ(ptr, offset)            BLOCK_READN(INPUT0_TYPE, 1, ptr, offset)
 #define DT_INPUT_BLOCK_READ2(ptr, offset)           BLOCK_READN(INPUT0_TYPE, 2, ptr, offset)

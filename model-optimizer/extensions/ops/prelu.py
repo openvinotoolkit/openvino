@@ -17,12 +17,11 @@
 import numpy as np
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.common.partial_infer.utils import mark_input_bins
 from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
-class PreluOp(Op):
+class PReLU(Op):
     op = 'PReLU'
     enabled = True
 
@@ -40,12 +39,6 @@ class PreluOp(Op):
             'out_ports_count': 1,
         }, attrs)
 
-    def supported_attrs(self):
-        if self.ir_version != 10:
-            return ['channel_shared', 'filler_type', 'filler_value', 'min', 'max', 'mean', 'std', 'sparse', 'variance_norm']
-        else:
-            return []
-
     @staticmethod
     def infer(node):
         if len(node.in_nodes()) == 2:
@@ -54,9 +47,6 @@ class PreluOp(Op):
                 node['channel_shared'] = 1
             else:
                 node['channel_shared'] = 0
-            if not node.graph.graph['cmd_params'].generate_experimental_IR_V10:
-                mark_input_bins(node)
-            else:
-                node.in_node(1)['correct_data_type'] = True
+            node.in_node(1)['correct_data_type'] = True
 
         copy_shape_infer(node)

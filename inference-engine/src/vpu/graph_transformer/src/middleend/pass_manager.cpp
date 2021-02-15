@@ -88,14 +88,10 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("initial");
 
     //
-    // Replace Global AvgPooling with ReduceMean
+    // Convert shape notation
     //
-
-    if (env.config.enableReplaceWithReduceMean) {
-        ADD_PASS(replaceWithReduceMean);
-        ADD_DUMP_PASS("replaceWithReduceMean");
-    }
-
+    ADD_PASS(convertShapeNotation);
+    ADD_DUMP_PASS("convertShapeNotation");
 
     if (!env.config.disableReorder && !env.config.hwOptimization) {
         ADD_PASS(reorderInputsToChannelMinor);
@@ -129,7 +125,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // To overcome fp16 limitations
     //
 
-    if (env.config.hwOptimization) {
+    if (env.config.hwOptimization && env.config.enableWeightsAnalysis) {
         ADD_PASS(analyzeWeightableLayers);
         ADD_DUMP_PASS("analyzeWeightableLayers");
     }
@@ -170,6 +166,18 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
             ADD_DUMP_PASS("reshapeDilationConv");
         }
 
+        //
+        // "reshapeBeforeConvTiling" pass changes geometry of convolution stages in order
+        // to get more efficient HW tiling (pass "hwConvTiling") using reshape stages.
+        //
+        // Pass should be located before "adjustDataBatch" because "adjustDataBatch" specifies "origConvOutput" attribute
+        // for convolution in order to provide that information to "hwConvTiling" pass.
+        // Otherwise, "hwConvTiling" will see incorrect values in "origConvOutput" attribute.
+        if (env.config.enableCustomReshapeParam) {
+            ADD_PASS(reshapeBeforeConvTiling);
+            ADD_DUMP_PASS("reshapeBeforeConvTiling");
+        }
+
         ADD_PASS(upliftActivationStages);
         ADD_DUMP_PASS("upliftActivationStages");
 
@@ -207,13 +215,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     }
 
     //
-    // Replace StridedSlice to other stages
-    //
-
-    ADD_PASS(stridedSlice);
-    ADD_DUMP_PASS("stridedSlice");
-
-    //
     // HW stages tiling
     //
 
@@ -235,7 +236,18 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(swConvAdaptation);
     ADD_PASS(swDeconvAdaptation);
+
+    //
+    // Replace Global AvgPooling with ReduceMean
+    //
+    // this stage should be executed after "hwPoolTiling"
+    // and before "swPoolAdaptation"
+    if (env.config.enableReplaceWithReduceMean) {
+        ADD_PASS(replaceWithReduceMean);
+        ADD_DUMP_PASS("replaceWithReduceMean");
+    }
     ADD_PASS(swPoolAdaptation);
+
     ADD_PASS(swFullyConnectedAdaptation);
     ADD_DUMP_PASS("swAdaptation");
 
@@ -248,6 +260,11 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(mergeReLUAndBias);
     ADD_DUMP_PASS("mergeReLUAndBias");
+
+    if (env.config.enableEarlyEltwiseReLUFusion) {
+        ADD_PASS(mergeEltwiseAndReLUDynamic);
+        ADD_DUMP_PASS("mergeEltwiseAndReLUDynamic");
+    }
 
     //
     // Data layout adjustment
@@ -271,8 +288,8 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // Model SW-specific optimizations after data layout adjustment
     //
 
-    ADD_PASS(mergeEltwiseAndReLU);
-    ADD_DUMP_PASS("mergeEltwiseAndReLU");
+    ADD_PASS(mergeEltwiseAndReLUStatic);
+    ADD_DUMP_PASS("mergeEltwiseAndReLUStatic");
 
     //
     // Model special stages processing
@@ -280,6 +297,23 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(processSpecialStages);
     ADD_DUMP_PASS("processSpecialStages");
+
+    //
+    // Propagation dynamism from input to output and from output to input
+    // for inserted stages at frontend and middleend.
+    //
+
+    // propagateDynamism must be applied after convertShapeNotation
+    // and addCopyForOutputsInsideNetwork to mark shape in IE notation, not MDK notation as output
+    // and it is processed after all passes include specialStageProcessor to
+    // propagate dynamism for copy stages which are added in passes above.
+    // Also it is needed allocateResources after propagation to connect datas with shapes
+
+    // In cases of dynamic network output MyriadInferRequest::GetResult expects output shape data
+    // object to be in IE notation in case of dynamic data object.
+
+    ADD_PASS(propagateDynamism);
+    ADD_DUMP_PASS("propagateDynamism");
 
     //
     // Data location adjustment
@@ -323,6 +357,14 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(countStagesInLoops);
     ADD_DUMP_PASS("countStagesInLoops");
+
+    ADD_PASS(markFastStages);
+    ADD_DUMP_PASS("markFastStages");
+
+    if (env.config.enableMemoryTypesAnnotation) {
+        ADD_PASS(annotateMemoryTypes);
+        ADD_DUMP_PASS("annotateMemoryTypes");
+    }
 
     //
     // Final check

@@ -8,7 +8,7 @@
 
 #include <vpu/model/model.hpp>
 #include <vpu/backend/blob_format.hpp>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 #include <string>
 #include <memory>

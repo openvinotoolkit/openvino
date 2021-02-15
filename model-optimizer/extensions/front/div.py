@@ -23,14 +23,19 @@ from mo.graph.graph import Graph, Node, rename_node
 
 
 class Div(FrontReplacementPattern):
-    enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
+    # This transformation is called directly from the 'model-optimizer/extensions/middle/fusings.py' transformation
+    enabled = False
 
     @staticmethod
     def div_to_mul_replacement(div: Node):
         # we execute this transformation for V10 IR later on middle phase despite graph_condition
         # so we prevent Div replacement on shape-calculating sub-graphs
         if div.in_port(0).data.get_value() is not None and div.in_port(1).data.get_value() is not None:
+            return
+
+        # cannot replace Div with Mul when the divisor is integer because the reciprocal number will be 0
+        value = div.in_port(1).data.get_value()
+        if value is not None and type(value.item(0)) == int:
             return
 
         graph = div.graph

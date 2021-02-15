@@ -13,6 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+
+from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Sub
 from extensions.ops.rank import Rank
 from extensions.ops.split import Split
@@ -56,13 +59,12 @@ class BatchToSpaceNormalizer(FrontReplacementPattern):
 
             # add zeros/ones to related inputs to align it with data input
             in0_rank = Rank(graph, {'name': node.name + '/rank_0'}).create_node()
-            in1_rank = Shape(graph, {'name': node.name + '/rank_1'}).create_node()
+            in1_shape = Shape(graph, {'name': node.name + '/rank_1'}).create_node()
 
             diff_size = Sub(graph, {'name': node.name + '/sub_0'}).create_node()
             diff = Sub(graph, {'name': node.name + '/sub_1'}).create_node()
-
             const_begin = Const(graph, {'value': int64_array([1])}).create_node()
-            const_pad_val = Const(graph, {'value': int64_array([1])}).create_node()
+            const_pad_val = Const(graph, {'value': int64_array(1)}).create_node()
 
             block_shape = Pad(graph, {'name': node.name + '/aligned_block_shape', 'mode': 'constant'}).create_node()
 
@@ -79,20 +81,21 @@ class BatchToSpaceNormalizer(FrontReplacementPattern):
 
             in0_rank_1d = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]),
                                                            {'name': node.name + '/1d_rank_of_0'}, in0_rank)
-            in1_rank_1d = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]),
-                                                           {'name': node.name + '/1d_rank_of_1'}, in1_rank)
 
             node.in_port(0).get_source().connect(in0_rank.in_port(0))
-            node.in_port(1).get_source().connect(in1_rank.in_port(0))
+            node.in_port(1).get_source().connect(in1_shape.in_port(0))
             in0_rank_1d.out_port(0).connect(diff_size.in_port(0))
-            in1_rank_1d.out_port(0).connect(diff_size.in_port(1))
+            in1_shape.out_port(0).connect(diff_size.in_port(1))
             diff_size.out_port(0).connect(diff.in_port(0))
             const_begin.out_port(0).connect(diff.in_port(1))
             const_pad_val.out_port(0).connect(block_shape.in_port(3))
 
             inputs_array = [block_shape, begin, end]
             for idx, input_to_node in enumerate(inputs_array):
+                name_of_input_to_node = input_to_node.name
                 node.in_port(idx + 1).get_connection().set_destination(input_to_node.in_port(0))
                 const_begin.out_port(0).connect(input_to_node.in_port(1))
                 diff.out_port(0).connect(input_to_node.in_port(2))
                 input_to_node.out_port(0).connect(node.in_port(idx + 1))
+                convert = Cast(graph, {'name': name_of_input_to_node + '/i64', 'dst_type': np.int64}).create_node()
+                input_to_node.in_port(0).get_connection().insert_node(convert)

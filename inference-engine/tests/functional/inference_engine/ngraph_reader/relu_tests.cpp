@@ -219,9 +219,11 @@ TEST_F(NGraphReaderTests, ReadReLUScalarNetwork) {
 
     Blob::CPtr blob;
     Core reader;
-    auto nGraph = reader.ReadNetwork(model, blob);
-    CNNNetwork cnetwork(nGraph);
+    auto cnn = reader.ReadNetwork(model, blob);
+
     IE_SUPPRESS_DEPRECATED_START
-    cnetwork.begin();
+    // convert to old representation
+    auto convertedNetwork = std::make_shared<details::CNNNetworkImpl>(cnn);
+    (void)convertedNetwork;
     IE_SUPPRESS_DEPRECATED_END
 }

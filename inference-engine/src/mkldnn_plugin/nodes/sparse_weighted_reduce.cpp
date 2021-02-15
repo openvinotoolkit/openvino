@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <limits>
 #include "ie_parallel.hpp"
-#include "common/simple_copy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -128,14 +127,15 @@ public:
             // TODO: check that dense shape value is set
             if (with_weights) {
                 addConfig(layer,
-                { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                    DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                { DataConfigurator(ConfLayout::PLN) });
+                { DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::I32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32),
+                    DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::I32),
+                    DataConfigurator(ConfLayout::PLN, Precision::FP32) }, { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
             } else {
                 addConfig(layer,
-                { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                    DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                    { DataConfigurator(ConfLayout::PLN) });
+                { DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::I32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32) }, { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
             }
         }
         catch (InferenceEngine::details::InferenceEngineException &ex) {

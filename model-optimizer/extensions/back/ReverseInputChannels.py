@@ -17,7 +17,6 @@ import logging as log
 
 import numpy as np
 
-from extensions.back.split_normalizer import SplitNormalizer
 from extensions.ops.gather import Gather
 from extensions.ops.split import Split
 from mo.back.replacement import BackReplacementPattern
@@ -26,7 +25,6 @@ from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.graph.graph import Node
 from mo.ops.concat import Concat
-from mo.ops.const import Const
 from mo.ops.op import Op, PermuteAttrs
 
 
@@ -99,7 +97,9 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
         'BatchNormalization': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
         'FakeQuantize': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
         'Multiply': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
+        'Divide': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
         'Add': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
+        'Subtract': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
         'Pow': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
         'Convert': lambda node, rc: ReverseChannelsPropagationDown.pass_rc_through_eltwise(node, rc),
 
@@ -200,9 +200,8 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
                 continue
             shape = port.data.get_shape()
             non_one_dims = np.where(shape != 1)[0]
-            if len(non_one_dims) == 0:
-                # shape contains only ones - nothing to flip for this input
-                continue
+            if shape[reverse_channels.axis] == 1:
+                continue  # nothing to flip for this input
             if len(non_one_dims) == 1 and shape[non_one_dims.item()] == reverse_channels.order.size:
                 new_axis = non_one_dims.item()
             elif np.array_equal(before_shape, shape):
@@ -240,7 +239,8 @@ class ReverseChannelsPropagationDown(BackReplacementPattern):
         """
         stops propagation of RIC through shape taking operations, due to RIC does not change shape
         """
-        reverse_channels.out_port(0).get_connection().set_source(reverse_channels.in_port(0).get_connection().get_source())
+        reverse_channels.out_port(0).get_connection().set_source(
+            reverse_channels.in_port(0).get_connection().get_source())
         return False
 
     @staticmethod
@@ -271,7 +271,9 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
         'BatchNormalization': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'FakeQuantize': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Multiply': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
+        'Divide': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Add': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
+        'Subtract': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Pow': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
         'Convert': lambda node, rc: ReverseChannelsPropagationUp.lift_up_through_eltwise(node, rc),
     }
@@ -302,9 +304,8 @@ class ReverseChannelsPropagationUp(BackReplacementPattern):
             shape = port.data.get_shape()
 
             non_one_dims = np.where(shape != 1)[0]
-            if len(non_one_dims) == 0:
-                # shape contains only ones - nothing to flip for this input
-                continue
+            if shape[reverse_channels.axis] == 1:
+                continue  # nothing to flip for this input
             if len(non_one_dims) == 1 and shape[non_one_dims.item()] == reverse_channels.order.size:
                 axis = non_one_dims.item()
             elif np.array_equal(before_shape, shape):
@@ -359,11 +360,7 @@ class DecomposeReverseChannels(BackReplacementPattern):
         axis = node.axis
         order = node.order
 
-        indices = Const(graph, {'name': name + '/reverse_order', 'value': order}).create_node()
-        axis_const = Const(graph, {'value': int64_array(axis)}).create_node()
-        gather = Gather(graph, {'name': name}).create_node()
-        gather.in_port(1).connect(indices.out_port(0))
-        gather.in_port(2).connect(axis_const.out_port(0))
+        gather = create_op_with_const_inputs(graph, Gather, {1: order, 2: int64_array(axis)}, {'name': name})
 
         node.out_port(0).get_connection().set_source(gather.out_port(0))
         node.in_port(0).get_connection().set_destination(gather.in_port(0))
@@ -408,9 +405,8 @@ class ApplyReverseChannels(BackReplacementPattern):
     force_clean_up = True
 
     def run_before(self):
-        from extensions.back.ParameterToPlaceholder import ParameterToInput
         from extensions.back.GroupedConvWeightsNormalize import GroupedConvWeightsNormalize
-        return [ParameterToInput, GroupedConvWeightsNormalize, SplitNormalizer]
+        return [GroupedConvWeightsNormalize]
 
     def find_and_replace_pattern(self, graph: Graph):
         """

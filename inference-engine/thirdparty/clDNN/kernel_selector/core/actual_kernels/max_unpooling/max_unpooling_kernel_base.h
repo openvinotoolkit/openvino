@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -38,9 +38,9 @@ struct max_unpooling_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MaxUnpoolingKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class MaxUnpoolingKernelBase : public common_kernel_base {
+class MaxUnpoolingKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~MaxUnpoolingKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
@@ -51,6 +51,6 @@ protected:
     bool Validate(const Params&, const optional_params&) const override;
     virtual JitConstants GetJitConstants(const max_unpooling_params& params) const;
     virtual DispatchData SetDefault(const max_unpooling_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 };
 }  // namespace kernel_selector

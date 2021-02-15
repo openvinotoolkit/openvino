@@ -6,7 +6,7 @@
 
 #include "vpu/private_plugin_config.hpp"
 
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <functional_test_utils/blob_utils.hpp>
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <precision_utils.h>
@@ -27,7 +27,7 @@ typedef std::tuple<
 namespace LayerTestsDefinitions {
 
 class StaticShapeNonZeroLayerTest : public testing::WithParamInterface<staticShapeNonZeroLayerTestParams>,
-                                    public LayerTestsUtils::LayerTestsCommon {
+                                    virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<staticShapeNonZeroLayerTestParams> obj) {
         InferenceEngine::SizeVector inputShape;
@@ -45,8 +45,8 @@ public:
 protected:
     void SetUp() override {
         SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
-        configuration[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
-        configuration[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+        configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
+        configuration[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
 
         InferenceEngine::SizeVector inputShape;
         std::tie(inputShape, inPrc, targetDevice) = this->GetParam();
@@ -79,8 +79,8 @@ protected:
 
         const auto totalDimsSize = actualIndices->getTensorDesc().getDims()[1];
 
-        for (int axis = 0; axis < actualDimsPtr[1]; ++axis) {
-            for (int i = 0; i < actualDimsPtr[0]; ++i) {
+        for (int axis = 0; axis < actualDimsPtr[0]; ++axis) {
+            for (int i = 0; i < actualDimsPtr[1]; ++i) {
                 const auto idx = i + axis * totalDimsSize;
                 ASSERT_EQ(expectedIndicesPtr[idx], actualIndicesPtr[idx]);
             }
@@ -110,7 +110,7 @@ std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::I32,
 };
 
-INSTANTIATE_TEST_CASE_P(accuracy, StaticShapeNonZeroLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_accuracy, StaticShapeNonZeroLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputDims),
                                 ::testing::ValuesIn(inputPrecisions),

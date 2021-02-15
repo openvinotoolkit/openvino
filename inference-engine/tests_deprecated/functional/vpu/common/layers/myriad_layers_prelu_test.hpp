@@ -15,7 +15,7 @@ PRETTY_PARAM(ChannelSharedPrelu, int);
 typedef myriadLayerTestBaseWithParam<tuple<SizeVector, ChannelSharedPrelu >> myriadLayerPReLU_smoke;
 
 TEST_P(myriadLayerPReLU_smoke, PReLU) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     SizeVector dims = get<0>(GetParam());
     int channel_shared = get<1>(GetParam());

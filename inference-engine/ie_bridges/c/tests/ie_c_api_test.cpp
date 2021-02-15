@@ -11,6 +11,7 @@
 #include <c_api/ie_c_api.h>
 #include <inference_engine.hpp>
 #include "test_model_repo.hpp"
+#include <fstream>
 
 std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
             bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin"),
@@ -234,6 +235,7 @@ TEST(ie_core_get_metric, getMetric) {
     const char *device_name = "CPU";
     const char *metric_name = "SUPPORTED_CONFIG_KEYS";
     ie_param_t param;
+    param.params = nullptr;
     IE_EXPECT_OK(ie_core_get_metric(core, device_name, metric_name, &param));
 
     ie_param_free(&param);
@@ -248,6 +250,7 @@ TEST(ie_core_get_config, getConfig) {
     const char *device_name = "CPU";
     const char *config_name = "CPU_THREADS_NUM";
     ie_param_t param;
+    param.params = nullptr;
     IE_EXPECT_OK(ie_core_get_config(core, device_name, config_name, &param));
     EXPECT_STREQ(param.params, "0");
 
@@ -278,6 +281,49 @@ TEST(ie_core_read_network, networkRead) {
     EXPECT_NE(nullptr, network);
 
     ie_network_free(&network);
+    ie_core_free(&core);
+}
+
+static std::vector<uint8_t> content_from_file(const char * filename, bool is_binary) {
+    std::vector<uint8_t> result;
+    {
+        std::ifstream is(filename, is_binary ? std::ifstream::binary | std::ifstream::in : std::ifstream::in);
+        if (is) {
+            is.seekg(0, std::ifstream::end);
+            result.resize(is.tellg());
+            if (result.size() > 0) {
+                is.seekg(0, std::ifstream::beg);
+                is.read(reinterpret_cast<char *>(&result[0]), result.size());
+            }
+        }
+    }
+    return result;
+}
+
+TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
+    ie_core_t *core = nullptr;
+    IE_ASSERT_OK(ie_core_create("", &core));
+    ASSERT_NE(nullptr, core);
+
+    std::vector<uint8_t> weights_content(content_from_file(bin, true));
+
+    tensor_desc_t weights_desc { ANY, { 1, { weights_content.size() } }, U8 };
+    ie_blob_t *weights_blob = nullptr;
+    IE_EXPECT_OK(ie_blob_make_memory_from_preallocated(&weights_desc, weights_content.data(), weights_content.size(), &weights_blob));
+    EXPECT_NE(nullptr, weights_blob);
+
+    if (weights_blob != nullptr) {
+        std::vector<uint8_t> xml_content(content_from_file(xml, false));
+        
+        ie_network_t *network = nullptr;
+        IE_EXPECT_OK(ie_core_read_network_from_memory(core, xml_content.data(), xml_content.size(), weights_blob, &network));
+        EXPECT_NE(nullptr, network);
+        if (network != nullptr) {
+            ie_network_free(&network);
+        }
+        ie_blob_free(&weights_blob);
+    }
+
     ie_core_free(&core);
 }
 
@@ -803,6 +849,7 @@ TEST(ie_exec_network_get_config, getConfig) {
     EXPECT_NE(nullptr, exe_network);
 
     ie_param_t param;
+    param.params = nullptr;
     IE_EXPECT_OK(ie_exec_network_get_config(exe_network, "CPU_THREADS_NUM", &param));
 
     ie_param_free(&param);
@@ -857,6 +904,7 @@ TEST(ie_exec_network_get_metric, getMetric) {
     EXPECT_NE(nullptr, exe_network);
 
     ie_param_t param;
+    param.params = nullptr;
     IE_EXPECT_OK(ie_exec_network_get_metric(exe_network, "SUPPORTED_CONFIG_KEYS", &param));
 
     ie_param_free(&param);
@@ -1691,11 +1739,16 @@ TEST(ie_blob_make_memory_nv12, inferRequestWithNV12Blob) {
 
     ie_blob_t *output_blob = nullptr;
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
+    EXPECT_NE(nullptr, output_blob);
 
     ie_blob_buffer_t buffer;
+    buffer.buffer = nullptr;
     IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-    float *output_data = (float *)(buffer.buffer);
-    EXPECT_NEAR(output_data[1], 0.f, 1.e-5);
+    EXPECT_NE(buffer.buffer, nullptr);
+    if (buffer.buffer) {
+        float *output_data = (float *)(buffer.buffer);
+        EXPECT_NEAR(output_data[1], 0.f, 1.e-5);
+    }
 
     ie_blob_free(&output_blob);
     ie_blob_free(&blob_nv12);

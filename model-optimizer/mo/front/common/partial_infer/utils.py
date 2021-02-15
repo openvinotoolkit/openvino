@@ -28,6 +28,10 @@ def float_array(l: list):
     return np.array(l, dtype=np.float64)
 
 
+def float32_array(l: list):
+    return np.array(l, dtype=np.float32)
+
+
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
     """
     Preparing necessary attributes for edges at input ports starting from start_port.
@@ -44,7 +48,7 @@ def assign_dims_to_weights(node, spatial, input_channel, output_channel=None, di
         node['spatial_dims'] = np.array(spatial, dtype=np.int64)
     node['input_channel_dim'] = np.array(input_channel, dtype=np.int64)
     node['output_channel_dim'] = np.array(output_channel, dtype=np.int64)
-    if 'input_channel_dim' not in node['dim_attrs']:
+    if 'dim_attrs' in node and 'input_channel_dim' not in node['dim_attrs']:
         node['dim_attrs'].append('input_channel_dim')
     node['dims_number'] = dims_number
 

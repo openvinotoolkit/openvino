@@ -9,33 +9,45 @@
 using namespace LayerTestsDefinitions;
 using namespace ngraph::helpers;
 namespace {
-// Common params
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-        InferenceEngine::Precision::FP32,
-};
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<ActivationTypes> activationTypes = {
-        Sigmoid,
-        Tanh,
-        Relu,
-        Exp,
-        Log,
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+        {Sigmoid,               {}},
+        {Tanh,                  {}},
+        {Relu,                  {}},
+        {Exp,                   {}},
+        {Log,                   {}},
+        {Gelu,                  {}},
+        {Mish,                  {}},
+        {SoftPlus,              {}},
+        {Swish,                 {{0.05f}, {0.8f}, {1.0f}, {15.0f}}},
+        {HSwish,                {}},
+        {Ceiling,               {}},
+        {RoundHalfToEven,       {}},
+        {RoundHalfAwayFromZero, {}}
+};
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
+        {{1, 50}, {{}}},
+        {{1, 128}, {{}}},
 };
 
 const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(activationTypes),
-        ::testing::ValuesIn(inputPrecisions),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(std::vector<size_t>({1, 50}), std::vector<size_t>({1, 128})),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)
 );
 
 
-INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

@@ -18,13 +18,15 @@ import os
 import re
 import warnings
 
+from typing import Callable
+
 import numpy as np
 
 
 def refer_to_faq_msg(question_num: int):
-    return '\n For more information please refer to Model Optimizer FAQ' \
-           ' (https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html),' \
-           ' question #{}. '.format(question_num)
+    return '\n For more information please refer to Model Optimizer FAQ, question #{0}. ' \
+           '(https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ.html' \
+           '?question={0}#question-{0})'.format(question_num)
 
 
 class NamedAttrsClass:
@@ -110,12 +112,38 @@ def get_mo_root_dir():
                                          os.pardir))
 
 
-def convert_param_type(node, attr_name: str, type_v1x, type_v7):
-    if attr_name in node.attrs() and node[attr_name] is not None:
-        if node.graph.graph['ir_version'] < 10:
-            node[attr_name] = type_v7(node[attr_name])
+def group_by_with_binary_predicate(xs: list, predicate: Callable) -> list:
+    """
+    It is an analogue of the function groupby from itertools, but with a binary predicate.
+    In other words, group_by_with_binary_predicate generates a break or new group every time
+    the value of the predicate function is False.
+    :param xs: list of grouped value
+    :param predicate: criterion of equality
+    :return: grouped list
+    """
+    if not xs:
+        return []
+    prev = xs[0]
+    sequence = [prev]
+    result = []
+    for x in xs[1:]:
+        if predicate(prev, x):
+            sequence.append(x)
+            prev = x
         else:
-            node[attr_name] = type_v1x(node[attr_name])
-        return node[attr_name]
-    else:
-        return None
+            result.append(sequence)
+            prev = x
+            sequence = [prev]
+    result.append(sequence)
+    return result
+
+
+def unique_by(xs: list, predicate: Callable) -> list:
+    """
+    This function groups elements of the list xs using 'predicate', and then takes one element from each group.
+    :param xs: input list
+    :param predicate: grouping criterion which is some binary predicate
+    :return: list with unique elements
+    """
+    groups = group_by_with_binary_predicate(xs, predicate)
+    return [group[0] for group in groups]

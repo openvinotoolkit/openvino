@@ -1,13 +1,11 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/network_helper.hpp"
+#include <low_precision/network_helper.hpp>
 
 #include <algorithm>
-#include <blob_factory.hpp>
 #include <cmath>
-#include <details/caseless.hpp>
 #include <limits>
 #include <map>
 #include <memory>
@@ -15,702 +13,113 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <queue>
 
-#include <details/ie_cnn_network_tools.h>
-#include <ie_common.h>
-#include <precision_utils.h>
-#include "cnn_network_impl.hpp"
-#include "ie_util_internal.hpp"
-#include "ie_parallel.hpp"
-#include "low_precision_transformations/common/ie_lpt_exception.hpp"
+#include <ngraph/rt_info.hpp>
+#include "low_precision/common/ie_lpt_exception.hpp"
+#include "low_precision/common/dequantization_op.hpp"
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+namespace ngraph {
+namespace pass {
+namespace low_precision {
 
-CNNLayerPtr CNNNetworkHelper::getLayer(const ICNNNetwork& network, const std::string& layerName) {
-    std::vector<CNNLayerPtr> layers = InferenceEngine::details::CNNNetSortTopologically(network);
-    for (CNNLayerPtr layer : layers) {
-        if (layer->name == layerName) {
-            return layer;
-        }
-    }
-
-    return nullptr;
-}
-
-Blob::Ptr CNNNetworkHelper::makeNewBlobPtr(const TensorDesc& desc) {
-    Blob::Ptr newBlob;
-    if (desc.getPrecision() == Precision::FP32)
-        newBlob = make_shared_blob<PrecisionTrait<Precision::FP32>::value_type>(desc);
-    else if (desc.getPrecision() == Precision::FP16)
-        newBlob = make_shared_blob<PrecisionTrait<Precision::FP16>::value_type>(desc);
-    else if (desc.getPrecision() == Precision::I8)
-        newBlob = make_shared_blob<PrecisionTrait<Precision::I8>::value_type>(desc);
-    else if (desc.getPrecision() == Precision::U8)
-        newBlob = make_shared_blob<PrecisionTrait<Precision::U8>::value_type>(desc);
-    else if (desc.getPrecision() == Precision::I32)
-        newBlob = make_shared_blob<PrecisionTrait<Precision::I32>::value_type>(desc);
-    else
-        THROW_IE_EXCEPTION << "Unsupported transformation precision: " << desc.getPrecision();
-
-    return newBlob;
-}
-
-void CNNNetworkHelper::updateBlobs(CNNLayer& layer, const std::string& blobName, float value) {
-    const auto existingBlobIt = layer.blobs.find(blobName);
-    if (existingBlobIt == layer.blobs.end()) {
-        THROW_IE_EXCEPTION << "blob '" << blobName << "' was not found in layer " << layer.name;
-    }
-    const auto& existingBlobTensorDesc = existingBlobIt->second->getTensorDesc();
-    Blob::Ptr newBlob = makeNewBlobPtr(existingBlobTensorDesc);
-
-    newBlob->allocate();
-    fillBlobByFP32(newBlob, value);
-    layer.blobs[existingBlobIt->first] = newBlob;
-}
-
-void CNNNetworkHelper::invertFakeQuantize(const CNNLayer& fakeQuantize) {
-    if (fakeQuantize.type != "FakeQuantize") {
-        THROW_IE_EXCEPTION << "invalid layer type " << fakeQuantize.type;
-    }
-    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantize);
-    const size_t valuesCount =
-        std::max(quantizationDetails.inputLowValues.size(), quantizationDetails.outputLowValues.size());
-    std::vector<float> inputLowValues(valuesCount);
-    std::vector<float> inputHightValues(valuesCount);
-    std::vector<float> outputLowValues(valuesCount);
-    std::vector<float> outputHighValues(valuesCount);
-    bool wasInverted = false;
-    for (size_t i = 0ul; i < valuesCount; ++i) {
-        if ((quantizationDetails.getInputLowValue(i) > quantizationDetails.getInputHighValue(i)) &&
-            (quantizationDetails.getOutputLowValue(i) > quantizationDetails.getOutputHighValue(i))) {
-            inputLowValues[i] = quantizationDetails.getInputHighValue(i);
-            inputHightValues[i] = quantizationDetails.getInputLowValue(i);
-            outputLowValues[i] = quantizationDetails.getOutputHighValue(i);
-            outputHighValues[i] = quantizationDetails.getOutputLowValue(i);
-            wasInverted = true;
-        } else {
-            inputLowValues[i] = quantizationDetails.getInputLowValue(i);
-            inputHightValues[i] = quantizationDetails.getInputHighValue(i);
-            outputLowValues[i] = quantizationDetails.getOutputLowValue(i);
-            outputHighValues[i] = quantizationDetails.getOutputHighValue(i);
-        }
-    }
-
-    if (wasInverted) {
-        CNNNetworkHelper::updateBlobs(fakeQuantize, 1, inputLowValues);
-        CNNNetworkHelper::updateBlobs(fakeQuantize, 2, inputHightValues);
-        CNNNetworkHelper::updateBlobs(fakeQuantize, 3, outputLowValues);
-        CNNNetworkHelper::updateBlobs(fakeQuantize, 4, outputHighValues);
-    }
-}
-void CNNNetworkHelper::updateBlobs(const CNNLayer& quantizeLayer, int constLayerIndex,
-                                   const std::vector<float>& values) {
-    CNNLayerPtr blobLayer = CNNNetworkHelper::getParent(quantizeLayer, constLayerIndex);
-    if (blobLayer == nullptr) {
-        THROW_IE_EXCEPTION << "layer is absent";
-    }
-
-    const auto existingBlobIt = blobLayer->blobs.find("custom");
-    if (existingBlobIt == blobLayer->blobs.end()) {
-        THROW_IE_EXCEPTION << "custom blob was not found ";
-    }
-
-    TensorDesc newBlobTensorDesc;
-
-    const TensorDesc existingBlobTensorDesc = existingBlobIt->second->getTensorDesc();
-    if ((existingBlobIt->second->size() != values.size()) && (values.size() != 1)) {
-        if (existingBlobTensorDesc.getLayout() == Layout::SCALAR) {
-            //
-        } else if (existingBlobTensorDesc.getLayout() == Layout::C) {
-            if (existingBlobTensorDesc.getDims().size() != 1) {
-                THROW_IE_EXCEPTION << "temporary dimensions size " << existingBlobTensorDesc.getDims().size()
-                                   << " for layout " << existingBlobTensorDesc.getLayout() << " is not supported";
-            }
-            if (existingBlobTensorDesc.getDims()[0] != 1) {
-                THROW_IE_EXCEPTION << "temporary is not supported";
-            }
-        } else if (existingBlobTensorDesc.getLayout() == Layout::NCHW) {
-            if (existingBlobTensorDesc.getDims().size() != 4) {
-                THROW_IE_EXCEPTION << "temporary dimensions size " << existingBlobTensorDesc.getDims().size()
-                                   << " for layout " << existingBlobTensorDesc.getLayout() << " is not supported";
-            }
-            // OIHW
-            if (existingBlobTensorDesc.getDims()[0] != 1) {
-                THROW_IE_EXCEPTION << "temporary is not supported";
-            }
-        }
-
-        const std::vector<size_t> dims = {values.size()};
-        const Layout layout = Layout::C;
-        newBlobTensorDesc = TensorDesc(existingBlobTensorDesc.getPrecision(), dims, layout);
-        for (DataPtr data : blobLayer->outData) {
-            data->reshape(dims, layout);
-        }
-    } else {
-        newBlobTensorDesc = existingBlobTensorDesc;
-    }
-
-    Blob::Ptr newBlob = makeNewBlobPtr(newBlobTensorDesc);
-    newBlob->allocate();
-    blobLayer->blobs[existingBlobIt->first] = newBlob;
-
-    if (values.size() == 1)
-        fillBlobByFP32(newBlob, values[0]);
-    else
-        fillBlobByFP32(newBlob, values.data());
-}
-
-void CNNNetworkHelper::updateBlobs(CNNLayer& layer, const std::string& blobName, const std::vector<float>& values) {
-    const auto existingBlobIt = layer.blobs.find(blobName);
-    if (existingBlobIt == layer.blobs.end()) {
-        THROW_IE_EXCEPTION << "custom blob was not found ";
-    }
-
-    TensorDesc newBlobTensorDesc;
-
-    const TensorDesc existingBlobTensorDesc = existingBlobIt->second->getTensorDesc();
-    if ((existingBlobIt->second->size() != values.size()) && (values.size() != 1)) {
-        if (existingBlobTensorDesc.getLayout() == Layout::SCALAR) {
-            //
-        } else if (existingBlobTensorDesc.getLayout() == Layout::C) {
-            if (existingBlobTensorDesc.getDims().size() != 1) {
-                THROW_IE_EXCEPTION << "temporary dimensions size " << existingBlobTensorDesc.getDims().size()
-                                   << " for layout " << existingBlobTensorDesc.getLayout() << " is not supported";
-            }
-            if (existingBlobTensorDesc.getDims()[0] != 1) {
-                THROW_IE_EXCEPTION << "temporary is not supported";
-            }
-        } else if (existingBlobTensorDesc.getLayout() == Layout::NCHW) {
-            if (existingBlobTensorDesc.getDims().size() != 4) {
-                THROW_IE_EXCEPTION << "temporary dimensions size " << existingBlobTensorDesc.getDims().size()
-                                   << " for layout " << existingBlobTensorDesc.getLayout() << " is not supported";
-            }
-            // OIHW
-            if (existingBlobTensorDesc.getDims()[0] != 1) {
-                THROW_IE_EXCEPTION << "temporary is not supported";
-            }
-        }
-
-        const std::vector<size_t> dims = {values.size()};
-        const Layout layout = Layout::C;
-        newBlobTensorDesc = TensorDesc(existingBlobTensorDesc.getPrecision(), dims, layout);
-        for (DataPtr data : layer.outData) {
-            data->reshape(dims, layout);
-        }
-    } else {
-        newBlobTensorDesc = existingBlobTensorDesc;
-    }
-
-    Blob::Ptr newBlob = makeNewBlobPtr(newBlobTensorDesc);
-    newBlob->allocate();
-    layer.blobs[existingBlobIt->first] = newBlob;
-
-    if ((blobName == "weights") || (blobName == "biases")) {
-        WeightableLayer* weightableLayer = dynamic_cast<WeightableLayer*>(&layer);
-        if (weightableLayer == nullptr) {
-            THROW_IE_EXCEPTION << "layer '" << layer.name << "' with blob name '" << blobName << "' is not weightable";
-        }
-        if (blobName == "weights") {
-            weightableLayer->_weights = newBlob;
-        } else if (blobName == "biases") {
-            weightableLayer->_biases = newBlob;
-        } else {
-            THROW_IE_EXCEPTION << "unexpected blob name '" << blobName << "' for layer " << layer.name;
-        }
-    }
-
-    if (values.size() == 1)
-        fillBlobByFP32(newBlob, values[0]);
-    else
-        fillBlobByFP32(newBlob, values.data());
-}
-
-void CNNNetworkHelper::updateBlobs(const CNNLayer& quantizeLayer, int constLayerIndex, float value) {
-    auto inData = quantizeLayer.insData[constLayerIndex].lock();
-    if (inData == nullptr) {
-        THROW_IE_EXCEPTION << "data is absent";
-    }
-
-    CNNLayerPtr blobLayer = inData->getCreatorLayer().lock();
-    if (blobLayer == nullptr) {
-        THROW_IE_EXCEPTION << "layer is absent";
-    }
-
-    if (blobLayer->blobs.size() != 1) {
-        THROW_IE_EXCEPTION << "unexpected blobs size";
-    }
-
-    const auto existingBlobIt = blobLayer->blobs.begin();
-    const auto& existingBlobTensorDesc = existingBlobIt->second->getTensorDesc();
-    Blob::Ptr newBlob = makeNewBlobPtr(existingBlobTensorDesc);
-
-    newBlob->allocate();
-    fillBlobByFP32(newBlob, value);
-    blobLayer->blobs[existingBlobIt->first] = newBlob;
-}
-
-int CNNNetworkHelper::onWeightsInDepth(const CNNLayer& layer) {
-    const std::vector<CNNLayerPtr> children = getChildren(layer);
-    for (const CNNLayerPtr& child : children) {
-        if ((CaselessEq<std::string>()(child->type, "Convolution") ||
-            CaselessEq<std::string>()(child->type, "FullyConnected") ||
-            CaselessEq<std::string>()(child->type, "GEMM")) &&
-            (child->insData.size() >= 2lu)) {
-            const std::vector<CNNLayerPtr> parents = getParentsRecursivelyExceptTypes(*child, {}, 1);
-            for (const CNNLayerPtr& parent : parents) {
-                if (parent->name == layer.name) {
-                    return 1;
-                }
-            }
-            return -1;
-        }
-
-        const int result = onWeightsInDepth(*child);
-        if (result != 0) {
-            return result;
-        }
-    }
-    return 0;
-}
-
-bool CNNNetworkHelper::onWeights(const CNNLayer& layer) {
-    const int result = onWeightsInDepth(layer);
-    return result == 1;
-}
-
-size_t CNNNetworkHelper::getIndex(const CNNLayer& layer) {
-    const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(layer);
-    if (children.size() != 1) {
-        THROW_IE_EXCEPTION << "not supported";
-    }
-
-    for (size_t i = 0; i < children[0]->insData.size(); ++i) {
-        const DataPtr insData = children[0]->insData[i].lock();
-        if (insData == nullptr) {
-            continue;
-        }
-        const CNNLayerPtr parent = insData->getCreatorLayer().lock();
-        if ((parent != nullptr) && (parent->name == layer.name)) {
-            return i;
-        }
-    }
-
-    THROW_IE_EXCEPTION << "not found";
-}
-
-std::vector<CNNLayerPtr> CNNNetworkHelper::transformFakeQuantizeToConst(TransformationContext& context,
-                                                                        const CNNLayerPtr fakeQuantize,
-                                                                        const Blob::Ptr weights,
-                                                                        const std::string& constLayerName) {
-    std::vector<CNNLayerPtr> constLayersToRemove;
-    constLayersToRemove.reserve(fakeQuantize->insData.size());
-
-    for (const DataWeakPtr& insDataWeak : fakeQuantize->insData) {
-        const DataPtr insData = insDataWeak.lock();
-        if (insData == nullptr) {
-            THROW_IE_EXCEPTION << "input data for FakeQuantize '" << fakeQuantize->name << "' is nullable";
-        }
-        const CNNLayerPtr parent = insData->getCreatorLayer().lock();
-        if (parent == nullptr) {
-            THROW_IE_EXCEPTION << "input layer for FakeQuantize '" << fakeQuantize->name << "' is nullable";
-        }
-        if (!CaselessEq<std::string>()(parent->type, "Const") || (parent->insData.size() != 0lu)) {
-            THROW_IE_EXCEPTION << "unexpected FakeQuantize input layer type " << parent->type << " for layer '"
-                               << fakeQuantize->name << "' is nullable";
-        }
-
-        constLayersToRemove.push_back(parent);
-    }
-
-    for (const CNNLayerPtr& parent : constLayersToRemove) {
-        CNNNetworkHelper::removeLayer(context.network, parent);
-        context.removeLayer(*parent);
-    }
-
-    if (fakeQuantize->outData.size() != 1lu) {
-        THROW_IE_EXCEPTION << "FakeQuantize " << fakeQuantize->name << " has several outputs";
-    }
-
-    const DataPtr outData = fakeQuantize->outData[0];
-    if (outData == nullptr) {
-        THROW_IE_EXCEPTION << "FakeQuantize output data is nullable";
-    }
-
-    // const Precision precision = outData->getPrecision();
-    const auto inputTo = outData->getInputTo();
-    std::vector<CNNLayerPtr> constLayers;
-    for (auto it : inputTo) {
-        const CNNLayerPtr child = it.second;
-        if (child == nullptr) {
-            THROW_IE_EXCEPTION << "child layer for FakeQuantize " << fakeQuantize->name << " is nullable";
-        }
-
-        constLayers.push_back(
-            CNNNetworkHelper::addConstBetween(context.network, fakeQuantize, child, weights, constLayerName));
-    }
-
-    CNNNetworkHelper::removeLayer(context.network, fakeQuantize);
-    context.removeLayer(*fakeQuantize);
-
-    return constLayers;
-}
-
-void CNNNetworkHelper::setOutDataPrecision(const CNNLayer& layer, const Precision& precision) {
-    for (const DataPtr& data : layer.outData) {
-        data->setPrecision(precision);
-    }
-}
-
-void CNNNetworkHelper::setOutDataPrecision(const std::vector<CNNLayerPtr>& layers, const Precision& precision) {
-    for (const CNNLayerPtr layer : layers) {
-        setOutDataPrecision(*layer, precision);
-    }
-}
-
-void CNNNetworkHelper::setOutDataPrecision(const CNNLayer& beginLayer, const size_t branchWithEndBeforeLayer,
-                                           const CNNLayer& endBeforeLayer, const Precision& precision) {
-    CNNLayerPtr child = std::make_shared<CNNLayer>(beginLayer);
-    while (child->name != endBeforeLayer.name) {
-        CNNNetworkHelper::setOutDataPrecision(*child, precision);
-        std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*child);
-        if (child->name == beginLayer.name) {
-            if (branchWithEndBeforeLayer >= children.size()) {
-                THROW_IE_EXCEPTION << "branch with end before layer is out of children count " << children.size();
-            }
-            child = children[branchWithEndBeforeLayer];
-        } else {
-            if (children.size() != 1) {
-                THROW_IE_EXCEPTION << "not supported";
-            }
-
-            child = children[0];
-        }
-    }
-}
-
-bool CNNNetworkHelper::IsChild(const std::vector<CNNLayerPtr>& children,
-                               const std::unordered_set<std::string>& layerTypes,
-                               const std::unordered_set<std::string>& ignoreLayerTypes) {
-    for (const CNNLayerPtr& child : children) {
-        if (layerTypes.find(child->type) != layerTypes.end()) {
+// Return true if `type` can be castable to at least one of `type`
+bool NetworkHelper::is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types) {
+    for (auto another : types) {
+        if (type.is_castable(another)) {
             return true;
-        }
-        if (ignoreLayerTypes.find(child->type) != ignoreLayerTypes.end()) {
-            if (child->outData.size() != 1) {
-                return true;
-            }
-            if (IsChild(CNNNetworkHelper::getChildren(*child), layerTypes, ignoreLayerTypes)) {
-                return true;
-            }
         }
     }
     return false;
 }
 
-size_t CNNNetworkHelper::getOutputChannelsCount(const CNNLayer& layer, bool isOnWeights) {
-    if (layer.outData.empty()) {
-        THROW_IE_EXCEPTION << "Layer " << layer.name << " doesn't have output tensors";
+// Collect and return a vector with all nodes that consumes any of the `node` output
+std::vector<Input<Node>> NetworkHelper::consumer_inputs(std::shared_ptr<Node> node) {
+    std::vector<Input<Node>> result;
+    for (const auto& output_port : node->outputs()) {
+        for (const auto &input : output_port.get_target_inputs()) {
+            result.push_back(input);
+        }
+    }
+    return result;
+}
+
+std::vector<std::shared_ptr<Node>> NetworkHelper::consumers(std::shared_ptr<Node> node) {
+    auto inputs = consumer_inputs(node);
+    std::vector<std::shared_ptr<Node>> result(inputs.size());
+    std::transform(inputs.begin(), inputs.end(), result.begin(), [](Input<Node> input){ return input.get_node()->shared_from_this(); });
+    return result;
+}
+
+bool NetworkHelper::isConstantPath(const std::shared_ptr<Node>& op) {
+    const auto isNotConstantPathOperation = [](const std::shared_ptr<Node>& node) -> bool {
+        return is_type<opset1::Parameter>(node) ||
+            is_type<opset1::Convolution>(node) ||
+            is_type<opset1::GroupConvolution>(node) ||
+            is_type<opset1::MatMul>(node);
+    };
+
+    if (isNotConstantPathOperation(op)) {
+        return false;
     }
 
-    auto& data = layer.outData[0];
+    std::queue<Input<Node>> inputs;
+    const std::vector<Input<Node>> nodeInputs = op->inputs();
+    for (const Input<Node>& nodeInput : nodeInputs) {
+        inputs.push(nodeInput);
+    }
+
+    while (!inputs.empty()) {
+        Input<Node> input = inputs.front();
+        inputs.pop();
+
+        const Output<Node>& sourceOutput = input.get_source_output();
+        const auto parentNode = sourceOutput.get_node_shared_ptr();
+        if (isNotConstantPathOperation(parentNode)) {
+            return false;
+        }
+
+        for (size_t inputIndex = 0; inputIndex < parentNode->get_input_size(); ++inputIndex) {
+            inputs.push(parentNode->input(inputIndex));
+        }
+    }
+    return true;
+}
+
+size_t NetworkHelper::getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights) {
+    if (layer->outputs().size() == 0) {
+        THROW_TRANSFORMATION_EXCEPTION << "Layer " << layer->get_friendly_name() << " doesn't have output tensors";
+    }
+
+    if (layer->outputs().size() > 1) {
+        THROW_TRANSFORMATION_EXCEPTION << "Layer " << layer->get_friendly_name() << " has too many output tensors, expected one";
+    }
+
+    PartialShape shape = layer->get_output_partial_shape(0);
+    if (shape.rank() == 0) {
+        THROW_TRANSFORMATION_EXCEPTION << "Invalid dimensions count (0) in output of " << layer->get_friendly_name() << " layer on weights";
+    }
     if (isOnWeights) {
-        if (data->getDims().empty()) {
-            THROW_IE_EXCEPTION << "Invalid dimensions count (0) in output of " << layer.name << " layer on weights";
-        }
-        return data->getDims()[0];
+        return shape[0].get_length();
     } else {
-        if (data->getDims().empty()) {
-            THROW_IE_EXCEPTION << "Invalid dimensions count (0) in output of " << layer.name << " layer on activations";
+        if (shape.rank() == 1) {
+            return shape[0].get_length();
         }
-        if (data->getDims().size() == 1ul) {
-            return data->getDims()[0];
-        }
-        return data->getDims()[1];
+        return shape[1].get_length();
     }
 }
 
-std::vector<CNNLayerPtr> CNNNetworkHelper::getLayers(const CNNLayer& parent, const CNNLayer& child) {
-    std::vector<CNNLayerPtr> layers;
-    CNNLayerPtr tmpChild = std::make_shared<CNNLayer>(child);
-    while (tmpChild != nullptr) {
-        const std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(*tmpChild);
-        for (const CNNLayerPtr tmpParent : parents) {
-            if (tmpParent->name == parent.name) {
-                return layers;
-            }
-        }
-
-        if (parents.size() == 0) {
-            THROW_IE_EXCEPTION << "not found";
-        }
-
-        if (parents.size() != 1ul) {
-            THROW_IE_EXCEPTION << "not supported";
-        }
-
-        layers.push_back(parents[0]);
-        tmpChild = parents[0];
-    }
-    return layers;
-}
-
-Blob::Ptr CNNNetworkHelper::getBlob(CNNLayer* layer, const std::string& blobName) {
-    if (layer == nullptr) {
-        THROW_IE_EXCEPTION << "layer is nullable";
-    }
-    if (layer->blobs.empty()) {
-        THROW_IE_EXCEPTION << "Layer '" << layer->name << "' does not have any blob";
-    }
-    if (blobName.empty() && (layer->blobs.size() != 1)) {
-        THROW_IE_EXCEPTION << "several blobs";
-    }
-    Blob::Ptr blob = blobName.empty() ? layer->blobs.begin()->second : layer->blobs[blobName];
-    return blob;
-}
-
-Blob::Ptr CNNNetworkHelper::getBlob(CNNLayerPtr layer, const std::string& blobName) {
-    return getBlob(layer.get(), blobName);
-}
-
-std::shared_ptr<float> CNNNetworkHelper::getFloatData(const Blob::Ptr& srcBlob) {
-    if (srcBlob == nullptr) {
-        THROW_IE_EXCEPTION << "Invalid blob";
-    }
-
-    const auto& precision = srcBlob->getTensorDesc().getPrecision();
-    if (!isBlobPrecisionSupported(precision)) {
-        THROW_IE_EXCEPTION << "precision '" << precision << "' is not supported";
-    }
-
-    const size_t dataSize = srcBlob->size();
-    std::shared_ptr<float> floatPtr(new float[dataSize], std::default_delete<float[]>());
-
-    if (precision == Precision::FP32) {
-        const float* srcData = srcBlob->buffer().as<float*>();
-        std::copy(srcData, srcData + dataSize, floatPtr.get());
-    } else if (precision == Precision::FP16) {
-        const short* srcData = srcBlob->buffer().as<short*>();
-        PrecisionUtils::f16tof32Arrays(floatPtr.get(), srcData, dataSize, 1.f, 0.f);
-    } else if (precision == Precision::I8) {
-        const auto* srcData = srcBlob->buffer().as<PrecisionTrait<Precision::I8>::value_type*>();
-        std::copy(srcData, srcData + dataSize, floatPtr.get());
-    } else if (precision == Precision::U8) {
-        const auto* srcData = srcBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
-        std::copy(srcData, srcData + dataSize, floatPtr.get());
-    } else if (precision == Precision::I32) {
-        const auto* srcData = srcBlob->buffer().as<PrecisionTrait<Precision::I32>::value_type*>();
-        std::copy(srcData, srcData + dataSize, floatPtr.get());
-    } else if (precision == Precision::I64) {
-        const auto* srcData = srcBlob->buffer().as<PrecisionTrait<Precision::I64>::value_type*>();
-        std::copy(srcData, srcData + dataSize, floatPtr.get());
-    } else if (precision == Precision::U64) {
-        const auto* srcData = srcBlob->buffer().as<PrecisionTrait<Precision::U64>::value_type*>();
-        std::copy(srcData, srcData + dataSize, floatPtr.get());
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported transformation precision: " << precision;
-    }
-
-    return floatPtr;
-}
-
-bool CNNNetworkHelper::isBlobPrecisionSupported(const Precision precision) {
-    return (precision == Precision::FP32) ||
-        (precision == Precision::FP16) ||
-        (precision == Precision::I8) ||
-        (precision == Precision::U8) ||
-        (precision == Precision::I32) ||
-        (precision == Precision::I64) ||
-        (precision == Precision::U64);
-}
-
-std::shared_ptr<float> CNNNetworkHelper::getFloatData(const CNNLayerPtr& layer, const std::string& blobName) {
-    const Blob::Ptr blob = getBlob(layer, blobName);
-    if (blob == nullptr) THROW_IE_EXCEPTION << "Could not find blob '" << blobName << "' for layer " << layer->name;
-
-    return getFloatData(blob);
-}
-
-void CNNNetworkHelper::fillBlobByFP32(Blob::Ptr& dstBlob, const float* srcData) {
-    if (dstBlob == nullptr) THROW_IE_EXCEPTION << "Invalid blob";
-
-    const auto& precision = dstBlob->getTensorDesc().getPrecision();
-    const size_t dataSize = dstBlob->size();
-
-    if (precision == Precision::FP32) {
-        float* dstData = dstBlob->buffer().as<float*>();
-        std::copy(srcData, srcData + dataSize, dstData);
-    } else if (precision == Precision::FP16) {
-        short* dstData = dstBlob->buffer().as<short*>();
-        PrecisionUtils::f32tof16Arrays(dstData, srcData, dataSize, 1.f, 0.f);
-    } else if (precision == Precision::I8) {
-        auto* dstData = dstBlob->buffer().as<PrecisionTrait<Precision::I8>::value_type*>();
-        for (size_t i = 0ul; i < dataSize; ++i) {
-            dstData[i] = static_cast<PrecisionTrait<Precision::I8>::value_type>(std::roundf(srcData[i]));
-        }
-    } else if (precision == Precision::U8) {
-        auto* dstData = dstBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
-        for (size_t i = 0ul; i < dataSize; ++i) {
-            dstData[i] = static_cast<PrecisionTrait<Precision::U8>::value_type>(std::roundf(srcData[i]));
-        }
-    } else if (precision == Precision::I32) {
-        auto* dstData = dstBlob->buffer().as<PrecisionTrait<Precision::I32>::value_type*>();
-        for (size_t i = 0ul; i < dataSize; ++i) {
-            dstData[i] = static_cast<PrecisionTrait<Precision::I32>::value_type>(std::roundf(srcData[i]));
-        }
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported transformation precision: " << precision;
-    }
-}
-
-std::shared_ptr<float> CNNNetworkHelper::convertFloatData(const float* srcData, const size_t dataSize,
-                                                          const Precision precision) {
-    std::shared_ptr<float> dstData(new float[dataSize], std::default_delete<float[]>());
-
-    if (precision == Precision::FP32) {
-        std::copy(srcData, srcData + dataSize, dstData.get());
-    } else if (precision == Precision::FP16) {
-        for (size_t i = 0ul; i < dataSize; ++i) {
-            dstData.get()[i] = PrecisionUtils::f16tof32(PrecisionUtils::f16tof32(srcData[i]));
-        }
-    } else if (precision == Precision::I8) {
-        for (size_t i = 0ul; i < dataSize; ++i) {
-            dstData.get()[i] =
-                static_cast<float>(static_cast<PrecisionTrait<Precision::I8>::value_type>(std::roundf(srcData[i])));
-        }
-    } else if (precision == Precision::U8) {
-        for (size_t i = 0ul; i < dataSize; ++i) {
-            dstData.get()[i] =
-                static_cast<float>(static_cast<PrecisionTrait<Precision::U8>::value_type>(std::roundf(srcData[i])));
-        }
-    } else if (precision == Precision::I32) {
-        for (size_t i = 0ul; i < dataSize; ++i) {
-            dstData.get()[i] =
-                static_cast<float>(static_cast<PrecisionTrait<Precision::I32>::value_type>(std::roundf(srcData[i])));
-        }
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported transformation precision: " << precision;
-    }
-
-    return dstData;
-}
-
-void CNNNetworkHelper::fillBlobByFP32(const CNNLayerPtr& layer, const std::string& blobName, const float* srcData) {
-    Blob::Ptr blob = getBlob(layer, blobName);
-    return fillBlobByFP32(blob, srcData);
-}
-
-void CNNNetworkHelper::fillBlobByFP32(Blob::Ptr& dstBlob, float value) {
-    const auto& precision = dstBlob->getTensorDesc().getPrecision();
-    const size_t dataSize = dstBlob->size();
-
-    if (precision == Precision::FP32) {
-        float* dstData = dstBlob->buffer().as<float*>();
-        std::fill(dstData, dstData + dataSize, value);
-    } else if (precision == Precision::FP16) {
-        short* dstData = dstBlob->buffer().as<short*>();
-        const short s_value = PrecisionUtils::f32tof16(value);
-        std::fill(dstData, dstData + dataSize, s_value);
-    } else if (precision == Precision::I8) {
-        auto* dstData = dstBlob->buffer().as<PrecisionTrait<Precision::I8>::value_type*>();
-        std::fill(dstData, dstData + dataSize, static_cast<PrecisionTrait<Precision::I8>::value_type>(value));
-    } else if (precision == Precision::U8) {
-        auto* dstData = dstBlob->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
-        std::fill(dstData, dstData + dataSize, static_cast<PrecisionTrait<Precision::U8>::value_type>(value));
-    } else if (precision == Precision::I32) {
-        auto* dstData = dstBlob->buffer().as<PrecisionTrait<Precision::I32>::value_type*>();
-        std::fill(dstData, dstData + dataSize, static_cast<PrecisionTrait<Precision::I32>::value_type>(value));
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported transformation precision: " << precision;
-    }
-}
-
-CNNLayerPtr CNNNetworkHelper::getParent(const CNNLayer& layer, const size_t index, const std::string& ignoreLayerType) {
-    if (index >= layer.insData.size()) {
-        return nullptr;
-    }
-
-    DataPtr inputLayerData = layer.insData[index].lock();
-    if (inputLayerData == nullptr) {
-        THROW_IE_EXCEPTION << "input data is absent";
-    }
-
-    CNNLayerPtr inputLayer;
-    do {
-        inputLayer = inputLayerData->getCreatorLayer().lock();
-        if (!inputLayer) {
-            THROW_IE_EXCEPTION << "input is absent";
-        }
-
-        if (inputLayer->type != ignoreLayerType) {
-            break;
-        }
-
-        if (inputLayer->insData.size() == 0) {
-            inputLayer = nullptr;
-            break;
-        }
-
-        if (inputLayer->insData.size() != 1) {
-            THROW_IE_EXCEPTION << "too much branches";
-        }
-
-        inputLayerData = inputLayer->insData[0].lock();
-        if (inputLayerData == nullptr) {
-            THROW_IE_EXCEPTION << "input data is absent";
-        }
-    } while (true);
-
-    return inputLayer;
-}
-
-std::vector<CNNLayerPtr> CNNNetworkHelper::getParents(const CNNLayer& layer, const std::string& exceptionLayerName) {
-    std::vector<CNNLayerPtr> parents;
-    for (const DataWeakPtr insDataWeak : layer.insData) {
-        const DataPtr insData = insDataWeak.lock();
-        if (insData == nullptr) {
-            THROW_IE_EXCEPTION << "input data is absent";
-        }
-
-        CNNLayerPtr parent = insData->getCreatorLayer().lock();
-        if (parent == nullptr) {
-            THROW_IE_EXCEPTION << "input layer is absent";
-        }
-
-        if (exceptionLayerName.empty() || parent->name != exceptionLayerName) {
-            parents.push_back(parent);
-        }
-    }
-    return parents;
-}
-
-std::vector<CNNLayerPtr> CNNNetworkHelper::getParentsRecursivelyExceptTypes(
-    const CNNLayer& layer, const std::unordered_set<std::string>& exceptionLayerTypes, const int portIndex) {
-    std::vector<CNNLayerPtr> parents;
-    size_t i = 0ul;
-    for (DataWeakPtr insDataWeak : layer.insData) {
-        if (insDataWeak.expired()) {
-            continue;
-        }
-
-        const DataPtr insData = insDataWeak.lock();
-        if (insData == nullptr) {
-            THROW_IE_EXCEPTION << "input data is absent";
-        }
-
-        CNNLayerWeakPtr parentWeak = insData->getCreatorLayer();
-        if (parentWeak.expired()) {
-            continue;
-        }
-
+std::vector<std::shared_ptr<Node>> NetworkHelper::getParentsRecursivelyExceptTypes(
+        std::shared_ptr<Node> layer,
+        const std::unordered_set<NodeTypeInfo>& exceptionLayerTypes,
+        const int portIndex) {
+    std::vector<std::shared_ptr<Node>> parents;
+    int i = 0;
+    for (auto input : layer->inputs()) {
         if ((portIndex == -1) || (portIndex == i)) {
-            CNNLayerPtr parent = parentWeak.lock();
-            if (parent == nullptr) {
-                THROW_IE_EXCEPTION << "input layer is absent";
-            }
-
-            if (exceptionLayerTypes.find(parent->type) != exceptionLayerTypes.end()) {
-                const std::vector<CNNLayerPtr> tmpParents = CNNNetworkHelper::getParentsRecursivelyExceptTypes(*parent, exceptionLayerTypes);
+            auto parent = input.get_source_output().get_node_shared_ptr();
+            if (is_castable_to_one_of(parent->get_type_info(), exceptionLayerTypes)) {
+                const std::vector<std::shared_ptr<Node>> tmpParents = getParentsRecursivelyExceptTypes(parent, exceptionLayerTypes);
                 parents.insert(parents.end(), tmpParents.begin(), tmpParents.end());
             } else {
                 parents.push_back(parent);
@@ -722,915 +131,1249 @@ std::vector<CNNLayerPtr> CNNNetworkHelper::getParentsRecursivelyExceptTypes(
     return parents;
 }
 
-size_t CNNNetworkHelper::getInputChannelsCount(const CNNLayer& layer) {
-    if (layer.insData.size() == 0) {
-        THROW_IE_EXCEPTION << "There are no input layers";
+size_t NetworkHelper::getInputChannelsCount(std::shared_ptr<Node> layer) {
+    if (layer->get_input_size() == 0) {
+        THROW_TRANSFORMATION_EXCEPTION << "There are no input layers";
     }
 
-    const DataPtr insertData = layer.insData[0].lock();
-    if (insertData == nullptr) {
-        THROW_IE_EXCEPTION << "insert data is absent";
+    PartialShape shape = layer->get_input_partial_shape(0);
+    if (shape.rank().get_length() <= 1) {
+        THROW_TRANSFORMATION_EXCEPTION << "Invalid dimensions count (0) in input of " << layer->get_friendly_name();
     }
 
-    switch (insertData->getLayout()) {
-    case Layout::NC:
-    case Layout::NCHW:
-    case Layout::NCDHW: {
-        return insertData->getDims()[1];
+    return shape[1].get_length();
+}
+
+size_t NetworkHelper::getGroupsCount(std::shared_ptr<Node> layer) {
+    if (as_type_ptr<opset1::Convolution>(layer)) {
+        return 1;
+    } else if (auto group_convolution = as_type_ptr<opset1::GroupConvolution>(layer)) {
+        return layer->get_input_shape(1)[0];    // input weights for opset1::GC is in format GOI..., see the specification
+    } else {
+        THROW_TRANSFORMATION_EXCEPTION << "Invalid layer type of " << layer->get_friendly_name() << "; expected Convolutino or GroupConvolution";
     }
-    case Layout::CHW: {
-        if (insertData->getDims().size() != 3lu) {
-            THROW_IE_EXCEPTION << "Unexpected dimensions size " << insertData->getDims().size() << " for layer "
-                               << layer.name;
+}
+
+// Assumin tensor in NC... layout, append necessary number of 1s to shape to align it to a give rank
+Shape NetworkHelper::alignShapeForChannelDim(const Shape& shape, Rank rank) {
+    assert(shape.size() == 1);
+    assert(rank.is_static());
+    Shape result = shape;
+    result.resize(rank.get_length() - 1, 1);
+    return result;
+}
+
+void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
+    ngraph::replace_output_update_name(layer->output(0), layer->input_value(0));
+}
+
+std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch) {
+    // Multiply --> Add(addAfterMultiply)  ==>  Add(new) --> Multiply(new)
+    // That means x*a + b ==> (x + b/a)*a; tries to fold b/a
+    const auto multiply = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch);
+
+    const auto multiplyParent1 = multiply->get_input_node_shared_ptr(0);
+    const auto multiplyParent2 = multiply->get_input_node_shared_ptr(1);
+
+    auto multiplyInput = as_type_ptr<opset1::Multiply>(multiplyParent1);
+    auto multiplyConst = as_type_ptr<opset1::Constant>(multiplyParent2);
+    int multiplyInputBranch = 0;
+
+    if (multiplyConst == nullptr) {
+        multiplyInput = as_type_ptr<opset1::Multiply>(multiplyParent2);
+        multiplyConst = as_type_ptr<opset1::Constant>(multiplyParent1);
+        multiplyInputBranch = 1;
+    }
+
+    if (multiplyConst == nullptr)
+        return addAfterMultiply;
+
+    const auto x = multiply->get_input_node_shared_ptr(multiplyInputBranch);
+    const auto a = multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0);
+    const auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
+    std::shared_ptr<Node> bDivA;
+
+    if (shape_size(b->get_output_shape(0)) == 1 ||
+        shape_size(a->get_output_shape(0)) == 1 ||
+        shape_size(b->get_output_shape(0)) == shape_size(a->get_output_shape(0))) {
+        // safely division to avoid NaN
+        const std::vector<float> bValues = as_type_ptr<opset1::Constant>(b)->cast_vector<float>();
+        const std::vector<float> aValues = as_type_ptr<opset1::Constant>(a)->cast_vector<float>();
+        const bool aBroadcasted = bValues.size() > aValues.size();
+        const bool bBroadcasted = bValues.size() < aValues.size();
+        std::vector<float> bDivAValues(aBroadcasted ? bValues.size() : aValues.size());
+
+        for (size_t i = 0; i < bDivAValues.size(); ++i) {
+            const auto bi = bValues[bBroadcasted ? 0 : i];
+            const auto ai = aValues[aBroadcasted ? 0 : i];
+            if (bi != 0.f || ai != 0.f) {
+                bDivAValues[i] = bi / ai;
+            } else {
+                bDivAValues[i] = 0.f;
+            }
         }
 
-        // Actually MO assumes NCH layout for 3D blobs, so we get channels count from dimension 1
-        return insertData->getDims()[1];
-    }
-    default: {
-        THROW_IE_EXCEPTION << "Not supported layout " << insertData->getLayout();
-    }
-    }
-}
-
-size_t CNNNetworkHelper::getParamOutput(const CNNLayer& layer) {
-    if (!layer.CheckParamPresence("output")) {
-        THROW_IE_EXCEPTION << "convolution parameter 'output' is absent";
-    }
-    return layer.GetParamAsUInt("output");
-}
-
-size_t CNNNetworkHelper::getKernelSize(const CNNLayer& layer) {
-    if (!layer.CheckParamPresence("kernel")) {
-        THROW_IE_EXCEPTION << "convolution parameter 'kernel' is absent";
-    }
-    const auto dims = layer.GetParamAsUInts("kernel");
-    if (dims.size() == 2) {
-        return dims[0] * dims[1];
-    } else if (dims.size() == 3) {
-        return dims[0] * dims[1] * dims[2];
+        bDivA = std::make_shared<opset1::Constant>(
+                b->get_output_element_type(0),
+                aBroadcasted ? b->get_output_shape(0) : a->get_output_shape(0),
+                bDivAValues);
     } else {
-        THROW_IE_EXCEPTION << "kernel dimensions are not correct";
+        bDivA = fold<opset1::Divide>(b, a);
+    }
+
+    std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
+
+    inputs[0] = x;
+    inputs[1] = bDivA;
+
+    std::shared_ptr<opset1::Add> newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
+        std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
+        ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+    copyInfo(addAfterMultiply, newAdd);
+
+    NetworkHelper::setOutDataPrecision(newAdd, addAfterMultiply->get_output_element_type(0));
+
+    auto newMultiply = std::make_shared<DequantizationMultiply>(newAdd, a);
+    copyInfo(multiply, newMultiply);
+
+    replace_node(addAfterMultiply, newMultiply);
+    return newMultiply;
+}
+
+void NetworkHelper::copyInfo(const std::shared_ptr<Node>& source, const std::shared_ptr<Node>& target) {
+    // TODO: merge_runtime_info with correctly defined DEQUANTIZATION
+    const auto& sourceAttributes = source->get_rt_info();
+    auto& targetAttrubutes = target->get_rt_info();
+    for (auto attribute : sourceAttributes) {
+        targetAttrubutes[attribute.first] = attribute.second;
+    }
+
+    const std::string friendlyName = source->get_friendly_name();
+    if (!friendlyName.empty()) {
+        target->set_friendly_name(friendlyName);
     }
 }
 
-void CNNNetworkHelper::renameLayer(ICNNNetwork& net, const std::string& currentName, const std::string& newName) {
-    CNNNetworkImpl* netImpl = dynamic_cast<CNNNetworkImpl*>(&net);
-    if (netImpl == nullptr) {
-        THROW_IE_EXCEPTION << "unexpected network type";
+void NetworkHelper::cleanRunTimeInfo(const std::shared_ptr<Node>& layer) {
+    auto& rt_info = layer->get_rt_info();
+    auto attributeIter = rt_info.find("DEQUANTIZATION");
+    if (rt_info.find("DEQUANTIZATION") != rt_info.end()) {
+        rt_info.erase(attributeIter);
     }
-
-    netImpl->renameLayer(currentName, newName);
 }
 
-CNNLayerPtr CNNNetworkHelper::addLayer(
-        TransformationContext& context,
-        const CNNLayerPtr parent,
-        const CNNLayerPtr child,
-        const CNNLayerPtr newLayer) {
-    DataPtr outData;
-    Precision precision;
-    if (parent != nullptr) {
-        // Searching the connection between the layers
-        int l1_out_i = 0;
-        if (child != nullptr) {
-            for (; l1_out_i < parent->outData.size(); l1_out_i++) {
-                if (parent->outData[l1_out_i]->getInputTo().find(child->name) !=
-                    parent->outData[l1_out_i]->getInputTo().end()) {
-                    break;
+bool NetworkHelper::isScalarLike(std::shared_ptr<opset1::Constant> constant) {
+    return constant->get_all_data_elements_bitwise_identical();
+}
+
+bool NetworkHelper::isZero(std::shared_ptr<opset1::Constant> constant) {
+    static const float minQuantizationShift = 1e-32f;
+
+    auto values = constant->cast_vector<float>();
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (fabs(values[i]) > minQuantizationShift) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::shared_ptr<opset1::Constant> NetworkHelper::toScalar(std::shared_ptr<opset1::Constant> constant) {
+    assert(isScalarLike(constant));
+    return std::make_shared<opset1::Constant>(constant->get_element_type(), Shape{}, constant->get_data_ptr());
+}
+
+std::shared_ptr<Node> NetworkHelper::getConstantInput(std::shared_ptr<Node> node) {
+    std::shared_ptr<Node> constant1 = as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr());
+    if (!constant1) {
+        constant1 = as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr());
+    }
+    return constant1;
+}
+
+std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter(std::shared_ptr<Node> node) {
+    std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(node);
+    if (!multiply) {
+        THROW_IE_LPT_EXCEPTION(*multiply) << "Unexpected operation type";
+    }
+
+    if (multiply->output(0).get_target_inputs().size() == 1) {
+        auto constant1 = getConstantInput(multiply);
+        if (!constant1 || constant1->output(0).get_target_inputs().size() != 1) {
+            return multiply;
+        }
+        auto nextMultiplyInput = *multiply->output(0).get_target_inputs().begin();
+        auto nextMultiply = as_type_ptr<opset1::Multiply>(nextMultiplyInput.get_node()->shared_from_this());
+        if (nextMultiply) {
+            auto constant2 = getConstantInput(nextMultiply);
+            if (!constant2 || constant2->output(0).get_target_inputs().size() != 1) {
+                return multiply;
+            }
+
+            auto newConst = fold<opset1::Multiply>(constant1, constant2);
+            auto newMultiply =
+                    std::make_shared<opset1::Multiply>(
+                            multiply->input_value(1 - constant1->output(0).get_target_inputs().begin()->get_index()),
+                            newConst->output(0));
+            copy_runtime_info(multiply, newMultiply);
+            replace_node(nextMultiply, newMultiply);
+            return newMultiply;
+        }
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<opset1::Constant> NetworkHelper::round(std::shared_ptr<Node> node, element::Type target_type) {
+    const auto constant = as_type_ptr<opset1::Constant>(node);
+    assert(constant);
+
+    const auto castedConstant = as_type_ptr<ngraph::opset1::Constant>(fold<op::v0::Convert>(
+        fold<ngraph::op::v5::Round>(constant->output(0), ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO),
+        target_type));
+
+    return castedConstant;
+}
+
+std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq) {
+    return foldFakeQuantize(fq, false, false);
+}
+
+std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues) {
+    return foldFakeQuantize(fq, roundValues, true);
+}
+
+FakeQuantizeDequantization NetworkHelper::foldDequantization(const std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace) {
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
+    if (dequantization.empty() || (dequantization.multiply == nullptr)) {
+        return dequantization;
+    }
+
+    if (dequantization.convert != nullptr) {
+        const std::shared_ptr<Node> result = fold<opset1::Convert>(dequantization.data, dequantization.convert->get_element_type());
+        if (is_type<opset1::Constant>(result)) {
+            if (inPlace) {
+                copyInfo(dequantization.convert, result);
+            }
+            replace_node(dequantization.convert, result);
+            dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
+        }
+    }
+
+    if (dequantization.subtract != nullptr) {
+        if (dequantization.subtractConvert != nullptr) {
+            const auto convertionResult = fold<opset1::Convert>(
+                dequantization.subtractConstant,
+                dequantization.subtractConvert->get_element_type());
+            if (is_type<opset1::Constant>(convertionResult)) {
+                replace_node(dequantization.subtractConvert, convertionResult);
+                dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
+            }
+        }
+
+        const std::shared_ptr<Node> result = fold<opset1::Subtract>(
+            dequantization.subtract->get_input_node_shared_ptr(0),
+            dequantization.subtract->get_input_node_shared_ptr(1));
+        if (is_type<opset1::Constant>(result)) {
+            if (inPlace) {
+                copyInfo(dequantization.subtract, result);
+            }
+            replace_node(dequantization.subtract, result);
+            dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
+        } else {
+            return dequantization;
+        }
+    }
+
+    if (dequantization.multiply != nullptr) {
+        const std::shared_ptr<Node> result = fold<opset1::Multiply>(
+            dequantization.multiply->get_input_node_shared_ptr(0),
+            dequantization.multiply->get_input_node_shared_ptr(1));
+        if (is_type<opset1::Constant>(result)) {
+            if (inPlace) {
+                copyInfo(dequantization.multiply, result);
+            }
+            replace_node(dequantization.multiply, result);
+            dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
+        } else {
+            return dequantization;
+        }
+    }
+
+    return dequantization;
+}
+
+std::shared_ptr<ngraph::Node> NetworkHelper::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) {
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
+    if (dequantization.isShared()) {
+        Output<Node> parent = dequantization.data;
+        if (dequantization.convert != nullptr) {
+            parent = dequantization.convert->clone_with_new_inputs({ parent });
+            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
+        }
+
+        if (dequantization.subtract != nullptr) {
+            const auto parentOnWeights = dequantization.subtract->get_input_node_shared_ptr(1);
+            const std::vector<Input<Node>> inputs = parentOnWeights->inputs();
+            OutputVector outputs;
+            outputs.reserve(inputs.size());
+            for (const auto& input : inputs) {
+                outputs.push_back(input.get_source_output());
+            }
+
+            parent = dequantization.subtract->clone_with_new_inputs({parent, parentOnWeights->clone_with_new_inputs(outputs) });
+            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
+        }
+
+        if (dequantization.multiply != nullptr) {
+            parent = dequantization.multiply->clone_with_new_inputs({
+                parent,
+                dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) });
+            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
+        }
+
+        std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);
+        const size_t inputIndex = NetworkHelper::getChildInputIndex(dequantization.multiply, node);
+        inputs[inputIndex] = parent;
+        const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
+
+        replace_node(node, newNode);
+        newNode->set_friendly_name(node->get_friendly_name());
+
+        return newNode;
+    }
+
+    return node;
+}
+
+std::shared_ptr<opset1::FakeQuantize> NetworkHelper::fuseConvert(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
+    const Output<Node> output = fakeQuantize->output(0);
+    const auto targetInputs = output.get_target_inputs();
+    if (targetInputs.size() != 1ul) {
+        return fakeQuantize;
+    }
+
+    Node* node = targetInputs.begin()->get_node();
+    if (!is_type<opset1::Convert>(node) ||
+        // TODO: LPT: avoid precision hardcode: to separate method: isSupportedPrecision
+        ((node->get_output_element_type(0) != element::u8) && (node->get_output_element_type(0) != element::i8))) {
+        return fakeQuantize;
+    }
+
+
+    std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
+        std::vector<ngraph::element::Type>{ element::f32, element::f32, element::f32, element::f32, element::f32 },
+        std::vector<ngraph::element::Type>{},
+        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->get_input_node_shared_ptr(0), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->get_input_node_shared_ptr(1), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->get_input_node_shared_ptr(2), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->get_input_node_shared_ptr(3), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(fakeQuantize->get_input_node_shared_ptr(4), element::f32).get(),
+        fakeQuantize->get_levels());
+    NetworkHelper::setOutDataPrecisionForTypeRelaxed(newFakeQuantize, node->get_output_element_type(0));
+    replace_node(node->shared_from_this(), newFakeQuantize);
+    newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
+    return newFakeQuantize;
+}
+
+std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
+    const std::shared_ptr<opset1::FakeQuantize>& fq,
+    const bool roundValuesArg,
+    const bool roundValuesWasSet) {
+    if (is_type<opset1::Constant>(fq->get_input_node_shared_ptr(0)) &&
+        is_type<opset1::Constant>(fq->get_input_node_shared_ptr(1)) &&
+        is_type<opset1::Constant>(fq->get_input_node_shared_ptr(2)) &&
+        is_type<opset1::Constant>(fq->get_input_node_shared_ptr(3)) &&
+        is_type<opset1::Constant>(fq->get_input_node_shared_ptr(4)) &&
+        op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(1)), 0.f) &&
+        op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(2)), 254.f) &&
+        op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(3)), -127.f) &&
+        op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(4)), 127.f)) {
+        const auto type1 = fq->input_value(0).get_element_type();
+        const auto type2 = fq->input_value(3).get_element_type();
+        if (type1.is_real() && type2.is_real()) {
+            return fold<opset1::Add>(fq->input_value(0), fq->input_value(3));
+        }
+        if (type1.is_real() && !type2.is_real()) {
+            return fold<opset1::Add>(
+                fq->input_value(0),
+                fold<opset1::Convert>(fq->input_value(3), type1));
+        }
+        if (!type1.is_real() && type2.is_real()) {
+            return fold<opset1::Add>(
+                fold<opset1::Convert>(fq->input_value(0), type2),
+                fq->input_value(3));
+        }
+        return fold<opset1::Add>(
+            fold<opset1::Convert>(fq->input_value(0), element::f32),
+            fold<opset1::Convert>(fq->input_value(3), element::f32));
+    }
+
+    auto constant = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(0));
+
+    if (constant) {
+        const bool roundValues = roundValuesWasSet ? roundValuesArg : fq->output(0).get_element_type().is_integral();
+
+        Shape constShape = fq->get_output_shape(0);
+        if (constShape.empty() || constShape.size() > 5lu) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected dimensions count " << constShape.size();
+        }
+
+        // OIDHW
+        const size_t OC = constShape[0];
+        const size_t IC = constShape.size() > 1lu ? constShape[1] : 1;
+        const size_t D = constShape.size() > 4lu ? constShape[constShape.size() - 3] : 1;
+        const size_t H = constShape.size() > 2lu ? constShape.size() == 3lu ? constShape[2] : constShape[constShape.size() - 2] : 1;
+        const size_t W = constShape.size() > 3lu ? constShape[constShape.size() - 1] : 1;
+
+        const auto inputLowValues = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(1))->cast_vector<float>();
+        const auto inputHighValues = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(2))->cast_vector<float>();
+        const auto outputLowValues = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(3))->cast_vector<float>();
+        const auto outputHighValues = as_type_ptr<opset1::Constant>(fq->get_input_node_shared_ptr(4))->cast_vector<float>();
+
+        const size_t inputLowSize = inputLowValues.size();
+        const size_t inputHighSize = inputHighValues.size();
+        const size_t outputLowSize = outputLowValues.size();
+        const size_t outputHighSize = outputHighValues.size();
+
+        const bool isInputLowBroadcasted = inputLowSize != OC;
+        if ((inputLowSize != 1) && (inputLowSize != OC)) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected input low values count " << inputLowSize << " for " << OC << " channels";
+        }
+        const bool isInputHighBroadcasted = inputHighSize != OC;
+        if ((inputHighSize != 1) && (inputHighSize != OC)) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected input high values count " << inputHighSize << " for " << OC << " channels";
+        }
+        const bool isOutputLowBroadcasted = outputLowSize != OC;
+        if ((outputLowSize != 1) && (outputLowSize != OC)) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected output low values count " << outputLowSize << " for " << OC << " channels";
+        }
+        const bool isOutputHighBroadcasted = outputHighSize != OC;
+        if ((outputHighSize != 1) && (outputHighSize != OC)) {
+            THROW_IE_LPT_EXCEPTION(*fq) << "Unexpected output high values count " << outputHighSize << " for " << OC << " channels";
+        }
+
+        auto levels_1 = fq->get_levels() - 1.f;
+
+        //const size_t DHW = D * H * W;
+        const size_t IDHW = IC * D * H * W;
+
+        const auto values = constant->cast_vector<float>();
+        std::vector<float> quantizedValues(OC * IC * D * H * W);
+
+        for (size_t oc = 0; oc < OC; ++oc) {
+            for (size_t iidx = 0; iidx < IDHW; ++iidx) {
+                const float inputLow = inputLowValues[isInputLowBroadcasted ? 0 : oc];
+                const float inputHigh = inputHighValues[isInputHighBroadcasted ? 0 : oc];
+                const float outputLow = outputLowValues[isOutputLowBroadcasted ? 0 : oc];
+                const float outputHigh = outputHighValues[isOutputHighBroadcasted ? 0 : oc];
+
+                const size_t idx = oc * IDHW + iidx;
+
+                if (values[idx] <= inputLow) {
+                    quantizedValues[idx] = roundValues ? std::roundf(outputLow) : outputLow;
+                } else if (values[idx] > inputHigh) {
+                    quantizedValues[idx] = roundValues ? std::roundf(outputHigh) : outputHigh;
+                } else {
+                    const float value = std::roundf((values[idx] - inputLow) / (inputHigh - inputLow) * levels_1) /
+                        levels_1 * (outputHigh - outputLow) + outputLow;
+                    quantizedValues[idx] = roundValues ? std::roundf(value) : value;
                 }
             }
         }
-        if (l1_out_i == parent->outData.size()) {
-            if (child != nullptr)
-                THROW_IE_EXCEPTION << "Can't find layer " << child->name << " among layer " << parent->name << " outputs";
-            else
-                THROW_IE_EXCEPTION << "Layer '" << parent->name << "' has invalid output";
-        }
 
-        outData = parent->outData[l1_out_i];
-        precision = context.getOriginalLayerPrecision(parent->name, outData->getName());
-        IE_SUPPRESS_DEPRECATED_START
-        if (precision == Precision::UNSPECIFIED) {
-            if (child != nullptr)
-                precision = child->precision;
-            else if (context.network.getPrecision() != Precision::MIXED)
-                precision = context.network.getPrecision();
-            else
-                precision = Precision::FP32;
-        }
-        IE_SUPPRESS_DEPRECATED_END
-    } else {
-        // TODO: FIXME
-        precision = Precision::FP32;
-        outData = nullptr;
+        return std::make_shared<opset1::Constant>(fq->get_output_element_type(0), constShape, quantizedValues);
     }
-    addLayerToCNNNetworkAfterData(outData, newLayer, child != nullptr ? child->name : "", context.network);
 
-    CNNNetworkHelper::setOutDataPrecision(*newLayer, precision);
-    return newLayer;
+    return fq;
 }
 
-void CNNNetworkHelper::replaceLayer(TransformationContext& context, const CNNLayerPtr source, const CNNLayerPtr target) {
-    CNNNetworkImpl* networkImpl = dynamic_cast<CNNNetworkImpl*>(&context.network);
-    networkImpl->removeLayer(source->name);
-
-    std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(*source);
-    for (CNNLayerPtr parent : parents) {
-        for (size_t outDataIndex = 0ul; outDataIndex < parent->outData.size(); ++outDataIndex) {
-            const DataPtr outData = parent->outData[outDataIndex];
-            std::map<std::string, CNNLayerPtr>& inputTo = outData->getInputTo();
-            inputTo[source->name] = target;
-            target->insData.push_back(outData);
-        }
+std::shared_ptr<opset1::FakeQuantize> NetworkHelper::composeFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
+    std::shared_ptr<Node> parent = fakeQuantize;
+    auto targetInputs = parent->output(0).get_target_inputs();
+    if (targetInputs.size() != 1ul) {
+        return nullptr;
+    }
+    if (is_type<opset1::Convert>(targetInputs.begin()->get_node())) {
+        parent = targetInputs.begin()->get_node()->shared_from_this();
     }
 
-    const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*source);
-
-    target->outData.resize(source->outData.size());
-    for (size_t outDataIndex = 0ul; outDataIndex < source->outData.size(); ++outDataIndex) {
-        const DataPtr outData = source->outData[outDataIndex];
-        networkImpl->removeData(outData->getName());
-
-        DataPtr newOutData(new Data(outData->getName(), outData->getTensorDesc()));
-        newOutData->getCreatorLayer() = target;
-        target->outData[outDataIndex] = newOutData;
-        networkImpl->addData(newOutData->getName().c_str(), newOutData);
-
-        std::map<std::string, CNNLayerPtr> inputTo = outData->getInputTo();
-        for (const auto it : inputTo) {
-            const CNNLayerPtr child = it.second;
-            newOutData->getInputTo().emplace(it.first, child);
-
-            for (const CNNLayerPtr& child : children) {
-                for (size_t insDataIndex = 0ul; insDataIndex < child->insData.size(); ++insDataIndex) {
-                    const DataPtr insData = child->insData[insDataIndex].lock();
-                    if (insData == nullptr) {
-                        THROW_IE_LPT_EXCEPTION(*child) << "insert data " << insDataIndex << " is absent";
-                    }
-
-                    const CNNLayerPtr parent = insData->getCreatorLayer().lock();
-                    if (parent == nullptr) {
-                        THROW_IE_LPT_EXCEPTION(*child) << "parent layer for insert data " << insDataIndex << " is absent";
-                    }
-                    if (parent->name == source->name) {
-                        const auto it = target->outData[outDataIndex];
-                        child->insData[insDataIndex] = newOutData;
-                    }
-                }
-            }
-        }
-        outData->getInputTo().clear();
+    targetInputs = parent->output(0).get_target_inputs();
+    if (targetInputs.size() != 1ul) {
+        return nullptr;
+    }
+    if (is_type<opset1::Subtract>(targetInputs.begin()->get_node())) {
+        parent = targetInputs.begin()->get_node()->shared_from_this();
     }
 
-    IE_SUPPRESS_DEPRECATED_START
-    context.network.addLayer(target);
-    IE_SUPPRESS_DEPRECATED_END
+    targetInputs = parent->output(0).get_target_inputs();
+    if (targetInputs.size() != 1ul) {
+        return nullptr;
+    }
+    if (is_type<opset1::Multiply>(targetInputs.begin()->get_node())) {
+        parent = targetInputs.begin()->get_node()->shared_from_this();
+    }
+
+    const std::shared_ptr<Node> prev = parent;
+    parent = parent->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+
+    const size_t index = NetworkHelper::getChildInputIndex(prev, parent);
+    const FakeQuantizeDequantization dequantization = getDequantization(parent, index);
+    if (dequantization.empty()) {
+        return nullptr;
+    }
+
+    std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = fakeQuantize;
+
+    if (dequantization.convert != nullptr) {
+        const std::shared_ptr<opset1::FakeQuantize> replacement = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+            newFakeQuantize->input_value(0),
+            newFakeQuantize->input_value(1),
+            newFakeQuantize->input_value(2),
+            newFakeQuantize->input_value(3),
+            newFakeQuantize->input_value(4),
+            newFakeQuantize->get_levels(),
+            newFakeQuantize->get_auto_broadcast());
+        replace_node(dequantization.convert, replacement);
+        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, dequantization.convert->output(0).get_element_type());
+        newFakeQuantize = replacement;
+    }
+
+    if (dequantization.subtract != nullptr) {
+        const auto subtractValue = (dequantization.subtractConvert == nullptr) ?
+            dequantization.subtractConstant :
+            fold<opset1::Convert>(dequantization.subtractConstant, dequantization.subtractConvert->output(0).get_element_type());
+
+        const std::shared_ptr<opset1::FakeQuantize> replacement = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+            newFakeQuantize->input_value(0),
+            newFakeQuantize->input_value(1),
+            newFakeQuantize->input_value(2),
+            fold<opset1::Subtract>(newFakeQuantize->get_input_node_shared_ptr(3), subtractValue),
+            fold<opset1::Subtract>(newFakeQuantize->get_input_node_shared_ptr(4), subtractValue),
+            newFakeQuantize->get_levels(),
+            newFakeQuantize->get_auto_broadcast());
+        replace_node(dequantization.subtract, replacement);
+        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        newFakeQuantize = replacement;
+    }
+
+    if (dequantization.multiply != nullptr) {
+        const std::shared_ptr<opset1::FakeQuantize> replacement = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+            newFakeQuantize->input_value(0),
+            newFakeQuantize->input_value(1),
+            newFakeQuantize->input_value(2),
+            fold<opset1::Multiply>(newFakeQuantize->get_input_node_shared_ptr(3), dequantization.multiply->get_input_node_shared_ptr(1)),
+            fold<opset1::Multiply>(newFakeQuantize->get_input_node_shared_ptr(4), dequantization.multiply->get_input_node_shared_ptr(1)),
+            newFakeQuantize->get_levels(),
+            newFakeQuantize->get_auto_broadcast());
+        replace_node(dequantization.multiply, replacement);
+        replacement->set_friendly_name(newFakeQuantize->get_friendly_name());
+        newFakeQuantize = replacement;
+    }
+
+    return newFakeQuantize;
 }
 
-CNNLayerPtr CNNNetworkHelper::addScaleShiftBetween(TransformationContext& context, const CNNLayerPtr parent,
-                                                   const CNNLayerPtr child,
-                                                   const DequantizationDetails& dequantizationDetails,
-                                                   const std::string& name) {
-    if (parent == nullptr)
-        THROW_IE_EXCEPTION << "Parent layer is nullable";
+// Decompose FakeQuantize to FakeQuantize with output integer limits (quantize), dequatized MultiplyAdd
+// To align types the resulting sequence is FakeQuantize -> Convert -> Convert -> MultiplyAdd
+std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decomposeFakeQuantize(
+    std::shared_ptr<opset1::FakeQuantize> fq,
+    const element::Type precision,
+    const float min,
+    const float max,
+    const bool hasZeroPoint,
+    const bool updatePrecision) {
+    using std::make_shared;
 
-    if (child && (child->type == "ScaleShift") && (CNNNetworkHelper::getParents(*child).size() == 1)) {
-        auto scalesIt = child->blobs.find("weights");
-        if (scalesIt == child->blobs.end()) {
-            THROW_IE_EXCEPTION << "weights for layer " << child->name << " was not found";
-        }
-        const std::shared_ptr<float> scales = CNNNetworkHelper::getFloatData(scalesIt->second);
-        std::vector<float> updatedScales(scalesIt->second->size());
-        for (size_t i = 0ul; i < updatedScales.size(); ++i) {
-            updatedScales[i] = scales.get()[i] * dequantizationDetails.scales[i];
-        }
-        CNNNetworkHelper::updateBlobs(*child, "weights", updatedScales);
+    const auto outputLow = fq->input_value(3);
+    const auto outputHigh = fq->input_value(4);
 
-        auto shiftsIt = child->blobs.find("biases");
-        if (shiftsIt != child->blobs.end()) {
-            const std::shared_ptr<float> shifts = CNNNetworkHelper::getFloatData(shiftsIt->second);
-            std::vector<float> updatedShifts(shiftsIt->second->size());
-            for (size_t i = 0ul; i < updatedShifts.size(); ++i) {
-                updatedShifts[i] = scales.get()[i] * dequantizationDetails.shifts[i] + shifts.get()[i];
+    std::vector<float> outputLowValues = as_type_ptr<opset1::Constant>(outputLow.get_node_shared_ptr())->cast_vector<float>();
+    std::vector<float> outputHighValues = as_type_ptr<opset1::Constant>(outputHigh.get_node_shared_ptr())->cast_vector<float>();
+    size_t outputSize = outputLowValues.size();
+    std::vector<float> minValues(outputSize, min);
+    std::vector<float> maxValues(outputSize, max);
+    std::vector<float> shifts(outputSize, 0.f);
+    std::vector<float> scales(outputSize);
+
+    for (size_t i = 0; i < outputSize; ++i) {
+        if (outputHighValues[i] != outputLowValues[i]) {
+            shifts[i] = (min*outputHighValues[i] - max*outputLowValues[i]) / (outputHighValues[i] - outputLowValues[i]);
+            scales[i] = (outputHighValues[i] - outputLowValues[i]) / (max - min);
+            if (shifts[i] == -0.f) {
+                shifts[i] = 0.f;
             }
-            CNNNetworkHelper::updateBlobs(*child, "biases", updatedShifts);
-        }
-
-        return child;
-    }
-
-    // Searching the connection between the layers
-    int l1_out_i = 0;
-    if (child != nullptr) {
-        for (; l1_out_i < parent->outData.size(); l1_out_i++) {
-            if (parent->outData[l1_out_i]->getInputTo().find(child->name) !=
-                parent->outData[l1_out_i]->getInputTo().end()) {
-                break;
-            }
+        } else {
+            scales[i] = outputHighValues[i];
+            minValues[i] = 1.f;
+            maxValues[i] = 1.f;
         }
     }
-    if (l1_out_i == parent->outData.size()) {
-        if (child != nullptr)
-            THROW_IE_EXCEPTION << "Can't find layer " << child->name << " among layer " << parent->name << " outputs";
-        else
-            THROW_IE_EXCEPTION << "Layer '" << parent->name << "' has invalid output";
+
+    std::shared_ptr<Node> shift = hasZeroPoint ?
+        std::make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), shifts) :
+        nullptr;
+    std::shared_ptr<Node> scale = std::make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), scales);
+
+    auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), minValues);
+    auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), maxValues);
+
+    if (isScalarLike(newMin)) {
+        newMin = toScalar(newMin);
     }
-
-    DataPtr outData = parent->outData[l1_out_i];
-
-    std::string layerName = name.empty() ? (child != nullptr ? (parent->name + "_ScaleShift_" + child->name)
-                                                             : (parent->name + "_ScaleShift"))
-                                         : name;
-
-    Precision ssPrecision = context.getOriginalLayerPrecision(parent->name, outData->getName());
-    IE_SUPPRESS_DEPRECATED_START
-    if (ssPrecision == Precision::UNSPECIFIED) {
-        if (child != nullptr)
-            ssPrecision = child->precision;
-        else if (context.network.getPrecision() != Precision::MIXED)
-            ssPrecision = context.network.getPrecision();
-        else
-            ssPrecision = Precision::FP32;
+    if (isScalarLike(newMax)) {
+        newMax = toScalar(newMax);
     }
-    IE_SUPPRESS_DEPRECATED_END
-
-    LayerParams ssCnnLayerParams {layerName, "ScaleShift", ssPrecision};
-    CNNLayerPtr ssCnnLayer(new ScaleShiftLayer(ssCnnLayerParams));
-
-    const std::vector<size_t> dims = outData->getDims();
-    if ((dims.size() > 1) && (dims[1] != dequantizationDetails.channelsCount)) {
-        THROW_IE_EXCEPTION << "unexpected parent channels count " << dims[1];
-    }
-    addLayerToCNNNetworkAfterData(outData, ssCnnLayer, child != nullptr ? child->name : "", context.network);
 
     {
-        ScaleShiftLayer* scshLayer = dynamic_cast<ScaleShiftLayer*>(ssCnnLayer.get());
-        if (scshLayer == nullptr) {
-            THROW_IE_EXCEPTION << "Layer " << ssCnnLayer->name << " is not instance of ScaleShiftLayer class";
-        }
-        fillInScaleShift(scshLayer, dequantizationDetails.channelsCount, dequantizationDetails.scales.data(),
-                         dequantizationDetails.shifts.data());
-    }
+        static const float minQuantizationScale = 1e-32f;
+        static const float maxQuantizationScale = 1e32f;
 
-    CNNNetworkHelper::setOutDataPrecision(*ssCnnLayer, ssPrecision);
-    return ssCnnLayer;
-}
-
-CNNLayerPtr CNNNetworkHelper::addConstBetween(ICNNNetwork& net, const CNNLayerPtr layer1, const CNNLayerPtr layer2,
-                                              const Blob::Ptr customBlob, const std::string& name) {
-    if (layer1 == nullptr)
-        THROW_IE_EXCEPTION << "First layer is nullable";
-    // Searching the connection between the layers
-    int l1_out_i = 0;
-    if (layer2 != nullptr) {
-        for (; l1_out_i < layer1->outData.size(); l1_out_i++) {
-            if (layer1->outData[l1_out_i]->getInputTo().find(layer2->name) !=
-                layer1->outData[l1_out_i]->getInputTo().end()) {
-                break;
+        auto scaleValues = scales;
+        bool wasChanged = false;
+        for (size_t i = 0; i < scaleValues.size(); ++i) {
+            const float scale = scaleValues[i];
+            if (fabs(scale) < minQuantizationScale) {
+                scaleValues[i] = minQuantizationScale;
+                wasChanged = true;
+            } else if (fabs(scale) > maxQuantizationScale) {
+                scaleValues[i] = scale > 0.f ? maxQuantizationScale : -maxQuantizationScale;
+                wasChanged = true;
             }
         }
-    }
 
-    if (l1_out_i == layer1->outData.size()) {
-        if (layer2 != nullptr)
-            THROW_IE_EXCEPTION << "Can't find layer " << layer2->name << " among layer " << layer1->name << " outputs";
-        else
-            THROW_IE_EXCEPTION << "Layer " << layer1->name << " has invalid outputs";
-    }
-
-    DataPtr outData = layer1->outData[l1_out_i];
-
-    std::string layerName = name.empty() ? layer1->name + "_Const" : name;
-    CNNLayerPtr layer(new CNNLayer({layerName, "Const", customBlob->getTensorDesc().getPrecision()}));
-
-    addLayerToCNNNetworkAfterData(outData, layer, layer2 != nullptr ? layer2->name : "", net);
-    layer->blobs.emplace("custom", customBlob);
-    layer->outData[0]->setPrecision(customBlob->getTensorDesc().getPrecision());
-    return layer;
-}
-
-void CNNNetworkHelper::addLayerToCNNNetworkAfterData(
-    DataPtr parentOutData,
-    CNNLayer::Ptr layer,
-    const std::string& nextLayerName,
-    ICNNNetwork& net) {
-    CNNNetworkImpl* netImpl = dynamic_cast<CNNNetworkImpl*>(&net);
-    if (netImpl == nullptr) {
-        THROW_IE_EXCEPTION << "unexpected network type";
-    }
-
-    CNNLayerPtr nextLayer;
-    if (!nextLayerName.empty()) {
-        netImpl->getLayerByName(nextLayerName.c_str(), nextLayer, nullptr);
-    }
-
-    if (layer && (nextLayerName.empty() || (parentOutData == nullptr) ||
-                  (parentOutData->getInputTo().find(nextLayerName) != parentOutData->getInputTo().end()))) {
-        auto getTensorDesc = [](CNNLayerPtr& nextLayer) {
-            const DataPtr insData = nextLayer->insData[0].lock();
-            if (insData == nullptr) {
-                THROW_IE_LPT_EXCEPTION(*nextLayer) << "insert data is absent";
-            }
-            return insData->getTensorDesc();
-        };
-
-        const TensorDesc& parentTensorDesc = parentOutData != nullptr ? parentOutData->getTensorDesc() : getTensorDesc(nextLayer);
-        DataPtr newEdgeAfterLayer(new Data(layer->name, parentTensorDesc));
-        newEdgeAfterLayer->setName(layer->name);
-        newEdgeAfterLayer->getCreatorLayer() = layer;
-        newEdgeAfterLayer->getInputTo().clear();
-
-        CNNNetworkImpl* netImpl = dynamic_cast<CNNNetworkImpl*>(&net);
-        if (netImpl == nullptr) {
-            THROW_IE_EXCEPTION << "unexpected network type";
+        if (wasChanged) {
+            scale = std::make_shared<opset1::Constant>(scale->output(0).get_element_type(), scale->output(0).get_shape(), scaleValues);
         }
-        netImpl->addData(layer->name.c_str(), newEdgeAfterLayer);
-        IE_SUPPRESS_DEPRECATED_START
-        netImpl->addLayer(layer);
-        IE_SUPPRESS_DEPRECATED_END
+    }
 
-        if (parentOutData != nullptr) {
-            parentOutData->getInputTo()[layer->name] = layer;
-            layer->insData.push_back(parentOutData);
-        }
-        layer->outData.push_back(newEdgeAfterLayer);
+    if ((shift != nullptr) && isZero(as_type_ptr<opset1::Constant>(shift))) {
+        shift = nullptr;
+    }
 
-        if (!nextLayerName.empty()) {
-            // CNNLayerPtr nextLayer = parentOutData->getInputTo()[nextLayerName];
-            newEdgeAfterLayer->getInputTo()[nextLayerName] = nextLayer;
-            if (parentOutData != nullptr) {
-                parentOutData->getInputTo().erase(nextLayerName);
-                for (size_t i = 0; i < nextLayer->insData.size(); i++) {
-                    if (nextLayer->insData[i].lock() == parentOutData) {
-                        nextLayer->insData[i] = newEdgeAfterLayer;
-                    }
-                }
-            } else {
-                // TODO: why new?
-                nextLayer->insData.push_back(newEdgeAfterLayer);
-            }
+    // Build a substitution sub-graph:
+
+    std::shared_ptr<ngraph::Node> newFQ = fold_fake_quantize(
+        std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(
+            fq->input_value(0),
+            fq->input_value(1),
+            fq->input_value(2),
+            newMin->output(0),
+            newMax->output(0),
+            fq->get_levels(),
+            fq->get_auto_broadcast()),
+        true);
+    NetworkHelper::copyInfo(fq, newFQ);
+
+    std::shared_ptr<ngraph::Node> convert2;
+    if (updatePrecision) {
+        std::shared_ptr<Node> convert;
+        std::shared_ptr<opset1::Constant> newFqConstant = as_type_ptr<opset1::Constant>(newFQ);
+
+        if (is_type<opset1::Constant>(newFQ)) {
+            convert = fold<opset1::Convert>(newFQ, precision);
+        } else if (is_type<opset1::FakeQuantize>(newFQ)) {
+            newFQ = setOutDataPrecision(as_type_ptr<opset1::FakeQuantize>(newFQ), precision);
+            convert = newFQ;
         } else {
-            CNNLayerPtr parent = parentOutData->getCreatorLayer().lock();
-            if (parent == nullptr) {
-                THROW_IE_EXCEPTION << "parent data is absent";
-            }
-            netImpl->removeOutput(parent->name);
-            netImpl->addData(layer->name.c_str(), newEdgeAfterLayer);
-            netImpl->addOutput(layer->name);
+            THROW_IE_LPT_EXCEPTION(*newFQ) << "unexpected operation type";
         }
+
+        convert2 = std::make_shared<DequantizationConvert>(convert, element::f32);
+        convert2->set_friendly_name(convert->get_friendly_name() + "/DequantizationConvert");
+        ngraph::copy_runtime_info({ newFQ, convert2 }, convert2);
     } else {
-        THROW_IE_EXCEPTION << "Invalid argument";
+        if (newFQ->get_output_element_type(0) != element::f32) {
+            convert2 = std::make_shared<DequantizationConvert>(newFQ, element::f32);
+            convert2->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationConvert");
+            ngraph::copy_runtime_info({ newFQ, convert2 }, convert2);
+        }
     }
+
+    // TODO: why type relaxed?
+    const std::shared_ptr<ngraph::Node> sub = shift == nullptr ?
+        nullptr :
+        std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(convert2 == nullptr ? newFQ : convert2, shift);
+    if (sub != nullptr) {
+        sub->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationSubtract");
+        ngraph::copy_runtime_info({ newFQ, sub }, sub);
+    }
+
+    const std::shared_ptr<ngraph::opset1::Multiply> dequantize = std::make_shared<DequantizationMultiply>(
+        sub == nullptr ? (convert2 == nullptr ? newFQ : convert2) : sub,
+        scale);
+    dequantize->set_friendly_name(newFQ->get_friendly_name() + "/DequantizationMultiply");
+    ngraph::copy_runtime_info({ newFQ, dequantize }, dequantize);
+
+    replace_node(fq, dequantize);
+
+    return std::make_tuple(newFQ, dequantize);
 }
 
-void CNNNetworkHelper::fillInScaleShift(ScaleShiftLayer* layer, const size_t channels, const float* scales,
-                                        const float* shifts) {
-    if (layer == nullptr) {
-        THROW_IE_EXCEPTION << "ScaleShiftLayer is nullable";
-    }
+std::shared_ptr<opset1::FakeQuantize> NetworkHelper::updateFakeQuantize(
+    std::shared_ptr<opset1::FakeQuantize> fq,
+    element::Type precision,
+    float min,
+    float max) {
+    auto newMin = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
+    auto newMax = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
 
-    layer->_weights = makeNewBlobPtr({layer->precision, {channels}, Layout::C});
-    layer->_weights->allocate();
-    fillBlobByFP32(layer->_weights, scales);
-    layer->blobs["weights"] = layer->_weights;
+    std::shared_ptr<opset1::FakeQuantize> newFQ = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
+            fq->input_value(0),
+            fq->input_value(1),
+            fq->input_value(2),
+            newMin->output(0),
+            newMax->output(0),
+            fq->get_levels(),
+            fq->get_auto_broadcast());
 
-    layer->_biases = makeNewBlobPtr({layer->precision, {channels}, Layout::C});
-    layer->_biases->allocate();
-    fillBlobByFP32(layer->_biases, shifts);
-    layer->blobs["biases"] = layer->_biases;
+    NetworkHelper::setOutDataPrecision(newFQ, precision);
+    replace_node(fq, newFQ);
+
+    newFQ->set_friendly_name(fq->get_friendly_name());
+    return newFQ;
 }
 
-std::vector<CNNLayerPtr> CNNNetworkHelper::getChildren(const CNNLayer& layer, const std::string& exceptionLayerName) {
-    std::vector<CNNLayerPtr> children;
-    for (const DataPtr outData : layer.outData) {
-        const std::map<std::string, CNNLayerPtr>& inputTo = outData->getInputTo();
-        for (auto it = inputTo.begin(); it != inputTo.end(); ++it) {
-            CNNLayerPtr child = it->second;
-            if (exceptionLayerName.empty() || child->name != exceptionLayerName) {
-                children.push_back(child);
-            }
-        }
+FakeQuantizeDequantization NetworkHelper::makeDequantization(
+    const float dequantizationMul,
+    const float dequantizationSub,
+    const ngraph::element::Type originalPrecision,
+    const ngraph::Shape dataNodeOutputShape,
+    element::Type precision,
+    float min,
+    float max) {
+    // TODO: we create input here! we really need it here?
+    const std::shared_ptr<opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(precision, dataNodeOutputShape);
+    std::shared_ptr<ngraph::Node> parent = input;
+
+    std::shared_ptr<DequantizationConvert> convert;
+    if (precision == originalPrecision) {
+        convert = nullptr;
+    } else {
+        convert = std::make_shared<DequantizationConvert>(
+            input,
+            originalPrecision);
+        parent = convert;
     }
-    return children;
+
+    std::shared_ptr<DequantizationSubtract> subtract;
+    std::shared_ptr<opset1::Constant> subtractConstant;
+    if (std::abs(dequantizationSub) > 1e-6) {
+        subtractConstant = std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationSub }));
+        subtract = std::make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(parent, subtractConstant);
+        subtract->set_output_type(0, originalPrecision, subtract->get_output_partial_shape(0));
+        parent = subtract;
+    }
+
+    // mandatory
+    std::shared_ptr<opset1::Constant> multiplyConstant = std::make_shared<ngraph::opset1::Constant>(
+        originalPrecision,
+        ngraph::Shape({}),
+        std::vector<float>({ dequantizationMul }));
+    std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(parent, multiplyConstant);
+
+    return FakeQuantizeDequantization(input, convert, subtract, nullptr, subtractConstant, multiply, multiplyConstant);
 }
 
-std::vector<CNNLayerPtr> CNNNetworkHelper::getChildrenRecursivelyExceptTypes(
-    const CNNLayer& layer, const std::unordered_set<std::string>& exceptionLayerTypes) {
-    std::vector<CNNLayerPtr> children;
-    for (const DataPtr outData : layer.outData) {
-        const std::map<std::string, CNNLayerPtr>& inputTo = outData->getInputTo();
-        for (auto it = inputTo.begin(); it != inputTo.end(); ++it) {
-            CNNLayerPtr child = it->second;
-            if (exceptionLayerTypes.find(child->type) != exceptionLayerTypes.end()) {
-                const std::vector<CNNLayerPtr> tmpChildren =
-                    getChildrenRecursivelyExceptTypes(*child, exceptionLayerTypes);
-                children.insert(children.end(), tmpChildren.begin(), tmpChildren.end());
-                continue;
-            }
+FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
+    std::shared_ptr<opset1::FakeQuantize> fq,
+    element::Type precision,
+    float min,
+    float max,
+    const bool hasZeroPoint,
+    const bool updatePrecision) {
+    using std::make_shared;
 
-            children.push_back(child);
-        }
-    }
-    return children;
-}
+    const ngraph::element::Type_t fqPrecision = fq->get_output_element_type(0);
+    auto newMin = make_shared<opset1::Constant>(fqPrecision, Shape{}, min);
+    auto newMax = make_shared<opset1::Constant>(fqPrecision, Shape{}, max);
 
-void CNNNetworkHelper::checkConstWithBlobs(const CNNLayerPtr layer) {
-    if (layer->type != "Const") {
-        THROW_IE_EXCEPTION << "Unexpected layer type '" << layer->name << "'";
-    }
-    if (layer->blobs.size() != 1) {
-        THROW_IE_EXCEPTION << "Unexpected blobs count " << layer->blobs.size() << " for layer '" << layer->name << "'";
-    }
-    if (layer->insData.size() != 0) {
-        THROW_IE_EXCEPTION << "Unexpected inputs count " << layer->insData.size() << " for layer '" << layer->name
-                           << "'";
-    }
-    if (layer->outData.size() != 1) {
-        THROW_IE_EXCEPTION << "Unexpected outputs count " << layer->outData.size() << " for layer '" << layer->name
-                           << "'";
-    }
-}
+    auto outputLow = fq->input_value(3);
+    auto outputHigh = fq->input_value(4);
 
-void CNNNetworkHelper::checkQuantizeOnWeights(const CNNLayerPtr layer) {
-    if (layer->type != "FakeQuantize") {
-        THROW_IE_EXCEPTION << "Unexpected layer type '" << layer->name << "'";
-    }
-    if (layer->blobs.size() != 0) {
-        THROW_IE_EXCEPTION << "Unexpected blobs count " << layer->blobs.size() << " for layer '" << layer->name << "'";
-    }
-    if (layer->insData.size() != 5) {
-        THROW_IE_EXCEPTION << "Unexpected inputs count " << layer->insData.size() << " for layer '" << layer->name
-                           << "'";
-    }
-    if (layer->outData.size() != 1) {
-        THROW_IE_EXCEPTION << "Unexpected outputs count " << layer->outData.size() << " for layer '" << layer->name
-                           << "'";
-    }
-}
+    // TODO: threshold values have to used here to avoid shifts
 
-void CNNNetworkHelper::updateInput(CNNNetworkImpl* network, CNNLayerPtr& layer, DataPtr outData) {
-    if (!CaselessEq<std::string>()(layer->type, "Input")) {
-        return;
+    const std::shared_ptr<opset1::Constant> scale = as_type_ptr<opset1::Constant>(fold<opset1::Divide>(
+        fold<opset1::Subtract>(outputHigh, outputLow),
+        fold<opset1::Subtract>(newMax, newMin)));
+    assert(scale != nullptr);
+
+    std::shared_ptr<opset1::Constant> shift;
+    if (hasZeroPoint) {
+        shift = as_type_ptr<opset1::Constant>(fold<opset1::Divide>(
+            fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
+            fold<opset1::Subtract>(outputHigh, outputLow)));
+        assert(shift != nullptr);
     }
 
-    InputInfo::Ptr inputInfo = network->getInput(layer->name);
-    if (inputInfo->name() == layer->name) {
-        inputInfo->setInputData(outData);
-    }
-}
-
-size_t CNNNetworkHelper::disconnectLayers(CNNNetworkImpl* network, const CNNLayerPtr& parentLayer,
-                                          const CNNLayerPtr& childLayer) {
-    bool wasFound = false;
-    for (auto dataIt = parentLayer->outData.begin(); dataIt != parentLayer->outData.end(); ++dataIt) {
-        auto data = *dataIt;
-        for (auto inputIt = data->getInputTo().begin(); inputIt != data->getInputTo().end(); ++inputIt) {
-            auto currentChildLayer = inputIt->second;
-            if (currentChildLayer == nullptr) {
-                THROW_IE_EXCEPTION << "Output layer for '" << parentLayer->name << "'is absent";
-            }
-            if (currentChildLayer->name == childLayer->name) {
-                const DataPtr dataToRemove = network->getData(data->getName().c_str());
-                if (!dataToRemove) {
-                    THROW_IE_EXCEPTION << "there is not data to remove";
-                }
-
-                data->getInputTo().erase(inputIt);
-                wasFound = true;
-                break;
-            }
-        }
-
-        if (wasFound) {
-            break;
-        }
-    }
-    if (!wasFound) {
-        THROW_IE_EXCEPTION << "Output layer '" << childLayer->name << "' was not found for '" << parentLayer->name
-                           << "'";
-    }
-
-    wasFound = false;
-    for (auto it = childLayer->insData.begin(); it != childLayer->insData.end(); ++it) {
-        auto data = it->lock();
-        if (data == nullptr) {
-            THROW_IE_EXCEPTION << "Input layer data for '" << childLayer->name << "'is absent";
-        }
-        auto currentParentLayer = data->getCreatorLayer().lock();
-        if (currentParentLayer == nullptr) {
-            THROW_IE_EXCEPTION << "Input layer for '" << childLayer->name << "'is absent";
-        }
-        if (currentParentLayer->name == parentLayer->name) {
-            childLayer->insData.erase(it);
-            wasFound = true;
-            break;
-        }
-    }
-    if (!wasFound) {
-        THROW_IE_EXCEPTION << "Input layer '" << parentLayer->name << "' was not found for '" << childLayer->name
-                           << "'";
-    }
-    return 0;
-}
-
-size_t CNNNetworkHelper::getInputIndex(const CNNLayerPtr& childLayer, const CNNLayerPtr& parentLayer) {
-    for (size_t index = 0; index < childLayer->insData.size(); ++index) {
-        DataPtr currentParenData = childLayer->insData[index].lock();
-        if (currentParenData == nullptr) {
-            THROW_IE_EXCEPTION << "parent layer data is absent";
-        }
-        CNNLayerPtr currentParrentLayer = currentParenData->getCreatorLayer().lock();
-        if (currentParrentLayer == nullptr) {
-            THROW_IE_EXCEPTION << "parent layer is absent";
-        }
-        if (currentParrentLayer->name == parentLayer->name) {
-            return index;
-        }
-    }
-
-    THROW_IE_EXCEPTION << "parent layer was not found";
-}
-
-void CNNNetworkHelper::removeLayer(ICNNNetwork& network, const CNNLayerPtr& layer) {
-    details::CNNNetworkImpl* networkImpl = dynamic_cast<details::CNNNetworkImpl*>(&network);
-    if (networkImpl == nullptr) {
-        THROW_IE_EXCEPTION << "Unexpected network type";
-    }
-
-    if (layer->outData.size() > 1) {
-        THROW_IE_EXCEPTION << "Layer '" << layer->name << "' has too many outputs " << layer->outData.size();
-    }
-
-    if (layer->insData.size() > 1) {
-        do {
-            DataPtr data = layer->insData[0].lock();
-            if (data == nullptr) {
-                THROW_IE_EXCEPTION << "Layer's inserted data is nullptr";
-            }
-            CNNLayerPtr parentLayer = data->getCreatorLayer().lock();
-            if (parentLayer == nullptr) {
-                THROW_IE_EXCEPTION << "Layer's parent layer is nullptr";
-            }
-            CNNNetworkHelper::removeLayer(network, parentLayer);
-        } while (!layer->insData.empty());
-    }
-
-    DataPtr childData;
-    std::vector<CNNLayerPtr> children;
-    std::vector<size_t> childrenIndexes;
-    if (layer->outData.size() > 0) {
-        childData = layer->outData[0];
-        auto inputTo = childData->getInputTo();
-        if (inputTo.size() == 0) {
-            std::vector<CNNLayerPtr> parents = getParents(*layer);
-            if (parents.size() != 1) {
-                THROW_IE_EXCEPTION << "not possible remove output layer with several parents";
-            }
-            networkImpl->addOutput(parents[0]->name);
-            CNNNetworkImpl* networkImpl = dynamic_cast<CNNNetworkImpl*>(&network);
-            networkImpl->removeOutput(layer->name);
-        } else {
-            for (auto it = inputTo.begin(); it != inputTo.end(); ++it) {
-                children.push_back(it->second);
-                childrenIndexes.push_back(getInputIndex(it->second, layer));
-                disconnectLayers(networkImpl, layer, it->second);
+    if (shift != nullptr) {
+        std::shared_ptr<opset1::Constant> shiftConst = as_type_ptr<opset1::Constant>(shift);
+        if (isScalarLike(shiftConst)) {
+            auto scalar = toScalar(shiftConst);
+            if (op::util::constantIsEqualTo(scalar, 0)) {
+                shift = nullptr;
             }
         }
     }
 
-    if (layer->insData.size() > 1) {
-        // TODO: implement
-        THROW_IE_EXCEPTION << "not implemented";
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(
+        updatePrecision ? precision : fq->get_output_element_type(0),
+        fq->get_output_shape(0));
+    std::shared_ptr<ngraph::Node> parent = input;
+
+    std::shared_ptr<ngraph::opset1::Convert> convert;
+    if (updatePrecision) {
+        convert = std::make_shared<DequantizationConvert>(parent, fq->get_output_element_type(0));
+        parent = convert;
+    } else {
+        convert = nullptr;
     }
 
-    DataPtr parentData;
-    CNNLayerPtr parentLayer;
-    if (layer->insData.size() > 0) {
-        // remove connections with parent layers
-        parentData = layer->insData[0].lock();
-        if (parentData == nullptr) {
-            THROW_IE_EXCEPTION << "Input data is absent";
-        }
-        parentLayer = parentData->getCreatorLayer().lock();
-        if (parentLayer == nullptr) {
-            THROW_IE_EXCEPTION << "Input layer for '" << layer->name << "' is absent";
-        }
-
-        const size_t ouputLayerOutDataIndex = disconnectLayers(networkImpl, parentLayer, layer);
-        if (ouputLayerOutDataIndex >= parentLayer->outData.size()) {
-            THROW_IE_EXCEPTION << "Index " << ouputLayerOutDataIndex << " out of range output ports count "
-                               << parentLayer->outData.size() << " for layer " << parentLayer->name;
-        }
-
-        for (size_t index = 0; index < children.size(); ++index) {
-            CNNLayerPtr childLayer = children[index];
-            const size_t childInputIndex = childrenIndexes[index];
-
-            DataPtr outData = parentLayer->outData[ouputLayerOutDataIndex];
-            outData->getInputTo().emplace(childLayer->name, childLayer);
-            childLayer->insData.insert(childLayer->insData.begin() + childInputIndex, outData);
-
-            updateInput(networkImpl, parentLayer, outData);
-        }
+    std::shared_ptr<ngraph::opset1::Subtract> subtract;
+    if (shift != nullptr) {
+        subtract = make_shared<ngraph::op::TypeRelaxed<DequantizationSubtract>>(parent, shift);
+        subtract->set_output_type(0, fq->get_output_element_type(0), subtract->get_output_partial_shape(0));
+        parent = subtract;
+    } else {
+        subtract = nullptr;
     }
+    const std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(parent, scale);
 
-    networkImpl->removeData(layer->name);
-    networkImpl->removeLayer(layer->name);
+    return FakeQuantizeDequantization(fq, convert, subtract, nullptr, shift, multiply, scale);
 }
 
-bool CNNNetworkHelper::isWeightsSupported(const CNNLayer& layer) noexcept {
-    if (layer.insData.size() > 1) {
-        CNNLayerPtr weightsLayer = CNNNetworkHelper::getParent(layer, 1);
-        if (weightsLayer == nullptr)
-            return false;
-        if ((weightsLayer->type == "Const") || (weightsLayer->type == "FakeQuantize")) {
-            return true;
-        }
-
-        if (weightsLayer->type == "ScaleShift") {
-            const std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(*weightsLayer);
-            if (parents.size() != 1ul) {
-                return false;
-            }
-
-            return (parents[0]->type == "FakeQuantize") || (parents[0]->type == "Const");
-        }
-
+bool NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node) {
+    if (!is_type<opset1::Subtract>(node)) {
         return false;
-    } else {
-        return layer.blobs.find("weights") != layer.blobs.end();
     }
+
+    const auto targetInputs = node->output(0).get_target_inputs();
+    if (targetInputs.size() != 1ul) {
+        return false;
+    }
+
+    const auto multiply = targetInputs.begin()->get_node()->shared_from_this();
+    return areQuantizeAndDequantizeSupportedForMultiply(multiply);
 }
 
-Blob::Ptr CNNNetworkHelper::getWeights(
-        const CNNLayer& layer,
-        const bool roundQuantizedValues) {
-    if (layer.insData.size() > 1) {
-        CNNLayerPtr weightsLayer = CNNNetworkHelper::getParent(layer, 1);
-        if (weightsLayer == nullptr) {
-            THROW_IE_EXCEPTION << "Convolution weights const layer are absent";
+bool NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(const std::shared_ptr<const ngraph::Node>& node) {
+    if (!is_type<opset1::Multiply>(node)) {
+        return false;
+    }
+
+    const std::shared_ptr<ngraph::Node> multiply = const_cast<ngraph::Node*>(node.get())->shared_from_this();
+    const auto dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(multiply, 0, true);
+    if (dequantization.empty()) {
+        return false;
+    }
+
+    const auto dataNode = dequantization.data.get_node();
+    if (is_type<opset1::Convert>(dataNode)) {
+        const auto quantize = as_type_ptr<opset1::FakeQuantize>(dataNode->get_input_node_shared_ptr(0));
+        if (quantize == nullptr) {
+            return false;
         }
 
-        if (weightsLayer->type == "Const") {
-            CNNNetworkHelper::checkConstWithBlobs(weightsLayer);
-            return weightsLayer->blobs.find("custom")->second;
-        } else if (weightsLayer->type == "FakeQuantize") {
-            return CNNNetworkHelper::quantizeWeights(*weightsLayer, roundQuantizedValues, Precision::UNSPECIFIED);
-        } else if (weightsLayer->type == "ScaleShift") {
-            const CNNLayerPtr parent = CNNNetworkHelper::getParent(*weightsLayer);
-            if (parent == nullptr)
-                THROW_IE_EXCEPTION << "Layer '" << weightsLayer->name << "' does not have parent";
-            if (parent->type == "FakeQuantize") {
-                return CNNNetworkHelper::quantizeWeights(*parent, roundQuantizedValues, Precision::UNSPECIFIED);
-            } else if (parent->type == "Const") {
-                CNNNetworkHelper::checkConstWithBlobs(parent);
-                return CNNNetworkHelper::getBlob(parent, "custom");
-            } else {
-                THROW_IE_EXCEPTION << "Unexpected weights layer " << parent->type << " " << parent->name << " for " << layer.type << " " << layer.name;
-            }
+        return NetworkHelper::isQuantizeSupported(quantize);
+    } else if (is_type<opset1::Constant>(dataNode)) {
+        return true;
+    }
+
+    return false;
+}
+
+bool NetworkHelper::isQuantizeSupported(const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) {
+    return QuantizationDetails::outputLayoutIsSupported(fakeQuantize) && QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels());
+}
+
+FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_ptr<Node>& node, const size_t parentIndex, const bool inPlace) {
+    auto getDataIndex = [](const std::shared_ptr<ngraph::Node>& node) {
+        if (is_type<opset1::Constant>(node->get_input_node_ptr(1))) {
+            return 0ul;
+        }
+
+        if (is_type<opset1::Convert>(node->get_input_node_ptr(1)) && is_type<opset1::Constant>(node->get_input_node_ptr(1)->get_input_node_ptr(0))) {
+            return 0ul;
+        }
+
+        if (is_type<opset1::Convert>(node->get_input_node_ptr(0)) && is_type<opset1::Constant>(node->get_input_node_ptr(0)->get_input_node_ptr(0))) {
+            return 1ul;
+        }
+
+        return 1ul;
+    };
+
+    Output<Node> dataNode = inPlace ? node : node->input_value(parentIndex);
+
+    const std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr());
+    std::shared_ptr<opset1::Constant> multiplyConstant;
+    if (multiply != nullptr) {
+        if (!FakeQuantizeDequantization::checkShape(multiply)) {
+            return FakeQuantizeDequantization();
+        }
+
+        FakeQuantizeDequantization::fillDequantizationParams(multiply, multiplyConstant);
+        if (multiplyConstant == nullptr) {
+            return FakeQuantizeDequantization();
+        }
+        dataNode = multiply->get_input_source_output(getDataIndex(multiply));
+    }
+
+    const std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<ngraph::opset1::Subtract>(dataNode.get_node_shared_ptr());
+    std::shared_ptr<opset1::Convert> subtractConvert;
+    std::shared_ptr<opset1::Constant> subtractConstant;
+    if (subtract != nullptr) {
+        if (!FakeQuantizeDequantization::checkShape(subtract)) {
+            return FakeQuantizeDequantization(dataNode, nullptr, nullptr, nullptr, nullptr, multiply, multiplyConstant);
+        }
+
+        FakeQuantizeDequantization::fillDequantizationParams(subtract, subtractConvert, subtractConstant);
+        if (subtractConstant == nullptr) {
+            return FakeQuantizeDequantization(dataNode, nullptr, nullptr, nullptr, nullptr, multiply, multiplyConstant);
+        }
+        dataNode = subtract->get_input_source_output(getDataIndex(subtract));
+    }
+
+    const std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(dataNode.get_node_shared_ptr());
+    if (convert != nullptr) {
+        if ((convert->input(0).get_element_type() != element::i8) && (convert->input(0).get_element_type() != element::u8) &&
+            (convert->output(0).get_element_type() != element::f32)) {
+            return FakeQuantizeDequantization(dataNode, nullptr, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
+        }
+        dataNode = convert->get_input_source_output(0);
+    }
+
+    return FakeQuantizeDequantization(dataNode, convert, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
+}
+
+FakeQuantizeDequantization NetworkHelper::getDequantizationBelow(const std::shared_ptr<Node>& node) {
+    const Output<Node> dataNode = node->output(0);
+    std::shared_ptr<Node> lastNode = dataNode.get_target_inputs().begin()->get_node()->shared_from_this();
+
+    const std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(lastNode);
+    if (convert != nullptr) {
+        if ((convert->input(0).get_element_type() != element::i8) && (convert->input(0).get_element_type() != element::u8) &&
+            (convert->output(0).get_element_type() != element::f32)) {
+            return FakeQuantizeDequantization();
+        }
+
+        const auto& inputs = lastNode->output(0).get_target_inputs();
+        if (inputs.size() != 1ul) {
+            return FakeQuantizeDequantization();
+        }
+        lastNode = inputs.begin()->get_node()->shared_from_this();
+    }
+
+    const std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<ngraph::opset1::Subtract>(lastNode);
+    std::shared_ptr<opset1::Convert> subtractConvert;
+    std::shared_ptr<opset1::Constant> subtractConstant;
+    if (subtract != nullptr) {
+        FakeQuantizeDequantization::fillDequantizationParams(subtract, subtractConvert, subtractConstant);
+        if (subtractConstant == nullptr) {
+            return FakeQuantizeDequantization();
+        }
+
+        const auto& inputs = lastNode->output(0).get_target_inputs();
+        if (inputs.size() != 1ul) {
+            return FakeQuantizeDequantization();
+        }
+        lastNode = inputs.begin()->get_node()->shared_from_this();
+    }
+
+    const std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(lastNode);
+    std::shared_ptr<opset1::Constant> multiplyConstant;
+    if (multiply != nullptr) {
+        FakeQuantizeDequantization::fillDequantizationParams(multiply, multiplyConstant);
+        if (multiplyConstant == nullptr) {
+            return FakeQuantizeDequantization();
+        }
+    }
+
+    return FakeQuantizeDequantization(dataNode, convert, subtract, subtractConvert, subtractConstant, multiply, multiplyConstant);
+}
+
+FakeQuantizeDequantization NetworkHelper::normalizeDequantization(FakeQuantizeDequantization dequantization) {
+    if (dequantization.empty()) {
+        return dequantization;
+    }
+    if (dequantization.multiply != nullptr && as_type_ptr<ngraph::opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0))) {
+        std::shared_ptr<Node> leftParent = dequantization.multiply->get_input_node_shared_ptr(0);
+        std::shared_ptr<Node> rightParent = dequantization.multiply->get_input_node_shared_ptr(1);
+        std::shared_ptr<opset1::Multiply> normalized_multiply = as_type_ptr<opset1::Multiply>(
+                dequantization.multiply->clone_with_new_inputs({rightParent, leftParent}));
+        replace_node(dequantization.multiply, normalized_multiply);
+        dequantization.multiply = normalized_multiply;
+    }
+    if (dequantization.subtract != nullptr && as_type_ptr<ngraph::opset1::Constant>(dequantization.subtract->get_input_node_shared_ptr(0))) {
+        std::shared_ptr<Node> leftParent = dequantization.subtract->get_input_node_shared_ptr(0);
+        std::shared_ptr<Node> rightParent = dequantization.subtract->get_input_node_shared_ptr(1);
+        std::shared_ptr<opset1::Subtract> normalized_subtract = as_type_ptr<opset1::Subtract>(
+                dequantization.subtract->clone_with_new_inputs({rightParent, leftParent}));
+        replace_node(dequantization.subtract, normalized_subtract);
+        dequantization.subtract = normalized_subtract;
+    }
+    return dequantization;
+}
+
+FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuantizeDequantization& dequantization) {
+    std::shared_ptr<Node> parent = dequantization.convert ? dequantization.convert : dequantization.data.get_node_shared_ptr();
+
+    std::shared_ptr<Node> multiply1Const = dequantization.multiply ?
+        dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) :
+        std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 1.f }));
+
+    std::shared_ptr<Node> subtract1Const = dequantization.subtract ?
+        (dequantization.subtractConvert == nullptr ?
+            dequantization.subtractConstant->clone_with_new_inputs({}) :
+            fold<opset1::Convert>(dequantization.subtractConstant, dequantization.subtractConvert->get_element_type())) :
+        std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 0.f }));
+
+    subtract1Const->set_output_type(0, multiply1Const->get_output_element_type(0), subtract1Const->get_output_partial_shape(0));
+
+    return FakeQuantizeDequantizationValues(subtract1Const, multiply1Const);
+}
+
+bool NetworkHelper::isZeroConst(const std::shared_ptr<Node>& node) {
+    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(node);
+
+    if (constant == nullptr)
+        return false;
+
+    if (NetworkHelper::isScalarLike(constant)) {
+        auto scalar = NetworkHelper::toScalar(constant);
+        if (op::util::constantIsEqualTo(scalar, 0)) {
+            return true;
         } else {
-            THROW_IE_EXCEPTION << "Unexpected weights layer type " << weightsLayer->type;
+            return false;
         }
     } else {
-        if (layer.blobs.find("weights") == layer.blobs.end()) {
-            THROW_IE_EXCEPTION << "Convolution weights are absent";
-        }
-        return layer.blobs.find("weights")->second;
+        return false;
     }
 }
 
-Blob::Ptr CNNNetworkHelper::getBiases(const CNNLayer& layer) {
-    if (layer.insData.size() > 1U) {
-        if (layer.insData.size() > 2U) {
-            CNNLayerPtr biasesLayer = CNNNetworkHelper::getParent(layer, 2U);
-            if (biasesLayer == nullptr) {
-                return nullptr;
+std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Subtract> subtract) {
+    auto convertOnSubtract = subtract->input_value(0).get_node_shared_ptr();
+    if (as_type_ptr<opset1::Convert>(convertOnSubtract) == nullptr) {
+        return subtract;
+    }
+
+    // TODO: replace assert to condition and omit conversion part if there is no convert
+    // TODO: also check convertInputType to understand if we really want to propagate type
+    assert(as_type_ptr<opset1::Convert>(convertOnSubtract));
+    const element::Type convertInputType = convertOnSubtract->get_input_element_type(0);
+    const element::Type convertOutputType = convertOnSubtract->get_output_element_type(0);
+
+    if (!convertOutputType.is_real()) {
+        return subtract;
+    }
+
+    auto data = convertOnSubtract->input_value(0);
+    const auto subtractParent = subtract->get_input_node_shared_ptr(1);
+    if (is_type<opset1::Constant>(subtractParent)) {
+        std::shared_ptr<Node> replacement;
+
+        auto shift = subtract->input_value(1).get_node_shared_ptr();
+        auto roundedShift = NetworkHelper::round(shift, convertInputType);
+
+        if (isScalarLike(roundedShift)) {
+            roundedShift = toScalar(roundedShift);
+            if (op::util::constantIsEqualTo(roundedShift, 0)) {
+                replace_node(subtract, convertOnSubtract->get_input_node_shared_ptr(0));
+                roundedShift = nullptr;
+            }
+        }
+
+        if (roundedShift) {
+            // Propagate convertInputType down
+            replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, roundedShift);
+            NetworkHelper::copyInfo(subtract, replacement);
+            NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, convertOutputType);
+            replace_node(subtract, replacement);
+        }
+
+        // We lose the tail conversion here; not needed if the next node is a TypeRelaxed
+        // TODO: check cases when Convert should be preserved
+
+        // Try to optimize Add out if constant is zero
+        // TODO: don't remove operation here: don't create this Subtraction operation in FQ decomposition
+        // if (isScalarLike(roundedShift)) {
+        //    auto scalar = distillToScalar(roundedShift);
+        //    if (op::util::constantIsEqualTo(scalar, 0)) {
+        //        replace_node(replacement, replacement->input_value(0).get_node_shared_ptr());
+        //        replacement = nullptr;
+        //    }
+        // }
+
+        return replacement;
+    } else if (is_type<opset1::Convert>(subtractParent) || is_type<opset1::Constant>(subtractParent->get_input_node_shared_ptr(0))) {
+        auto replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, subtractParent->get_input_node_shared_ptr(0));
+        NetworkHelper::setOutDataPrecisionForTypeRelaxed(replacement, convertOutputType);
+        replace_node(subtract, replacement);
+        return replacement;
+    }
+
+    return subtract;
+}
+
+NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter(
+    const std::shared_ptr<ngraph::Node>& operation,
+    const FakeQuantizeDequantization& dequantization,
+    const bool updatePrecision,
+    const bool moveSubtract) {
+    assert(
+        (NetworkHelper::getDequantization(operation).subtractConstant == nullptr) ||
+        (NetworkHelper::getDequantization(operation).subtractConstant.get() == dequantization.subtractConstant.get()));
+
+    assert(
+        (NetworkHelper::getDequantization(operation).multiplyConstant == nullptr) ||
+        (NetworkHelper::getDequantization(operation).multiplyConstant.get() == dequantization.multiplyConstant.get()));
+
+    std::vector<Output<Node>> inputs(operation->get_input_size());
+    for (size_t i = 0; i < operation->get_input_size(); ++i) {
+        inputs[i] = operation->get_input_node_shared_ptr(i);
+    }
+
+    const size_t dequantizationIndex = getChildInputIndex(dequantization.multiply, operation);
+    inputs[dequantizationIndex] = moveSubtract ?
+        dequantization.data :
+        (dequantization.subtract == nullptr ? dequantization.data : dequantization.subtract);
+
+    const std::shared_ptr<ngraph::Node> newOperation = operation->clone_with_new_inputs(inputs);
+    newOperation->set_friendly_name(operation->get_friendly_name());
+    ngraph::copy_runtime_info(operation, newOperation);
+
+    if (updatePrecision) {
+        auto op = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(newOperation);
+        if (op == nullptr) {
+            THROW_IE_LPT_EXCEPTION(*newOperation) << "not possible to update precision for not TypeRelaxedBase operation";
+        }
+        op->set_overridden_output_type(newOperation->get_input_element_type(0));
+        std::dynamic_pointer_cast<ngraph::Node>(newOperation)->validate_and_infer_types();
+    }
+
+    const bool shouldConvert = (newOperation->get_output_element_type(0) != dequantization.multiply->get_output_element_type(0));
+
+    auto parent = newOperation;
+    if (shouldConvert) {
+        const auto convertOutputPrecision = dequantization.convert != nullptr ?
+            dequantization.convert->get_output_element_type(0) :
+            dequantization.multiply->get_output_element_type(0);
+        parent = std::make_shared<DequantizationConvert>(parent, convertOutputPrecision);
+        ngraph::copy_runtime_info({ newOperation, parent }, parent);
+    }
+
+    if (moveSubtract && (dequantization.subtract != nullptr)) {
+        if (dequantization.subtractConvert == nullptr) {
+            const element::Type parentPrecision = parent->get_output_element_type(0);
+            if (parentPrecision.bitwidth() < dequantization.subtractConstant->output(0).get_element_type().bitwidth()) {
+                THROW_IE_LPT_EXCEPTION(*parent) <<
+                    "unexpected precisions: on data " << parent->get_friendly_name() << ":" << parentPrecision <<
+                    ", subtract dequantization constant " << dequantization.subtractConstant->get_friendly_name() << ":" <<
+                    dequantization.subtractConstant->output(0).get_element_type();
             }
 
-            CNNNetworkHelper::checkConstWithBlobs(biasesLayer);
-            return biasesLayer->blobs.find("custom")->second;
+            parent = std::make_shared<DequantizationSubtract>(
+                parent,
+                dequantization.subtractConstant->output(0).get_element_type() == parentPrecision ?
+                    dequantization.subtractConstant :
+                    fold<opset1::Convert>(dequantization.subtractConstant, parentPrecision));
+            ngraph::copy_runtime_info({ newOperation, parent }, parent);
         } else {
-            return nullptr;
+            parent = std::make_shared<DequantizationSubtract>(parent, dequantization.subtractConvert);
+            ngraph::copy_runtime_info({ newOperation, parent }, parent);
         }
-    } else {
-        const auto it = layer.blobs.find("biases");
-        return (it != layer.blobs.end()) ? it->second : nullptr;
     }
+
+    if (dequantization.multiply != nullptr) {
+        auto multiplyConstant = dequantization.multiply->get_input_node_shared_ptr(1);
+        const element::Type parentPrecision = parent->get_output_element_type(0);
+        if (parentPrecision.bitwidth() < multiplyConstant->output(0).get_element_type().bitwidth()) {
+            THROW_IE_LPT_EXCEPTION(*parent) <<
+                "unexpected precisions: on data " << parent->get_friendly_name() << ":" << parentPrecision <<
+                ", multiply dequantization constant " << multiplyConstant->get_friendly_name() << ":" << multiplyConstant->output(0).get_element_type();
+        }
+
+        parent = std::make_shared<DequantizationMultiply>(
+            parent,
+            multiplyConstant->output(0).get_element_type() == parentPrecision ?
+                multiplyConstant :
+                fold<opset1::Convert>(multiplyConstant->output(0), parentPrecision));
+        ngraph::copy_runtime_info({ newOperation, parent }, parent);
+    }
+    replace_node(operation, parent);
+
+    if ((!moveSubtract) && (dequantization.convert != nullptr) && (dequantization.subtract != nullptr)) {
+        NetworkHelper::cleanRunTimeInfo(dequantization.subtract);
+        // issue #43088
+        // NetworkHelper::optimizeElementwise(dequantization.subtract);
+    }
+
+    return InsertDequantizationResult(newOperation, parent);
 }
 
-Blob::Ptr CNNNetworkHelper::quantizeWeights(const CNNLayer& quantize, const bool roundValues, const Precision precision) {
-    if (quantize.insData.size() != 5lu) {
-        THROW_IE_EXCEPTION << "Unexpected inputs count: " << quantize.insData.size();
-    }
-    for (int i = 0; i < quantize.insData.size(); i++)
-        if (quantize.insData[i].lock() == nullptr)
-            THROW_IE_EXCEPTION << "Invalid input data for layer '" << quantize.name << "' with index " << i;
-
-    const Blob::Ptr sourceBlob = getQuantizeLayerBlob(quantize);
-    if (sourceBlob == nullptr) {
-        THROW_IE_EXCEPTION << "weights blob is empty for " << quantize.type << " layer " << quantize.name;
+bool NetworkHelper::checkConstantValuePrecision(const element::Type expectedPrecision, const std::shared_ptr<Node>& constant) {
+    if (expectedPrecision.is_signed()) {
+        return true;
     }
 
-    const auto& sourceBlobTD = sourceBlob->getTensorDesc();
-    const Precision blobPrecision = sourceBlobTD.getPrecision();
+    std::shared_ptr<opset1::Constant> constantOp = as_type_ptr<opset1::Constant>(constant);
+    if (constantOp == nullptr) {
+        return false;
+    }
 
-    auto targetBlobPrecision = precision == Precision::UNSPECIFIED ? blobPrecision : precision;
-    if (targetBlobPrecision != Precision::FP32 && targetBlobPrecision != Precision::FP16 &&
-        targetBlobPrecision != Precision::I8 && targetBlobPrecision != Precision::U8)
-        THROW_IE_EXCEPTION << "Unexpected precision: " << precision;
-
-    Blob::Ptr targetBlob = make_blob_with_precision(TensorDesc(targetBlobPrecision, sourceBlobTD.getDims(), sourceBlobTD.getLayout()));
-    targetBlob->allocate();
-
-    quantizeBlob(quantize, targetBlob, roundValues);
-
-    return targetBlob;
+    const auto values = constantOp->cast_vector<float>();
+    const bool convertCanBeRemoved =
+        (expectedPrecision.is_signed() || (std::all_of(values.begin(), values.end(), [](const float value) { return value >= 0.f; })));
+    return convertCanBeRemoved;
 }
 
-int CNNNetworkHelper::getConstParentBranchID(const CNNLayer& layer) {
-    int constBranchID = -1;
-    for (int i = 0; i < layer.insData.size(); i++) {
-        bool allConst = true;
-
-        const DataPtr insData = layer.insData[i].lock();
-        if (insData == nullptr) {
-            THROW_IE_LPT_EXCEPTION(layer) << "invalid input data with index " << i;
-        }
-
-        const CNNLayerPtr parent = insData->getCreatorLayer().lock();
-        if (parent == nullptr) {
-            THROW_IE_LPT_EXCEPTION(layer) << "parent layer is absent";
-        }
-
-        if (!CaselessEq<std::string>()(parent->type, "FakeQuantize")) continue;
-        for (const auto& p : parent->insData) {
-            const DataPtr parentConstInsData = p.lock();
-            if (parentConstInsData == nullptr) {
-                THROW_IE_LPT_EXCEPTION(*parent) << "input data is absent";
-            }
-            const CNNLayerPtr parentConst = parentConstInsData->getCreatorLayer().lock();
-            if (parentConst == nullptr) {
-                THROW_IE_LPT_EXCEPTION(*parent) << "input layer is absent";
-            }
-            if (!CaselessEq<std::string>()(parentConst->type, "Const")) {
-                allConst = false;
-                break;
-            }
-        }
-        if (allConst) {
-            constBranchID = i;
-            break;
+size_t NetworkHelper::getChildInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child) {
+    for (size_t i = 0; i < child->get_input_size(); ++i) {
+        if (parent.get() == child->get_input_node_ptr(i)) {
+            return i;
         }
     }
-
-    return constBranchID;
+    THROW_IE_LPT_EXCEPTION(*child) << "child input index between " <<
+        parent->get_friendly_name() << " and " << child->get_friendly_name() << " was not found";
 }
 
-Precision CNNNetworkHelper::getPrecisionParent(const CNNLayer& layer) {
-    return getPrecisionParent(layer, 0ul, false);
-}
-
-Precision CNNNetworkHelper::getPrecisionParent(const CNNLayer& layer, const size_t parentIndex) {
-    return getPrecisionParent(layer, parentIndex, true);
-}
-
-Precision CNNNetworkHelper::getPrecisionParent(const CNNLayer& layer, const size_t parentIndex, const bool useParentIndex) {
-    const std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(layer);
-    if (parents.empty()) {
-        THROW_IE_EXCEPTION << "parents for layer " << layer.type << " '" << layer.name << "' are absent";
-    }
-
-    if (useParentIndex) {
-        DataPtr parentOutData = getOutData(*parents[parentIndex], layer);
-        if (parentOutData == nullptr) {
-            THROW_IE_EXCEPTION <<
-                "parent layer " << parents[parentIndex]->type << " '" << parents[parentIndex]->name <<
-                "' output data  was not found for child " << layer.type << " '" << layer.name << "'";
-        }
-        return parentOutData->getTensorDesc().getPrecision();
-    }
-
-    Precision parentOutDataPrecision = Precision::UNSPECIFIED;
-    for (CNNLayerPtr parent : parents) {
-        DataPtr parentOutData = getOutData(*parent, layer);
-        if (parentOutData == nullptr) {
-            THROW_IE_EXCEPTION <<
-                "parent layer " << parent->type << " '" << parent->name <<
-                "' output data  was not found for child " << layer.type << " '" << layer.name << "'";
-        }
-
-        if (parentOutDataPrecision == Precision::UNSPECIFIED) {
-            parentOutDataPrecision = parentOutData->getTensorDesc().getPrecision();
-        } else if (parentOutDataPrecision != parentOutData->getTensorDesc().getPrecision()) {
-            THROW_IE_EXCEPTION <<
-                "Parent layer " << parent->type << " '" << parent->name <<
-                "' output port has unexpected precision " << parentOutData->getTensorDesc().getPrecision();
-        }
-    }
-
-    return parentOutDataPrecision;
-}
-
-DataPtr CNNNetworkHelper::getOutData(const CNNLayer& parentLayer, const CNNLayer& childLayer) {
-    DataPtr parentOutData;
-    for (DataPtr outData : parentLayer.outData) {
-        const std::map<std::string, CNNLayerPtr> inputTo = outData->getInputTo();
-        for (auto childIt : inputTo) {
-            if (childIt.second->name == childLayer.name) {
-                parentOutData = outData;
-                break;
+size_t NetworkHelper::getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child) {
+    for (size_t i = 0; i < parent->get_output_size(); ++i) {
+        const auto& targetInputs = parent->output(i).get_target_inputs();
+        for (const auto& targetInput : targetInputs) {
+            if (targetInput.get_node() == child.get()) {
+                return i;
             }
         }
-
-        if (parentOutData != nullptr) {
-            break;
-        }
     }
-    return parentOutData;
+    THROW_IE_LPT_EXCEPTION(*child) << "parent output index between " <<
+        parent->get_friendly_name() << " and " << child->get_friendly_name() << " was not found";
 }
 
-void CNNNetworkHelper::quantizeBlob(const CNNLayer& quantize, Blob::Ptr& targetBlob, bool roundValues) {
-    const Blob::Ptr sourceBlob = getQuantizeLayerBlob(quantize);
-    if (sourceBlob == nullptr) {
-        THROW_IE_EXCEPTION << "quantized blob is empty for " << quantize.type << " layer " << quantize.name;
+std::vector<Output<Node>> NetworkHelper::getInputs(const std::shared_ptr<ngraph::Node>& node) {
+    std::vector<Output<Node>> inputs(node->get_input_size());
+    for (size_t i = 0; i < node->get_input_size(); ++i) {
+        inputs[i] = node->get_input_node_shared_ptr(i);
     }
-
-    auto srcData = getFloatData(sourceBlob);
-    const std::vector<size_t>& outDims = quantize.outData[0]->getDims();
-    if (outDims.empty() || outDims.size() > 5lu) {
-        THROW_IE_EXCEPTION << "Unexpected dimensions count " << outDims.size() << " for layer '" << quantize.name << "'";
-    }
-
-    // OIDHW
-    const size_t OC = outDims[0];
-    const size_t IC = outDims.size() > 1lu ? outDims[1] : 1;
-    const size_t D  = outDims.size() > 4lu ? outDims[outDims.size() - 3] : 1;
-    const size_t H  = outDims.size() > 2lu ? outDims[outDims.size() - 2] : 1;
-    const size_t W  = outDims.size() > 3lu ? outDims[outDims.size() - 1] : 1;
-
-    // Const layer blob shape (sourceBlob->getTensorDesc().getDims()) can be different from output port shape
-    // CVS-27850: [IE COMMON] Align Const layer blob shape with output port shape
-    if (sourceBlob->size() != OC * IC * D * H * W) {
-        THROW_IE_EXCEPTION << "Unexpected weights size for layer '" << quantize.name << "'";
-    }
-
-    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(quantize);
-
-    const bool isInputLowBroadcasted = quantizationDetails.inputLowValues.size() != OC;
-    if ((quantizationDetails.inputLowValues.size() != 1) && (quantizationDetails.inputLowValues.size() != OC)) {
-        THROW_IE_EXCEPTION << "Unexpected input low values count " << quantizationDetails.inputLowValues.size() <<
-            " for " << OC << " channels, layer '" << quantize.name << "'";
-    }
-
-    const bool isInputHighBroadcasted = quantizationDetails.inputHighValues.size() != OC;
-    if ((quantizationDetails.inputHighValues.size() != 1) && (quantizationDetails.inputHighValues.size() != OC)) {
-        THROW_IE_EXCEPTION << "Unexpected input high values count " << quantizationDetails.inputHighValues.size() <<
-            " for " << OC << " channels, layer '" << quantize.name << "'";
-    }
-
-    const bool isOutputLowBroadcasted = quantizationDetails.outputLowValues.size() != OC;
-    if ((quantizationDetails.outputLowValues.size() != 1) && (quantizationDetails.outputLowValues.size() != OC)) {
-        THROW_IE_EXCEPTION << "Unexpected output low values count " << quantizationDetails.outputLowValues.size() <<
-            " for " << OC << " channels, layer '" << quantize.name << "'";
-    }
-
-    const bool isOutputHighBroadcasted = quantizationDetails.outputHighValues.size() != OC;
-    if ((quantizationDetails.outputHighValues.size() != 1) && (quantizationDetails.outputHighValues.size() != OC)) {
-        THROW_IE_EXCEPTION << "Unexpected output high values count " << quantizationDetails.outputHighValues.size() <<
-            " for " << OC << " channels, layer '" << quantize.name << "'";
-    }
-
-    auto levels_1 = static_cast<float>(quantize.GetParamAsUInt("levels")) - 1.f;
-
-    const size_t DHW = D * H * W;
-    const size_t IDHW = IC * DHW;
-
-    std::vector<float> dstBuffer(targetBlob->size());
-
-    auto srcPtr = srcData.get();
-    auto dstPtr = &dstBuffer[0];
-
-    parallel_for4d(OC, IC, D, H, [&](size_t oc, size_t ic, size_t d, size_t h) {
-        const float inputLow = quantizationDetails.inputLowValues[isInputLowBroadcasted ? 0 : oc];
-        const float inputHigh = quantizationDetails.inputHighValues[isInputHighBroadcasted ? 0 : oc];
-        const float outputLow = quantizationDetails.outputLowValues[isOutputLowBroadcasted ? 0 : oc];
-        const float outputHigh = quantizationDetails.outputHighValues[isOutputHighBroadcasted ? 0 : oc];
-
-        for (size_t w = 0; w < W; w++) {
-            const size_t idx = oc * IDHW + ic * DHW + d * H * W + h * W + w;
-
-            if (srcPtr[idx] <= inputLow) {
-                dstPtr[idx] = roundValues ? std::roundf(outputLow) : outputLow;
-            } else if (srcPtr[idx] > inputHigh) {
-                dstPtr[idx] = roundValues ? std::roundf(outputHigh) : outputHigh;
-            } else {
-                const float value = std::roundf((srcPtr[idx] - inputLow) / (inputHigh - inputLow) * levels_1) /
-                                    levels_1 * (outputHigh - outputLow) + outputLow;
-                dstPtr[idx] = roundValues ? std::roundf(value) : value;
-            }
-        }
-    });
-
-    fillBlobByFP32(targetBlob, dstPtr);
+    return inputs;
 }
+
+std::shared_ptr<Node> NetworkHelper::toScalarIfPossible(std::shared_ptr<Node> node) {
+    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(node);
+    if (constant == nullptr) {
+        return node;
+    }
+
+    if (!NetworkHelper::isScalarLike(constant)) {
+        return node;
+    }
+
+    return NetworkHelper::toScalar(constant);
+}
+
+}  // namespace low_precision
+}  // namespace pass
+}  // namespace ngraph

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -135,4 +135,105 @@ struct program_helpers {
     }
     static layout get_weights_layout(typed_program_node<cldnn::data>& data_node, int32_t split);
 };
+
+// Base class for performing pattern match style optimizations.
+// Uses CRTP idiom, implementing class should be passed as template parameter `Impl`,
+// and overload match and optimize methods.
+template <typename Impl>
+struct pattern_match_optimization {
+    pattern_match_optimization(program_impl& prog)
+        : prog(prog)
+    {}
+
+    // Returns whether optimization can be performed for specified node.
+    bool match(program_node& node) {
+        return static_cast<Impl*>(this)->match(node);
+    }
+    // Returns whether optimization invalidated the node and no futher optimizations should execute.
+    bool optimize(program_node& node) {
+        // TODO: Add program optimizer class that would take responsibility of modifying program.
+        //       Then use it to provide more complex control over pattern-matches, ie:
+        //       new node added - run applicable optimizations on it as well;
+        //       node deleted - don't do more optimizations;
+        return static_cast<Impl*>(this)->optimize(node);
+    }
+    // Returns whether optimization invalidated the node and no futher optimizations should execute.
+    bool match_and_optimize(program_node& node) {
+        if (!match(node))
+            return false;
+        return optimize(node);
+    }
+
+    program_impl& get_program() { return prog; }
+
+    program_impl& prog;
+};
+
+// Class for pattern-match optimizations that provides support for matching
+// single primitive type `Prim`.
+// Implementing class `Impl` is expected to overload:
+// bool match(typed_program_node<Prim>&)
+// bool optimize(typed_program_node<Prim>&)
+// Uses CRTP idiom, implementing class should be passed as template parameter `Impl`.
+template <typename Impl, typename Prim>
+struct pattern_match_optimization_typed : pattern_match_optimization<pattern_match_optimization_typed<Impl, Prim>> {
+    using base = pattern_match_optimization<pattern_match_optimization_typed<Impl, Prim>>;
+
+    using base::base;
+
+    // Returns whether optimization can be performed for specified node.
+    bool match(program_node& node) {
+        if (!node.is_type<Prim>())
+            return false;
+        return static_cast<Impl*>(this)->match(node.as<Prim>());
+    }
+    // Should be overloaded by implementation class to match specified primitive.
+    bool match(typed_program_node<Prim>& node) {
+        return false;
+    }
+
+    // Returns whether optimization invalidated the node and no futher optimizations should execute.
+    bool optimize(program_node& node) {
+        return static_cast<Impl*>(this)->optimize(node.as<Prim>());
+    }
+    // Should be overloaded by implementation class to optimize specified primitive.
+    bool optimize(typed_program_node<Prim>& node) {
+        return false;
+    }
+};
+
+// Runs pattern-match optimiations passed as arguments on `node`.
+inline bool run_node_optimizations(program_node& /*node*/) {
+    return false;
+}
+
+template <typename Opt, typename... Rest>
+bool run_node_optimizations(program_node& node, Opt&& opt, Rest&&... rest) {
+    if (opt.match_and_optimize(node))
+        return true;
+    return run_node_optimizations(node, std::forward<Rest>(rest)...);
+}
+
+// Runs pattern-match optimizations `Opts` on `node`.
+// Optimizations should have constructor with single argument `program_impl&`.
+template <typename... Opts>
+bool run_node_optimizations(program_impl& p, program_node& node) {
+    return run_node_optimizations<Opts...>(node, Opts(p)...);
+}
+
+// Runs specified pattern-match optimizations on whole program, in processing order.
+template <typename... Opts>
+void run_node_optimizations(program_impl& p, Opts&&... opts) {
+    auto it = p.get_processing_order().begin();
+    while (it != p.get_processing_order().end()) {
+        auto node = *it++;
+        run_node_optimizations(*node, std::forward<Opts>(opts)...);
+    }
+}
+
+template <typename... Opts>
+void run_node_optimizations(program_impl& p) {
+    run_node_optimizations(p, Opts(p)...);
+}
+
 }  // namespace cldnn

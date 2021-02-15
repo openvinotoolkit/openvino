@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,9 +24,9 @@ def get_reduction_axes(node: Node, reduction_axes: Optional[Iterable[int]]) -> I
 
     If reduction_axes is None we default to reduce all axes.
 
-    :param node: The node we fill reduction axes for.
-    :param reduction_axes: The collection of indices of axes to reduce. May be None.
-    :return: Set filled with indices of axes we want to reduce.
+    @param node: The node we fill reduction axes for.
+    @param reduction_axes: The collection of indices of axes to reduce. May be None.
+    @return Set filled with indices of axes we want to reduce.
     """
     if reduction_axes is None:
         reduction_axes = set(range(len(node.shape)))

@@ -16,6 +16,7 @@
 
 import logging as log
 
+import numpy as np
 from networkx.algorithms import isomorphism as ism
 
 from mo.graph.graph import Node, dict_includes, Graph
@@ -111,7 +112,7 @@ def check_node_usages_out_of_match(match: dict, node_name_in_match_group: str):
 
 
 def node_match(data1: dict, data2: dict):
-    # We have to skip _in_ports/_out_ports attributes for comparision as they are not comparable
+    # We have to skip _in_ports/_out_ports attributes for comparison as they are not comparable
     return dict_includes(data1, data2, skip_attr_names=['_in_ports', '_out_ports'])
 
 
@@ -163,3 +164,7 @@ def find_isomorphisms(graph: Graph, nodes: list, edges: list):
         match = {k: Node(graph, match[k]) for k in match.keys()}
         result.append(match)
     return result
+
+
+def check_value(v: np.ndarray, check: callable):
+    return v is not None and np.all(np.isreal(v)) and check(v)

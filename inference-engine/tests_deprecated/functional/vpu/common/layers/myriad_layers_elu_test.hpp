@@ -32,7 +32,7 @@ void gen_ref_elu(const InferenceEngine::Blob::Ptr src,
 typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, alpha>> myriadLayersTestsELUParams_smoke;
 
 TEST_P(myriadLayersTestsELUParams_smoke, TestsELU) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     auto param = GetParam();
     SizeVector tensor = std::get<0>(param);

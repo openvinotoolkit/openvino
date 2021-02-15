@@ -15,8 +15,7 @@ std::string VpuNoClassificationRegression::getTestCaseName(
                                                 get<2>(param.param),
                                                 get<3>(param.param)) +
             "_SHAVES=" + (get<4>(param.param) == -1 ? "AUTO" : std::to_string(get<4>(param.param))) +
-           "_IsIgnoreStatistic=" + std::to_string(get<5>(param.param)) +
-           "_" + get<6>(param.param).name();
+           "_" + get<5>(param.param).name();
 }
 
 void  VpuNoClassificationRegression::SetUp() {
@@ -28,8 +27,7 @@ void  VpuNoClassificationRegression::SetUp() {
     batch_= get<2>(ClassificationTestVpuParam::GetParam());
     do_reshape_= get<3>(ClassificationTestVpuParam::GetParam());
     resources_= get<4>(ClassificationTestVpuParam::GetParam());
-    is_ignore_statistic_ = get<5>(ClassificationTestVpuParam::GetParam());
-    source_param_= get<6>(ClassificationTestVpuParam::GetParam());
+    source_param_= get<5>(ClassificationTestVpuParam::GetParam());
 
     InitConfig();
 }
@@ -40,12 +38,6 @@ void VpuNoClassificationRegression::InitConfig() {
     if (resources_ != -1) {
         config_["VPU_NUMBER_OF_CMX_SLICES"] = std::to_string(resources_);
         config_["VPU_NUMBER_OF_SHAVES"] = std::to_string(resources_);
-    }
-
-    if (is_ignore_statistic_) {
-        config_["VPU_IGNORE_IR_STATISTIC"] = CONFIG_VALUE(YES);
-    } else {
-        config_["VPU_IGNORE_IR_STATISTIC"] = CONFIG_VALUE(NO);
     }
 }
 

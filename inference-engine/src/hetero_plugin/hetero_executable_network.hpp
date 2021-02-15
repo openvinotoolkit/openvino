@@ -16,12 +16,10 @@
 #include <unordered_set>
 
 #include <ie_common.h>
-#include <cpp/ie_plugin_cpp.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 
 #include "hetero_infer_request.hpp"
 #include "ie_icore.hpp"
-#include "cnn_network_impl.hpp"
 #include "hetero_async_infer_request.hpp"
 
 namespace HeteroPlugin {
@@ -39,10 +37,9 @@ public:
     /**
     * @brief constructor
     */
-    HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&         network,
+    HeteroExecutableNetwork(const InferenceEngine::CNNNetwork&          network,
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
-
     /**
     * @brief Import from opened file constructor
     */
@@ -55,15 +52,18 @@ public:
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
 
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
     void ExportImpl(std::ostream& modelFile) override;
 
 private:
+    void InitCNNImpl(const InferenceEngine::CNNNetwork&    network);
+    void InitNgraph(const InferenceEngine::CNNNetwork&     network);
+
     struct NetworkDesc {
         std::string                                 _device;
         InferenceEngine::CNNNetwork                 _clonedNetwork;
@@ -74,6 +74,7 @@ private:
     Engine*                             _heteroPlugin;
     std::string                         _name;
     std::map<std::string, std::string>  _config;
+    std::unordered_map<std::string, std::string> _blobNameMap;
 };
 
 }  // namespace HeteroPlugin

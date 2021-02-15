@@ -49,7 +49,7 @@ public:
         numWeights = kernel.x * kernel.y * (in_dims.c / group) * out_dims.c;
         numBiases = out_dims.c;
 
-        _config[VPU_CONFIG_KEY(HW_DILATION)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_HW_DILATION] = CONFIG_VALUE(YES);
     }
 
     void AddInitialCopyLayer() {

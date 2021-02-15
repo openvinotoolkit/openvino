@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,22 +21,17 @@
 #include <memory>
 
 #include "gtest/gtest.h"
-#include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/batch_norm.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/pattern/matcher.hpp"
-#include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
 #include "util/all_close.hpp"
-#include "util/autodiff/backprop_function.hpp"
-#include "util/autodiff/numeric_compare.hpp"
 #include "util/ndarray.hpp"
 #include "util/random.hpp"
 #include "util/test_tools.hpp"
@@ -132,7 +127,7 @@ TEST(control_dependencies, clone_function_cdop)
     test_ordered_ops(f, NodeVector{absn});
     auto clone = ngraph::clone_function(*f.get());
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
-    auto cdop_clone = clone->get_results().at(0)->get_argument(0);
+    auto cdop_clone = clone->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
     ASSERT_EQ(cloned_deps.size(), 1);
@@ -153,7 +148,12 @@ TEST(control_dependencies, clone_function_cdop_abs)
     auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
     auto clone = ngraph::clone_function(*f.get());
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
-    auto cdop_clone = clone->get_results().at(0)->get_argument(0)->get_argument(0);
+    auto cdop_clone = clone->get_results()
+                          .at(0)
+                          ->input_value(0)
+                          .get_node_shared_ptr()
+                          ->input_value(0)
+                          .get_node_shared_ptr();
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
     ASSERT_EQ(cloned_deps.size(), 2);
@@ -175,10 +175,10 @@ TEST(control_dependencies, replace_node)
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto MUL_AB = A * B;
-    auto MUL_BA = B * A;
-    auto ADD = A + B;
-    auto SUM = MUL_AB + ADD;
+    auto MUL_AB = make_shared<op::v1::Multiply>(A, B);
+    auto MUL_BA = make_shared<op::v1::Multiply>(B, A);
+    auto ADD = make_shared<op::v1::Add>(A, B);
+    auto SUM = make_shared<op::v1::Add>(MUL_AB, ADD);
     ADD->add_control_dependency(MUL_AB);
     ASSERT_TRUE(1 == count_control_dependencies(ADD, MUL_AB));
     ASSERT_TRUE(0 == count_control_dependencies(ADD, MUL_BA));
@@ -186,51 +186,3 @@ TEST(control_dependencies, replace_node)
     ASSERT_TRUE(0 == count_control_dependencies(ADD, MUL_AB));
     ASSERT_TRUE(1 == count_control_dependencies(ADD, MUL_BA));
 }
-
-#ifndef NGRAPH_JSON_DISABLE
-TEST(control_dependencies, serialize_cdop)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn = make_shared<op::Abs>(A);
-    auto cdop = make_shared<op::Negative>(A);
-    cdop->add_control_dependency(absn);
-    auto f = make_shared<Function>(cdop, ParameterVector{A});
-
-    string js = serialize(f, 4);
-    shared_ptr<Function> clone = deserialize(js);
-
-    auto matcher = std::make_shared<pattern::Matcher>(cdop);
-    auto cdop_clone = clone->get_results().at(0)->get_argument(0);
-    ASSERT_TRUE(matcher->match(cdop_clone));
-    auto cloned_deps = cdop_clone->get_control_dependencies();
-    ASSERT_EQ(cloned_deps.size(), 1);
-    auto cloned_abs = *begin(cloned_deps);
-    ASSERT_TRUE(is_type<op::Abs>(cloned_abs));
-}
-
-TEST(control_dependencies, serialize_cdop_abs)
-{
-    auto A = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn = make_shared<op::Abs>(A);
-    auto B = make_shared<op::Parameter>(element::f32, Shape{});
-    auto absn_b = make_shared<op::Abs>(B);
-    auto cdop = make_shared<op::Negative>(A);
-    cdop->add_control_dependency(absn);
-    cdop->add_control_dependency(absn_b);
-    auto absn_cdop = make_shared<op::Abs>(cdop);
-
-    auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
-
-    string js = serialize(f, 4);
-    shared_ptr<Function> clone = deserialize(js);
-    auto matcher = std::make_shared<pattern::Matcher>(cdop);
-    auto cdop_clone = clone->get_results().at(0)->get_argument(0)->get_argument(0);
-    ASSERT_TRUE(matcher->match(cdop_clone));
-    auto cloned_deps = cdop_clone->get_control_dependencies();
-    ASSERT_EQ(cloned_deps.size(), 2);
-    for (auto ccdep : cloned_deps)
-    {
-        ASSERT_TRUE(is_type<op::Abs>(ccdep));
-    }
-}
-#endif

@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <limits>
 #include "ie_parallel.hpp"
-#include "common/simple_copy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -27,26 +26,6 @@ public:
             }
             if (layer->insData.size() == 4) {
                 with_default_value = true;
-            }
-
-            // check precisions for input tensors
-            Precision input_indices_precision = layer->insData[INPUT_INDICES_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_indices_precision != Precision::I32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for input indices. Only I32 is supported!";
-            }
-            Precision input_dense_shape_precision = layer->insData[INPUT_DENSE_SHAPE_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_dense_shape_precision != Precision::I32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for input dense shape. Only I32 is supported!";
-            }
-            Precision input_values_precision = layer->insData[INPUT_VALUES_PORT].lock()->getTensorDesc().getPrecision();
-            if (input_values_precision != Precision::I32) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for input values. Only I32 is supported!";
-            }
-            if (with_default_value) {
-                Precision input_default_value_precision = layer->insData[INPUT_DEFAULT_VALUE_PORT].lock()->getTensorDesc().getPrecision();
-                if (input_default_value_precision != Precision::I32) {
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for input default value. Only I32 is supported!";
-                }
             }
 
             // check dimensions of input tensors
@@ -74,14 +53,14 @@ public:
             // TODO: check that dense shape value is set
             if (with_default_value) {
                 addConfig(layer,
-                { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                    DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                { DataConfigurator(ConfLayout::PLN) });
+                { DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::I32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::I32) },
+                { DataConfigurator(ConfLayout::PLN, Precision::I32) });
             } else {
                 addConfig(layer,
-                { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                    DataConfigurator(ConfLayout::PLN) },
-                    { DataConfigurator(ConfLayout::PLN) });
+                { DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::I32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32) },
+                    { DataConfigurator(ConfLayout::PLN, Precision::I32) });
             }
         }
         catch (InferenceEngine::details::InferenceEngineException &ex) {

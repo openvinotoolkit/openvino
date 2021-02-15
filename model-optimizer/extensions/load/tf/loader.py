@@ -1,5 +1,5 @@
 """
- Copyright (C) 2020 Intel Corporation
+ Copyright (C) 2020-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,11 +16,13 @@
 
 try:
     import tensorflow.compat.v1 as tf_v1
+    # disable eager execution of TensorFlow 2 environment immediately
+    tf_v1.disable_eager_execution()
 except ImportError:
     import tensorflow as tf_v1
 
 try:
-    import tensorflow.contrib
+    import tensorflow.contrib  # pylint: disable=no-name-in-module,import-error
 except:
     pass  # we try to import contrib for loading models that use contrib operations
 
@@ -40,6 +42,7 @@ from mo.utils.utils import refer_to_faq_msg
 
 class TFLoader(Loader):
     enabled = True
+    run_not_recursively = True
 
     def load(self, graph: Graph):
         argv = graph.graph['cmd_params']

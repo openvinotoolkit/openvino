@@ -64,7 +64,11 @@ void post_optimize_weights::optimize_weights(T& node, program_impl& p) {
             // set generic_layer's node output layout and implementation
             auto& g_node = node.get_dependency(i);
             g_node.get_output_layout(false);
-            g_node.selected_impl = g_node.type()->choose_impl(p.get_engine(), g_node);
+
+            // Don't run impl selection to avoid double compilation of reorder kernels
+            // in main program and internal program for constant propagation
+            if (!g_node.is_constant())
+                g_node.selected_impl = g_node.type()->choose_impl(p.get_engine(), g_node);
         }
     }
 

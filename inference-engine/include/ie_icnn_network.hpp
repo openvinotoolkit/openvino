@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,15 +13,19 @@
 #include <memory>
 #include <string>
 
-#include "details/ie_irelease.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include "ie_icnn_network_stats.hpp"
-#include "ie_iextension.h"
 #include "ie_input_info.hpp"
-#include "ie_layers.h"
-#include "ie_preprocess.hpp"
+#include "details/ie_irelease.hpp"
+
+#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN || 1
+# define INFERENCE_ENGINE_ICNNNETWORK_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
+#else
+# define INFERENCE_ENGINE_ICNNNETWORK_CLASS(...)                                 \
+    INFERENCE_ENGINE_INTERNAL("Use InferenceEngine::CNNNetwork wrapper instead") \
+    INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
+#endif
 
 namespace ngraph {
 
@@ -37,10 +41,11 @@ namespace InferenceEngine {
 using OutputsDataMap = std::map<std::string, DataPtr>;
 
 /**
+ * @deprecated Use InferenceEngine::CNNNetwork wrapper instead
  * @interface ICNNNetwork
  * @brief This is the main interface to describe the NN topology
  */
-class INFERENCE_ENGINE_API_CLASS(ICNNNetwork): public details::IRelease {
+class INFERENCE_ENGINE_ICNNNETWORK_CLASS(ICNNNetwork) : public details::IRelease {
 public:
     /**
      * @brief A shared pointer to a ICNNNetwork interface
@@ -60,24 +65,15 @@ public:
     virtual std::shared_ptr<const ngraph::Function> getFunction() const noexcept = 0;
 
     /**
-     * @deprecated Network precision does not make sence, use precision on egdes. The method will be removed in 2020.3
-     * @brief Returns the main network operating precision.
-     *
-     * This may be MIXED if not homogeneous.
-     *
-     * @return A precision type
-     */
-    INFERENCE_ENGINE_DEPRECATED("Network precision does not make sence, use precision on egdes. The method will be removed in 2020.3")
-    virtual Precision getPrecision() const noexcept = 0;
-
-    /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.
      *
      * For single and multiple outputs networks.
      *
-     * This method need to be called to find output names for using them later
+     * This method need to be called to find out OpenVINO output names for using them later
      * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
      *
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor or
+     * InferenceEngine::ICNNNetwork::getOVNameForOperation methods to map framework names to OpenVINO names
      *
      * @param out Reference to the OutputsDataMap object
      */
@@ -88,8 +84,11 @@ public:
      * object.
      *
      * For single and multiple inputs networks.
-     * This method need to be called to find out input names for using them later
+     * This method need to be called to find out OpenVINO input names for using them later
      * when calling InferenceEngine::InferRequest::SetBlob
+     *
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor or
+     * InferenceEngine::ICNNNetwork::getOVNameForOperation methods to map framework names to OpenVINO names
      *
      * @param inputs Reference to InputsDataMap object.
      */
@@ -102,17 +101,6 @@ public:
      * @return A smart pointer to the input information
      */
     virtual InputInfo::Ptr getInput(const std::string& inputName) const noexcept = 0;
-
-    /**
-     * @deprecated Use ICNNNetwork::getName() instead. The method will be removed in 2020.3
-     * @brief Gets the network name. The name is stored in the given pName string.
-     *
-     * @param pName - will receive actual network name, specified in IR file,
-     *     pName should point to valid memory address before invoking this function
-     * @param len - size in bytes of pName buffer, actual name is trimmed by this size
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use ICNNNetwork::getName() instead. The method will be removed in 2020.3")
-    virtual void getName(char* pName, size_t len) const noexcept = 0;
 
     /**
      * @brief Returns the network name.
@@ -129,27 +117,6 @@ public:
     virtual size_t layerCount() const noexcept = 0;
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
-     * @brief Returns a smart pointer reference to a Data node given its name.
-     *
-     * If the Data node is missing, returns reference to a default initialized new empty data pointer with given name.
-     *
-     * @param dname Name of the Data node
-     * @return Data node smart pointer
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3")
-    virtual DataPtr& getData(const char* dname) noexcept = 0;
-
-    /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
-     * @brief Insert a layer into the network. A user is responsible to connect it to other data elements.
-     *
-     * @param layer Const reference to a layer smart pointer
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3")
-    virtual void addLayer(const CNNLayerPtr& layer) noexcept = 0;
-
-    /**
      * @brief Adds output to the layer
      *
      * @param layerName Name of the layer
@@ -159,18 +126,6 @@ public:
      */
     virtual StatusCode addOutput(const std::string& layerName, size_t outputIndex = 0,
                                  ResponseDesc* resp = nullptr) noexcept = 0;
-
-    /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
-     * @brief Gets network layer with the given name
-     *
-     * @param layerName Given name of the layer
-     * @param out Pointer to the found CNNLayer object with the given name
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3")
-    virtual StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept = 0;
 
     /**
      * @brief Changes the inference batch size.
@@ -219,33 +174,6 @@ public:
     };
 
     /**
-     * @deprecated Use Core::AddExtension to add an extension to the library
-     * @brief Registers extension within the plugin
-     *
-     * @param extension Pointer to already loaded reader extension with shape propagation implementations
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use Core::AddExtension to add an extension to the library")
-    virtual StatusCode AddExtension(const IShapeInferExtensionPtr& extension, ResponseDesc* resp) noexcept;
-
-    /**
-     * @deprecated Migrate to IR v10 and use quantization approach with FakeQuantize
-     * @brief Gets the statistics.
-     * @param stats The statistics
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and use quantization approach with FakeQuantize")
-    virtual StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* resp) const noexcept {
-        (void)stats;
-        (void)resp;
-        return NOT_IMPLEMENTED;
-    };
-    IE_SUPPRESS_DEPRECATED_END
-
-    /**
      * @brief Serialize network to IR and weights files.
      *
      * @param xmlPath Path to output IR file.
@@ -255,6 +183,38 @@ public:
      */
     virtual StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept = 0;
+
+    /**
+     * @brief Methods maps framework tensor name to OpenVINO name
+     *
+     * @param ov_name OpenVINO name
+     * @param orig_name Framework tensor name
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     *
+     * @return Status code of the operation
+     */
+    virtual StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+        (void) ov_name;
+        (void) orig_name;
+        (void) resp;
+        return NOT_IMPLEMENTED;
+    }
+
+    /**
+     * @brief Methods maps framework operation name to OpenVINO name
+     *
+     * @param ov_name OpenVINO name
+     * @param orig_name Framework operation name
+     * @param resp Pointer to the response message that holds a description of an error if any occurred
+     *
+     * @return Status code of the operation
+     */
+    virtual StatusCode getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
+        (void) ov_name;
+        (void) orig_name;
+        (void) resp;
+        return NOT_IMPLEMENTED;
+    }
 
     /**
      * @brief A virtual destructor.

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,9 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/shape_relevance.hpp"
+#include "pass/shape_relevance.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 using namespace std;
@@ -32,7 +34,7 @@ TEST(shape_relevance, simple)
 {
     auto param0 = make_shared<op::Parameter>(element::f32, Shape{4, 6});
     auto param1 = make_shared<op::Parameter>(element::f32, Shape{4, 6});
-    auto x = make_shared<op::Add>(param0, param1);
+    auto x = make_shared<op::v1::Add>(param0, param1);
 
     auto f = make_shared<Function>(x, ParameterVector{param0, param1});
 
@@ -131,7 +133,8 @@ TEST(shape_relevance, param_shape_of_indirect_v0)
     auto param0 = make_shared<op::Parameter>(element::f32, Shape{4, 6});
 
     auto s = make_shared<op::v0::ShapeOf>(param0);
-    auto r = make_shared<op::Reverse>(s, AxisSet{0});
+    auto r = make_shared<op::v1::Reverse>(
+        s, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
     auto x = make_shared<op::v1::Reshape>(param0, r, true);
 
     auto f = make_shared<Function>(x, ParameterVector{param0});
@@ -148,7 +151,8 @@ TEST(shape_relevance, param_shape_of_indirect_v3)
     auto param0 = make_shared<op::Parameter>(element::f32, Shape{4, 6});
 
     auto s = make_shared<op::v3::ShapeOf>(param0);
-    auto r = make_shared<op::Reverse>(s, AxisSet{0});
+    auto r = make_shared<op::v1::Reverse>(
+        s, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
     auto x = make_shared<op::v1::Reshape>(param0, r, true);
 
     auto f = make_shared<Function>(x, ParameterVector{param0});
@@ -165,7 +169,8 @@ TEST(shape_relevance, param_shape_of_indirect_i32_v3)
     auto param0 = make_shared<op::Parameter>(element::f32, Shape{4, 6});
 
     auto s = make_shared<op::v3::ShapeOf>(param0, element::i32);
-    auto r = make_shared<op::Reverse>(s, AxisSet{0});
+    auto r = make_shared<op::v1::Reverse>(
+        s, op::Constant::create(element::i64, {1}, {0}), op::v1::Reverse::Mode::INDEX);
     auto x = make_shared<op::v1::Reshape>(param0, r, true);
 
     auto f = make_shared<Function>(x, ParameterVector{param0});

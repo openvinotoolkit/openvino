@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -88,10 +88,8 @@ public:
         const auto& deformable_groups = primitive->deformable_groups;
         const auto transposed = arg.get_transposed();
 
-        assert(arg.get_output_layout().size.feature[0] == weights_layout.size.batch[0] * weights_layout.size.group[0]);
-
         auto conv_params = get_weight_bias_zero_point_default_params<kernel_selector::convolution_params>(
-            arg, split, 1);
+            arg, split, 1, primitive->grouped_weights_shape);
         auto conv_optional_params =
             get_default_weights_bias_optional_params<kernel_selector::convolution_optional_params>(arg.get_program());
 
@@ -112,11 +110,12 @@ public:
         conv_params.local_convolution = weights_size.local[0] > 1 || weights_size.local[1] > 1;
         conv_params.split = split;
         conv_params.groups = groups;
-        conv_params.filterSize = {
-            (uint32_t)weights_size.spatial[0],
-            (uint32_t)weights_size.spatial[1],
-            (uint32_t)weights_size.spatial[2],
-        };
+
+        auto spatial_size = arg.get_output_layout().format.dimension() - 2;
+        uint32_t kx = weights_size.spatial[0];
+        uint32_t ky = weights_size.spatial[1];
+        uint32_t kz = spatial_size == 2 ? 1 : weights_size.spatial[2];
+        conv_params.filterSize = { kx, ky, kz };
 
         conv_params.padding = {(uint32_t)std::max(-input_offset.spatial[0], 0),
                                (uint32_t)std::max(-input_offset.spatial[1], 0),
@@ -189,8 +188,6 @@ attach_convolution_gpu::attach_convolution_gpu() {
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::winograd_2x3_s1_data), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::winograd_2x3_s1_data), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bf8_xy16), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bf8_xy16), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
     // block f16 format
@@ -199,12 +196,9 @@ attach_convolution_gpu::attach_convolution_gpu() {
     // block i8 format
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv16), val_fw);
     // MMAD
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf_af32), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf_af32), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf_af32), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), val_fw);
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byx8_f4), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw);
 
@@ -214,7 +208,6 @@ attach_convolution_gpu::attach_convolution_gpu() {
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv32), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv32), val_fw);
 
-    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw);
@@ -225,6 +218,8 @@ attach_convolution_gpu::attach_convolution_gpu() {
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), val_fw);
     implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<convolution>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16), val_fw);
 }
 
 }  // namespace detail

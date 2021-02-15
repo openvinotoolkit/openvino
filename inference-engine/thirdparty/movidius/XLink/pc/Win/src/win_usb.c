@@ -16,6 +16,8 @@
 #include <stdint.h>
 #include "win_usb.h"
 
+#define MVLOG_UNIT_NAME xLinkWinUsb
+#include "XLinkLog.h"
 #include "XLinkStringUtils.h"
 
 #define USB_DIR_OUT     0
@@ -85,7 +87,7 @@ static const char *format_win32_msg(DWORD errId) {
 
 static void wperror(const char *errmsg) {
     DWORD errId = GetLastError();
-    fprintf(stderr, "%s: System err %d\n", errmsg, errId);
+    mvLog(MVLOG_DEBUG, "%s: System err %d\n", errmsg, errId);
 }
 
 static void wstrerror(char *buff, const char *errmsg) {
@@ -462,7 +464,7 @@ int usb_bulk_write(usb_hwnd han, uint8_t ep, const void *buffer, size_t sz, uint
         if(last_bulk_errcode == ERROR_SEM_TIMEOUT)
             return USB_ERR_TIMEOUT;
         wperror("WinUsb_WritePipe");
-        printf("\nWinUsb_WritePipe failed with error:=%d\n", GetLastError());
+        mvLog(MVLOG_ERROR, "\nWinUsb_WritePipe failed with error:=%d\n", GetLastError());
         return USB_ERR_FAILED;
     }
     last_bulk_errcode = 0;

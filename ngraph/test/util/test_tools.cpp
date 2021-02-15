@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@
 #include "ngraph/util.hpp"
 #include "test_tools.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
@@ -31,7 +33,9 @@ bool validate_list(const vector<shared_ptr<Node>>& nodes)
     for (auto it = nodes.rbegin(); it != nodes.rend(); it++)
     {
         auto node_tmp = *it;
-        auto dependencies_tmp = node_tmp->get_arguments();
+        NodeVector dependencies_tmp;
+        for (auto& val : node_tmp->input_values())
+            dependencies_tmp.emplace_back(val.get_node_shared_ptr());
         vector<Node*> dependencies;
 
         for (shared_ptr<Node> n : dependencies_tmp)
@@ -58,21 +62,21 @@ bool validate_list(const vector<shared_ptr<Node>>& nodes)
 
 shared_ptr<Function> make_test_graph()
 {
-    auto arg_0 = make_shared<op::Parameter>(element::f32, Shape{});
-    auto arg_1 = make_shared<op::Parameter>(element::f32, Shape{});
-    auto arg_2 = make_shared<op::Parameter>(element::f32, Shape{});
-    auto arg_3 = make_shared<op::Parameter>(element::f32, Shape{});
-    auto arg_4 = make_shared<op::Parameter>(element::f32, Shape{});
-    auto arg_5 = make_shared<op::Parameter>(element::f32, Shape{});
+    auto arg_0 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_1 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_2 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_3 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_4 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
+    auto arg_5 = make_shared<op::Parameter>(element::f32, Shape{2, 2});
 
-    auto t0 = make_shared<op::Add>(arg_0, arg_1);
-    auto t1 = make_shared<op::Dot>(t0, arg_2);
-    auto t2 = make_shared<op::Multiply>(t0, arg_3);
+    auto t0 = make_shared<op::v1::Add>(arg_0, arg_1);
+    auto t1 = make_shared<op::MatMul>(t0, arg_2);
+    auto t2 = make_shared<op::v1::Multiply>(t0, arg_3);
 
-    auto t3 = make_shared<op::Add>(t1, arg_4);
-    auto t4 = make_shared<op::Add>(t2, arg_5);
+    auto t3 = make_shared<op::v1::Add>(t1, arg_4);
+    auto t4 = make_shared<op::v1::Add>(t2, arg_5);
 
-    auto r0 = make_shared<op::Add>(t3, t4);
+    auto r0 = make_shared<op::v1::Add>(t3, t4);
 
     auto f0 = make_shared<Function>(r0, ParameterVector{arg_0, arg_1, arg_2, arg_3, arg_4, arg_5});
 
@@ -207,17 +211,6 @@ string get_results_str(const std::vector<char>& ref_data,
     return ss.str();
 }
 
-#ifndef NGRAPH_JSON_DISABLE
-std::shared_ptr<Function> make_function_from_file(const std::string& file_name)
-{
-    const string json_path = file_util::path_join(SERIALIZED_ZOO, file_name);
-    const string json_string = file_util::read_file_to_string(json_path);
-    stringstream ss(json_string);
-    shared_ptr<Function> func = ngraph::deserialize(ss);
-    return func;
-}
-#endif
-
 ::testing::AssertionResult test_ordered_ops(shared_ptr<Function> f, const NodeVector& required_ops)
 {
     unordered_set<Node*> seen;
@@ -262,7 +255,7 @@ std::shared_ptr<Function> make_function_from_file(const std::string& file_name)
 constexpr NodeTypeInfo ngraph::TestOpMultiOut::type_info;
 
 bool ngraph::TestOpMultiOut::evaluate(const HostTensorVector& outputs,
-                                      const HostTensorVector& inputs)
+                                      const HostTensorVector& inputs) const
 {
     inputs[0]->read(outputs[0]->get_data_ptr(), inputs[0]->get_size_in_bytes());
     inputs[1]->read(outputs[1]->get_data_ptr(), inputs[1]->get_size_in_bytes());

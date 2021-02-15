@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_IMGPROC_TESTS_INL_HPP
@@ -48,6 +48,27 @@ namespace
             const uchar* in_line_p  = in.ptr<uchar>(i);
             uchar* out_line_p = out.ptr<uchar>(i);
             rgb2yuyv(in_line_p, out_line_p, in.cols);
+        }
+    }
+
+    // Draw random ellipses on given mat of given size and type
+    void initMatForFindingContours(cv::Mat& mat, const cv::Size& sz, const int type)
+    {
+        cv::RNG& rng = theRNG();
+        mat = cv::Mat(sz, type, cv::Scalar::all(0));
+        size_t numEllipses = rng.uniform(1, 10);
+
+        for( size_t i = 0; i < numEllipses; i++ )
+        {
+            cv::Point center;
+            cv::Size  axes;
+            center.x     = rng.uniform(0, sz.width);
+            center.y     = rng.uniform(0, sz.height);
+            axes.width   = rng.uniform(2, sz.width);
+            axes.height  = rng.uniform(2, sz.height);
+            int color    = rng.uniform(1, 256);
+            double angle = rng.uniform(0., 180.);
+            cv::ellipse(mat, center, axes, angle, 0., 360., color, 1, FILLED);
         }
     }
 }
@@ -290,6 +311,29 @@ TEST_P(Dilate3x3Test, AccuracyTest)
     }
 }
 
+TEST_P(MorphologyExTest, AccuracyTest)
+{
+    MorphShapes defShape = cv::MORPH_RECT;
+    int defKernSize = 3;
+    cv::Mat kernel = cv::getStructuringElement(defShape, cv::Size(defKernSize, defKernSize));
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::morphologyEx(in, op, kernel);
+
+    cv::GComputation c(in, out);
+    c.apply(in_mat1, out_mat_gapi, getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::morphologyEx(in_mat1, out_mat_ocv, op, kernel);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+        EXPECT_EQ(out_mat_gapi.size(), sz);
+    }
+}
+
 TEST_P(SobelTest, AccuracyTest)
 {
     // G-API code //////////////////////////////////////////////////////////////
@@ -342,6 +386,45 @@ TEST_P(SobelXYTest, AccuracyTest)
     }
 }
 
+TEST_P(LaplacianTest, AccuracyTest)
+{
+    double delta = 10;
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::Laplacian(in, dtype, kernSize, scale, delta, borderType);
+
+    cv::GComputation c(in, out);
+    c.apply(in_mat1, out_mat_gapi, getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::Laplacian(in_mat1, out_mat_ocv, dtype, kernSize, scale, delta, borderType);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+        EXPECT_EQ(out_mat_gapi.size(), sz);
+    }
+}
+
+TEST_P(BilateralFilterTest, AccuracyTest)
+{
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::bilateralFilter(in, d, sigmaColor, sigmaSpace, borderType);
+
+    cv::GComputation c(in, out);
+    c.apply(in_mat1, out_mat_gapi, getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::bilateralFilter(in_mat1, out_mat_ocv, d, sigmaColor, sigmaSpace, borderType);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+        EXPECT_EQ(out_mat_gapi.size(), sz);
+    }
+}
+
 TEST_P(EqHistTest, AccuracyTest)
 {
     // G-API code //////////////////////////////////////////////////////////////
@@ -372,6 +455,500 @@ TEST_P(CannyTest, AccuracyTest)
     // OpenCV code /////////////////////////////////////////////////////////////
     {
         cv::Canny(in_mat1, out_mat_ocv, thrLow, thrUp, apSize, l2gr);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+        EXPECT_EQ(out_mat_gapi.size(), sz);
+    }
+}
+
+TEST_P(GoodFeaturesTest, AccuracyTest)
+{
+    double k = 0.04;
+
+    initMatFromImage(type, fileName);
+
+    std::vector<cv::Point2f> outVecOCV, outVecGAPI;
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::goodFeaturesToTrack(in, maxCorners, qualityLevel, minDistance, cv::Mat(),
+                                             blockSize, useHarrisDetector, k);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_mat1), cv::gout(outVecGAPI), getCompileArgs());
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::goodFeaturesToTrack(in_mat1, outVecOCV, maxCorners, qualityLevel, minDistance,
+                                cv::noArray(), blockSize, useHarrisDetector, k);
+    }
+
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(outVecGAPI, outVecOCV));
+    }
+}
+
+TEST_P(FindContoursNoOffsetTest, AccuracyTest)
+{
+    std::vector<std::vector<cv::Point>> outCtsOCV,  outCtsGAPI;
+
+    initMatForFindingContours(in_mat1, sz, type);
+    out_mat_gapi = cv::Mat(sz, type, cv::Scalar::all(0));
+    out_mat_ocv  = cv::Mat(sz, type, cv::Scalar::all(0));
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::findContours(in_mat1, outCtsOCV, mode, method);
+    }
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    cv::GArray<cv::GArray<cv::Point>> outCts;
+    outCts = cv::gapi::findContours(in, mode, method);
+    cv::GComputation c(GIn(in), GOut(outCts));
+    c.apply(gin(in_mat1), gout(outCtsGAPI), getCompileArgs());
+
+    // Comparison //////////////////////////////////////////////////////////////
+    EXPECT_TRUE(outCtsGAPI.size() == outCtsOCV.size());
+    cv::fillPoly(out_mat_ocv,  outCtsOCV,  cv::Scalar::all(1));
+    cv::fillPoly(out_mat_gapi, outCtsGAPI, cv::Scalar::all(1));
+    EXPECT_TRUE(AbsExact().to_compare_f()(out_mat_ocv, out_mat_gapi));
+}
+
+TEST_P(FindContoursOffsetTest, AccuracyTest)
+{
+    const cv::Size sz(1280, 720);
+    const MatType2 type = CV_8UC1;
+    const cv::RetrievalModes mode = cv::RETR_EXTERNAL;
+    const cv::ContourApproximationModes method = cv::CHAIN_APPROX_NONE;
+    const cv::Point offset(15, 15);
+    std::vector<std::vector<cv::Point>> outCtsOCV,  outCtsGAPI;
+
+    initMatForFindingContours(in_mat1, sz, type);
+    out_mat_gapi = cv::Mat(sz, type, cv::Scalar::all(0));
+    out_mat_ocv  = cv::Mat(sz, type, cv::Scalar::all(0));
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::findContours(in_mat1, outCtsOCV, mode, method, offset);
+    }
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    GOpaque<Point> gOffset;
+    cv::GArray<cv::GArray<cv::Point>> outCts;
+    outCts = cv::gapi::findContours(in, mode, method, gOffset);
+    cv::GComputation c(GIn(in, gOffset), GOut(outCts));
+    c.apply(gin(in_mat1, offset), gout(outCtsGAPI), getCompileArgs());
+
+    // Comparison //////////////////////////////////////////////////////////////
+    EXPECT_TRUE(outCtsGAPI.size() == outCtsOCV.size());
+    cv::fillPoly(out_mat_ocv,  outCtsOCV,  cv::Scalar::all(1));
+    cv::fillPoly(out_mat_gapi, outCtsGAPI, cv::Scalar::all(1));
+    EXPECT_TRUE(AbsExact().to_compare_f()(out_mat_ocv, out_mat_gapi));
+}
+
+TEST_P(FindContoursHNoOffsetTest, AccuracyTest)
+{
+    std::vector<std::vector<cv::Point>> outCtsOCV,  outCtsGAPI;
+    std::vector<cv::Vec4i>              outHierOCV, outHierGAPI;
+
+    initMatForFindingContours(in_mat1, sz, type);
+    out_mat_gapi = cv::Mat(sz, type, cv::Scalar::all(0));
+    out_mat_ocv  = cv::Mat(sz, type, cv::Scalar::all(0));
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::findContours(in_mat1, outCtsOCV, outHierOCV, mode, method);
+    }
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    cv::GArray<cv::GArray<cv::Point>> outCts;
+    cv::GArray<cv::Vec4i> outHier;
+    std::tie(outCts, outHier) = cv::gapi::findContoursH(in, mode, method);
+    cv::GComputation c(GIn(in), GOut(outCts, outHier));
+    c.apply(gin(in_mat1), gout(outCtsGAPI, outHierGAPI), getCompileArgs());
+
+    // Comparison //////////////////////////////////////////////////////////////
+    EXPECT_TRUE(outCtsGAPI.size() == outCtsOCV.size());
+    cv::fillPoly(out_mat_ocv,  outCtsOCV,  cv::Scalar::all(1));
+    cv::fillPoly(out_mat_gapi, outCtsGAPI, cv::Scalar::all(1));
+    EXPECT_TRUE(AbsExact().to_compare_f()(out_mat_ocv, out_mat_gapi));
+
+    EXPECT_TRUE(outCtsGAPI.size() == outCtsOCV.size());
+    EXPECT_TRUE(AbsExactVector<cv::Vec4i>().to_compare_f()(outHierOCV, outHierGAPI));
+}
+
+TEST_P(FindContoursHOffsetTest, AccuracyTest)
+{
+    const cv::Size sz(1280, 720);
+    const MatType2 type = CV_8UC1;
+    const cv::RetrievalModes mode = cv::RETR_EXTERNAL;
+    const cv::ContourApproximationModes method = cv::CHAIN_APPROX_NONE;
+    const cv::Point offset(15, 15);
+    std::vector<std::vector<cv::Point>> outCtsOCV,  outCtsGAPI;
+    std::vector<cv::Vec4i>              outHierOCV, outHierGAPI;
+
+    initMatForFindingContours(in_mat1, sz, type);
+    out_mat_gapi = cv::Mat(sz, type, cv::Scalar::all(0));
+    out_mat_ocv  = cv::Mat(sz, type, cv::Scalar::all(0));
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::findContours(in_mat1, outCtsOCV, outHierOCV, mode, method, offset);
+    }
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    GOpaque<Point> gOffset;
+    cv::GArray<cv::GArray<cv::Point>> outCts;
+    cv::GArray<cv::Vec4i> outHier;
+    std::tie(outCts, outHier) = cv::gapi::findContoursH(in, mode, method, gOffset);
+    cv::GComputation c(GIn(in, gOffset), GOut(outCts, outHier));
+    c.apply(gin(in_mat1, offset), gout(outCtsGAPI, outHierGAPI), getCompileArgs());
+
+    // Comparison //////////////////////////////////////////////////////////////
+    EXPECT_TRUE(outCtsGAPI.size() == outCtsOCV.size());
+    cv::fillPoly(out_mat_ocv,  outCtsOCV,  cv::Scalar::all(1));
+    cv::fillPoly(out_mat_gapi, outCtsGAPI, cv::Scalar::all(1));
+    EXPECT_TRUE(AbsExact().to_compare_f()(out_mat_ocv, out_mat_gapi));
+
+    EXPECT_TRUE(outCtsGAPI.size() == outCtsOCV.size());
+    EXPECT_TRUE(AbsExactVector<cv::Vec4i>().to_compare_f()(outHierOCV, outHierGAPI));
+}
+
+TEST_P(BoundingRectMatTest, AccuracyTest)
+{
+    cv::Rect out_rect_gapi, out_rect_ocv;
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::boundingRect(in);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_mat1), cv::gout(out_rect_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_rect_ocv = cv::boundingRect(in_mat1);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_rect_gapi, out_rect_ocv));
+    }
+}
+
+TEST_P(BoundingRectMatVector32STest, AccuracyTest)
+{
+    cv::Rect out_rect_gapi, out_rect_ocv;
+
+    std::vector<cv::Point2i> in_vectorS(sz.width);
+    cv::randu(in_vectorS, cv::Scalar::all(0), cv::Scalar::all(255));
+    in_mat1 = cv::Mat(in_vectorS);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::boundingRect(in);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_mat1), cv::gout(out_rect_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_rect_ocv = cv::boundingRect(in_mat1);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_rect_gapi, out_rect_ocv));
+    }
+}
+
+TEST_P(BoundingRectMatVector32FTest, AccuracyTest)
+{
+    cv::RNG& rng = theRNG();
+    cv::Rect out_rect_gapi, out_rect_ocv;
+
+    std::vector<cv::Point2f> in_vectorF(sz.width);
+    const int fscale = 256;  // avoid bits near ULP, generate stable test input
+    for (int i = 0; i < sz.width; i++)
+    {
+        cv::Point2f pt(rng.uniform(0, 255 * fscale) / static_cast<float>(fscale),
+                       rng.uniform(0, 255 * fscale) / static_cast<float>(fscale));
+        in_vectorF.push_back(pt);
+    }
+    in_mat1 = cv::Mat(in_vectorF);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::boundingRect(in);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_mat1), cv::gout(out_rect_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_rect_ocv = cv::boundingRect(in_mat1);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_rect_gapi, out_rect_ocv));
+    }
+}
+
+
+TEST_P(BoundingRectVector32STest, AccuracyTest)
+{
+    cv::Rect out_rect_gapi, out_rect_ocv;
+
+    std::vector<cv::Point2i> in_vectorS(sz.width);
+    cv::randu(in_vectorS, cv::Scalar::all(0), cv::Scalar::all(255));
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point2i> in;
+    auto out = cv::gapi::boundingRect(in);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_vectorS), cv::gout(out_rect_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_rect_ocv = cv::boundingRect(in_vectorS);
+    }
+
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_rect_gapi, out_rect_ocv));
+    }
+}
+
+TEST_P(BoundingRectVector32FTest, AccuracyTest)
+{
+    cv::RNG& rng = theRNG();
+    cv::Rect out_rect_gapi, out_rect_ocv;
+
+    std::vector<cv::Point2f> in_vectorF(sz.width);
+    const int fscale = 256;  // avoid bits near ULP, generate stable test input
+    for (int i = 0; i < sz.width; i++)
+    {
+        cv::Point2f pt(rng.uniform(0, 255 * fscale) / static_cast<float>(fscale),
+                       rng.uniform(0, 255 * fscale) / static_cast<float>(fscale));
+        in_vectorF.push_back(pt);
+    }
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point2f> in;
+    auto out = cv::gapi::boundingRect(in);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_vectorF), cv::gout(out_rect_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_rect_ocv = cv::boundingRect(in_vectorF);
+    }
+
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_rect_gapi, out_rect_ocv));
+    }
+}
+
+TEST_P(FitLine2DMatVectorTest, AccuracyTest)
+{
+    cv::Vec4f out_vec_gapi, out_vec_ocv;
+    double paramDefault = 0., repsDefault = 0., aepsDefault = 0.;
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::fitLine2D(in, distType, paramDefault, repsDefault, aepsDefault);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_mat1), cv::gout(out_vec_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::fitLine(in_mat1, out_vec_ocv, distType, paramDefault, repsDefault, aepsDefault);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_vec_gapi, out_vec_ocv));
+    }
+}
+
+TEST_P(FitLine2DVector32STest, AccuracyTest)
+{
+    cv::Vec4f out_vec_gapi, out_vec_ocv;
+    double paramDefault = 0., repsDefault = 0., aepsDefault = 0.;
+
+    std::vector<cv::Point2i> in_vec;
+    initPointsVectorRandU(sz.width, in_vec);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point2i> in;
+    auto out = cv::gapi::fitLine2D(in, distType, paramDefault, repsDefault, aepsDefault);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_vec), cv::gout(out_vec_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::fitLine(in_vec, out_vec_ocv, distType, paramDefault, repsDefault, aepsDefault);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_vec_gapi, out_vec_ocv));
+    }
+}
+
+TEST_P(FitLine2DVector32FTest, AccuracyTest)
+{
+    cv::Vec4f out_vec_gapi, out_vec_ocv;
+    double paramDefault = 0., repsDefault = 0., aepsDefault = 0.;
+
+    std::vector<cv::Point2f> in_vec;
+    initPointsVectorRandU(sz.width, in_vec);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point2f> in;
+    auto out = cv::gapi::fitLine2D(in, distType, paramDefault, repsDefault, aepsDefault);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_vec), cv::gout(out_vec_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::fitLine(in_vec, out_vec_ocv, distType, paramDefault, repsDefault, aepsDefault);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_vec_gapi, out_vec_ocv));
+    }
+}
+
+TEST_P(FitLine2DVector64FTest, AccuracyTest)
+{
+    cv::Vec4f out_vec_gapi, out_vec_ocv;
+    double paramDefault = 0., repsDefault = 0., aepsDefault = 0.;
+
+    std::vector<cv::Point2d> in_vec;
+    initPointsVectorRandU(sz.width, in_vec);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point2d> in;
+    auto out = cv::gapi::fitLine2D(in, distType, paramDefault, repsDefault, aepsDefault);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_vec), cv::gout(out_vec_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::fitLine(in_vec, out_vec_ocv, distType, paramDefault, repsDefault, aepsDefault);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_vec_gapi, out_vec_ocv));
+    }
+}
+
+TEST_P(FitLine3DMatVectorTest, AccuracyTest)
+{
+    cv::Vec6f out_vec_gapi, out_vec_ocv;
+    double paramDefault = 0., repsDefault = 0., aepsDefault = 0.;
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::fitLine3D(in, distType, paramDefault, repsDefault, aepsDefault);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_mat1), cv::gout(out_vec_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::fitLine(in_mat1, out_vec_ocv, distType, paramDefault, repsDefault, aepsDefault);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_vec_gapi, out_vec_ocv));
+    }
+}
+
+TEST_P(FitLine3DVector32STest, AccuracyTest)
+{
+    cv::Vec6f out_vec_gapi, out_vec_ocv;
+    double paramDefault = 0., repsDefault = 0., aepsDefault = 0.;
+
+    std::vector<cv::Point3i> in_vec;
+    initPointsVectorRandU(sz.width, in_vec);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point3i> in;
+    auto out = cv::gapi::fitLine3D(in, distType, paramDefault, repsDefault, aepsDefault);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_vec), cv::gout(out_vec_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::fitLine(in_vec, out_vec_ocv, distType, paramDefault, repsDefault, aepsDefault);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_vec_gapi, out_vec_ocv));
+    }
+}
+
+TEST_P(FitLine3DVector32FTest, AccuracyTest)
+{
+    cv::Vec6f out_vec_gapi, out_vec_ocv;
+    double paramDefault = 0., repsDefault = 0., aepsDefault = 0.;
+
+    std::vector<cv::Point3f> in_vec;
+    initPointsVectorRandU(sz.width, in_vec);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point3f> in;
+    auto out = cv::gapi::fitLine3D(in, distType, paramDefault, repsDefault, aepsDefault);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_vec), cv::gout(out_vec_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::fitLine(in_vec, out_vec_ocv, distType, paramDefault, repsDefault, aepsDefault);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_vec_gapi, out_vec_ocv));
+    }
+}
+
+TEST_P(FitLine3DVector64FTest, AccuracyTest)
+{
+    cv::Vec6f out_vec_gapi, out_vec_ocv;
+    double paramDefault = 0., repsDefault = 0., aepsDefault = 0.;
+
+    std::vector<cv::Point3d> in_vec;
+    initPointsVectorRandU(sz.width, in_vec);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point3d> in;
+    auto out = cv::gapi::fitLine3D(in, distType, paramDefault, repsDefault, aepsDefault);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_vec), cv::gout(out_vec_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::fitLine(in_vec, out_vec_ocv, distType, paramDefault, repsDefault, aepsDefault);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_vec_gapi, out_vec_ocv));
+    }
+}
+
+TEST_P(BGR2RGBTest, AccuracyTest)
+{
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::BGR2RGB(in);
+
+    cv::GComputation c(in, out);
+    c.apply(in_mat1, out_mat_gapi, getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::cvtColor(in_mat1, out_mat_ocv, cv::COLOR_BGR2RGB);
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
@@ -456,6 +1033,82 @@ TEST_P(YUV2RGBTest, AccuracyTest)
     }
 }
 
+TEST_P(BGR2I420Test, AccuracyTest)
+{
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::BGR2I420(in);
+
+    cv::GComputation c(in, out);
+    c.apply(in_mat1, out_mat_gapi, getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::cvtColor(in_mat1, out_mat_ocv, cv::COLOR_BGR2YUV_I420);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+        EXPECT_EQ(out_mat_gapi.size(), Size(sz.width, sz.height * 3 / 2));
+    }
+}
+
+TEST_P(RGB2I420Test, AccuracyTest)
+{
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::RGB2I420(in);
+
+    cv::GComputation c(in, out);
+    c.apply(in_mat1, out_mat_gapi, getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::cvtColor(in_mat1, out_mat_ocv, cv::COLOR_RGB2YUV_I420);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+        EXPECT_EQ(out_mat_gapi.size(), Size(sz.width, sz.height * 3 / 2));
+    }
+}
+
+TEST_P(I4202BGRTest, AccuracyTest)
+{
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::I4202BGR(in);
+
+    cv::GComputation c(in, out);
+    c.apply(in_mat1, out_mat_gapi, getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::cvtColor(in_mat1, out_mat_ocv, cv::COLOR_YUV2BGR_I420);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+        EXPECT_EQ(out_mat_gapi.size(), Size(sz.width, sz.height * 2 / 3));
+    }
+}
+
+TEST_P(I4202RGBTest, AccuracyTest)
+{
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::I4202RGB(in);
+
+    cv::GComputation c(in, out);
+    c.apply(in_mat1, out_mat_gapi, getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::cvtColor(in_mat1, out_mat_ocv, cv::COLOR_YUV2RGB_I420);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+        EXPECT_EQ(out_mat_gapi.size(), Size(sz.width, sz.height * 2 / 3));
+    }
+}
+
 TEST_P(NV12toRGBTest, AccuracyTest)
 {
     // G-API code //////////////////////////////////////////////////////////////
@@ -504,6 +1157,33 @@ TEST_P(NV12toBGRTest, AccuracyTest)
     }
 }
 
+TEST_P(NV12toGrayTest, AccuracyTest)
+{
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in_y;
+    cv::GMat in_uv;
+    auto out = cv::gapi::NV12toGray(in_y, in_uv);
+
+    // Additional mat for uv
+    cv::Mat in_mat_uv(cv::Size(sz.width / 2, sz.height / 2), CV_8UC2);
+    cv::randn(in_mat_uv, cv::Scalar::all(127), cv::Scalar::all(40.f));
+
+    cv::GComputation c(cv::GIn(in_y, in_uv), cv::GOut(out));
+    c.apply(cv::gin(in_mat1, in_mat_uv), cv::gout(out_mat_gapi), getCompileArgs());
+
+    cv::Mat out_mat_ocv_planar;
+    cv::Mat uv_planar(in_mat1.rows / 2, in_mat1.cols, CV_8UC1, in_mat_uv.data);
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        cv::vconcat(in_mat1, uv_planar, out_mat_ocv_planar);
+        cv::cvtColor(out_mat_ocv_planar, out_mat_ocv, cv::COLOR_YUV2GRAY_NV12);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+        EXPECT_EQ(out_mat_gapi.size(), sz);
+    }
+}
 
 static void toPlanar(const cv::Mat& in, cv::Mat& out)
 {
@@ -729,7 +1409,6 @@ TEST_P(RGB2YUV422Test, AccuracyTest)
         EXPECT_EQ(out_mat_gapi.size(), sz);
     }
 }
-
 } // opencv_test
 
 #endif //OPENCV_GAPI_IMGPROC_TESTS_INL_HPP

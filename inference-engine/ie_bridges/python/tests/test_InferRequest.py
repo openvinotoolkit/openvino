@@ -12,14 +12,15 @@ is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
 test_net_xml, test_net_bin = model_path(is_myriad)
 path_to_img = image_path()
 
+
 def read_image():
     import cv2
     n, c, h, w = (1, 3, 32, 32)
-    image = cv2.imread(path_to_img) / 255
+    image = cv2.imread(path_to_img)
     if image is None:
         raise FileNotFoundError("Input image not found")
 
-    image = cv2.resize(image, (h, w))
+    image = cv2.resize(image, (h, w)) / 255
     image = image.transpose((2, 0, 1)).astype(np.float32)
     image = image.reshape((n, c, h, w))
     return image
@@ -36,7 +37,7 @@ def test_input_blobs(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=2)
-    td = ie.IETensorDesc("FP32", (1, 3, 32, 32), "NCHW")
+    td = ie.TensorDesc("FP32", (1, 3, 32, 32), "NCHW")
     assert executable_network.requests[0].input_blobs['data'].tensor_desc == td
 
 
@@ -44,7 +45,7 @@ def test_output_blobs(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
     executable_network = ie_core.load_network(net, device, num_requests=2)
-    td = ie.IETensorDesc("FP32", (1, 10), "NC")
+    td = ie.TensorDesc("FP32", (1, 10), "NC")
     assert executable_network.requests[0].output_blobs['fc_out'].tensor_desc == td
 
 
@@ -54,8 +55,8 @@ def test_inputs_deprecated(device):
     executable_network = ie_core.load_network(net, device, num_requests=2)
     with warnings.catch_warnings(record=True) as w:
         inputs = executable_network.requests[0].inputs
-    assert "'inputs' property of InferRequest is deprecated. Please instead use 'input_blobs' property." in str(
-        w[-1].message)
+    assert "'inputs' property of InferRequest is deprecated. " \
+           "Please instead use 'input_blobs' property." in str(w[-1].message)
     del executable_network
     del ie_core
     del net
@@ -386,15 +387,15 @@ def test_get_perf_counts(device):
     del net
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Can't run test on device {},"
-                                                                          "Dynamic batch fully supported only on CPU".format(
-    os.environ.get("TEST_DEVICE", "CPU")))
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                            "Dynamic batch fully supported only on CPU")
 def test_set_batch_size(device):
     ie_core = ie.IECore()
     ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
     net = ie_core.read_network(test_net_xml, test_net_bin)
     net.batch_size = 10
-    data = np.zeros(shape=net.inputs['data'].shape)
+    data = np.zeros(shape=net.input_info['data'].input_data.shape)
     exec_net = ie_core.load_network(net, device)
     data[0] = read_image()[0]
     request = exec_net.requests[0]
@@ -422,7 +423,7 @@ def test_set_zero_batch_size(device):
 def test_set_negative_batch_size(device):
     ie_core = ie.IECore()
     net = ie_core.read_network(test_net_xml, test_net_bin)
-    exec_net =  ie_core.load_network(net, device, num_requests=1)
+    exec_net = ie_core.load_network(net, device, num_requests=1)
     request = exec_net.requests[0]
     with pytest.raises(ValueError) as e:
         request.set_batch(-1)
@@ -437,17 +438,77 @@ def test_blob_setter(device):
     net = ie_core.read_network(test_net_xml, test_net_bin)
     exec_net_1 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
-    net.inputs['data'].layout = "NHWC"
+    net.input_info['data'].layout = "NHWC"
     exec_net_2 = ie_core.load_network(network=net, device_name=device, num_requests=1)
 
     img = read_image()
     res_1 = np.sort(exec_net_1.infer({"data": img})['fc_out'])
 
     img = np.transpose(img, axes=(0, 2, 3, 1)).astype(np.float32)
-    tensor_desc = ie.IETensorDesc("FP32", [1, 3, 32, 32], "NHWC")
-    img_blob = ie.IEBlob(tensor_desc, img)
+    tensor_desc = ie.TensorDesc("FP32", [1, 3, 32, 32], "NHWC")
+    img_blob = ie.Blob(tensor_desc, img)
     request = exec_net_2.requests[0]
     request.set_blob('data', img_blob)
     request.infer()
     res_2 = np.sort(request.output_blobs['fc_out'].buffer)
+    assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)
+
+
+def test_blob_setter_with_preprocess(device):
+    ie_core = ie.IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+
+    img = read_image()
+    tensor_desc = ie.TensorDesc("FP32", [1, 3, 32, 32], "NCHW")
+    img_blob = ie.Blob(tensor_desc, img)
+    preprocess_info = ie.PreProcessInfo()
+    preprocess_info.mean_variant = ie.MeanVariant.MEAN_IMAGE
+
+    request = exec_net.requests[0]
+    request.set_blob('data', img_blob, preprocess_info)
+    pp = request.preprocess_info["data"]
+    assert pp.mean_variant == ie.MeanVariant.MEAN_IMAGE
+
+
+def test_getting_preprocess(device):
+    ie_core = ie.IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net = ie_core.load_network(network=net, device_name=device, num_requests=1)
+    request = exec_net.requests[0]
+    preprocess_info = request.preprocess_info["data"]
+    assert isinstance(preprocess_info, ie.PreProcessInfo)
+    assert preprocess_info.mean_variant == ie.MeanVariant.NONE
+
+
+def test_resize_algorithm_work(device):
+    ie_core = ie.IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    exec_net_1 = ie_core.load_network(network=net, device_name=device, num_requests=1)
+
+    img = read_image()
+    res_1 = np.sort(exec_net_1.infer({"data": img})['fc_out'])
+
+    net.input_info['data'].preprocess_info.resize_algorithm = ie.ResizeAlgorithm.RESIZE_BILINEAR
+
+    exec_net_2 = ie_core.load_network(net, device)
+
+    import cv2
+
+    image = cv2.imread(path_to_img)
+    if image is None:
+        raise FileNotFoundError("Input image not found")
+
+    image = image / 255
+    image = image.transpose((2, 0, 1)).astype(np.float32)
+    image = np.expand_dims(image, 0)
+
+    tensor_desc = ie.TensorDesc("FP32", [1, 3, image.shape[2], image.shape[3]], "NCHW")
+    img_blob = ie.Blob(tensor_desc, image)
+    request = exec_net_2.requests[0]
+    assert request.preprocess_info["data"].resize_algorithm == ie.ResizeAlgorithm.RESIZE_BILINEAR
+    request.set_blob('data', img_blob)
+    request.infer()
+    res_2 = np.sort(request.output_blobs['fc_out'].buffer)
+
     assert np.allclose(res_1, res_2, atol=1e-2, rtol=1e-2)

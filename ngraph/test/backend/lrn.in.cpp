@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,19 +27,16 @@
 #include <numeric>
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, lrn_across_channel)
 {
@@ -49,33 +46,28 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_channel)
     double beta = 0.5;
     double bias = 1;
     size_t size = 3;
-    // lrn is performed across channel as default
     auto lrn = make_shared<op::LRN>(A, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
 
-    vector<float> args{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, args);
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape, a);
+    test_case.add_expected_output<float>(shape,
+                                         {0.0000000f,
+                                          0.3015113f,
+                                          0.4364358f,
+                                          0.5000000f,
+                                          0.8728716f,
+                                          0.8451542f,
+                                          0.5970223f,
+                                          0.6115928f,
+                                          0.5642765f,
+                                          0.5669467f,
+                                          0.7784989f,
+                                          0.7720487f});
 
-    auto result = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-
-    vector<float> expected{0.f,
-                           0.3015113f,
-                           0.4364357f,
-                           0.5f,
-                           0.8728715f,
-                           0.8451542f,
-                           0.5970223f,
-                           0.6115928f,
-                           0.5642765f,
-                           0.5669467f,
-                           0.7784989f,
-                           0.7720487f};
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, lrn_across_h)
@@ -90,29 +82,25 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_h)
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
 
-    vector<float> args{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, args);
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape, a);
+    test_case.add_expected_output<float>(shape,
+                                         {0.0000000f,
+                                          0.7071068f,
+                                          0.5345225f,
+                                          0.8017837f,
+                                          0.6172134f,
+                                          0.7715167f,
+                                          0.6469966f,
+                                          0.7548294f,
+                                          0.6620847f,
+                                          0.7448453f,
+                                          0.6711560f,
+                                          0.7382717f});
 
-    auto result = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-
-    vector<float> expected{0.0f,
-                           0.7071068f,
-                           0.5345225f,
-                           0.8017837f,
-                           0.6172134f,
-                           0.7715167f,
-                           0.6469966f,
-                           0.7548294f,
-                           0.6620847f,
-                           0.7448453f,
-                           0.671156f,
-                           0.7382717f};
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, lrn_across_hw)
@@ -127,29 +115,25 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_hw)
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
 
-    vector<float> args{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, args);
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape, a);
+    test_case.add_expected_output<float>(shape,
+                                         {0.0000000f,
+                                          0.8660254f,
+                                          0.8660254f,
+                                          1.2990381f,
+                                          1.0444659f,
+                                          1.3055824f,
+                                          1.1078234f,
+                                          1.2924607f,
+                                          1.1389896f,
+                                          1.2813632f,
+                                          1.1572751f,
+                                          1.2730026f});
 
-    auto result = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-
-    vector<float> expected{0.0f,
-                           0.7071068f,
-                           0.5345225f,
-                           0.8017837f,
-                           0.6172134f,
-                           0.7715167f,
-                           0.6469966f,
-                           0.7548294f,
-                           0.6620847f,
-                           0.7448453f,
-                           0.671156f,
-                           0.7382717f};
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, lrn_across_all_dims)
@@ -164,30 +148,25 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_all_dims)
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
 
-    vector<float> args{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, args);
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape, a);
+    test_case.add_expected_output<float>(shape,
+                                         {0.0000000f,
+                                          0.3156438f,
+                                          0.4501407f,
+                                          0.6752110f,
+                                          0.9830783f,
+                                          1.2288479f,
+                                          1.8938627f,
+                                          2.2095065f,
+                                          1.8005627f,
+                                          2.0256331f,
+                                          2.4576957f,
+                                          2.7034652f});
 
-    auto result = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-
-    vector<float> expected{0.0f,
-                           0.0638877f,
-                           0.0888231f,
-                           0.1332347f,
-                           0.1949481f,
-                           0.2436851f,
-                           0.3833259f,
-                           0.4472136f,
-                           0.3552925f,
-                           0.399704f,
-                           0.4873702f,
-                           0.5361072f};
-    EXPECT_TRUE(
-        test::all_close_f(expected, read_vector<float>(result), DEFAULT_FLOAT_TOLERANCE_BITS + 1));
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, lrn_across_nw)
@@ -202,29 +181,25 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_nw)
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
 
-    vector<float> args{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, args);
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape, a);
+    test_case.add_expected_output<float>(shape,
+                                         {0.0000000f,
+                                          0.2379155f,
+                                          0.4111132f,
+                                          0.5388159f,
+                                          0.6351073f,
+                                          0.7094756f,
+                                          1.6641006f,
+                                          1.6654084f,
+                                          1.6444529f,
+                                          1.6164477f,
+                                          1.5877683f,
+                                          1.5608464f});
 
-    auto result = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-
-    vector<float> expected{0.0f,
-                           0.140028f,
-                           0.2407717f,
-                           0.3144855f,
-                           0.3698001f,
-                           0.4123931f,
-                           0.9863939f,
-                           0.9801961f,
-                           0.9630868f,
-                           0.9434564f,
-                           0.9245003f,
-                           0.9072647f};
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, lrn_across_empty)
@@ -239,31 +214,25 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_empty)
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
 
-    vector<float> args{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, args);
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape, a);
+    test_case.add_expected_output<float>(shape,
+                                         {0.0000000f,
+                                          0.5000000f,
+                                          0.5547002f,
+                                          0.5669467f,
+                                          0.5714286f,
+                                          0.5735393f,
+                                          0.5746958f,
+                                          0.5753965f,
+                                          0.5758526f,
+                                          0.5761660f,
+                                          0.5763904f,
+                                          0.5765567f});
 
-    auto result = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-
-    vector<float> expected{
-        0.0f,
-        0.7071068f,
-        0.8944272f,
-        0.9486833f,
-        0.9701425f,
-        0.9805807f,
-        0.9863939f,
-        0.9899495f,
-        0.9922779f,
-        0.9938837f,
-        0.9950372f,
-        0.9958932f,
-    };
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, lrn_6D_across_2_axes)
@@ -278,22 +247,18 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_6D_across_2_axes)
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a(24);
+    std::iota(std::begin(a), std::end(a), 0);
 
-    vector<float> args(24);
-    std::iota(std::begin(args), std::end(args), 0);
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, args);
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape, a);
+    test_case.add_expected_output<float>(
+        shape, {0.0000000f, 0.4200840f, 0.8401681f, 1.2602521f, 0.6099943f, 0.7624928f,
+                0.9149914f, 1.0674900f, 0.7213357f, 0.8115027f, 0.9016696f, 0.9918366f,
+                0.7656109f, 0.8294119f, 0.8932127f, 0.9570137f, 0.7892218f, 0.8385482f,
+                0.8878745f, 0.9372009f, 0.8038679f, 0.8440613f, 0.8842546f, 0.9244481f});
 
-    auto result = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-
-    vector<float> expected{0.0f,       0.2581989f, 0.5163978f, 0.7745967f, 0.3549426f, 0.4436783f,
-                           0.5324139f, 0.6211495f, 0.4175966f, 0.4697962f, 0.5219957f, 0.5741953f,
-                           0.4426267f, 0.4795122f, 0.5163978f, 0.5532833f, 0.4560274f, 0.4845291f,
-                           0.5130308f, 0.5415326f, 0.4643635f, 0.4875816f, 0.5107998f, 0.534018f};
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_empty)
@@ -308,31 +273,24 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_empty)
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
 
-    vector<float> args{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, args);
-
-    auto result = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-
-    vector<float> expected{
-        0.0f,
-        0.7071068f,
-        0.8944272f,
-        0.9486833f,
-        0.9701425f,
-        0.9805807f,
-        0.9863939f,
-        0.9899495f,
-        0.9922779f,
-        0.9938837f,
-        0.9950372f,
-        0.9958932f,
-    };
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result)));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape, a);
+    test_case.add_expected_output<float>(shape,
+                                         {0.0000000f,
+                                          0.5000000f,
+                                          0.5547002f,
+                                          0.5669467f,
+                                          0.5714286f,
+                                          0.5735393f,
+                                          0.5746958f,
+                                          0.5753964f,
+                                          0.5758526f,
+                                          0.5761660f,
+                                          0.5763904f,
+                                          0.5765566f});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_outermost_axis)
@@ -347,38 +305,34 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_outermost_axis)
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{0.64915806f,
+                         0.21213771f,
+                         -1.48256505f,
+                         -1.41040838f,
+                         0.58189541f,
+                         0.11432108f,
+                         -0.22993855f,
+                         -0.13325502f,
+                         -0.03083259f,
+                         -0.48450908f,
+                         0.50342429f,
+                         -0.99551708f};
 
-    vector<float> args{0.64915806f,
-                       0.21213771f,
-                       -1.48256505f,
-                       -1.41040838f,
-                       0.58189541f,
-                       0.11432108f,
-                       -0.22993855f,
-                       -0.13325502f,
-                       -0.03083259f,
-                       -0.48450908f,
-                       0.50342429f,
-                       -0.99551708f};
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, args);
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape, a);
+    test_case.add_expected_output<float>(shape,
+                                         {0.4590040f,
+                                          0.1499989f,
+                                          -1.0482801f,
+                                          -0.9972753f,
+                                          0.4114444f,
+                                          0.0808345f,
+                                          -0.1625900f,
+                                          -0.0942251f,
+                                          -0.0218018f,
+                                          -0.3425926f,
+                                          0.3559732f,
+                                          -0.7039225f});
 
-    auto result = backend->create_tensor(element::f32, shape);
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-
-    vector<float> expected{0.45900404f,
-                           0.14999892f,
-                           -1.04828012f,
-                           -0.99727529f,
-                           0.41144446f,
-                           0.08083449f,
-                           -0.16259004f,
-                           -0.09422511f,
-                           -0.02180192f,
-                           -0.34259823f,
-                           0.35597473f,
-                           -0.70393407f};
-    EXPECT_TRUE(test::all_close_f(expected, read_vector<float>(result), 23));
+    test_case.run(23);
 }

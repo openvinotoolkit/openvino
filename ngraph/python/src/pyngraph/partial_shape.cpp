@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ void regclass_pyngraph_PartialShape(py::module m)
     shape.def(py::init<const std::initializer_list<ngraph::Dimension>&>());
     shape.def(py::init<const std::vector<ngraph::Dimension>&>());
     shape.def(py::init<const ngraph::Shape&>());
+    shape.def(py::init<const ngraph::PartialShape&>());
 
     shape.def_static("dynamic", &ngraph::PartialShape::dynamic, py::arg("r") = ngraph::Dimension());
 

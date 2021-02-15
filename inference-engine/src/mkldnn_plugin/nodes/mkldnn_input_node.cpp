@@ -5,8 +5,10 @@
 #include "mkldnn_input_node.h"
 #include "../mkldnn_extension_utils.h"
 #include <string>
-#include "details/caseless.hpp"
-#include "ie_memcpy.h"
+#include <tuple>
+#include <algorithm>
+#include "caseless.hpp"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -45,33 +47,30 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
 
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
-    memory::format outFormat = mkldnn::memory::format_undef;
     if (getType() == Input || getType() == MemoryInput) {
         precision = getCnnLayer()->outData[0]->getPrecision();
         if (precision == InferenceEngine::Precision::U16 || isMeanImage) {
             precision = InferenceEngine::Precision::FP32;
         }
-        auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        outFormat = MKLDNNMemory::Convert(getCnnLayer()->outData[0]->getLayout());
-        dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, outFormat);
+        auto mem_tdesc = MKLDNNMemoryDesc(getCnnLayer()->outData[0]->getTensorDesc());
+        dataConfig.desc = mem_tdesc;
         config.outConfs.push_back(dataConfig);
     } else if (getType() == Output) {
         precision = getCnnLayer()->insData[0].lock()->getPrecision();
         if (precision == InferenceEngine::Precision::U16) precision = InferenceEngine::Precision::FP32;
-        auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        outFormat = MKLDNNMemory::Convert(getCnnLayer()->insData[0].lock()->getLayout());
-        dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, outFormat);
+        auto mem_tdesc = MKLDNNMemoryDesc(getCnnLayer()->insData[0].lock()->getTensorDesc());
+        dataConfig.desc = mem_tdesc;
         config.inConfs.push_back(dataConfig);
     }
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MKLDNNInputNode::createPrimitive() {
@@ -97,21 +96,74 @@ bool MKLDNNInputNode::created() const {
     return getType() == Input || getType() == Output;
 }
 
+namespace {
+    bool isDefaultOrder(const InferenceEngine::SizeVector &order) {
+        return std::is_sorted(order.begin(), order.end(),
+                                [](size_t a, size_t b) { return a + 1 == b; });
+    }
+
+    std::tuple<bool, size_t> isDefaultStrides(const InferenceEngine::SizeVector &strides,
+                                              const InferenceEngine::SizeVector &dims) {
+        if (strides.size() != dims.size())
+            return std::make_tuple(false, 0);
+
+        size_t dim = 1;
+
+        for (size_t i = dims.size(); i-- > 0;) {
+            if (strides[i] != dim)
+                return std::make_tuple(false, 0);
+            dim *= dims[i];
+        }
+
+        return std::make_tuple(true, dim);
+    }
+
+    bool isCompatibleTensors(const InferenceEngine::TensorDesc &lhs, const InferenceEngine::TensorDesc &rhs) {
+        auto const &lhsBlockingDesc = lhs.getBlockingDesc();
+        auto const &rhsBlockingDesc = rhs.getBlockingDesc();
+
+        bool lhsDefaultStrides = false, rhsDefaultStrides = false;
+        size_t lhsSize = 0lu, rhsSize = 0lu;
+
+        std::tie(lhsDefaultStrides, lhsSize) = isDefaultStrides(lhsBlockingDesc.getStrides(), lhs.getDims());
+        std::tie(rhsDefaultStrides, rhsSize) = isDefaultStrides(rhsBlockingDesc.getStrides(), rhs.getDims());
+
+        return lhs.getPrecision() == rhs.getPrecision()
+                && lhsSize == rhsSize
+                && lhsDefaultStrides
+                && rhsDefaultStrides
+                && isDefaultOrder(lhsBlockingDesc.getOrder())
+                && isDefaultOrder(rhsBlockingDesc.getOrder());
+    }
+}   // namespace
+
 void MKLDNNInputNode::execute(mkldnn::stream strm) {
     if (!constBlob)
         return;
     auto dstBlob = getChildEdgeAt(0)->getBlob();
 
-    if (constBlob->size() != dstBlob->size()) {
-        THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
-    }
-
-    if (constBlob->getTensorDesc() == dstBlob->getTensorDesc()) {
+    if (constBlob->getTensorDesc() == dstBlob->getTensorDesc()
+        || isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc())) {
         const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
         int8_t *dstData = dstBlob->buffer();
 
-        ie_memcpy(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
+        cpu_memcpy_s(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
+    } else if (constBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN ||
+               dstBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN) {
+        size_t dstSize = dstBlob->size() / 8;
+        if (constBlob->size() != dstSize) {
+            THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
+        }
+
+        const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
+        int8_t *dstData = dstBlob->buffer();
+
+        cpu_memcpy_s(dstData, dstSize, srcData, constBlob->byteSize());
     } else {
+        if (constBlob->size() != dstBlob->size()) {
+            THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
+        }
+
         switch (precision.size()) {
             case 1: {
                 const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
@@ -156,3 +208,4 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Input);
+REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Output);

@@ -79,6 +79,12 @@ KERNEL(activation)(
 #endif
 #endif
 
+#if defined(OUTPUT_LAYOUT_B_FS_YX_FSV16) && OUTPUT_FEATURE_NUM % 16 != 0
+    // b_fs_yx_fsv16 has dispatch features aligned to multiple of 16
+    if (feature >= OUTPUT_FEATURE_NUM)
+        return;
+#endif
+
     const unsigned src_index = GET_INDEX(INPUT,0,ORDER);
     const unsigned dst_index = GET_INDEX(OUTPUT,,ORDER);
 

@@ -14,26 +14,16 @@
 
 
 #include "fused_conv_eltwise_kernel_selector.h"
-#include "fused_conv_eltwise_kernel_gemm.h"
 #include "fused_conv_eltwise_kernel_bfyx_1x1_opt.h"
 #include "fused_conv_eltwise_kernel_bfyx_os_iyx_osv16.h"
-#include "fused_conv_eltwise_kernel_mmad_32x32sg_128x128wg_slm_int8.h"
-#include "fused_conv_eltwise_kernel_mmad_32x32sg_224x128wg_slm_int8.h"
 #include "fused_conv_eltwise_kernel_yxfb_yxio_b16.h"
-#include "fused_conv_eltwise_kernel_imad.h"
-#include "fused_conv_eltwise_kernel_af32_imad_1x1.h"
 #include "fused_conv_eltwise_kernel_bfyx_iyxo.h"
 
 namespace kernel_selector {
 fused_conv_eltwise_kernel_selector::fused_conv_eltwise_kernel_selector() {
-    //        Attach<fused_conv_eltwise_kernel_gemm>();
     Attach<fused_conv_eltwise_kernel_yxfb_yxio_b16>();
     Attach<fused_conv_eltwise_kernel_bfyx_1x1_opt>();
     Attach<fused_conv_eltwise_kernel_bfyx_os_iyx_osv16>();
-    Attach<fused_conv_eltwise_kernel_mmad_32x32sg_128x128wg_slm_int8>();
-    Attach<fused_conv_eltwise_kernel_mmad_32x32sg_224x128wg_slm_int8>();
-    Attach<fused_conv_eltwise_kernel_imad>();
-    Attach<fused_conv_eltwise_kernel_af32_imad_1x1>();
     Attach<fused_conv_eltwise_kernel_bfyx_iyxo>();
 }
 

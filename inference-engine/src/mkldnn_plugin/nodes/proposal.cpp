@@ -119,11 +119,12 @@ public:
 
             store_prob = layer->outData.size() == 2;
             if (store_prob) {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
-                                 {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)});
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                                 DataConfigurator(ConfLayout::PLN, Precision::FP32)},
+                                 {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)});
             } else {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
-                                 {DataConfigurator(ConfLayout::PLN)});
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                                 DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
             }
         } catch (const InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
@@ -147,19 +148,35 @@ public:
                 p_prob_item = outputs[1]->buffer();
 
             auto dims0 = inputs[0]->getTensorDesc().getDims();
-            size_t img_info_size = inputs[2]->getTensorDesc().getDims()[1];
+            auto img_info_dims = inputs[2]->getTensorDesc().getDims();
+            if (img_info_dims.size() != 2)
+                THROW_IE_EXCEPTION << "Size of im_info tensor for Proposal is incorrect! Size of im_info must be 2. "
+                                   << "Now im_info size is " << img_info_dims.size() << ".";
+
+            if (img_info_dims[1] != 3 && img_info_dims[1] != 4)
+                THROW_IE_EXCEPTION << "Shape of im_info tensor for Proposal is incorrect! "
+                                   << "Shape of im_info must be of  [1, 3] or [1, 4]! "
+                                   << "Now shape of im_info is" << img_info_dims[0] << ", " << img_info_dims[1] << "].";
+
+            size_t img_info_size = img_info_dims[1];
+
 
             // input image height & width
             const float img_H = p_img_info_cpu[0];
             const float img_W = p_img_info_cpu[1];
+            if (!std::isnormal(img_H) || !std::isnormal(img_W) || (img_H < 0.f) || (img_W < 0.f)) {
+                THROW_IE_EXCEPTION << "Proposal operation image info input must have positive image height and width.";
+            }
 
             // scale factor for height & width
             const float scale_H = p_img_info_cpu[2];
-            const float scale_W = img_info_size > 3 ? p_img_info_cpu[3] : scale_H;
+            const float scale_W = img_info_size == 4 ? p_img_info_cpu[3] : scale_H;
+            if (!std::isfinite(scale_H) || !std::isfinite(scale_W) || (scale_H < 0.f) || (scale_W < 0.f)) {
+                THROW_IE_EXCEPTION << "Proposal operation image info input must have non negative scales.";
+            }
 
             XARCH::proposal_exec(p_bottom_item, p_d_anchor_item, dims0,
                     {img_H, img_W, scale_H, scale_W}, anchors.data(), roi_indices.data(), p_roi_item, p_prob_item, conf);
-
 
             return OK;
         } catch (const InferenceEngine::details::InferenceEngineException& e) {

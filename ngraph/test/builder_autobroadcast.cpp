@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@
 
 #include "gtest/gtest.h"
 
+#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/ngraph.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -210,30 +213,6 @@ TEST(autobroadcast, broadcast_with_leading_dim1)
     EXPECT_EQ(getShapeFromParam(ab_rhs), s1345);
 }
 
-TEST(autobroadcast, make_node_2_args)
-{
-    Shape s21{2, 1};
-    Shape s23{2, 3};
-    auto lhs = getParamFromShape(s21);
-    auto rhs = getParamFromShape(s23);
-
-    shared_ptr<Node> op = builder::make_with_numpy_broadcast<op::Add>(lhs, rhs);
-    EXPECT_NE(op, nullptr);
-}
-
-TEST(autobroadcast, make_node_3_args)
-{
-    Shape s21{2, 1};
-    Shape s23{2, 3};
-
-    auto predicates = make_shared<op::Parameter>(element::boolean, s23);
-    auto lhs = getParamFromShape(s21);
-    auto rhs = getParamFromShape(s23);
-
-    shared_ptr<Node> op = builder::make_with_numpy_broadcast<op::Select>(predicates, lhs, rhs);
-    EXPECT_NE(op, nullptr);
-}
-
 TEST(autobroadcast, numpy_broadcast_for_matmul_op_2d)
 {
     const Shape lhs{3, 1, 4, 6};
@@ -271,110 +250,6 @@ TEST(autobroadcast, numpy_broadcast_for_matmul_op_nop)
 
     EXPECT_EQ(result.at(0).get_shape(), (Shape{4, 6}));
     EXPECT_EQ(result.at(1).get_shape(), (Shape{6, 5}));
-}
-
-TEST(autobroadcast, legacy_broadcast_scalar)
-{
-    const Shape lhs{2, 3, 4, 5};
-    const Shape rhs{};
-    size_t start_match_axis{3};
-    const auto lhs_node = make_shared<op::Parameter>(element::f32, lhs);
-    const auto rhs_node = make_shared<op::Parameter>(element::f32, rhs);
-
-    const OutputVector result =
-        builder::legacy_broadcast_for_binary_operation(lhs_node, rhs_node, start_match_axis);
-
-    EXPECT_EQ(result.at(0).get_shape(), lhs);
-    EXPECT_EQ(result.at(1).get_shape(), lhs);
-}
-
-TEST(autobroadcast, legacy_broadcast_1elem_tensor)
-{
-    const Shape lhs{2, 3, 4, 5};
-    const Shape rhs{1, 1, 1};
-    size_t start_match_axis{1};
-    const auto lhs_node = make_shared<op::Parameter>(element::f32, lhs);
-    const auto rhs_node = make_shared<op::Parameter>(element::f32, rhs);
-
-    const OutputVector result =
-        builder::legacy_broadcast_for_binary_operation(lhs_node, rhs_node, start_match_axis);
-
-    EXPECT_EQ(result.at(0).get_shape(), lhs);
-    EXPECT_EQ(result.at(1).get_shape(), lhs);
-}
-
-TEST(autobroadcast, legacy_broadcast_1d)
-{
-    const Shape lhs{2, 3, 4, 5};
-    const Shape rhs{5};
-    size_t start_match_axis{3};
-    const auto lhs_node = make_shared<op::Parameter>(element::f32, lhs);
-    const auto rhs_node = make_shared<op::Parameter>(element::f32, rhs);
-
-    const OutputVector result =
-        builder::legacy_broadcast_for_binary_operation(lhs_node, rhs_node, start_match_axis);
-
-    EXPECT_EQ(result.at(0).get_shape(), lhs);
-    EXPECT_EQ(result.at(1).get_shape(), lhs);
-}
-
-TEST(autobroadcast, legacy_broadcast_2d)
-{
-    const Shape lhs{2, 3, 4, 5};
-    const Shape rhs{4, 5};
-    size_t start_match_axis{2};
-    const auto lhs_node = make_shared<op::Parameter>(element::f32, lhs);
-    const auto rhs_node = make_shared<op::Parameter>(element::f32, rhs);
-
-    const OutputVector result =
-        builder::legacy_broadcast_for_binary_operation(lhs_node, rhs_node, start_match_axis);
-
-    EXPECT_EQ(result.at(0).get_shape(), lhs);
-    EXPECT_EQ(result.at(1).get_shape(), lhs);
-}
-
-TEST(autobroadcast, legacy_broadcast_2d_inside)
-{
-    const Shape lhs{2, 3, 4, 5};
-    const Shape rhs{3, 4};
-    size_t start_match_axis{1};
-    const auto lhs_node = make_shared<op::Parameter>(element::f32, lhs);
-    const auto rhs_node = make_shared<op::Parameter>(element::f32, rhs);
-
-    const OutputVector result =
-        builder::legacy_broadcast_for_binary_operation(lhs_node, rhs_node, start_match_axis);
-
-    EXPECT_EQ(result.at(0).get_shape(), lhs);
-    EXPECT_EQ(result.at(1).get_shape(), lhs);
-}
-
-TEST(autobroadcast, legacy_broadcast_1d_left)
-{
-    const Shape lhs{2, 3, 4, 5};
-    const Shape rhs{2};
-    size_t start_match_axis{0};
-    const auto lhs_node = make_shared<op::Parameter>(element::f32, lhs);
-    const auto rhs_node = make_shared<op::Parameter>(element::f32, rhs);
-
-    const OutputVector result =
-        builder::legacy_broadcast_for_binary_operation(lhs_node, rhs_node, start_match_axis);
-
-    EXPECT_EQ(result.at(0).get_shape(), lhs);
-    EXPECT_EQ(result.at(1).get_shape(), lhs);
-}
-
-TEST(autobroadcast, legacy_broadcast_identical)
-{
-    const Shape lhs{2, 3, 4, 5};
-    size_t start_match_axis{0};
-    const auto lhs_node = make_shared<op::Parameter>(element::f32, lhs);
-    const auto rhs_node = make_shared<op::Parameter>(element::f32, lhs);
-
-    const OutputVector result =
-        builder::legacy_broadcast_for_binary_operation(lhs_node, rhs_node, start_match_axis);
-
-    EXPECT_EQ(result.at(0).get_shape(), lhs);
-    EXPECT_EQ(result.at(1).get_shape(), lhs);
 }
 
 TEST(autobroadcast, opset1_legacy_broadcast_scalar)
@@ -481,7 +356,7 @@ TEST(autobroadcast, axes_mapping_from_bcast_axes)
     const AxisSet broadcast_axes{0, 2};
 
     auto axes_mapping = builder::opset1::get_axes_mapping_output(output_shape, broadcast_axes);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(op::is_constant(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), 2);
     EXPECT_EQ(axes_mapping_shape, (Shape{1, 3}));
@@ -494,7 +369,7 @@ TEST(autobroadcast, axes_mapping_from_bcast_axes_scalar)
     const AxisSet broadcast_axes{0, 1, 2, 3};
 
     auto axes_mapping = builder::opset1::get_axes_mapping_output(output_shape, broadcast_axes);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(op::is_constant(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), 0);
     EXPECT_EQ(axes_mapping_shape, (Shape{}));
@@ -507,7 +382,7 @@ TEST(autobroadcast, axes_mapping_from_bcast_axes_identical)
     const AxisSet broadcast_axes{};
 
     auto axes_mapping = builder::opset1::get_axes_mapping_output(output_shape, broadcast_axes);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(op::is_constant(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), output_shape.size());
     EXPECT_EQ(axes_mapping_shape, (Shape{0, 1, 2, 3}));
@@ -521,7 +396,7 @@ TEST(autobroadcast, axes_mapping_start_match_axis)
 
     auto axes_mapping =
         builder::opset1::get_axes_mapping_output(output_shape, input_shape, start_match_axis);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(op::is_constant(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), 2);
     EXPECT_EQ(axes_mapping_shape, (Shape{1, 2}));
@@ -535,7 +410,7 @@ TEST(autobroadcast, axes_mapping_start_match_axis_scalar)
 
     auto axes_mapping =
         builder::opset1::get_axes_mapping_output(output_shape, input_shape, start_match_axis);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(op::is_constant(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), 0);
     EXPECT_EQ(axes_mapping_shape, (Shape{}));
@@ -549,7 +424,7 @@ TEST(autobroadcast, axes_mapping_start_match_axis_identical)
 
     auto axes_mapping =
         builder::opset1::get_axes_mapping_output(output_shape, input_shape, start_match_axis);
-    EXPECT_TRUE(axes_mapping.get_node()->is_constant());
+    EXPECT_TRUE(op::is_constant(axes_mapping.get_node()));
     Shape axes_mapping_shape = as_type<op::v0::Constant>(axes_mapping.get_node())->get_shape_val();
     EXPECT_EQ(axes_mapping_shape.size(), output_shape.size());
     EXPECT_EQ(axes_mapping_shape, (Shape{0, 1, 2, 3}));

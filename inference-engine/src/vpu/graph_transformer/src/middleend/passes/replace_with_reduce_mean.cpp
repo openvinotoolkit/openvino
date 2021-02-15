@@ -36,39 +36,39 @@ void PassImpl::run(const Model& model) {
             continue;
         }
 
-        auto stageInput = stage->input(0);
-        const auto& dimValues = stageInput->desc().dims();
+        const auto stageInput = stage->input(0);
+        const auto stageOutput = stage->output(0);
 
         const auto kernelSizeX = stage->attrs().get<int>("kernelSizeX");
         const auto kernelSizeY = stage->attrs().get<int>("kernelSizeY");
+        const bool excludePad = stage->attrs().get<bool>("excludePad");
 
-        const auto kernelStrideX = stage->attrs().get<int>("kernelStrideX");
-        const auto kernelStrideY = stage->attrs().get<int>("kernelStrideY");
+        const auto padLeft = stage->attrs().get<int>("padLeft");
+        const auto padRight = stage->attrs().get<int>("padRight");
+        const auto padTop = stage->attrs().get<int>("padTop");
+        const auto padBottom = stage->attrs().get<int>("padBottom");
 
         VPU_THROW_UNLESS(
                 kernelSizeX > 0 && kernelSizeY > 0,
                 "[ReplaceWithReduceMean] Stage %v with type AvgPool has non-positive kernel size",
                 stage->name());
 
-        if (dimValues[Dim::W] == kernelSizeX && dimValues[Dim::H] == kernelSizeY) {  // GlobalPooling
-            if (kernelStrideX != 1 && kernelStrideY != 1) {
-                continue;
-            }
+        const bool isOverlapByX = kernelSizeX - padLeft >= stageInput->desc().dim(Dim::W);
+        const bool isOverlapByY = kernelSizeY - padTop >= stageInput->desc().dim(Dim::H);
+        const bool isOverlapByKernel = isOverlapByX && isOverlapByY;
+        const bool paddingsNotExist = padLeft == 0 && padRight == 0 && padTop == 0 && padBottom == 0;
+        const bool isGlobalPoolingOutputFormat = stageOutput->desc().dim(Dim::W) == 1 && stageOutput->desc().dim(Dim::H) == 1;
+        const bool isGlobalAvgPooling = (isGlobalPoolingOutputFormat && (isOverlapByKernel && (paddingsNotExist || excludePad)));
 
-            // TODO: since ReduceMean currently is not fully optimized, we need to discard some common cases
-            if (kernelSizeX * kernelSizeY < 2050) {
-                continue;
-            }
-
+        if (isGlobalAvgPooling) {
             auto origLayer = stage->origLayer();
-            auto stageOutput = stage->output(0);
 
             model->removeStage(stage);
 
             const auto generator = [&stageInput](const ie::Blob::Ptr& blob) {
                 auto buffer = blob->buffer().as<int32_t*>();
-
                 auto numInputDims = stageInput->desc().numDims();
+
                 // H and W are always come last in IE notation
                 buffer[0] = numInputDims - 1;
                 buffer[1] = numInputDims - 2;

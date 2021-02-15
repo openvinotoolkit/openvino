@@ -49,7 +49,7 @@ class myriadLayersScatterUpdateTest_smoke:
 protected:
 
     void testScatterUpdate() {
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         //
         // Get and verify test parameters, and deduce other parameters
@@ -63,8 +63,6 @@ protected:
         const int indicesNDims = indicesShape.size();
         const int   inputNDims =   inputShape.size();
 
-        const int axis = 0;
-
         IE_ASSERT(inputNDims > 0);
         IE_ASSERT(indicesNDims > 0);
 
@@ -76,8 +74,7 @@ protected:
         SizeVector outputShape = inputShape;  // copy
         const int outputNDims = inputNDims;
 
-        SizeVector axisShape = { 1 };
-        const int axisNDims = 1;
+        SizeVector axisShape = {};
 
         // E.g.:
         //    {N, C, H, W} could be shape of `input` and `output`
@@ -87,7 +84,6 @@ protected:
         for (int i = 0; i < outputNDims - 1; i++) {
             updatesShape.push_back(outputShape[i + 1]);
         }
-        const int updatesNDims = updatesShape.size();
 
         //
         // Initialize input tensors, and compute reference output
@@ -151,54 +147,42 @@ protected:
         _outputsInfo = network.getOutputsInfo();
         _outputsInfo["scatter_update"]->setPrecision(Precision::FP16);
 
-        StatusCode st = OK;
-
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, _config, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, _config));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+        
         Blob::Ptr inputBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("input", inputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(inputBlob = _inferRequest.GetBlob("input"));
+        
         void* inputBlobData = inputBlob->buffer();
         ASSERT_NE(inputBlobData, nullptr);
         std::copy(inputData.cbegin(), inputData.cend(), reinterpret_cast<ie_fp16*>(inputBlobData));
 
         Blob::Ptr indicesBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("indices", indicesBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(indicesBlob = _inferRequest.GetBlob("indices"));
+        
         void* indicesBlobData = indicesBlob->buffer();
         ASSERT_NE(indicesBlobData, nullptr);
         std::copy(indicesData.cbegin(), indicesData.cend(), reinterpret_cast<int32_t*>(indicesBlobData));
 
         Blob::Ptr updatesBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("updates", updatesBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(updatesBlob = _inferRequest.GetBlob("updates"));
+        
         void* updatesBlobData = updatesBlob->buffer();
         ASSERT_NE(updatesBlobData, nullptr);
         std::copy(updatesData.cbegin(), updatesData.cend(), reinterpret_cast<ie_fp16*>(updatesBlobData));
 
         Blob::Ptr axisBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("axis", axisBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(axisBlob = _inferRequest.GetBlob("axis"));
+        
         void* axisBlobData = axisBlob->buffer();
         ASSERT_NE(axisBlobData, nullptr);
         std::copy(axisData.cbegin(), axisData.cend(), reinterpret_cast<int32_t*>(axisBlobData));
 
-        ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_inferRequest.Infer());
+        
         Blob::Ptr outputBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("scatter_update", outputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob("scatter_update"));
+        
         const void* outputBlobDataPtr = outputBlob->cbuffer();
         const ie_fp16* outputBlobData = reinterpret_cast<const ie_fp16*>(outputBlobDataPtr);
         ASSERT_NE(outputBlobData, nullptr);
@@ -251,8 +235,11 @@ private:
                                 const std::vector<ie_fp16>& updatesData,
                                 const std::vector<int32_t>& axisData) {
         // yet we only support axis == 0
-        IE_ASSERT(axisShape.size() == 1);
-        IE_ASSERT(axisShape[0] == 1);
+        IE_ASSERT(axisShape.size() == 0 ||
+                  axisShape.size() == 1);
+        if (axisShape.size() > 0) {
+            IE_ASSERT(axisShape[0] == 1);
+        }
         IE_ASSERT(axisData[0] == 0);
 
         // copy `input` to `output`
@@ -400,7 +387,6 @@ private:
                     <layer id="3" name="axis" type="Input">
                         <output>
                             <port id="0" precision="I32">
-                                <dim>1</dim>
                             </port>
                         </output>
                     </layer>
@@ -416,7 +402,6 @@ private:
                                 __UPDATES_DIMS__
                             </port>
                             <port id="3" precision="I32">
-                                <dim>1</dim>
                             </port>
                         </input>
                         <output>

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
@@ -35,7 +37,7 @@ NGRAPH_TEST(${BACKEND_NAME}, select)
     auto A = make_shared<op::Parameter>(element::boolean, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
     auto C = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Select>(A, B, C), ParameterVector{A, B, C});
+    auto f = make_shared<Function>(make_shared<op::v1::Select>(A, B, C), ParameterVector{A, B, C});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -85,7 +87,7 @@ NGRAPH_TEST(${BACKEND_NAME}, select_double)
     auto A = make_shared<op::Parameter>(element::boolean, shape);
     auto B = make_shared<op::Parameter>(element::f64, shape);
     auto C = make_shared<op::Parameter>(element::f64, shape);
-    auto f = make_shared<Function>(make_shared<op::Select>(A, B, C), ParameterVector{A, B, C});
+    auto f = make_shared<Function>(make_shared<op::v1::Select>(A, B, C), ParameterVector{A, B, C});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

@@ -8,9 +8,12 @@
 #include "ngraph/function.hpp"
 
 #include "cpp/ie_cnn_network.h"
+#include <legacy/cnn_network_impl.hpp>
 #include "ie_common.h"
 
 #include "common_test_utils/test_common.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 #include <gtest/gtest.h>
 
@@ -35,13 +38,14 @@ public:
 
 protected:
     InferenceEngine::CNNLayerPtr getDynamicShapeResolverLayer() const {
-        return cnnNetwork.getLayerByName(s_FriendlyName);
+        return CommonTestUtils::getLayerByName(cnnNetwork, s_FriendlyName);
     }
     InferenceEngine::CNNNetwork cnnNetwork;
 
 private:
     void triggerConversionToCNNNetwork() {
-        cnnNetwork.begin();
+        cnnNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNetwork));
     }
 
     static const char s_FriendlyName[];
@@ -49,7 +53,7 @@ private:
 
 const char DynamicShapeResolverTests::s_FriendlyName[] = "DSR";
 
-TEST_F(DynamicShapeResolverTests, NGraphFunctionCanBeConvertedToCNNNetwork) {
+TEST_F(DynamicShapeResolverTests, smoke_NGraphFunctionCanBeConvertedToCNNNetwork) {
     ASSERT_EQ(cnnNetwork.getInputsInfo().size(), 2);
     ASSERT_EQ(cnnNetwork.layerCount(), cnnNetwork.getInputsInfo().size() + 1);
     ASSERT_EQ(cnnNetwork.getOutputsInfo().size(), 1);

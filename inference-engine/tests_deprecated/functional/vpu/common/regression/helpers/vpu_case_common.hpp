@@ -26,7 +26,7 @@ using namespace Regression::Matchers;
     }while(false)
 
 
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
 #   define DISABLE_ON_WINDOWS_IF(expr) DISABLE_IF((expr))
 #else
 #   define DISABLE_ON_WINDOWS_IF(expr)
@@ -56,7 +56,6 @@ extern bool CheckMA2085();
 using Batch = int;
 using DoReshape = bool;
 using Resources = int;
-using IsIgnoreStatistic = bool;
 using PluginDevicePair = std::pair<std::string, std::string>;
 
 //------------------------------------------------------------------------------

@@ -37,7 +37,7 @@ TEST_P(myriadLayerCopy_smoke, Copy) {
     SetInputTensors(inputTensors);
     SetOutputTensors(outputTensors);
 
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Copy")));
     SetFirstInputToRange(1.0f, 100.0f);

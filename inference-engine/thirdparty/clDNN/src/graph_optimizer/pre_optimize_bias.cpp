@@ -57,7 +57,6 @@ template void pre_optimize_bias::optimize_bias<deconvolution_node>(deconvolution
 template void pre_optimize_bias::optimize_bias<fully_connected_node>(fully_connected_node& node,
                                                                      reorder_factory& rf,
                                                                      program_impl& p);
-template void pre_optimize_bias::optimize_bias<embed_node>(embed_node& node, reorder_factory& rf, program_impl& p);
 
 void pre_optimize_bias::run(program_impl& p, reorder_factory& rf) {
     for (auto& prim : p.get_processing_order()) {
@@ -67,8 +66,6 @@ void pre_optimize_bias::run(program_impl& p, reorder_factory& rf) {
             optimize_bias(prim->as<deconvolution>(), rf, p);
         } else if (prim->type() == fully_connected::type_id()) {
             optimize_bias(prim->as<fully_connected>(), rf, p);
-        } else if (prim->type() == embed::type_id()) {
-            optimize_bias(prim->as<embed>(), rf, p);
         }
     }
 }

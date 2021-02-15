@@ -13,8 +13,7 @@
 #include <list>
 #include <algorithm>
 #include <functional>
-
-#include <gna-api.h>
+#include "gna_lib_ver_selector.hpp"
 
 namespace GNAPluginNS {
 namespace memory {

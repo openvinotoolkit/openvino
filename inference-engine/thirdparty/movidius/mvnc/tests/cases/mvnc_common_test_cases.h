@@ -29,15 +29,15 @@ constexpr std::chrono::seconds operator "" _sec(unsigned long long s)
 //------------------------------------------------------------------------------
 class MvncTestsCommon : public ::testing::Test {
 public:
-    char    firmwarePath[MAX_PATH]  = {};
+    char    firmwareDir[MAX_PATH]  = {};
     mvLog_t ncLogLevel              = MVLOG_INFO;
     int     watchdogInterval        = 1000;
     int     availableDevices_       = 0;
     WatchdogHndl_t* m_watchdogHndl = nullptr;
     ncDeviceOpenParams_t m_ncDeviceOpenParams = {};
 
-    ~MvncTestsCommon() override = default;
     MvncTestsCommon();
+    ~MvncTestsCommon() override = default;
 protected:
 
     void SetUp() override;
@@ -59,6 +59,10 @@ public:
      * @warning Only USB devices is supported
      */
     virtual void bootOneDevice(ncDeviceProtocol_t deviceProtocol= NC_USB);
+
+    // Firmware
+    std::string getMyriadUSBFirmwarePath(const std::string& deviceName);
+    std::string getMyriadFirmwarePath(const deviceDesc_t& in_deviceDesc);
 };
 
 //------------------------------------------------------------------------------

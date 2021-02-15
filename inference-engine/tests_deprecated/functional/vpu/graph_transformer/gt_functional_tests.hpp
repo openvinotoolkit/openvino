@@ -8,7 +8,6 @@
 
 #include <vpu/middleend/pass_manager.hpp>
 #include <vpu/frontend/frontend.hpp>
-#include <cpp_interfaces/base/ie_inference_plugin_api.hpp>
 
 class graphTransformerFunctionalTests : public vpuLayersTests {
 protected:
@@ -33,8 +32,5 @@ protected:
 
 private:
    vpu::Platform                      _platform = vpu::Platform::MYRIAD_X;
-   vpu::FrontEnd::Ptr                 _frontEnd;
-   vpu::PassManager::Ptr              _passManager;
-   vpu::BackEnd::Ptr                  _backEnd;
    InferenceEngine::ExecutableNetwork _executableNetwork;
 };

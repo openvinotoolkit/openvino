@@ -21,75 +21,90 @@ PRETTY_PARAM(group, int);
 PRETTY_PARAM(dilation_factor, param_size);
 PRETTY_PARAM(layoutPreference, vpu::LayoutPreference);
 
-typedef myriadLayerTestBaseWithParam<tuple<DimsInput, kernel, stride, pad
-        , out_channels, group, dilation_factor, layoutPreference >> myriadLayerConvolution_smoke;
+class myriadLayerConvolutionBase : public myriadLayerTestBaseWithParam<
+        tuple<DimsInput, kernel, stride, pad, out_channels, group, dilation_factor, layoutPreference>>
+{
+public:
+    void testConvolution() {
+        tensor_test_params input_dims = get<0>(GetParam());
+        param_size kernel = get<1>(GetParam());
+        param_size stride = get<2>(GetParam());
+        param_size pad = get<3>(GetParam());
+        size_t out_channels = get<4>(GetParam());
+        size_t group = get<5>(GetParam());
+        param_size dilation_factor = get<6>(GetParam());
 
-typedef myriadLayerTestBaseWithParam<tuple<DimsInput, DimsOutput, kernel, stride, pad
-        , group, dilation_factor, layoutPreference >> myriadLayerConvolutionTensorFlow_smoke;
+        size_t out_w = (input_dims.w + 2 * pad.x - dilation_factor.x * (kernel.x - 1) - 1 + stride.x) / stride.x;
+        size_t out_h = (input_dims.h + 2 * pad.y - dilation_factor.y * (kernel.y - 1) - 1 + stride.y) / stride.y;
 
-TEST_P(myriadLayerConvolution_smoke, Convolution) {
-    tensor_test_params input_dims = get<0>(GetParam());
-    param_size kernel = get<1>(GetParam());
-    param_size stride = get<2>(GetParam());
-    param_size pad = get<3>(GetParam());
-    size_t out_channels = get<4>(GetParam());
-    size_t group = get<5>(GetParam());
-    param_size dilation_factor = get<6>(GetParam());
-    vpu::LayoutPreference layoutPreference = get<7>(GetParam());
+        tensor_test_params output_dims = {1, out_channels, out_h, out_w};
 
-    size_t out_w = (input_dims.w + 2 * pad.x - dilation_factor.x * (kernel.x - 1) - 1 + stride.x) / stride.x;
-    size_t out_h = (input_dims.h + 2 * pad.y - dilation_factor.y * (kernel.y - 1) - 1 + stride.y) / stride.y;
+        SetInputTensor(input_dims);
+        SetOutputTensor(output_dims);
 
-    tensor_test_params output_dims = {1, out_channels, out_h, out_w};
+        size_t num_weights = kernel.x * kernel.y * (input_dims.c / group) * output_dims.c;
+        size_t num_bias = output_dims.c;
 
-    SetInputTensor(input_dims);
-    SetOutputTensor(output_dims);
+        InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr =
+                InferenceEngine::TBlob<uint8_t>::Ptr(GenWeights(num_weights + num_bias));
+        ie_fp16* weights = weights_ptr->data().as<ie_fp16*>();
+        ie_fp16* bias = weights + num_weights;
 
-    size_t num_weights = kernel.x * kernel.y * (input_dims.c / group) * output_dims.c;
-    size_t num_bias = output_dims.c;
+        std::map<std::string, std::string> layer_params = {
+                  {"kernel-x", std::to_string(kernel.x)}
+                , {"kernel-y", std::to_string(kernel.y)}
+                , {"stride-x", std::to_string(stride.x)}
+                , {"stride-y", std::to_string(stride.y)}
+                , {"pad-x", std::to_string(pad.x)}
+                , {"pad-y", std::to_string(pad.y)}
+                , {"output", std::to_string(out_channels)}
+                , {"group", std::to_string(group)}
+                , {"dilation-x", std::to_string(dilation_factor.x)}
+                , {"dilation-y", std::to_string(dilation_factor.y)}
+        };
+        ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Convolution")
+                                                               .params(layer_params)
+                                                               .weights(num_weights)
+                                                               .biases(num_bias),
+                                                       {},
+                                                       weights_ptr));
+        SetFirstInputToRange(-0.9f, 0.9f);
 
-    InferenceEngine::TBlob<uint8_t>::Ptr weights_ptr =
-            InferenceEngine::TBlob<uint8_t>::Ptr(GenWeights(num_weights + num_bias));
-    ie_fp16* weights = weights_ptr->data().as<ie_fp16*>();
-    ie_fp16* bias = weights + num_weights;
+        ASSERT_TRUE(Infer());
+        auto inputBlob = _inputMap.begin()->second;
+        auto outputBlob = _outputMap.begin()->second;
 
-    std::map<std::string, std::string> layer_params = {
-              {"kernel-x", std::to_string(kernel.x)}
-            , {"kernel-y", std::to_string(kernel.y)}
-            , {"stride-x", std::to_string(stride.x)}
-            , {"stride-y", std::to_string(stride.y)}
-            , {"pad-x", std::to_string(pad.x)}
-            , {"pad-y", std::to_string(pad.y)}
-            , {"output", std::to_string(out_channels)}
-            , {"group", std::to_string(group)}
-            , {"dilation-x", std::to_string(dilation_factor.x)}
-            , {"dilation-y", std::to_string(dilation_factor.y)}
-    };
-    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Convolution")
-                                        .params(layer_params)
-                                        .weights(num_weights)
-                                        .biases(num_bias),
-                                        {},
-                                        weights_ptr));
-    SetFirstInputToRange(-0.9f, 0.9f);
+        ref_convolution(inputBlob, _refBlob, weights, bias, kernel, stride, pad, group, dilation_factor);
 
-    ASSERT_TRUE(Infer());
-    auto inputBlob = _inputMap.begin()->second;
-    auto outputBlob = _outputMap.begin()->second;
+        float maxerr = 0;
 
-    ref_convolution(inputBlob, _refBlob, weights, bias, kernel, stride, pad, group, dilation_factor);
+        if (group == 1)
+            maxerr = 0.00055 * input_dims.c * kernel.x * kernel.y;
+        else // TODO: currently dephConv is slightly less accurate
+            maxerr = 0.00066 * (input_dims.c / group) * kernel.x * kernel.y;
 
-    float maxerr = 0;
+        CompareCommonAbsolute(outputBlob, _refBlob, maxerr);
+    }
+};
 
-    if (group == 1)
-        maxerr = 0.00055 * input_dims.c * kernel.x * kernel.y;
-    else // TODO: currently dephConv is slightly less accurate
-        maxerr = 0.00066 * (input_dims.c / group) * kernel.x * kernel.y;
+class myriadLayerConvolution : public myriadLayerConvolutionBase {};
 
-    CompareCommonAbsolute(outputBlob, _refBlob, maxerr);
+TEST_P(myriadLayerConvolution, Convolution) {
+    testConvolution();
 }
 
-TEST_P(myriadLayerConvolutionTensorFlow_smoke, Convolution) {
+class myriadLayerConvolution_smoke : public myriadLayerConvolutionBase {};
+
+TEST_P(myriadLayerConvolution_smoke, Convolution) {
+    testConvolution();
+}
+
+
+class myriadLayerConvolutionTensorFlow :
+        public myriadLayerTestBaseWithParam<tuple<DimsInput, DimsOutput, kernel, stride,
+                                                  pad, group, dilation_factor, layoutPreference >> {};
+
+TEST_P(myriadLayerConvolutionTensorFlow, Convolution) {
     tensor_test_params input_dims = get<0>(GetParam());
     tensor_test_params output_dims = get<1>(GetParam());
     param_size kernel = get<2>(GetParam());
@@ -145,7 +160,6 @@ void FillWeights(uint16_t* ptr, size_t weightsSize) {
     ASSERT_NE(ptr, nullptr);
     auto szW = sizeof(s_3X3X3YOLO_Weights)/sizeof(s_3X3X3YOLO_Weights[0]);
     ASSERT_EQ(szW, weightsSize);
-    auto sz = szW;
     size_t indx = 0;
     for (; indx < szW; ++indx) {
         ptr[indx] = PrecisionUtils::f32tof16(s_3X3X3YOLO_Weights[indx]);
@@ -186,7 +200,6 @@ TEST_P(myriadLayers_3X3X3_ConstInput_smoke, Convolution) {
     ASSERT_TRUE(generateNetAndInfer( NetworkInitParams().layoutPreference(layoutPreference) ));
     auto outputBlob = _outputMap.begin()->second;
     const uint16_t *res_ptr = outputBlob->buffer().as<const uint16_t*>();
-    size_t res_size = outputBlob->size();
 
     size_t N = outputBlob->getTensorDesc().getDims()[0];
     size_t C = outputBlob->getTensorDesc().getDims()[1];
@@ -239,9 +252,9 @@ TEST_P(myriadLayers_IR3_ConvTests_smoke, Conv) {
     group = std::get<6>(p);
     get_dims(input_tensor, IW, IH, IC, I_N);
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
     size_t out_w = (IW + pads_begin.x + pads_end.x - kernel.x + stride.x) / stride.x;
     size_t out_h = (IH + pads_begin.y + pads_end.y - kernel.y + stride.y) / stride.y;
     gen_dims(output_tensor, input_tensor.size(), out_w, out_h, out_channels, I_N);
@@ -354,9 +367,9 @@ TEST_P(myriadLayers_BatchTest_ConvTests_smoke, Conv) {
     group = std::get<6>(p);
     get_dims(input_tensor, IW, IH, IC, I_N);
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
     size_t out_w = (IW + pads_begin.x + pads_end.x - kernel.x + stride.x) / stride.x;
     size_t out_h = (IH + pads_begin.y + pads_end.y - kernel.y + stride.y) / stride.y;
     gen_dims(output_tensor, input_tensor.size(), out_w, out_h, out_channels, I_N);
@@ -605,9 +618,9 @@ TEST_P(myriadLayers_BatchTest2_ConvTests_smoke, Conv) {
     group = std::get<6>(p);
     get_dims(input_tensor, IW, IH, IC, I_N);
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
     size_t out_w = (IW + pads_begin.x + pads_end.x - kernel.x + stride.x) / stride.x;
     size_t out_h = (IH + pads_begin.y + pads_end.y - kernel.y + stride.y) / stride.y;
     gen_dims(output_tensor, input_tensor.size(), out_w, out_h, out_channels, I_N);

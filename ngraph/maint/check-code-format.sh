@@ -3,7 +3,7 @@ set -e
 set -u
 
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ pushd "${THIS_SCRIPT_DIR}/.."
 declare PYBIND_WRAPPER="python/pyngraph"
 
 declare ROOT_SUBDIR
-for ROOT_SUBDIR in src test doc/examples python/src/pyngraph; do
+for ROOT_SUBDIR in core test frontend python/src/pyngraph; do
     if ! [[ -d "${ROOT_SUBDIR}" ]]; then
         echo "In directory '$(pwd)', no subdirectory named '${ROOT_SUBDIR}' was found."
     else

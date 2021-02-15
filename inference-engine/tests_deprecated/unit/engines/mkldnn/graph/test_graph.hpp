@@ -18,6 +18,7 @@
 #endif
 
 #include <gtest/gtest.h>
+#include <legacy/cnn_network_impl.hpp>
 #include <nodes/list.hpp>
 #include <mkldnn_graph.h>
 #include <mkldnn_memory.h>
@@ -25,6 +26,8 @@
 #include <mkldnn_graph_optimizer.h>
 #include <nodes/mkldnn_input_node.h>
 #include <functional>
+#include <cmath>
+#include <legacy/details/ie_cnn_network_tools.h>
 
 #define GARB_VAL(x) ((x + 100.0f + sin(x)) / (x + 150.f))
 
@@ -97,9 +100,18 @@ public:
             const void *ext_data_ptr = in->cbuffer();
             void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
 
-            if (ext_data_ptr != inter_data_ptr)
-                input->second->getChildEdgeAt(0)->getMemory().SetData(MKLDNNPlugin::MKLDNNExtensionUtils::IEPrecisionToDataType(in->getTensorDesc().getPrecision()),
-                                                                      MKLDNNPlugin::MKLDNNMemory::GetPlainFormat(outDims), ext_data_ptr, in->byteSize() / outDims[0] * batch, false);
+            if (ext_data_ptr != inter_data_ptr) {
+                MKLDNNPlugin::MKLDNNMemoryDesc ext_tdesc(in->getTensorDesc());
+
+                if (ext_tdesc.getDims().ndims() == 0) {
+                    ext_tdesc = MKLDNNPlugin::MKLDNNMemoryDesc{ {1}, ext_tdesc.getDataType(), mkldnn::memory::format_tag::a};
+                }
+
+                MKLDNNPlugin::MKLDNNMemory ext_mem(eng);
+                ext_mem.Create(ext_tdesc, ext_data_ptr, false);
+
+                input->second->getChildEdgeAt(0)->getMemory().SetData(ext_mem, in->byteSize() / outDims[0] * batch, false);
+            }
 
             // todo: make sure 'name' exists in this map...
             if (_meanImages.find(name) != _meanImages.end()) {
@@ -198,7 +210,7 @@ public:
 
                 PushInputData(input.first, input.second, batch);
             }
-            MKLDNNPlugin::MKLDNNGraph::Infer(batch);
+            MKLDNNPlugin::MKLDNNGraph::Infer(nullptr, batch);
         } catch (const std::exception &e) {
             FAIL() << e.what();
         }
@@ -210,14 +222,86 @@ public:
         return graphNodes;
     }
 
-    void CreateGraph(InferenceEngine::ICNNNetwork &network, const MKLDNNPlugin::MKLDNNExtensionManager::Ptr& extMgr,
-            MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache = {}) {
-        MKLDNNGraph::CreateGraph(network, extMgr, cache);
+    void MoveInternalBlobsToConstLayers(InferenceEngine::details::CNNNetworkImpl* netImpl) {
+        auto createConstInputTo = [&](InferenceEngine::CNNLayerPtr layer, InferenceEngine::Blob::Ptr blob, std::string name) {
+            InferenceEngine::LayerParams attrs = {layer.get()->name + "_const_" + name, "Const", InferenceEngine::Precision::FP32};
+            auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+            constLayer->blobs["custom"] = blob;
+
+            std::vector<size_t> constDims(layer->insData[0].lock()->getDims().size(), 1);
+            if (constDims.size() > 1)
+                constDims[1] = blob.get()->size();
+            else
+                constDims[0] = blob.get()->size();
+            const InferenceEngine::TensorDesc& td = {InferenceEngine::Precision::FP32, constDims, InferenceEngine::TensorDesc::getLayoutByDims(constDims)};
+
+            InferenceEngine::DataPtr newEdgeAfterLayer(new InferenceEngine::Data(constLayer->name, td));
+            newEdgeAfterLayer->setName(constLayer->name);
+            getCreatorLayer(newEdgeAfterLayer) = constLayer;
+            getInputTo(newEdgeAfterLayer).clear();
+
+
+            netImpl->addData(constLayer->name.c_str(), newEdgeAfterLayer);
+            IE_SUPPRESS_DEPRECATED_START
+            netImpl->addLayer(constLayer);
+            IE_SUPPRESS_DEPRECATED_END
+
+            constLayer->outData.push_back(newEdgeAfterLayer);
+            getInputTo(newEdgeAfterLayer)[layer->name] = layer;
+            layer->insData.push_back(newEdgeAfterLayer);
+        };
+
+        auto all_layers = InferenceEngine::details::CNNNetSortTopologically(
+            InferenceEngine::CNNNetwork(netImpl->shared_from_this()));
+        for (auto &layer : all_layers) {
+            if (layer->type == "ScaleShift" && layer->insData.size() == 1) {
+                InferenceEngine::Blob::Ptr scalesBlob = layer->blobs["weights"];
+                if (scalesBlob != nullptr)
+                    createConstInputTo(layer, scalesBlob, "weights");
+
+                InferenceEngine::Blob::Ptr shiftBlob = layer->blobs["biases"];
+                if (shiftBlob != nullptr)
+                    createConstInputTo(layer, shiftBlob, "biases");
+            } else if (layer->type == "PReLU" && layer->insData.size() == 1) {
+                InferenceEngine::Blob::Ptr scalesBlob = layer->blobs["weights"];
+                if (scalesBlob != nullptr)
+                    createConstInputTo(layer, scalesBlob, "weights");
+            }
+        }
     }
 
-    void CreateGraph(InferenceEngine::ICNNNetwork &network) {
+    void CreateGraph(InferenceEngine::CNNNetwork &network, const MKLDNNPlugin::MKLDNNExtensionManager::Ptr& extMgr,
+            MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache = {}) {
+        if (network.getFunction()) {
+            auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+            MoveInternalBlobsToConstLayers(convertedNetwork.get());
+            MKLDNNGraph::CreateGraph(InferenceEngine::CNNNetwork(convertedNetwork), extMgr, cache);
+        } else {
+            auto & icnnnet = static_cast<InferenceEngine::ICNNNetwork&>(network);
+            InferenceEngine::details::CNNNetworkImpl* netImpl = dynamic_cast<InferenceEngine::details::CNNNetworkImpl*>(&icnnnet);
+            if (netImpl == nullptr) {
+                THROW_IE_EXCEPTION << "unexpected network type";
+            }
+            MoveInternalBlobsToConstLayers(netImpl);
+            MKLDNNGraph::CreateGraph(network, extMgr, cache);
+        }
+    }
+
+    void CreateGraph(InferenceEngine::CNNNetwork &network) {
         MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache;
-        MKLDNNGraph::CreateGraph(network, extensionManager, cache);
+        if (network.getFunction()) {
+            auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+            MoveInternalBlobsToConstLayers(convertedNetwork.get());
+            MKLDNNGraph::CreateGraph(InferenceEngine::CNNNetwork(convertedNetwork), extensionManager, cache);
+        } else {
+            auto & icnnnet = static_cast<InferenceEngine::ICNNNetwork&>(network);
+            InferenceEngine::details::CNNNetworkImpl* netImpl = dynamic_cast<InferenceEngine::details::CNNNetworkImpl*>(&icnnnet);
+            if (netImpl == nullptr) {
+                THROW_IE_EXCEPTION << "unexpected network type";
+            }
+            MoveInternalBlobsToConstLayers(netImpl);
+            MKLDNNGraph::CreateGraph(network, extensionManager, cache);
+        }
     }
 
     void checkDynBatch(InferenceEngine::BlobMap& srcs, InferenceEngine::BlobMap& outputBlobs, int batch, size_t MB,

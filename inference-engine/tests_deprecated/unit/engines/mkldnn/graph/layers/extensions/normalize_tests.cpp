@@ -23,6 +23,12 @@ using namespace single_layer_tests;
 using namespace Extensions;
 using namespace ::Cpu;
 
+namespace {
+
+OV_CC_DOMAINS(NormalizeTests);
+
+}   // namespace
+
 struct normalize_test_params {
     struct {
         size_t n;
@@ -359,7 +365,6 @@ public:
             const SizeVector& data_dims = data_desc.getDims();
 
             InferenceEngine::Precision precision = data_desc.getPrecision();
-            Layout layout;
             if (is_blocked) {
                 int blk_size = InferenceEngine::with_cpu_x86_avx512f() ? 16 : 8;
 
@@ -415,7 +420,6 @@ class MKLDNNCPUExtNormalizeTests_Blocked: public TestsCommon, public WithParamIn
         <layer name="normalize" id="2" type="Normalize">
             <data across_spatial="_AS_" channel_shared="_CS_" eps="_EPS_" />
             <weights offset="0" size="_WS_" />
-
             <input>
                 <port id="3">
                     <dim>_IN_</dim>
@@ -511,10 +515,7 @@ protected:
             auto manager = std::make_shared<MKLDNNPlugin::MKLDNNExtensionManager>();
             {
                 auto defaultExt = std::make_shared<Cpu::MKLDNNExtensions>();
-                defaultExt->AddExt("FakeLayer_Normalize",
-                    [](const CNNLayer* layer) -> InferenceEngine::ILayerImplFactory* {
-                                    return new Cpu::ImplFactory<FakeLayerImpl_Normalize>(layer);
-                                });
+                defaultExt->layersFactory.registerNodeIfRequired(NormalizeTests, FakeLayer_Normalize, "FakeLayer_Normalize", Cpu::ImplFactory<FakeLayerImpl_Normalize>);
                 manager->AddExtension(defaultExt);
             }
             graph.CreateGraph(network, manager);

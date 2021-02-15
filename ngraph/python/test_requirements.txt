@@ -1,9 +1,0 @@
-flake8
-flake8-comprehensions
-flake8-docstrings
-flake8-quotes
-pydocstyle
-pytest
-tox
-wheel
-zipp==0.5.0

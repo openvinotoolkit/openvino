@@ -32,6 +32,7 @@ struct Resources final {
     int numCMXSlices = 0;
     int numSHAVEs = 0;
     int numExecutors = 0;
+    int tilingCMXLimit = 0;
 };
 
 void printTo(std::ostream& os, const Resources& res);
@@ -59,8 +60,6 @@ private:
 
     VPU_MODEL_ATTRIBUTE(int, batchSize, 1)
 
-    VPU_MODEL_ATTRIBUTE(InferenceEngine::NetworkStatsMap, nodesStats, {})
-
 public:
     //
     // Constructor
@@ -77,8 +76,6 @@ public:
     //
 
     void setBatchSize(int batchSize);
-
-    inline void setNodesStats(const ie::NetworkStatsMap& stats) { _nodesStats = stats; }
 
     //
     // Data nodes
@@ -149,6 +146,10 @@ public:
             const Stage& stage,
             const DataDesc& desc);
 
+    StageTempBuffer addTempBuffer(
+            const Stage& stage,
+            size_t bufferSize);
+
     void replaceStageInput(
             const StageInput& edge,
             const Data& newInput);
@@ -156,6 +157,17 @@ public:
     void replaceStageOutput(
             const StageOutput& edge,
             const Data& newOutput);
+
+    void replaceStageDependency(
+            const StageDependency& edge,
+            const Data& newDependency);
+
+    void replaceDependentStage(
+            const StageDependency& edge,
+            const Stage& newDependentStage);
+
+    void removeStageDependency(const StageDependency& edge);
+    void removeStageDependency(const Stage& stage, const Data& dependency);
 
     //
     // Stage <-> Stage edges
@@ -288,16 +300,20 @@ public:
 
     void reorderStages(const StageComparator& comparator = {});
 
+    void setStagesOrder(const Stage& parent, const Stage& child);
+
+    void removeStagesOrder(const Stage& parent, const Stage& child);
+
     //
     // Nodes accessors
     //
 
-    inline int numDatas() const { return _dataPtrList.size(); }
+    inline int numDatas() const { return static_cast<int>(_dataPtrList.size()); }
     inline auto datas() const -> decltype(_dataList | asRange()) {
         return _dataList | asRange();
     }
 
-    inline int numStages() const { return _stagePtrList.size(); }
+    inline int numStages() const { return static_cast<int>(_stagePtrList.size()); }
     inline auto initialStages() const -> decltype(_initialStages | asRange()) {
         return _initialStages | asRange();
     }
@@ -305,6 +321,9 @@ public:
         buildStageOrder();
         return _orderedStageList | asRange();
     }
+
+    bool isDynamic() const;
+    bool isStatic() const;
 
     //
     // Allocator
@@ -378,8 +397,17 @@ inline Stage ModelObj::addNewStage(
 // runAllocator
 //
 
+VPU_DECLARE_ENUM(EnableShapeAllocation,
+                 YES,
+                 NO)
+
+VPU_DECLARE_ENUM(CheckOnlyCMX,
+                 YES,
+                 NO)
+
 AllocationResult runAllocator(
         const Model& model,
-        bool onlyCheckCMX = false);
+        EnableShapeAllocation = EnableShapeAllocation::NO,
+        CheckOnlyCMX = CheckOnlyCMX::NO);
 
 }  // namespace vpu

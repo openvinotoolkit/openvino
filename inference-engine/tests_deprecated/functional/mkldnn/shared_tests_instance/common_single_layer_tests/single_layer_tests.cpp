@@ -101,10 +101,9 @@ getTestCaseName(testing::TestParamInfo<std::tuple<InitialShapes, NewShapes, Plug
     return "MKLDNN" + helper->getType();
 }
 
-#if (defined INSTANTIATE_TESTS)
-
 INSTANTIATE_TEST_CASE_P(
-        Conv_smoke, CommonSingleLayerTest,
+        // TODO: rewrite to ngraph to have reshape functionality
+        DISABLED_Conv_smoke, CommonSingleLayerTest,
         ::testing::Combine(
         ::testing::Values(InitialShapes({
                                                 {{1, 2, 16, 16}},           // input
@@ -120,7 +119,8 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Deconv_smoke, CommonSingleLayerTest,
+        // TODO: rewrite to ngraph to have reshape functionality
+        DISABLED_Deconv_smoke, CommonSingleLayerTest,
         ::testing::Combine(
         ::testing::Values(InitialShapes({
                                                 {{1, 2, 8,  8}},             // input
@@ -136,7 +136,8 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Pool_smoke, CommonSingleLayerTest,
+        // TODO: rewrite to ngraph to have reshape functionality
+        DISABLED_Pool_smoke, CommonSingleLayerTest,
         ::testing::Combine(
         ::testing::Values(InitialShapes({
                                                 {{1, 2, 16, 16}},           // input
@@ -152,7 +153,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        DefConvLight0_smoke, CommonSingleLayerTest,
+        DISABLED_DefConvLight0_smoke, CommonSingleLayerTest,
         ::testing::Combine(
                 ::testing::Values(InitialShapes({
                                                         {{1, 4, 4, 4}, {1, 36, 4, 4}}, // input, trans
@@ -168,7 +169,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        DefConvLight1_WithBatch_smoke, CommonSingleLayerTest,
+        DISABLED_DefConvLight1_WithBatch_smoke, CommonSingleLayerTest,
         ::testing::Combine(
                 ::testing::Values(InitialShapes({
                                                         {{2, 4, 8, 8}, {2, 36, 4, 4}}, // input, trans
@@ -184,7 +185,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        DefConvLight2_WithBatch_smoke, CommonSingleLayerTest,
+        DISABLED_DefConvLight2_WithBatch_smoke, CommonSingleLayerTest,
         ::testing::Combine(
                 ::testing::Values(InitialShapes({
                                                         {{2, 4, 8, 8}, {2, 18, 4, 4}}, // input, trans
@@ -200,7 +201,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        DefConvLight3_WithGroups_smoke, CommonSingleLayerTest,
+        DISABLED_DefConvLight3_WithGroups_smoke, CommonSingleLayerTest,
         ::testing::Combine(
                 ::testing::Values(InitialShapes({
                                                         {{1, 4, 4, 4}, {1, 18, 4, 4}}, // input, trans
@@ -216,7 +217,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        smoke_DefConvHeavy, CommonSingleLayerTest,
+        DISABLED_smoke_DefConvHeavy, CommonSingleLayerTest,
         ::testing::Combine(
                 ::testing::Values(InitialShapes({
                                                         {{1, 512, 38, 38}, {1, 72, 38, 38}}, // input, trans
@@ -230,5 +231,3 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::Values(Helper(std::make_shared<DeformableConvolutionTestHelper>(defConvParamsHeavy, 4)))
         ), getTestCaseName
 );
-
-#endif

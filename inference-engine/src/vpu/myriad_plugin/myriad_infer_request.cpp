@@ -5,7 +5,6 @@
 #define NOMINMAX
 #include <utility>
 #include <ie_blob.h>
-#include <ie_plugin.hpp>
 #include <description_buffer.hpp>
 #include <ie_layouts.h>
 #include <precision_utils.h>
@@ -14,6 +13,7 @@
 #include <vpu/utils/perf_report.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/profiling.hpp>
+#include <vpu/utils/shape_io.hpp>
 
 #include "myriad_executable_network.h"
 #include "myriad_infer_request.h"
@@ -147,8 +147,18 @@ static void copyBlobAccordingUpperBound(
     const auto inLayout = in->getTensorDesc().getLayout();
     const auto outLayout = out->getTensorDesc().getLayout();
 
-    const auto& inDims = in->getTensorDesc().getDims();
-    const auto& outDims = out->getTensorDesc().getDims();
+    const auto& inBlockingDesc = in->getTensorDesc().getBlockingDesc();
+    const auto& outBlockingDesc = out->getTensorDesc().getBlockingDesc();
+
+    const auto& inDims = inBlockingDesc.getBlockDims();
+    const auto& outDims = outBlockingDesc.getBlockDims();
+    const auto inTotalDimSize = in->byteSize();
+
+    // Strides in blocking description is presented by elements.
+    // So we need to multiply them by element size
+    auto inStrides = inBlockingDesc.getStrides();
+    std::transform(inStrides.begin(), inStrides.end(), inStrides.begin(),
+                   std::bind(std::multiplies<size_t>(), std::placeholders::_1, in->element_size()));
 
     IE_ASSERT(inLayout == outLayout);
 
@@ -158,22 +168,26 @@ static void copyBlobAccordingUpperBound(
     auto outPtr = out->cbuffer().as<uint8_t *>();
     IE_ASSERT(outPtr != nullptr);
 
-    if (inDims.size() == 1) {
-        std::copy_n(
-            in->cbuffer().as<uint8_t*>(),
-            in->byteSize(),
-            out->buffer().as<uint8_t*>());
-    } else if (inDims.size() == 2) {
-        size_t inLineSize = inDims[1] * in->element_size();
-        size_t outLineSize = outDims[1] * out->element_size();
-        for (size_t n = 0; n < outDims[0]; n++) {
-            std::copy_n(
-                in->cbuffer().as<uint8_t*>() + n * inLineSize,
-                outLineSize,
-                out->buffer().as<uint8_t*>() + n * outLineSize);
+    const auto inLineByteSize = inDims[inDims.size() - 1] * in->element_size();
+    const auto outLineByteSize = outDims[inDims.size() - 1] * out->element_size();
+
+    for (size_t inByteOffset = 0, outByteOffset = 0; inByteOffset < inTotalDimSize; inByteOffset += inLineByteSize) {
+        auto offset = inByteOffset;
+        bool isGarbageLine = false;
+        for (size_t dim = 0; dim < inStrides.size() - 1; ++dim) {
+            const auto coordAlongDim = offset / inStrides[dim];
+            if (coordAlongDim > outDims[dim] - 1) {
+                isGarbageLine = true;
+                break;
+            }
+
+            offset %= inStrides[dim];
         }
-    } else {
-        VPU_THROW_EXCEPTION << "Copying of blobs with dynamic shape and num dims greater than 2 unsupported yet";
+        if (!isGarbageLine) {
+            // We transfer outLineByteSize bytes, so garbage data at the end of the line is not copied.
+            std::copy_n(inPtr + inByteOffset, outLineByteSize, outPtr + outByteOffset);
+            outByteOffset += outLineByteSize;
+        }
     }
 }
 
@@ -195,12 +209,12 @@ void MyriadInferRequest::GetResult() {
         const auto& blob = (*it).second;
 
         if (blob->getTensorDesc().getLayout() == getVpuLayout(name)) {
-            _executor->getResult(_graphDesc, blob->buffer(), blob->byteSize());
+            _executor->getResult(_graphDesc, blob->buffer(), static_cast<unsigned>(blob->byteSize()));
             return;
         }
     }
 
-    _executor->getResult(_graphDesc, resultBuffer.data(), resultBuffer.size());
+    _executor->getResult(_graphDesc, resultBuffer.data(), static_cast<unsigned>(resultBuffer.size()));
 
     for (const auto& output : _outputs) {
         const auto& ieBlobName = output.first;
@@ -223,8 +237,7 @@ void MyriadInferRequest::GetResult() {
 
         auto ieOutDims = ieOutDesc.getDims();
 
-        // Eject dynamic output shape (suffix "@shape") and copy it to vector of dimensions in reverse order
-        const auto& shapeInfo = _outputInfo.offset.find(ieBlobName + "@shape");
+        const auto& shapeInfo = _outputInfo.offset.find(createIOShapeName(ieBlobName));
         // if (isDynamic)
         if (shapeInfo != _outputInfo.offset.end()) {
             auto outData = networkOutputs[ieBlobName];
@@ -246,7 +259,7 @@ void MyriadInferRequest::GetResult() {
             auto shapeRank = dynOutputDesc.getDims().size();
             ieOutDims.resize(shapeRank);
             for (size_t idx = 0; idx < shapeRank; ++idx) {
-                ieOutDims[idx] = shapePtr[shapeRank - idx - 1];
+                ieOutDims[idx] = shapePtr[idx];
             }
 
             outData->setDims(ieOutDims);
@@ -267,7 +280,7 @@ void MyriadInferRequest::GetResult() {
     }
 }
 
-void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MyriadInferRequest::GetPerformanceCounts() const {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
 
     if (_log->isActive(LogLevel::Info)) {
@@ -276,8 +289,8 @@ void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
         }
     }
 
-    perfMap = vpu::parsePerformanceReport(
+    return vpu::parsePerformanceReport(
         _stagesMetaData,
-        perfInfo.data(), perfInfo.size(),
+        perfInfo.data(), static_cast<int>(perfInfo.size()),
         _config.perfReport(), _config.printReceiveTensorTime());
 }

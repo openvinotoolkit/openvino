@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "dnn_types.h"
+#include "gna_types.h"
 
 #include "gna_plugin_log.hpp"
 
@@ -28,8 +29,11 @@ public:
               num_left_context(0),
               num_right_context(0),
               do_rotate_input(false),
+              do_rotate_output(false),
               num_rotate_rows(0),
               num_rotate_columns(0),
+              num_rotate_output_rows(0),
+              num_rotate_output_columns(0),
               softmax_type(kSoftmaxNone),
               ptr_sumgroup_sizes(NULL),
               num_sumgroup_sizes(0),
@@ -129,6 +133,34 @@ public:
                                             true);
     }
 
+#if GNA_LIB_VER == 2
+    template<class A, class B, class C, class D>
+    static void InitConvolutional2DComponent(intel_dnn_component_t& comp,
+        OvGnaTensor inputTensor,
+        OvGnaTensor outputTensor,
+        OvGnaTensor filterTensor,
+        OvGnaTensor biasTensor,
+        std::array<uint32_t, 2> convStride,
+        float weight_scale_factor,
+        float output_scale_factor,
+        A*& ptr_inputs,
+        B*& ptr_outputs,
+        C*& ptr_filters,
+        D*& ptr_biases) {
+        InitConvolutional2DComponentPrivate(comp,
+            inputTensor,
+            outputTensor,
+            filterTensor,
+            biasTensor,
+            convStride,
+            weight_scale_factor,
+            output_scale_factor,
+            (void*&)ptr_inputs,
+            (void*&)ptr_outputs,
+            (void*&)ptr_filters,
+            (void*&)ptr_biases);
+    }
+#endif
 
     template<class A, class B>
     static void InitMaxpoolComponent(intel_dnn_component_t &cmp,
@@ -176,7 +208,7 @@ public:
                                              float input_scale_factor,
                                              A *&ptr_inputs,
                                              B *&ptr_outputs,
-                                             intel_pwl_segment_t *ptr_segments) {
+                                             gna_pwl_segment_t *ptr_segments) {
         InitPiecewiseLinearComponentPrivate(cmp,
                                             function_id,
                                             orientation,
@@ -191,6 +223,46 @@ public:
                                             (void *&) ptr_outputs,
                                             ptr_segments,
                                             true);
+    }
+
+    template<class A, class B>
+    static void InitDeinterleaveComponent(intel_dnn_component_t &cmp,
+                                          uint32_t num_rows_in,
+                                          uint32_t num_columns_in,
+                                          uint32_t num_bytes_per_input,
+                                          uint32_t num_bytes_per_output,
+                                          float output_scale_factor,
+                                          A *&ptr_inputs,
+                                          B *&ptr_outputs) {
+        InitDeinterleaveComponentPrivate(cmp,
+                                         num_rows_in,
+                                         num_columns_in,
+                                         num_bytes_per_input,
+                                         num_bytes_per_output,
+                                         output_scale_factor,
+                                         (void *&) ptr_inputs,
+                                         (void *&) ptr_outputs,
+                                         true);
+    }
+
+    template<class A, class B>
+    static void InitInterleaveComponent(intel_dnn_component_t &cmp,
+                                        uint32_t num_rows_in,
+                                        uint32_t num_columns_in,
+                                        uint32_t num_bytes_per_input,
+                                        uint32_t num_bytes_per_output,
+                                        float output_scale_factor,
+                                        A *&ptr_inputs,
+                                        B *&ptr_outputs) {
+        InitInterleaveComponentPrivate(cmp,
+                                       num_rows_in,
+                                       num_columns_in,
+                                       num_bytes_per_input,
+                                       num_bytes_per_output,
+                                       output_scale_factor,
+                                       (void *&) ptr_inputs,
+                                       (void *&) ptr_outputs,
+                                       true);
     }
 
 
@@ -224,8 +296,6 @@ public:
                                  true);
     }
 
-
-    void Propagate();
 
     float OutputScaleFactor(uint32_t component_index) {
         return OutputScaleFactor(component[component_index]);
@@ -268,9 +338,13 @@ public:
     std::vector<intel_dnn_component_t> component;
     uint32_t num_left_context;
     uint32_t num_right_context;
+    uint32_t new_num_conv_columns = 0;
     bool do_rotate_input;
+    bool do_rotate_output;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;
+    uint32_t num_rotate_output_rows = 0;
+    uint32_t num_rotate_output_columns = 0;
     DnnSoftmaxType softmax_type;
     uint32_t *ptr_sumgroup_sizes;
     uint32_t num_sumgroup_sizes;
@@ -340,7 +414,27 @@ private:
                                                     float input_scale_factor,
                                                     void *&ptr_inputs,
                                                     void *&ptr_outputs,
-                                                    intel_pwl_segment_t *ptr_segments,
+                                                    gna_pwl_segment_t *ptr_segments,
+                                                    bool postInitMem);
+
+    static void InitInterleaveComponentPrivate(intel_dnn_component_t &cmp,
+                                                    uint32_t num_rows_in,
+                                                    uint32_t num_columns_in,
+                                                    uint32_t num_bytes_per_input,
+                                                    uint32_t num_bytes_per_output,
+                                                    float output_scale_factor,
+                                                    void *&ptr_inputs,
+                                                    void *&ptr_outputs,
+                                                    bool postInitMem);
+
+    static void InitDeinterleaveComponentPrivate(intel_dnn_component_t &cmp,
+                                                    uint32_t num_rows_in,
+                                                    uint32_t num_columns_in,
+                                                    uint32_t num_bytes_per_input,
+                                                    uint32_t num_bytes_per_output,
+                                                    float output_scale_factor,
+                                                    void *&ptr_inputs,
+                                                    void *&ptr_outputs,
                                                     bool postInitMem);
 
     static void InitConvolutional1DComponentPrivate(intel_dnn_component_t &comp,
@@ -365,6 +459,21 @@ private:
                                                     void *&ptr_filters,
                                                     void *&ptr_biases,
                                                     bool postInitMem);
+
+#if GNA_LIB_VER == 2
+    static void InitConvolutional2DComponentPrivate(intel_dnn_component_t& comp,
+        OvGnaTensor inputTensor,
+        OvGnaTensor outputTensor,
+        OvGnaTensor filterTensor,
+        OvGnaTensor biasTensor,
+        std::array<uint32_t, 2> convStride,
+        float weight_scale_factor,
+        float output_scale_factor,
+        void*& ptr_inputs,
+        void*& ptr_outputs,
+        void*& ptr_filters,
+        void*& ptr_biases);
+#endif
 
     static void InitAffineComponentPrivate(intel_dnn_component_t &comp,
                                            uint32_t num_rows_in,

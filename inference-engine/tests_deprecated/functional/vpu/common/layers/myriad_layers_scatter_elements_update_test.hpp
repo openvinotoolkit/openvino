@@ -48,7 +48,7 @@ protected:
     void testScatterElementsUpdate() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         //
         // Parse test parameters
@@ -124,35 +124,24 @@ protected:
         // Create infer request and get its blobs pointers
         //
 
-        StatusCode st = OK;
-
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, _config, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, _config));
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+        
         Blob::Ptr inputBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("input", inputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(inputBlob = _inferRequest.GetBlob("input"));
+        
         Blob::Ptr indicesBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("indices", indicesBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(indicesBlob = _inferRequest.GetBlob("indices"));
+        
         Blob::Ptr updatesBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("updates", updatesBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(updatesBlob = _inferRequest.GetBlob("updates"));
+        
         Blob::Ptr axisBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("axis", axisBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(axisBlob = _inferRequest.GetBlob("axis"));
+        
         Blob::Ptr outputBlob;
-        ASSERT_NO_THROW(st = _inferRequest->GetBlob("scatter", outputBlob, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(outputBlob = _inferRequest.GetBlob("scatter"));
+        
         Blob::Ptr referenceBlob;
         if (dataType == "I32") {
             referenceBlob = make_shared_blob<int32_t>(outputBlob->getTensorDesc());
@@ -202,9 +191,8 @@ protected:
         outputBlob->getTensorDesc().setLayout(vpu::deviceLayout(outputLayout, layoutPreference));
         referenceBlob->getTensorDesc().setLayout(vpu::deviceLayout(outputLayout, layoutPreference));
 
-        ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_inferRequest.Infer());
+        
         //
         // Check result
         //
@@ -331,7 +319,6 @@ private:
                     <layer id="3" name="axis" type="Input">
                         <output>
                             <port id="0" precision="I32">
-                                <dim>1</dim>
                             </port>
                         </output>
                     </layer>
@@ -347,7 +334,6 @@ private:
                                 __UPDATES_DIMS__
                             </port>
                             <port id="3" precision="I32">
-                                <dim>1</dim>
                             </port>
                         </input>
                         <output>

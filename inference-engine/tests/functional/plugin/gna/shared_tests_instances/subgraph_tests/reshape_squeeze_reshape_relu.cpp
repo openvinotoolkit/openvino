@@ -4,10 +4,10 @@
 #include "subgraph_tests/reshape_squeeze_reshape_relu.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
-    std::vector<std::vector<std::vector<size_t>>> inputs{
+    std::vector<ShapeAxesTuple> inputs{
             {{1, 1, 3}, {0, 1}},
             {{1, 1, 3}, {0}},
             {{1, 1, 3}, {1}},
@@ -31,19 +31,16 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
-    INSTANTIATE_TEST_CASE_P(reshape_squeeze_reshape_relu, ReshapeSqueezeReshapeRelu,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(inputs),
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                    ::testing::Values(true)),
-                            ReshapeSqueezeReshapeRelu::getTestCaseName);
+    const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
+            ngraph::helpers::SqueezeOpType::SQUEEZE,
+            ngraph::helpers::SqueezeOpType::UNSQUEEZE
+    };
 
-    INSTANTIATE_TEST_CASE_P(reshape_unsqueeze_reshape_relu, ReshapeSqueezeReshapeRelu,
+    INSTANTIATE_TEST_CASE_P(smoke_reshape_squeeze_reshape_relu, ReshapeSqueezeReshapeRelu,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                    ::testing::Values(false)),
+                                    ::testing::ValuesIn(opTypes)),
                             ReshapeSqueezeReshapeRelu::getTestCaseName);
 }  // namespace

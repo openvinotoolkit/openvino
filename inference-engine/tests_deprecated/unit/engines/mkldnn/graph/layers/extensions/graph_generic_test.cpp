@@ -9,8 +9,6 @@
 #include <ie_plugin_config.hpp>
 #include "tests_common.hpp"
 
-#include "unit_test_utils/mocks/mock_error_listener.hpp"
-
 using namespace ::testing;
 using namespace std;
 using namespace mkldnn;
@@ -417,7 +415,7 @@ private:
 };
 using fake_ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const InferenceEngine::CNNLayer *)>;
 
-class FakeExtensionFabric : public InferenceEngine::IExtension {
+class FakeExtensionFabric : public InferenceEngine::Extensions::Cpu::MKLDNNExtensions {
 public:
     FakeExtensionFabric() {
         factories["CustomNewConvolution"] = [](const InferenceEngine::CNNLayer * cnnLayer) -> InferenceEngine::ILayerImplFactory* { return new FakeGenericPrimitiveFactory(); };
@@ -459,11 +457,6 @@ public:
         return InferenceEngine::OK;
     }
 
-    InferenceEngine::StatusCode getShapeInferImpl(InferenceEngine::IShapeInferImpl::Ptr& impl, const char* type,
-                                                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
-
 private:
     std::map<std::string, fake_ext_factory> factories;
 };
@@ -489,7 +482,7 @@ TEST_F(MKLDNNGraphGenericTests, canGetPrimitiveDescriptorsList) {
 
     mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));
     MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache;
-    node.reset(MKLDNNPlugin::MKLDNNNode::CreateNode(layerPtr, eng, extMgr, cache));
+    node.reset(MKLDNNPlugin::MKLDNNNode::factory().create(layerPtr, eng, extMgr, cache));
     ASSERT_EQ(MKLDNNPlugin::Type::Generic, node->getType());
 
     ASSERT_NO_THROW(node->getSupportedDescriptors());

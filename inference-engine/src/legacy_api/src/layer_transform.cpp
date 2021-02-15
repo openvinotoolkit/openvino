@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <layer_transform.hpp>
+#include <legacy/layer_transform.hpp>
 
 #include <utility>
 #include <tuple>

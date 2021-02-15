@@ -17,14 +17,15 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+#include <transformations/common_optimizations/conv_bias_fusion.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
-#include <ngraph_ops/power.hpp>
-#include <ngraph_ops/scaleshift.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
+#include <legacy/ngraph_ops/power.hpp>
+#include <legacy/ngraph_ops/scaleshift.hpp>
+#include <legacy/ngraph_ops/eltwise.hpp>
 
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 
@@ -132,8 +133,10 @@ public:
 class MulOrAddConversionTests: public MulAddConversionTests {};
 
 TEST_P(MulAddConversionTests, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertMulAddToScaleShiftOrPower().run_on_function(f);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
+    manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();
@@ -233,10 +236,7 @@ INSTANTIATE_TEST_CASE_P(AddToPower, MulOrAddConversionTests, testing::Combine(
 
 
 INSTANTIATE_TEST_CASE_P(MulAddNegative, MulAddConversionTests, testing::Combine(
-        testing::Values(std::make_tuple(InputShape{DYN, 3, 64},
-                                        CONST(ngraph::Shape({1, 3, 1}), 0.5),
-                                        CONST(ngraph::Shape({1, 3, 1}), 0.5)/*ScaleShift must always be 4D*/),
-                        std::make_tuple(InputShape{DYN, 3, DYN},
+        testing::Values(std::make_tuple(InputShape{DYN, 3, DYN},
                                         CONST(ngraph::Shape({1, 1, 3, 1}), 0.5),
                                         CONST(ngraph::Shape({3, 1}), 0.5)/*detect broadcast case*/),
                         std::make_tuple(InputShape{DYN, 3, DYN},

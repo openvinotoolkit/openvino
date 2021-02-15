@@ -2,7 +2,7 @@
 #include <opencv2/gapi/render/render.hpp> // Kernel API's
 
 #include "api/render_ocv.hpp"
-#include "api/ft_render.hpp"
+#include "backends/render/ft_render.hpp"
 
 namespace cv
 {
@@ -146,12 +146,8 @@ struct EmptyConverter
 template <typename ColorConverter>
 void drawPrimitivesOCV(cv::Mat& in,
                        const cv::gapi::wip::draw::Prims& prims,
-                       cv::gapi::wip::draw::FTTextRender* ftpr)
+                       std::shared_ptr<cv::gapi::wip::draw::FTTextRender>& ftpr)
 {
-#ifndef HAVE_FREETYPE
-    cv::util::suppress_unused_warning(ftpr);
-#endif
-
     using namespace cv::gapi::wip::draw;
 
     ColorConverter converter;
@@ -167,33 +163,16 @@ void drawPrimitivesOCV(cv::Mat& in,
                 break;
             }
 
-            // FIXME avoid code duplicate for Text and FText
             case Prim::index_of<Text>():
             {
                 auto tp = cv::util::get<Text>(p);
                 tp.color = converter.cvtColor(tp.color);
-
-                int baseline = 0;
-                auto size    = cv::getTextSize(tp.text, tp.ff, tp.fs, tp.thick, &baseline);
-                baseline    += tp.thick;
-                size.height += baseline;
-
-                // Allocate mask outside
-                cv::Mat mask(size, CV_8UC1, cv::Scalar::all(0));
-                // Org it's bottom left position for baseline
-                cv::Point org(0, mask.rows - baseline);
-                cv::putText(mask, tp.text, org, tp.ff, tp.fs, 255, tp.thick);
-
-                // Org is bottom left point, transform it to top left point for blendImage
-                cv::Point tl(tp.org.x, tp.org.y - mask.size().height + baseline);
-
-                blendTextMask(in, mask, tl, tp.color);
+                cv::putText(in, tp.text, tp.org, tp.ff, tp.fs, tp.color, tp.thick, tp.lt, tp.bottom_left_origin);
                 break;
             }
 
             case Prim::index_of<FText>():
             {
-#ifdef HAVE_FREETYPE
                 const auto& ftp  = cv::util::get<FText>(p);
                 const auto color = converter.cvtColor(ftp.color);
 
@@ -212,9 +191,6 @@ void drawPrimitivesOCV(cv::Mat& in,
                 cv::Point tl(ftp.org.x, ftp.org.y - mask.size().height + baseline);
 
                 blendTextMask(in, mask, tl, color);
-#else
-                cv::util::throw_error(std::runtime_error("FreeType not found !"));
-#endif
                 break;
             }
 
@@ -267,16 +243,16 @@ void drawPrimitivesOCV(cv::Mat& in,
     }
 }
 
-void drawPrimitivesOCVBGR(cv::Mat &in,
-                          const cv::gapi::wip::draw::Prims &prims,
-                          cv::gapi::wip::draw::FTTextRender* ftpr)
+void drawPrimitivesOCVBGR(cv::Mat                                                  &in,
+                          const cv::gapi::wip::draw::Prims                         &prims,
+                          std::shared_ptr<cv::gapi::wip::draw::FTTextRender> &ftpr)
 {
     drawPrimitivesOCV<EmptyConverter>(in, prims, ftpr);
 }
 
-void drawPrimitivesOCVYUV(cv::Mat &in,
-                          const cv::gapi::wip::draw::Prims &prims,
-                          cv::gapi::wip::draw::FTTextRender* ftpr)
+void drawPrimitivesOCVYUV(cv::Mat                                                  &in,
+                          const cv::gapi::wip::draw::Prims                         &prims,
+                          std::shared_ptr<cv::gapi::wip::draw::FTTextRender> &ftpr)
 {
     drawPrimitivesOCV<BGR2YUVConverter>(in, prims, ftpr);
 }

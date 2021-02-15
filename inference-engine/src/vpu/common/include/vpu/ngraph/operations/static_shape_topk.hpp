@@ -58,14 +58,11 @@ public:
 
 protected:
     int64_t m_axis;
+    int64_t m_maximumK;
     uint64_t m_normalized_axis;
     Mode m_mode;
     SortType m_sort;
     element::Type m_index_element_type{element::i32};
-
-    void generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas) override {
-            throw ngraph_error("Forward-propagation-only operation");
-    }
 };
 
 }  // namespace op

@@ -41,37 +41,11 @@
 #pragma GCC diagnostic ignored "-Wignored-attributes"
 #endif
 
-namespace {
-std::string ndrange_to_string(cl::NDRange const& range) {
-    std::string ret = "(";
-    for (cl::size_type i = 0; i < range.dimensions(); ++i) ret += (!i ? "" : ", ") + std::to_string(range.get()[i]);
-
-    ret += ")";
-    return ret;
-}
-
-std::string events_list_to_string(std::vector<cldnn::event_impl::ptr> events) {
-    std::string ret = "(";
-    bool empty = true;
-    for (auto& ev : events) {
-        std::string id = "unk";
-        if (auto* ocl_ev = dynamic_cast<cldnn::gpu::base_event*>(ev.get()))
-            id = std::to_string(ocl_ev->get_queue_stamp());
-
-        ret += (empty ? "" : ", ") + id;
-        empty = false;
-    }
-
-    ret += ")";
-    return ret;
-}
-}  // namespace
-
 // static class memebers - pointers to dynamically obtained OpenCL extension functions
 cl::PFN_clEnqueueAcquireMediaSurfacesINTEL cl::SharedSurfLock::pfn_acquire = NULL;
 cl::PFN_clEnqueueReleaseMediaSurfacesINTEL cl::SharedSurfLock::pfn_release = NULL;
 cl::PFN_clCreateFromMediaSurfaceINTEL cl::ImageVA::pfn_clCreateFromMediaSurfaceINTEL = NULL;
-#ifdef WIN32
+#ifdef _WIN32
 cl::PFN_clCreateFromD3D11Buffer cl::BufferDX::pfn_clCreateFromD3D11Buffer = NULL;
 #endif
 
@@ -117,7 +91,6 @@ gpu_toolkit::gpu_toolkit(const device_impl& device_impl, const configuration& co
                    << "    profiling: " << std::boolalpha << _configuration.enable_profiling << "\n"
                    << "    meaningful names: " << std::boolalpha << _configuration.meaningful_kernels_names << "\n"
                    << "    dump custom program: " << std::boolalpha << _configuration.dump_custom_program << "\n"
-                   << "    device type: " << std::to_string(device_info.dev_type) << "\n"
                    << "    vendor type: " << std::hex << std::setfill('0') << std::setw(4) << std::right
                    << std::to_string(device_info.vendor_id) << "\n"
                    << std::dec << std::setfill(' ') << std::right
@@ -133,7 +106,9 @@ gpu_toolkit::gpu_toolkit(const device_impl& device_impl, const configuration& co
                    << "    local memory size: " << device_info.max_local_mem_size << "\n"
                    << "    fp16: " << std::boolalpha << (device_info.supports_fp16 != 0) << "\n"
                    << "    fp16 denorms: " << std::boolalpha << (device_info.supports_fp16_denorms != 0) << "\n"
-                   << "    subgroups short: " << std::boolalpha << (device_info.supports_subgroups_short != 0) << std::endl;
+                   << "    subgroups short: " << std::boolalpha << (device_info.supports_subgroups_short != 0) << "\n"
+                   << "    local block io: " << std::boolalpha << device_info.supports_local_block_io << "\n"
+                   << "    optimization hints: " << std::boolalpha << device_info.supports_optimization_hints << std::endl;
     }
 }
 
@@ -162,10 +137,6 @@ void gpu_toolkit::remove_program(uint32_t prog_id) {
 
 kernels_cache& gpu_toolkit::get_kernels_cache(uint32_t prog_id) {
     return get_program_state(prog_id)._kernels_cache;
-}
-
-void gpu_toolkit::store_binaries(kernels_binaries_vector binaries, uint32_t prog_id) {
-    get_program_state(prog_id)._binaries.push_back(binaries);
 }
 
 void gpu_toolkit::add_network(uint32_t net_id) {
@@ -232,9 +203,10 @@ void gpu_toolkit::release_pending_memory(uint32_t queue_id) { get_command_queue(
 
 void gpu_toolkit::wait_for_events(std::vector<event_impl::ptr> const& events) {
     std::vector<cl::Event> clevents;
-    for (auto& ev : events)
-        if (auto ocl_ev = dynamic_cast<base_event*>(ev.get()))
-            clevents.push_back(ocl_ev->get());
+    for (auto& ev : events) {
+        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get()))
+            clevents.push_back(ocl_base_ev->get());
+    }
 
     try {
         cl::WaitForEvents(clevents);

@@ -19,7 +19,7 @@ TEST_F(XLinkNullPtrTests, XLinkConnect) {
 }
 
 TEST_F(XLinkNullPtrTests, XLinkOpenAndCloseStream) {
-    ASSERT_EQ(XLinkOpenStream(0, nullptr, 0), X_LINK_ERROR);
+    ASSERT_EQ(XLinkOpenStream(0, nullptr, 0), INVALID_STREAM_ID);
     ASSERT_EQ(XLinkCloseStream(0), X_LINK_ERROR);
 }
 

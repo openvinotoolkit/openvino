@@ -179,8 +179,6 @@ protected:
         expectedPrecisions["Convolution_1"] = "BF16";
         expectedPrecisions["Convolution_2"] = "BF16";
         expectedPrecisions["Convolution_3"] = "BF16";
-        expectedPrecisions["Elt_max"] = "FP32";
-        expectedPrecisions["Elt_mul"] = "FP32";
         expectedPrecisions["Elt_sum"] = "ndef";
     }
 };
@@ -191,7 +189,7 @@ TEST_P(Elt_x3, CompareWithRefImpl) {
 
 //    CPU plug-in failure in that case
 
-//INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Elt_x3,
+//INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Elt_x3,
 //                        ::testing::Combine(
 //                                ::testing::Values(Precision::FP32),
 //                                ::testing::Values(Precision::FP32),
@@ -200,7 +198,7 @@ TEST_P(Elt_x3, CompareWithRefImpl) {
 //                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
 //                        Elt_x3::getTestCaseName);
 //
-//INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, Elt_x3,
+//INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Elt_x3,
 //                        ::testing::Combine(
 //                                ::testing::Values(Precision::FP32),
 //                                ::testing::Values(Precision::BF16),
@@ -209,7 +207,7 @@ TEST_P(Elt_x3, CompareWithRefImpl) {
 //                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
 //                        Elt_x3::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Elt_x3,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Elt_x3,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -218,7 +216,7 @@ INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Elt_x3,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Elt_x3::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, Elt_x3,
+INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Elt_x3,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),

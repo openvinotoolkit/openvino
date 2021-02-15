@@ -120,11 +120,11 @@ struct RegressionConfig {
         bool reset = false;
         bool fetchMore = false;
         bool fetched = true;
-        bool hasResult = true;
         int frameNumber = 0;
+        bool hasResult = true;
         InputFetcherResult() = default;
         InputFetcherResult(bool reset, bool fetchMore=false, bool fetched=true, int frameNumber = 0, bool hasResult = true)
-                : reset(reset), fetchMore(fetchMore), fetched(fetched), hasResult(hasResult) {}
+                : reset(reset), fetchMore(fetchMore), fetched(fetched), frameNumber(frameNumber), hasResult(hasResult) {}
     };
     using input_fetcher = std::function<InputFetcherResult (const InferenceContext & )>;
     using model_maker = std::function<void(const InferenceContext & )>;
@@ -139,7 +139,6 @@ struct RegressionConfig {
     string _device_name;
     string _firmware;
     string _tmp_firmware;
-    string _stat_file;
     vector<string> labels;
     double nearValue = 0.0;
     double nearAvgValue = 0.0;

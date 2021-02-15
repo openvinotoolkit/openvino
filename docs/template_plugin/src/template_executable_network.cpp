@@ -2,108 +2,133 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <atomic>
-#include <set>
-#include <utility>
-#include <algorithm>
-#include <memory>
-#include <string>
-#include <vector>
-
 #include <ie_metric_helpers.hpp>
-#include <ie_util_internal.hpp>
 #include <ie_plugin_config.hpp>
-#include <network_serializer.h>
 #include <threading/ie_executor_manager.hpp>
-#include <details/ie_cnn_network_tools.h>
+#include "transformations/serialize.hpp"
 
-#include <ngraph/specialize_function.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/constant_folding.hpp>
-
-#include <transformations/convert_divide.hpp>
-
+#include "template/template_config.hpp"
 #include "template_plugin.hpp"
 #include "template_executable_network.hpp"
+#include "template_itt.hpp"
 
 using namespace TemplatePlugin;
 
 // ! [executable_network:ctor_cnnnetwork]
-TemplatePlugin::ExecutableNetwork::ExecutableNetwork(InferenceEngine::ICNNNetwork&  network,
-                                                     const Configuration&           cfg):
-    _name(network.getName()),
+TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                                                     const Configuration&                           cfg,
+                                                     const Plugin::Ptr&                             plugin) :
+    InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, nullptr), // Disable default threads creation
     _cfg(cfg),
-    _waitExecutor(InferenceEngine::ExecutorManager::getInstance()->getExecutor("Template")) {
+    _plugin(plugin) {
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
-
     try {
-        if (std::shared_ptr<const ngraph::Function> ngraphFunction = network.getFunction()) {
-            CompileGraph(ngraphFunction);
-        } else {
-            THROW_IE_EXCEPTION << "TEMPLATE plugin can compile only IR v10 networks";
-        }
-    }
-    catch (const InferenceEngineException & e) {
-        throw e;
-    }
-    catch (const std::exception & e) {
+        CompileNetwork(function);
+        InitExecutor(); // creates thread-based executor using for async requests
+    } catch (const InferenceEngine::details::InferenceEngineException&) {
+        throw;
+    } catch (const std::exception & e) {
         THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
-    }
-    catch (...) {
+    } catch (...) {
         THROW_IE_EXCEPTION << "Generic exception is thrown";
     }
 }
 // ! [executable_network:ctor_cnnnetwork]
 
 // ! [executable_network:ctor_import_stream]
-TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &                 model,
-                                                     const Configuration&           cfg) :
-                  _cfg(cfg) {
-    // TODO: since Import network is not a mandatory functionality, this ctor can just be removed
+TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &       model,
+                                                     const Configuration& cfg,
+                                                     const Plugin::Ptr&   plugin) :
+    _cfg(cfg),
+    _plugin(plugin) {
+    // read XML content
+    std::string xmlString;
+    std::uint64_t dataSize = 0;
+    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    xmlString.resize(dataSize);
+    model.read(const_cast<char*>(xmlString.c_str()), dataSize);
+
+    // read blob content
+    InferenceEngine::Blob::Ptr dataBlob;
+    model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    if (0 != dataSize) {
+        dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+            InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                        {static_cast<std::size_t>(dataSize)},
+                                        InferenceEngine::Layout::C));
+        dataBlob->allocate();
+        model.read(dataBlob->buffer(), dataSize);
+    }
+
+    // TODO: implement Import / Export of configuration options and merge with `cfg`
+    // TODO: implement Import / Export of network precisions, layouts, preprocessing info
+
+    auto cnnnetwork = _plugin->GetCore()->ReadNetwork(xmlString, std::move(dataBlob));
+
+    setNetworkInputs(cnnnetwork.getInputsInfo());
+    setNetworkOutputs(cnnnetwork.getOutputsInfo());
+    SetPointerToPlugin(_plugin->shared_from_this());
+
+    try {
+        CompileNetwork(cnnnetwork.getFunction());
+        InitExecutor(); // creates thread-based executor using for async requests
+    } catch (const InferenceEngine::details::InferenceEngineException&) {
+        throw;
+    } catch (const std::exception & e) {
+        THROW_IE_EXCEPTION << "Standard exception from compilation library: " << e.what();
+    } catch (...) {
+        THROW_IE_EXCEPTION << "Generic exception is thrown";
+    }
 }
 // ! [executable_network:ctor_import_stream]
 
-// ! [executable_network:compile_graph]
-void TemplatePlugin::ExecutableNetwork::CompileGraph(const std::shared_ptr<const ngraph::Function> & ngraphFunction) {
-    // TODO: perform actual graph compilation taking `_cfg` into account
+// ! [executable_network:map_graph]
+// forward declaration
+std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function);
 
-    // 1.Copy ngraph::Function first to apply some transformations later in
-    // ExecutableNetwork::CompileGraph, which modify original ngraph::Function
-    const bool shareConsts = false, constFolding = false;
-    std::vector<::ngraph::element::Type> new_types;
-    std::vector<::ngraph::PartialShape> new_shapes;
+void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function) {
+    // TODO: perform actual graph compilation / mapping to backend graph representation / kernels
 
-    for (const auto &parameter : ngraphFunction->get_parameters()) {
-        new_shapes.emplace_back(parameter->get_partial_shape());
-        new_types.emplace_back(parameter->get_element_type());
+    // apply plugins transformations
+    _function = TransformNetwork(function);
+
+    // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
+    // as inference request output names but the name of the layer before.
+    for (auto&& result : _function->get_results()) {
+        auto previousOutput = result->get_input_source_output(0);
+        auto outputName = previousOutput.get_node()->get_friendly_name();
+        if (previousOutput.get_node()->get_output_size() > 1) {
+            outputName += '.' + std::to_string(previousOutput.get_index());
+        }
+        _outputIndex.emplace(outputName, _function->get_result_index(result));
+    }
+    for (auto&& parameter : _function->get_parameters()) {
+        _inputIndex.emplace(parameter->get_friendly_name(), _function->get_parameter_index(parameter));
     }
 
-    auto copyFunction = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(ngraphFunction),
-        new_types, new_shapes, std::vector<void *>(new_types.size(), nullptr), constFolding, shareConsts);
-
-    // 2. Perform common and device-specific transformations
-    ngraph::pass::Manager passManager;
-    // Example: register standard ngraph transformation from ngraph::ngraph
-    passManager.register_pass<ngraph::pass::ConstantFolding>();
-    // Example: register inference engine optimization transformation for IE::inference_engine_transformations
-    passManager.register_pass<ngraph::pass::ConvertDivide>();
-    // Register any other transformations
-    // ..
-
-    // After `run_passes`, we have the transformed function, where operations match device operations,
-    // and we can create device hardware-dependent graph
-    passManager.run_passes(copyFunction);
-
-    // 3. Iterate over operations and create hardware-specific ngraph
-    for (const auto& op : copyFunction->get_ordered_ops()) {
-        // TODO: map ngraph `op` to device operation
-    }
-
-    // 4. Perform any other steps like allocation and filling device buffers, and so on
+    // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
-// ! [executable_network:compile_graph]
+// ! [executable_network:map_graph]
+
+
+// ! [executable_network:init_executor]
+void TemplatePlugin::ExecutableNetwork::InitExecutor() {
+    // Default multi-threaded configuration is balanced for throughtput and latency cases and takes into account
+    // real hardware cores and NUMA nodes.
+    auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg._streamsExecutorConfig);
+    streamsExecutorConfig._name = "TemplateStreamsExecutor";
+    // As Inference Engine CPU Streams Executor creates some additional therads
+    // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
+    // and memory consumption can be larger than it is expected.
+    // So Inference Engone provides executors cache.
+    _taskExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
+    // NOTE: callback Executor is not configured. So callback will be called in the thread of the last stage of inference request pipeline
+    // _callbackExecutor = InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateCallbackExecutor"});
+}
+// ! [executable_network:init_executor]
+
 
 // ! [executable_network:create_infer_request_impl]
 InferenceEngine::InferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
@@ -113,47 +138,49 @@ InferenceEngine::InferRequestInternal::Ptr TemplatePlugin::ExecutableNetwork::Cr
 // ! [executable_network:create_infer_request_impl]
 
 // ! [executable_network:create_infer_request]
-void TemplatePlugin::ExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& asyncRequest) {
+InferenceEngine::IInferRequest::Ptr TemplatePlugin::ExecutableNetwork::CreateInferRequest() {
+    InferenceEngine::IInferRequest::Ptr asyncRequest;
     auto internalRequest = CreateInferRequestImpl(_networkInputs, _networkOutputs);
     auto asyncThreadSafeImpl = std::make_shared<TemplateAsyncInferRequest>(std::static_pointer_cast<TemplateInferRequest>(internalRequest),
-                                                                           _taskExecutor, _waitExecutor, _callbackExecutor);
-    asyncRequest.reset(new InferenceEngine::InferRequestBase<TemplateAsyncInferRequest>(asyncThreadSafeImpl),
+                                                                           _taskExecutor, _plugin->_waitExecutor, _callbackExecutor);
+    asyncRequest.reset(new InferenceEngine::InferRequestBase(asyncThreadSafeImpl),
                        [](InferenceEngine::IInferRequest *p) { p->Release(); });
     asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+    return asyncRequest;
 }
 // ! [executable_network:create_infer_request]
 
 // ! [executable_network:get_config]
-void TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const {
-    // TODO: return more supported values for config keys
-    if (name == CONFIG_KEY(DEVICE_ID) ||
-        name == CONFIG_KEY(PERF_COUNT)) {
-        result = _cfg.Get(name);
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
-    }
+InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name) const {
+    return _cfg.Get(name);
 }
 // ! [executable_network:get_config]
 
 // ! [executable_network:get_metric]
-void TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *) const {
+InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name) const {
     // TODO: return more supported values for metrics
-    if (METRIC_KEY(SUPPORTED_METRICS) == name) {
-        result = IE_SET_METRIC(SUPPORTED_METRICS, std::vector<std::string>{
+    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{
             METRIC_KEY(NETWORK_NAME),
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(SUPPORTED_CONFIG_KEYS),
             METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)});
-    } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{
+    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
+        std::vector<std::string> configKeys = {
             CONFIG_KEY(DEVICE_ID),
-            CONFIG_KEY(PERF_COUNT)});
-    } else if (METRIC_KEY(NETWORK_NAME) == name) {
-        result = IE_SET_METRIC(NETWORK_NAME, _name);
-    } else if (METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
-        // TODO: fill with actual number
-        unsigned int value = 1;
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
+            CONFIG_KEY(PERF_COUNT),
+            TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS) };
+        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
+        for (auto&& configKey : streamExecutorConfigKeys) {
+            configKeys.emplace_back(configKey);
+        }
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
+    } else if (EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) == name) {
+        auto networkName = _function->get_friendly_name();
+        IE_SET_METRIC_RETURN(NETWORK_NAME, networkName);
+    } else if (EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) == name) {
+        unsigned int value = _cfg._streamsExecutorConfig._streams;
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, value);
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }
@@ -161,7 +188,27 @@ void TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name, Infer
 // ! [executable_network:get_metric]
 
 // ! [executable_network:export_impl]
-void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& dlaModel) {
-    // TODO: Code which exports graph from std::ostream
+void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::ExportImpl");
+
+    // Note: custom ngraph extensions are not supported
+    std::map<std::string, ngraph::OpSet> custom_opsets;
+    std::stringstream xmlFile, binFile;
+    ngraph::pass::Serialize serializer(xmlFile, binFile,
+        ngraph::pass::Serialize::Version::IR_V10, custom_opsets);
+    serializer.run_on_function(_function);
+
+    auto m_constants = binFile.str();
+    auto m_model = xmlFile.str();
+
+    auto dataSize = static_cast<std::uint64_t>(m_model.size());
+    modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    modelStream.write(m_model.c_str(), dataSize);
+
+    dataSize = static_cast<std::uint64_t>(m_constants.size());
+    modelStream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
+    modelStream.write(reinterpret_cast<char*>(&m_constants[0]), dataSize);
+
+    // TODO: implement network precision, layout, preprocessing info serialization
 }
 // ! [executable_network:export_impl]

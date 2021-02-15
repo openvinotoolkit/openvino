@@ -2,20 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "graph_tools.hpp"
-
 #include <limits>
 #include <string>
 #include <vector>
 
-#include "details/ie_cnn_network_tools.h"
+#include "legacy/graph_tools.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
 
 using namespace std;
 
 namespace InferenceEngine {
 namespace details {
 
-std::vector<CNNLayerPtr> CNNNetSortTopologically(const ICNNNetwork& network) {
+std::vector<CNNLayerPtr> CNNNetSortTopologically(const CNNNetwork& network) {
     std::vector<CNNLayerPtr> stackOfVisited;
     bool res = CNNNetForestDFS(
         CNNNetGetAllInputLayers(network),
@@ -34,26 +33,5 @@ std::vector<CNNLayerPtr> CNNNetSortTopologically(const ICNNNetwork& network) {
 }
 
 }  // namespace details
-
-void CNNNetSubstituteLayer(InferenceEngine::ICNNNetwork& network, const InferenceEngine::CNNLayerPtr& layer,
-                           const InferenceEngine::CNNLayerPtr& newLayer) {
-    IE_ASSERT(layer->name == newLayer->name);
-
-    // Redirect srd data
-    for (auto& src : layer->insData) {
-        src.lock()->getInputTo()[layer->name] = newLayer;
-    }
-    newLayer->insData = layer->insData;
-
-    // Redirect dst data
-    for (auto& dst : layer->outData) {
-        dst->getCreatorLayer() = newLayer;
-    }
-    newLayer->outData = layer->outData;
-
-    IE_SUPPRESS_DEPRECATED_START
-    network.addLayer(newLayer);
-    IE_SUPPRESS_DEPRECATED_END
-}
 
 }  // namespace InferenceEngine

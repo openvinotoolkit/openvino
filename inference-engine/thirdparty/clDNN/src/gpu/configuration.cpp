@@ -33,6 +33,7 @@ configuration::configuration()
       priority_mode(priority_mode_types::disabled),
       throttle_mode(throttle_mode_types::disabled),
       queues_num(0),
-      tuning_cache_path("cache.json") {}
+      tuning_cache_path("cache.json"),
+      kernels_cache_path("") {}
 }  // namespace gpu
 }  // namespace cldnn

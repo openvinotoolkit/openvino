@@ -2,17 +2,28 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_CORE_TESTS_INL_HPP
 #define OPENCV_GAPI_CORE_TESTS_INL_HPP
 
 #include <opencv2/gapi/core.hpp>
+#include <opencv2/gapi/infer/parsers.hpp>
 #include "gapi_core_tests.hpp"
 
 namespace opencv_test
 {
+
+namespace
+{
+template <typename Elem>
+inline bool compareVectorsAbsExact(const std::vector<Elem>& outGAPI,
+                                   const std::vector<Elem>& outOCV)
+{
+    return AbsExactVector<Elem>().to_compare_f()(outGAPI, outOCV);
+}
+}
 
 TEST_P(MathOpTest, MatricesAccuracyTest)
 {
@@ -47,14 +58,14 @@ TEST_P(MathOpTest, MatricesAccuracyTest)
         {
             if( doReverseOp )
             {
-                in_mat1.setTo(1, in_mat1 == 0);  // avoid zeros in divide input data
+                in_mat1.setTo(1, in_mat1 == 0);  // avoiding zeros in divide input data
                 out = cv::gapi::divRC(sc1, in1, scale, dtype);
                 cv::divide(sc, in_mat1, out_mat_ocv, scale, dtype);
                 break;
             }
             else
             {
-                sc += Scalar(1, 1, 1, 1);  // avoid zeros in divide input data
+                sc += Scalar(sc[0] == 0, sc[1] == 0, sc[2] == 0, sc[3] == 0);  // avoiding zeros in divide input data
                 out = cv::gapi::divC(in1, sc1, scale, dtype);
                 cv::divide(in_mat1, sc, out_mat_ocv, scale, dtype);
                 break;
@@ -93,7 +104,7 @@ TEST_P(MathOpTest, MatricesAccuracyTest)
         }
         case (DIV):
         {
-            in_mat2.setTo(1, in_mat2 == 0);  // avoid zeros in divide input data
+            in_mat2.setTo(1, in_mat2 == 0);  // avoiding zeros in divide input data
             out = cv::gapi::div(in1, in2, scale, dtype);
             cv::divide(in_mat1, in_mat2, out_mat_ocv, scale, dtype);
             break;
@@ -120,18 +131,21 @@ TEST_P(MathOpTest, MatricesAccuracyTest)
             CV_MAT_DEPTH(out_mat_ocv.type()) != CV_64F)
         {
             // integral: allow 1% of differences, and no diffs by >1 unit
-            EXPECT_LE(countNonZeroPixels(cv::abs(out_mat_gapi - out_mat_ocv) > 0),
-                                                           0.01*out_mat_ocv.total());
-            EXPECT_LE(countNonZeroPixels(cv::abs(out_mat_gapi - out_mat_ocv) > 1), 0);
+            EXPECT_LE(cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF), 1);  // check: abs(a[i] - b[i]) <= 1
+            float tolerance = 0.01f;
+#if defined(__arm__) || defined(__aarch64__)
+            if (opType == DIV)
+                tolerance = 0.05f;
+#endif
+            EXPECT_LE(cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_L1), tolerance*out_mat_ocv.total());
         }
         else
         {
             // floating-point: expect 6 decimal digits - best we expect of F32
-            EXPECT_EQ(0, cv::countNonZero(cv::abs(out_mat_gapi - out_mat_ocv) >
-                                                    1e-6*cv::abs(out_mat_ocv)));
+            EXPECT_LE(cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF | NORM_RELATIVE), 1e-6);
         }
     #else
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
+        EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
     #endif
         EXPECT_EQ(out_mat_gapi.size(), sz);
     }
@@ -157,18 +171,16 @@ TEST_P(MulDoubleTest, AccuracyTest)
         CV_MAT_DEPTH(out_mat_ocv.type()) != CV_64F)
     {
         // integral: allow 1% of differences, and no diffs by >1 unit
-        EXPECT_LE(countNonZeroPixels(cv::abs(out_mat_gapi - out_mat_ocv) > 0),
-                                                    0.01*out_mat_ocv.total());
-        EXPECT_LE(countNonZeroPixels(cv::abs(out_mat_gapi - out_mat_ocv) > 1), 0);
+        EXPECT_LE(cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF), 1);
+        EXPECT_LE(cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_L1 | NORM_RELATIVE), 0.01);
     }
     else
     {
         // floating-point: expect 6 decimal digits - best we expect of F32
-        EXPECT_EQ(0, cv::countNonZero(cv::abs(out_mat_gapi - out_mat_ocv) >
-            1e-6*cv::abs(out_mat_ocv)));
+        EXPECT_LE(cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF | NORM_RELATIVE), 1e-6);
     }
 #else
-    EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
+    EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
 #endif
     EXPECT_EQ(out_mat_gapi.size(), sz);
 }
@@ -191,7 +203,7 @@ TEST_P(DivTest, DISABLED_DivByZeroTest)  // https://github.com/opencv/opencv/pul
 
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
+        EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
         EXPECT_EQ(out_mat_gapi.size(), sz);
     }
 }
@@ -215,9 +227,9 @@ TEST_P(DivCTest, DISABLED_DivByZeroTest)  // https://github.com/opencv/opencv/pu
 
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
         cv::Mat zeros = cv::Mat::zeros(sz, type);
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != zeros));
+        EXPECT_EQ(0, cvtest::norm(out_mat_gapi, zeros, NORM_INF));
     }
 }
 
@@ -261,7 +273,7 @@ TEST_P(MaskTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
     }
 }
 
@@ -301,18 +313,15 @@ TEST_P(Polar2CartTest, AccuracyTest)
         //
         // TODO: Make threshold a configurable parameter of this test (ADE-221)
 
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+
         cv::Mat &outx = out_mat_gapi,
                 &outy = out_mat2;
         cv::Mat &refx = out_mat_ocv,
                 &refy = out_mat_ocv2;
-        cv::Mat difx = cv::abs(refx - outx),
-                dify = cv::abs(refy - outy);
-        cv::Mat absx = cv::abs(refx),
-                absy = cv::abs(refy);
 
-        EXPECT_EQ(0, cv::countNonZero(difx > 1e-6*absx));
-        EXPECT_EQ(0, cv::countNonZero(dify > 1e-6*absy));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_LE(cvtest::norm(refx, outx, NORM_L1 | NORM_RELATIVE), 1e-6);
+        EXPECT_LE(cvtest::norm(refy, outy, NORM_L1 | NORM_RELATIVE), 1e-6);
     }
 }
 
@@ -347,20 +356,17 @@ TEST_P(Cart2PolarTest, AccuracyTest)
         //
         // TODO: Make threshold a configurable parameter of this test (ADE-221)
 
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+
         cv::Mat &outm = out_mat_gapi,
                 &outa = out_mat2;
         cv::Mat &refm = out_mat_ocv,
                 &refa = out_mat_ocv2;
-        cv::Mat difm = cv::abs(refm - outm),
-                difa = cv::abs(refa - outa);
-        cv::Mat absm = cv::abs(refm),
-                absa = cv::abs(refa);
 
         // FIXME: Angle result looks inaccurate at OpenCV
         //        (expected relative accuracy like 1e-6)
-        EXPECT_EQ(0, cv::countNonZero(difm > 1e-6*absm));
-        EXPECT_EQ(0, cv::countNonZero(difa > 1e-3*absa));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_LE(cvtest::norm(refm, outm, NORM_INF), 1e-6);
+        EXPECT_LE(cvtest::norm(refa, outa, NORM_INF), 1e-3);
     }
 }
 
@@ -409,8 +415,8 @@ TEST_P(CmpTest, AccuracyTest)
 
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
     }
 }
 
@@ -418,38 +424,57 @@ TEST_P(BitwiseTest, AccuracyTest)
 {
     // G-API code & corresponding OpenCV code ////////////////////////////////
     cv::GMat in1, in2, out;
-    switch(opType)
+    if( testWithScalar )
     {
-        case AND:
+        cv::GScalar sc1;
+        switch(opType)
         {
-            out = cv::gapi::bitwise_and(in1, in2);
-            cv::bitwise_and(in_mat1, in_mat2, out_mat_ocv);
-            break;
+            case AND:
+                out = cv::gapi::bitwise_and(in1, sc1);
+                cv::bitwise_and(in_mat1, sc, out_mat_ocv);
+                break;
+            case OR:
+                out = cv::gapi::bitwise_or(in1, sc1);
+                cv::bitwise_or(in_mat1, sc, out_mat_ocv);
+                break;
+            case XOR:
+                out = cv::gapi::bitwise_xor(in1, sc1);
+                cv::bitwise_xor(in_mat1, sc, out_mat_ocv);
+                break;
+            default:
+                FAIL() << "no such bitwise operation type!";
         }
-        case OR:
-        {
-            out = cv::gapi::bitwise_or(in1, in2);
-            cv::bitwise_or(in_mat1, in_mat2, out_mat_ocv);
-            break;
-        }
-        case XOR:
-        {
-            out = cv::gapi::bitwise_xor(in1, in2);
-            cv::bitwise_xor(in_mat1, in_mat2, out_mat_ocv);
-            break;
-        }
-        default:
-        {
-            FAIL() << "no such bitwise operation type!";
-        }
+        cv::GComputation c(GIn(in1, sc1), GOut(out));
+        c.apply(gin(in_mat1, sc), gout(out_mat_gapi), getCompileArgs());
     }
-    cv::GComputation c(GIn(in1, in2), GOut(out));
-    c.apply(gin(in_mat1, in_mat2), gout(out_mat_gapi), getCompileArgs());
+    else
+    {
+        switch(opType)
+        {
+            case AND:
+                out = cv::gapi::bitwise_and(in1, in2);
+                cv::bitwise_and(in_mat1, in_mat2, out_mat_ocv);
+                break;
+            case OR:
+                out = cv::gapi::bitwise_or(in1, in2);
+                cv::bitwise_or(in_mat1, in_mat2, out_mat_ocv);
+                break;
+            case XOR:
+                out = cv::gapi::bitwise_xor(in1, in2);
+                cv::bitwise_xor(in_mat1, in_mat2, out_mat_ocv);
+                break;
+            default:
+                FAIL() << "no such bitwise operation type!";
+        }
+        cv::GComputation c(GIn(in1, in2), GOut(out));
+        c.apply(gin(in_mat1, in_mat2), gout(out_mat_gapi), getCompileArgs());
+    }
+
 
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
     }
 }
 
@@ -468,8 +493,8 @@ TEST_P(NotTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
     }
 }
 
@@ -492,8 +517,8 @@ TEST_P(SelectTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
     }
 }
 
@@ -512,8 +537,8 @@ TEST_P(MinTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
     }
 }
 
@@ -532,8 +557,8 @@ TEST_P(MaxTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
     }
 }
 
@@ -552,8 +577,8 @@ TEST_P(AbsDiffTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
     }
 }
 
@@ -573,8 +598,8 @@ TEST_P(AbsDiffCTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
     }
 }
 
@@ -598,6 +623,30 @@ TEST_P(SumTest, AccuracyTest)
         EXPECT_TRUE(cmpF(out_sum, out_sum_ocv));
     }
 }
+
+#pragma push_macro("countNonZero")
+#undef countNonZero
+TEST_P(CountNonZeroTest, AccuracyTest)
+{
+    int out_cnz_gapi = -1;
+    int out_cnz_ocv = -2;
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::countNonZero(in);
+
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_mat1), cv::gout(out_cnz_gapi), getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        out_cnz_ocv = cv::countNonZero(in_mat1);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_cnz_gapi, out_cnz_ocv));
+    }
+}
+#pragma pop_macro("countNonZero")
 
 TEST_P(AddWeightedTest, AccuracyTest)
 {
@@ -674,8 +723,8 @@ TEST_P(IntegralTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv1 != out_mat1));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv2 != out_mat2));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv1, out_mat1, NORM_INF));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv2, out_mat2, NORM_INF));
     }
 }
 
@@ -723,7 +772,7 @@ TEST_P(ThresholdOTTest, AccuracyTestOtsu)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
         EXPECT_EQ(out_mat_gapi.size(), sz);
         EXPECT_EQ(ocv_res, out_gapi_scalar.val[0]);
     }
@@ -748,8 +797,8 @@ TEST_P(InRangeTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
-        EXPECT_EQ(out_mat_gapi.size(), sz);
+        ASSERT_EQ(out_mat_gapi.size(), sz);
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
     }
 }
 
@@ -772,9 +821,9 @@ TEST_P(Split3Test, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv  != out_mat_gapi));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv2 != out_mat2));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv3 != out_mat3));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv,  out_mat_gapi, NORM_INF));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv2, out_mat2, NORM_INF));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv3, out_mat3, NORM_INF));
     }
 }
 
@@ -800,10 +849,10 @@ TEST_P(Split4Test, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv  != out_mat_gapi));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv2 != out_mat2));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv3 != out_mat3));
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv4 != out_mat4));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv,  out_mat_gapi, NORM_INF));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv2, out_mat2, NORM_INF));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv3, out_mat3, NORM_INF));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv4, out_mat4, NORM_INF));
     }
 }
 
@@ -900,7 +949,7 @@ TEST_P(Merge3Test, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
     }
 }
 
@@ -927,7 +976,7 @@ TEST_P(Merge4Test, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
     }
 }
 
@@ -951,7 +1000,7 @@ TEST_P(RemapTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
         EXPECT_EQ(out_mat_gapi.size(), sz);
     }
 }
@@ -970,7 +1019,7 @@ TEST_P(FlipTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
         EXPECT_EQ(out_mat_gapi.size(), sz);
     }
 }
@@ -996,7 +1045,7 @@ TEST_P(CropTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
         EXPECT_EQ(out_mat_gapi.size(), sz_out);
     }
 }
@@ -1022,7 +1071,7 @@ TEST_P(CopyTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
         EXPECT_EQ(out_mat_gapi.size(), sz_out);
     }
 }
@@ -1058,7 +1107,7 @@ TEST_P(ConcatHorTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat, NORM_INF));
     }
 }
 
@@ -1093,7 +1142,7 @@ TEST_P(ConcatVertTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat, NORM_INF));
     }
 }
 
@@ -1135,7 +1184,7 @@ TEST_P(ConcatVertVecTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat, NORM_INF));
     }
 }
 
@@ -1177,7 +1226,7 @@ TEST_P(ConcatHorVecTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat, NORM_INF));
     }
 }
 
@@ -1204,7 +1253,7 @@ TEST_P(LUTTest, AccuracyTest)
     }
     // Comparison //////////////////////////////////////////////////////////////
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
         EXPECT_EQ(out_mat_gapi.size(), sz);
     }
 }
@@ -1248,7 +1297,11 @@ TEST_P(PhaseTest, AccuracyTest)
     // Comparison //////////////////////////////////////////////////////////////
     // FIXME: use a comparison functor instead (after enabling OpenCL)
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+#if defined(__aarch64__) || defined(__arm__)
+        EXPECT_NEAR(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF), 4e-6);
+#else
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
+#endif
     }
 }
 
@@ -1267,7 +1320,52 @@ TEST_P(SqrtTest, AccuracyTest)
     // Comparison //////////////////////////////////////////////////////////////
     // FIXME: use a comparison functor instead (after enabling OpenCL)
     {
-        EXPECT_EQ(0, cv::countNonZero(out_mat_ocv != out_mat_gapi));
+        EXPECT_EQ(0, cvtest::norm(out_mat_ocv, out_mat_gapi, NORM_INF));
+    }
+}
+
+TEST_P(WarpPerspectiveTest, AccuracyTest)
+{
+    cv::Point center{in_mat1.size() / 2};
+    cv::Mat xy = cv::getRotationMatrix2D(center, angle, scale);
+    cv::Matx13d z (0, 0, 1);
+    cv::Mat transform_mat;
+    cv::vconcat(xy, z, transform_mat);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::warpPerspective(in, transform_mat, in_mat1.size(), flags, border_mode, border_value);
+
+    cv::GComputation c(in, out);
+    c.apply(in_mat1, out_mat_gapi, getCompileArgs());
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    cv::warpPerspective(in_mat1, out_mat_ocv, cv::Mat(transform_mat), in_mat1.size(), flags, border_mode, border_value);
+
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
+    }
+}
+
+TEST_P(WarpAffineTest, AccuracyTest)
+{
+    cv::Point center{in_mat1.size() / 2};
+    cv::Mat warp_mat = cv::getRotationMatrix2D(center, angle, scale);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    auto out = cv::gapi::warpAffine(in, warp_mat, in_mat1.size(), flags, border_mode, border_value);
+
+    cv::GComputation c(in, out);
+    c.apply(in_mat1, out_mat_gapi, getCompileArgs());
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    cv::warpAffine(in_mat1, out_mat_ocv, warp_mat, in_mat1.size(), flags, border_mode, border_value);
+
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(cmpF(out_mat_gapi, out_mat_ocv));
     }
 }
 
@@ -1293,6 +1391,187 @@ TEST_P(NormalizeTest, Test)
     }
 }
 
+TEST_P(KMeansNDNoInitTest, AccuracyTest)
+{
+    const int amount = sz.height != 1 ? sz.height : sz.width,
+              dim    = sz.height != 1 ? sz.width  : (type >> CV_CN_SHIFT) + 1;
+                                                    // amount of channels
+    const cv::TermCriteria criteria(TermCriteria::MAX_ITER + TermCriteria::EPS, 30, 0);
+    const int attempts = 1;
+    double compact_gapi = -1.;
+    cv::Mat labels_gapi, centers_gapi;
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    cv::GOpaque<double> compactness;
+    cv::GMat outLabels, centers;
+    std::tie(compactness, outLabels, centers) = cv::gapi::kmeans(in, K, criteria, attempts, flags);
+    cv::GComputation c(cv::GIn(in), cv::GOut(compactness, outLabels, centers));
+    c.apply(cv::gin(in_mat1), cv::gout(compact_gapi, labels_gapi, centers_gapi), getCompileArgs());
+    // Validation //////////////////////////////////////////////////////////////
+    {
+        EXPECT_GE(compact_gapi, 0.);
+        EXPECT_EQ(labels_gapi.cols, 1);
+        EXPECT_EQ(labels_gapi.rows, amount);
+        EXPECT_FALSE(labels_gapi.empty());
+        EXPECT_EQ(centers_gapi.cols, dim);
+        EXPECT_EQ(centers_gapi.rows, K);
+        EXPECT_FALSE(centers_gapi.empty());
+    }
+}
+
+TEST_P(KMeansNDInitTest, AccuracyTest)
+{
+    const int amount = sz.height != 1 ? sz.height : sz.width;
+    const cv::TermCriteria criteria(TermCriteria::MAX_ITER + TermCriteria::EPS, 30, 0);
+    const int attempts = 1;
+    cv::Mat bestLabels(cv::Size{1, amount}, CV_32SC1);
+    double compact_ocv = -1., compact_gapi = -1.;
+    cv::Mat labels_ocv, labels_gapi, centers_ocv, centers_gapi;
+    cv::randu(bestLabels, 0, K);
+    bestLabels.copyTo(labels_ocv);
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in, inLabels;
+    cv::GOpaque<double> compactness;
+    cv::GMat outLabels, centers;
+    std::tie(compactness, outLabels, centers) =
+        cv::gapi::kmeans(in, K, inLabels, criteria, attempts, flags);
+    cv::GComputation c(cv::GIn(in, inLabels), cv::GOut(compactness, outLabels, centers));
+    c.apply(cv::gin(in_mat1, bestLabels), cv::gout(compact_gapi, labels_gapi, centers_gapi),
+            getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    compact_ocv = cv::kmeans(in_mat1, K, labels_ocv, criteria, attempts, flags, centers_ocv);
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(compact_gapi == compact_ocv);
+        EXPECT_TRUE(cmpF(labels_gapi, labels_ocv));
+        EXPECT_TRUE(cmpF(centers_gapi, centers_ocv));
+    }
+}
+
+TEST_P(KMeans2DNoInitTest, AccuracyTest)
+{
+    const int amount = sz.height;
+    const cv::TermCriteria criteria(TermCriteria::MAX_ITER + TermCriteria::EPS, 30, 0);
+    const int attempts = 1;
+    std::vector<cv::Point2f> in_vector{};
+    double compact_gapi = -1.;
+    std::vector<int> labels_gapi{};
+    std::vector<cv::Point2f> centers_gapi{};
+    initPointsVectorRandU(amount, in_vector);
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point2f> in;
+    cv::GArray<int> inLabels(std::vector<int>{});
+    cv::GOpaque<double> compactness;
+    cv::GArray<int> outLabels;
+    cv::GArray<cv::Point2f> centers;
+    std::tie(compactness, outLabels, centers) =
+        cv::gapi::kmeans(in, K, inLabels, criteria, attempts, flags);
+    cv::GComputation c(cv::GIn(in), cv::GOut(compactness, outLabels, centers));
+    c.apply(cv::gin(in_vector), cv::gout(compact_gapi, labels_gapi, centers_gapi), getCompileArgs());
+    // Validation //////////////////////////////////////////////////////////////
+    {
+        EXPECT_GE(compact_gapi, 0.);
+        EXPECT_EQ(labels_gapi.size(), static_cast<size_t>(amount));
+        EXPECT_EQ(centers_gapi.size(), static_cast<size_t>(K));
+    }
+}
+
+TEST_P(KMeans2DInitTest, AccuracyTest)
+{
+    const int amount = sz.height;
+    const cv::TermCriteria criteria(TermCriteria::MAX_ITER + TermCriteria::EPS, 30, 0);
+    const int attempts = 1;
+    std::vector<cv::Point2f> in_vector{};
+    std::vector<int> bestLabels(amount);
+    double compact_ocv = -1., compact_gapi = -1.;
+    std::vector<int> labels_ocv{}, labels_gapi{};
+    std::vector<cv::Point2f> centers_ocv{}, centers_gapi{};
+    initPointsVectorRandU(amount, in_vector);
+    cv::randu(bestLabels, 0, K);
+    labels_ocv = bestLabels;
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point2f> in;
+    cv::GArray<int> inLabels;
+    cv::GOpaque<double> compactness;
+    cv::GArray<int> outLabels;
+    cv::GArray<cv::Point2f> centers;
+    std::tie(compactness, outLabels, centers) =
+        cv::gapi::kmeans(in, K, inLabels, criteria, attempts, flags);
+    cv::GComputation c(cv::GIn(in, inLabels), cv::GOut(compactness, outLabels, centers));
+    c.apply(cv::gin(in_vector, bestLabels), cv::gout(compact_gapi, labels_gapi, centers_gapi),
+            getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    compact_ocv = cv::kmeans(in_vector, K, labels_ocv, criteria, attempts, flags, centers_ocv);
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(compact_gapi == compact_ocv);
+        EXPECT_TRUE(compareVectorsAbsExact(labels_gapi, labels_ocv));
+        EXPECT_TRUE(compareVectorsAbsExact(centers_gapi, centers_ocv));
+    }
+}
+
+TEST_P(KMeans3DNoInitTest, AccuracyTest)
+{
+    const int amount = sz.height;
+    const cv::TermCriteria criteria(TermCriteria::MAX_ITER + TermCriteria::EPS, 30, 0);
+    const int attempts = 1;
+    std::vector<cv::Point3f> in_vector{};
+    double compact_gapi = -1.;
+    std::vector<int> labels_gapi{};
+    std::vector<cv::Point3f> centers_gapi{};
+    initPointsVectorRandU(amount, in_vector);
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point3f> in;
+    cv::GArray<int> inLabels(std::vector<int>{});
+    cv::GOpaque<double> compactness;
+    cv::GArray<int> outLabels;
+    cv::GArray<cv::Point3f> centers;
+    std::tie(compactness, outLabels, centers) =
+        cv::gapi::kmeans(in, K, inLabels, criteria, attempts, flags);
+    cv::GComputation c(cv::GIn(in), cv::GOut(compactness, outLabels, centers));
+    c.apply(cv::gin(in_vector), cv::gout(compact_gapi, labels_gapi, centers_gapi), getCompileArgs());
+    // Validation //////////////////////////////////////////////////////////////
+    {
+        EXPECT_GE(compact_gapi, 0.);
+        EXPECT_EQ(labels_gapi.size(), static_cast<size_t>(amount));
+        EXPECT_EQ(centers_gapi.size(), static_cast<size_t>(K));
+    }
+}
+
+TEST_P(KMeans3DInitTest, AccuracyTest)
+{
+    const int amount = sz.height;
+    const cv::TermCriteria criteria(TermCriteria::MAX_ITER + TermCriteria::EPS, 30, 0);
+    const int attempts = 1;
+    std::vector<cv::Point3f> in_vector{};
+    std::vector<int> bestLabels(amount);
+    double compact_ocv = -1., compact_gapi = -1.;
+    std::vector<int> labels_ocv{}, labels_gapi{};
+    std::vector<cv::Point3f> centers_ocv{}, centers_gapi{};
+    initPointsVectorRandU(amount, in_vector);
+    cv::randu(bestLabels, 0, K);
+    labels_ocv = bestLabels;
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GArray<cv::Point3f> in;
+    cv::GArray<int> inLabels;
+    cv::GOpaque<double> compactness;
+    cv::GArray<int> outLabels;
+    cv::GArray<cv::Point3f> centers;
+    std::tie(compactness, outLabels, centers) =
+        cv::gapi::kmeans(in, K, inLabels, criteria, attempts, flags);
+    cv::GComputation c(cv::GIn(in, inLabels), cv::GOut(compactness, outLabels, centers));
+    c.apply(cv::gin(in_vector, bestLabels), cv::gout(compact_gapi, labels_gapi, centers_gapi),
+            getCompileArgs());
+    // OpenCV code /////////////////////////////////////////////////////////////
+    compact_ocv = cv::kmeans(in_vector, K, labels_ocv, criteria, attempts, flags, centers_ocv);
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_TRUE(compact_gapi == compact_ocv);
+        EXPECT_TRUE(compareVectorsAbsExact(labels_gapi, labels_ocv));
+        EXPECT_TRUE(compareVectorsAbsExact(centers_gapi, centers_ocv));
+    }
+}
+
 // PLEASE DO NOT PUT NEW ACCURACY TESTS BELOW THIS POINT! //////////////////////
 
 TEST_P(BackendOutputAllocationTest, EmptyOutput)
@@ -1311,7 +1590,7 @@ TEST_P(BackendOutputAllocationTest, EmptyOutput)
 
     // Comparison //////////////////////////////////////////////////////////////
     // Expected: output is allocated to the needed size
-    EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
+    EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
     EXPECT_EQ(sz, out_mat_gapi.size());
 }
 
@@ -1331,7 +1610,7 @@ TEST_P(BackendOutputAllocationTest, CorrectlyPreallocatedOutput)
 
     // Comparison //////////////////////////////////////////////////////////////
     // Expected: output is not reallocated
-    EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
+    EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
     EXPECT_EQ(sz, out_mat_gapi.size());
 
     EXPECT_EQ(out_mat_gapi_ref.data, out_mat_gapi.data);
@@ -1356,7 +1635,7 @@ TEST_P(BackendOutputAllocationTest, IncorrectOutputMeta)
 
         // Comparison //////////////////////////////////////////////////////////////
         // Expected: size is changed, type is changed, output is reallocated
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
+        EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
         EXPECT_EQ(sz, out_mat_gapi.size());
         EXPECT_EQ(type, out_mat_gapi.type());
 
@@ -1388,7 +1667,7 @@ TEST_P(BackendOutputAllocationTest, SmallerPreallocatedSize)
 
     // Comparison //////////////////////////////////////////////////////////////
     // Expected: size is changed, output is reallocated due to original size < curr size
-    EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
+    EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
     EXPECT_EQ(sz, out_mat_gapi.size());
 
     EXPECT_NE(out_mat_gapi_ref.data, out_mat_gapi.data);
@@ -1414,7 +1693,7 @@ TEST_P(BackendOutputAllocationTest, SmallerPreallocatedSizeWithSubmatrix)
 
     // Comparison //////////////////////////////////////////////////////////////
     // Expected: submatrix is reallocated and is "detached", original matrix is unchanged
-    EXPECT_EQ(0, cv::countNonZero(out_mat_gapi_submat != out_mat_ocv));
+    EXPECT_EQ(0, cvtest::norm(out_mat_gapi_submat, out_mat_ocv, NORM_INF));
     EXPECT_EQ(sz, out_mat_gapi_submat.size());
     EXPECT_EQ(sz / 2, out_mat_gapi.size());
 
@@ -1438,7 +1717,7 @@ TEST_P(BackendOutputAllocationTest, LargerPreallocatedSize)
 
     // Comparison //////////////////////////////////////////////////////////////
     // Expected: size is changed, output is reallocated
-    EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
+    EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
     EXPECT_EQ(sz, out_mat_gapi.size());
 
     EXPECT_NE(out_mat_gapi_ref.data, out_mat_gapi.data);
@@ -1466,7 +1745,7 @@ TEST_P(BackendOutputAllocationLargeSizeWithCorrectSubmatrixTest,
 
     // Comparison //////////////////////////////////////////////////////////////
     // Expected: submatrix is not reallocated, original matrix is not reallocated
-    EXPECT_EQ(0, cv::countNonZero(out_mat_gapi_submat != out_mat_ocv));
+    EXPECT_EQ(0, cvtest::norm(out_mat_gapi_submat, out_mat_ocv, NORM_INF));
     EXPECT_EQ(sz, out_mat_gapi_submat.size());
     EXPECT_EQ(sz * 2, out_mat_gapi.size());
 
@@ -1496,7 +1775,7 @@ TEST_P(BackendOutputAllocationTest, LargerPreallocatedSizeWithSmallSubmatrix)
 
     // Comparison //////////////////////////////////////////////////////////////
     // Expected: submatrix is reallocated and is "detached", original matrix is unchanged
-    EXPECT_EQ(0, cv::countNonZero(out_mat_gapi_submat != out_mat_ocv));
+    EXPECT_EQ(0, cvtest::norm(out_mat_gapi_submat, out_mat_ocv, NORM_INF));
     EXPECT_EQ(sz, out_mat_gapi_submat.size());
     EXPECT_EQ(sz * 2, out_mat_gapi.size());
 
@@ -1526,7 +1805,7 @@ TEST_P(ReInitOutTest, TestWithAdd)
         cv::add(in_mat1, in_mat2, out_mat_ocv, cv::noArray());
 
         // Comparison //////////////////////////////////////////////////////////////
-        EXPECT_EQ(0, cv::countNonZero(out_mat_gapi != out_mat_ocv));
+        EXPECT_EQ(0, cvtest::norm(out_mat_gapi, out_mat_ocv, NORM_INF));
         EXPECT_EQ(out_mat_gapi.size(), sz);
     };
 
@@ -1536,6 +1815,95 @@ TEST_P(ReInitOutTest, TestWithAdd)
     // run for initialized output (can be initialized with a different size)
     initOutMats(out_sz, type);
     run_and_compare();
+}
+
+TEST_P(ParseSSDBLTest, ParseTest)
+{
+    cv::Mat in_mat = generateSSDoutput(sz);
+    std::vector<cv::Rect> boxes_gapi, boxes_ref;
+    std::vector<int> labels_gapi, labels_ref;
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    cv::GOpaque<cv::Size> op_sz;
+    auto out = cv::gapi::parseSSD(in, op_sz, confidence_threshold, filter_label);
+    cv::GComputation c(cv::GIn(in, op_sz), cv::GOut(std::get<0>(out), std::get<1>(out)));
+    c.apply(cv::gin(in_mat, sz), cv::gout(boxes_gapi, labels_gapi), getCompileArgs());
+
+    // Reference code //////////////////////////////////////////////////////////
+    parseSSDBLref(in_mat, sz, confidence_threshold, filter_label, boxes_ref, labels_ref);
+
+    // Comparison //////////////////////////////////////////////////////////////
+    EXPECT_TRUE(boxes_gapi == boxes_ref);
+    EXPECT_TRUE(labels_gapi == labels_ref);
+}
+
+TEST_P(ParseSSDTest, ParseTest)
+{
+    cv::Mat in_mat = generateSSDoutput(sz);
+    std::vector<cv::Rect> boxes_gapi, boxes_ref;
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    cv::GOpaque<cv::Size> op_sz;
+    auto out = cv::gapi::parseSSD(in, op_sz, confidence_threshold,
+                                  alignment_to_square, filter_out_of_bounds);
+    cv::GComputation c(cv::GIn(in, op_sz), cv::GOut(out));
+    c.apply(cv::gin(in_mat, sz), cv::gout(boxes_gapi), getCompileArgs());
+
+    // Reference code //////////////////////////////////////////////////////////
+    parseSSDref(in_mat, sz, confidence_threshold, alignment_to_square,
+                filter_out_of_bounds, boxes_ref);
+
+    // Comparison //////////////////////////////////////////////////////////////
+    EXPECT_TRUE(boxes_gapi == boxes_ref);
+}
+
+TEST_P(ParseYoloTest, ParseTest)
+{
+    cv::Mat in_mat = generateYoloOutput(num_classes, dims_config);
+    auto anchors = cv::gapi::nn::parsers::GParseYolo::defaultAnchors();
+    std::vector<cv::Rect> boxes_gapi, boxes_ref;
+    std::vector<int> labels_gapi, labels_ref;
+
+    // G-API code //////////////////////////////////////////////////////////////
+    cv::GMat in;
+    cv::GOpaque<cv::Size> op_sz;
+    auto out = cv::gapi::parseYolo(in, op_sz, confidence_threshold, nms_threshold, anchors);
+    cv::GComputation c(cv::GIn(in, op_sz), cv::GOut(std::get<0>(out), std::get<1>(out)));
+    c.apply(cv::gin(in_mat, sz), cv::gout(boxes_gapi, labels_gapi), getCompileArgs());
+
+    // Reference code //////////////////////////////////////////////////////////
+    parseYoloRef(in_mat, sz, confidence_threshold, nms_threshold, num_classes, anchors, boxes_ref, labels_ref);
+
+    // Comparison //////////////////////////////////////////////////////////////
+    EXPECT_TRUE(boxes_gapi == boxes_ref);
+    EXPECT_TRUE(labels_gapi == labels_ref);
+}
+
+TEST_P(SizeTest, ParseTest)
+{
+    cv::GMat in;
+    cv::Size out_sz;
+
+    auto out = cv::gapi::streaming::size(in);
+    cv::GComputation c(cv::GIn(in), cv::GOut(out));
+    c.apply(cv::gin(in_mat1), cv::gout(out_sz), getCompileArgs());
+
+    EXPECT_EQ(out_sz, sz);
+}
+
+TEST_P(SizeRTest, ParseTest)
+{
+    cv::Rect rect(cv::Point(0,0), sz);
+    cv::Size out_sz;
+
+    cv::GOpaque<cv::Rect> op_rect;
+    auto out = cv::gapi::streaming::size(op_rect);
+    cv::GComputation c(cv::GIn(op_rect), cv::GOut(out));
+    c.apply(cv::gin(rect), cv::gout(out_sz), getCompileArgs());
+
+    EXPECT_EQ(out_sz, sz);
 }
 
 } // opencv_test

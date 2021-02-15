@@ -192,7 +192,7 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         input = match['input']
         if not lstm.has_num_directions:
             return
-        old_data_node =lstm.out_node(0)
+        old_data_node = lstm.out_node(0)
         num_directions = 2 if lstm.direction in ['bidirectional'] else 1
         mxnet_shape = lstm.out_node(0).shape.copy()
 
@@ -206,18 +206,21 @@ class MXNetRNNSequenceNormalize(MiddleReplacementPattern):
         if lstm.has_num_directions:
             mo_shape = np.insert(mo_shape, 1, np.int64(num_directions))
 
-        new_data = Op._create_data_node(graph, name=lstm.name + '/Data/Reshape_mxnet/', attrs={'shape': mo_shape})
+        lstm_name = lstm.soft_get('name', lstm.id)
+
+        new_data = Op._create_data_node(graph, name=lstm_name + '/Data/Reshape_mxnet/', attrs={'shape': mo_shape})
         graph.remove_edge(lstm.id, old_data_node.id)
         graph.add_edge(lstm.id, new_data.id, key=0, out=0)
 
         # Add Transpose
-        permute_order = Const(graph, dict(value=int64_array([0, 2, 1, 3]))).create_node_with_data()
-        permute_data = Transpose(graph, dict(name=lstm.name + '/Transpose_mxnet/')
+        permute_order = Const(graph, {'name': lstm_name + '/Transpose_mxnet_order',
+                                      'value': int64_array([0, 2, 1, 3])}).create_node_with_data()
+        permute_data = Transpose(graph, {'name': lstm_name + '/Transpose_mxnet/'}
                                  ).create_node_with_data([new_data, permute_order])
 
         # Add Reshape
-        reshape = Reshape(graph, dict(name=lstm.name + '/Reshape_mxnet/'))
-        reshape_dim_data = Const(graph, {'name': lstm.name + '/Reshape_mxnet_dim',
+        reshape = Reshape(graph, {'name': lstm_name + '/Reshape_mxnet/'})
+        reshape_dim_data = Const(graph, {'name': lstm_name + '/Reshape_mxnet_dim',
                                          'value': mxnet_shape}).create_node_with_data()
 
         reshape.create_node_with_data([permute_data, reshape_dim_data], dict(), data_nodes=[old_data_node])

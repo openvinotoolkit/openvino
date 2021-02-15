@@ -5,36 +5,12 @@
 
 #pragma once
 
-#include <tuple>
-#include <string>
-#include <vector>
-#include <memory>
-
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/single_layer/lrn.hpp"
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<
-        double,                        // Alpha
-        size_t,                        // Beta
-        size_t,                        // Bias
-        size_t,                        // Size,
-        InferenceEngine::Precision,    // Network precision
-        InferenceEngine::SizeVector,   // Input shapes
-        std::string                    // Device name
-> lrnLayerTestParamsSet;
-
-class LrnLayerTest
-        : public testing::WithParamInterface<lrnLayerTestParamsSet>,
-          public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<lrnLayerTestParamsSet> obj);
-
-protected:
-    void SetUp() override;
-};
+TEST_P(LrnLayerTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

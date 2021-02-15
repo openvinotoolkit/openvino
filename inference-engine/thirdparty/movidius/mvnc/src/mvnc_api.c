@@ -91,7 +91,9 @@ static int global_lock_fd = -1;
 
 
 // To suppress warning in the macro below
+#if defined __GNUC__ || defined __clang__
 #pragma GCC diagnostic ignored "-Wformat-extra-args"
+#endif
 
 /**
  * @brief The macro checks a stream id passed to it
@@ -286,7 +288,7 @@ static void resetAll()
 
         // Try to reboot them
         int i;
-        for (i = 0; i < stalled_count; ++i) {
+        for (i = 0; i < (int)stalled_count; ++i) {
             mvLog(MVLOG_DEBUG, "Found stalled device %s", stalledDevices[i].name);
 
             XLinkHandler_t* handler = calloc(1, sizeof(XLinkHandler_t));
@@ -388,7 +390,7 @@ static char getPathSeparator() {
  */
 
 static void addEndPathSeparator(char* buffer, const int buffer_length) {
-    const int filePathLen = strnlen(buffer, buffer_length);
+    const int filePathLen = (int)strnlen(buffer, buffer_length);
     if ((filePathLen > 1) && (filePathLen < buffer_length - 1) &&
             buffer[filePathLen - 1] != getPathSeparator()) {
         buffer[filePathLen] = getPathSeparator();
@@ -422,7 +424,7 @@ static ncStatus_t getDeviceFwProtocolPrefix(const deviceDesc_t deviceDesc,
 
 static char* getDevicePlatform(deviceDesc_t deviceDesc, int useUniversalFirmware) {
     if (deviceDesc.platform == X_LINK_MYRIAD_X) {
-        if (useUniversalFirmware && deviceDesc.protocol != X_LINK_PCIE) {
+        if (useUniversalFirmware) {
             return "ma2x8x";
         } else {
             return "ma248x";
@@ -680,6 +682,10 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         return NC_INVALID_PARAMETERS;
     }
 
+    bootOptions_t bootOptions = {0};
+    bootOptions.memType = deviceOpenParams.memoryType;
+    bootOptions.wdEnable = watchdogInterval > 0;
+
 #ifdef NO_BOOT
     XLinkDeviceState_t state = X_LINK_BOOTED;
     if (watchdogInterval > 0) {
@@ -846,8 +852,8 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
             return NC_MVCMD_NOT_FOUND;
         }
 
-        rc = XLinkBoot(&deviceDescToBoot, mv_cmd_file_path);
-        if (rc) {
+        sc = bootDevice(&deviceDescToBoot, mv_cmd_file_path, bootOptions);
+        if (sc) {
             mvLog(MVLOG_WARN, "%s() XLinkBootRemote returned error %s for %s",
                   __func__, XLinkErrorToStr(rc), d->dev_addr);
             free(handler);
@@ -929,9 +935,8 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         XLinkFindAllSuitableDevices(X_LINK_ANY_STATE, deviceDesc, beforeBootDevices,
                                     NC_MAX_DEVICES, &numberOfDevicesBeforeBoot);
 
-        // Boot device
-        rc = XLinkBoot(&deviceDescToBoot, mv_cmd_file_path);
-        if (rc) {
+        sc = bootDevice(&deviceDescToBoot, mv_cmd_file_path, bootOptions);
+        if (sc) {
             mvLog(MVLOG_WARN, "%s() XLinkBootRemote returned error %s for %s",
                   __func__, XLinkErrorToStr(rc), d->dev_addr);
         } else {
@@ -966,9 +971,9 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
                     device_disappear = 1;
                 }
                 int i, j;
-                for (i = 0; i < numberOfDevicesAfterBoot; ++i) {
+                for (i = 0; i < (int)numberOfDevicesAfterBoot; ++i) {
                     int found_in_before_boot_list = 0;
-                    for (j = 0; j < numberOfDevicesBeforeBoot; ++j) {
+                    for (j = 0; j < (int)numberOfDevicesBeforeBoot; ++j) {
                         if(strcmp(afterBootDevices[i].name, beforeBootDevices[j].name) == 0) {
                             found_in_before_boot_list = 1;
                         }
@@ -1099,11 +1104,15 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     d->device_mon_stream_id = deviceMonitorStreamId;
 
 #if !(defined(NO_BOOT))
-    wd_error_t wd_rc = xlink_device_create(&d->watchdog_device, d);
-    if (wd_rc) {
-        mvLog(MVLOG_WARN, "watchdog is not started for device %p", d->xlink);
+    if(bootOptions.wdEnable) {
+        wd_error_t wd_rc = xlink_device_create(&d->watchdog_device, d);
+        if (wd_rc) {
+            mvLog(MVLOG_ERROR, "failed to start watchdog for device %p", d->xlink);
+        } else {
+            watchdog_register_device(deviceOpenParams.watchdogHndl, d->watchdog_device);
+        }
     } else {
-        watchdog_register_device(deviceOpenParams.watchdogHndl, d->watchdog_device);
+        mvLog(MVLOG_WARN, "watchdog is not started for device %p", d->xlink);
     }
 #endif
 
@@ -1176,7 +1185,7 @@ ncStatus_t ncAvailableDevices(struct ncDeviceDescr_t *deviceDescrPtr,
     XLinkFindAllSuitableDevices(
             X_LINK_UNBOOTED, in_deviceDsc, deviceDescArray, NC_MAX_DEVICES, &amountOfFoundDevices);
     int i;
-    for (i = 0; i < amountOfFoundDevices; ++i) {
+    for (i = 0; i < (int)amountOfFoundDevices; ++i) {
         copyXLinkDeviceDescrToNc(&deviceDescArray[i], &deviceDescrPtr[i]);
     }
 
@@ -1668,7 +1677,6 @@ static ncStatus_t destroyDeviceHandle(struct ncDeviceHandle_t **deviceHandlePtr)
     return NC_OK;
 }
 
-
 ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr, WatchdogHndl_t* watchdogHndl) {
     int found = 0;
     XLinkError_t rc = X_LINK_SUCCESS;
@@ -1828,9 +1836,9 @@ ncStatus_t ncDeviceClose(struct ncDeviceHandle_t **deviceHandlePtr, WatchdogHndl
                 booted_disappeared = 1;
             }
             int i, j;
-            for (i = 0; i < foundDevicesAfterReset; ++i) {
+            for (i = 0; i < (int)foundDevicesAfterReset; ++i) {
                 int found_in_before_reset_list = 0;
-                for (j = 0; j < foundDevicesBeforeReset; ++j) {
+                for (j = 0; j < (int)foundDevicesBeforeReset; ++j) {
                     if(strcmp(beforeResetDevices[i].name, afterResetDevices[j].name) == 0) {
                         found_in_before_reset_list = 1;
                     }
@@ -1978,11 +1986,6 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
     struct _graphPrivate_t *g = graphHandle->private_data;
 
     struct _devicePrivate_t *d = devices;
-    if (graphBufferLength > d->dev_attr.max_memory) {
-        mvLog(MVLOG_ERROR, "The graph file is bigger than the device memory");
-        return NC_OUT_OF_MEMORY;
-    }
-
     GLOBAL_LOCK();
     while (d) {
         if (d == deviceHandle->private_data)
@@ -1998,11 +2001,16 @@ ncStatus_t ncGraphAllocate(struct ncDeviceHandle_t * deviceHandle,
     }
     GLOBAL_UNLOCK();
 
+    if (graphBufferLength > d->dev_attr.max_memory) {
+        mvLog(MVLOG_ERROR, "The graph file is bigger than the device memory");
+        return NC_OUT_OF_MEMORY;
+    }
+
     lockAllInferences();
     g->id = graphIdCount++;
     streamId_t streamId;
 
-    if (g->executors_number > d->dev_attr.max_executors) {
+    if (g->executors_number > (int)d->dev_attr.max_executors) {
         mvLog(MVLOG_ERROR, "Executors number is greater than max allowed!");
         unlockAllInferences();
         return NC_INVALID_PARAMETERS;
@@ -2467,7 +2475,7 @@ static ncStatus_t getGraphOption(struct _graphPrivate_t *g,
             break;
         }
     case NC_RW_GRAPH_EXECUTORS_NUM:{
-        int size = sizeof(int);
+        unsigned size = sizeof(int);
         if (*dataLength < size) {
             mvLog(MVLOG_ERROR,
                   "data length of data (%d) is smaller that required (%d)!\n",
@@ -2516,6 +2524,7 @@ ncStatus_t ncGraphGetOption(struct ncGraphHandle_t * graphHandle,
     if (opAccess != NC_OP_ACCESS_READ_ONLY &&
         opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 
@@ -2631,7 +2640,7 @@ static ncStatus_t getDeviceOption(struct _devicePrivate_t *d,
         if (rc) {
             return rc;
         }
-        d->throttle_happened = d->thermal_stats[0];
+        d->throttle_happened = (int)d->thermal_stats[0];
         *(int *) data = d->throttle_happened;
         *dataLength = sizeof(int);
         break;
@@ -2648,10 +2657,10 @@ static ncStatus_t getDeviceOption(struct _devicePrivate_t *d,
             mvLog(MVLOG_ERROR,
                   "data length of output buffer (%d) is smaller that required (%zu)!\n",
                   *dataLength, strlen(d->dev_addr) + 1);
-            *dataLength = strlen(d->dev_addr) + 1;
+            *dataLength = (unsigned)(strlen(d->dev_addr) + 1);
             return NC_INVALID_DATA_LENGTH;
         }
-        *dataLength = strlen(d->dev_addr) + 1;
+        *dataLength = (unsigned)(strlen(d->dev_addr) + 1);
         mv_strncpy((char *) data, *dataLength, d->dev_addr, *dataLength - 1);
         break;
     case NC_RO_DEVICE_PLATFORM:
@@ -2748,6 +2757,7 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
 
     if (opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 
@@ -2817,6 +2827,7 @@ ncStatus_t ncDeviceGetOption(struct ncDeviceHandle_t * deviceHandle,
     if (opAccess != NC_OP_ACCESS_READ_ONLY &&
        opAccess != NC_OP_ACCESS_READ_WRITE) {
         mvLog(MVLOG_ERROR, "There is no such option");
+        GLOBAL_UNLOCK();
         return NC_INVALID_PARAMETERS;
     }
 
@@ -3250,7 +3261,7 @@ ncStatus_t ncFifoReadElem(struct ncFifoHandle_t * fifoHandle, void *outputData,
         return NC_UNAUTHORIZED;
     }
 
-    if (*outputDataLen < handle->datasize) {
+    if (*outputDataLen < (unsigned)handle->datasize) {
         mvLog(MVLOG_ERROR,
               "This datasize in tensorDesc (%d) is smaller than required (%d)!",
               *outputDataLen, handle->datasize);

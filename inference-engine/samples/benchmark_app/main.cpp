@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,6 +48,7 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     }
 
     if (FLAGS_m.empty()) {
+        showUsage();
         throw std::logic_error("Model is required but not set. Please set -m option.");
     }
 
@@ -75,7 +76,7 @@ static void next_step(const std::string additional_info = "") {
             { 1, "Parsing and validating input arguments" },
             { 2, "Loading Inference Engine" },
             { 3, "Setting device configuration" },
-            { 4, "Reading the Intermediate Representation network" },
+            { 4, "Reading network files" },
             { 5, "Resizing network to match image sizes and given batch" },
             { 6, "Configuring input of the model" },
             { 7, "Loading the model to the device" },
@@ -232,7 +233,8 @@ int main(int argc, char *argv[]) {
                     slog::warn << "-nstreams default value is determined automatically for " << device << " device. "
                           "Although the automatic selection usually provides a reasonable performance,"
                           "but it still may be non-optimal for some cases, for more information look at README." << slog::endl;
-                    device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
+                    if (std::string::npos == device.find("MYRIAD")) // MYRIAD sets the default number of streams implicitly (without _AUTO)
+                        device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
                 }
                 if (device_config.count(key))
                     device_nstreams[device] = device_config.at(key);
@@ -275,6 +277,7 @@ int main(int argc, char *argv[]) {
                 }
             } else if (device == "MYRIAD") {
                 device_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_WARNING);
+                setThroughputStreams();
             } else if (device == "GNA") {
                 if (FLAGS_qb == 8)
                     device_config[GNA_CONFIG_KEY(PRECISION)] = "I8";
@@ -283,6 +286,21 @@ int main(int argc, char *argv[]) {
 
                 if (isFlagSetInCommandLine("nthreads"))
                     device_config[GNA_CONFIG_KEY(LIB_N_THREADS)] = std::to_string(FLAGS_nthreads);
+            } else {
+                std::vector<std::string> supported_config_keys = ie.GetMetric(device, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                auto supported = [&] (const std::string& key) {
+                    return std::find(std::begin(supported_config_keys), std::end(supported_config_keys), key)
+                        != std::end(supported_config_keys);
+                };
+                if (supported(CONFIG_KEY(CPU_THREADS_NUM)) && isFlagSetInCommandLine("nthreads")) {
+                    device_config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(FLAGS_nthreads);
+                }
+                if (supported(CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) && isFlagSetInCommandLine("nstreams")) {
+                    device_config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = FLAGS_nstreams;
+                }
+                if (supported(CONFIG_KEY(CPU_BIND_THREAD)) && isFlagSetInCommandLine("pin")) {
+                    device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
+                }
             }
         }
 
@@ -302,6 +320,8 @@ int main(int argc, char *argv[]) {
         size_t batchSize = FLAGS_b;
         Precision precision = Precision::UNSPECIFIED;
         std::string topology_name = "";
+        benchmark_app::InputsInfo app_inputs_info;
+        std::string output_name;
         if (!isNetworkCompiled) {
             // ----------------- 4. Reading the Intermediate Representation network ----------------------------------------
             next_step();
@@ -327,15 +347,12 @@ int main(int argc, char *argv[]) {
             next_step();
             batchSize = cnnNetwork.getBatchSize();
             // Parse input shapes if specified
-            InferenceEngine::ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
             bool reshape = false;
-            if (!FLAGS_shape.empty()) {
-                reshape |= updateShapes(shapes, FLAGS_shape, inputInfo);
-            }
-            if ((FLAGS_b != 0) && (batchSize != FLAGS_b)) {
-                reshape |= adjustShapesBatch(shapes, FLAGS_b, inputInfo);
-            }
+            app_inputs_info = getInputsInfo<InputInfo::Ptr>(FLAGS_shape, FLAGS_layout, FLAGS_b, inputInfo, reshape);
             if (reshape) {
+                InferenceEngine::ICNNNetwork::InputShapes shapes = {};
+                for (auto& item : app_inputs_info)
+                    shapes[item.first] = item.second.shape;
                 slog::info << "Reshaping network: " << getShapesString(shapes) << slog::endl;
                 startTime = Time::now();
                 cnnNetwork.reshape(shapes);
@@ -347,7 +364,9 @@ int main(int argc, char *argv[]) {
                                                     {"reshape network time (ms)", duration_ms}
                                             });
             }
-            batchSize = cnnNetwork.getBatchSize();
+            // use batch size according to provided layout and shapes
+            batchSize = (!FLAGS_layout.empty()) ? getBatchSize(app_inputs_info) : cnnNetwork.getBatchSize();
+
             topology_name = cnnNetwork.getName();
             slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize << slog::endl;
 
@@ -355,9 +374,10 @@ int main(int argc, char *argv[]) {
             next_step();
 
             for (auto& item : inputInfo) {
-                if (isImage(item.second)) {
+                if (app_inputs_info.at(item.first).isImage()) {
                     /** Set the precision of input data provided by the user, should be called before load of the network to the device **/
-                    item.second->setPrecision(Precision::U8);
+                    app_inputs_info.at(item.first).precision = Precision::U8;
+                    item.second->setPrecision(app_inputs_info.at(item.first).precision);
                 }
             }
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
@@ -389,6 +409,7 @@ int main(int argc, char *argv[]) {
                                           {
                                                   {"import network time (ms)", duration_ms}
                                           });
+            app_inputs_info = getInputsInfo<InputInfo::CPtr>(FLAGS_shape, FLAGS_layout, FLAGS_b, exeNetwork.GetInputsInfo());
             if (batchSize == 0) {
                 batchSize = 1;
             }
@@ -467,8 +488,7 @@ int main(int argc, char *argv[]) {
         next_step();
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
-        const InferenceEngine::ConstInputsDataMap info(exeNetwork.GetInputsInfo());
-        fillBlobs(inputFiles, batchSize, info, inferRequestsQueue.requests);
+        fillBlobs(inputFiles, batchSize, app_inputs_info, inferRequestsQueue.requests);
 
         // ----------------- 10. Measuring performance ------------------------------------------------------------------
         size_t progressCnt = 0;
@@ -476,7 +496,7 @@ int main(int argc, char *argv[]) {
         size_t iteration = 0;
 
         std::stringstream ss;
-        ss << "Start inference " << FLAGS_api << "ronously";
+        ss << "Start inference " << FLAGS_api << "hronously";
         if (FLAGS_api == "async") {
             if (!ss.str().empty()) {
                 ss << ", ";
@@ -513,13 +533,19 @@ int main(int argc, char *argv[]) {
         if (!inferRequest) {
             THROW_IE_EXCEPTION << "No idle Infer Requests!";
         }
-
         if (FLAGS_api == "sync") {
             inferRequest->infer();
         } else {
             inferRequest->startAsync();
         }
         inferRequestsQueue.waitAll();
+        auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
+        slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
+        if (statistics)
+            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                        {
+                                                {"first inference time (ms)", duration_ms}
+                                        });
         inferRequestsQueue.resetTimes();
 
         auto startTime = Time::now();

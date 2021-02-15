@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,10 +27,12 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void filterSupportedPrimitiveDescriptors() override;
     void filterSupportedDescriptors();
+    bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc);
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
     }
+
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
 
     size_t descInputNumbers(MKLDNNDescriptor desc) override {
@@ -47,6 +49,8 @@ public:
     const mkldnn::memory& getBias() const;
 
     bool canBeExecutedInInt8();
+
+    InferenceEngine::Precision getRuntimePrecision() const override;
 
     std::vector<uint8_t> inputZeroPoints;
     std::vector<float> weightsZeroPoints;

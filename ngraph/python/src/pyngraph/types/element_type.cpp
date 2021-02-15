@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ void regclass_pyngraph_Type(py::module m)
     type.attr("i16") = ngraph::element::i16;
     type.attr("i32") = ngraph::element::i32;
     type.attr("i64") = ngraph::element::i64;
+    type.attr("u1") = ngraph::element::u1;
     type.attr("u8") = ngraph::element::u8;
     type.attr("u16") = ngraph::element::u16;
     type.attr("u32") = ngraph::element::u32;
@@ -55,4 +56,5 @@ void regclass_pyngraph_Type(py::module m)
 
     type.def_property_readonly("bitwidth", &ngraph::element::Type::bitwidth);
     type.def_property_readonly("is_real", &ngraph::element::Type::is_real);
+    type.def("get_type_name", &ngraph::element::Type::get_type_name);
 }

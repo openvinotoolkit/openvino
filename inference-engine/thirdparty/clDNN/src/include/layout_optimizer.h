@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@
 #include "fully_connected_inst.h"
 #include "detection_output_inst.h"
 #include "binary_convolution_inst.h"
-#include "embed_inst.h"
 #include "lstm_gemm_inst.h"
 #include "generic_layer.hpp"
 
@@ -157,6 +156,7 @@ private:
                                         const layout &weights_layout,
                                         std::shared_ptr<const convolution> conv);
     bool convolution_bs_fs_yx_bsv16_fsv16_opt(const layout &input_layout,
+                                              const layout& weights_layout,
                                               std::shared_ptr<const convolution> conv);
     bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
                                        const layout& weights_layout,

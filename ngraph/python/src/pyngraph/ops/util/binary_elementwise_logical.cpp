@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ namespace py = pybind11;
 void regclass_pyngraph_op_util_BinaryElementwiseLogical(py::module m)
 {
     py::class_<ngraph::op::util::BinaryElementwiseLogical,
-               std::shared_ptr<ngraph::op::util::BinaryElementwiseLogical>,
-               ngraph::op::Op>
+               std::shared_ptr<ngraph::op::util::BinaryElementwiseLogical>>
         binaryElementwiseLogical(m, "BinaryElementwiseLogical");
 }

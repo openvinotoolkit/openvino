@@ -19,17 +19,20 @@ import numpy as np
 
 from extensions.ops.gather import Gather
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph
+from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
+from mo.graph.graph import Graph, rename_node
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 
 
-class GatherNdNormalize(MiddleReplacementPattern):
+class GatherNDNormalize(MiddleReplacementPattern):
     """
     Hot fix for new speech-to-text model enabling while GatherND is not implemented in IE.
-    We can replace GatherNd to Reshape + Gather in case when GatherNd indices have just one
+    We can replace GatherND to Reshape + Gather in case when GatherND indices have just one
     meaningful dimension.
+    TODO: Investigate whether we must replace GatherND with Reshape + Gather always (due to performance benefits)
+          for this particular case or only if the plugin does not support GatherND.
+          And the best place for the transformation is nGraph so we need to move it.
     """
     enabled = True
     force_clean_up = True
@@ -44,7 +47,7 @@ class GatherNdNormalize(MiddleReplacementPattern):
 
     def pattern(self):
         return dict(
-            nodes=[('GatherNd', dict(kind='op', op='GatherNd'))],
+            nodes=[('GatherND', dict(kind='op', op='GatherND', batch_dims=0))],
             edges=[]
         )
 
@@ -67,36 +70,37 @@ class GatherNdNormalize(MiddleReplacementPattern):
         return non_zero
 
     def replace_pattern(self, graph: Graph, match: dict):
-        gather = match['GatherNd']
+        gather = match['GatherND']
+        gather_name = gather.soft_get('name', gather.id)
         input_shape = gather.in_node(0).shape
         indices = gather.in_node(1).value
         if indices is None:
             # We can't do such special pass without indices value
             return
 
-        # 0. All needed checks that we can replace GatherNd by Gather
+        # 0. All needed checks that we can replace GatherND by Gather
         gather_idx = self.indices_check(indices, input_shape)
         if gather_idx is None:
-            log.warning('Node {} with op=GatherNd  can\'t be normalized to op=Gather.'.format(gather.name))
+            log.warning('Node {} with op=GatherND can\'t be normalized to op=Gather.'.format(gather_name))
             return
 
         # 1. Add Reshape and connect
         new_shape = int64_array([-1] + list(input_shape[indices.shape[-1]:]))
-        reshape = Reshape(graph, {'name': gather.name + '/Reshape_for_GatherNd/'}).create_node()
-        reshape_const_node = Const(graph, {'name': reshape.name + '/Dim', 'value': new_shape}).create_node()
+        reshape = create_op_node_with_second_input(graph, Reshape, new_shape,
+                                                   {'name': gather_name + '/Reshape_for_GatherND/'})
         gather.in_port(0).get_connection().set_destination(reshape.in_port(0))
-        reshape.in_port(1).connect(reshape_const_node.out_port(0))
 
         # 2. Change indices from Nd to 1d:
         new_indices = np.reshape(np.take(indices, indices=[gather_idx], axis=-1), [-1])
-        new_indices_const = Const(graph, dict(value=new_indices)).create_node()
-        axis_const = Const(graph, {'value': int64_array(0)}).create_node()
+
+        rename_node(gather, gather_name + '/to_delete')
 
         # 3. Create new Gather operation and reconnect all inputs/outputs
-        new_gather = Gather(graph, {'name': gather.name + '/NewGather/'}).create_node()
+        new_gather = create_op_with_const_inputs(graph, Gather, {1: new_indices, 2: int64_array(0)},
+                                                 {'name': gather_name})
+        rename_node(new_gather, gather_name)
+
         reshape.out_port(0).connect(new_gather.in_port(0))
-        new_indices_const.out_port(0).connect(new_gather.in_port(1))
-        axis_const.out_port(0).connect(new_gather.in_port(2))
 
         gather.out_port(0).get_connection().set_source(new_gather.out_port(0))
 

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ostream>
+#include <ie_common.h>
 #include <details/ie_exception.hpp>
 
 // #define GNA_DEBUG
@@ -72,5 +73,5 @@ if (!(expr)) { \
 }
 #define THROW_GNA_EXCEPTION THROW_IE_EXCEPTION << "[GNAPlugin] in function " << __PRETTY_FUNCTION__<< ": "
 #define THROW_GNA_LAYER_EXCEPTION(layer) THROW_GNA_EXCEPTION << LAYER_NAME(layer)
-#define LAYER_NAME(layer) layer->type << " layer : \"" << layer->name << "\" "
+#define LAYER_NAME(layer) (layer)->type << " layer : \"" << (layer)->name << "\" "
 

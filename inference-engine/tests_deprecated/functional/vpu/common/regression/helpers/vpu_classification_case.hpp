@@ -13,7 +13,6 @@ using ClassificationTestVpuParam = WithParamInterface<std::tuple<
         Batch,
         DoReshape,
         Resources,
-        IsIgnoreStatistic,
         ClassificationSrcParam>>;
 
 using ClassificationSpecificTestVpuParam = WithParamInterface<std::tuple<
@@ -36,7 +35,6 @@ public:
 protected:
     // Data section
     int resources_;
-    bool is_ignore_statistic_;
     ClassificationSrcParam source_param_;
 
     //Operations

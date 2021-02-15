@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -95,7 +95,7 @@ NGRAPH_TEST(${BACKEND_NAME}, fuse_max_with_constant_zero_input_as_relu)
     auto shape_a = Shape{2, 5};
     auto A = op::Constant::create(element::f32, shape_a, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
     auto B = make_shared<op::Parameter>(element::f32, shape_a);
-    auto max = make_shared<op::Maximum>(A, B);
+    auto max = make_shared<op::v1::Maximum>(A, B);
     auto shape_rt = Shape{2, 5};
     auto f = make_shared<Function>(max, ParameterVector{B});
 
@@ -108,51 +108,5 @@ NGRAPH_TEST(${BACKEND_NAME}, fuse_max_with_constant_zero_input_as_relu)
 
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {b});
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, relu_2Dbackprop)
-{
-    auto shape_a = Shape{2, 5};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    auto delta_val = make_shared<op::Parameter>(element::f32, shape_a);
-    auto relu = make_shared<op::ReluBackprop>(A, delta_val);
-    auto shape_rt = Shape{2, 5};
-    auto f = make_shared<Function>(relu, ParameterVector{A, delta_val});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5});
-    auto delta = backend->create_tensor(element::f32, shape_a);
-    copy_data(delta, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    vector<float> expected{1, 2, 0, 4, 0, 6, 7, 0, 9, 0};
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, delta});
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, relu_4Dbackprop)
-{
-    auto shape_a = Shape{2, 2, 2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    auto delta_val = make_shared<op::Parameter>(element::f32, shape_a);
-    auto relu = make_shared<op::ReluBackprop>(A, delta_val);
-    auto shape_rt = Shape{2, 2, 2, 2};
-    auto f = make_shared<Function>(relu, ParameterVector{A, delta_val});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1});
-    auto delta = backend->create_tensor(element::f32, shape_a);
-    copy_data(delta, vector<float>{1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1, 8, -8, 17, -0.5, 1});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    vector<float> expected{1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1, 8, 0, 17, 0, 1};
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, delta});
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
 }

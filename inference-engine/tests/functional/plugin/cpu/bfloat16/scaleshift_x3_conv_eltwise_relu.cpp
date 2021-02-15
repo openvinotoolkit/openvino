@@ -142,7 +142,7 @@ protected:
         fnPtr = createGraph(netPrecision);
 
         // STAGE1:
-        threshold = 2e-1;
+        threshold = 5e-1;
 
         // STAGE2:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
@@ -152,7 +152,6 @@ protected:
         expectedPrecisions["Add_2"] = "FP32";
         expectedPrecisions["ELT_1"] = "ndef";
         expectedPrecisions["RELU_1"] = "ndef";
-        expectedPrecisions["Add_3"] = "FP32";
     }
 };
 
@@ -160,7 +159,7 @@ TEST_P(Scaleshift_x3_ConvEltwiseRelu, CompareWithRefImpl) {
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -169,7 +168,7 @@ INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Scaleshift_x3_ConvEltwiseRelu::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
+INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,9 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+from mo.front.caffe.extractors.utils import get_canonical_axis_index
+from mo.front.common.layout import get_features_dim
 from mo.front.common.partial_infer.elemental import copy_shape_infer
+from mo.front.extractor import bool_to_str
 from mo.graph.graph import Graph
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 from mo.utils.error import Error
 
@@ -27,40 +30,60 @@ class MVN(Op):
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
-            'version': 'opset2',
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset6',
             'eps': None,
-            'across_channels': 0,
-            'normalize_variance': 1,
-            'axes': None,
-            'in_ports_count': 1,
+            'normalize_variance': None,
+            'eps_mode': None,
+            'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer
+            'infer': self.infer
         }, attrs)
 
     def supported_attrs(self):
-        return ['eps', 'across_channels', 'normalize_variance', 'axes']
+        return ['eps', 'eps_mode', 'normalize_variance']
 
     def backend_attrs(self):
-        return ['eps', 'across_channels', 'normalize_variance']
+        version = self.get_opset()
+        if version == 'opset2':
+            return ['eps',
+                    ('across_channels', lambda node: bool_to_str(node, 'across_channels')),
+                    ('normalize_variance', lambda node: bool_to_str(node, 'normalize_variance'))]
+        elif version == 'opset6':
+            return ['eps', 'eps_mode', ('normalize_variance', lambda node: bool_to_str(node, 'normalize_variance'))]
+        else:
+            raise Error('Unsupported MVN opset version "{}"'.format(version))
 
     @staticmethod
     def infer(node: None):
-        input_shape = node.in_node(0).shape
         name = node.soft_get('name', node.id)
-        axes = node.axes
-        if axes is not None:
-            if 0 in axes:
-                raise Error('Reduction over the batch dimension in node "{}" '
-                            'is not supported by the backend.'.format(name))
-            for i in range(2, len(input_shape)):
-                if i not in axes:
-                    raise Error(
-                        'Reduction over spatial dimensions in node "{}" '
-                        'is obligatory for the backend.'.format(name))
-            if 1 in axes and not node.across_channels:
-                raise Error('Inconsistent values of axes ({}) and across_channels ({}) parameters '
-                            'in node "{}".'.format(str(axes), str(node.across_channels), name))
+
+        assert node.eps is not None, 'MVN required attribute `eps` unspecified for node {}'.format(name)
+        assert node.normalize_variance is not None, \
+            'MVN required attribute `normalize_variance` unspecified for node {}'.format(name)
+
+        if node.version == 'opset6':
+            assert node.eps_mode is not None, 'MVN required attribute `eps_mode` unspecified for node {}'.format(name)
+            PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
 
         copy_shape_infer(node)
+
+
+class MVNCaffe(Op):
+    op = 'MVNCaffe'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'kind': 'op',
+            'type': None,
+            'op': self.op,
+            'version': None,
+            'eps': 1e-9,
+            'normalize_variance': 1,
+            'across_channels': 0,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+            'infer': None
+        }, attrs)

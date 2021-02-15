@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,18 +48,18 @@ size_t FullyConnected_fb_io_b8_f8::GetBatchesPerWorkItem(const fully_connected_p
 
 FullyConnected_fb_io_b8_f8::DispatchData FullyConnected_fb_io_b8_f8::SetDefault(const fully_connected_params& arg,
                                                                                 int) const {
-    auto kd = FullyConnectedBlockKernelBase::SetDefault(arg);
+    auto dispatchData = FullyConnectedBlockKernelBase::SetDefault(arg);
 
     const auto& output = arg.output;
 
     size_t groups_per_batches = GetLocalGroupsSize(arg);
-    kd.gws0 =
+    dispatchData.gws[0] =
         Align(output.LogicalSize() / (GetNeuronsPerWorkItem(arg) * GetBatchesPerWorkItem(arg) * groups_per_batches), 8);
-    kd.gws1 = groups_per_batches;
-    kd.lws0 = 8;
-    kd.lws1 = 1;
+    dispatchData.gws[1] = groups_per_batches;
+    dispatchData.lws[0] = 8;
+    dispatchData.lws[1] = 1;
 
-    return kd;
+    return dispatchData;
 }
 
 bool FullyConnected_fb_io_b8_f8::Validate(const Params& p, const optional_params& o) const {
@@ -92,20 +92,22 @@ bool FullyConnected_fb_io_b8_f8::Validate(const Params& p, const optional_params
 KernelsData FullyConnected_fb_io_b8_f8::GetKernelsData(const Params& params, const optional_params& optParams) const {
     assert(params.GetType() == KernelType::FULLY_CONNECTED);
     KernelsData res = {};
-    const auto& orgParams = static_cast<const fully_connected_params&>(params);
-
-    float estimated_time = orgParams.inputs[0].GetDType() == Datatype::F16 && orgParams.output.Batch().v >= 16
-                               ? FORCE_PRIORITY_3
-                               : FORCE_PRIORITY_5;
 
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd =
-            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, WeightsLayout::io, estimated_time, static_cast<int>(i));
+            GetTunedKernelsDataByIndex(params, optParams, DataLayout::fb, WeightsLayout::io, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
         }
     }
 
     return res;
+}
+
+KernelsPriority FullyConnected_fb_io_b8_f8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const fully_connected_params&>(params);
+
+    return p.inputs[0].GetDType() == Datatype::F16 && p.output.Batch().v >= 16 ? FORCE_PRIORITY_3
+                                                                               : FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

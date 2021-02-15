@@ -139,9 +139,6 @@ protected:
     }
 
     void TearDown() override {
-        if (_device.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
-            PluginCache::get().reset();
-        }
     }
 
     template <Precision::ePrecision PRC>

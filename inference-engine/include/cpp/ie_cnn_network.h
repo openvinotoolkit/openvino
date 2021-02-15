@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,20 +9,18 @@
  */
 #pragma once
 
-#include <ie_icnn_net_reader.h>
-
-#include <details/ie_cnn_network_iterator.hpp>
-#include <details/ie_exception_conversion.hpp>
-#include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "ie_icnn_network.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
+#include "details/ie_exception_conversion.hpp"
+#include "ie_extension.h"
 
 namespace ngraph {
 
@@ -40,55 +38,26 @@ public:
     /**
      * @brief A default constructor
      */
-    CNNNetwork() = default;
+    CNNNetwork();
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
      * @brief Allows helper class to manage lifetime of network object
      *
      * @param network Pointer to the network object
      */
-    explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network): network(network) {
-        actual = network.get();
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-    }
-
-    /**
-     * @brief A constructor from ngraph::Function object
-     * @param network Pointer to the ngraph::Function object
-     */
-    explicit CNNNetwork(const std::shared_ptr<const ngraph::Function>& network);
-
-    /**
-     * @brief A constructor from ICNNNetReader object
-     *
-     * @param reader Pointer to the ICNNNetReader object
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    explicit CNNNetwork(CNNNetReaderPtr reader_): reader(reader_) {
-        if (reader == nullptr) {
-            THROW_IE_EXCEPTION << "ICNNNetReader was not initialized.";
-        }
-        if ((actual = reader->getNetwork(nullptr)) == nullptr) {
-            THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        }
-    }
+    explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network);
     IE_SUPPRESS_DEPRECATED_END
 
     /**
-     * @brief A destructor
+     * @brief A constructor from ngraph::Function object
+     * This constructor wraps existing ngraph::Function
+     * If you want to avoid modification of original Function, please create a copy
+     * @param network Pointer to the ngraph::Function object
+     * @param exts Vector of pointers to IE extension objects
      */
-    virtual ~CNNNetwork() {}
-
-    /**
-     * @deprecated Network precision does not make sence, use precision on egdes. The method will be removed in 2020.3
-     * @copybrief ICNNNetwork::getPrecision
-     *
-     * Wraps ICNNNetwork::getPrecision
-     *
-     * @return A precision type
-     */
-    INFERENCE_ENGINE_DEPRECATED("Network precision does not make sence, use precision on egdes. The method will be removed in 2020.3")
-    virtual Precision getPrecision() const;
+    explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network,
+                        const std::vector<IExtensionPtr>& exts = {});
 
     /**
      * @copybrief ICNNNetwork::getOutputsInfo
@@ -97,12 +66,7 @@ public:
      *
      * @return outputs Reference to the OutputsDataMap object
      */
-    virtual OutputsDataMap getOutputsInfo() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        OutputsDataMap outputs;
-        actual->getOutputsInfo(outputs);
-        return outputs;
-    }
+    OutputsDataMap getOutputsInfo() const;
 
     /**
      * @copybrief ICNNNetwork::getInputsInfo
@@ -111,12 +75,7 @@ public:
      *
      * @return inputs Reference to InputsDataMap object
      */
-    virtual InputsDataMap getInputsInfo() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        InputsDataMap inputs;
-        actual->getInputsInfo(inputs);
-        return inputs;
-    }
+    InputsDataMap getInputsInfo() const;
 
     /**
      * @copybrief ICNNNetwork::layerCount
@@ -125,10 +84,7 @@ public:
      *
      * @return The number of layers as an integer value
      */
-    size_t layerCount() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->layerCount();
-    }
+    size_t layerCount() const;
 
     /**
      * @copybrief ICNNNetwork::getName
@@ -137,10 +93,7 @@ public:
      *
      * @return Network name
      */
-    const std::string& getName() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getName();
-    }
+    const std::string& getName() const;
 
     /**
      * @copybrief ICNNNetwork::setBatchSize
@@ -148,11 +101,8 @@ public:
      * Wraps ICNNNetwork::setBatchSize
      *
      * @param size Size of batch to set
-     * @return Status code of the operation
      */
-    virtual void setBatchSize(const size_t size) {
-        CALL_STATUS_FNC(setBatchSize, size);
-    }
+    void setBatchSize(const size_t size);
 
     /**
      * @copybrief ICNNNetwork::getBatchSize
@@ -161,59 +111,50 @@ public:
      *
      * @return The size of batch as a size_t value
      */
-    virtual size_t getBatchSize() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getBatchSize();
-    }
+    size_t getBatchSize() const;
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
+     * @deprecated InferenceEngine::ICNNNetwork interface is deprecated
      * @brief An overloaded operator cast to get pointer on current network
      *
      * @return A shared pointer of the current network
      */
-    operator ICNNNetwork::Ptr() {
-        return network;
-    }
+    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    operator ICNNNetwork::Ptr();
 
     /**
+     * @deprecated InferenceEngine::ICNNNetwork interface is deprecated
      * @brief An overloaded operator & to get current network
      *
      * @return An instance of the current network
      */
-    operator ICNNNetwork&() {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return *actual;
-    }
+    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    operator ICNNNetwork&();
 
     /**
+     * @deprecated InferenceEngine::ICNNNetwork interface is deprecated
      * @brief An overloaded operator & to get current network
      *
      * @return A const reference of the current network
      */
-    operator const ICNNNetwork&() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return *actual;
-    }
+    // INFERENCE_ENGINE_DEPRECATED("InferenceEngine::ICNNNetwork interface is deprecated")
+    operator const ICNNNetwork&() const;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Returns constant nGraph function
      *
      * @return constant nGraph function
      */
-    std::shared_ptr<ngraph::Function> getFunction() {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getFunction();
-    }
+    std::shared_ptr<ngraph::Function> getFunction();
 
     /**
      * @brief Returns constant nGraph function
      *
      * @return constant nGraph function
      */
-    std::shared_ptr<const ngraph::Function> getFunction() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->getFunction();
-    }
+    std::shared_ptr<const ngraph::Function> getFunction() const;
 
     /**
      * @copybrief ICNNNetwork::addOutput
@@ -223,92 +164,21 @@ public:
      * @param layerName Name of the layer
      * @param outputIndex Index of the output
      */
-    void addOutput(const std::string& layerName, size_t outputIndex = 0) {
-        CALL_STATUS_FNC(addOutput, layerName, outputIndex);
-    }
-
-    /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
-     * @copybrief ICNNNetwork::getLayerByName
-     *
-     * Wraps ICNNNetwork::getLayerByName
-     *
-     * @param layerName Given name of the layer
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3")
-    CNNLayerPtr getLayerByName(const char* layerName) const;
-
-    /**
-     * @deprecated Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3
-     * @brief Begin layer iterator
-     *
-     * Order of layers is implementation specific,
-     * and can be changed in future
-     *
-     * @return Iterator pointing to a layer
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3")
-    details::CNNNetworkIterator begin() const;
-
-    /**
-     * @deprecated Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3
-     * @brief End layer iterator
-     * @return Iterator pointing to a layer
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3")
-    details::CNNNetworkIterator end() const;
-    IE_SUPPRESS_DEPRECATED_END
-
-    /**
-     * @deprecated Use CNNNetwork::layerCount() instead. The method will be removed in 2020.3
-     * @brief Number of layers in network object
-     *
-     * @return Number of layers.
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::layerCount() instead. The method will be removed in 2020.3")
-    size_t size() const;
-
-    /**
-     * @deprecated Use Core::AddExtension to add an extension to the library
-     * @brief Registers extension within the plugin
-     *
-     * @param extension Pointer to already loaded reader extension with shape propagation implementations
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use Core::AddExtension to add an extension to the library")
-    void AddExtension(InferenceEngine::IShapeInferExtensionPtr extension);
+    void addOutput(const std::string& layerName, size_t outputIndex = 0);
 
     /**
      * @brief Helper method to get collect all input shapes with names of corresponding Data objects
      *
      * @return Map of pairs: input name and its dimension.
      */
-    virtual ICNNNetwork::InputShapes getInputShapes() const {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        ICNNNetwork::InputShapes shapes;
-        InputsDataMap inputs;
-        actual->getInputsInfo(inputs);
-        for (const auto& pair : inputs) {
-            auto info = pair.second;
-            if (info) {
-                auto data = info->getInputData();
-                if (data) {
-                    shapes[data->getName()] = data->getTensorDesc().getDims();
-                }
-            }
-        }
-        return shapes;
-    }
+    ICNNNetwork::InputShapes getInputShapes() const;
 
     /**
      * @brief Run shape inference with new input shapes for the network
      *
      * @param inputShapes - map of pairs: name of corresponding data and its dimension.
      */
-    virtual void reshape(const ICNNNetwork::InputShapes& inputShapes) {
-        CALL_STATUS_FNC(reshape, inputShapes);
-    }
+    void reshape(const ICNNNetwork::InputShapes& inputShapes);
 
     /**
      * @brief Serialize network to IR and weights files.
@@ -317,17 +187,36 @@ public:
      * @param binPath Path to output weights file. The parameter is skipped in case
      * of executable graph info serialization.
      */
-    void serialize(const std::string& xmlPath, const std::string& binPath = "") const {
-        CALL_STATUS_FNC(serialize, xmlPath, binPath);
+    void serialize(const std::string& xmlPath, const std::string& binPath = {}) const;
+
+    /**
+     * @brief Method maps framework tensor name to OpenVINO name
+     *
+     * @param orig_name Framework tensor name
+     *
+     * @return OpenVINO name
+     */
+    std::string getOVNameForTensor(const std::string& orig_name) const {
+        std::string ov_name;
+        CALL_STATUS_FNC(getOVNameForTensor, ov_name, orig_name);
+        return ov_name;
+    }
+
+    /**
+     * @brief Method maps framework operator name to OpenVINO name
+     *
+     * @param orig_name Framework operation name
+     *
+     * @return OpenVINO name
+     */
+    std::string getOVNameForOperation(const std::string& orig_name) const {
+        std::string ov_name;
+        CALL_STATUS_FNC(getOVNameForOperation, ov_name, orig_name);
+        return ov_name;
     }
 
 protected:
-    /**
-     * @brief Reader extra reference, might be nullptr
-     */
     IE_SUPPRESS_DEPRECATED_START
-    CNNNetReaderPtr reader;
-    IE_SUPPRESS_DEPRECATED_END
     /**
      * @brief Network extra interface, might be nullptr
      */
@@ -337,6 +226,8 @@ protected:
      * @brief A pointer to the current network
      */
     ICNNNetwork* actual = nullptr;
+    IE_SUPPRESS_DEPRECATED_END
+
     /**
      * @brief A pointer to output data
      */

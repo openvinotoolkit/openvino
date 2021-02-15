@@ -1,56 +1,102 @@
 // Copyright (C) 2020 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
-// NOTE: WILL BE REWORKED (31905)
 
-#include <gtest/gtest.h>
-
-#include <map>
-
-#include "common_test_utils/common_layers_params.hpp"
-#include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/test_common.hpp"
-#include "common_test_utils/test_constants.hpp"
-#include "common_test_utils/xml_net_builder/ir_net.hpp"
-#include "common_test_utils/xml_net_builder/xml_filler.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ie_core.hpp"
+#include <vector>
 #include "single_layer_tests/eltwise.hpp"
+#include "common_test_utils/test_constants.hpp"
 
-using namespace EltwiseTestNamespace;
+using namespace LayerTestsDefinitions;
 
-std::vector<EltwiseOpType> operations = { EltwiseOpType::ADD, EltwiseOpType::SUBSTRACT, EltwiseOpType::MULTIPLY };
-std::vector<ParameterInputIdx> primary_input_idx = { 0, 1 };
-std::vector<InputLayerType> secondary_input_types = { InputLayerType::CONSTANT , InputLayerType::PARAMETER };
-std::vector<InferenceEngine::Precision> net_precisions = { InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16 };
-std::vector<InferenceEngine::SizeVector> flat_shapes = { {1, 200}, {1, 2000}, {1, 20000} };
-std::vector<InferenceEngine::SizeVector> non_flat_shapes = { {2, 200}, {10, 200}, {1, 10, 100}, {4, 4, 16} };
+namespace {
+std::vector<std::vector<std::vector<size_t>>> inShapes = {
+        {{2}},
+        {{2, 200}},
+        {{10, 200}},
+        {{1, 10, 100}},
+        {{4, 4, 16}},
+        {{1, 1, 1, 3}},
+        {{2, 17, 5, 4}, {1, 17, 1, 1}},
+        {{2, 17, 5, 1}, {1, 17, 1, 4}},
+        {{1, 2, 4}},
+        {{1, 4, 4}},
+        {{1, 4, 4, 1}},
+        {{1, 1, 1, 1, 1, 1, 3}},
+        {{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}
+};
+
+std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32,
+};
+
+std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
+        ngraph::helpers::InputLayerType::CONSTANT,
+        ngraph::helpers::InputLayerType::PARAMETER,
+};
+
+std::vector<CommonTestUtils::OpType> opTypes = {
+        CommonTestUtils::OpType::SCALAR,
+        CommonTestUtils::OpType::VECTOR,
+};
+
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
+        ngraph::helpers::EltwiseTypes::ADD,
+        ngraph::helpers::EltwiseTypes::MULTIPLY,
+        ngraph::helpers::EltwiseTypes::SUBTRACT,
+        ngraph::helpers::EltwiseTypes::DIVIDE,
+        ngraph::helpers::EltwiseTypes::FLOOR_MOD,
+        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ngraph::helpers::EltwiseTypes::POWER,
+        ngraph::helpers::EltwiseTypes::MOD
+};
+
 std::map<std::string, std::string> additional_config = {};
 
-const auto FlatEltwiseParams =
-::testing::Combine(
-    ::testing::ValuesIn(operations),
-    ::testing::ValuesIn(primary_input_idx),
-    ::testing::ValuesIn(secondary_input_types),
-    ::testing::ValuesIn(net_precisions),
-    ::testing::ValuesIn(flat_shapes),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-    ::testing::Values(additional_config));
+const auto multiply_params = ::testing::Combine(
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(eltwiseOpTypes),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config));
 
-const auto NonFlatEltwiseParams =
-::testing::Combine(
-    ::testing::ValuesIn(operations),
-    ::testing::ValuesIn(primary_input_idx),
-    ::testing::ValuesIn(secondary_input_types),
-    ::testing::ValuesIn(net_precisions),
-    ::testing::ValuesIn(non_flat_shapes),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU),
-    ::testing::Values(additional_config));
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(Eltwise_flat, EltwiseLayerTest, FlatEltwiseParams,
-    EltwiseLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(Eltwise_non_flat, EltwiseLayerTest, NonFlatEltwiseParams,
-    EltwiseLayerTest::getTestCaseName);
+
+std::vector<std::vector<std::vector<size_t>>> inShapesSingleThread = {
+        {{1, 2, 3, 4}},
+        {{2, 2, 2, 2}},
+        {{2, 1, 2, 1, 2, 2}}
+};
+
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesSingleThread = {
+        ngraph::helpers::EltwiseTypes::ADD,
+        ngraph::helpers::EltwiseTypes::POWER,
+};
+
+std::map<std::string, std::string> additional_config_single_thread = {
+        {"CPU_THREADS_NUM", "1"}
+};
+
+const auto single_thread_params = ::testing::Combine(
+        ::testing::ValuesIn(inShapesSingleThread),
+        ::testing::ValuesIn(eltwiseOpTypesSingleThread),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(opTypes),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU),
+        ::testing::Values(additional_config_single_thread));
+
+INSTANTIATE_TEST_CASE_P(smoke_SingleThread, EltwiseLayerTest, single_thread_params, EltwiseLayerTest::getTestCaseName);
+
+
+}  // namespace

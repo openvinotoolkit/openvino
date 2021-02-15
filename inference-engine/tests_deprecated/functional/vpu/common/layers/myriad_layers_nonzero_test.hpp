@@ -62,8 +62,8 @@ protected:
 
         const auto totalDimsSize = refIndicesBlob->getTensorDesc().getDims()[1];
 
-        for (int axis = 0; axis < outputDimsPtr[1]; ++axis) {
-            for (int i = 0; i < outputDimsPtr[0]; ++i) {
+        for (int axis = 0; axis < outputDimsPtr[0]; ++axis) {
+            for (int i = 0; i < outputDimsPtr[1]; ++i) {
                 const auto idx = i + axis * totalDimsSize;
                 ASSERT_EQ(outputIndicesPtr[idx], refIndicesPtr[idx]);
             }
@@ -72,7 +72,7 @@ protected:
 };
 
 void myriadLayerTestNonZero_smoke::testNonZero(vpu::LayoutPreference preference, Precision precision) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     const auto& inputDims = GetParam();
     const size_t numDims = inputDims.size();

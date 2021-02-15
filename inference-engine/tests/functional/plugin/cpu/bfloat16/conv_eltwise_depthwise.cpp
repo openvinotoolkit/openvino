@@ -16,7 +16,7 @@
 
 #include "functional_test_utils/blob_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph/opsets/opset1.hpp"
 
 using namespace std;
@@ -27,12 +27,12 @@ namespace LayerTestsDefinitions {
 typedef std::tuple< Precision, SizeVector, string, size_t, CoordinateDiff, string> convEltwiseDepthwiseTestParamsSet;
 
 class ConvEltwiseDepthwise :
-    public testing::WithParamInterface<convEltwiseDepthwiseTestParamsSet>, public LayerTestsUtils::LayerTestsCommon {
+    public testing::WithParamInterface<convEltwiseDepthwiseTestParamsSet>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     std::shared_ptr<Function> fnPtr;
     SizeVector inputShapes;
     std::map<string, string> expectedPrecisions;
-    float threshold = 3e-2;
+    float threshold = 7e-2;
     Precision netPrecision;
     size_t kernel;
     CoordinateDiff pads;
@@ -225,7 +225,7 @@ TEST_P(ConvEltwiseDepthwise, CompareWithRefImpl) {
     Run_test();
 };
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepthwise,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepthwise,
     ::testing::Combine(
         ::testing::Values(Precision::FP32),
         ::testing::Values(SizeVector({ 1, 5, 1, 1 })),
@@ -235,7 +235,7 @@ INSTANTIATE_TEST_CASE_P(FP32_bfloat16_1x1_depthwise_BF16, ConvEltwiseDepthwise,
         ::testing::Values(string("jit_avx512_1x1_BF16"))),
     ConvEltwiseDepthwise::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDepthwise,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDepthwise,
     ::testing::Combine(
         ::testing::Values(Precision::FP32),
         ::testing::Values(SizeVector({ 1, 3, 10, 10 })),
@@ -245,7 +245,7 @@ INSTANTIATE_TEST_CASE_P(FP32_bfloat16_gemm_depthwise_BF16, ConvEltwiseDepthwise,
         ::testing::Values(string("jit_gemm_BF16"))),
     ConvEltwiseDepthwise::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_conv_depthwise_BF16, ConvEltwiseDepthwise,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_conv_depthwise_BF16, ConvEltwiseDepthwise,
     ::testing::Combine(
         ::testing::Values(Precision::FP32),
         ::testing::Values(SizeVector({ 1, 5, 10, 10 })),

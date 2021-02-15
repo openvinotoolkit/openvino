@@ -24,7 +24,7 @@ from mo.graph.graph import Graph
 
 
 class SliceToVariadicSplit(FrontReplacementOp):
-    op = "Slice"
+    op = "CaffeSlice"
     enabled = True
 
     def replace_sub_graph(self, graph: Graph, match: dict):
@@ -37,7 +37,7 @@ class SliceToVariadicSplit(FrontReplacementOp):
             return
 
         assert node.has_valid('slice_point'), 'Slice operation `{}` has no `slice_point` parameter'.format(name)
-        slice_point = np.array(node.slice_point)
+        slice_point = node.slice_point
 
         if slice_point.size == 0:
             num_splits = len(node.out_ports())

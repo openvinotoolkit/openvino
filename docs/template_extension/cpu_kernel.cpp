@@ -23,6 +23,8 @@ OpImplementation::OpImplementation(const std::shared_ptr<ngraph::Node> &node) {
         if (castedNode->get_input_element_type(0) != ngraph::element::f32 || castedNode->get_output_element_type(0) != ngraph::element::f32)
             THROW_IE_EXCEPTION << "Operation supports only FP32 tensors.";
         add = castedNode->getAddAttr();
+        inShape = castedNode->get_input_shape(0);
+        outShape = castedNode->get_output_shape(0);
     } catch (InferenceEngine::details::InferenceEngineException& ex) {
         error = ex.what();
     }

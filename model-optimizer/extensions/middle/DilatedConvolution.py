@@ -160,7 +160,8 @@ class DilatedConvolution1DConverter(MiddleReplacementPattern):
         unsqueeze_axis = unsqueeze.in_port(1).data.get_value()
         for port_id in [1, 2]:
             current_value = pad.in_port(port_id).get_connection().data.get_value()
-            new_value_node = Const(pad.graph, {'value': np.insert(current_value, unsqueeze_axis.item(), 0),
+            new_value_node = Const(pad.graph, {'name': pad.soft_get('name', pad.id) + '/value_{}'.format(port_id),
+                                               'value': np.insert(current_value, unsqueeze_axis.item(), 0),
                                                'override_output_shape': True}).create_node()
             pad.in_port(port_id).disconnect()
             pad.in_port(port_id).connect(new_value_node.out_port(0))

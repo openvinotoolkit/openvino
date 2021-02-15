@@ -1,4 +1,4 @@
-# Kaldi* Statistical Language Model Conversion Tool
+# Kaldi* Statistical Language Model Conversion Tool {#openvino_inference_engine_samples_speech_libs_and_demos_Kaldi_SLM_conversion_tool}
 
 The Kaldi* Statistical Language Model (SLM) Conversion Tool is a command-line tool that converts [Kaldi](https://kaldi-asr.org/) language model resources to the format supported by the OpenVINO&trade; Speech Recognition Demos.
 

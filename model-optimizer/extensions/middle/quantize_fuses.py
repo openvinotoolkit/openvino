@@ -91,7 +91,7 @@ class FakeQuantizeFuse(MiddleReplacementPattern):
         return [BinarizeWeightsM1P1]
 
     def find_and_replace_pattern(self, graph: Graph):
-        for quantize_node in graph.get_op_nodes(op='FakeQuantize', keep_in_IR=True):
+        for quantize_node in graph.get_op_nodes(op='FakeQuantize'):
             while len(quantize_node.out_port(0).get_destinations()) == 1:
                 if not quantize_node.out_port(0).get_destination().node.has_valid('fuse_up_to_quantize_ports'):
                     break
@@ -125,16 +125,3 @@ class FakeQuantizeFuse(MiddleReplacementPattern):
                     fuse_node_duplicate.infer(fuse_node_duplicate)
 
                     first_port_fusion = False
-
-            if 'permutation' in quantize_node.in_edge(0):
-                permutation = quantize_node.in_edge(0)['permutation']
-                if permutation is None:
-                    continue
-
-                perm_rank = permutation.perm.size
-
-                if not all([quantize_node.in_port(i).data.get_shape().size == perm_rank for i in range(1, 5)]):
-                    continue
-
-                for i in range(1, 5):
-                    quantize_node.in_edge(i)['permutation'] = permutation

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ TEST(removing_output_node, multiple_outputs) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "shuffle_channels", "input2", "input3", "input4", {}, {}, { 1 }, {}));
+    topology.add(strided_slice("strided_slice", "shuffle_channels", "input2", "input3", "input4", {}, {}, { 1 }, {}, tensor{6, 1, 1, 1}));
 
     std::vector<float> input_vec = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
     std::vector<float> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };

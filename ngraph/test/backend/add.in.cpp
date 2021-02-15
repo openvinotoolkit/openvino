@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,41 +32,31 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, add)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    vector<float> a{1, 2, 3, 4};
+    vector<float> b{5, 6, 7, 8};
 
-    // Create some tensors for input/output
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape);
-
-    copy_data(a, test::NDArray<float, 2>({{1, 2}, {3, 4}}).get_vector());
-    copy_data(b, test::NDArray<float, 2>({{5, 6}, {7, 8}}).get_vector());
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  (test::NDArray<float, 2>({{6, 8}, {10, 12}})).get_vector()));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(shape, {6, 8, 10, 12});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, add_overload)
@@ -74,22 +64,15 @@ NGRAPH_TEST(${BACKEND_NAME}, add_overload)
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(A + B, ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    vector<float> a{1, 2, 3, 4};
+    vector<float> b{5, 6, 7, 8};
 
-    // Create some tensors for input/output
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape);
-
-    copy_data(a, test::NDArray<float, 2>({{1, 2}, {3, 4}}).get_vector());
-    copy_data(b, test::NDArray<float, 2>({{5, 6}, {7, 8}}).get_vector());
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  (test::NDArray<float, 2>({{6, 8}, {10, 12}})).get_vector()));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(shape, {6, 8, 10, 12});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
@@ -97,25 +80,18 @@ NGRAPH_TEST(${BACKEND_NAME}, add_in_place)
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto T = A + B;
-    auto T2 = T + T;
-    auto T3 = T2 + T2;
-    auto T4 = T3 + T3;
+    auto T = make_shared<op::v1::Add>(A, B);
+    auto T2 = make_shared<op::v1::Add>(T, T);
+    auto T3 = make_shared<op::v1::Add>(T2, T2);
+    auto T4 = make_shared<op::v1::Add>(T3, T3);
 
     auto f = make_shared<Function>(T4, ParameterVector{A, B});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    vector<float> a{1, 2, 3, 4};
+    vector<float> b{5, 6, 7, 8};
 
-    // Create some tensors for input/output
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape);
-
-    copy_data(a, test::NDArray<float, 2>({{1, 2}, {3, 4}}).get_vector());
-    copy_data(b, test::NDArray<float, 2>({{5, 6}, {7, 8}}).get_vector());
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b});
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  (test::NDArray<float, 2>({{48, 64}, {80, 96}})).get_vector()));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_multiple_inputs<float>({a, b});
+    test_case.add_expected_output<float>(shape, {48, 64, 80, 96});
+    test_case.run();
 }

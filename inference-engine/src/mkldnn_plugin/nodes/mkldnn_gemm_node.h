@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,8 @@ public:
     bool created() const override;
     int getMaxBatch() override;
 
+    InferenceEngine::Precision getRuntimePrecision() const override;
+
 private:
     float alpha = 1.0f;
     float beta = 1.0f;
@@ -38,6 +40,8 @@ private:
     std::vector<int> aOffsets;
     std::vector<int> bOffsets;
     std::vector<int> cOffsets;
+
+    template<typename T0, typename T1> void process_data();
 };
 
 }  // namespace MKLDNNPlugin

@@ -44,12 +44,14 @@ class DeprecatedStoreTrue(argparse.Action):
         setattr(namespace, self.dest, True)
 
 
-class DeprecatedTensorflowOffloadFeatureAction(argparse.Action):
+class IgnoredAction(argparse.Action):
+    def __init__(self, nargs=0, **kw):
+        super().__init__(nargs=nargs, **kw)
+
     def __call__(self, parser, namespace, values, option_string=None):
-        msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal." \
-                  "".format(option_string)
-        log.error(msg, extra={'is_warning': True})
-        setattr(namespace, self.dest, values)
+        dep_msg = "Use of removed cli option '{}' detected. The option is ignored. ".format(option_string)
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(namespace, self.dest, True)
 
 
 class CanonicalizePathAction(argparse.Action):
@@ -208,7 +210,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'operation of the graph. If there are multiple inputs in the model, --input_shape '
                                    'should contain definition of shape for each input separated by a comma, for '
                                    'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes. '
-                                   'Alternatively, you can specify shapes with the --input option.')
+                                   'Alternatively, specify shapes with the --input option.')
     common_group.add_argument('--scale', '-s',
                               type=float,
                               help='All input values coming from original network inputs will be ' +
@@ -230,15 +232,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                        'DEBUG', 'NOTSET'],
                               default='ERROR')
     common_group.add_argument('--input',
-                              help='Quoted list of comma-separated input nodes names with shapes, data types, ' +
-                                   'and values for freezing. The shape and value are specified as space-separated lists. '+
-                                   'The data type of input node is specified in braces and can have one of the values: ' +
+                              help='Quoted list of comma-separated input nodes names with shapes, data types, '
+                                   'and values for freezing. The shape and value are specified as space-separated lists. '
+                                   'The data type of input node is specified in braces and can have one of the values: '
                                    'f64 (float64), f32 (float32), f16 (float16), i64 (int64), i32 (int32), u8 (uint8), boolean. '
-                                   'For example, use the following format to set input port 0 ' +
-                                   'of the node `node_name1` with the shape [3 4] as an input node and ' +
-                                   'freeze output port 1 of the node `node_name2` with the value [20 15] of int32 type' +
-                                   'and the shape [2]: ' +
-                                   '"0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
+                                   'For example, use the following format to set input port 0 '
+                                   'of the node `node_name1` with the shape [3 4] as an input node and '
+                                   'freeze output port 1 of the node `node_name2` with the value [20 15] of the int32 type '
+                                   'and shape [2]: "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
     common_group.add_argument('--output',
                               help='The name of the output operation of the model. ' +
                                    'For TensorFlow*, do not add :0 to this name.')
@@ -278,11 +279,11 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Turn off fusing of grouped convolutions',
                               action=DeprecatedStoreTrue)
     common_group.add_argument('--enable_concat_optimization',
-                              help='Turn on concat optimization',
+                              help='Turn on Concat optimization.',
                               action='store_true')
     common_group.add_argument('--move_to_preprocess',
                               help='Move mean values to IR preprocess section',
-                              action='store_true')
+                              action=DeprecatedStoreTrue)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
                               help="Directory or a comma separated list of directories with extensions. To disable all "
@@ -313,22 +314,25 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Use --input option to specify a value for freezing.',
                               default=None)
     common_group.add_argument('--generate_deprecated_IR_V7',
-                              help='Force to generate old deprecated IR V7'
-                                   ' with layers from old IR specification.',
-                              action=DeprecatedStoreTrue,
+                              help='Force to generate deprecated IR V7 with layers from old IR specification.',
+                              action=IgnoredAction,
                               default=False)
-    common_group.add_argument('--keep_shape_ops',
-                              help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
-                                   'This feature makes model reshapable in Inference Engine',
+    common_group.add_argument('--static_shape',
+                              help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
+                                   'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
+                                   'the Inference Engine API in runtime may fail for such an IR.',
                               action='store_true', default=False)
+    common_group.add_argument('--keep_shape_ops',
+                              help='The option is ignored. Expected behavior is enabled by default.',
+                              action=IgnoredAction, default=True)
     common_group.add_argument('--disable_weights_compression',
-                              help='Disable compression and store weights with original precision',
+                              help='Disable compression and store weights with original precision.',
                               action='store_true', default=False)
     common_group.add_argument('--progress',
-                              help='Enables model conversion progress display',
+                              help='Enable model conversion progress display.',
                               action='store_true', default=False)
     common_group.add_argument('--stream_output',
-                              help='Switches model conversion progress display to a multiline mode',
+                              help='Switch model conversion progress display to a multiline mode.',
                               action='store_true', default=False)
     common_group.add_argument('--transformations_config',
                           help='Use the configuration file with transformations description.',
@@ -610,7 +614,7 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    tf_group = parser.add_argument_group('ONNX*-specific parameters')
+    onnx_group = parser.add_argument_group('ONNX*-specific parameters')
 
     return parser
 
@@ -639,13 +643,6 @@ def get_all_cli_parser():
     get_onnx_cli_parser(parser=parser)
 
     return parser
-
-
-def append_exp_keys_to_namespace(argv: argparse.Namespace):
-    setattr(argv, 'keep_quantize_ops_in_IR', True)
-    setattr(argv, 'blobs_as_inputs', True)
-    setattr(argv, 'generate_experimental_IR_V10', not argv.generate_deprecated_IR_V7)
-    setattr(argv, 'generate_deprecated_IR_V2', False)
 
 
 def remove_data_type_from_input_value(input_value: str):
@@ -920,44 +917,35 @@ def parse_tuple_pairs(argv_values: str):
     if not argv_values:
         return res
 
-    data_str = argv_values
-    while True:
-        tuples_matches = re.findall(r'[(\[]([0-9., -]+)[)\]]', data_str, re.IGNORECASE)
-        if not tuples_matches :
-            raise Error(
-                "Mean/scale values should be in format: data(1,2,3),info(2,3,4)" +
-                " or just plain set of them without naming any inputs: (1,2,3),(2,3,4). " +
-                refer_to_faq_msg(101), argv_values)
-        tuple_value = tuples_matches[0]
-        matches = data_str.split(tuple_value)
+    matches = [m for m in re.finditer(r'[(\[]([0-9., -]+)[)\]]', argv_values, re.IGNORECASE)]
 
-        input_name = matches[0][:-1]
-        if not input_name:
-            res = []
-            # check that other values are specified w/o names
-            words_reg = r'([a-zA-Z]+)'
-            for i in range(0, len(matches)):
-                if re.search(words_reg, matches[i]) is not None:
-                    # error - tuple with name is also specified
-                    raise Error(
-                        "Mean/scale values should either contain names of input layers: data(1,2,3),info(2,3,4)" +
-                        " or just plain set of them without naming any inputs: (1,2,3),(2,3,4)." +
-                        refer_to_faq_msg(101), argv_values)
-            for match in tuples_matches:
-                res.append(np.fromstring(match, dtype=float, sep=','))
-            break
+    error_msg = 'Mean/scale values should consist of name and values specified in round or square brackets' \
+                'separated by comma, e.g. data(1,2,3),info[2,3,4],egg[255] or data(1,2,3). Or just plain set of ' \
+                'values without names: (1,2,3),(2,3,4) or [1,2,3],[2,3,4].' + refer_to_faq_msg(101)
+    if not matches:
+        raise Error(error_msg, argv_values)
 
-        res[input_name] = np.fromstring(tuple_value, dtype=float, sep=',')
+    name_start_idx = 0
+    name_was_present = False
+    for idx, match in enumerate(matches):
+        input_name = argv_values[name_start_idx:match.start(0)]
+        name_start_idx = match.end(0) + 1
+        tuple_value = np.fromstring(match.groups()[0], dtype=float, sep=',')
 
-        parenthesis = matches[0][-1]
-        sibling = ')' if parenthesis == '(' else ']'
-        pair = '{}{}{}{}'.format(input_name, parenthesis, tuple_value, sibling)
-        idx_substr = data_str.index(pair)
-        data_str = data_str[idx_substr + len(pair) + 1:]
+        if idx != 0 and (name_was_present ^ bool(input_name)):
+            # if node name firstly was specified and then subsequently not or vice versa
+            # e.g. (255),input[127] or input(255),[127]
+            raise Error(error_msg, argv_values)
 
-        if not data_str:
-            break
+        name_was_present = True if input_name != "" else False
+        if name_was_present:
+            res[input_name] = tuple_value
+        else:
+            res[idx] = tuple_value
 
+    if not name_was_present:
+        # return a list instead of a dictionary
+        res = sorted(res.values(), key=lambda v: v[0])
     return res
 
 
@@ -1011,7 +999,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     Returns
     -------
     The function returns a dictionary e.g.
-    mean = { 'data: np.array, 'info': np.array }, scale = { 'data: np.array, 'info': np.array }, input = "data, info" ->
+    mean = { 'data': np.array, 'info': np.array }, scale = { 'data': np.array, 'info': np.array }, input = "data, info" ->
      { 'data': { 'mean': np.array, 'scale': np.array }, 'info': { 'mean': np.array, 'scale': np.array } }
 
     """
@@ -1032,6 +1020,17 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     if type(mean_values) is dict and type(scale_values) is dict:
         if not mean_values and not scale_values:
             return res
+
+        for inp_scale in scale_values.keys():
+            if inp_scale not in inputs:
+                raise Error("Specified scale_values name '{}' do not match to any of inputs: {}. "
+                            "Please set 'scale_values' that correspond to values from input.".format(inp_scale, inputs))
+
+        for inp_mean in mean_values.keys():
+            if inp_mean not in inputs:
+                raise Error("Specified mean_values name '{}' do not match to any of inputs: {}. "
+                            "Please set 'mean_values' that correspond to values from input.".format(inp_mean, inputs))
+
         for inp in inputs:
             inp, port = split_node_in_port(inp)
             if inp in mean_values or inp in scale_values:
@@ -1105,7 +1104,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
                     }
                 )
             return res
-    # mean and scale are specified without inputs, return list, order is not guaranteed (?)
+    # mean and/or scale are specified without inputs
     return list(zip_longest(mean_values, scale_values))
 
 
@@ -1175,4 +1174,3 @@ def get_meta_info(argv: argparse.Namespace):
         if key in meta_data:
             meta_data[key] = ','.join([os.path.join('DIR', os.path.split(i)[1]) for i in meta_data[key].split(',')])
     return meta_data
-

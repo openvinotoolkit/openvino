@@ -168,7 +168,7 @@ TEST_P(MyriadDeviceMetricsTestWithParam, CheckNames) {
 TEST_F(MyriadMetricsTest, ShouldThrowExceptionWhenOption_MYRIAD_THROUGHPUT_STREAMS_isInvalid) {
     range_type act_res;
     std::map<std::string, std::string> config {
-        {KEY_VPU_MYRIAD_THROUGHPUT_STREAMS, std::string("bad param")}
+        {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, std::string("bad param")}
     };
 
     ASSERT_ANY_THROW(act_res = metrics_container_->RangeForAsyncInferRequests(config));
@@ -186,7 +186,7 @@ TEST_F(MyriadMetricsTest, ShouldReturnDefaultValueWhenOption_MYRIAD_THROUGHPUT_S
 TEST_P(MyriadRangeInferMetricsTestWithParam, CheckValues) {
     range_type act_res;
     std::map<std::string, std::string> config {
-        {KEY_VPU_MYRIAD_THROUGHPUT_STREAMS, confir_param_}
+        {InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, confir_param_}
     };
 
     ASSERT_NO_THROW(act_res = metrics_container_->RangeForAsyncInferRequests(config));

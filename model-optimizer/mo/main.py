@@ -24,19 +24,18 @@ from collections import OrderedDict
 
 import numpy as np
 
-from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, RemoveOutputOps, \
-    NormalizeTI
-from mo.utils.get_ov_update_message import get_ov_update_message
+import telemetry.telemetry as tm
+from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.graph.graph import Graph
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively, for_each_sub_graph_recursively
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
-    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, \
-    append_exp_keys_to_namespace, get_meta_info
+    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
 from mo.utils.error import Error, FrameworkError
+from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
@@ -115,6 +114,8 @@ def prepare_ir(argv: argparse.Namespace):
 
     log.debug(str(argv))
     log.debug("Model Optimizer started")
+    t = tm.Telemetry()
+    t.start_session()
 
     model_name = "<UNKNOWN_NAME>"
     if argv.model_name:
@@ -153,12 +154,10 @@ def prepare_ir(argv: argparse.Namespace):
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
 
-    mean_file_offsets = None
     if is_caffe and argv.mean_file and argv.mean_values:
         raise Error('Both --mean_file and mean_values are specified. Specify either mean file or mean values. ' +
                     refer_to_faq_msg(17))
     elif is_caffe and argv.mean_file and argv.mean_file_offsets:
-
         values = get_tuple_values(argv.mean_file_offsets, t=int, num_exp_values=2)
         mean_file_offsets = np.array([int(x) for x in values[0].split(',')])
         if not all([offset >= 0 for offset in mean_file_offsets]):
@@ -209,7 +208,6 @@ def prepare_ir(argv: argparse.Namespace):
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
-    ret_res = 1
     if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
         extensions = argv.extensions.split(',')
     else:
@@ -218,18 +216,23 @@ def prepare_ir(argv: argparse.Namespace):
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
     if is_tf:
+        t.send_event('mo', 'framework', 'tf')
         from mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_caffe:
+        t.send_event('mo', 'framework', 'caffe')
         from mo.front.caffe.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_mxnet:
+        t.send_event('mo', 'framework', 'mxnet')
         from mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_kaldi:
+        t.send_event('mo', 'framework', 'kaldi')
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_onnx:
+        t.send_event('mo', 'framework', 'onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     graph = unified_pipeline(argv)
@@ -240,10 +243,6 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     NormalizeTI().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
-    if not graph.graph['cmd_params'].generate_experimental_IR_V10:
-        for_each_sub_graph_recursively(graph, RemoveOutputOps().find_and_replace_pattern)
-    if not graph.graph['cmd_params'].generate_experimental_IR_V10:
-        for_graph_and_each_sub_graph_recursively(graph, RemoveOutputOps().find_and_replace_pattern)
 
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
@@ -288,6 +287,9 @@ def driver(argv: argparse.Namespace):
 
 
 def main(cli_parser: argparse.ArgumentParser, framework: str):
+    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_version())
+    telemetry.start_session()
+    telemetry.send_event('mo', 'version', get_version())
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user
@@ -296,12 +298,6 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         argv = cli_parser.parse_args()
         if framework:
             argv.framework = framework
-        append_exp_keys_to_namespace(argv)
-
-        # set output precision for operations producing bool values to be I32 as it was for the IRv7
-        if argv.generate_deprecated_IR_V7:
-            from mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES
-            SUPPORTED_DATA_TYPES['bool'] = (np.bool, 'I32', 'boolean')
 
         ov_update_message = None
         if not hasattr(argv, 'silent') or not argv.silent:
@@ -309,6 +305,9 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         ret_code = driver(argv)
         if ov_update_message:
             print(ov_update_message)
+        telemetry.send_event('mo', 'conversion_result', 'success')
+        telemetry.end_session()
+        telemetry.force_shutdown(1.0)
         return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
@@ -332,4 +331,8 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         log.error(traceback.format_exc())
         log.error("---------------- END OF BUG REPORT --------------")
         log.error("-------------------------------------------------")
+
+    telemetry.send_event('mo', 'conversion_result', 'fail')
+    telemetry.end_session()
+    telemetry.force_shutdown(1.0)
     return 1

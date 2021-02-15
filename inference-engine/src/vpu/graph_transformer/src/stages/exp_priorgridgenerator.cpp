@@ -69,7 +69,7 @@ void FrontEnd::parseExpPriorGridGenerator(
         const ie::CNNLayerPtr& layer,
         const DataVector& inputs,
         const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 3);
+    IE_ASSERT(inputs.size() >= 1 && inputs.size() <= 3);
     IE_ASSERT(outputs.size() == 1);
 
     ExpPriorGridGeneratorParams params;
@@ -87,15 +87,29 @@ void FrontEnd::parseExpPriorGridGenerator(
 
     const int batch      = inputImage->desc().dim(Dim::N);
 
-    IE_ASSERT((inputPriors->desc().dims().size() == 2) &&
-              (inputPriors->desc().dim(Dim::C) == 4));
-    IE_ASSERT((inputFeatureMap->desc().dims().size() == 4) &&
-              (inputFeatureMap->desc().dim(Dim::N) == batch));
-    IE_ASSERT((inputImage->desc().dims().size() == 4) &&
-              (inputImage->desc().dim(Dim::C) == 3));
+    VPU_THROW_UNLESS((inputPriors->desc().dims().size() == 2) &&
+                     (inputPriors->desc().dim(Dim::C) == 4),
+                     "Wrong shape for input 0 of layer %s, expected (N, 4), got: dims size = %lu, dim C = %d",
+                     layer->name, inputPriors->desc().dims().size(), inputPriors->desc().dim(Dim::C));
 
-    IE_ASSERT((outputPriorGrid->desc().dims().size() == 2) &&
-              (outputPriorGrid->desc().dim(Dim::C) == 4));
+    if (params.grid_h == 0 || params.grid_w == 0) {
+        VPU_THROW_UNLESS((inputFeatureMap->desc().dims().size() == 4) &&
+                         (inputFeatureMap->desc().dim(Dim::N) == batch),
+                         "Wrong shape for input 1 of layer %s, expected 4-dimensional"
+                         "with batch = %d, got: dims size = %lu, batch = %d",
+                         layer->name, batch, inputFeatureMap->desc().dims().size(), inputPriors->desc().dim(Dim::N));
+    }
+
+    if (params.stride_w == 0 || params.stride_h == 0) {
+        VPU_THROW_UNLESS(inputImage->desc().dims().size() == 4,
+                         "Wrong shape for input 2 of layer %s, expected 4-dimensional, got: dims size = %lu",
+                         layer->name, inputImage->desc().dims().size());
+    }
+
+    VPU_THROW_UNLESS((outputPriorGrid->desc().dims().size() == 2) &&
+                     (outputPriorGrid->desc().dim(Dim::C) == 4),
+                     "Wrong shape for output of layer %s, expected (N, 4), got: dims size = %lu, dim C = %d",
+                     layer->name, outputPriorGrid->desc().dims().size(), outputPriorGrid->desc().dim(Dim::C));
 
     auto stage = model->addNewStage<ExpPriorGridGeneratorStage>(
         layer->name,

@@ -16,7 +16,7 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), ""},
     {GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT},
-    {GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(YES)},
+    {GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(NO)},
     {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(PRECISION), Precision(Precision::I16).name()},
     {GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN), CONFIG_VALUE(NO)},
@@ -51,7 +51,7 @@ protected:
 };
 
 TEST_F(GNAPluginConfigTest, GnaConfigDefaultConfigIsExpected) {
-    ASSERT_EQ(config.key_config_map, supportedConfigKeysWithDefaults);
+    ASSERT_EQ(config.keyConfigMap, supportedConfigKeysWithDefaults);
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigScaleFactorTest) {
@@ -73,12 +73,12 @@ TEST_F(GNAPluginConfigTest, GnaConfigScaleFactorTest) {
     EXPECT_FLOAT_EQ(config.inputScaleFactors[2], 1.0);
     EXPECT_FLOAT_EQ(config.inputScaleFactors[3], 15.2);
 
-    config.UpdateFromMap({{GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_9"), std::string("8.43")}});
-    EXPECT_EQ(config.GetParameter(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_9")), std::string("8.430000"));
-    EXPECT_EQ(config.inputScaleFactors.size(), 10);
-    EXPECT_FLOAT_EQ(config.inputScaleFactors[9], 8.43);
+    config.UpdateFromMap({{GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_99"), std::string("8.43")}});
+    EXPECT_EQ(config.GetParameter(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_99")), std::string("8.430000"));
+    EXPECT_EQ(config.inputScaleFactors.size(), 100);
+    EXPECT_FLOAT_EQ(config.inputScaleFactors[99], 8.43);
 
-    ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_10"), std::string("8.43"));
+    ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_100"), std::string("8.43"));
     ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("&1"), std::string("8.43"));
     ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_"), std::string("8.43"));
     ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("abs"), std::string("8.43"));

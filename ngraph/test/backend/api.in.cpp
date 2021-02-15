@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ NGRAPH_TEST(${BACKEND_NAME}, create_tensor_1)
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Add>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -55,32 +55,14 @@ NGRAPH_TEST(${BACKEND_NAME}, create_tensor_1)
     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-// This tests a backend's implementation of the copy_from for tensor
-NGRAPH_TEST(${BACKEND_NAME}, tensor_copy_from)
-{
-    Shape shape{2, 2};
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    vector<float> av = {1, 2, 3, 4};
-    vector<float> bv = {5, 6, 7, 8};
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape);
-    copy_data(a, av);
-    copy_data(b, bv);
-
-    a->copy_from(*b);
-    EXPECT_TRUE(test::all_close_f(bv, read_vector<float>(a), MIN_FLOAT_TOLERANCE_BITS));
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, get_parameters_and_results)
 {
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
     auto C = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>((A + B) * C, ParameterVector{A, B, C});
+    auto arg = make_shared<op::v1::Multiply>(make_shared<op::v1::Add>(A, B), C);
+    auto f = make_shared<Function>(arg, ParameterVector{A, B, C});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

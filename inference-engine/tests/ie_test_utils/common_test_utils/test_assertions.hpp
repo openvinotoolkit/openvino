@@ -85,7 +85,7 @@ inline void compare_preprocess(const InferenceEngine::PreProcessChannel & lhs, c
 inline void compare_preprocess_info(const InferenceEngine::PreProcessInfo & lhs, const InferenceEngine::PreProcessInfo & rhs) {
     ASSERT_EQ(lhs.getMeanVariant(), rhs.getMeanVariant());
     ASSERT_EQ(lhs.getNumberOfChannels(), rhs.getNumberOfChannels());
-    for (int i = 0; i < lhs.getNumberOfChannels(); i++) {
+    for (size_t i = 0; i < lhs.getNumberOfChannels(); i++) {
         ASSERT_PREPROCESS_CHANNEL_EQ(*lhs[i].get(), *rhs[i].get());
     }
 }
@@ -95,7 +95,7 @@ inline void compare_outputs_info(const InferenceEngine::OutputsDataMap & lhs, co
     auto i = lhs.begin();
     auto j = rhs.begin();
 
-    for (int k =0; k != lhs.size(); k++, i++, j++) {
+    for (size_t k =0; k != lhs.size(); k++, i++, j++) {
         ASSERT_STREQ(i->first.c_str(), j->first.c_str());
         ASSERT_DATA_EQ(*i->second.get(), *j->second.get());
     }
@@ -106,7 +106,7 @@ inline void compare_inputs_info(const InferenceEngine::InputsDataMap & lhs, cons
     auto i = lhs.begin();
     auto j = rhs.begin();
 
-    for (int k = 0; k != lhs.size(); k++, i++, j++) {
+    for (size_t k = 0; k != lhs.size(); k++, i++, j++) {
         ASSERT_STREQ(i->first.c_str(), j->first.c_str());
         ASSERT_DIMS_EQ(i->second->getTensorDesc().getDims(), j->second->getTensorDesc().getDims());
         ASSERT_PREPROCESS_INFO_EQ(i->second->getPreProcess(), j->second->getPreProcess());

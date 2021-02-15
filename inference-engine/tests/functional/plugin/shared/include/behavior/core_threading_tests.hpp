@@ -6,13 +6,19 @@
 #include <details/ie_exception.hpp>
 #include <ie_plugin_config.hpp>
 #include <ie_extension.h>
+#include <cpp/ie_cnn_network.h>
+#include <cpp/ie_executable_network.hpp>
+#include <cpp/ie_infer_request.hpp>
 #include <multi-device/multi_device_config.hpp>
 
 #include <file_utils.h>
 #include <ngraph_functions/subgraph_builders.hpp>
+#include <functional_test_utils/blob_utils.hpp>
 #include <functional_test_utils/test_model/test_model.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
+#include <common_test_utils/test_constants.hpp>
+#include <common_test_utils/common_layers_params.hpp>
 
 #include <gtest/gtest.h>
 #include <thread>
@@ -20,6 +26,7 @@
 #include <mutex>
 #include <chrono>
 #include <fstream>
+#include <functional_test_utils/skip_tests_config.hpp>
 
 using Device = std::string;
 using Config = std::map<std::string, std::string>;
@@ -59,7 +66,7 @@ public:
     void safeAddExtension(InferenceEngine::Core & ie) {
         try {
             auto extension = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
-                FileUtils::makeSharedLibraryName<char>({}, "extension_tests"));
+                FileUtils::makePluginLibraryName<char>({}, "template_extension"));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::details::InferenceEngineException & ex) {
             ASSERT_STR_CONTAINS(ex.what(), "name: experimental");
@@ -80,12 +87,26 @@ public:
     void SetUp() override {
         std::tie(deviceName, config) = GetParam();
     }
+
+    static std::string getTestCaseName(testing::TestParamInfo<Params> obj) {
+        std::string deviceName;
+        Config config;
+        std::tie(deviceName, config) = obj.param;
+        char separator('_');
+        std::ostringstream result;
+        result << "targetDevice=" << deviceName << separator;
+        result << "config=";
+        for (auto& confItem : config) {
+            result << confItem.first << ":" << confItem.second << separator;
+        }
+        return result.str();
+    }
 };
 
 // tested function: GetVersions, UnregisterPlugin
 TEST_P(CoreThreadingTests, smoke_GetVersions) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::Core ie;
-
     runParallel([&] () {
         auto versions = ie.GetVersions(deviceName);
         ASSERT_LE(1u, versions.size());
@@ -95,6 +116,8 @@ TEST_P(CoreThreadingTests, smoke_GetVersions) {
 
 // tested function: SetConfig for already created plugins
 TEST_P(CoreThreadingTests, smoke_SetConfigPluginExists) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     InferenceEngine::Core ie;
 
     ie.SetConfig(config);
@@ -107,6 +130,8 @@ TEST_P(CoreThreadingTests, smoke_SetConfigPluginExists) {
 
 // tested function: GetConfig, UnregisterPlugin
 TEST_P(CoreThreadingTests, smoke_GetConfig) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     InferenceEngine::Core ie;
     std::string configKey = config.begin()->first;
 
@@ -119,6 +144,8 @@ TEST_P(CoreThreadingTests, smoke_GetConfig) {
 
 // tested function: GetMetric, UnregisterPlugin
 TEST_P(CoreThreadingTests, smoke_GetMetric) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     InferenceEngine::Core ie;
     runParallel([&] () {
         ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
@@ -128,9 +155,10 @@ TEST_P(CoreThreadingTests, smoke_GetMetric) {
 
 // tested function: QueryNetwork
 TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     InferenceEngine::Core ie;
-    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
-    auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+    InferenceEngine::CNNNetwork network(ngraph::builder::subgraph::make2InputSubtract());
 
     ie.SetConfig(config, deviceName);
     InferenceEngine::QueryNetworkResult refResult = ie.QueryNetwork(network, deviceName);
@@ -156,63 +184,139 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
 using Threads = unsigned int;
 using Iterations = unsigned int;
 
-class CoreThreadingTestsWithIterations : public ::testing::TestWithParam<std::tuple<Params, Threads, Iterations> >,
-                                         public CoreThreadingTestsBase {
+enum struct ModelClass : unsigned {
+    Default,
+    ConvPoolRelu
+};
+
+using CoreThreadingParams = std::tuple<Params, Threads, Iterations, ModelClass>;
+
+class CoreThreadingTestsWithIterations : public ::testing::TestWithParam<CoreThreadingParams>,
+    public CoreThreadingTestsBase {
 public:
     void SetUp() override {
         std::tie(deviceName, config) = std::get<0>(GetParam());
-        numThreads =  std::get<1>(GetParam());
-        numIterations =  std::get<2>(GetParam());
+        numThreads = std::get<1>(GetParam());
+        numIterations = std::get<2>(GetParam());
+        modelClass = std::get<3>(GetParam());
     }
 
+    static std::string getTestCaseName(testing::TestParamInfo<CoreThreadingParams > obj) {
+        unsigned int numThreads, numIterations;
+        std::string deviceName;
+        Config config;
+        std::tie(deviceName, config) = std::get<0>(obj.param);
+        numThreads = std::get<1>(obj.param);
+        numIterations = std::get<2>(obj.param);
+        char separator('_');
+        std::ostringstream result;
+        result << "targetDevice=" << deviceName << separator;
+        result << "config=";
+        for (auto& confItem : config) {
+            result << confItem.first << ":" << confItem.second << separator;
+        }
+        result << "numThreads=" << numThreads << separator;
+        result << "numIter=" << numIterations;
+        return result.str();
+    }
+
+    ModelClass modelClass;
     unsigned int numIterations;
     unsigned int numThreads;
+
+    std::vector<InferenceEngine::CNNNetwork> networks;
+    void SetupNetworks() {
+        if (modelClass == ModelClass::ConvPoolRelu) {
+            for (unsigned i = 0; i < numThreads; i++) {
+                networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeConvPoolRelu()));
+            }
+        } else {
+            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
+            networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+        }
+    }
 };
 
 // tested function: LoadNetwork, AddExtension
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
-    const FuncTestUtils::TestModel::TestModel models[] = {
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP32,
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16
-    };
-    std::vector<InferenceEngine::CNNNetwork> networks;
-    for (auto & model : models) {
-        networks.emplace_back(ie.ReadNetwork(model.model_xml_str, model.weights_blob));
-    }
-
-    // TODO: uncomment after fixing *-31414
-    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::make2InputSubtract()));
-    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeMultiSingleConv()));
-    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSingleConv()));
-    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
-    // networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
+    SetupNetworks();
 
     ie.SetConfig(config, deviceName);
     runParallel([&] () {
         auto value = counter++;
-        (void)ie.LoadNetwork(networks[(counter++) % networks.size()], deviceName);
+        (void)ie.LoadNetwork(networks[value % networks.size()], deviceName);
+    }, numIterations, numThreads);
+}
+
+// tested function: LoadNetwork accuracy
+TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    InferenceEngine::Core ie;
+    std::atomic<unsigned int> counter{0u};
+
+    SetupNetworks();
+
+    ie.SetConfig(config, deviceName);
+    runParallel([&] () {
+        auto value = counter++;
+        auto network = networks[value % networks.size()];
+
+        InferenceEngine::BlobMap blobs;
+        for (const auto & info : network.getInputsInfo()) {
+            auto input = FuncTestUtils::createAndFillBlobFloatNormalDistribution(
+                info.second->getTensorDesc(), 0.0f, 0.2f, 7235346);
+            blobs[info.first] = input;
+        }
+
+        auto getOutputBlob = [&](InferenceEngine::Core & core) {
+            auto exec = core.LoadNetwork(network, deviceName);
+            auto req = exec.CreateInferRequest();
+            req.SetInput(blobs);
+
+            auto info = network.getOutputsInfo();
+            auto outputInfo = info.begin();
+            auto blob = make_blob_with_precision(outputInfo->second->getTensorDesc());
+            blob->allocate();
+            req.SetBlob(outputInfo->first, blob);
+
+            req.Infer();
+            return blob;
+        };
+
+        auto outputActual = getOutputBlob(ie);
+
+        // compare actual value using the second Core
+        {
+            InferenceEngine::Core ie2;
+            ie2.SetConfig(config, deviceName);
+            auto outputRef = getOutputBlob(ie2);
+
+            FuncTestUtils::compareBlobs(outputActual, outputRef);
+        }
     }, numIterations, numThreads);
 }
 
 // tested function: ReadNetwork, SetConfig, LoadNetwork, AddExtension
 TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_MultipleIECores) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     std::atomic<unsigned int> counter{0u};
 
-    // TODO: replace with subgraph builders after fixing *-31414
-    const std::vector<FuncTestUtils::TestModel::TestModel> models = {
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP32,
-        FuncTestUtils::TestModel::convReluNormPoolFcModelFP16
-    };
+    SetupNetworks();
 
     runParallel([&] () {
         auto value = counter++;
         InferenceEngine::Core ie;
         ie.SetConfig(config, deviceName);
-        auto model = models[(counter++) % models.size()];
-        auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
-        (void)ie.LoadNetwork(network, deviceName);
+        (void)ie.LoadNetwork(networks[value % networks.size()], deviceName);
     }, numIterations, numThreads);
 }

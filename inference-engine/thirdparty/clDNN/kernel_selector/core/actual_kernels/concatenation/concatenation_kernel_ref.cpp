@@ -41,7 +41,6 @@ ParamsKey ConcatenationKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::fyxb);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::bf);
@@ -51,7 +50,6 @@ ParamsKey ConcatenationKernelRef::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::byxf);
     k.EnableOutputLayout(DataLayout::fyxb);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableTensorOffset();
@@ -121,5 +119,9 @@ KernelsData ConcatenationKernelRef::GetKernelsData(const Params& params, const o
     }
 
     return kd;
+}
+
+KernelsPriority ConcatenationKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

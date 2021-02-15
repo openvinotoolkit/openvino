@@ -11,7 +11,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <details/ie_exception.hpp>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -28,8 +27,12 @@ typedef std::string file_name_t;
 namespace InferenceEngine {
 
 /**
+ * @deprecated Use OS-native conversion utilities
  * @brief Conversion from possibly-wide character string to a single-byte chain.
+ * @param str A possibly-wide character string
+ * @return A single-byte character string
  */
+INFERENCE_ENGINE_DEPRECATED("Use OS-native conversion utilities")
 inline std::string fileNameToString(const file_name_t& str) {
 #ifdef UNICODE
     size_t maxlen = (str.length() + 1) * sizeof(wchar_t) / sizeof(char);
@@ -44,8 +47,12 @@ inline std::string fileNameToString(const file_name_t& str) {
 }
 
 /**
+ * @deprecated Use OS-native conversion utilities
  * @brief Conversion from single-byte character string to a possibly-wide one
+ * @param str A single-byte character string
+ * @return A possibly-wide character string
  */
+INFERENCE_ENGINE_DEPRECATED("Use OS-native conversion utilities")
 inline file_name_t stringToFileName(const std::string& str) {
 #ifdef UNICODE
     size_t maxlen = str.length() + 1;

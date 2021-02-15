@@ -128,7 +128,7 @@ void MyriadXHwStage::serializeParamsImpl(BlobSerializer& serializer) const {
 
         serializer.append(checked_cast<uint32_t>(hwOpParams.opMode));
 
-        serializer.append(checked_cast<uint32_t>(hwOpParams.withPad));
+        serializer.append(static_cast<uint32_t>(hwOpParams.withPad));
         if (hwOpParams.withPad) {
             serializer.append(checked_cast<uint32_t>(hwOpParams.padMode));
         }
@@ -147,7 +147,7 @@ void MyriadXHwStage::serializeParamsImpl(BlobSerializer& serializer) const {
             serializer.append(checked_cast<uint32_t>(hwOpParams.fcInputNum));
             serializer.append(checked_cast<uint32_t>(hwOpParams.fcOutputOffset));
             serializer.append(checked_cast<uint32_t>(hwOpParams.fcOutputNum));
-            serializer.append(checked_cast<uint32_t>(hwOpParams.fcAccum));
+            serializer.append(static_cast<uint32_t>(hwOpParams.fcAccum));
         }
 
         if (hwOpParams.opType != HwOpType::FC) {
@@ -161,20 +161,20 @@ void MyriadXHwStage::serializeParamsImpl(BlobSerializer& serializer) const {
             serializer.append(checked_cast<uint32_t>(hwOpParams.poolKernelHeight));
         }
 
-        serializer.append(checked_cast<uint32_t>(hwOpParams.withReLU));
+        serializer.append(static_cast<uint32_t>(hwOpParams.withReLU));
         if (hwOpParams.withReLU) {
             serializer.append(checked_cast<uint32_t>(hwOpParams.t0));
             serializer.append(checked_cast<uint32_t>(hwOpParams.a0));
             serializer.append(checked_cast<uint32_t>(hwOpParams.a1));
         }
 
-        serializer.append(checked_cast<uint32_t>(hwOpParams.withClamp));
+        serializer.append(static_cast<uint32_t>(hwOpParams.withClamp));
         if (hwOpParams.withClamp) {
             serializer.append(checked_cast<float>(hwOpParams.clampMaxVal));
         }
 
-        serializer.append(checked_cast<uint32_t>(hwOpParams.reuseData));
-        serializer.append(checked_cast<uint32_t>(hwOpParams.reuseCoeff));
+        serializer.append(static_cast<uint32_t>(hwOpParams.reuseData));
+        serializer.append(static_cast<uint32_t>(hwOpParams.reuseCoeff));
     }
 
     serializer.append(checked_cast<uint32_t>(injectedStage() == nullptr ? 0 : 1));

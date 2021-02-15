@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -116,115 +116,6 @@ void graph_initializations::replace_nodes(program_impl& p) {
             p.optimized_out.push_back(node->id());
             p.nodes_map.erase(node->id());
             continue;
-        }
-
-        // find sequence reshape->permute->reshape and exchange with depth to space
-        if (node->is_type<reshape>()) {
-            if (!p.get_options().get<build_option_type::optimize_data>()->enabled())
-                continue;
-
-            if (node->get_users().size() == 0)
-                continue;
-
-            auto& input_node = node->get_dependency(0);
-            if (!(node->get_users().front()->is_type<permute>()) || !(input_node.is_type<reorder>()))
-                continue;
-
-            auto input_node_layout = input_node.get_output_layout();
-            if (input_node_layout.format != format::bfwzyx || input_node_layout.data_type != data_types::f16)
-                continue;
-
-            // optimal implementation only for depth to space block size 2
-            auto reshape1_layout = node->get_output_layout();
-            if (reshape1_layout.size.spatial[3] != 2)
-                continue;
-
-            auto permute_prim = node->get_users().front()->as<permute>().typed_desc();
-            primitive_id permute_id = node->get_users().front()->id();
-            auto& permute_node = node->get_users().front();
-
-            auto reshape1_prim = node->as<reshape>().typed_desc();
-            primitive_id reshape1_id = node->id();
-
-            p.remove_connection(*node, *permute_node);
-
-            auto perm_node_ptr = p.nodes_map.find(permute_id)->second;
-            auto perm_node = &perm_node_ptr->as<permute>();
-
-            auto rename_id = permute_id + "_tmp";
-            p.rename(*perm_node, rename_id);
-
-            auto reorder_id = input_node.id() + "_reorder_for_depth_to_space";
-            auto reorder_prim = std::make_shared<reorder>(reorder_id, input_node.id(), format::bfyx, input_node_layout.data_type);
-            auto pixel_shuffle_prim = std::make_shared<depth_to_space>(permute_id, reorder_id, 2);
-
-            p.get_or_create(reorder_prim);
-            p.get_or_create(pixel_shuffle_prim);
-            auto reorder_depth_node_ptr = p.nodes_map.find(reorder_id)->second;
-            auto pixel_shuffle_node_ptr = p.nodes_map.find(permute_id)->second;
-            p.add_connection(input_node, *reorder_depth_node_ptr);
-            p.add_connection(*reorder_depth_node_ptr, *pixel_shuffle_node_ptr);
-
-            auto deconv_node_ptr = p.nodes_map.find(rename_id)->second;
-            p.replace_all_usages(*deconv_node_ptr, *pixel_shuffle_node_ptr);
-            p.optimized_out.push_back(rename_id);
-            p.nodes_map.erase(rename_id);
-
-            p.remove_connection(input_node, *node);
-            p.replace_all_usages(*node, input_node);
-            p.optimized_out.push_back(reshape1_id);
-            p.nodes_map.erase(reshape1_id);
-            continue;
-        }
-    }
-}
-
-void graph_initializations::handle_detection_output(program_impl& p) {
-    auto itr = p.nodes_map.begin();  // note we need to use iterators since currently processed element can be removed
-    while (itr != p.nodes_map.end()) {
-        auto node_itr = itr++;
-        auto& node = *(*node_itr).second;
-        // Create second part detection output primitive and replace nodes names - do it only once
-        if ((p.get_options().get<build_option_type::detection_output_gpu>()->enabled()) &&
-            (node.is_type<detection_output>()) &&
-            (node.id().find("_pre") ==
-             std::string::npos)) {  // ToDo: this will fail if user will name the primitive with using _pre like do_pre
-                                    //       we need to use node mark() or some other idea to prevent it
-            // rename detection output
-            const primitive_id detect_out_node_name = node.id();
-            const primitive_id new_primitive_id = detect_out_node_name + "_pre";
-            p.rename(node, new_primitive_id);
-
-            auto detect_out_prim = node.as<detection_output>().typed_desc();
-            // Create new primitive, "keep top k" part of detection output
-            // ToDo: add a default parameters to the detection_output_sort class constructor to get rid off this
-            // initialization from here
-            auto detect_out_sort_prim =
-                std::make_shared<detection_output_sort>(detect_out_node_name,
-                                                        node.id(),
-                                                        // not important params here - it will be set during
-                                                        // "primitive_impl* create" func in "detection_output_sort_gpu"
-                                                        0,      // num_images
-                                                        0,      // num_classes
-                                                        0,      // keep_top_k
-                                                        false,  // share_location
-                                                        0,      // top_k
-                                                        -1,     // background_label_id
-                                                        detect_out_prim->output_padding);
-
-            p.get_or_create(detect_out_sort_prim);
-
-            auto sort_node_itr = p.nodes_map.find(detect_out_node_name);
-            if (sort_node_itr == p.nodes_map.end()) continue;
-
-            auto sort_node = sort_node_itr->second;
-
-            // Add connection to second part of detection output
-            if (node.get_users().size()) {
-                p.add_intermediate(*sort_node, *(node.get_users().front()), 0, false);
-            } else {
-                p.add_connection(node, *sort_node);
-            }
         }
     }
 }
@@ -587,7 +478,6 @@ void graph_initializations::set_outputs(program_impl& p) {
 
 void graph_initializations::run(program_impl& p) {
     replace_nodes(p);
-    handle_detection_output(p);
     handle_lstm(p);
     handle_dynamic_lstm(p);
     set_outputs(p);

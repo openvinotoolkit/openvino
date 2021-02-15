@@ -26,6 +26,7 @@ public:
     virtual ~ConvolutionKernel_b_fs_yx_fsv16_depthwise() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -41,7 +42,7 @@ protected:
     }
 
     bool NeedPaddedInput() const override { return true; }
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
 };
 }  // namespace kernel_selector

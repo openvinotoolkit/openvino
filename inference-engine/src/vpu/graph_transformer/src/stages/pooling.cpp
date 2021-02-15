@@ -12,7 +12,7 @@
 
 #include <cmath>
 
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
 
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
@@ -117,11 +117,12 @@ bool canTryHW(const ie::PoolingLayer::PoolType poolType,
     }
 
     //  FIX #14949, enable HW AVG pooling, need SW postproc
-    if (excludePad && poolType == ie::PoolingLayer::PoolType::AVG) {
-        if (outputWidth == 5 &&
-            outputHeight == 5 &&
-            kernelSizeX == 5 &&
-            kernelSizeY == 5) {
+    //  HW AVG pooling will output wrong results in borders when excludePad=true
+    bool hasPad = padLeft || padTop || padRight || padBottom;
+    if (excludePad && hasPad && poolType == ie::PoolingLayer::PoolType::AVG) {
+        // Only apply to small output tensors for now
+        // May need to loose the condition if accuracy issues are met
+        if (outputWidth <= 5 && outputHeight <= 5) {
             tryHW = false;
         }
     }
@@ -359,7 +360,7 @@ private:
     }
 
     static void append_pv(BlobSerializer& serializer, const PV& pv) {
-        int ndims = pv.size();
+        int ndims = static_cast<int>(pv.size());
         append_i(serializer, ndims);
         for (int i = 0; i < ndims; i++) {
             append_i(serializer, pv[i]);
@@ -386,7 +387,7 @@ void parsePoolND(const     Model      & model,
     VPU_THROW_UNLESS(poolLayer != nullptr, "failed dynamic cast to PoolingLayer");
 
     auto kernel_shape = poolLayer->_kernel;
-    int kernel_ndims = kernel_shape.size();
+    int kernel_ndims = static_cast<int>(kernel_shape.size());
     // Yet, only 3D kernel supported (NCDHW)
     // Later, if support 4D, 5D, etc, please
     // check if (kernelNDims >= 3), so that

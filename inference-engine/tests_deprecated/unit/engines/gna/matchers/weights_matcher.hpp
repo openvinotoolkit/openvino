@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include"gna-api.h"
+#include "backend/gna_types.h"
 #include "nnet_base_matcher.hpp"
 #include "frontend/quantization.h"
 
@@ -72,7 +72,7 @@ class TranspozeIterator {
     }
 };
 
-class WeightsMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+class WeightsMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     enum HowMatch{
         eNone,
         eEq,
@@ -92,7 +92,7 @@ class WeightsMatcher : public ::testing::MatcherInterface<const intel_nnet_type_
             eMatchKind = eEq;
         }
     }
-    bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo == nullptr)
             return false;
         iterator.reset();
@@ -101,7 +101,7 @@ class WeightsMatcher : public ::testing::MatcherInterface<const intel_nnet_type_
             if (foo->pLayers[i].nLayerKind != INTEL_AFFINE &&
                 foo->pLayers[i].nLayerKind != INTEL_AFFINE_DIAGONAL) continue;
 
-            auto affine = (intel_affine_func_t*)foo->pLayers[i].pLayerStruct;
+            auto affine = (gna_affine_func_t*)foo->pLayers[i].pLayerStruct;
 
             auto affineWeightsSize = foo->pLayers[i].nOutputRows *
                 (foo->pLayers[i].nLayerKind == INTEL_AFFINE_DIAGONAL ? 1 : foo->pLayers[i].nInputRows);
@@ -136,7 +136,7 @@ class WeightsMatcher : public ::testing::MatcherInterface<const intel_nnet_type_
     }
 };
 
-class WeightsSizeMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+class WeightsSizeMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     enum HowMatch{
         eNone,
         eEqAffine,
@@ -150,7 +150,7 @@ class WeightsSizeMatcher : public ::testing::MatcherInterface<const intel_nnet_t
         eMatchKind(eEqAffine),
         expected_weights_size(data_len){
     }
-    bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo == nullptr)
             return false;
 
@@ -180,20 +180,20 @@ class WeightsSizeMatcher : public ::testing::MatcherInterface<const intel_nnet_t
 };
 
 
-class WeightsSaver: public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+class WeightsSaver: public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     mutable TranspozeIterator iterator;
     std::vector<uint16_t>* weights;
  public:
     explicit WeightsSaver(TranspozedData data) :
         weights(std::get<0>(data)), iterator(data) {
     }
-    bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo == nullptr)
             return false;
         for(int i = 0; i < foo->nLayers; i++) {
             if (foo->pLayers[i].nLayerKind != INTEL_AFFINE) continue;
 
-            auto affine = (intel_affine_func_t*)foo->pLayers[i].pLayerStruct;
+            auto affine = (gna_affine_func_t*)foo->pLayers[i].pLayerStruct;
 
             auto affineWeightsSize = foo->pLayers[i].nOutputRows * foo->pLayers[i].nInputRows;
             auto pWeights = reinterpret_cast<uint16_t *>(affine->pWeights);

@@ -5,6 +5,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_unary_elementwise.hpp"
 
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
+#include "vpu/ngraph/utilities.hpp"
 #include <vpu/utils/error.hpp>
 
 #include "ngraph/graph_util.hpp"
@@ -22,7 +23,10 @@ void dynamicToStaticUnaryElementwise(std::shared_ptr<ngraph::Node> target) {
 
     const auto shape = dsr->input(1).get_source_output();
     const auto copied = target->clone_with_new_inputs(target->input_values());
-    ngraph::replace_node(target, std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, shape));
+
+    auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, shape);
+    outDSR->set_friendly_name(target->get_friendly_name());
+    ngraph::replace_node(target, std::move(outDSR));
 }
 
 }  // namespace vpu

@@ -92,13 +92,9 @@ struct eltwise : public primitive_base<eltwise> {
             eltwise_mode mode,
             const padding& output_padding = padding())
         : primitive_base(id, {input, input2}, output_padding),
-          output_calibration_factors(""),
-          output_quantization_factor(1.0f),
-          input_quantization_factors(0),
           mode(mode),
           coefficients(std::vector<float>(0)),
-          stride(std::vector<tensor>(0)),
-          inputs_calibration_factors(std::vector<primitive_id>(0)) {}
+          stride(std::vector<tensor>(0)) {}
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
@@ -115,13 +111,9 @@ struct eltwise : public primitive_base<eltwise> {
             eltwise_mode mode,
             const padding& output_padding = padding())
         : primitive_base(id, {input, input2}, output_padding),
-          output_calibration_factors(""),
-          output_quantization_factor(1.0f),
-          input_quantization_factors(0),
           mode(mode),
           coefficients(std::vector<float>(0)),
-          stride(stride),
-          inputs_calibration_factors(std::vector<primitive_id>(0)) {}
+          stride(stride) {}
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
@@ -134,13 +126,9 @@ struct eltwise : public primitive_base<eltwise> {
             data_types data_type,
             const padding& output_padding = padding())
         : primitive_base(id, inputs, output_padding, optional_data_type{data_type}),
-          output_calibration_factors(""),
-          output_quantization_factor(1.0f),
-          input_quantization_factors(0),
           mode(mode),
           coefficients(std::vector<float>(0)),
-          stride(std::vector<tensor>(0)),
-          inputs_calibration_factors(std::vector<primitive_id>(0)) {}
+          stride(std::vector<tensor>(0)) {}
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
@@ -151,13 +139,9 @@ struct eltwise : public primitive_base<eltwise> {
             eltwise_mode mode,
             const padding& output_padding = padding())
         : primitive_base(id, inputs, output_padding),
-          output_calibration_factors(""),
-          output_quantization_factor(1.0f),
-          input_quantization_factors(0),
           mode(mode),
           coefficients(std::vector<float>(0)),
-          stride(std::vector<tensor>(0)),
-          inputs_calibration_factors(std::vector<primitive_id>(0)) {}
+          stride(std::vector<tensor>(0)) {}
 
     /// @brief Constructs eltwise primitive.
     /// @param id This primitive id.
@@ -171,13 +155,9 @@ struct eltwise : public primitive_base<eltwise> {
             data_types data_type,
             const padding& output_padding = padding())
         : primitive_base(id, inputs, output_padding, optional_data_type{data_type}),
-          output_calibration_factors(""),
-          output_quantization_factor(1.0f),
-          input_quantization_factors(0),
           mode(mode),
           coefficients(coefficients),
-          stride(std::vector<tensor>(0)),
-          inputs_calibration_factors(std::vector<primitive_id>(0)) {
+          stride(std::vector<tensor>(0)) {
         if (mode == eltwise_mode::sum && !coefficients.empty() && coefficients.size() != inputs.size()) {
             throw std::invalid_argument("Invalid eltwise sum coefficients count (should be equal to 0 or input.size)");
         }
@@ -186,31 +166,12 @@ struct eltwise : public primitive_base<eltwise> {
         }
     }
 
-    /// @brief Primitive id containing output quanitization factors per output feature map.
-    primitive_id output_calibration_factors;
-    /// @brief Output quantization factor
-    float output_quantization_factor;
-    /// @brief List of quantization factors per input.
-    std::vector<float> input_quantization_factors;
     /// @param mode Eltwise mode.
     eltwise_mode mode;
     /// @param coefficients Blob-wise coefficient for SUM operation.
     std::vector<float> coefficients;
     /// @brief Defines shift in input buffers between adjacent calculations of output values.
     std::vector<tensor> stride;
-    /// @brief List of primitive ids containing input quantization factors per feature map, one primitive id for each input.
-    const primitive_id_arr inputs_calibration_factors;
-
-protected:
-    std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
-        std::vector<std::reference_wrapper<const primitive_id>> ret;
-        if (!output_calibration_factors.empty())
-            ret.push_back(output_calibration_factors);
-
-        for (auto& icf : inputs_calibration_factors) ret.push_back(std::ref(icf));
-
-        return ret;
-    }
 };
 /// @}
 /// @}

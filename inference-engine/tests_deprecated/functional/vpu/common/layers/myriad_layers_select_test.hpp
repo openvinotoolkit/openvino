@@ -28,7 +28,6 @@ protected:
     void RefSelect()
     {
         auto itr = _inputMap.begin();
-        int coeff_num = 0;
         const uint16_t *srcData = itr->second->buffer().as<const uint16_t*>();
         uint16_t *dstData = _refBlob->buffer().as<uint16_t*>();
         uint32_t src_coords[4];
@@ -104,7 +103,7 @@ protected:
         SetInputTensors(inpt);
         SetOutputTensors({dims});
 
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Select").params(_params)));
         ASSERT_TRUE(Infer());

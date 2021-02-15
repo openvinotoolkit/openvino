@@ -20,7 +20,7 @@ from extensions.back.ReshapeMutation import ReshapeMutation
 from extensions.back.ReverseInputChannels import ApplyReverseChannels
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_node_with_second_input
+from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
@@ -29,7 +29,6 @@ from mo.ops.strided_slice import StridedSlice
 
 class ConvolutionNormalizer(BackReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def pattern(self):
         return dict(
@@ -43,78 +42,6 @@ class ConvolutionNormalizer(BackReplacementPattern):
         node = match['node']
         if node.has_valid('kernel_spatial'):
             del node['kernel_spatial']
-
-
-class ConvolutionReshaper(BackReplacementPattern):
-    """
-        Workarounds absence of 1D Convolution support in Inference Engine by converting it to 2D Convolution
-            - updating shape dependent Convolution parameters with fake H: dilation, kernel, pad, stride
-            - reshape weights from [OIX] -> [OIYX] = [OI1X]
-            - inserting fake H dimension by adding reshapes before and after Convolution: [NCW] -> [NCHW] = [NC1W]
-    """
-    enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
-
-    def run_before(self):
-        return [ReshapeMutation]
-
-    @staticmethod
-    def pattern():
-        return dict(
-            nodes=[
-                ('conv', dict(type='Convolution'))
-            ],
-            edges=[]
-        )
-
-    def replace_pattern(self, graph: Graph, match: dict):
-        conv = match['conv']
-
-        assert len(conv.out_nodes()) == 1, "Convolution operation {} should have 1 output data node".format(conv.id)
-        out_data = conv.out_node()
-
-        assert out_data.has_valid('shape'), 'Output shape is undefined for {} in back phase'.format(conv.id)
-        out_shape = out_data.shape
-
-        if out_shape.size != 3:
-            return
-
-        assert len(conv.in_nodes()) >= 1, "Convolution operation {} should have more than 1 input data node".format(
-            conv.id)
-        inp_data = conv.in_node()
-
-        assert inp_data.has_valid('shape'), 'Input shape is undefined for {} in back phase'.format(conv.id)
-        inp_shape = inp_data.shape
-        new_inp_shape = np.insert(inp_shape, 2, 1)
-
-        # setting to None to be overwritten by infer function
-        conv.kernel_spatial_idx = None
-        conv.spatial_dims = None
-
-        # inserting fake H dimension
-        conv.dilation = np.insert(conv.dilation, 2, 1)
-        conv.kernel_spatial = np.append([1], conv.kernel_spatial)
-        conv.pad = np.insert(conv.pad, 2, [0, 0], axis=0)
-        conv.stride = np.insert(conv.stride, 2, 1)
-
-        weights_node = conv.in_node(1)
-        weights_node.value = np.reshape(weights_node.value, np.insert(weights_node.value.shape, 2, 1))
-        weights_node.shape = np.array(weights_node.value.shape, dtype=np.int64)
-
-        reshape = Reshape(graph, {'name': conv.name + '/reshape'}).create_node()
-        reshape_dim = Const(graph, {'value': new_inp_shape, 'name': reshape.id + '/Dim'}).create_node()
-        conv.in_port(0).get_connection().insert_node(reshape)
-        reshape.in_port(1).connect(reshape_dim.out_port(0))
-
-        reshape_back = Reshape(graph, {'name': conv.name + '/reshape_back'}).create_node()
-        reshape_back_dim = Const(graph, {'value': out_shape, 'name': reshape.id + '/Dim'}).create_node()
-        conv.out_port(0).get_connection().insert_node(reshape_back)
-        reshape_back.in_port(1).connect(reshape_back_dim.out_port(0))
-
-        # run shape inference manually for several nodes to override shapes of the model nodes which changed behaviour
-        reshape_dim.infer(reshape_dim)
-        reshape.infer(reshape)
-        conv.infer(conv)
 
 
 class V7ConvolutionWithGroupsResolver(BackReplacementPattern):
@@ -206,13 +133,12 @@ class ConvolutionWithGroupsResolver(BackReplacementPattern):
         return [ReshapeMutation]
 
     def run_after(self):
-        return [ConvolutionReshaper, ApplyReverseChannels]
+        return [ApplyReverseChannels]
 
     def find_and_replace_pattern(self, graph: Graph):
         V7ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
         PullReshapeThroughFQ().find_and_replace_pattern(graph)
-        if graph.graph['cmd_params'].generate_experimental_IR_V10:
-            V10ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
+        V10ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
 
 
 class PullReshapeThroughFQ(BackReplacementPattern):
@@ -279,14 +205,13 @@ class PullReshapeThroughFQ(BackReplacementPattern):
 
 class DeconvolutionNormalizer(BackReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
     force_clean_up = True
 
     def run_before(self):
         return [ReshapeMutation]
 
     def run_after(self):
-        return [ConvolutionReshaper, ApplyReverseChannels]
+        return [ApplyReverseChannels]
 
     @staticmethod
     def pattern():
@@ -299,6 +224,7 @@ class DeconvolutionNormalizer(BackReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: dict):
         node = match['node']
+        node_name = node.soft_get('name', node.id)
 
         if 2 in node.in_ports() and not node.in_port(2).disconnected():
             # Third input represents output shape. Cutting its value according to scheme:
@@ -308,22 +234,17 @@ class DeconvolutionNormalizer(BackReplacementPattern):
             shape_src = node.in_port(2).get_source()
             node.in_port(2).disconnect()
 
-            begin = Const(graph, {'value': np.array([2], dtype=np.int32)}).create_node()
-            end = Const(graph, {'value': np.array([in_rank], dtype=np.int32)}).create_node()
-            stride = Const(graph, {'value': np.array([1], dtype=np.int32)}).create_node()
-
-            ss_0 = StridedSlice(graph, {'name': node.name + '/ss_0_port',
-                                        'begin_mask': np.array([1], dtype=np.int32),
-                                        'end_mask': np.array([0], dtype=np.int32),
-                                        'new_axis_mask': np.array([0], dtype=np.int32),
-                                        'shrink_axis_mask': np.array([0], dtype=np.int32),
-                                        'ellipsis_mask': np.array([0], dtype=np.int32)}).create_node()
+            ss_0 = create_op_with_const_inputs(graph, StridedSlice, {1: np.array([2], dtype=np.int32),
+                                                                     2: np.array([in_rank], dtype=np.int32),
+                                                                     3: np.array([1], dtype=np.int32)},
+                                               {'name': node_name + '/ss_0_port',
+                                                'begin_mask': np.array([1], dtype=np.int32),
+                                                'end_mask': np.array([0], dtype=np.int32),
+                                                'new_axis_mask': np.array([0], dtype=np.int32),
+                                                'shrink_axis_mask': np.array([0], dtype=np.int32),
+                                                'ellipsis_mask': np.array([0], dtype=np.int32)})
 
             shape_src.connect(ss_0.in_port(0))
-            begin.out_port(0).connect(ss_0.in_port(1))
-            end.out_port(0).connect(ss_0.in_port(2))
-            stride.out_port(0).connect(ss_0.in_port(3))
-
             ss_0.out_port(0).connect(node.in_port(2))
 
             # Specification: *padding amount* is deduced from relation of input and output spatial shapes
@@ -331,7 +252,8 @@ class DeconvolutionNormalizer(BackReplacementPattern):
 
         elif node.has_valid('original_output_spatial_shape'):
             # node had fixed output spatial shape set in original framework, so we restore it here
-            const = Const(graph, {'value': int64_array(node.original_output_spatial_shape)}).create_node()
+            const = Const(graph, {'value': int64_array(node.original_output_spatial_shape),
+                                  'name': node_name + '/original_spatial_shape'}).create_node()
             node.add_input_port(2, skip_if_exist=True)
             const.out_port(0).connect(node.in_port(2))
 

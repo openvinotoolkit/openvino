@@ -662,6 +662,13 @@ typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromMediaSurfaceINTEL)(
             fn = supports_usm ? load_entrypoint<PFN_clSetKernelArgMemPointerINTEL>(get(), "clSetKernelArgMemPointerINTEL") : nullptr;
         }
 
+        KernelIntel(const Kernel &other, PFN_clSetKernelArgMemPointerINTEL fn) : Kernel(other), fn(fn) { }
+
+        KernelIntel clone() const {
+            Kernel cloned_kernel(this->getInfo<CL_KERNEL_PROGRAM>(), this->getInfo<CL_KERNEL_FUNCTION_NAME>().c_str());
+            return KernelIntel(cloned_kernel, fn);
+        }
+
         cl_int setArgUsm(cl_uint index, const UsmMemory& mem) {
             if (!fn)
                 throw std::runtime_error("[CL ext] clSetKernelArgMemPointerINTEL function ptr is null. Can not set USM arg.");

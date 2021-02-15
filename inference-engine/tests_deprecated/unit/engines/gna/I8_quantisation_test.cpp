@@ -4,10 +4,11 @@
 
 #include <vector>
 #include <gtest/gtest.h>
-#include <layer_transform.hpp>
+#include <legacy/layer_transform.hpp>
 #include <frontend/model_quantizer.hpp>
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
+#include <ie_core.hpp>
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
@@ -72,9 +73,8 @@ TEST_F(I8QuantisationTest, inputPrecisionIs16Bits){
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
     auto newNet = q.quantize(network, 1000);
-    InputsDataMap inputs;
-    newNet->getInputsInfo(inputs);
-    auto inputLayer = inputs.begin()->second->getInputData()->getInputTo().begin()->second->insData.front().lock()->getCreatorLayer().lock();
+    InputsDataMap inputs = newNet.getInputsInfo();
+    auto inputLayer = getCreatorLayer(getInputTo(inputs.begin()->second->getInputData()).begin()->second->insData.front().lock()).lock();
 
     ASSERT_EQ(inputLayer->precision, Precision::I16);
 }
@@ -103,9 +103,8 @@ TEST_F(I8QuantisationTest, outputAffinePrecisionIs32Bits){
     auto network = ie.ReadNetwork(Fc2DOutputModel(), weights);
 
     auto newNet = q.quantize(network, 1000);
-    InputsDataMap inputs;
-    newNet->getInputsInfo(inputs);
-    auto affineDataPtr = inputs.begin()->second->getInputData()->getInputTo().begin()->second->outData.front();
+    InputsDataMap inputs = newNet.getInputsInfo();
+    auto affineDataPtr = getInputTo(inputs.begin()->second->getInputData()).begin()->second->outData.front();
 
     ASSERT_EQ(affineDataPtr->getTensorDesc().getPrecision(), Precision::I32);
 }

@@ -207,15 +207,19 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
                     }
                 }
 
+                IE_SUPPRESS_DEPRECATED_START
                 if (fetchResult.reset) {
                     auto states = executableApi.QueryState();
                     ASSERT_FALSE(states.empty());
-                    states.front().Reset();
+                    for(auto& state : states) {
+                        state.Reset();
+                    }
                     // also store reset indicator for comparison routine
                     auto &outputs = ctx.newOutputs();
                     outputs["reset"] = nullptr;
                     //continue;
                 }
+                IE_SUPPRESS_DEPRECATED_END
 
                 //FAIL()<<"stop after one frame";
 
@@ -246,9 +250,6 @@ void Regression::Matchers::CustomMatcher::checkResult() {
      */
     if (isSaveOutput) {
         if (!config.fetch_result) {
-
-            decltype(ctx.allOutputs().begin()) output;
-
             // calculating all outputs size
             SizeVector dimsMerged;
             for(auto && output :  ctx.allOutputs()) {
@@ -314,13 +315,12 @@ void Regression::Matchers::CustomMatcher::checkResult() {
 
     if (cmpNear || cmpNearAvg) {
         int idx = 0;
-        float avgDiff = 0.0;
-        float sz = 0.0;
-        float maxDiff = 0.0;
-        float maxAverageDiff = 0.0;
-        float rms = 0.0;
+        float avgDiff = 0.0f;
+        float maxDiff = 0.0f;
+        float maxAverageDiff = 0.0f;
+        float rms = 0.0f;
         int nFrame = -1;
-        float avgFrames = 0.0;
+        float avgFrames = 0.0f;
 
         if (!config.fetch_result) {
             decltype(ctx.allOutputs().begin()) output;

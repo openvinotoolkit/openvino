@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,246 +26,48 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
-#include "ngraph/attribute_visitor.hpp"
+#include "dict_attribute_visitor.hpp"
 #include "ngraph/check.hpp"
-#include "ngraph/enum_names.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/op/constant.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset.hpp"
-#include "ngraph/util.hpp"
 #include "node_factory.hpp"
+#include "tensor_iterator_builder.hpp"
+
+namespace py = pybind11;
 
 namespace
 {
-    class DictAttributeDeserializer : public ngraph::AttributeVisitor
-    {
-    public:
-        DictAttributeDeserializer(const py::dict& attributes)
-            : m_attributes(attributes)
-        {
-        }
-
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<void>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                NGRAPH_CHECK(
-                    false, "No AttributeVisitor support for accessing attribute named: ", name);
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<bool>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<bool>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::string>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::string>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int8_t>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<int8_t>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int16_t>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<int16_t>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int32_t>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<int32_t>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int64_t>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<int64_t>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint8_t>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<uint8_t>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint16_t>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<uint16_t>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint32_t>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<uint32_t>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint64_t>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<uint64_t>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<float>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<float>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<double>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<double>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<std::string>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<std::string>>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int8_t>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<int8_t>>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int16_t>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<int16_t>>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<int32_t>>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<int64_t>>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint8_t>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<uint8_t>>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint16_t>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<uint16_t>>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint32_t>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<uint32_t>>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<uint64_t>>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<float>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<float>>());
-            }
-        }
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<double>>& adapter) override
-        {
-            if (m_attributes.contains(name))
-            {
-                adapter.set(m_attributes[name.c_str()].cast<std::vector<double>>());
-            }
-        }
-
-    protected:
-        const py::dict& m_attributes;
-    };
-
     class NodeFactory
     {
     public:
         NodeFactory() {}
         NodeFactory(const std::string& opset_name)
-            : m_opset{get_opset(opset_name)}
+            : m_opset(get_opset(opset_name))
         {
         }
 
         std::shared_ptr<ngraph::Node> create(const std::string op_type_name,
-                                             const ngraph::NodeVector& arguments,
+                                             const ngraph::OutputVector& arguments,
                                              const py::dict& attributes = py::dict())
         {
             std::shared_ptr<ngraph::Node> op_node =
                 std::shared_ptr<ngraph::Node>(m_opset.create(op_type_name));
 
             NGRAPH_CHECK(op_node != nullptr, "Couldn't create operator: ", op_type_name);
-            NGRAPH_CHECK(!op_node->is_constant(),
+            NGRAPH_CHECK(!ngraph::op::is_constant(op_node),
                          "Currently NodeFactory doesn't support Constant node: ",
                          op_type_name);
 
-            DictAttributeDeserializer visitor(attributes);
+            if (op_type_name == "TensorIterator")
+            {
+                // XXX: How to differentiate opsets?
+                return util::TensorIteratorBuilder(as_node_vector(arguments), attributes)
+                    .configure(std::static_pointer_cast<ngraph::op::TensorIterator>(op_node));
+            }
+
+            util::DictAttributeDeserializer visitor(attributes);
 
             op_node->set_arguments(arguments);
             op_node->visit_attributes(visitor);
@@ -285,10 +87,12 @@ namespace
             using OpsetFunction = std::function<const ngraph::OpSet&()>;
 
             static const std::map<std::string, OpsetFunction> s_opsets{
-                {"opset0", OpsetFunction(ngraph::get_opset0)},
                 {"opset1", OpsetFunction(ngraph::get_opset1)},
                 {"opset2", OpsetFunction(ngraph::get_opset2)},
                 {"opset3", OpsetFunction(ngraph::get_opset3)},
+                {"opset4", OpsetFunction(ngraph::get_opset4)},
+                {"opset5", OpsetFunction(ngraph::get_opset5)},
+                {"opset6", OpsetFunction(ngraph::get_opset6)},
             };
 
             auto it = s_opsets.find(opset_ver);
@@ -299,11 +103,9 @@ namespace
             return it->second();
         }
 
-        const ngraph::OpSet& m_opset{ngraph::get_opset0()};
+        const ngraph::OpSet& m_opset = ngraph::get_opset6();
     };
-}
-
-namespace py = pybind11;
+} // namespace
 
 void regclass_pyngraph_NodeFactory(py::module m)
 {

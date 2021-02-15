@@ -26,8 +26,7 @@
 #include <atomic>
 
 #include <precision_utils.h>
-#include <details/caseless.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
@@ -81,12 +80,14 @@ void BackEnd::getMetaData(
         }
 
         if (stage->origLayer() == nullptr) {
-            stageMeta.layerName = "<Extra>";
+            stageMeta.layerName = "";
             stageMeta.layerType = "<Extra>";
         } else {
-            stageMeta.layerName = stage->origLayer()->name;
-            stageMeta.layerType = stage->origLayer()->type;
-            visitedLayers.insert(stage->origLayer());
+            const auto& origLayer = stage->origLayer();
+            stageMeta.layerName = origLayer->params.count("originalLayersNames") ? origLayer->params["originalLayersNames"] :
+                                  origLayer->name;
+            stageMeta.layerType = origLayer->type;
+            visitedLayers.insert(origLayer);
         }
 
         return stageMeta;
@@ -124,13 +125,22 @@ void BackEnd::getMetaData(
         }
 
         if (data->usage() != DataUsage::Output) {
+            size_t prIndex;
+            if (data->usage() == DataUsage::Input) {
+                prIndex = stagesMeta.size() - 1;
+            } else {
+                prIndex = stageToMetaIndex.find(data->producer())->second;
+            }
+
             for (const auto &child : data->consumers()) {
                 auto it = stageToMetaIndex.find(child);
 
                 if (it != stageToMetaIndex.end()) {
                     StageMetaInfo& meta = stagesMeta[it->second];
-
-                    meta.inputsNum++;
+                    stagesMeta[prIndex].childsNum++;
+                    meta.parentIndices.push_back(prIndex);
+                    meta.inputDims.push_back(dataMeta.desc.getDims());
+                    meta.inputPrecisions.push_back(dataMeta.desc.getPrecision());
                     dataMeta.childrenIndices.push_back(it->second);
                 }
             }

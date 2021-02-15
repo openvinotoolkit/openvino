@@ -15,6 +15,6 @@
 <!--        <value>GPU</value>-->
     </devices>
     <models>
-        <value>caffe/FP32/alexnet/alexnet.xml</value>
+        <model name="mobilenet-ssd" source="omz"/>
     </models>
 </attributes>

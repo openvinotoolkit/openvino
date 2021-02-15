@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018-2019 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_CORE_TESTS_HPP
@@ -11,6 +11,7 @@
 #include <iostream>
 
 #include "gapi_tests_common.hpp"
+#include "gapi_parsers_tests_common.hpp"
 
 namespace opencv_test
 {
@@ -87,8 +88,8 @@ GAPI_TEST_FIXTURE(MeanTest, initMatrixRandU, <>, 0)
 GAPI_TEST_FIXTURE(MaskTest, initMatrixRandU, <>, 0)
 GAPI_TEST_FIXTURE(Polar2CartTest, initMatsRandU, <>, 0)
 GAPI_TEST_FIXTURE(Cart2PolarTest, initMatsRandU, <>, 0)
-GAPI_TEST_FIXTURE(CmpTest, initMatsRandU, FIXTURE_API(CmpTypes,bool), 2, opType, testWithScalar)
-GAPI_TEST_FIXTURE(BitwiseTest, initMatsRandU, FIXTURE_API(bitwiseOp), 1, opType)
+GAPI_TEST_FIXTURE(CmpTest, initMatsRandU, FIXTURE_API(CmpTypes,bool,CompareMats), 3, opType, testWithScalar, cmpF)
+GAPI_TEST_FIXTURE(BitwiseTest, initMatsRandU, FIXTURE_API(bitwiseOp,bool), 2, opType, testWithScalar)
 GAPI_TEST_FIXTURE(NotTest, initMatrixRandU, <>, 0)
 GAPI_TEST_FIXTURE(SelectTest, initMatsRandU, <>, 0)
 GAPI_TEST_FIXTURE(MinTest, initMatsRandU, <>, 0)
@@ -96,6 +97,7 @@ GAPI_TEST_FIXTURE(MaxTest, initMatsRandU, <>, 0)
 GAPI_TEST_FIXTURE(AbsDiffTest, initMatsRandU, <>, 0)
 GAPI_TEST_FIXTURE(AbsDiffCTest, initMatsRandU, <>, 0)
 GAPI_TEST_FIXTURE(SumTest, initMatrixRandU, FIXTURE_API(CompareScalars), 1, cmpF)
+GAPI_TEST_FIXTURE(CountNonZeroTest, initMatrixRandU, FIXTURE_API(CompareScalars), 1, cmpF)
 GAPI_TEST_FIXTURE(AddWeightedTest, initMatsRandU, FIXTURE_API(CompareMats), 1, cmpF)
 GAPI_TEST_FIXTURE(NormTest, initMatrixRandU, FIXTURE_API(CompareScalars,NormTypes), 2,
     cmpF, opType)
@@ -128,7 +130,7 @@ GAPI_TEST_FIXTURE(PhaseTest, initMatsRandU, FIXTURE_API(bool), 1, angle_in_degre
 GAPI_TEST_FIXTURE(SqrtTest, initMatrixRandU, <>, 0)
 GAPI_TEST_FIXTURE(NormalizeTest, initNothing, FIXTURE_API(CompareMats,double,double,int,MatType2), 5,
     cmpF, a, b, norm_type, ddepth)
-struct BackendOutputAllocationTest : TestWithParamBase<>
+struct BackendOutputAllocationTest : TestWithParams<>
 {
     BackendOutputAllocationTest()
     {
@@ -141,6 +143,33 @@ struct BackendOutputAllocationTest : TestWithParamBase<>
 // FIXME: move all tests from this fixture to the base class once all issues are resolved
 struct BackendOutputAllocationLargeSizeWithCorrectSubmatrixTest : BackendOutputAllocationTest {};
 GAPI_TEST_FIXTURE(ReInitOutTest, initNothing, <cv::Size>, 1, out_sz)
+
+GAPI_TEST_FIXTURE(WarpPerspectiveTest, initMatrixRandU,
+        FIXTURE_API(CompareMats, double , double, int, int, cv::Scalar),
+        6, cmpF, angle, scale, flags, border_mode, border_value)
+
+GAPI_TEST_FIXTURE(WarpAffineTest, initMatrixRandU,
+        FIXTURE_API(CompareMats, double , double, int, int, cv::Scalar),
+        6, cmpF, angle, scale, flags, border_mode, border_value)
+GAPI_TEST_FIXTURE(KMeansNDNoInitTest, initMatrixRandU, FIXTURE_API(int, cv::KmeansFlags),
+                  2, K, flags)
+GAPI_TEST_FIXTURE(KMeansNDInitTest, initMatrixRandU,
+                  FIXTURE_API(CompareMats, int, cv::KmeansFlags), 3, cmpF, K, flags)
+GAPI_TEST_FIXTURE(KMeans2DNoInitTest, initNothing, FIXTURE_API(int, cv::KmeansFlags),
+                  2, K, flags)
+GAPI_TEST_FIXTURE(KMeans2DInitTest, initNothing, FIXTURE_API(int, cv::KmeansFlags), 2, K, flags)
+GAPI_TEST_FIXTURE(KMeans3DNoInitTest, initNothing, FIXTURE_API(int, cv::KmeansFlags),
+                  2, K, flags)
+GAPI_TEST_FIXTURE(KMeans3DInitTest, initNothing, FIXTURE_API(int, cv::KmeansFlags), 2, K, flags)
+
+GAPI_TEST_EXT_BASE_FIXTURE(ParseSSDBLTest, ParserSSDTest, initNothing,
+    FIXTURE_API(float, int), 2, confidence_threshold, filter_label)
+GAPI_TEST_EXT_BASE_FIXTURE(ParseSSDTest, ParserSSDTest, initNothing,
+    FIXTURE_API(float, bool, bool), 3, confidence_threshold, alignment_to_square, filter_out_of_bounds)
+GAPI_TEST_EXT_BASE_FIXTURE(ParseYoloTest, ParserYoloTest, initNothing,
+    FIXTURE_API(float, float, int, std::pair<bool,int>), 4, confidence_threshold, nms_threshold, num_classes, dims_config)
+GAPI_TEST_FIXTURE(SizeTest, initMatrixRandU, <>, 0)
+GAPI_TEST_FIXTURE(SizeRTest, initNothing, <>, 0)
 } // opencv_test
 
 #endif //OPENCV_GAPI_CORE_TESTS_HPP

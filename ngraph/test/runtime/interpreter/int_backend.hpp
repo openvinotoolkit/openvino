@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@ namespace ngraph
         {
             class INTBackend;
             class INTExecutable;
-            class INTBackendConstructor;
         }
     }
 }
@@ -56,10 +55,11 @@ public:
         create_tensor(const element::Type& type, const Shape& shape, void* memory_pointer) override;
 
     std::shared_ptr<Tensor> create_tensor(const element::Type& type, const Shape& shape) override;
+    std::shared_ptr<Tensor> create_dynamic_tensor(const element::Type& type,
+                                                  const PartialShape& shape) override;
 
     std::shared_ptr<Executable> compile(std::shared_ptr<Function> function,
                                         bool enable_performance_data = false) override;
-    std::shared_ptr<Executable> load(std::istream& input_stream) override;
 
     bool is_supported(const Node& node) const override;
 

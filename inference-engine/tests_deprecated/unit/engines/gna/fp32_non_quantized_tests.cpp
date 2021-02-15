@@ -5,7 +5,7 @@
 #include <vector>
 #include <numeric>
 #include <gtest/gtest.h>
-#include <layer_transform.hpp>
+#include <legacy/layer_transform.hpp>
 #include "gna_matcher.hpp"
 
 using namespace InferenceEngine;

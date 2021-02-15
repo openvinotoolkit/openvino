@@ -44,7 +44,6 @@ class RPNProposalMXNetFrontExtractor(MXNetCustomFrontExtractorOp):
             'pre_nms_topn': pre_nms_topn,
             'post_nms_topn': post_nms_topn,
             'nms_thresh': nms_thresh,
-            'for_deformable': 1,
         }
 
         ProposalOp.update_node_stat(node, node_attrs)

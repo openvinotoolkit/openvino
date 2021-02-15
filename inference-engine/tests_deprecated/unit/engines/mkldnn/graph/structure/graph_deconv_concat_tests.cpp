@@ -9,6 +9,7 @@
 #include "ir_gen_helper.hpp"
 #include <ie_core.hpp>
 #include "common_test_utils/common_layers_params.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -331,7 +332,7 @@ protected:
 
             // Compare with reference
 
-            auto deconv = network.getLayerByName("Deconvolution_1");
+            auto deconv = CommonTestUtils::getLayerByName(network, "Deconvolution_1");
             InferenceEngine::TBlob<float> deconv_ref(deconv->outData[0]->getTensorDesc());
             deconv_ref.allocate();
 

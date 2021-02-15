@@ -25,8 +25,8 @@
 namespace vpu {
 
 template <typename T>
-Optional<int> parseNumber(const std::string& s) {
-    T value;
+Optional<T> parseNumber(const std::string& s) {
+    T value{};
     if ((std::istringstream(s) >> value >> std::ws).eof()) {
         return {value};
     }
@@ -78,6 +78,7 @@ public:
     }
 
     float toFloat() const { return isInt ? static_cast<float>(value.i) : value.f; }
+    int toInt() const { return isInt ? value.i : static_cast<int>(value.f); }
 
     OPERATOR(+)
     OPERATOR(-)

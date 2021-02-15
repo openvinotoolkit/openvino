@@ -11,16 +11,7 @@
 
 #pragma once
 
-#include <string>
 #include "ie_plugin_config.hpp"
-
-#ifdef GNA_LIB_VER
-#if GNA_LIB_VER == 2
-#define DISABLE_TEST_ON_GNA2 GTEST_SKIP();
-#else
-#define DISABLE_TEST_ON_GNA2
-#endif
-#endif
 
 namespace InferenceEngine {
 
@@ -64,7 +55,7 @@ DECLARE_GNA_CONFIG_KEY(PRECISION);
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE);
 
 /**
-* @brief inforamtion on GNA generation chosen for firmware model dump, can be overriden by GNA3
+* @brief information on GNA generation chosen for firmware model dump, can be overridden by GNA3
 */
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
 
@@ -110,4 +101,12 @@ DECLARE_GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN);
 */
 DECLARE_GNA_CONFIG_KEY(LIB_N_THREADS);
 }  // namespace GNAConfigParams
+
+namespace Metrics {
+    /**
+    * @brief Metric to get a std::string of GNA Library version, usually in the form <API_REVISION>.<RELEASE_LINE>.<RELEASE>.<BUILD>
+    */
+    DECLARE_METRIC_KEY(GNA_LIBRARY_FULL_VERSION, std::string);
+}  // namespace Metrics
+
 }  // namespace InferenceEngine

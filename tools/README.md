@@ -2,13 +2,12 @@
 
 ## General
 `openvino.tools` package includes:
-* openvino.tools.accuracy_checker
 * openvino.tools.benchmark
 
 Please, refer to https://docs.openvinotoolkit.org for details.
 
 ## Installation
-Choose neccessary Python\* version and define `PYTHONPATH` environment variable.
+Choose necessary Python\* version and define `PYTHONPATH` environment variable.
 
 ### Prerequisites
 

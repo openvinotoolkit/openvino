@@ -1,4 +1,4 @@
-# Overview of Inference Engine Python* API
+# Overview of Inference Engine Python* API {#openvino_inference_engine_ie_bridges_python_docs_api_overview}
 
 This API provides a simplified interface for Inference Engine functionality that allows you to:
 

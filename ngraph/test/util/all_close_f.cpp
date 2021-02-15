@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -590,10 +590,6 @@ uint32_t test::matching_mantissa_bits(uint64_t distance)
                                              float min_signal)
 {
     // Check that the layouts are compatible
-    if (*a->get_tensor_layout() != *b->get_tensor_layout())
-    {
-        return ::testing::AssertionFailure() << "Cannot compare tensors with different layouts";
-    }
     if (a->get_shape() != b->get_shape())
     {
         return ::testing::AssertionFailure() << "Cannot compare tensors with different shapes";

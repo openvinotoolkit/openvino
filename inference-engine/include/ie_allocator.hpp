@@ -9,9 +9,8 @@
  */
 #pragma once
 
-#include <ie_api.h>
-
-#include <details/ie_irelease.hpp>
+#include "ie_api.h"
+#include "details/ie_irelease.hpp"
 
 namespace InferenceEngine {
 

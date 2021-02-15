@@ -3,8 +3,9 @@
 //
 
 #include <gtest/gtest.h>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <common_test_utils/test_assertions.hpp>
+#include <common_test_utils/common_utils.hpp>
 #include <unordered_set>
 #include <gmock/gmock-generated-function-mockers.h>
 #include <gmock/gmock-generated-matchers.h>
@@ -46,7 +47,6 @@ protected:
             prepareOutputs(maps);
         })));
 
-        EXPECT_CALL(*mockNet, getPrecision()).WillRepeatedly(Return(Precision::FP16));
         EXPECT_CALL(*mockNet, getBatchSize()).WillRepeatedly(Return(12));
         EXPECT_CALL(*mockNet, getName()).WillRepeatedly(ReturnRefOfCopy(std::string("nm")));
 
@@ -56,91 +56,45 @@ protected:
     }
 };
 
-TEST_F(GraphCopyTests, copyNetworkPreserveBasicParams) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
+TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
+    auto icnnnet = static_cast<ICNNNetwork::Ptr>(clone);
 
     //network was copied not just assigned
-    ASSERT_NE(clone.get(), mockNet.get());
-    ASSERT_EQ(clone->getPrecision(), Precision::FP16);
+    ASSERT_NE(icnnnet.get(), mockNet.get());
 
-    char name[20];
-    clone->getName(name, sizeof(name));
-    ASSERT_STREQ(name, "nm");
-}
-
-TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
-    ASSERT_EQ(clone->getBatchSize(), 12);
+    ASSERT_EQ(clone.getBatchSize(), 12);
 }
 
 
 TEST_F(GraphCopyTests, canPreserveInputs) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
 
-    InputsDataMap inputs, inputsTarget;
+    InputsDataMap inputs = clone.getInputsInfo(), inputsTarget;
     InputsDataMap heads, headsTarget;
 
-    clone->getInputsInfo(inputs);
     mockNet->getInputsInfo(inputsTarget);
     ASSERT_INPUTS_INFO_EQ(inputs, inputsTarget);
 }
 
 TEST_F(GraphCopyTests, canPreserveOutputs) {
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
 
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
-
-    OutputsDataMap outTarget, outSource;
-    clone->getOutputsInfo(outTarget);
+    OutputsDataMap outTarget = clone.getOutputsInfo(), outSource;
     mockNet->getOutputsInfo(outSource);
 
     ASSERT_OUTPUTS_INFO_EQ(outSource, outTarget);
 }
 
 TEST_F(GraphCopyTests, canPreserveAttributes) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
+    auto clone = CNNNetCopy<MockCopier>(CNNNetwork(mockNet), mc);
     ADD_ATTR(1, "id", "r-1-2-3");
     ADD_ATTR(2, "id", "r-1-2-3");
-    CNNNetwork cloned (clone);
-    auto idMemOutput = cloned.getLayerByName("1")->GetParamAsString("id");
-    auto idMemInput  = cloned.getLayerByName("2")->GetParamAsString("id");
+    auto idMemOutput = CommonTestUtils::getLayerByName(clone, "1")->GetParamAsString("id");
+    auto idMemInput  = CommonTestUtils::getLayerByName(clone, "2")->GetParamAsString("id");
 
     ASSERT_STREQ(idMemInput.c_str(), idMemOutput.c_str());
     ASSERT_STREQ(idMemInput.c_str(), "r-1-2-3");
-}
-
-TEST_F(GraphCopyTests, canPreserveGetData) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
-
-    ASSERT_NE(clone->getData("1"), nullptr);
-    ASSERT_NE(clone->getData("2"), nullptr);
-    ASSERT_NE(clone->getData("3"), nullptr);
-    ASSERT_NE(clone->getData("4"), nullptr);
-    ASSERT_NE(clone->getData("5"), nullptr);
-}
-
-TEST_F(GraphCopyTests, canPreserveTopology) {
-    auto iclone = CNNNetCopy<MockCopier>(*mockNet, mc);
-    auto clone = CNNNetwork(iclone);
-
-    ASSERT_EQ(clone.layerCount(), 5);
-
-    EXPECT_CALL(*this, visited(1, 0)).Times(1);
-    EXPECT_CALL(*this, visited(2, 1)).Times(1);
-
-    EXPECT_CALL(*this, visited2(3, 0)).Times(1);
-    EXPECT_CALL(*this, visited2(4, AnyOf(1, 2))).Times(1);
-    EXPECT_CALL(*this, visited2(5, AnyOf(1, 2))).Times(1);
-    EXPECT_CALL(*this, visited2(2, 3)).Times(1);
-
-    int idx = 0;
-    CNNNetBFS(clone.getLayerByName("1"), [&](CNNLayerPtr layer) {
-        visited(ID(layer), idx++);
-    });
-
-    idx = 0;
-    CNNNetBFS(clone.getLayerByName("3"), [&](CNNLayerPtr layer) {
-        visited2(ID(layer), idx++);
-    });
 }
 
 #ifdef ENABLE_GNA
@@ -150,16 +104,14 @@ struct _FP32_2_FP32  : public GNAPluginNS::frontend::QuantDescTmpl<float, float,
 using FP32_2_FP32 = GNAPluginNS::frontend::QuantPair<_FP32_2_FP32 , _FP32_2_FP32 >;
 
 TEST_F(GraphCopyTests, canQuantizeTopology) {
+    auto clone = ModelQuantizer<FP32_2_FP32>().quantize(CNNNetwork(mockNet), std::vector<float >({1.0f, 1.0f}));
 
-    auto iclone = ModelQuantizer<FP32_2_FP32>().quantize(*mockNet, std::vector<float >({1.0f, 1.0f}));
-    auto clone = CNNNetwork(iclone);
-
-    CNNNetBFS(clone.getLayerByName("1"), [&](CNNLayerPtr layer) {
+    CNNNetBFS(CommonTestUtils::getLayerByName(clone, "1"), [&](CNNLayerPtr layer) {
         auto params = getInjectedData<QuantizedLayerParams>(layer);
         ASSERT_NE(params, nullptr);
     });
 
-    CNNNetBFS(clone.getLayerByName("3"), [&](CNNLayerPtr layer) {
+    CNNNetBFS(CommonTestUtils::getLayerByName(clone, "3"), [&](CNNLayerPtr layer) {
         auto params = getInjectedData<QuantizedLayerParams>(layer);
         ASSERT_NE(params, nullptr);
     });
@@ -219,7 +171,7 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithClampLayer) {
     auto copied_net = CNNNetwork(copied_net_ptr);
 
     //check that Clamp layer was properly copied
-    auto layer = std::dynamic_pointer_cast<ClampLayer>(copied_net.getLayerByName("ClampLayer"));
+    auto layer = std::dynamic_pointer_cast<ClampLayer>(CommonTestUtils::getLayerByName(copied_net, "ClampLayer"));
     ASSERT_NE(layer, nullptr) << "Could not perform dynamic cast from base pointer to Clamp layer pointer. "
             "Net copy could be incorrect.";
 }
@@ -278,6 +230,7 @@ TEST(CNNSpecificGraphCopyTests, copyPreprocess) {
 
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
+
     ASSERT_NO_THROW(network = core.ReadNetwork(SINGLE_LAYER_MODEL, InferenceEngine::Blob::CPtr()));
 
     //copy the network
@@ -330,7 +283,7 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithDeconvolution) {
                     <dim>4</dim>
                 </port>
             </output>
-            <weights offset="5517824" size="12288"/>
+            <weights offset="0" size="12288"/>
         </layer>
         </layers>
         <edges>
@@ -341,7 +294,9 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithDeconvolution) {
 
     InferenceEngine::Core core;
     InferenceEngine::CNNNetwork network;
-    ASSERT_NO_THROW(network = core.ReadNetwork(SINGLE_LAYER_MODEL, InferenceEngine::Blob::CPtr()));
+    auto blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {12288}, Layout::C));
+    blob->allocate();
+    ASSERT_NO_THROW(network = core.ReadNetwork(SINGLE_LAYER_MODEL, blob));
 
     // copy the network
     struct EmptyStruct {};
@@ -350,7 +305,7 @@ TEST(CNNSpecificGraphCopyTests, copyNetworkWithDeconvolution) {
     auto copied_net = CNNNetwork(copied_net_ptr);
 
     // check that Clamp layer was properly copied
-    auto layer = std::dynamic_pointer_cast<DeconvolutionLayer>(copied_net.getLayerByName("upsample_merged"));
+    auto layer = std::dynamic_pointer_cast<DeconvolutionLayer>(CommonTestUtils::getLayerByName(copied_net, "upsample_merged"));
     ASSERT_NE(layer, nullptr) << "Could not perform dynamic cast from base pointer to Deconvolution layer pointer. "
                                  "Net copy could be incorrect.";
 }

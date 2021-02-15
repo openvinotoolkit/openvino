@@ -293,8 +293,9 @@ protected:
 
 TEST_P(MKLDNNGraphDynBatchLrnTests, TestsDynBatchLrn) {}
 
+// TODO: rewrite to ngraph to have reshape functionality
 INSTANTIATE_TEST_CASE_P(
-        TestsDynBatchLrn, MKLDNNGraphDynBatchLrnTests,
+        DISABLED_TestsDynBatchLrn, MKLDNNGraphDynBatchLrnTests,
         ::testing::Values(
                 lrn_test_params{{1, 3, 228, 228}, 5, 0.0001f, 0.75f, 1, 3, MKLDNNPlugin::impl_desc_type::ref_any},
                 lrn_test_params{{1, 16, 228, 228}, 5, 0.0001f, 0.75f, 1, 3, MKLDNNPlugin::impl_desc_type::jit}));

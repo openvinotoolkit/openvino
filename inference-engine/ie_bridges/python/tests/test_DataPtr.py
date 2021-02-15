@@ -1,30 +1,31 @@
 import pytest
 
-from openvino.inference_engine import IECore, IENetLayer, DataPtr
+from openvino.inference_engine import IECore, DataPtr
 from conftest import model_path
 
 
 test_net_xml, test_net_bin = model_path()
 
+
 def layer_out_data():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    return net.layers['19/Fused_Add_'].out_data[0]
+    return net.outputs['fc_out']
 
 
 def test_name():
-    assert layer_out_data().name == "19/Fused_Add_", "Incorrect name for layer '19/Fused_Add_'"
+    assert layer_out_data().name == 'fc_out', "Incorrect name for layer 'fc_out'"
 
 
 def test_precision():
-    assert layer_out_data().precision == "FP32", "Incorrect precision for layer '19/Fused_Add_'"
+    assert layer_out_data().precision == "FP32", "Incorrect precision for layer 'fc_out'"
 
 
 def test_precision_setter():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    net.layers['19/Fused_Add_'].out_data[0].precision = "I8"
-    assert net.layers['19/Fused_Add_'].out_data[0].precision == "I8", "Incorrect precision for layer '19/Fused_Add_'"
+    net.outputs['fc_out'].precision = "I8"
+    assert net.outputs['fc_out'].precision == "I8", "Incorrect precision for layer 'fc_out'"
 
 
 def test_incorrect_precision_setter():
@@ -34,8 +35,8 @@ def test_incorrect_precision_setter():
 
 
 def test_layout():
-    assert layer_out_data().layout == "NCHW", "Incorrect layout for layer '19/Fused_Add_'"
+    assert layer_out_data().layout == "NC", "Incorrect layout for layer 'fc_out'"
 
 
 def test_initialized():
-    assert layer_out_data().initialized, "Incorrect value for initialized property for layer '19/Fused_Add_'"
+    assert layer_out_data().initialized, "Incorrect value for initialized property for layer 'fc_out'"

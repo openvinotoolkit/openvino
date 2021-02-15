@@ -98,13 +98,12 @@ TEST_P(myriadLayersTestsFullyConnectedBatch_smoke, TestsFullyConnected)
     get_dims(input_tensor, IW, IH, IC, I_N);
     InferenceEngine::SizeVector output_tensor = {(size_t)I_N, (size_t)out_size};
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
 
     size_t sz_weights = IC * IH * IW * out_size;
     size_t sz_bias = 0;
-    size_t sz = sz_weights + sz_bias;
     _genDataCallback = genTestData1;
     _testNet.addLayer(LayerInitParams("FullyConnected")
              .params(params)
@@ -136,13 +135,12 @@ TEST_P(myriadLayersTestsFullyConnectedPVA_smoke, TestsFullyConnected)
     get_dims(input_tensor, IW, IH, IC, I_N);
     InferenceEngine::SizeVector output_tensor = {(size_t)I_N, (size_t)out_size};
     if (I_N > 1)
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     else
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(YES);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(YES);
 
     size_t sz_weights = IC * IH * IW * out_size;
     size_t sz_bias = 0;
-    size_t sz = sz_weights + sz_bias;
     _genDataCallback = genTestData1;
     _testNet.addLayer(LayerInitParams("FullyConnected")
              .params(params)

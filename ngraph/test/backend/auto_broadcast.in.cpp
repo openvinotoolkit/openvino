@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,6 +51,8 @@
 #include "util/ndarray.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
@@ -104,74 +106,6 @@ void check_auto_bcast(
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise)
-{
-    check_auto_bcast<op::Add, float, float>({{1, 2, 3, 4, 5, 6}, {5, 6, 7}}, {6, 8, 10, 9, 11, 13});
-    check_auto_bcast<op::Subtract, float, float>({{1, 2, 3, 4, 5, 6}, {5, 6, 7}},
-                                                 {-4.f, -4.f, -4.f, -1.f, -1.f, -1.f});
-    check_auto_bcast<op::Multiply, float, float>({{1, 2, 3, 4, 5, 6}, {5, 6, 7}},
-                                                 {5, 12, 21, 20, 30, 42});
-    check_auto_bcast<op::Divide, float, float>({{4, 5, 6, 7, 8, 9}, {1, 2, 3}},
-                                               {4, 2.5f, 2, 7, 4, 3});
-    check_auto_bcast<op::Maximum, float, float>({{1, 2, 3, 4, 5, 6}, {1, 5, 8}},
-                                                {1, 5, 8, 4, 5, 8});
-    check_auto_bcast<op::Minimum, float, float>({{1, 2, 3, 4, 5, 6}, {1, 5, 8}},
-                                                {1, 2, 3, 1, 5, 6});
-    check_auto_bcast<op::Power, float, float>({{1, 2, 3, 4, 5, 6}, {1, 2, 3}},
-                                              {1, 4, 27, 4, 25, 216},
-                                              op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY),
-                                              true);
-
-    check_auto_bcast<op::And, char, char>({{1, 0, 1, 0, 0, 1}, {1, 0, 1}}, {1, 0, 1, 0, 0, 1});
-    check_auto_bcast<op::Or, char, char>({{1, 0, 1, 0, 1, 1}, {1, 0, 0}}, {1, 0, 1, 1, 1, 1});
-
-    check_auto_bcast<op::Equal, uint8_t, char>({{1, 0, 1, 0, 1, 1}, {1, 0, 0}}, {1, 1, 0, 0, 0, 0});
-    check_auto_bcast<op::Greater, float, char>({{1, 2, 3, 4, 5, 6}, {1, 5, 8}}, {0, 0, 0, 1, 0, 0});
-    check_auto_bcast<op::GreaterEq, float, char>({{1, 2, 3, 4, 5, 6}, {1, 5, 8}},
-                                                 {1, 0, 0, 1, 1, 0});
-    check_auto_bcast<op::Less, uint8_t, char>({{1, 2, 3, 4, 5, 6}, {1, 5, 8}}, {0, 1, 1, 0, 0, 1});
-    check_auto_bcast<op::LessEq, uint8_t, char>({{1, 2, 3, 4, 5, 6}, {1, 5, 8}},
-                                                {1, 1, 1, 0, 1, 1});
-    check_auto_bcast<op::NotEqual, uint8_t, char>({{1, 2, 3, 4, 5, 6}, {1, 5, 8}},
-                                                  {0, 1, 1, 1, 0, 1});
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise_pdpd)
-{
-    const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
-    check_auto_bcast<op::Add, float, float>(
-        {{1, 2, 3, 4, 5, 6}, {5, 6, 7}}, {6, 8, 10, 9, 11, 13}, autob);
-    check_auto_bcast<op::Subtract, float, float>(
-        {{1, 2, 3, 4, 5, 6}, {5, 6, 7}}, {-4.f, -4.f, -4.f, -1.f, -1.f, -1.f}, autob);
-    check_auto_bcast<op::Multiply, float, float>(
-        {{1, 2, 3, 4, 5, 6}, {5, 6, 7}}, {5, 12, 21, 20, 30, 42}, autob);
-    check_auto_bcast<op::Divide, float, float>(
-        {{4, 5, 6, 7, 8, 9}, {1, 2, 3}}, {4, 2.5f, 2, 7, 4, 3}, autob);
-    check_auto_bcast<op::Maximum, float, float>(
-        {{1, 2, 3, 4, 5, 6}, {1, 5, 8}}, {1, 5, 8, 4, 5, 8}, autob);
-    check_auto_bcast<op::Minimum, float, float>(
-        {{1, 2, 3, 4, 5, 6}, {1, 5, 8}}, {1, 2, 3, 1, 5, 6}, autob);
-    check_auto_bcast<op::Power, float, float>(
-        {{1, 2, 3, 4, 5, 6}, {1, 2, 3}}, {1, 4, 27, 4, 25, 216}, autob, true);
-    check_auto_bcast<op::And, char, char>(
-        {{1, 0, 1, 0, 0, 1}, {1, 0, 1}}, {1, 0, 1, 0, 0, 1}, autob);
-    check_auto_bcast<op::Or, char, char>(
-        {{1, 0, 1, 0, 1, 1}, {1, 0, 0}}, {1, 0, 1, 1, 1, 1}, autob);
-
-    check_auto_bcast<op::Equal, uint8_t, char>(
-        {{1, 0, 1, 0, 1, 1}, {1, 0, 0}}, {1, 1, 0, 0, 0, 0}, autob);
-    check_auto_bcast<op::Greater, float, char>(
-        {{1, 2, 3, 4, 5, 6}, {1, 5, 8}}, {0, 0, 0, 1, 0, 0}, autob);
-    check_auto_bcast<op::GreaterEq, float, char>(
-        {{1, 2, 3, 4, 5, 6}, {1, 5, 8}}, {1, 0, 0, 1, 1, 0}, autob);
-    check_auto_bcast<op::Less, uint8_t, char>(
-        {{1, 2, 3, 4, 5, 6}, {1, 5, 8}}, {0, 1, 1, 0, 0, 1}, autob);
-    check_auto_bcast<op::LessEq, uint8_t, char>(
-        {{1, 2, 3, 4, 5, 6}, {1, 5, 8}}, {1, 1, 1, 0, 1, 1}, autob);
-    check_auto_bcast<op::NotEqual, uint8_t, char>(
-        {{1, 2, 3, 4, 5, 6}, {1, 5, 8}}, {0, 1, 1, 1, 0, 1}, autob);
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise_pdpd_dynamic)
 {
     auto pshape_a = PartialShape::dynamic();
@@ -180,7 +114,7 @@ NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise_pdpd_dynamic)
     auto b = make_shared<op::Parameter>(element::f32, pshape_b);
 
     op::AutoBroadcastSpec autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, -1);
-    auto f = make_shared<Function>(make_shared<op::Add>(a, b, autob), ParameterVector{a, b});
+    auto f = make_shared<Function>(make_shared<op::v1::Add>(a, b, autob), ParameterVector{a, b});
     auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
     auto ex = backend->compile(f);
 
@@ -198,7 +132,7 @@ NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_binary_elementwise_pdpd_dynamic)
 
     // a shape {2, 3, 4, 5}, b shape {3, 4} axis = 1
     autob = op::AutoBroadcastSpec(op::AutoBroadcastType::PDPD, 1);
-    f = make_shared<Function>(make_shared<op::Add>(a, b, autob), ParameterVector{a, b});
+    f = make_shared<Function>(make_shared<op::v1::Add>(a, b, autob), ParameterVector{a, b});
     ex = backend->compile(f);
     t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
     t_a = backend->create_tensor(element::f32, Shape{2, 3, 4, 5});
@@ -223,21 +157,53 @@ NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_string_cast)
     auto a = make_shared<op::Parameter>(element::f32, Shape{1});
     auto b = make_shared<op::Parameter>(element::f32, Shape{1});
 
-    auto add = make_shared<op::Add>(a, b, "NUMPY");
+    auto add = make_shared<op::v1::Add>(a, b, "NUMPY");
     ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::NUMPY);
 
-    add = make_shared<op::Add>(a, b, "NONE");
+    add = make_shared<op::v1::Add>(a, b, "NONE");
     ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::NONE);
 
-    add = make_shared<op::Add>(a, b, "PDPD");
+    add = make_shared<op::v1::Add>(a, b, "PDPD");
     ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::PDPD);
 
-    add = make_shared<op::Add>(a, b, "EXPLICIT");
+    add = make_shared<op::v1::Add>(a, b, "EXPLICIT");
     ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::EXPLICIT);
 
     try
     {
-        add = make_shared<op::Add>(a, b, "UNKNOWN");
+        add = make_shared<op::v1::Add>(a, b, "UNKNOWN");
+        FAIL() << "Unknown AutoBroadcastType not detected.";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Invalid 'type' value passed in."));
+    }
+    catch (...)
+    {
+        FAIL() << "AutoBroadcastType checking failed for unexpected reason";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, auto_bcast_string_cast_lowercase_attrs)
+{
+    auto a = make_shared<op::Parameter>(element::f32, Shape{1});
+    auto b = make_shared<op::Parameter>(element::f32, Shape{1});
+
+    auto add = make_shared<op::v1::Add>(a, b, "numpy");
+    ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::NUMPY);
+
+    add = make_shared<op::v1::Add>(a, b, "none");
+    ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::NONE);
+
+    add = make_shared<op::v1::Add>(a, b, "pdpd");
+    ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::PDPD);
+
+    add = make_shared<op::v1::Add>(a, b, "explicit");
+    ASSERT_EQ(add->get_autob(), op::AutoBroadcastType::EXPLICIT);
+
+    try
+    {
+        add = make_shared<op::v1::Add>(a, b, "unknown");
         FAIL() << "Unknown AutoBroadcastType not detected.";
     }
     catch (const ngraph_error& error)
