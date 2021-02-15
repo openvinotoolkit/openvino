@@ -187,6 +187,7 @@ class InjectionEdge final :
     VPU_MODEL_ATTRIBUTE(Stage, parent, nullptr)
     VPU_MODEL_ATTRIBUTE(StagePtr, child, nullptr)
     VPU_MODEL_ATTRIBUTE(int, portInd, -1)
+    VPU_MODEL_ATTRIBUTE(StageDependencyVector, injectedStageDependencies, {})
 
 private:
     InjectionEdge() : _posInStage(this) {}

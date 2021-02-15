@@ -888,6 +888,20 @@ Injection ModelObj::injectStageImpl(
     child->_parentStageEdge = edge;
 
     //
+    // Redirect child stage dependencies to parent.
+    //
+
+    for (const auto& parentDependencyEdge : child->parentDependencyEdges()) {
+        edge->_injectedStageDependencies.push_back(parentDependencyEdge);
+        replaceStageDependencyChild(parentDependencyEdge, parent);
+    }
+
+    for (const auto& childDependencyEdge : child->childDependencyEdges()) {
+        edge->_injectedStageDependencies.push_back(childDependencyEdge);
+        replaceStageDependencyParent(childDependencyEdge, parent);
+    }
+
+    //
     // Redirect child inputs to parent.
     //
 
@@ -1012,6 +1026,19 @@ void ModelObj::revertInjection(const Injection& edge) {
     //
 
     childStage->_ptrPosInModel = _stagePtrList.emplace(_stagePtrList.end(), childStage);
+
+    //
+    // Redirect stage dependencies back to child.
+    //
+
+    for (const auto& injectedStageDependency : edge->injectedStageDependencies()) {
+        if (parentStage == injectedStageDependency->parent()) {
+            replaceStageDependencyParent(injectedStageDependency, childStage);
+        } else {
+            replaceStageDependencyChild(injectedStageDependency, childStage);
+        }
+    }
+    edge->_injectedStageDependencies.clear();
 
     //
     // Remove Injection Edge from parent and child Stage.
