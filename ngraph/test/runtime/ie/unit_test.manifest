@@ -249,6 +249,8 @@ IE_CPU.nothing_to_reverse
 
 # Unsupported dynamic ops
 onnx_size_dyn_op
+onnx_model_gru_defaults_fwd_const_dynamic
+onnx_model_rnn_defaults_fwd_const_dynamic
 
 # Constant network
 # MKLDNNGraph::CreateGraph: No inputs for the topology
