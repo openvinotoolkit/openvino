@@ -21,12 +21,15 @@ public:
     bool created() const override;
 
     void withMeanImage();
-    InferenceEngine::Blob::Ptr getConstBlob() const;
+    MKLDNNMemoryPtr getConstBlob() const;
+
+private:
+    void cloneIfRequired(const InferenceEngine::Blob::Ptr & blob);
 
 private:
     InferenceEngine::Precision precision;
-
-    InferenceEngine::Blob::Ptr constBlob;
+    InferenceEngine::Blob::Ptr ieConstBlob;
+    MKLDNNMemoryPtr constBlob;
     bool isMeanImage = false;
 };
 

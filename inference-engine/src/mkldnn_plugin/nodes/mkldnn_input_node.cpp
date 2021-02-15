@@ -3,7 +3,10 @@
 //
 
 #include "mkldnn_input_node.h"
+#include "caseless.hpp"
+#include "common/cpu_memcpy.h"
 #include "../mkldnn_extension_utils.h"
+
 #include <string>
 #include <tuple>
 #include <algorithm>
@@ -22,11 +25,41 @@ MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, cons
         constant = ConstantType::Const;
         if (layer->blobs.size() != 1 || getType() != Input || !layer->blobs.begin()->second)
             IE_THROW() << "Incorrect const input " << getName();
-        constBlob = layer->blobs.begin()->second;
-    } else {
-        constBlob = nullptr;
+        cloneIfRequired(layer->blobs.begin()->second);
     }
 }
+
+void MKLDNNInputNode::cloneIfRequired(const InferenceEngine::Blob::Ptr & blob) {
+    ieConstBlob = blob;
+
+    auto memDesc = MKLDNNMemoryDesc(blob->getTensorDesc());
+
+    if (weightCache) {
+        char ptr[32];
+        snprintf(ptr, sizeof ptr, "%p", blob->cbuffer().as<const void*>());
+        const std::string key = getName()
+                                    + "_" + std::to_string(blob->byteSize())
+                                    + "_" + ptr;
+
+        auto cloneBlob = [&] () {
+            MKLDNNMemory memory{ getEngine() };
+            memory.Create(memDesc, blob->buffer());
+
+            MKLDNNMemoryPtr _ptr = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
+            _ptr->Create(memDesc);
+            _ptr->SetData(memory);
+
+            return _ptr;
+        };
+
+        constBlob = weightCache->findOrCreate(key, cloneBlob);
+>>>>>>> 8b96e6d32... Shared weights cache usage for const input nodes
+    } else {
+        constBlob = MKLDNNMemoryPtr(new MKLDNNMemory(getEngine()));
+        constBlob->Create(memDesc, blob->buffer());
+    }
+}
+
 
 void MKLDNNInputNode::getSupportedDescriptors() {
     if (getType() == Input) {
@@ -101,7 +134,7 @@ void MKLDNNInputNode::withMeanImage() {
     isMeanImage = true;
 }
 
-InferenceEngine::Blob::Ptr MKLDNNInputNode::getConstBlob() const {
+MKLDNNMemoryPtr MKLDNNInputNode::getConstBlob() const {
     return constBlob;
 }
 
