@@ -231,16 +231,6 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     const bool isPerChannelLayout = getParentEdgeAt(DATA_ID)->getMemory().GetDesc().isTailCFormat();
     params.maxDims += static_cast<size_t>(isBlockedLayout);
 
-    for (auto v : begin)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : end)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : stride)
-        std::cout << v << " ";
-    std::cout << std::endl;
-
     if (isBlockedLayout) {
         const size_t blk = params.srcDims.back();
         begin[1] = begin[1] / blk;
@@ -360,23 +350,6 @@ void MKLDNNStridedSliceNode::createPrimitive() {
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
         params.srcStrides[i] = params.srcStrides[i + 1] * params.srcDims[i + 1];
     }
-    std::cout  << std::endl << getName() << " : BEFORE GLUING " << std::endl;
-    for (auto v : params.srcDims)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : params.dstDims)
-        std::cout << v << " ";
-    std::cout << std::endl;
-
-    for (auto v : begin)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : end)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : stride)
-        std::cout << v << " ";
-    std::cout << std::endl;
 
     // gluing dimensions (reshaping)
     std::pair<size_t, size_t> secondDim = { 0, begin.size() };
@@ -392,9 +365,6 @@ void MKLDNNStridedSliceNode::createPrimitive() {
                 secondDim.second = idx;
         }
     }
-    for (auto v : indexes)
-        std::cout << v << " ";
-    std::cout << std::endl;
 
     if (indexes.back() < 2) {
         indexes[indexes.size() - 1] = 1;
@@ -405,10 +375,6 @@ void MKLDNNStridedSliceNode::createPrimitive() {
     const bool vLastDim = indexes.back() < begin.size();
     indexes[indexes.size() - 1] = vLastDim ? indexes.back() : begin.size() - 1;
     indexes.push_back(begin.size() - 1);
-    for (auto v : indexes)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    std::cout << secondDim.first << " " << secondDim.second << std::endl;
 
     for (int idx = indexes.size() - 1; idx >= 0; idx -= 2) {
         if (indexes[idx - 1] < indexes[idx]) {
@@ -434,12 +400,6 @@ void MKLDNNStridedSliceNode::createPrimitive() {
             stride.erase(stride.begin() + beginShift, stride.begin() + endShift);
         }
     }
-    for (auto v : params.srcDims)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : params.dstDims)
-        std::cout << v << " ";
-    std::cout << std::endl;
 
     params.workAmount = params.dstDims[0] * params.dstStrides[0] / nGluingLastDims;
     params.lastDstDim = nGluingLastDims * params.dataSize;
@@ -471,7 +431,6 @@ void MKLDNNStridedSliceNode::createPrimitive() {
 }
 
 void MKLDNNStridedSliceNode::execute(mkldnn::stream strm) {
-    std::cout << getName() << " execute " << std::endl;
     if (params.dstDims.size() > 1 && params.nDimsForWork == 1)
         stridedSliceV();
     else
@@ -496,29 +455,7 @@ void MKLDNNStridedSliceNode::stridedSliceV() {
     const size_t dstShift = params.dstStrides[1] * params.dataSize;
     const size_t srcShift = stride[1] * params.srcStrides[1] * params.dataSize;
 
-    std::cout  << std::endl << getName() << ": " << dstIdx << " " << srcIdx << " " << dstShift << " " << srcShift << " " << params.dstDims[0] << " "
-              << params.dstDims[1] << " " << begin[0] << " " << begin[1] << " " << params.srcStrides[0] << " " << params.srcStrides[1] << " "
-              << params.lastDstDim << std::endl;
-    for (auto v : this->getParentEdgeAt(DATA_ID)->getDims().ToSizeVector())
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : this->getChildEdgeAt(DATA_ID)->getDims().ToSizeVector())
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : params.srcDims)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : params.dstDims)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : params.srcStrides)
-        std::cout << v << " ";
-    std::cout << std::endl;
-    for (auto v : params.dstStrides)
-        std::cout << v << " ";
-    std::cout << getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc.getLayout() << std::endl;
     if (params.dstDims.size() > 2) {
-        std::cout << "2d" << std::endl;
         parallel_for2d(params.dstDims[0], params.dstDims[1], [&](const size_t i, const size_t j) {
             cpu_memcpy(&dstData[i * dstIdx + j * dstShift], &srcData[i * srcIdx + j * srcShift], params.lastDstDim);
         });
