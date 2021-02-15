@@ -17,8 +17,6 @@
 add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
-set(ONNX_LIBRARIES onnx onnx_proto)
-
 add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
@@ -421,14 +419,15 @@ endif()
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
-    # It's needed by onnx/onnx_import_library.cpp test and allows to NOT link statically
-    # to onnx lib, what conflicts with onnx_importer lib false failing onnx_editor tests.
-    foreach(_lib onnx onnx_proto ${Protobuf_LIBRARIES})
-        get_target_property(_incl_dirs ${_lib} INTERFACE_INCLUDE_DIRECTORIES)
-        target_include_directories(unit-test PRIVATE ${_incl_dirs})
-    endforeach()
-    get_target_property(_cmpl_defs_from_onnx onnx INTERFACE_COMPILE_DEFINITIONS)
-    target_compile_definitions(unit-test PRIVATE ${_cmpl_defs_from_onnx})
+    # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
+    # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
+    target_include_directories(unit-test
+        SYSTEM PRIVATE
+            $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
+            ${Protobuf_INCLUDE_DIRS})
+    target_compile_definitions(unit-test
+        PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 
     get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)

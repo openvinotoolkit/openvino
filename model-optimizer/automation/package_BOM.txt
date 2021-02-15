@@ -47,6 +47,7 @@ extensions/back/RemoveUselessConvert.py
 extensions/back/Reshape0DToSqueeze.py
 extensions/back/ReshapeMutation.py
 extensions/back/ResultNormalizer.py
+extensions/back/ResultRename.py
 extensions/back/ReverseInputChannels.py
 extensions/back/RNNSequenceTypeRename.py
 extensions/back/ScalarConstNormalize.py
