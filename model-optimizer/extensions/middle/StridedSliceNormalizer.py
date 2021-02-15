@@ -58,9 +58,10 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
                         |
 
     Input of a shape [16, 100, 100, 3] in NHWC layout, output = input[:, 0:50].
-    StridedSlice ill be extended to input[:, 0:50, :, :].
+    StridedSlice will be extended to input[:, 0:50, :, :].
     After permutation to NCHW output = input[:, :, 0:50, :].
-    Above is show only for begin input, for end and strides changes are analogous.
+    Example for 'begin' input transformation is shown above on the picture.
+    'end' and 'strides' inputs will be transformed the same way.
 
     2nd case example
     BEFORE:
@@ -87,12 +88,13 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
 
     Input of a shape [16, 10, 100, 100, 3] in NDHWC layout, output = input[1:4, ..., 1:51, 1:3],
     output_shape = [3, 10, 100, 50, 2]. In order to perform correct layout permutation
-    ellipsis should be exended: input[1:4, ..., 1:51, 1:3] => input[1:4, :, :, 1:51, 1:3].
-    Afterc layour permutation input[1:4, 1:3, :, : 1:5].
+    ellipsis must be replaced with colons: input[1:4, ..., 1:51, 1:3] => input[1:4, :, :, 1:51, 1:3].
+    After layour permutation input[1:4, 1:3, :, : 1:5].
 
-    In the places of colons blank zero begin, end and strides values
-    should be inserted. In order to do that we split begin, and concatenate with the blank zeros in the middle.
-    Above is show only for begin input, for end and strides changes are analogous.
+    In the places of colons blank begin, end and strides values should be inserted.
+    In order to do that we split input and insert blank zeros to the middle.
+    Example for 'begin' input transformation is shown above on the picture.
+    'end' and 'strides' inputs will be transformed the same way.
     """
     enabled = True
 
@@ -101,17 +103,17 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
         return [LayoutChangeForConstantShapePaths]
 
     def find_and_replace_pattern(self, graph: Graph):
-        for node in graph.get_op_nodes(op='StridedSlice'):
+        for node in graph.get_op_nodes(type='StridedSlice'):
             StridedSliceNormalizer.normalize_strided_slice(graph, node)
-            PermuteAttrs.create_permute_attrs(node, attrs=[('begin_mask', 'input:0'),  # but indeed depends from slice_rank
-                                                           ('end_mask', 'input:0'),
-                                                           ('new_axis_mask', 'input:0'),
-                                                           ('shrink_axis_mask', 'input:0'),
-                                                           ('ellipsis_mask', 'input:0')])
+            PermuteAttrs.create_permute_attrs(node,
+                                              attrs=[('begin_mask', 'input:0'),  # but indeed depends from slice_rank
+                                                     ('end_mask', 'input:0'),
+                                                     ('new_axis_mask', 'input:0'),
+                                                     ('shrink_axis_mask', 'input:0'),
+                                                     ('ellipsis_mask', 'input:0')])
 
-            # exceptional case, need to add permute edge ettributes here not during shape_infer
-            # if we specify during shape_infer we will get wrong ApplyPermutation because
-            # input data node will be changed
+            # StridedSliceNormalizer inserted nodes that changed original begin, end, and strides data nodes
+            # Until now it was not possible to set correct permutations
             PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:1', 'slice', 'dim_size')
             PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:2', 'slice', 'dim_size')
             PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:3', 'slice', 'dim_size')
@@ -120,12 +122,17 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
     def normalize_strided_slice(graph: Graph, node: Node):
         input_shape = node.in_port(0).data.get_shape()
         input_rank = len(input_shape)
-        slice_rank = node.in_port(1).data.get_shape()[0]
+        begin, _, _ = StridedSlice.validate_inputs_and_get_args(node)
+        slice_rank = len(begin)
 
         StridedSlice.align_mask_with_slice_rank(node, slice_rank)  # if StridedSlice is created after partial_infer
         StridedSliceNormalizer.normalize_slices_attr(node)
 
         num_insertions = input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
+        assert num_insertions >= 0, 'slice_rank - num_new_axis must <= input rank. Got instead: ' \
+                                    'input_rank = {}, slice_rank = {}, num_new_axis = {}'. \
+            format(input_rank, slice_rank, np.count_nonzero(node.new_axis_mask))
+
         if np.any(node.ellipsis_mask):
             assert np.count_nonzero(node.ellipsis_mask) == 1, 'only one ellipsis_mask nonzero value is allowed'
             ellipsis_start = np.nonzero(node.ellipsis_mask)[0][0]
@@ -133,75 +140,76 @@ class StridedSliceNormalizer(MiddleReplacementPattern):
             node.begin_mask[ellipsis_start] = 0
             node.end_mask[ellipsis_start] = 0
             node.ellipsis_mask[ellipsis_start] = 0
-            insertation_start_idx = ellipsis_start + 1
+            insertion_start_idx = ellipsis_start + 1
 
             StridedSliceNormalizer.unroll_ellipsis_for_inputs(graph, node, ellipsis_start, num_insertions)
         elif num_insertions > 0:
-            insertation_start_idx = slice_rank  # insert blank values to mask ends
+            insertion_start_idx = slice_rank  # insert blank values to mask ends
             StridedSliceNormalizer.extend_inputs(node, num_insertions)
 
         if num_insertions > 0:
             # insert blank values for ellipsis unrolling and extending
             for mask_name in StridedSlice.get_mask_names():
-                node[mask_name] = np.insert(node[mask_name], insertation_start_idx, [0] * num_insertions).astype(int)
+                node[mask_name] = np.insert(node[mask_name], insertion_start_idx, [0] * num_insertions).astype(int)
 
     @staticmethod
-    def unroll_ellipsis_for_inputs(graph: Graph, node: Node, ellipsis_start: int, num_ellipsis_ext: int):
+    def unroll_ellipsis_for_inputs(graph: Graph, node: Node, ellipsis_start: int, num_insertions: int):
         node_name = node.soft_get('name', node.id)
-        for i, slice_name in enumerate(('begin', 'end', 'strides')):
-            i += 1
-            placeholder_arr = np.zeros(num_ellipsis_ext) if i != 3 else np.ones(num_ellipsis_ext)
-            placeholder_node = Const(graph, {'name': node_name + '/const_to_unroll_{}_ellipsis'.format(slice_name),
-                                             'value': int64_array(placeholder_arr)}).create_node()
+
+        for i, input_name in [(1, 'begin'), (2, 'end'), (3, 'strides')]:
+            blank_values_arr = np.zeros(num_insertions) if input_name != 'strides' else np.ones(num_insertions)
+            blank_values_node = Const(graph, {'name': node_name + '/const_to_unroll_{}_ellipsis'.format(input_name),
+                                              'value': int64_array(blank_values_arr)}).create_node()
+
+            if input_name == 'strides' and node.in_port(3).disconnected():
+                continue  # no need to extend strides if they are not connected
 
             concat_in_ports_count = 3 if ellipsis_start != 0 else 2
-            concat = Concat(graph, {'axis': 0, 'name': node_name + '/concat_{}'.format(slice_name),
+            concat = Concat(graph, {'axis': 0, 'name': node_name + '/concat_{}'.format(input_name),
                                     'in_ports_count': concat_in_ports_count}).create_node()
 
             if ellipsis_start != 0:
                 split = create_op_with_const_inputs(graph, VariadicSplit, {1: int64_array(0),
                                                                            2: int64_array([ellipsis_start, -1])},
-                                                    {'name': node_name + '/split_for_{}_ellipsis'.format(slice_name),
+                                                    {'name': node_name + '/split_for_{}_ellipsis'.format(input_name),
                                                      'out_ports_count': 2})
                 node.in_port(i).get_connection().set_destination(split.in_port(0))
 
                 concat.in_port(0).connect(split.out_port(0))
-                concat.in_port(1).connect(placeholder_node.out_port(0))
+                concat.in_port(1).connect(blank_values_node.out_port(0))
                 concat.in_port(2).connect(split.out_port(1))
             else:
-                concat.in_port(0).connect(placeholder_node.out_port(0))
+                concat.in_port(0).connect(blank_values_node.out_port(0))
                 node.in_port(i).get_connection().set_destination(concat.in_port(1))
 
             concat.out_port(0).get_connection().set_destination(node.in_port(i))
 
     @staticmethod
-    def extend_inputs(node: Node, num_insertations: int):
+    def extend_inputs(node: Node, num_insertions: int):
         graph = node.graph
         node_name = node.soft_get('name', node.id)
 
-        for i, slice_name in enumerate(('begin', 'end', 'strides')):
-            i += 1
-            if node.in_port(3).disconnected():
-                break  # if strides are not specified no need for extending
+        for i, input_name in [(1, 'begin'), (2, 'end'), (3, 'strides')]:
+            blank_values_arr = np.zeros(num_insertions) if input_name != 'strides' else np.ones(num_insertions)
+            blank_values_node = Const(graph, {'name': node_name + '/extend_{}_const'.format(input_name),
+                                              'value': int64_array(blank_values_arr)}).create_node()
 
-            # for strides blank ones should be inserted
-            blank_values_arr = np.zeros(num_insertations) if i != 3 else np.ones(num_insertations)
-            blank_values_node = Const(graph, {'name': node_name + '/extend_{}_const'.format(slice_name),
-                                             'value': int64_array(blank_values_arr)}).create_node()
+            if input_name == 'strides' and node.in_port(3).disconnected():
+                continue  # no need to extend strides if they are not connected
 
             if node.in_port(i).get_source().node.soft_get('type') == 'Concat':
                 # concat already exists
                 concat = node.in_port(i).get_source().node
                 last_in_port = max(concat.in_ports().keys())
                 assert not concat.in_port(last_in_port).disconnected(), 'The last in_port of Concat node {}' \
-                                                                            'should be connected'.\
+                                                                        'should be connected'. \
                     format(concat.soft_get('name', node.id))
 
                 concat.add_input_port(last_in_port + 1)
                 concat.in_port(last_in_port + 1).connect(blank_values_node.out_port(0))
             else:
                 # have to create concat
-                concat = Concat(graph, {'axis': 0, 'name': node_name + '/concat_{}'.format(slice_name),
+                concat = Concat(graph, {'axis': 0, 'name': node_name + '/concat_{}'.format(input_name),
                                         'in_ports_count': 2}).create_node()
                 node.in_port(i).get_connection().set_destination(concat.in_port(0))
                 concat.in_port(1).connect(blank_values_node.out_port(0))

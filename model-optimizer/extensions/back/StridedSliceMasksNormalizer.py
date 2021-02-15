@@ -29,7 +29,7 @@ class StridedSliceMasksNormalizer(BackReplacementPattern):
         return [CropToStridedSlice, DeconvolutionNormalizer]
 
     def find_and_replace_pattern(self, graph: Graph):
-        for node in graph.get_op_nodes(op='StridedSlice'):
+        for node in graph.get_op_nodes(type='StridedSlice'):
             assert node.has_valid('begin_mask')
             assert node.has_valid('end_mask')
             node.begin_mask = int64_array([1 - i for i in node.begin_mask])

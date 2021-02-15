@@ -57,28 +57,14 @@ class StridedSlice(Op):
 
     @staticmethod
     def infer(node: Node):
-        node_name = node.soft_get('name', node.id)
-        begin = node.in_port(1).data.get_value()
-        end = node.in_port(2).data.get_value()
-        if begin is None or end is None:
-            raise Error(
-                'StridedSlice operation for node {} supports only constant begin and end inputs'.format(node_name))
-
-        if node.is_in_port_connected(3):
-            strides = node.in_port(3).data.get_value()
-            if strides is None:
-                raise Error('StridedSlice operation for node {} supports only constant strides input'.format(node_name))
-        else:
-            strides = np.ones_like(begin)
-
-        data_shape = node.in_port(0).data.get_shape()
-        data_value = node.in_port(0).data.get_value()
-        assert len(begin) == len(end) == len(strides), 'begin, end, and strides of StridedSlice node {} must ' \
-                                                       'be of the same length'.format(node_name)
+        begin, end, strides = StridedSlice.validate_inputs_and_get_args(node)
 
         StridedSlice.align_mask_with_slice_rank(node, len(begin))
 
+        data_shape = node.in_port(0).data.get_shape()
+        data_value = node.in_port(0).data.get_value()
         slices = StridedSlice.get_slices(node, data_shape, begin, end, strides)
+
         if data_value is not None:
             node.out_port(0).data.set_value(data_value[tuple(slices)])
         else:
@@ -87,8 +73,10 @@ class StridedSlice(Op):
         node['slices'] = slices
         node['force_precision_in_ports'] = {port: 'int64' for port in range(1, len(node.in_nodes()))}
 
-        # InputPermutations will be set after Normalizer, this is exceptional case
-        # if we specify input permute here ApplyPermutations will be wrong
+        # StridedSliceNormalizer inserts nodes that change original begin, end, and strides data nodes
+        # and since input permutations are stored in data nodes we end up having permutations
+        # in the wrong place of the graph.
+        # Therefore PermuteInputs will be set after StridedSliceNormalizer.
 
     @staticmethod
     def get_slices(node: Node, data_shape: Tuple, begin: np.array, end: np.array, strides: np.array) -> List:
@@ -124,3 +112,25 @@ class StridedSlice(Op):
             num_insertations = slice_rank - len(node[mask_name])
             val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end
             node[mask_name] = np.append(node[mask_name], [val] * num_insertations).astype(int)
+
+    @staticmethod
+    def validate_inputs_and_get_args(node: Node) -> (np.ndarray, np.ndarray, np.ndarray):
+        node_name = node.soft_get('name', node.id)
+        begin = node.in_port(1).data.get_value()
+        end = node.in_port(2).data.get_value()
+
+        if begin is None or end is None:
+            raise Error(
+                'StridedSlice operation for node {} supports only constant begin and end inputs'.format(node_name))
+
+        if node.is_in_port_connected(3):
+            strides = node.in_port(3).data.get_value()
+            if strides is None:
+                raise Error(
+                    'StridedSlice operation for node {} supports only constant strides input'.format(node_name))
+        else:
+            strides = np.ones_like(begin)
+        assert len(begin) == len(end) == len(strides), \
+            'begin, end, and strides of StridedSlice node {} must be of the same length. Got insted:' \
+            'begin = {}, end = {}, strides = {}'.format(node_name, begin, end, strides)
+        return begin, end, strides
