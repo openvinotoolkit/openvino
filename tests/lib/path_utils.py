@@ -2,7 +2,7 @@
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-""" Common utilities for working with processes.
+""" Common utilities for working with paths
 """
 
 import os
