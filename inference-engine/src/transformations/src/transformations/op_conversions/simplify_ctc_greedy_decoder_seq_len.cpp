@@ -37,6 +37,7 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
             }
         }
 
+        element::Type data_type = decoder_seq_len->input_value(0).get_element_type();
         element::Type seq_len_type = decoder_seq_len->input_value(1).get_element_type();
         // Transposing input data channels from [N, T, C] to [T, N, C]. Need for compatible with CTCGreedyDecoder v1
         auto transpose = std::make_shared<ngraph::opset6::Transpose>(decoder_seq_len->input_value(0),
@@ -80,10 +81,10 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         auto transpose_seq_mask = std::make_shared<ngraph::opset6::Transpose>(seq_mask->output(0),
                                                                               ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                Shape({2}), {1, 0}));
-        auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), element::f32);
+        auto transpose_seq_mask_f = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), data_type);
         // Create CTCGreedyDecoder with original merge_repeated attribute and connect data and resulted seq_mask
         auto decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
-                                                                          transpose_seq_mask_f32->output(0),
+                                                                          transpose_seq_mask_f->output(0),
                                                                           decoder_seq_len->get_merge_repeated());
         decoder->set_friendly_name(decoder_seq_len->get_friendly_name());
 
@@ -113,7 +114,7 @@ ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
         auto output_seq_len_i = std::make_shared<ngraph::opset6::Convert>(output_seq_len->output(0), sl_type);
         ngraph::copy_runtime_info(decoder_seq_len, {transpose, decoder, data_shape, T, N, plusT, plusT_scalar, range1T, mask_shape, upper_bounds,
                                                     squeeze2_output_f, squeeze1_output_f, transpose_upper_bounds, bool_seq_mask, seq_mask, transpose_seq_mask,
-                                                    transpose_seq_mask_f32, output_i, where_equal_minus1, output_seq_mask, output_seq_len, output_seq_len_i});
+                                                    transpose_seq_mask_f, output_i, where_equal_minus1, output_seq_mask, output_seq_len, output_seq_len_i});
 
         output_i->set_friendly_name(decoder_seq_len->get_friendly_name()+".0");
         output_seq_len_i->set_friendly_name(decoder_seq_len->get_friendly_name()+".1");

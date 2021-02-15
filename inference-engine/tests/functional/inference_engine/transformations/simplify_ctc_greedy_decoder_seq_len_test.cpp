@@ -40,8 +40,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenTest) {
 
     {
         auto data1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 7 });
-        auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::Shape{ 1 });
+        auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i64, ngraph::Shape{ 1 });
 
+        element::Type data_type = data1->get_element_type();
         element::Type seq_len_type = seq_len1->get_element_type();
         element::Type ci_type = element::i32;
         element::Type sl_type = element::i32;
@@ -82,7 +83,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenTest) {
         auto transpose_seq_mask = std::make_shared<ngraph::opset6::Transpose>(seq_mask->output(0),
                                                                               ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                Shape({2}), {1, 0}));
-        auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), element::f32);
+        auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), data_type);
         auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
                                                                                      transpose_seq_mask_f32->output(0),
                                                                                      true);
@@ -106,7 +107,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenTest) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
     }
 
-    auto res = compare_functions(f, f_ref, false, false, false, false);
+    auto res = compare_functions(f, f_ref, true, false, false, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -130,11 +131,12 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest) {
     }
 
     {
-        auto data1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+        auto data1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic());
         auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::Shape{ 1 });
 
+        element::Type data_type = data1->get_element_type();
         element::Type seq_len_type = seq_len1->get_element_type();
-        element::Type ci_type = element::i32;
+        element::Type ci_type = element::i64;
         element::Type sl_type = element::i32;
         auto transpose = std::make_shared<ngraph::opset6::Transpose>(data1,
                                                                      ngraph::opset6::Constant::create(element::i32,
@@ -173,9 +175,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest) {
         auto transpose_seq_mask = std::make_shared<ngraph::opset6::Transpose>(seq_mask->output(0),
                                                                               ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                Shape({2}), {1, 0}));
-        auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), element::f32);
+        auto transpose_seq_mask_f = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), data_type);
         auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
-                                                                                     transpose_seq_mask_f32->output(0),
+                                                                                     transpose_seq_mask_f->output(0),
                                                                                      true);
 
         auto squeeze2_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {3});
@@ -197,7 +199,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicInputShapeTest) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
     }
 
-    auto res = compare_functions(f, f_ref, false, false, false, false);
+    auto res = compare_functions(f, f_ref, true, false, false, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -224,6 +226,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
         auto data1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{Dimension::dynamic(), 3, 7});
         auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{Dimension::dynamic()});
 
+        element::Type data_type = data1->get_element_type();
         element::Type seq_len_type = seq_len1->get_element_type();
         element::Type ci_type = element::i32;
         element::Type sl_type = element::i64;
@@ -264,9 +267,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
         auto transpose_seq_mask = std::make_shared<ngraph::opset6::Transpose>(seq_mask->output(0),
                                                                               ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                Shape({2}), {1, 0}));
-        auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), element::f32);
+        auto transpose_seq_mask_f = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), data_type);
         auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
-                                                                                     transpose_seq_mask_f32->output(0),
+                                                                                     transpose_seq_mask_f->output(0),
                                                                                      true);
 
         auto squeeze2_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {3});
@@ -288,7 +291,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicBatchTest) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ output_i, output_seq_len_i }, ngraph::ParameterVector{ data1, seq_len1 });
     }
 
-    auto res = compare_functions(f, f_ref, false, false, false, false);
+    auto res = compare_functions(f, f_ref, true, false, false, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -315,6 +318,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
         auto data1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
         auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
 
+        element::Type data_type = data1->get_element_type();
         element::Type seq_len_type = seq_len1->get_element_type();
         element::Type ci_type = element::i64;
         element::Type sl_type = element::i64;
@@ -355,9 +359,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
         auto transpose_seq_mask = std::make_shared<ngraph::opset6::Transpose>(seq_mask->output(0),
                                                                               ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                Shape({2}), {1, 0}));
-        auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), element::f32);
+        auto transpose_seq_mask_f = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), data_type);
         auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
-                                                                                     transpose_seq_mask_f32->output(0),
+                                                                                     transpose_seq_mask_f->output(0),
                                                                                      true);
 
         auto squeeze2_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {3});
@@ -380,7 +384,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenTest) {
                                                    ngraph::ParameterVector{ data1, seq_len1 });
     }
 
-    auto res = compare_functions(f, f_ref, false, false, false, false);
+    auto res = compare_functions(f, f_ref, true, false, false, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -408,7 +412,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenWrongBlankIndexTest) {
     {
         auto data1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
         auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
-        auto blank_index1 = op::Constant::create(element::i32, Shape{}, {6});
+        auto blank_index1 = op::Constant::create(element::i32, Shape{}, {5});
 
         auto decoder_v6 = std::make_shared<ngraph::op::v6::CTCGreedyDecoderSeqLen>(data1, seq_len1, blank_index1,
                                                                                    true, ngraph::element::i64, ngraph::element::i64);
@@ -418,7 +422,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenWrongBlankIndexTest) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data1, seq_len1 });
     }
 
-    auto res = compare_functions(f, f_ref, false, false, false, false);
+    auto res = compare_functions(f, f_ref, true, false, false, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -447,6 +451,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlankIn
         auto data1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f32, ngraph::PartialShape{2, Dimension::dynamic(), 7});
         auto seq_len1 = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::i32, ngraph::PartialShape{2});
 
+        element::Type data_type = data1->get_element_type();
         element::Type seq_len_type = seq_len1->get_element_type();
         element::Type ci_type = element::i64;
         element::Type sl_type = element::i64;
@@ -487,9 +492,9 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlankIn
         auto transpose_seq_mask = std::make_shared<ngraph::opset6::Transpose>(seq_mask->output(0),
                                                                               ngraph::opset6::Constant::create(seq_len_type,
                                                                                                                Shape({2}), {1, 0}));
-        auto transpose_seq_mask_f32 = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), element::f32);
+        auto transpose_seq_mask_f = std::make_shared<ngraph::opset6::Convert>(transpose_seq_mask->output(0), data_type);
         auto simplified_decoder = std::make_shared<ngraph::opset6::CTCGreedyDecoder>(transpose,
-                                                                                     transpose_seq_mask_f32->output(0),
+                                                                                     transpose_seq_mask_f->output(0),
                                                                                      true);
 
         auto squeeze2_axis = ngraph::opset6::Constant::create(seq_len_type, Shape({1}), {3});
@@ -512,7 +517,7 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenWithBlankIn
                                                    ngraph::ParameterVector{ data1, seq_len1 });
     }
 
-    auto res = compare_functions(f, f_ref, false, false, false, false);
+    auto res = compare_functions(f, f_ref, true, false, false, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
 
@@ -550,6 +555,6 @@ TEST(TransformationTests, SimplifyCTCGreedyDecoderSeqLenDynamicSeqLenParamWithBl
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ res_1, res_2 }, ngraph::ParameterVector{ data1, seq_len1, blank_index1 });
     }
 
-    auto res = compare_functions(f, f_ref, false, false, false, false);
+    auto res = compare_functions(f, f_ref, true, false, false, true, true);
     ASSERT_TRUE(res.first) << res.second;
 }
