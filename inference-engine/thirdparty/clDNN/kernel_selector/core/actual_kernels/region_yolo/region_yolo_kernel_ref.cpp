@@ -50,10 +50,17 @@ RegionYoloKernelRef::DispatchData SetDefault(const region_yolo_params& params) {
     RegionYoloKernelRef::DispatchData dispatchData;
 
     const auto& input = params.inputs[0];
-    if (input.GetLayout() == DataLayout::bfyx) {
-        dispatchData.gws = {input.X().v * input.Y().v, 1, 1};
-    } else {
+
+    switch (input.GetLayout())
+    {
+    case DataLayout::bfyx:
+    case DataLayout::byxf: {
+        uint32_t region_num = params.do_softmax ? params.num : params.mask_size;
+        dispatchData.gws = {input.X().v * input.Y().v, region_num, input.Batch().v};
+    } break;
+    default:
         dispatchData.gws = {input.Feature().v * input.Batch().v, input.X().v, input.Y().v};
+        break;
     }
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
