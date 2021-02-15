@@ -45,11 +45,11 @@ To run the sample, you can use [public](@ref omz_models_public_index) or [Intel'
 For example, to do inference on a CPU with the OpenVINO&trade; toolkit person detection SSD models, run one of the following commands:
 
 ```sh
-./object_detection_sample_ssd -m <path_to_model>person-detection-retail-0013.xml -i <path_to_image>/inputImage.bmp -d CPU
+./object_detection_sample_ssd -m <path_to_model>/person-detection-retail-0013.xml -i <path_to_image>/inputImage.bmp -d CPU
 ```
 or
 ```sh
-./object_detection_sample_ssd -m <path_to_model>person-detection-retail-0002.xml -i <path_to_image>/inputImage.jpg -d CPU
+./object_detection_sample_ssd -m <path_to_model>/person-detection-retail-0002.xml -i <path_to_image>/inputImage.jpg -d CPU
 ```
 
 ## Sample Output

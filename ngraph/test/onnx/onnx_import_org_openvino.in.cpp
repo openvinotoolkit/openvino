@@ -39,7 +39,6 @@
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/onnx_utils.hpp"
 #include "default_opset.hpp"
-#include "exceptions.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/constant_folding.hpp"

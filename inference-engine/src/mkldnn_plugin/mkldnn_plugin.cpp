@@ -15,7 +15,6 @@
 #include <vector>
 #include <tuple>
 #include <ie_system_conf.h>
-#include <generic_ie.hpp>
 #include <nodes/list.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_transformer.h>
@@ -33,6 +32,7 @@
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
@@ -105,8 +105,6 @@ Engine::~Engine() {
 
 static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -228,6 +226,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->disable<ngraph::pass::ConvertMod>();
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
     pass_config->disable<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
+    pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
