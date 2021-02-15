@@ -18,7 +18,6 @@
 
 #include "core/null_node.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/op/max_pool.hpp"
 #include "op/max_pool.hpp"
 #include "utils/pooling_factory.hpp"
 
@@ -34,8 +33,7 @@ namespace ngraph
                 {
                     if (node.get_outputs_size() > 1)
                     {
-                        NGRAPH_WARN
-                            << "Indices output is not supported for MaxPooling and was ignored";
+                        NGRAPH_WARN << "MaxPool: Indices output is not supported and was ignored";
                     }
                     auto max_pool = pooling::PoolingFactory(node).make_max_pool();
                     max_pool.emplace_back(std::make_shared<NullNode>()); // Indices (optional)
