@@ -113,6 +113,12 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                     break;
                 case 2:
                 case 3:
+                {
+                    Header2dot3::ModelHeader tempHeader2dot3;
+                    readBits(tempHeader2dot3, is);
+                    header = HeaderLatest::ModelHeader(tempHeader2dot3);
+                    break;
+                }
                 case 4:
                 {
                     Header2dot4::ModelHeader tempHeader2dot4;
