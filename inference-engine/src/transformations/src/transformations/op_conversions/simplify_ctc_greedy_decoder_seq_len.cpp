@@ -11,10 +11,13 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLen, "SimplifyCTCGreedyDecoderSeqLen", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLen, "SimplifyCTCGreedyDecoder", 0);
 
-ngraph::matcher_pass_callback ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::simplify_ctc_greedy_decoder_seq_len() {
-    return [=](ngraph::pattern::Matcher& m) {
+ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::SimplifyCTCGreedyDecoderSeqLen() {
+    MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLen);
+    auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>();
+
+    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto decoder_seq_len = std::dynamic_pointer_cast<opset6::CTCGreedyDecoderSeqLen> (m.get_match_root());
         if (!decoder_seq_len) {
             return false;
@@ -23,13 +26,13 @@ ngraph::matcher_pass_callback ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::simp
         if (decoder_seq_len->get_input_size() > 2) {
             const auto seq_len_pshape = decoder_seq_len->get_input_partial_shape(0);
             auto blank_index = std::dynamic_pointer_cast<ngraph::opset6::Constant>(decoder_seq_len->input_value(2).get_node_shared_ptr());
-            if (!blank_index) {
+            if (!blank_index || seq_len_pshape.rank().is_dynamic() || seq_len_pshape[2].is_dynamic()) {
                 return false;
             }
 
             const std::vector<int64_t> &blank_index_values = blank_index->cast_vector<int64_t>();
             const auto num_classes = decoder_seq_len->get_input_partial_shape(0)[2].get_length();
-            if (blank_index_values[0] != (num_classes - 1)) {
+            if (blank_index_values[0] == (num_classes - 1)) {
                 return false;
             }
         }
@@ -118,28 +121,6 @@ ngraph::matcher_pass_callback ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::simp
 
         return true;
     };
-}
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLenWithoutBlankIndex, "SimplifyCTCGreedyDecoderSeqLenWithoutBlankIndex", 0);
-
-ngraph::pass::SimplifyCTCGreedyDecoderSeqLenWithoutBlankIndex::SimplifyCTCGreedyDecoderSeqLenWithoutBlankIndex() {
-    MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLenWithoutBlankIndex);
-    auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>();
-    ngraph::matcher_pass_callback callback = ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::simplify_ctc_greedy_decoder_seq_len();
-
-    auto m = std::make_shared<ngraph::pattern::Matcher>(decoder, matcher_name);
-    register_matcher(m, callback);
-}
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::SimplifyCTCGreedyDecoderSeqLenWithBlankIndex, "SimplifyCTCGreedyDecoderSeqLenWithBlankIndex", 0);
-
-ngraph::pass::SimplifyCTCGreedyDecoderSeqLenWithBlankIndex::SimplifyCTCGreedyDecoderSeqLenWithBlankIndex() {
-    MATCHER_SCOPE(SimplifyCTCGreedyDecoderSeqLenWithBlankIndex);
-    auto data = ngraph::pattern::any_input(pattern::has_static_dims({2}));
-    auto seq_len = ngraph::pattern::any_input();
-    auto blank_index = ngraph::pattern::any_input();
-    auto decoder = pattern::wrap_type<opset6::CTCGreedyDecoderSeqLen>({data, seq_len, data});
-    ngraph::matcher_pass_callback callback = ngraph::pass::SimplifyCTCGreedyDecoderSeqLen::simplify_ctc_greedy_decoder_seq_len();
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(decoder, matcher_name);
     register_matcher(m, callback);
