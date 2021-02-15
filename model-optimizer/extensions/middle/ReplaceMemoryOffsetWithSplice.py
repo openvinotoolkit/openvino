@@ -15,13 +15,13 @@
 """
 import numpy as np
 
-from extensions.front.kaldi.replace_lstm_node_pattern import create_const_with_batch_from_input
 from extensions.ops.splice import Splice
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.assign import Assign
 from mo.ops.concat import Concat
+from mo.ops.const import Const
 from mo.ops.crop import Crop
 from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
@@ -147,7 +147,9 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
 
         params = node.graph.get_op_nodes(op="Parameter")
 
-        init_value_memory_out = create_const_with_batch_from_input(params[0].out_port(0), in_shape[1]*node_t)
+        init_value_memory_out = Const(graph, {'name': 'init_value_' + pair_name,
+                                              'value': np.zeros(int64_array([in_shape[0], in_shape[1]*node_t])),
+                                              'shape': int64_array([in_shape[0], in_shape[1]*node_t])}).create_node()
         memory_out = ReadValue(graph, {'name': pair_name, 'variable_id': node_name+pair_name}).create_node()
         init_value_memory_out.out_port(0).connect(memory_out.in_port(0))
 
