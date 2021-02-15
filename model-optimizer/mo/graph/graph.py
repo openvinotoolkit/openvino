@@ -811,11 +811,12 @@ class Graph(nx.MultiDiGraph):
 
         def _node_label(node_id, node_attrs: dict, attrs_to_print: list):
             label = str(node_id) + '\\n' + '\\n'.join([str(key) + '=' + str(node_attrs.get(key, 'None'))
-                                                  for key in attrs_to_print if key in node_attrs])
+                                                       for key in attrs_to_print if key in node_attrs])
             if node_attrs.get('type', '') == 'Const':
                 if 'value' not in attrs_to_print and 'value' in node_attrs:
                     if node_attrs['value'] is not None:
-                        label += '\\nvalue=\\"' + ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
+                        label += '\\nvalue=\\"' + \
+                                 ','.join([str(val) for val in node_attrs['value'].flatten()])[:40] + '\\"'
                     else:
                         label += '\\nvalue=None'
             return label
@@ -869,7 +870,6 @@ class Graph(nx.MultiDiGraph):
         string += _dump_edges_attrs()
 
         string += '}'
-#        log.debug(string)
         log.debug("---- GRAPHVIZ OUTPUT ENDS ----")
 
         if save_to_svg:

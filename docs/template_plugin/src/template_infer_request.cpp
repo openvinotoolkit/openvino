@@ -131,13 +131,6 @@ void TemplateInferRequest::InferImpl() {
 }
 // ! [infer_request:infer_impl]
 
-// ! [infer_request:cancel]
-InferenceEngine::StatusCode TemplateInferRequest::Cancel() {
-    // TODO: add code to  handle cancellation request
-    return InferenceEngine::OK;
-}
-// ! [infer_request:cancel]
-
 template<typename SrcT, typename DstT>
 static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
     std::copy_n(InferenceEngine::as<InferenceEngine::MemoryBlob>(src)->rmap().as<const SrcT*>(),
@@ -244,7 +237,8 @@ void TemplateInferRequest::inferPostprocess() {
 // ! [infer_request:infer_postprocess]
 
 // ! [infer_request:get_performance_counts]
-void TemplateInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+std::map<std::string, InferenceEngineProfileInfo> TemplateInferRequest::GetPerformanceCounts() const {
+    std::map<std::string, InferenceEngineProfileInfo> perfMap;
     InferenceEngineProfileInfo info;
     info.execution_index = 0;
     info.status = InferenceEngineProfileInfo::EXECUTED;
@@ -259,5 +253,6 @@ void TemplateInferRequest::GetPerformanceCounts(std::map<std::string, InferenceE
     perfMap["4. output transfer from a device"] = info;
     info.cpu_uSec = info.realTime_uSec = _durations[Postprocess].count();
     perfMap["5. output postprocessing"] = info;
+    return perfMap;
 }
 // ! [infer_request:get_performance_counts]

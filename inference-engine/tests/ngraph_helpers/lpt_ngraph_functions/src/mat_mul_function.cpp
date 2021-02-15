@@ -292,10 +292,10 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
 std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
-    const FakeQuantizeOnData& fqOnData,
+    const FakeQuantizeOnDataWithConstant& fqOnData,
     const ngraph::Shape& weightsConstShape,
     const std::vector<float>& weightsConstValues,
-    const FakeQuantizeOnWeights& fqOnWeights) {
+    const FakeQuantizeOnDataWithConstant& fqOnWeights) {
     const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precision,
         inputShape);
@@ -314,7 +314,7 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
         lastDequantization,
         fakeQuantize,
         false,
-        false);
+        true);
     matMul->set_friendly_name("matMul");
 
     std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(matMul);

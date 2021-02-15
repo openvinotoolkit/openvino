@@ -38,6 +38,12 @@ std::vector<StridedSliceSpecificParams> testCases = {
     { { 1, 3, 4, 5, 6 }, { 0, 1, 0, 0, 0 }, { 1, 3, 4, 5, 6 }, { 1, 1, 1, 1, 1 }, {1, 0, 1, 1, 1}, {1, 0, 1, 1, 1},  {},  {},  {} },
     { { 2, 3, 4, 5, 6 }, { 0, 1, 0, 0, 0 }, { 2, 3, 4, 5, 6 }, { 1, 1, 1, 1, 1 }, {1, 0, 1, 1, 1}, {1, 0, 1, 1, 1},  {},  {0, 1, 0, 0, 0},  {} },
     { { 2, 3, 4, 5, 6 }, { 0, 1, 0, 0, 0 }, { 2, 3, 4, 5, 6 }, { 1, 1, 1, 1, 1 }, {1, 0, 1, 1, 1}, {1, 0, 1, 1, 1},  {},  {},  {0, 1, 0, 0, 0} },
+    { { 10 }, { -1 }, { -11 }, { -1 }, { 0 }, { 0 }, {}, {}, {} },
+    { { 10, 10 }, { -1, 0 }, { -11, 0 }, { -1, 1 }, { 0, 1 }, { 0, 1 }, {}, {}, {} },
+    { { 10, 10 }, { -1, -1 }, { -11, -11 }, { -1, -1 }, { 0, 0 }, { 0, 0 }, {}, {}, {} },
+    { { 1, 52, 52, 3, 2 }, { 0, 0, 0, 0, -1 }, { 0, 0, 0, 0, -2 }, { 1, 1, 1, 1, -1 }, { 1, 1, 1, 1, 0 }, { 1, 1, 1, 1, 0 }, {}, {}, {} },
+    { { 1, 52, 52, 3, 2 }, { 0, 0, 0, 0, -2 }, { 0, 0, 0, 0, -9223372036854775807 }, { 1, 1, 1, 1, -1 }, { 1, 1, 1, 1, 0 }, { 1, 1, 1, 1, 0 }, {}, {}, {} },
+    { { 1, 52, 52, 3, 2 }, { 0, 0, 0, 0, -1 }, { 0, 0, 0, 0, -9223372036854775807 }, { 1, 1, 1, 1, -1 }, { 1, 1, 1, 1, 0 }, { 1, 1, 1, 1, 0 }, {}, {}, {} },
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -46,11 +52,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 Config getConfig() {
-    Config config;
-    if (CommonTestUtils::vpu::CheckMyriad2()) {
-        config[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
-    }
-    return config;
+    return Config{ { InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO) } };
 }
 
 INSTANTIATE_TEST_CASE_P(smoke_StridedSlice_tests, StridedSliceLayerTest,

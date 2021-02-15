@@ -15,12 +15,11 @@
 //*****************************************************************************
 
 #include <memory>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/log.hpp"
 #include "ngraph/op/convert.hpp"
-#include "ngraph/op/multiply.hpp"
 #include "ngraph/op/not.hpp"
 #include "ngraph/op/select.hpp"
 #include "ngraph/runtime/reference/select.hpp"
@@ -146,6 +145,7 @@ namespace detail
             NGRAPH_TYPE_CASE(evaluate_select, u32, output_values, input_values, autob);
             NGRAPH_TYPE_CASE(evaluate_select, u64, output_values, input_values, autob);
             NGRAPH_TYPE_CASE(evaluate_select, bf16, output_values, input_values, autob);
+            NGRAPH_TYPE_CASE(evaluate_select, f16, output_values, input_values, autob);
             NGRAPH_TYPE_CASE(evaluate_select, f32, output_values, input_values, autob);
             NGRAPH_TYPE_CASE(evaluate_select, f64, output_values, input_values, autob);
             NGRAPH_TYPE_CASE(evaluate_select, boolean, output_values, input_values, autob);
@@ -160,6 +160,9 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_Select_evaluate);
+    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 3));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     const auto autob = get_auto_broadcast();
-    return detail::evaluate_select(output_values, input_values, autob, get_output_element_type(0));
+    return detail::evaluate_select(
+        output_values, input_values, autob, output_values[0]->get_element_type());
 }

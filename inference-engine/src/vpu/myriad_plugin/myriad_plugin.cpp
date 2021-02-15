@@ -21,8 +21,6 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <ngraph/pass/manager.hpp>
 
-#include "generic_ie.hpp"
-
 #include "myriad_plugin.h"
 
 using namespace InferenceEngine;
@@ -148,6 +146,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
     const auto executableNetwork =
             std::make_shared<ExecutableNetwork>(
                 model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    executableNetwork->SetPointerToPlugin(shared_from_this());
 
     return make_executable_network(executableNetwork);
 }

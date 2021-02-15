@@ -38,6 +38,7 @@
 #include "gna_upstream_iterator.hpp"
 #include "frontend/quantization.h"
 #include "gna_groups.hpp"
+#include "gna_graph_patterns.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -635,59 +636,19 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             continue;
         }
 
-        if (l->outData.size() != 1) {
-            continue;
+        CNNLayerPtr prev, next;
+        std::tie(prev, next) = FindPermutationsAroundConvolutionInNHWCModel(l);
+
+        if (prev == nullptr || next == nullptr) continue;
+
+        if (LayerInfo(prev).isPermute() && getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+            permutations_to_remove.insert(prev);
         }
 
-        if (getInputTo(l->outData.front()).empty()) {
-            continue;
+        if (LayerInfo(next).isPermute()) {
+            permutations_to_remove.insert(next);
         }
 
-        if (!CNNNetHasPrevLayer(l.get())) {
-            continue;
-        }
-
-        auto next = getInputTo(l->outData.front()).begin()->second;
-        while (!LayerInfo(next).isPermute() && !LayerInfo(next).isNonFunctional() && !LayerInfo(next).isOutput() &&
-               next->outData.size() == 1) {
-            auto input_to = getInputTo(next->outData.front());
-            if (input_to.size() != 1) break;
-            next = input_to.begin()->second;
-        }
-
-        // The next layer must be NCHW to NHWC permute
-        if (!LayerInfo(next).isPermute() || next->input()->getLayout() != Layout::NCHW ||
-            next->GetParamAsInts("order") != GetPermuteOrder(Layout::NCHW, Layout::NHWC)) {
-            continue;
-        }
-
-        auto parent = CNNNetPrevLayer(l);
-        auto prev = parent;
-        while (!LayerInfo(prev).isPermute() && !LayerInfo(prev).isNonFunctional() &&
-               !LayerInfo(prev).isInput() && CNNNetHasPrevLayer(prev.get())) {
-            prev = CNNNetPrevLayer(prev);
-        }
-        // The previous layer must be NHWC to NCHW permute or have 1D data
-        if (LayerInfo(prev).isPermute()) {
-            if (prev->outData[0]->getLayout() != Layout::NCHW ||
-                prev->GetParamAsInts("order") != GetPermuteOrder(Layout::NHWC, Layout::NCHW)) {
-                continue;
-            }
-
-            if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
-                permutations_to_remove.insert(prev);
-            }
-        } else  {
-            if (parent->outData.size() != 1 || getInputTo(parent->outData[0]).size() != 1) {
-                continue;
-            }
-            auto parent_dims = parent->outData[0]->getDims();
-            // Check if the previous layer has all dimensions except one to be equal to 1
-            if (std::count_if(std::begin(parent_dims), std::end(parent_dims), [](size_t dim) { return dim != 1; }) > 1) {
-                continue;
-            }
-        }
-        permutations_to_remove.insert(next);
         nhwc_layout_patterns.push_back({prev, next});
 
         auto* convolution = dynamic_cast<ConvolutionLayer*>(l.get());
@@ -769,6 +730,30 @@ void InsertIdentityLayerPass::run() {
                     break;
                 }
             }
+            // check if prev layer have id layer already connected to output
+            // if so reuse it instead of create new one
+            bool reconnected = false;
+            for (auto prev_layer_output : prev->outData) {
+                // prev ---------+--> identity --> layer XYZ
+                //               |
+                //               |  <= here we want to inject identity
+                //               |
+                //               +--> l layer
+                // but we may just connect l layer with existing identity
+                for (auto&& next_layer : getInputTo(prev_layer_output)) {
+                    auto child_of_prev_layer = next_layer.second;
+                    if (child_of_prev_layer.get() == true_layer.get()) {
+                        continue;
+                    } else if (LayerInfo(child_of_prev_layer).isIdentity()) {
+                        CNNNetworkReconnectLayer(prev, child_of_prev_layer, true_layer);
+                        reconnected = true;
+                        break;
+                    }
+                }
+            }
+            if (reconnected)
+                continue;
+
             int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
             // actual insertion
             auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
@@ -799,7 +784,7 @@ void InsertIdentityLayerPass::run() {
                                             activationLayer;
             getCreatorLayer(dataPtr) = activationLayerWithQuant;
             activationLayerWithQuant->outData.push_back(dataPtr);
-            // wether 1 identity or all outputs TODO possible grouping here, need to implement special groupped inserter
+            // wether 1 identity or all outputs TODO possible grouping here, need to implement special grouped inserter
             bool notAll = false;
             for (auto && nextData  : prev->outData) {
                 for (auto && nextLayer : getInputTo(nextData)) {
@@ -1438,6 +1423,8 @@ void EltwiseSplitOverChannelsPass::run() {
 
 void SubstituteScaleShiftBroadCastPass::run() {
     std::map<std::string, InferenceEngine::SizeVector> reshaped_data;
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+
     for (auto & l : *pLayers) {
         LayerInfo layerInfo(l);
 
@@ -1500,12 +1487,14 @@ void SubstituteScaleShiftBroadCastPass::run() {
                 scaleShift->_biases = tileBlob(scaleShift->_biases, nElements);
             }
 
-            // currently data type no providing reshape method of tensor desc
-            scaleShift->outData.front()->reshape({batchSize, nElements}, Layout::NC);
-            if (!was_reshaped) {
-                reshaped_data[insData->getName()] = insData->getDims();
-                insData->reshape({batchSize, nElements}, Layout::NC);
-            }
+            auto tensor = InferenceEngine::TensorDesc(insData->getTensorDesc());
+            tensor.reshape(SizeVector{ batchSize, nElements }, Layout::NC);
+            auto reshapeName = scaleShift->name + "_input_" + std::to_string(0) + "_reshape";
+            auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
+            auto layer_before_scale_shift = getCreatorLayer(insData);
+
+            CNNNetworkInsertLayer(layer_before_scale_shift.lock(), l, reshape);
+            gnalog() << "\tInserted " << reshapeName << " between " << layer_before_scale_shift.lock()->name << " and " << l->name << std::endl;
         } else {
             THROW_GNA_EXCEPTION << "Not implemented substitution of scaleshift broadcast policy of "
                                 << getPassManager()->getPolicy().ScaleShiftPolicy <<  "using layers tiling, layer: " << l->name;
@@ -2007,14 +1996,16 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 }
 
 int PassManager::run(int index) {
-#ifdef PLOT
+#if defined PLOT || defined ENABLE_V7_SERIALIZE
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
+#ifdef PLOT
         std::ofstream out(name + ".dot");
         saveGraphToDot(network, out, [](const CNNLayerPtr layer,
                                         ordered_properties &printed_properties,
                                         ordered_properties &node_properties) {});
-        network.serialize(name + ".xml", name + ".bin", nullptr);
+#endif
+        network.serialize(name + ".xml", name + ".bin");
     };
 #else
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};

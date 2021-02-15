@@ -5,16 +5,21 @@
 #include "ngraph_test_utils.hpp"
 
 #include <cassert>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <queue>
+#include <sstream>
 #include <string>
+#include <type_traits>
+#include <typeinfo>
 #include <vector>
 
 #include <ngraph/function.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/op/util/sub_graph_base.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
 namespace {
@@ -72,7 +77,7 @@ std::string to_str(const T& v) {
     return std::to_string(v);
 }
 
-std::pair<bool, std::string> error(std::string s) {
+FunctionsComparator::Result error(std::string s) {
     return {false, std::move(s)};
 }
 
@@ -118,7 +123,7 @@ using SubGraphOpInputDescription =
 using SubGraphOpOutputDescription =
     std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>;
 
-using SpecialBodyPorts = ngraph::op::v5::Loop::SpecialBodyPorts;
+using SpecialBodyPorts = ngraph::opset6::Loop::SpecialBodyPorts;
 
 namespace storage {
 
@@ -235,27 +240,21 @@ public:
 class ReadAndStoreAttributes : public ngraph::AttributeVisitor, protected storage::Storage {
 public:
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        if (auto inputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+        if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
             insert(name, inputs->get());
-        } else if (
-            auto outputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+        } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
             insert(name, outputs->get());
-        } else if (
-            auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+        } else if (auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
             insert(name, ports->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+            const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
+            const auto end = beg + a->get()->size();
+            insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
         } else {
             m_read_result += "store   attr [ ERR ]: " + name +
                              " [drop `void` comparison which is '" + adapter.get_type_info().name +
                              "']";
         }
-    }
-
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override {
-        const auto beg = static_cast<unsigned char*>(adapter.get_ptr());
-        const auto end = beg + adapter.size();
-        insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
     }
 
 #define ON_ADAPTER(TYPE)                                                                      \
@@ -326,9 +325,29 @@ struct Equal {
 };
 
 template <>
+struct Equal<ngraph::bfloat16> {
+  static bool equal_value(ngraph::bfloat16 lhs, ngraph::bfloat16 rhs) {
+    if (lhs.to_bits() == rhs.to_bits()) {
+        return true;
+    }
+    return std::abs(lhs - rhs) < 1e-3;
+  }
+};
+
+template <>
+struct Equal<ngraph::float16> {
+  static bool equal_value(ngraph::float16 lhs, ngraph::float16 rhs) {
+    if (lhs.to_bits() == rhs.to_bits()) {
+        return true;
+    }
+    return std::abs(lhs - rhs) < 1e-3;
+  }
+};
+
+template <>
 struct Equal<float> {
     static bool equal_value(float lhs, float rhs) {
-        return std::abs(lhs - rhs) < 1e-5;
+        return std::abs(lhs - rhs) < 1e-4;
     }
 };
 
@@ -339,19 +358,11 @@ struct Equal<double> {
     }
 };
 
-template <>
-struct Equal<std::vector<double>> {
-    static bool equal_value(const std::vector<double>& lhs, const std::vector<double>& rhs) {
+template <typename T>
+struct Equal<std::vector<T>> {
+    static bool equal_value(const std::vector<T>& lhs, const std::vector<T>& rhs) {
         return lhs.size() == rhs.size() &&
-               std::equal(begin(lhs), end(lhs), begin(rhs), Equal<double>::equal_value);
-    }
-};
-
-template <>
-struct Equal<std::vector<float>> {
-    static bool equal_value(const std::vector<float>& lhs, const std::vector<float>& rhs) {
-        return lhs.size() == rhs.size() &&
-               std::equal(begin(lhs), end(lhs), begin(rhs), Equal<float>::equal_value);
+               std::equal(begin(lhs), end(lhs), begin(rhs), Equal<T>::equal_value);
     }
 };
 
@@ -440,7 +451,95 @@ struct Equal<SpecialBodyPorts> {
     }
 };
 
+using Constant = ngraph::opset1::Constant;
+template <> struct Equal<std::shared_ptr<Constant>> {
+    static bool equal_value(const std::shared_ptr<Constant>& lhs,
+                            const std::shared_ptr<Constant>& rhs) {
+        const auto lhs_t = lhs->get_element_type();
+        const auto rhs_t = rhs->get_element_type();
+        if (lhs_t != rhs_t) {
+            return false;
+        }
+
+        switch (lhs_t) {
+        case ngraph::element::Type_t::bf16: {
+            auto lhs_v = lhs->cast_vector<ngraph::bfloat16>();
+            auto rhs_v = rhs->cast_vector<ngraph::bfloat16>();
+            return Equal<std::vector<ngraph::bfloat16>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        case ngraph::element::Type_t::f16: {
+            const auto &lhs_v = lhs->cast_vector<ngraph::float16>();
+            const auto &rhs_v = rhs->cast_vector<ngraph::float16>();
+            return Equal<std::vector<ngraph::float16>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        case ngraph::element::Type_t::f32: {
+            const auto &lhs_v = lhs->cast_vector<float>();
+            const auto &rhs_v = rhs->cast_vector<float>();
+            return Equal<std::vector<float>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        default: {
+            const auto &lhs_v = lhs->cast_vector<double>();
+            const auto &rhs_v = rhs->cast_vector<double>();
+            return Equal<std::vector<double>>::equal_value(lhs_v, rhs_v);
+            break;
+        }
+        }
+        return false;
+    }
+};
 }  // namespace equal
+
+namespace str {
+template <typename...>
+struct Void_t {
+    using type = void;
+};
+
+template <typename T, typename = void>
+struct Get {
+    static std::string value(const T&) {
+        return std::string("[Ups can't convert this to value: ") + typeid(T).name() + "]";
+    }
+};
+
+template <typename T>
+struct Get<T, typename Void_t<decltype(std::to_string(std::declval<T>()))>::type> {
+    static std::string value(const T& v) {
+        return "[" + std::to_string(v) + "]";
+    }
+};
+
+template <>
+struct Get<std::string, void> {
+    static std::string value(const std::string& v) {
+        return "[" + v + "]";
+    }
+};
+
+template <typename T>
+struct Get<
+    T,
+    typename Void_t<decltype(begin(std::declval<T>())), decltype(end(std::declval<T>()))>::type> {
+    template <typename Container>
+    static std::string join(const Container& c, const char* glue = ", ") {
+        std::stringstream oss;
+        const char* s = "";
+        for (const auto& v : c) {
+            oss << s << v;
+            s = glue;
+        }
+        return oss.str();
+    }
+
+    static std::string value(const T& v) {
+        return "[" + join(v) + "]";
+    }
+};
+
+}  // namespace str
 
 class ReadAndCompareAttributes : public ngraph::AttributeVisitor {
 public:
@@ -452,38 +551,29 @@ public:
             return;
         }
         m_visited_attributes.insert(name);
-        if (auto inputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
+        if (auto inputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
             verify(name, inputs->get());
-        } else if (
-            auto outputs =
-                ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
+        } else if (auto outputs = ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpOutputDescription>>(&adapter)) {
             verify(name, outputs->get());
-        } else if (
-            auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
+        } else if (auto ports = ngraph::as_type<ngraph::AttributeAdapter<SpecialBodyPorts>>(&adapter)) {
             verify(name, ports->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+            m_visited_attributes.insert(name);
+            const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
+            if (!ref_value) {
+                m_cmp_result += "missing attribute name: '" + name + "'";
+                return;
+            }
+
+            if (a->get()->size() != ref_value->size() ||
+                std::memcmp(ref_value->data(), a->get()->get_ptr(), ref_value->size()) != 0) {
+                m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
+                return;
+            }
         } else {
             m_cmp_result += "compare attr [ ERR ]: " + name +
                             " [drop `void` comparison which is '" + adapter.get_type_info().name +
                             "']";
-        }
-    }
-
-    void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override {
-        if (should_return()) {
-            return;
-        }
-        m_visited_attributes.insert(name);
-        const auto ref_value = m_attr_ref.get<storage::MemoryChunk>(name);
-        if (!ref_value) {
-            m_cmp_result += "missing attribute name: " + name;
-            return;
-        }
-
-        if (adapter.size() != ref_value->size() ||
-            std::memcmp(ref_value->data(), adapter.get_ptr(), ref_value->size()) != 0) {
-            m_cmp_result += "mismatch in value: " + name;
-            return;
         }
     }
 
@@ -547,13 +637,14 @@ private:
         m_visited_attributes.insert(name);
         const auto ref_value = m_attr_ref.get<AttrValue>(name);
         if (!ref_value) {
-            m_cmp_result += "missing attribute name: " + name;
+            m_cmp_result += "missing attribute name: '" + name + "'";
             return;
         }
 
         if (!equal::Equal<AttrValue>::equal_value(*ref_value, attr_value)) {
-            m_cmp_result += "mismatch in value: " + name;
-            return;
+            m_cmp_result += "mismatch in value: '" + name +
+                            "' : " + str::Get<AttrValue>::value(*ref_value) + " vs " +
+                            str::Get<AttrValue>::value(attr_value);
         }
     }
 
@@ -599,23 +690,19 @@ private:
     attr_comparison::ReadAndStoreAttributes m_store_attr;
     attr_comparison::ReadAndCompareAttributes m_compare_attr;
 };
+
 }  // namespace
 
-std::pair<bool, std::string> compare_functions(
+FunctionsComparator::Result FunctionsComparator::compare(
     const std::shared_ptr<ngraph::Function>& f1,
-    const std::shared_ptr<ngraph::Function>& f2,
-    const bool compareConstValues,
-    const bool compareNames,
-    const bool compareRuntimeKeys,
-    const bool comparePrecisions,
-    const bool compareAttributes) {
+    const std::shared_ptr<ngraph::Function>& f2) const {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
      * + Check number of inputs
      * + Check shapes
      * + Check parent ports
-     * - Do not check nodes attributes (requires visitor mechanism to be completed)
+     * + Check node attributes by Visitor API
      */
 
     auto f1_results = f1->get_results();
@@ -645,7 +732,7 @@ std::pair<bool, std::string> compare_functions(
     std::unordered_set<ngraph::Node*> used;
 
     for (size_t i = 0; i < f1_results.size(); ++i) {
-        if (compareNames) {
+        if (should_compare(NAMES)) {
             if (name(f1_results[i]->get_input_node_shared_ptr(0)) !=
                 name(f2_results[i]->get_input_node_shared_ptr(0))) {
                 return error(
@@ -673,11 +760,9 @@ std::pair<bool, std::string> compare_functions(
         auto subgraph2 = dynamic_cast<ngraph::op::util::SubGraphOp*>(node2);
 
         if (subgraph1 && subgraph2) {
-            auto res = compare_functions(
-                subgraph1->get_function(), subgraph2->get_function(), compareConstValues,
-                compareNames, compareRuntimeKeys, comparePrecisions, compareAttributes);
-            if (!res.first) {
-                return res;
+            auto result = compare(subgraph1->get_function(), subgraph2->get_function());
+            if (!result.valid) {
+                return result;
             }
         }
 
@@ -703,30 +788,21 @@ std::pair<bool, std::string> compare_functions(
         }
 
         for (int i = 0; i < node1->inputs().size(); ++i) {
-            if (compareConstValues) {
+            if (should_compare(CONST_VALUES)) {
                 using Constant = ngraph::opset1::Constant;
                 auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
                 auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
-
-                const auto equal = [](std::shared_ptr<Constant> c1, std::shared_ptr<Constant> c2) {
-                    const auto& c1v = c1->cast_vector<double>();
-                    const auto& c2v = c2->cast_vector<double>();
-
-                    return c1v.size() == c2v.size() && std::equal(
-                                                           begin(c1v), end(c1v), begin(c2v),
-                                                           [](const double& s1, const double& s2) {
-                                                               return std::abs(s1 - s2) < 0.001;
-                                                           });
-                };
-
-                if (const1 && const2 && !equal(const1, const2)) {
+                using namespace ::attr_comparison::equal;
+                if (const1 && const2 &&
+                        !Equal<std::shared_ptr<Constant>>::equal_value(const1, const2)) {
                     err_log << "Different Constant values detected\n"
                             << node1->description() << " Input(" << i << ") and "
-                            << node2->description() << " Input(" << i << ")" << std::endl;
+                            << node2->description() << " Input(" << i << ")"
+                            << std::endl;
                 }
             }
 
-            if (comparePrecisions) {
+            if (should_compare(PRECISIONS)) {
                 if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
                     err_log << "Different element type detected\n"
                             << name(node1) << " Input(" << i << ") "
@@ -755,7 +831,7 @@ std::pair<bool, std::string> compare_functions(
                         << idx2 << std::endl;
             }
 
-            if (compareRuntimeKeys && !compare_rt_keys(node1, node2)) {
+            if (should_compare(RUNTIME_KEYS) && !compare_rt_keys(node1, node2)) {
                 err_log << "Different runtime info detected\n"
                         << name(node1) << " and " << name(node2) << " not equal runtime info."
                         << std::endl;
@@ -772,8 +848,22 @@ std::pair<bool, std::string> compare_functions(
             const auto& tensor2 = node2->output(i).get_tensor();
 
             if (tensor1.get_names() != tensor2.get_names()) {
-                err_log << "Output tensors names are different for nodes: "
-                    << node1->get_friendly_name() << " and " << node2->get_friendly_name() << std::endl;
+                std::string names1 = "";
+                for (const auto& name : tensor1.get_names()) {
+                    if (!names1.empty())
+                        names1 += ", ";
+                    names1 += name;
+                }
+                names1 = "\"" + names1 + "\"";
+                std::string names2 = "";
+                for (const auto& name : tensor2.get_names()) {
+                    if (!names2.empty())
+                        names2 += ", ";
+                    names2 += name;
+                }
+                names2 = "\"" + names2 + "\"";
+                err_log << "Output tensors names " << names1 << " and " << names2 << " are different for nodes: "
+                        << node1->get_friendly_name() << " and " << node2->get_friendly_name() << std::endl;
             }
             if (!node1->output(i).get_partial_shape().same_scheme(
                     node2->output(i).get_partial_shape())) {
@@ -785,7 +875,7 @@ std::pair<bool, std::string> compare_functions(
             }
         }
 
-        if (compareAttributes) {
+        if (should_compare(ATTRIBUTES)) {
             CompareNodesAttributes compare_nodes;
             node1->visit_attributes(compare_nodes.get_ref_reder());
             node2->visit_attributes(compare_nodes.get_cmp_reader());
