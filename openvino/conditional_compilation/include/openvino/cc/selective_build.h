@@ -167,7 +167,7 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs) {
     const bool is_matched = val == cs.value;
     if (is_matched) {
         openvino::itt::ScopedTask<domain> task(
-            openvino::itt::handle<struct OV_CC_CAT(Task_, __LINE__)>(
+            openvino::itt::handle(
                 std::string(region) + "$" + cs.name));
         Fn<typename Case::type>()(std::forward<Ctx>(ctx));
     }

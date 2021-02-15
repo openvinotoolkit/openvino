@@ -61,9 +61,9 @@ To run the sample, you can use RMNet_SSD or other object-detection models. You c
 > 
 > The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-You can do inference of an image using a trained RMNet_SSD network on FPGA with fallback to CPU using the following command:
+You can do inference of an image using the [person detection SSD model](@ref omz_models_intel_person_detection_retail_0013_description_person_detection_retail_0013) from the Open Model Zoo on CPU using the following command:
 ```
-    python3 object_detection_sample_ssd.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d HETERO:FPGA,CPU
+    python3 object_detection_sample_ssd.py -i <path_to_image>/cat.bmp -m <path_to_model>/person-detection-retail-0013.xml -d CPU
 ```
 
 ## Sample Output
