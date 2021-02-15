@@ -25,29 +25,6 @@ namespace ngraph
     {
         namespace reference
         {
-            struct DeformableConvolutionParams
-            {
-                std::vector<int> strides;
-                std::vector<int> dilation;
-                std::vector<int> pads_begin;
-                std::vector<int> pads_end;
-                int64_t groups;
-                int64_t deformable_groups;
-
-                DeformableConvolutionParams(const Strides& strides_,
-                                            const Strides& dilation_,
-                                            const CoordinateDiff& pads_begin_,
-                                            const CoordinateDiff& pads_end_,
-                                            const int64_t groups_,
-                                            const int64_t deformable_groups_)
-                    : strides{strides_.begin(), strides_.end()}
-                    , dilation{dilation_.begin(), dilation_.end()}
-                    , pads_begin{pads_begin_.begin(), pads_begin_.end()}
-                    , pads_end{pads_end_.begin(), pads_end_.end()}
-                    , groups{groups_}
-                    , deformable_groups{deformable_groups_} {};
-            };
-
             template <typename T>
             void deformable_convolution(const T* in,
                                         const T* f,
@@ -67,11 +44,6 @@ namespace ngraph
                 NGRAPH_CHECK(in_shape.size() == 4, "Unsupported input rank: ", in_shape);
 
                 NGRAPH_CHECK(f_shape.size() == 4, "Unsupported kernel rank: ", f_shape);
-
-                // here we are converting all param types to int's to avoid arithmetic issues
-                // (e.g signed + unsigned) in indexes calculation later
-                DeformableConvolutionParams params{
-                    strides, dilation, pads_begin, pads_end, groups, deformable_groups};
 
                 const T* group_batch = in;
                 const Shape group_batch_shape = [&]() {
