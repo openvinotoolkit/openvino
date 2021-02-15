@@ -6,7 +6,7 @@
 
 **Short description**: Computes 2D convolution of binary input and binary kernel tensors.
 
-**Detailed description**: The operation bahaves as regular *Convolution* but uses specialized algorithm for computations on binary data. More thorough explanation can be found in [Understanding Binary Neural Networks](https://sushscience.wordpress.com/2017/10/01/understanding-binary-neural-networks/) and [Bitwise Neural Networks](https://saige.sice.indiana.edu/wp-content/uploads/icml2015_mkim.pdf).  
+**Detailed description**: The operation behaves as regular *Convolution* but uses specialized algorithm for computations on binary data. More thorough explanation can be found in [Understanding Binary Neural Networks](https://sushscience.wordpress.com/2017/10/01/understanding-binary-neural-networks/) and [Bitwise Neural Networks](https://saige.sice.indiana.edu/wp-content/uploads/icml2015_mkim.pdf).  
 
 
 Computation algorithm for mode *xnor-popcount*: 
