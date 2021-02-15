@@ -43,7 +43,7 @@ The types of input scalars `on_value` and `off_value` should match and be equal 
 
 **Types**
 
-* *T1*: any supported integer data type.
+* *T1*: `int32` or `int64`.
 
 * *T2*: any supported data type.
 
