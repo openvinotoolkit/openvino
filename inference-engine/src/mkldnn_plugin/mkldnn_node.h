@@ -348,19 +348,19 @@ public:
 
     void addOriginalLayer(const InferenceEngine::CNNLayerPtr &layer);
 
-    const std::vector <MKLDNNNodePtr> &getMergeWith() {
+    const std::vector <MKLDNNNodePtr> & getMergeWith() {
         return mergedWith;
     }
 
-    const std::vector <MKLDNNNodePtr> &getFusedWith() {
+    const std::vector <MKLDNNNodePtr> & getFusedWith() {
         return fusedWith;
     }
 
-    const std::string getName() const {
+    const std::string & getName() const {
         return name;
     }
 
-    const std::string getOriginalLayers() const {
+    const std::string & getOriginalLayers() const {
         return originalLayers;
     }
 

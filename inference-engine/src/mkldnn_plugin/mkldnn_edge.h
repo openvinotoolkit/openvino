@@ -47,7 +47,7 @@ public:
     void init();
     void allocate(const void* mem_ptr = nullptr);
     void externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache);
-    void reuse(InferenceEngine::Blob::Ptr blob);
+    void reuse(MKLDNNMemoryPtr blob);
     void validate();
     void drop();
 

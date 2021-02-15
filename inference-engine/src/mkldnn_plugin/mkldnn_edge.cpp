@@ -212,11 +212,11 @@ void MKLDNNEdge::externalAllocate(MKLDNNWeightsSharing::Ptr weightsCache) {
     }
 }
 
-void MKLDNNEdge::reuse(InferenceEngine::Blob::Ptr blob) {
+void MKLDNNEdge::reuse(MKLDNNMemoryPtr blob) {
     if (status != Status::NeedAllocation)
         return;
-    memoryFromBlob = blob;
-    allocate(blob->cbuffer());
+    externalMemoryPtr = blob;
+    allocate(blob->GetPtr());
 }
 
 void MKLDNNEdge::changeStatus(MKLDNNEdge::Status state) {
