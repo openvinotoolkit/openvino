@@ -51,7 +51,6 @@ private:
         InferenceEngine::SizeVector dstDims;
         InferenceEngine::SizeVector srcStrides;
         InferenceEngine::SizeVector dstStrides;
-        size_t maxDims;
         size_t nDimsForWork;
         size_t workAmount;
         size_t lastDstDim;
