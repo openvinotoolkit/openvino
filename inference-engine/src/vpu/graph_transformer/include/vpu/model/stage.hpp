@@ -176,6 +176,7 @@ VPU_DECLARE_ENUM(StageType,
     Ceiling = 138,
     GatherElements = 139,
     Round = 140,
+    CTCGreedyDecoderSeqLen = 141,
 )
 
 //

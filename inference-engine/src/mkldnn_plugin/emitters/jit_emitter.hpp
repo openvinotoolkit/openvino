@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <cpu/x64/jit_generator.hpp>
+
 #include "mkldnn_node.h"
 
 #include <set>
@@ -25,20 +26,26 @@ struct emitter_context {
 
 class jit_emitter {
 public:
-    jit_emitter(mkldnn::impl::cpu::x64::jit_generator* host, mkldnn::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode* node,
+    jit_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode* node,
                 InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
-        : h(host), host_isa_(host_isa), n(node), exec_prc_(exec_prc), in_out_type_(in_out_type) {
+        : h(host), host_isa_(host_isa), exec_prc_(exec_prc), in_out_type_(in_out_type), l_table (new Xbyak::Label()) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
     }
 
-    virtual void emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                      const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {});
+    jit_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
+                InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
+        : h(host), host_isa_(host_isa), exec_prc_(exec_prc), in_out_type_(in_out_type), l_table (new Xbyak::Label()) {
+        k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
+    }
 
-    virtual void emit(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+    virtual void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                   const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const;
+    virtual void emit_data() const;
+
+    virtual void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                       const std::shared_ptr<const emitter_context> &emit_context,
                       const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {});
-    virtual void emit_table();
-    virtual size_t get_inputs_num() = 0;
+    virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
     static std::set<InferenceEngine::Precision> get_supported_precisions();
 
@@ -48,17 +55,15 @@ protected:
     size_t get_max_vecs_count() const;
     size_t get_vec_length() const;
 
-    const MKLDNNNode* n;
     mkldnn::impl::cpu::x64::jit_generator* h;
     mkldnn::impl::cpu::x64::cpu_isa_t host_isa_;
     InferenceEngine::Precision exec_prc_;
-
     Xbyak::Opmask k_mask;
 
     virtual void prepare_table();
     virtual void register_table_entries() {}
 
-    void load_table_addr() { h->mov(p_table, l_table); }
+    void load_table_addr() const { h->mov(p_table, *l_table.get()); }
 
     // we accept only 32bit hexadecimal table values to avoid any rounding
     using table_entry_val_t = uint32_t;
@@ -75,8 +80,8 @@ protected:
         table_entry_bcast_t bcast;
     };
 
-    Xbyak::Reg64 p_table;
-    Xbyak::Label l_table;
+    mutable Xbyak::Reg64 p_table;
+    mutable std::shared_ptr<Xbyak::Label> l_table;
 
     enum {
         _cmp_eq_oq = mkldnn::impl::cpu::x64::jit_generator::_cmp_eq_oq,
@@ -89,16 +94,16 @@ protected:
 
     virtual void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                            const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                           const emitter_context *emit_context) = 0;
+                           const emitter_context *emit_context) const = 0;
 
     virtual void emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                          const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs);
-    virtual void emitter_postamble();
+                          const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const;
+    virtual void emitter_postamble() const;
 
     emitter_in_out_map in_out_type_;
 
-    std::vector<size_t> aux_vec_idxs;
-    std::vector<size_t> aux_gpr_idxs;
+    mutable std::vector<size_t> aux_vec_idxs;
+    mutable std::vector<size_t> aux_gpr_idxs;
 
     static constexpr int k_mask_size = 8;
 
@@ -126,8 +131,8 @@ protected:
     }
 
 private:
-    std::vector<size_t> preserved_vec_idxs;
-    std::vector<size_t> preserved_gpr_idxs;
+    mutable std::vector<size_t> preserved_vec_idxs;
+    mutable std::vector<size_t> preserved_gpr_idxs;
 
     void push_vec(const Xbyak::Address &addr, size_t vec_idx) const;
     void pop_vec(size_t vec_idx, const Xbyak::Address &addr) const;
