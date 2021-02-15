@@ -798,11 +798,15 @@ MKLDNNMemoryDesc MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_ite
 }
 
 const mkldnn::memory& MKLDNNConvolutionNode::getWeights() const {
-    return baseInputsNumber > 1 ? getParentEdgeAt(1)->getMemory().GetPrimitive() : internalBlobMemory[0]->GetPrimitive();
+    if (baseInputsNumber > 1)
+        return getParentEdgeAt(1)->getMemory().GetPrimitive();
+    THROW_IE_EXCEPTION << "Convolution layer " << getName() << " has no input weights";
 }
 
 const mkldnn::memory& MKLDNNConvolutionNode::getBias() const {
-    return baseInputsNumber > 2 ? getParentEdgeAt(2)->getMemory().GetPrimitive() : internalBlobMemory[1]->GetPrimitive();
+    if (baseInputsNumber > 2)
+        return getParentEdgeAt(2)->getMemory().GetPrimitive();
+    THROW_IE_EXCEPTION << "Convolution layer " << getName() << " has no input biases";
 }
 
 InferenceEngine::Precision MKLDNNConvolutionNode::getRuntimePrecision() const {
