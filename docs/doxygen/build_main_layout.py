@@ -32,7 +32,7 @@ def build_layout(openvino):
     ns = {"xi": "http://www.w3.org/2001/XInclude"}
     root = etree.parse(openvino)
     root.xinclude()
-    return etree.tostring(root, pretty_print=True)
+    return etree.tostring(root, pretty_print=True, encoding='utf-8')
 
 
 if __name__ == '__main__':

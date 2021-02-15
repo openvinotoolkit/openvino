@@ -30,6 +30,7 @@ namespace ngraph
             class NGRAPH_API SubGraphOp : public Op
             {
             public:
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Describes a connection between a SubGraphOp input and the body.
                 class InputDescription
                 {

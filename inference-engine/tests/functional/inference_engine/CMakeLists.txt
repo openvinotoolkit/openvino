@@ -206,13 +206,11 @@ endif()
 #
 
 ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
-                                         HEADERS_TO_SKIP "generic_ie.hpp"
                                          CXX_STANDARD 17 PLUGIN_API)
 
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWarningsAreErrors
-                                                 HEADERS_TO_SKIP "generic_ie.hpp"
                                                  FLAGS "-Werror-all -Werror -Wall"
                                                  PLUGIN_API)
     else()
