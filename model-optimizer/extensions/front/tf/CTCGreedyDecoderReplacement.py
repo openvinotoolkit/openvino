@@ -73,14 +73,3 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
 
         # remove no longer needed nodes
         graph.remove_nodes_from([sparse_to_dense.id, cast.id, ctc_greedy_decoder_tf.id])
-
-        # unless the second input of CTCGreedyDecoder is a parameter, it enforces MO to use --static-shape
-        # to try getting the second input with a value
-        sequence_length_node = ctc_greedy_decoder.in_node(1)
-        if sequence_length_node.soft_get('op') != 'Parameter' and not graph.graph['cmd_params'].static_shape:
-            log.error(
-                "Model can not be translated in a reshape-able way.\n"
-                "Model Optimizer key static_shape was turned on to prevent related errors.\n"
-                "There will be no success changing input shapes of the model with the help of "
-                "InferenceEngine reshape method", extra={'is_warning': True})
-            graph.graph['cmd_params'].static_shape = True
