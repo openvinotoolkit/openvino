@@ -32,7 +32,6 @@
 #include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
-#include "generic_ie.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -44,7 +43,6 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
                                                       bool constFolding) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "copyFunction");
 
-    ::ngraph::op::GenericIE::DisableReshape noReshape(func);
     auto specialized_function = ngraph::clone_function(*func);
 
     if (constFolding) {
@@ -286,8 +284,6 @@ std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool const
 }
 
 void CNNNetworkNGraphImpl::reshape() {
-    // Disable reshape for generic nodes
-    ::ngraph::op::GenericIE::DisableReshape noReshape(_ngraph_function);
     reshape({});
 }
 
