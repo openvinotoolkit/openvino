@@ -172,8 +172,7 @@ namespace
 
         initializer.Clear();
 
-        *initializer.mutable_name() = name;
-
+        initializer.set_name(name);
         initializer.set_data_type(NG_2_ONNX_TYPES.at(values->get_element_type()));
 
         for (const auto& dim : values->get_shape())
@@ -184,26 +183,17 @@ namespace
         const auto data_size_in_bytes =
             shape_size(values->get_shape()) *
             onnx_import::common::get_onnx_data_size(initializer.data_type());
-
         initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
-        /* It's a workaround for problem with multitle instances of fixed_address_empty_string in
-         * protobuf lib caused by dynamic linking.
-         * The problem can be observed as two tensors pointing the same data.
-         */
-        initializer.mutable_raw_data();
 
         // update input with type and shape of initializer
         if (input)
         {
             auto tensor_type = input->mutable_type()->mutable_tensor_type();
-
             TensorShapeProto shape;
-            shape.clear_dim();
             for (size_t i = 0; i < initializer.dims_size(); ++i)
             {
                 shape.add_dim()->set_dim_value(initializer.dims(i));
             }
-
             *tensor_type->mutable_shape() = std::move(shape);
             tensor_type->set_elem_type(initializer.data_type());
         }
@@ -302,7 +292,7 @@ void onnx_import::ONNXModelEditor::set_input_shapes(
 void onnx_import::ONNXModelEditor::set_input_values(
     const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values)
 {
-    auto* onnx_graph = m_pimpl->m_model_proto.mutable_graph();
+    auto onnx_graph = m_pimpl->m_model_proto.mutable_graph();
 
     for (const auto& input : input_values)
     {
