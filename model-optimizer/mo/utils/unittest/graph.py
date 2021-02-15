@@ -359,7 +359,7 @@ def connect(first_tensor_name, second_tensor_name, skip_data=False, front_phase=
     second_op_name, in_port = get_name_and_port(second_tensor_name)
 
     if skip_data:
-        return [(first_op_name + '_d', second_op_name, {'in': in_port})]
+        return [(first_op_name + '_d', second_op_name, {'out': out_port, 'in': in_port})]
     if front_phase:
         return [(first_op_name, second_op_name, {'out': out_port, 'in': in_port})]
     return [

@@ -27,20 +27,14 @@ class MeanVarianceNormalizationExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        name = node.soft_get('name', node.id)
         axes = onnx_attr(node, 'axes', 'ints',
                          default=np.array([0, 2, 3], dtype=np.int64),
                          dst_type=lambda x: np.array(x, dtype=np.int64))
-
-        # axes = Const(node.graph, {'value': axes, 'name': name + '/Axes'}).create_node()
-        # node.add_input_port(1, skip_if_exist=True)
-        # node.in_port(1).connect(axes.out_port(0))
 
         attrs = {
             'eps': 1e-9,
             'normalize_variance': 1,
             'axes': axes,
-            # 'eps_mode': 'outside_sqrt'
         }
 
         AttributedMVN.update_node_stat(node, attrs)
