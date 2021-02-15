@@ -19,8 +19,8 @@
 #include <onnx/onnx_pb.h>
 #include <sstream>
 
+#include "onnx_common/parser.hpp"
 #include "onnx_test_util.hpp"
-#include "parser.hpp"
 
 using namespace ngraph::onnx_import;
 
@@ -267,8 +267,8 @@ namespace ngraph
                                              const std::string& reference_model_path)
         {
             std::stringstream model_stream{model};
-            const auto model_proto = onnx_import::parse_from_istream(model_stream);
-            const auto ref_model = onnx_import::parse_from_file(reference_model_path);
+            const auto model_proto = onnx_common::parse_from_istream(model_stream);
+            const auto ref_model = onnx_common::parse_from_file(reference_model_path);
             return compare_onnx_graphs(model_proto.graph(), ref_model.graph());
         }
     } // namespace onnx_import

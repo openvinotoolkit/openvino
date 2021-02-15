@@ -18,8 +18,8 @@
 #include <onnx/onnx_pb.h>
 #include <onnx/shape_inference/implementation.h>
 
+#include "onnx_common/parser.hpp"
 #include "onnx_editor/editor.hpp"
-#include "utils/parser.hpp"
 
 using namespace ngraph;
 
@@ -159,7 +159,7 @@ struct onnx_editor::ONNXModelEditor::Impl
     Impl() = delete;
 
     Impl(const std::string& model_path)
-        : m_model_proto{std::move(parse_from_file(model_path))}
+        : m_model_proto{std::move(onnx_common::parse_from_file(model_path))}
     {
     }
 

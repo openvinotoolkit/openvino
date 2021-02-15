@@ -26,7 +26,7 @@ endif()
 
 # TODO Add handling ie_faster_build
 
-target_link_libraries(${TARGET_NAME} PRIVATE onnx ngraph::builder PUBLIC ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE onnx onnx_common PUBLIC ngraph)
 
 set(ONNX_EDITOR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(ONNX_EDITOR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -34,11 +34,17 @@ set(ONNX_EDITOR_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 
 target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_EDITOR_INCLUDE_DIR}>
                                                        $<INSTALL_INTERFACE:${ONNX_EDITOR_INSTALL_INCLUDE}>)
-
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH}
-        ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
-
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_EDITOR_SRC_DIR})
+
+# onnx-related directories
+target_include_directories(${TARGET_NAME} 
+SYSTEM PRIVATE 
+        $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:onnx_common,INTERFACE_INCLUDE_DIRECTORIES>
+        ${Protobuf_INCLUDE_DIRS})
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH})
 
 if(NGRAPH_USE_PROTOBUF_LITE)
         target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)
@@ -57,3 +63,7 @@ install(DIRECTORY ${ONNX_EDITOR_INCLUDE_DIR}/editor
             PATTERN "*.hpp"
             PATTERN "*.h"
     )
+
+if (NGRAPH_EXPORT_TARGETS_ENABLE)
+    export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+endif()
