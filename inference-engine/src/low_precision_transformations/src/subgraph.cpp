@@ -27,6 +27,11 @@ bool isQuantizationPerChannel(const std::shared_ptr<ngraph::Node>& node) {
         return false;
     }
 
+    //WA to support StridedSlice in ConcatTransformation
+    if (ngraph::is_type<opset1::StridedSlice>(node)) {
+        return true;
+    }
+
     const auto inputs = ngraph::pass::low_precision::NetworkHelper::getInputs(node);
     for (const auto& input : inputs) {
         if (ngraph::is_type<opset1::Constant>(input.get_node())) {

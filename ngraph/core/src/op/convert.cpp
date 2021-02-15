@@ -122,6 +122,7 @@ namespace convert
 
     bool evaluate_bound(const Node* node, const HostTensorVector& output_values, bool is_upper)
     {
+        NGRAPH_CHECK(node, validate_host_tensor_vector(output_values, 1));
         const auto& input = node->input_value(0);
         if (const auto& value = is_upper ? input.get_tensor().get_upper_value()
                                          : input.get_tensor().get_lower_value())
@@ -159,6 +160,8 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v0_Convert_evaluate);
+    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 1));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     return convert::evaluate_convert(input_values[0], output_values[0]);
 }
 
