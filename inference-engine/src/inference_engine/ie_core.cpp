@@ -163,29 +163,41 @@ class Core::Impl : public ICore {
         bool _isModelCacheEnabled = false;
         std::map<std::string, std::string> _config;
 
+        bool checkPluginSupportsKey(const ICore * core,
+            const std::string & configKey, const std::string & deviceName) const {
+            std::vector<std::string> supportedConfigKeys =
+                core->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), deviceName);
+
+            auto it = std::find(supportedConfigKeys.begin(), supportedConfigKeys.end(), configKey);
+            return it != supportedConfigKeys.end();
+        }
+
     public:
         using ConfigMap = std::map<std::string, std::string>;
 
         CoreConfig() = default;
 
-        CoreConfig(std::map<std::string, std::string> & config,
+        CoreConfig(const ICore * core,
+                   const std::string & deviceName,
+                   std::map<std::string, std::string> & config,
                    const CoreConfig & globalConfig) {
             // set global config settings
             *this = globalConfig;
 
             // parse local config
             {
-                auto it = config.find(CONFIG_KEY(MODEL_CACHE_DIR));
+                auto it = config.find(CONFIG_KEY(CACHE_DIR));
                 if (it != config.end()) {
                     _config[it->first] = it->second;
                     _modelCacheDir = it->second;
                     _isModelCacheEnabled = true;
-                    config.erase(it);
+
+                    // remove if plugin does support common IE Core key
+                    if (!checkPluginSupportsKey(core, it->first, deviceName))
+                        config.erase(it);
                 }
             }
         }
-
-        const std::map<std::string, std::string> & getConfig() const { return _config; }
 
         bool isModelCacheEnabled() const { return _isModelCacheEnabled; }
         std::string getModelCacheDir() const { return _modelCacheDir; }
@@ -256,15 +268,15 @@ class Core::Impl : public ICore {
         }
 
         // Note:
-        //   core.SetConfig({ { DECLARE_CONFIG_KEY(MODEL_CACHE_DIR), "" } }, "MULTI");
+        //   core.SetConfig({ { DECLARE_CONFIG_KEY(CACHE_DIR), "" } }, "MULTI");
         // will cache models only for MULTI itself, but not for MULTI devices
         // To enable caching for MULTI sub-devices, enable it via
-        //   core.SetConfig({ { DECLARE_CONFIG_KEY(MODEL_CACHE_DIR), "" } }, "CPU");
+        //   core.SetConfig({ { DECLARE_CONFIG_KEY(CACHE_DIR), "" } }, "CPU");
         // or using a global version:
-        //   core.SetConfig({ { DECLARE_CONFIG_KEY(MODEL_CACHE_DIR), "" } });
+        //   core.SetConfig({ { DECLARE_CONFIG_KEY(CACHE_DIR), "" } });
         // which tries to use caching for all devices (if import / export is available).
 
-        CoreConfig localCoreConfig(config, coreConfig[deviceFamily]);
+        CoreConfig localCoreConfig(this, deviceFamily, config, coreConfig[deviceFamily]);
         bool modelCacheEnabled = localCoreConfig.isModelCacheEnabled(),
             cachingIsAvailable = false, networkIsImported = false;
         std::string blobFileName, modelCacheDir = localCoreConfig.getModelCacheDir();
@@ -284,7 +296,7 @@ class Core::Impl : public ICore {
             NetworkCompilationContext context(network, compileConfig);
             cachingIsAvailable = context.isCachingAvailable();
 
-            // auto-hashing since CONFIG_KEY(COMPILED_BLOB) is not passed
+            // auto-hashing
             if (cachingIsAvailable)
                 blobFileName = context.computeHash() + ".blob";
         }
@@ -728,7 +740,7 @@ public:
                 // copy config since it's going to be modified
                 auto configCopy = config;
                 // extract common options to core config
-                coreConfig[desc.first] = CoreConfig(configCopy, coreConfig[desc.first]);
+                coreConfig[desc.first] = CoreConfig(this, deviceName, configCopy, coreConfig[desc.first]);
                 // the rest of the options are to device itself
                 for (auto&& conf : configCopy) {
                     pluginDesc.defaultConfig[conf.first] = conf.second;
@@ -748,7 +760,7 @@ public:
                     // copy config since it's going to be modified
                     auto configCopy = config;
                     // extract common options to core config
-                    coreConfig[plugin.first] = CoreConfig(configCopy, coreConfig[plugin.first]);
+                    coreConfig[plugin.first] = CoreConfig(this, deviceName, configCopy, coreConfig[plugin.first]);
                     // the rest of the options are to device itself
                     plugin.second.SetConfig(configCopy);
                 });

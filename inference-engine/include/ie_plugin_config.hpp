@@ -366,7 +366,7 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
  * @brief This key defines the directory which will be used to store any data cached by plugins.
  *
  * The underlying cache structure is not defined and might differ between OpenVINO releases
- * Cached data might be platform/device specific and might be invalid after OpenVINO version change
+ * Cached data might be platform / device specific and might be invalid after OpenVINO version change
  * If this key is not specified or value is empty string, then caching is disabled.
  * The key might enable caching for the plugin using the following code:
  *
@@ -374,19 +374,15 @@ DECLARE_CONFIG_KEY(ENFORCE_BF16);
  * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, {"GPU"}); // enables cache for GPU plugin
  * @endcode
  *
+ * Enables compiled caching of compiled network blobs for devices, like `KMB`:
+ *
+ * @code
+ * ie.SetConfig({{CONFIG_KEY(CACHE_DIR), "cache/"}}, {"KMB"}); // enables models cache for KMB plugin
+ * @endcode
+ *
  * @note This key supports unicode symbols in path
  */
 DECLARE_CONFIG_KEY(CACHE_DIR);
-
-/**
- * @brief This key defines the directory which will be used to store cached models.
- */
-DECLARE_CONFIG_KEY(MODEL_CACHE_DIR);
-
-/**
- * @brief This key defines custom blob file name which is used to cache the compiled model.
- */
-DECLARE_CONFIG_KEY(COMPILED_BLOB);
 
 }  // namespace PluginConfigParams
 }  // namespace InferenceEngine
