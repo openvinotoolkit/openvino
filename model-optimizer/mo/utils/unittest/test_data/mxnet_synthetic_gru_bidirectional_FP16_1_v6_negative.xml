@@ -20,7 +20,7 @@
 				</port>
 			</input>
 			<output>
-				<port id="1">
+				<port id="1" names="abc,def">
 					<dim>10</dim>
 					<dim>1</dim>
 					<dim>16</dim>
@@ -49,12 +49,12 @@
 				</port>
 			</input>
 			<output>
-				<port id="1">
+				<port id="1" names="xyz\,uvw">
 					<dim>1</dim>
 					<dim>1</dim>
 					<dim>128</dim>
 				</port>
-				<port id="2">
+				<port id="2" names="rst\,opq,lmn">
 					<dim>1</dim>
 					<dim>1</dim>
 					<dim>128</dim>
@@ -235,7 +235,7 @@
 				</port>
 			</input>
 			<output>
-				<port id="2">
+				<port id="2" names="abc\,mnk,def">
 					<dim>1</dim>
 					<dim>128</dim>
 				</port>
@@ -254,12 +254,12 @@
 				</port>
 			</input>
 			<output>
-				<port id="2">
+				<port id="2" names="abc,def">
 					<dim>10</dim>
 					<dim>1</dim>
 					<dim>128</dim>
 				</port>
-				<port id="3">
+				<port id="3" names="abc\,mnk">
 					<dim>1</dim>
 					<dim>128</dim>
 				</port>
