@@ -68,7 +68,6 @@ private:
     struct GenericLayerParams {
         struct LayerPortData {
             size_t portId;
-            // Precision and dimensions are needed only for GenericIE op
             ngraph::element::Type_t precision;
             SizeVector dims;
             std::unordered_set<std::string> names;

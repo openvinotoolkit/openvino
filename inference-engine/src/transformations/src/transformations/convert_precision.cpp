@@ -29,7 +29,6 @@ bool fuse_type_to_nms5(std::shared_ptr<ngraph::Node> & node, ngraph::element::Ty
 bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
-bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
 bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
@@ -91,7 +90,6 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset4::TopK::type_info, fuse_type_to_topk},
         {opset4::NonZero::type_info, fuse_type_to_nonzero},
         {opset4::Bucketize::type_info, fuse_type_to_bucketize},
-        {NodeTypeInfo("GenericIE", 1), fuse_type_to_generic_ie},
         {opset4::Equal::type_info, fuse_type_to_binary_comparision<opset4::Equal>},
         {opset4::NotEqual::type_info, fuse_type_to_binary_comparision<opset4::NotEqual>},
         {opset4::Greater::type_info, fuse_type_to_binary_comparision<opset4::Greater>},
@@ -279,12 +277,6 @@ bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::elemen
             return true;
         }
     }
-    return false;
-}
-
-bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
-    node->set_output_type(idx, to, node->output(idx).get_partial_shape());
-    // return false as we do not replace original node
     return false;
 }
 
