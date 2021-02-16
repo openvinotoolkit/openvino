@@ -331,6 +331,8 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
         auto weightsStats = !quantData->_weights_quant.GetMinValues().empty();
         auto weightsScale = quantData->_weights_quant.GetScale();
         auto dstScale = quantData->_dst_quant.GetScale();
+        auto blob_precision = wl->_weights->getTensorDesc().getPrecision();
+        auto quantizedWeights = blob_precision != InferenceEngine::Precision::FP32 && blob_precision != InferenceEngine::Precision::FP16;
         fnc(wl->_weights->buffer().as<float*>(),
             wl->_biases ? wl->_biases->buffer().as<float*>() : nullptr,
             intWeights->buffer(),
@@ -342,6 +344,7 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
             num_columns,
             num_rows_padded,
             num_columns_padded,
+            quantizedWeights,
             quantData->_weights_quant.GetLevels(),
             quantData->_weights_quant.GetMinValues().size(),
             weightsStats ? &quantData->_weights_quant.GetMinValues(true).front() : nullptr,
@@ -437,6 +440,8 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
         auto weightsStats = !quantData->_weights_quant.GetMinValues().empty();
         auto weightsScale = quantData->_weights_quant.GetScale();
         auto dstScale = quantData->_dst_quant.GetScale();
+        auto blob_precision = conv->_weights->getTensorDesc().getPrecision();
+        auto quantizedWeights = blob_precision != InferenceEngine::Precision::FP32 && blob_precision != InferenceEngine::Precision::FP16;
         fnc(conv->_weights->buffer().as<float*>(),
             conv->_biases ? conv->_biases->buffer().as<float*>() : nullptr,
             intWeights->buffer(),
@@ -448,6 +453,7 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
             num_columns,
             num_rows_padded,
             num_columns_padded,
+            quantizedWeights,
             quantData->_weights_quant.GetLevels(),
             quantData->_weights_quant.GetMinValues().size(),
             weightsStats ? &quantData->_weights_quant.GetMinValues(true).front() : nullptr,

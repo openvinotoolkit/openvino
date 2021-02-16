@@ -399,7 +399,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
     // only supports cases of int16 or int8
     InputsDataMap inputs = network.getInputsInfo();
     size_t inputIdx = 0;
-    for (auto&& input: inputs) {
+    for (auto&& input : inputs) {
         auto data = input.second->getInputData();
         for (auto && nextToInputLayer : getInputTo(data)) {
             if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
@@ -415,9 +415,16 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
                 THROW_GNA_LAYER_EXCEPTION(nextToInputLayer.second)
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
-            //float scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
-            auto maxAbsVal = std::max(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
-            float scaleInput = MAX_VAL_2B_FEAT / maxAbsVal;
+
+            float scaleInput = 1.0f;
+            if (fqLayer.getLevels() <= 255) {
+                scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
+            } else {
+                // use standard FQ scale factor calculation formula
+                // scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
+                auto maxAbsVal = std::max(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
+                scaleInput = MAX_VAL_2B_FEAT / maxAbsVal;
+            }
 
             if (!config.inputScaleFactors.empty()) {
                 gnalog() << "Scale factor calculated during model quantization (" << scaleInput
@@ -855,7 +862,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         printed_properties.emplace_back(
             "src scale factor", std::to_string(quantized->_src_quant.GetScale()));
         if (quantized->_src_quant.IsStatsSet()) {
-            for (auto &min: quantized->_src_quant.GetMinValues()) {
+            for (auto &min : quantized->_src_quant.GetMinValues()) {
                 printed_properties.emplace_back(
                     "src min val", std::to_string(min));
             }

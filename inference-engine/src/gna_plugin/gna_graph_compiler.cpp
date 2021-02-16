@@ -768,7 +768,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
                 PwlDesignOpt16(activation_type,
                     ptr_pwl_segments,
                     input_pwl_scale_factor,
-                    output_pwl_scale_factor);
+                    output_pwl_scale_factor,
+                    gnaFlags->pwlMaxErrorPercent);
             }
         }
 
@@ -1477,8 +1478,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
     uint32_t num_rows_copied = 0;
     // in case of left alignment succeed, but due to number of elements not multiple of 8 we need to insert align_filter
     // we are improving it by inserting copy layer of size that covers most of elements - remained max of 32x31 affine filter
-    if (policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST &&  0 == numRowsPadded && ALIGN(num_rows_in, 32) > 32 &&
-        (!quantized || (quantized && std::abs(quantized->_weights_quant.GetScale() - 1.0f) <= 0.0001f))) {
+    if (policy.ConcatAlignmentPolicy == Policy::ConcatAlignment::FAST &&  0 == numRowsPadded && ALIGN(num_rows_in, 32) > 32) {
         // can we use copy at all
         num_rows_copied = ALIGN(num_rows_in, 32) - 32;
 
@@ -1859,7 +1859,8 @@ case name:\
             PwlDesignOpt16(activation_type,
                 ptr_pwl_segments,
                 input_pwl_scale_factor,
-                output_pwl_scale_factor);
+                output_pwl_scale_factor,
+                gnaFlags->pwlMaxErrorPercent);
         }
         ptr_pwl_segments_target = reinterpret_cast<gna_pwl_segment_t*>(&ptr_pwl_segments_target);
     }

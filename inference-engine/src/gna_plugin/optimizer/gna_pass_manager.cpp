@@ -1890,7 +1890,16 @@ void FuseFQIntoWeightsPass::run() {
             auto getScale = [&quantized](size_t i) {
                 auto maxAbsVal = std::max(std::abs(quantized->_weights_quant.GetMaxValues()[i]),
                     std::abs(quantized->_weights_quant.GetMinValues()[i]));
-                return MAX_VAL_2B_FEAT / maxAbsVal;
+                if (quantized->_weights_quant.GetLevels() <= 255) {
+                    return (quantized->_weights_quant.GetLevels() - 1) /
+                      (quantized->_weights_quant.GetMaxValues()[i] - quantized->_weights_quant.GetMinValues()[i]);
+                } else {
+                    //TODO: use standard FQ scale factor calculation formula
+                    //auto levels = (quantized->_weights_quant.GetLevels() - 1) /
+                    //  (quantized->_weights_quant.GetMaxValues()[i] - quantized->_weights_quant.GetMinValues()[i]);
+                    auto levels = MAX_VAL_2B_WEIGHT;
+                    return levels / maxAbsVal;
+                }
             };
 
             float min_channel_scale = getScale(0);
@@ -1923,8 +1932,6 @@ void FuseFQIntoWeightsPass::run() {
         transform->func_id = gnaFakeQuantizeLayer.parseAsActivation();
 
         auto quantizedWeightsData = quantizedWeights->buffer();
-        
-
         auto dequantizedWeights = make_shared_blob<float>(TensorDesc(Precision::FP32, {outputSize}, Layout::C));
         dequantizedWeights->allocate();
 
@@ -1952,6 +1959,14 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
     };
 
     auto allowFQFuse = [](CNNLayerPtr layer) -> bool {
+        auto doNotSkup = [](CNNLayerPtr layer) {
+            return false;
+        };
+
+        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkup).empty()) {
+            return false;
+        }
+
         auto skipNonFunctional = [](CNNLayerPtr layer) {
             return LayerInfo(layer).isNonFunctional();
         };
@@ -1998,11 +2013,9 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
             auto concatMaxVal = quantParams->_src_quant.GetMaxValues().front();
             quantParams->_src_quant.SetMinValues({ std::min(srcMinVals, concatMinVal) });
             quantParams->_src_quant.SetMaxValues({ std::max(srcMaxVals, concatMaxVal) });
-        }
-        else if (quantParams->_src_quant.IsStatsSet()) {
+        } else if (quantParams->_src_quant.IsStatsSet()) {
             return;
-        }
-        else {
+        } else {
             quantParams->_src_quant = srcQuantParams->_dst_quant;
         }
 
@@ -2083,14 +2096,15 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // or a next layer is activation layer.
         bool isFQFuseAllowed = allowFQFuse(l);
         auto prevData = prevLayer->outData.front();
-        if (isFQFuseAllowed) {
-            getInputTo(prevLayer->outData.front()).clear();
-        }
 
         // Find all output layers connected to FQ
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(*fqLayer, -1, donotSkip);
         if (nextLayers.empty()) {
-            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize does not have any output layers connected";
+            return;
+        }
+
+        if (isFQFuseAllowed) {
+            getInputTo(prevLayer->outData.front()).clear();
         }
 
         // Connect all next layers after FQ to the layer that is before FQ

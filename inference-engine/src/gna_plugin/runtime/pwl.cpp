@@ -499,20 +499,21 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
 void PwlDesignOpt16(const DnnActivation activation_type,
                     std::vector<gna_pwl_segment_t> &ptr_segment,
                     const float scale_in,
-                    const float scale_out) {
+                    const float scale_out,
+                    const float pwlMaxErrorPercent) {
     std::vector<pwl_t> pwl;
     double err_pct = 0.0;
     switch (activation_type) {
         case kActSigmoid:
-            pwl = pwl_search(activation_type, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, PWL_DESIGN_THRESHOLD, 0.17 * PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = pwl_search(activation_type, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, scale_in, scale_out, ptr_segment);
             break;
         case kActTanh:
-            pwl = pwl_search(activation_type, -TANH_DOMAIN, TANH_DOMAIN, PWL_DESIGN_THRESHOLD, 0.17 * PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = pwl_search(activation_type, -TANH_DOMAIN, TANH_DOMAIN, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, -TANH_DOMAIN, TANH_DOMAIN, scale_in, scale_out, ptr_segment);
             break;
         case kActSoftSign:
-            pwl = pwl_search(activation_type, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = pwl_search(activation_type, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, scale_in, scale_out, ptr_segment);
             break;
         case kActRelu:
@@ -531,28 +532,28 @@ void PwlDesignOpt16(const DnnActivation activation_type,
         case kActLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
             double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         }
         case kActNegLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
             double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         }
         case kActNegHalfLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
             double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         }
         case kActExp: {
             double x_min = -log(scale_out);
             double x_max = x_min + log(INT16_MAX);
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.5*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, pwlMaxErrorPercent, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         }
@@ -577,7 +578,8 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             x_max = std::min(x_max, POW_DOMAIN);
 
             if (activation_type.args.pow.exponent != 0.0f && activation_type.args.pow.exponent != 1.0f) {
-                pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.015 * PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+                auto maxError = pwlMaxErrorPercent > 0.015f? 0.015f: pwlMaxErrorPercent;
+                pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, maxError, PWL_DESIGN_SAMPLES, err_pct);
             }
 
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);

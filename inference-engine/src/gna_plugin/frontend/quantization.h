@@ -31,6 +31,7 @@ struct QuantizationCallback {
     uint32_t num_rows_padded;
     uint32_t num_columns_padded;
 
+    bool quantizedWeights;
     int32_t fq_levels;
     const size_t fq_num_stats;
     const float *fq_ptr_input_low;

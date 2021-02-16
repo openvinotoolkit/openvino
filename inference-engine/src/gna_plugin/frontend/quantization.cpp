@@ -20,6 +20,10 @@
 
 template<>
 void QuantizationCallback<int16_t, int32_t>::runFakeQuantize() const {
+    if (quantizedWeights) {
+        THROW_GNA_EXCEPTION << "Quantized weights are not yet supported in int16 quantization mode";
+    }
+
     uint32_t num_saturate = 0;
 
     auto multiplier = 1.0f;
@@ -149,7 +153,7 @@ void QuantizationCallback<int16_t, int32_t>::runQuantize() const {
     }
 }
 
-std::pair<float,float> FindMinMaxValues(void* ptr_float_memory, size_t num_elements) {
+std::pair<float, float> FindMinMaxValues(void* ptr_float_memory, size_t num_elements) {
     float* ptr_float_feat = reinterpret_cast<float*>(ptr_float_memory);
     float min = num_elements ? ptr_float_feat[0] : 0.0;
     float max = num_elements ? ptr_float_feat[0] : 0.0;
@@ -215,18 +219,27 @@ template<>
 void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const {
     uint32_t num_saturate = 0;
 
-    if (fq_ptr_input_high == nullptr || fq_ptr_input_low == nullptr ||
-        fq_ptr_output_high == nullptr || fq_ptr_output_low == nullptr) {
-        THROW_GNA_EXCEPTION << "Fake quantized output range not set";
-    }
-    if (fq_levels == 0 || fq_levels == 1) {
-        THROW_GNA_EXCEPTION << "Fake quantized levels not set";
-    }
-
+    float valueAcc = 0.0;
     for (uint32_t i = 0; i < num_rows; i++) {
-        uint32_t channel_multiplier = ((fq_ptr_input_high[i] - fq_ptr_input_low[i]) *
-            *ptr_weight_scale_factor) / (fq_levels - 1) + 0.5f;
-        ptr_int_biases[i].multiplier = static_cast<uint8_t> (channel_multiplier);
+        uint32_t channel_multiplier = 1;
+        if (fq_num_stats > 0) {
+            auto idx = fq_num_stats == 1 ? 0 : i;
+            channel_multiplier = ((fq_ptr_input_high[idx] - fq_ptr_input_low[idx]) *
+                *ptr_weight_scale_factor) / (fq_levels - 1);
+        } else {
+            float scaled_row_max = 0;
+            for (uint32_t col = 0; col < num_columns; col++) {
+                float value = ptr_float_weights[i * num_columns + col] * *ptr_weight_scale_factor;
+                valueAcc += value;
+                if (fabs(value) > scaled_row_max) {
+                    scaled_row_max = fabs(value);
+                }
+            }
+
+            channel_multiplier = scaled_row_max / static_cast<float>(MAX_VAL_1B_WEIGHT);
+        }
+
+        ptr_int_biases[i].multiplier = static_cast<uint8_t> (channel_multiplier + 0.5f);
         if (channel_multiplier > MAX_OUT_MULTIPLIER) {
             THROW_GNA_EXCEPTION << "invalid channel multiplier: " << channel_multiplier;
         }
@@ -235,7 +248,12 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             auto offset = i * num_columns + j;
             auto rounding_value = (ptr_float_weights[i * num_columns + j] > 0) ? 0.5f : -0.5f;
             float value = ptr_float_weights[offset];
-            if (!fq_num_stats) {
+            if (!quantizedWeights) {
+                if (fq_num_stats > 0) {
+                    value = std::max(fq_ptr_input_low[fq_num_stats == 1? 0: i], value);
+                    value = std::min(fq_ptr_input_high[fq_num_stats == 1 ? 0 : i], value);
+                }
+
                 value = value * (*ptr_weight_scale_factor / ptr_int_biases[i].multiplier) + rounding_value;
             } else {
                 value -= MAX_VAL_1B_WEIGHT;

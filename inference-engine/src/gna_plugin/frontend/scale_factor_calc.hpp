@@ -81,7 +81,7 @@ static float selectBestOutputScaleFactors(float inScale, std::vector<float> outS
             if (fp32eq(testSlope, slopes[j])) {
                 return outScale;
             }
-            
+
             sd += pow(testSlope - slopes[j], 2.0);
         }
 
@@ -317,7 +317,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                 };
 
                 auto nextLayers = CNNNetGetAllNextLayersSkipCertain(cnnLayer, -1, donotSkip);
-                for (auto &l: nextLayers) {
+                for (auto &l : nextLayers) {
                     auto nextQuantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*l);
                     if (nextQuantParams->_src_quant.IsStatsSet()) {
                         quantizedParams->_dst_quant.CopyStats(nextQuantParams->_src_quant);
@@ -361,7 +361,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             bool usePrevScaleFactor = false;
             auto prevLayer = CNNNetPrevLayer(cnnLayer);
             if (prevLayer != nullptr &&
-                (layer.isIdentity() || layer.isFakeQuantize()) && layer.isWeightableIdentity()) {
+                (layer.isIdentity() || layer.isFakeQuantize()) && LayerInfo(prevLayer).isWeightableIdentity()) {
                 auto prevLayerQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*prevLayer);
                 if (!fp32eq(prevLayerQuant->_src_quant.GetScale(), 1.0f) &&
                     prevLayerQuant->_src_quant.GetScale() < max_pot_scale_factor) {
@@ -402,10 +402,6 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
 
         if (InferenceEngine::details::CaselessEq<std::string>()(cnnLayer->type, "Memory")) {
-            if (!CNNNetHasPrevLayer(cnnLayer) && quant->_dst_quant.IsScaleSet()) {
-                quant->_src_quant = quant->_dst_quant;
-            }
-
             if (CNNNetHasPrevLayer(cnnLayer)) {
                 auto prevLayer = CNNNetPrevLayer(cnnLayer);
                 auto inputQuant = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
@@ -426,8 +422,9 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                         return true;
                     }
 
-                    if (quantSibling->_dst_quant.IsScaleSet() && !fp32eq(quantSibling->_dst_quant.GetScale(), 1.0) &&
-                        quantSibling->_dst_quant.GetScale() < inputQuant->_dst_quant.GetScale()) {
+                    if ((!fakeQuantize && quantSibling->_dst_quant.IsScaleSet()) ||
+                        (fakeQuantize && quantSibling->_dst_quant.IsScaleSet() && !fp32eq(quantSibling->_dst_quant.GetScale(), 1.0) &&
+                        quantSibling->_dst_quant.GetScale() < inputQuant->_dst_quant.GetScale())) {
                         // means we already restarted propagation input memory layer
                         // need to search for requantiseable layer prior memory output layer
                         InferenceEngine::CNNLayerPtr restartedLayer;
@@ -523,9 +520,10 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             auto levels = fakeQuantize ? MAX_VAL_2B_FEAT : std::numeric_limits<int16_t>::max();
             auto abs_val = std::max(std::abs(max_val), std::abs(min_val));
             auto scale_val = static_cast<float>(levels) / abs_val;
+            //auto scale_val = (quant->_dst_quant.GetLevels() - 1) / (max_val - min_val);
 
             if (std::isinf(scale_val) || fp32eq(abs_val, 0.0f)) {
-                quant->_dst_quant.SetScale(levels);
+                quant->_dst_quant.SetScale(fakeQuantize ? levels: 1.0f);
             } else {
                 quant->_dst_quant.SetScale(scale_val);
             }
@@ -886,7 +884,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                     prevLayer = CNNNetPrevLayer(prevLayer);
                 }
 
-                if (LayerInfo(prevLayer).isWeightableIdentity()) {
+                if (fakeQuantize && LayerInfo(prevLayer).isWeightableIdentity()) {
                     auto weightsScales = generateScaleFactors(MIN_SEARCH_WEIGHTS_VAL, MAX_SEARCH_WEIGHTS_VAL,
                         MAX_SEARCH_WEIGHTS_VAL - MIN_SEARCH_WEIGHTS_VAL);
 
@@ -1043,7 +1041,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
 
             quant->_dst_quant.SetScale(quant->_weights_quant.GetScale() * quant->_src_quant.GetScale());
         }
-        
+
         return true;
     }
 };
