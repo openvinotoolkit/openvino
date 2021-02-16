@@ -4551,7 +4551,7 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
         reorder("out", "quant2", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = 2.2f;
     execute(p);
 }
 
