@@ -28,10 +28,7 @@ def generate_mo_version():
     """
     branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
     commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode()
-    version = "custom_{}_{}".format(branch_name, commit_hash)
-    with open(get_version_file_path(), 'w') as f:
-        f.write(version)
-    return version
+    return "custom_{}_{}".format(branch_name, commit_hash)
 
 
 def get_version():

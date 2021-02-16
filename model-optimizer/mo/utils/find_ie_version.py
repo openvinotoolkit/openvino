@@ -51,12 +51,13 @@ def reset_env():
     os.environ[lib_env_key] = lib_path_orig
 
 
-def try_to_import_ie(module="", libs=[]):
+def try_to_import_ie(module="", libs=[], silent=False):
     """
     Check if IE python modules exists and in case of success
     environment will be set with given values.
     :param module: path to python module
     :param libs: list with paths to libraries
+    :param silent: hide all output
     """
     path_to_script = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'check_ie_bindings.py')
     # We need to execute python modules checker in subprocess to avoid issue with environment
@@ -65,7 +66,11 @@ def try_to_import_ie(module="", libs=[]):
     # To pass environment to sub-process PATH/LD_LIBRARY_PATH and PYTHONPATH are used from
     # os.environ that is set after setup_env()
     setup_env(module=module, libs=libs)
-    status = subprocess.run([sys.executable, path_to_script], env=os.environ)
+    cmd_args = [sys.executable, path_to_script, "--path_to_module", "PYTHONPATH" if module == "" else module]
+    if silent:
+        cmd_args.append("--silent")
+
+    status = subprocess.run(cmd_args, env=os.environ)
     if status.returncode == 0:
         return True
     else:
@@ -73,7 +78,7 @@ def try_to_import_ie(module="", libs=[]):
         return False
 
 
-def find_ie_version():
+def find_ie_version(silent=False):
     """
     Tries to import IE python bindings. In case of successful import
     PATH/LD_LIBRARY_PATH and PYTHONPATH environment variables will be set
@@ -83,8 +88,7 @@ def find_ie_version():
             subprocess.run([sys.executable, path_to_script], env=os.environ)
 
     """
-    print("[ IMPORT ] Checking existing InferenceEngine python API")
-    if try_to_import_ie():
+    if try_to_import_ie(silent=silent):
         return True
 
     python_version = 'python{}.{}'.format(sys.version_info[0], sys.version_info[1])
@@ -122,9 +126,10 @@ def find_ie_version():
         module = item['module']
         if not os.path.exists(module):
             continue
-        print("[ IMPORT ] Searching InferenceEngine python API in: {}".format(os.path.normpath(module)))
-        if try_to_import_ie(module=module, libs=item['libs'] if 'libs' in item else []):
+        if try_to_import_ie(module=os.path.normpath(module), libs=item['libs'] if 'libs' in item else [], silent=silent):
             return True
+        elif not silent:
+            print("[ WARNING ] Failed to import InferenceEngine python API in: {}".format(os.path.normpath(module)))
 
     return False
 

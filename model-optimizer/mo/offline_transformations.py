@@ -29,4 +29,3 @@ if __name__ == "__main__":
         exit(1)
 
     # TODO: call validation pass to check IE components
-    print("[ OFFLINE TRANSFORMATIONS ] Success")

@@ -92,7 +92,6 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
                         lines.append('\t{}: \t{}'.format(desc, 'Default'))
                         continue
                 lines.append('\t{}: \t{}'.format(desc, getattr(argv, op, 'NONE')))
-    lines.append('Model Optimizer version: \t{}'.format(get_version()))
     print('\n'.join(lines), flush=True)
 
 
@@ -148,6 +147,13 @@ def prepare_ir(argv: argparse.Namespace):
 
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
+
+    if not find_ie_version() and not argv.silent:
+        print("[ WARNING ] No InferenceEngine python was found. Some ModelOptimizer functionality may not work.")
+        print("[ WARNING ] Please consider to build InferenceEngine python from source or try to install OpenVINO using install_prerequisites.{}".format(
+            "bat" if sys.platform == "windows" else "sh"))
+        # in case if IE wasn't found it won't print MO version so we have to print it manually
+        print("{}: \t{}".format("Model Optimizer version", get_version()))
 
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
@@ -258,11 +264,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
-        if not find_ie_version():
-            print("[ WARNING ] No InferenceEngine python was found. Some ModelOptimizer functionality may not work.")
-            print("[ WARNING ] Please consider to build InferenceEngine python from source or try to install OpenVINO using install_prerequisites.{}".format(
-                "bat" if sys.platform == "windows" else "sh"))
-        else:
+        if find_ie_version(silent=True):
             path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)),
                                                            'offline_transformations.py')
             status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=100)
