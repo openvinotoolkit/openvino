@@ -118,6 +118,9 @@ def find_ie_version(silent=False):
             "module": os.path.join(script_path, '../../../bin/intel64/Release/lib/python_api/', python_version)
         },
         {
+            "module": os.path.join(script_path, '../../../bin/intel64/RelWithDebInfo/lib/python_api/', python_version)
+        },
+        {
             "module": os.path.join(script_path, '../../../bin/intel64/Debug/lib/python_api/', python_version)
         }
     ]

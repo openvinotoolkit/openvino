@@ -148,8 +148,8 @@ def prepare_ir(argv: argparse.Namespace):
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
 
-    if not find_ie_version() and not argv.silent:
-        print("[ WARNING ] No InferenceEngine python was found. Some ModelOptimizer functionality may not work.")
+    if not find_ie_version(silent=argv.silent) and not argv.silent:
+        print("[ WARNING ] No InferenceEngine python was found. At this moment InferenceEngine dependency is not mandatory but in future it will be required.")
         print("[ WARNING ] Please consider to build InferenceEngine python from source or try to install OpenVINO using install_prerequisites.{}".format(
             "bat" if sys.platform == "windows" else "sh"))
         # in case if IE wasn't found it won't print MO version so we have to print it manually
