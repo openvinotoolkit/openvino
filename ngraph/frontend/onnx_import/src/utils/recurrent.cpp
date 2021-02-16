@@ -41,26 +41,25 @@ namespace ngraph
                 m_map[OpInput::W] = ng_inputs.at(1);
                 m_map[OpInput::R] = ng_inputs.at(2);
 
-                const auto el_type = ng_inputs.at(0).get_element_type();
-
                 const auto x_pshape = m_map[OpInput::X].get_partial_shape();
                 const auto w_pshape = m_map[OpInput::W].get_partial_shape();
                 const auto r_pshape = m_map[OpInput::R].get_partial_shape();
-                NGRAPH_CHECK(x_pshape.rank().is_static() && x_pshape[0].is_static() &&
-                                 x_pshape[1].is_static(),
-                             "RecurrentSequence input X must have static \"seq_length\" and "
-                             "\"batch_size\" dimensions.");
-                NGRAPH_CHECK(w_pshape.rank().is_static() && w_pshape[0].is_static(),
-                             "RecurrentSequence input W must have static \"num_directions\" "
-                             "(outermost) dimension.");
-                NGRAPH_CHECK(r_pshape.rank().is_static() && r_pshape[2].is_static(),
-                             "RecurrentSequence input R must have static \"hidden_size\" "
-                             "(innermost) dimension.");
 
-                const std::size_t hidden_size = m_map[OpInput::R].get_shape().back();
-                const std::size_t batch_size = m_map[OpInput::X].get_shape().at(0);
-                const std::size_t num_directions = m_map[OpInput::W].get_shape().front();
+                // Get dimensions needed for default inputs creation
+                auto shape_of_x = std::make_shared<default_opset::ShapeOf>(m_map[OpInput::X]);
+                auto axes = default_opset::Constant::create(element::i32, Shape{1}, {0});
+                auto batch_size_node = std::make_shared<default_opset::Gather>(
+                    shape_of_x, default_opset::Constant::create(element::i32, Shape{1}, {0}), axes);
+                auto seq_length_node = std::make_shared<default_opset::Gather>(
+                    shape_of_x, default_opset::Constant::create(element::i32, Shape{1}, {1}), axes);
 
+                auto shape_of_r = std::make_shared<default_opset::ShapeOf>(m_map[OpInput::R]);
+                auto num_directions_node = std::make_shared<default_opset::Gather>(
+                    shape_of_r, default_opset::Constant::create(element::i32, Shape{1}, {0}), axes);
+                auto hidden_size_node = std::make_shared<default_opset::Gather>(
+                    shape_of_r, default_opset::Constant::create(element::i32, Shape{1}, {2}), axes);
+
+                // ------ Optional inputs ------
                 if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3)))
                 {
                     auto bias = ng_inputs.at(3);
@@ -72,8 +71,17 @@ namespace ngraph
                 }
                 else
                 {
-                    m_map[OpInput::B] = std::make_shared<default_opset::Constant>(
-                        el_type, Shape{num_directions, gates_count * hidden_size}, 0.f);
+                    auto b_shape = std::make_shared<default_opset::Concat>(
+                        OutputVector{num_directions_node,
+                                     std::make_shared<default_opset::Multiply>(
+                                         default_opset::Constant::create(
+                                             element::Type_t::i64, Shape{1}, {gates_count}),
+                                         hidden_size_node)},
+                        0);
+                    m_map[OpInput::B] = std::make_shared<default_opset::Broadcast>(
+                        default_opset::Constant::create(
+                            m_map[OpInput::X].get_element_type(), Shape{}, {0}),
+                        b_shape);
                 }
                 if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4)))
                 {
@@ -81,8 +89,8 @@ namespace ngraph
                 }
                 else
                 {
-                    m_map[OpInput::SEQ_LENGTHS] = std::make_shared<default_opset::Constant>(
-                        element::i32, Shape{batch_size}, m_map[OpInput::X].get_shape().at(1));
+                    m_map[OpInput::SEQ_LENGTHS] = std::make_shared<default_opset::Broadcast>(
+                        seq_length_node, batch_size_node);
                 }
                 // The initial value of the hidden.
                 if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5)))
@@ -92,8 +100,12 @@ namespace ngraph
                 }
                 else
                 {
-                    m_map[OpInput::INIT_H] = std::make_shared<default_opset::Constant>(
-                        el_type, Shape{batch_size, num_directions, hidden_size}, 0.f);
+                    auto init_h_shape = std::make_shared<default_opset::Concat>(
+                        OutputVector{batch_size_node, num_directions_node, hidden_size_node}, 0);
+                    m_map[OpInput::INIT_H] = std::make_shared<default_opset::Broadcast>(
+                        default_opset::Constant::create(
+                            m_map[OpInput::X].get_element_type(), Shape{}, {0}),
+                        init_h_shape);
                 }
             }
 
