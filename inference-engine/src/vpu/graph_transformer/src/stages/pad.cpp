@@ -94,57 +94,25 @@ void FrontEnd::parsePad(const Model& model, const ie::CNNLayerPtr& _layer, const
     IE_ASSERT(layer != nullptr);
 
     const auto ndims = inputs[0]->desc().dimsOrder().numDims();
-    VPU_THROW_UNLESS(ndims == 3 || ndims == 4, "Layer %s support only 3D and 4D input", layer->name);
+    VPU_THROW_UNLESS(ndims == 3 || ndims == 4, "Layer %s support only 3D and 4D input, but %dD provided", layer->name, ndims);
 
-    IE_ASSERT(layer->pads_begin.size() <= 4);
-    IE_ASSERT(layer->pads_end.size() <= 4);
+    VPU_THROW_UNLESS(layer->pads_begin.size() <= 4, "Layer %s support pads_begin size less than or equal 4, but %d provided",
+                     layer->name, layer->pads_begin.size());
+    VPU_THROW_UNLESS(layer->pads_end.size() <= 4, "Layer %s support pads_end size less than or equal 4, but %d provided",
+            layer->name, layer->pads_end.size());
 
-    unsigned int pads_beginN = 0;
-    unsigned int pads_beginC = 0;
-    unsigned int pads_beginH = 0;
-    unsigned int pads_beginW = 0;
-
-    unsigned int pads_endN = 0;
-    unsigned int pads_endC = 0;
-    unsigned int pads_endH = 0;
-    unsigned int pads_endW = 0;
-
-    switch (ndims) {
-        case 4:
-            pads_beginN = layer->pads_begin[0];
-            pads_beginC = layer->pads_begin[1];
-            pads_beginH = layer->pads_begin[2];
-            pads_beginW = layer->pads_begin[3];
-
-            pads_endN = layer->pads_end[0];
-            pads_endC = layer->pads_end[1];
-            pads_endH = layer->pads_end[2];
-            pads_endW = layer->pads_end[3];
-            break;
-        case 3:
-            pads_beginN = 0;
-            pads_beginC = layer->pads_begin[0];
-            pads_beginH = layer->pads_begin[1];
-            pads_beginW = layer->pads_begin[2];
-
-            pads_endN = 0;
-            pads_endC = layer->pads_end[0];
-            pads_endH = layer->pads_end[1];
-            pads_endW = layer->pads_end[2];
-            break;
-    }
-
+    DimsOrder dimsOrder = inputs[0]->desc().dimsOrder();
     DimValues pads_begin;
-    pads_begin.set(Dim::W, pads_beginW);
-    pads_begin.set(Dim::H, pads_beginH);
-    pads_begin.set(Dim::C, pads_beginC);
-    pads_begin.set(Dim::N, pads_beginN);
+    pads_begin.set(Dim::W, dimsOrder.hasDim(Dim::W) ? layer->pads_begin[dimToIeInd(Dim::W, ndims)] : 0);
+    pads_begin.set(Dim::H, dimsOrder.hasDim(Dim::H) ? layer->pads_begin[dimToIeInd(Dim::H, ndims)] : 0);
+    pads_begin.set(Dim::C, dimsOrder.hasDim(Dim::C) ? layer->pads_begin[dimToIeInd(Dim::C, ndims)] : 0);
+    pads_begin.set(Dim::N, dimsOrder.hasDim(Dim::N) ? layer->pads_begin[dimToIeInd(Dim::N, ndims)] : 0);
 
     DimValues pads_end;
-    pads_end.set(Dim::W, pads_endW);
-    pads_end.set(Dim::H, pads_endH);
-    pads_end.set(Dim::C, pads_endC);
-    pads_end.set(Dim::N, pads_endN);
+    pads_end.set(Dim::W, dimsOrder.hasDim(Dim::W) ? layer->pads_end[dimToIeInd(Dim::W, ndims)] : 0);
+    pads_end.set(Dim::H, dimsOrder.hasDim(Dim::H) ? layer->pads_end[dimToIeInd(Dim::H, ndims)] : 0);
+    pads_end.set(Dim::C, dimsOrder.hasDim(Dim::C) ? layer->pads_end[dimToIeInd(Dim::C, ndims)] : 0);
+    pads_end.set(Dim::N, dimsOrder.hasDim(Dim::N) ? layer->pads_end[dimToIeInd(Dim::N, ndims)] : 0);
 
     _stageBuilder->addPadStage(
         model,
