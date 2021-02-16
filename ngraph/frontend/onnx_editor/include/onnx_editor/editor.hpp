@@ -21,8 +21,10 @@
 #include <memory>
 
 #include "detail/subgraph_extraction.hpp"
+#include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "onnx_editor/editor.hpp"
 #include "onnx_editor/onnx_editor_visibility.hpp"
 
 namespace ONNX_NAMESPACE
@@ -82,6 +84,20 @@ namespace ngraph
             /// \param outputs A collection of output edges which become new outputs of the graph
             void cut_graph_fragment(const std::vector<InputEdge>& inputs,
                                     const std::vector<OutputEdge>& outputs);
+
+            /// \brief Modifies the in-memory representation of the model by setting custom input
+            ///        values for inputs specified in the provided map.
+            ///
+            /// \note This method modifies existing initializer tensor if its name matches one of
+            ///       input_name. Otherwise it adds initializer tensor into the model.
+            ///       If input tensor of matching name is present in the model, its type and shape
+            ///       are modified accordingly.
+            ///
+            /// \param input_values A collection of pairs {input_name: new_input_values} used to
+            ///                     update the ONNX model. Initializers already existing are
+            ///                     overwritten.
+            void set_input_values(
+                const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
 
             /// \brief Returns a non-const reference to the underlying ModelProto object, possibly
             ///        modified by the editor's API calls

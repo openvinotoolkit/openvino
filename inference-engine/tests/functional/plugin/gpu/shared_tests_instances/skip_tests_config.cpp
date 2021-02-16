@@ -56,7 +56,5 @@ std::vector<std::string> disabledTestPatterns() {
 
             // INT8 StridedSlice not supported
             R"(.*(LPT/StridedSliceTransformation).*)",
-            // TODO: Issue: 47219
-            R"(.*DynamicBatchTest.*)",
     };
 }
