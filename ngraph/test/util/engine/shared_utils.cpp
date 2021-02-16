@@ -1,4 +1,4 @@
-//*****************************************************************************
+
 // Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <cstdlib>
+#include <cmath>
 #include <sstream>
 
 #include "shared_utils.hpp"
@@ -32,7 +32,7 @@ testing::AssertionResult ngraph::test::compare_with_tolerance(const std::vector<
 
     for (std::size_t j = 0; j < expected.size(); ++j)
     {
-        float diff = std::abs(results[j] - expected[j]);
+        float diff = std::fabs(results[j] - expected[j]);
         if (diff > tolerance)
         {
             msg << expected[j] << " is not close to " << results[j] << " at index " << j << "\n";
