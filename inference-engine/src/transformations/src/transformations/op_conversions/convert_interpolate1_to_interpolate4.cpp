@@ -36,6 +36,7 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
             i++;
         }
 
+        auto input_shape_rank = interpolate1->input(0).get_partial_shape().rank().get_length();
         auto scalesConstant = ngraph::op::Constant::create(ngraph::element::f32, {scales.size()}, scales);
         auto axisConstant = ngraph::op::Constant::create(ngraph::element::i64, {attrsV0.axes.size()},
                                                          std::vector<std::size_t>{attrsV0.axes.begin(), attrsV0.axes.end()});
@@ -45,7 +46,13 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         if (attrsV0.mode == "nearest") {
             attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::nearest;
         } else if (attrsV0.mode == "linear") {
-            attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::linear;
+            if (input_shape_rank < 5) {
+                attrsV4.mode = ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx;
+            } else if (input_shape_rank == 5) {
+                attrsV4.mode = ngraph::op::v4::Interpolate::InterpolateMode::linear;
+            } else {
+                return false;
+            }
         } else if (attrsV0.mode == "cubic") {
             attrsV4.mode = ngraph::opset4::Interpolate::InterpolateMode::cubic;
         } else if (attrsV0.mode == "linear_onnx") {
