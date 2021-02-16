@@ -44,7 +44,8 @@ class TFSliceToSliceReplacer(FrontReplacementOp):
 
         eq_node = Equal(graph, {'name': slice_name + '/equal'}).create_node()
         minus_one_node = Const(graph, {'name': slice_name + '/minus_one', 'value': np.array(-1)}).create_node()
-        int32_max_node = Const(graph, {'name': slice_name + '/int32_max', 'value': np.iinfo(np.int32).max}).create_node()
+        int32_max_node = Const(graph, {'name': slice_name + '/int32_max',
+                                       'value': np.int64(np.iinfo(np.int32).max)}).create_node()
         select_node = Select(graph, {'name': slice_name + '/select'}).create_node()
 
         # node to convert sizes to ends
