@@ -116,4 +116,4 @@ class StatisticsReport:
             else:
                 raise Exception('PM data can only be collected for average or detailed report types')
 
-            logger.info('Pefromance counters report is stored to {}'.format(filename))
+            logger.info('Performance counters report is stored to {}'.format(filename))
