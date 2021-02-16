@@ -132,32 +132,30 @@ find_ie_bindings() {
     mo_release_version="$("$python_executable" "$SCRIPTDIR"/../mo/utils/extract_release_version.py)"
     if [[ $mo_release_version == "None.None" ]]; then
       mo_is_custom=true
-      echo "[ INFO ] Custom ModelOptimizer version detected"
     else
       mo_is_custom=false
-      echo "[ INFO ] Release ModelOptimizer version $mo_release_version detected"
     fi
 
     if ! check_ie "$python_executable"; then
         # check pip installed openvino package
         if check_ov_package "$python_executable" "$requires_sudo"; then
             if $mo_is_custom; then
-                print_warning "Existing OpenVINO pip version is incompatible with ModelOptimizer."
-                print_warning "For not release ModelOptimizer version please build InferenceEngine python from source (preferable) or install latest OpenVINO version using pip install openvino (may be incompatible)."
+                print_warning "Existing OpenVINO pip version is incompatible with Model Optimizer."
+                print_warning "For not release Model Optimizer version please build Inference Engine Python API from sources (preferable) or install latest OpenVINO version using pip install openvino (may be incompatible)."
             else
-                print_warning "Existing OpenVINO pip version is incompatible with ModelOptimizer."
-                print_warning "For release ModelOptimizer version which is $mo_release_version please install OpenVNO using pip install openvino==$mo_release_version or build InferenceEngine python from source."
+                print_warning "Existing OpenVINO pip version is incompatible with Model Optimizer."
+                print_warning "For release Model Optimizer version which is $mo_release_version please install OpenVNO using pip install openvino==$mo_release_version or build Inference Engine Python API from sources."
             fi
             return 0
         fi
 
-        print_warning "No available InferenceEngine python API was found. Trying to install OpenVINO using pip."
+        print_warning "No available Inference Engine Python API was found. Trying to install OpenVINO using pip."
 
         if $mo_is_custom; then
-            print_warning "Custom ModelOptimizer version detected."
-            print_warning "The desired version of InferenceEngine can be installed only for release ModelOptimizer version."
-            print_warning "The latest OpenVINO version will be installed (may be incompatible with current ModelOptimizer version)."
-            print_warning "It is recommended to build InferenceEngine from source even if installation will be successful."
+            print_warning "Custom Model Optimizer version detected."
+            print_warning "The desired version of Inference Engine can be installed only for release Model Optimizer version."
+            print_warning "The latest OpenVINO version will be installed (may be incompatible with current Model Optimizer version)."
+            print_warning "It is recommended to build Inference Engine from sources even if installation will be successful."
         elif install_ov "$python_executable" "$requires_sudo" "$mo_release_version"; then
             if check_ie "$python_executable"; then
                 return 0
@@ -165,12 +163,12 @@ find_ie_bindings() {
 
             print_warning "Installed OpenVINO version $mo_release_version doesn't work as expected...Uninstalling..."
             uninstall_ov "$python_executable" "$requires_sudo"
-            print_warning "Please consider to build InferenceEngine python from source"
+            print_warning "Please consider to build Inference Engine Python API from sources"
             return 0
         else
             print_warning "Can not find OpenVINO version $mo_release_version in pip."
-            print_warning "But the latest OpenVINO version will be installed (may be incompatible with current ModelOptimizer version)."
-            print_warning "It is recommended to build InferenceEngine from source even if installation will be successful."
+            print_warning "But the latest OpenVINO version will be installed (may be incompatible with current Model Optimizer version)."
+            print_warning "It is recommended to build Inference Engine from sources even if installation will be successful."
         fi
 
         #install the latest OpenVINO pip version
@@ -180,12 +178,12 @@ find_ie_bindings() {
             else
                 print_warning "Installed latest OpenVINO version doesn't work as expected...Uninstalling..."
                 uninstall_ov "$python_executable" "$requires_sudo"
-                print_warning "Please consider to build InferenceEngine python from source."
+                print_warning "Please consider to build Inference Engine Python API from sources."
                 return 0
             fi
         else
             print_warning "No OpenVINO version is available in pip for installation."
-            print_warning "Please consider to build InferenceEngine python from source."
+            print_warning "Please consider to build Inference Engine Python API from sources."
             return 0
         fi
     fi
