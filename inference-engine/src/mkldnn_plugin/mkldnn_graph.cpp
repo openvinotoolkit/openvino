@@ -30,7 +30,6 @@
 #include <blob_factory.hpp>
 #include <legacy/net_pass.h>
 #include <legacy/details/ie_cnn_network_tools.h>
-#include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 
 #include "precision_utils.h"
