@@ -17,13 +17,13 @@ import re
 
 try:
     # needed by install_prerequisites which call extract_release_version as python script
-    from version import get_mo_version
+    from version import get_version
 except ImportError:
-    from mo.utils.version import get_mo_version
+    from mo.utils.version import get_version
 
 
 def extract_release_version():
-    version = get_mo_version()
+    version = get_version()
     patterns = [
         # captures release version set by CI for example: '2021.1.0-1028-55e4d5673a8'
         "^([0-9]+).([0-9]+)*",

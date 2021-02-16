@@ -21,9 +21,9 @@ import argparse
 
 try:
     # needed by find_ie_version.py which call check_ie_bindings.py as python script
-    from version import get_mo_version
+    import version
 except ImportError:
-    from mo.utils.version import get_mo_version
+    import mo.utils.version
 
 from extract_release_version import extract_release_version
 
@@ -34,7 +34,7 @@ def try_to_import_ie(silent: bool, path_to_module: str):
         from openvino.offline_transformations import ApplyMOCTransformations
 
         ie_version = get_version()
-        mo_version = get_mo_version()
+        mo_version = version.get_version()
 
         if not silent:
             print("\t- {}: \t{}".format("InferenceEngine found in", path_to_module))
@@ -45,15 +45,15 @@ def try_to_import_ie(silent: bool, path_to_module: str):
             extracted_release_version = extract_release_version()
             is_custom_mo_version = extracted_release_version == (None, None)
             if not silent:
-                print("[ WARNING ] MO and IE versions do no match. Some ModelOptimizer functionality may not work.")
+                print("[ WARNING ] MO and IE versions do no match.")
                 print("[ WARNING ] Please consider to build InferenceEngine python from source or reinstall OpenVINO using pip install openvino{} {}".format(
                     "", "(may be incompatible with current ModelOptimizer version)" if is_custom_mo_version else "=={}.{}".format(*extracted_release_version), ""))
 
         return True
-    except ImportError as e:
+    except Exception as e:
         # Do not print a warning if module wasn't found
         if "No module named 'openvino'" not in str(e) and not silent:
-            print("[ WARNING ] ImportError: {}".format(e))
+            print("[ WARNING ] {}".format(e))
         return False
 
 

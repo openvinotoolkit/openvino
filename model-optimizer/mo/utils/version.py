@@ -26,9 +26,12 @@ def generate_mo_version():
     Function generates version like in cmake
     custom_{branch_name}_{commit_hash}
     """
-    branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
-    commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode()
-    return "custom_{}_{}".format(branch_name, commit_hash)
+    try:
+        branch_name = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).strip().decode()
+        commit_hash = subprocess.check_output(["git", "rev-parse", "HEAD"]).strip().decode()
+        return "custom_{}_{}".format(branch_name, commit_hash)
+    except Exception as e:
+        return "unknown version"
 
 
 def get_version():
@@ -38,7 +41,3 @@ def get_version():
     with open(version_txt) as f:
         version = f.readline().replace('\n', '')
     return version
-
-
-def get_mo_version():
-    return get_version()

@@ -148,12 +148,18 @@ def prepare_ir(argv: argparse.Namespace):
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
 
-    if not find_ie_version(silent=argv.silent) and not argv.silent:
-        print("[ WARNING ] No InferenceEngine python was found. At this moment InferenceEngine dependency is not mandatory but in future it will be required.")
-        print("[ WARNING ] Please consider to build InferenceEngine python from source or try to install OpenVINO using install_prerequisites.{}".format(
-            "bat" if sys.platform == "windows" else "sh"))
-        # in case if IE wasn't found it won't print MO version so we have to print it manually
-        print("{}: \t{}".format("Model Optimizer version", get_version()))
+    # this try-except is just an additional reinsurance to be sure that
+    # IE dependency search doesn't break MO pipeline
+    try:
+        if not find_ie_version(silent=argv.silent) and not argv.silent:
+            print("[ WARNING ] No InferenceEngine python was found. At this moment InferenceEngine dependency is not mandatory but in future it will be required.")
+            print("[ WARNING ] Please consider to build InferenceEngine python from source or try to install OpenVINO using install_prerequisites.{}".format(
+                "bat" if sys.platform == "windows" else "sh"))
+            # in case if IE wasn't found it won't print MO version so we have to print it manually
+            print("{}: \t{}".format("Model Optimizer version", get_version()))
+    except Exception as e:
+        # TODO: send exception message
+        pass
 
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
@@ -264,12 +270,18 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
-        if find_ie_version(silent=True):
-            path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)),
-                                                           'offline_transformations.py')
-            status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=100)
-            if status.returncode != 0:
-                print("[ WARNING ] offline_transformations return code {}".format(status.returncode))
+        # this try-except is just an additional reinsurance to be sure that
+        # IE dependency search doesn't break MO pipeline
+        try:
+            if find_ie_version(silent=True):
+                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)),
+                                                               'offline_transformations.py')
+                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=100)
+                if status.returncode != 0 and not argv.silent:
+                    print("[ WARNING ] offline_transformations return code {}".format(status.returncode))
+        except Exception as e:
+            # TODO: send error message
+            pass
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
