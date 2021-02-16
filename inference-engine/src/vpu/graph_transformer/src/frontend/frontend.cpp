@@ -145,6 +145,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"HSwish",                                             LAYER_PARSER(parseHSwish)},
         {"Ceiling",                                            LAYER_PARSER(parseCeiling)},
         {"GatherElements",                                     LAYER_PARSER(parseGatherElements)},
+        {"ExpGatherElements",                                  LAYER_PARSER(parseGatherElements)},
         {"Round",                                              LAYER_PARSER(parseRound)},
         {"CTCGreedyDecoderSeqLen",                             LAYER_PARSER(parseCTCGreedyDecoderSeqLen)},
     }} {

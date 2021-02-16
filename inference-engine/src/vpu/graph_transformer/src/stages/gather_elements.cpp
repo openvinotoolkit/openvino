@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,13 @@ protected:
         const auto input2 = inputEdge(1)->input();
         const auto output = outputEdge(0)->output();
 
+        const auto rowIndicesMode = attrs().get<int32_t>("rowIndicesMode");
+        if (rowIndicesMode) {
+            const auto input3 = inputEdge(2)->input();
+            orderInfo.setInput(inputEdge(2),
+                               DimsOrder::fromNumDims(input3->desc().numDims()));
+        }
+
         orderInfo.setInput(inputEdge(0),
                            DimsOrder::fromNumDims(input1->desc().numDims()));
         orderInfo.setInput(inputEdge(1),
@@ -47,12 +54,16 @@ protected:
     getBatchSupportInfoImpl(StageDataInfo<BatchSupport> &batchInfo) override {}
 
     StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
-        return StageSHAVEsRequirements::NotNeeded;
+        const auto axis = attrs().get<int32_t>("axis");
+        const auto rank = inputEdge(0)->input()->desc().numDims();
+        const auto rowIndicesMode = attrs().get<int32_t>("rowIndicesMode");
+
+        return (rowIndicesMode || (axis == rank - 1)) ? StageSHAVEsRequirements::NeedMax : StageSHAVEsRequirements::NotNeeded;
     }
 
     void initialCheckImpl() const override {
-        VPU_THROW_UNLESS(numInputs() == 2,
-                         "{} stage with name {} must have only 1 output, actually "
+        VPU_THROW_UNLESS(numInputs() == 2 || numInputs() == 3,
+                         "{} stage with name {} must have 2 or 3 inputs only, actually "
                          "provided {} inputs",
                          type(), name(), numInputs());
         VPU_THROW_UNLESS(numOutputs() == 1,
@@ -63,14 +74,19 @@ protected:
                          "First input and output must have the same DataType, "
                          "actual input type is {} and output type is {}",
                          inputs()[0]->desc().type(), outputs()[0]->desc().type());
-        assertInputsOutputsTypes(
-            this, {{DataType::U8, DataType::FP16, DataType::S32}, {DataType::S32}},
-            {{DataType::U8, DataType::FP16, DataType::S32}});
+
+        DataTypesRequirement inputDataTypes = {{DataType::U8, DataType::FP16, DataType::S32}, {DataType::S32}};
+        if (numInputs() == 3)
+            inputDataTypes.push_back({DataType::S32});
+
+        assertInputsOutputsTypes(this, inputDataTypes, {{DataType::U8, DataType::FP16, DataType::S32}});
     }
 
     void serializeParamsImpl(BlobSerializer &serializer) const override {
         const auto axis = attrs().get<int32_t>("axis");
+        const auto rowIndicesMode = attrs().get<int32_t>("rowIndicesMode");
         serializer.append(axis);
+        serializer.append(rowIndicesMode);
     }
 
     void serializeDataImpl(BlobSerializer &serializer) const override {
@@ -81,6 +97,13 @@ protected:
         input0->serializeBuffer(serializer);
         output->serializeBuffer(serializer);
         input1->serializeBuffer(serializer);
+
+        const auto rowIndicesMode = attrs().get<int32_t>("rowIndicesMode");
+
+        if (rowIndicesMode) {
+            auto rowIndices = inputEdge(2)->input();
+            rowIndices->serializeBuffer(serializer);
+        }
     }
 };
 
@@ -89,12 +112,14 @@ protected:
 Stage StageBuilder::addGatherElementsStage(const Model &model,
                                            const std::string &name,
                                            const ie::CNNLayerPtr &layer,
-                                           const Data &input, const Data &indices,
-                                           const Data &output, int32_t axis) {
+                                           const DataVector &inputs,
+                                           const Data &output, int32_t axis,
+                                           bool rowIndicesMode) {
     auto stage = model->addNewStage<GatherElementsStage>(
-        layer->name, StageType::GatherElements, layer, {input, indices}, {output});
+        layer->name, StageType::GatherElements, layer, inputs, {output});
 
     stage->attrs().set<int32_t>("axis", axis);
+    stage->attrs().set<int32_t>("rowIndicesMode", rowIndicesMode);
 
     return stage;
 }
@@ -102,8 +127,8 @@ Stage StageBuilder::addGatherElementsStage(const Model &model,
 void FrontEnd::parseGatherElements(const Model &model, const ie::CNNLayerPtr &layer,
                                    const DataVector &inputs,
                                    const DataVector &outputs) const {
-    VPU_THROW_UNLESS(layer, "CNNLayer pointer is null.");
-    VPU_THROW_UNLESS(inputs.size() == 2,
+    VPU_THROW_UNLESS(layer != nullptr, "CNNLayer pointer is null.");
+    VPU_THROW_UNLESS(inputs.size() == 2 || inputs.size() == 3,
                      "{} layer with name {} must have 2 inputs, actually "
                      "provided {} inputs",
                      layer->type, layer->name, inputs.size());
@@ -112,19 +137,31 @@ void FrontEnd::parseGatherElements(const Model &model, const ie::CNNLayerPtr &la
                      "provided {} outputs",
                      layer->type, layer->name, outputs.size());
 
+    bool rowIndicesMode = (inputs.size() == 3);
+
     const auto axis = layer->GetParamAsInt("axis");
     const auto rank = inputs[0]->desc().numDims();
 
     VPU_THROW_UNLESS(rank >= 1, "rank has to be more than or equal to 1, actually {}", rank);
-    VPU_THROW_UNLESS(inputs[1]->desc().numDims() == rank, "rank of the second input must be equal to {}, actually {}",
-                     rank, inputs[1]->desc().numDims());
-    VPU_THROW_UNLESS(outputs[0]->desc().numDims() == rank, "rank of output must be equal to {}, actually {}",
-                     rank, outputs[0]->desc().numDims());
-    VPU_THROW_UNLESS(axis >= 0 && axis < rank, "axis must be in the range of [0, {}) , actually {}",
-                     rank, axis);
 
-    _stageBuilder->addGatherElementsStage(model, layer->name, layer, inputs[0],
-                                          inputs[1], outputs[0], axis);
+    if (rowIndicesMode) {
+        VPU_THROW_UNLESS(inputs[1]->desc().numDims() == rank + 1, "rank of the second input must be equal to {}, actually {}",
+                        rank + 1, inputs[1]->desc().numDims());
+        VPU_THROW_UNLESS(inputs[2]->desc().numDims() == 2, "rank of the third input must be equal to 2, actually {}",
+                        2, inputs[2]->desc().numDims());
+        VPU_THROW_UNLESS(outputs[0]->desc().numDims() == rank + 1, "rank of output must be equal to {}, actually {}",
+                        rank + 1, outputs[0]->desc().numDims());
+        VPU_THROW_UNLESS(axis == rank - 1, "axis must be equal to {}, actually {}", rank - 1, axis);
+    } else {
+        VPU_THROW_UNLESS(inputs[1]->desc().numDims() == rank, "rank of the second input must be equal to {}, actually {}",
+                        rank, inputs[1]->desc().numDims());
+        VPU_THROW_UNLESS(outputs[0]->desc().numDims() == rank, "rank of output must be equal to {}, actually {}",
+                        rank, outputs[0]->desc().numDims());
+        VPU_THROW_UNLESS(axis >= 0 && axis < rank, "axis must be in the range of [0, {}) , actually {}",
+                        rank, axis);
+    }
+
+    _stageBuilder->addGatherElementsStage(model, layer->name, layer, inputs, outputs[0], axis, rowIndicesMode);
 }
 
 }// namespace vpu
