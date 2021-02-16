@@ -177,7 +177,8 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "NonMaxSuppression", NonMaxSuppression},
         { "NonMaxSuppressionIEInternal", NonMaxSuppression},
         { "MatrixNms", MatrixNms},
-        { "MulticlassNms", MulticlassNms}
+        { "MulticlassNms", MulticlassNms},
+        { "Subgraph", Subgraph}
 };
 
 Type TypeFromName(const std::string& type) {

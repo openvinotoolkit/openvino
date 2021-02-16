@@ -7,6 +7,8 @@
 #include <ie_common.h>
 #include <cpu/x64/jit_generator.hpp>
 
+#include "snippets/snippets_isa.hpp"
+#include "snippets/generator.hpp"
 #include "mkldnn_node.h"
 
 #include <set>
@@ -24,23 +26,23 @@ struct emitter_context {
     virtual ~emitter_context() = default;
 };
 
-class jit_emitter {
+class jit_emitter : public ngraph::snippets::Emitter {
 public:
     jit_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const MKLDNNNode* node,
                 InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
-        : h(host), host_isa_(host_isa), exec_prc_(exec_prc), in_out_type_(in_out_type), l_table (new Xbyak::Label()) {
+        : Emitter(nullptr), h(host), host_isa_(host_isa), exec_prc_(exec_prc), in_out_type_(in_out_type), l_table (new Xbyak::Label()) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
     }
 
     jit_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
                 InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32, emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
-        : h(host), host_isa_(host_isa), exec_prc_(exec_prc), in_out_type_(in_out_type), l_table (new Xbyak::Label()) {
+        : Emitter(n), h(host), host_isa_(host_isa), exec_prc_(exec_prc), in_out_type_(in_out_type), l_table (new Xbyak::Label()) {
         k_mask = Xbyak::Opmask(1); // FIXME: in general case we need preserve k_mask state as well
     }
 
-    virtual void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                   const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const;
-    virtual void emit_data() const;
+    void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
+                   const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const override;
+    void emit_data() const override;
 
     virtual void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                       const std::shared_ptr<const emitter_context> &emit_context,
