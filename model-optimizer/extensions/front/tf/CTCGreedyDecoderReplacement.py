@@ -49,13 +49,13 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         cast = match['cast']
         sparse_to_dense = match['sparse_to_dense']
         sparse_to_dense_name = sparse_to_dense.soft_get('name', sparse_to_dense.id)
+        ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
 
         # for normalizing input chanel need to transpose input data from [T, N, C] to [N, T, C]
         # which supported CTCGreedyDecoderSeqLen op.
         ctc_data_permute = create_op_with_const_inputs(graph, Transpose, {1: int64_array([1, 0, 2])},
-                                                            {'name': ctc_greedy_decoder_tf.name + '/ctc_data_permute'})
+                                                            {'name': ctc_greedy_decoder_tf_name + '/ctc_data_permute'})
 
-        ctc_greedy_decoder_tf_name = ctc_greedy_decoder_tf.soft_get('name', ctc_greedy_decoder_tf.id)
         assert ctc_greedy_decoder_tf.has_valid('merge_repeated'), \
             'The CTCGreedyDecoderSeqLen node "{}" misses "merge_repeated" attribute'.format(ctc_greedy_decoder_tf_name)
 
