@@ -161,6 +161,7 @@ KERNEL(reduce_fsv16)(
 )
 {
 #if IS_REDUCE_XY
+    // __local ACCUMULATOR_TYPE lg_storage[COMMON_OUTPUT_BATCH_NUM][COMMON_OUTPUT_FEATURE_NUM][BLOCK_Y_NUM];
     __local ACCUMULATOR_TYPE lg_storage[SIMD][BLOCK_Y_NUM];
     const uint lid0 = (uint)get_local_id(0);
     const uint lid1 = (uint)get_local_id(1);
@@ -327,7 +328,6 @@ uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * 
     FINAL_ACCUMULATOR_TYPE final_acc;
     acc = FUNC_CALL(sub_group_reduce)(acc);
     final_acc = FUNC_CALL(final_reduce)(TO_FINAL_ACCUMULATOR_TYPE(acc));
-
     OUTPUT_TYPE final_result;
     ACTIVATION_TYPE reduce_result = TO_ACTIVATION_TYPE(final_acc);
     #if HAS_FUSED_OPS

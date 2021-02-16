@@ -24,6 +24,8 @@ namespace kernel_selector {
 
 static const size_t SIMD = 16;
 static const size_t XY_OPT_F_LIMITS = 96;
+static const size_t AXIS_Y = 2;
+static const size_t AXIS_X = 3;
 using NDims = std::vector<kernel_selector::Tensor::Dim>;
 
 static size_t calc_read_offset(const reduce_params& params) {
@@ -37,7 +39,7 @@ static size_t calc_read_offset(const reduce_params& params) {
     return read_offset;
 }
 
-static NDims calc_input_dims(const reduce_params& params) {
+static NDims get_input_dims(const reduce_params& params) {
     auto input = params.inputs[0];
     auto in_dims = input.GetDims();
     std::reverse(in_dims.begin(), in_dims.end());
@@ -58,13 +60,14 @@ static NDims calc_in_dims(const reduce_params& params) {
     return in_dims;
 }
 
-static bool is_reduce_xy(const reduce_params& params) {
+static bool can_opt_reduce_xy(const reduce_params& params) {
     auto axes = params.reduceAxes;
-    auto input_dims = calc_input_dims(params);
+    auto input_dims = get_input_dims(params);
     return axes.size() == 2 && 
-        std::find(axes.begin(), axes.end(), 2) != std::end(axes) &&
-        std::find(axes.begin(), axes.end(), 3) != std::end(axes) &&
+        std::find(axes.begin(), axes.end(), AXIS_Y) != std::end(axes) &&
+        std::find(axes.begin(), axes.end(), AXIS_X) != std::end(axes) &&
         input_dims[1].v <= XY_OPT_F_LIMITS &&
+        // prod, sum_squre, L2 and log_sum doesn't work with reduce(x,y) optimization.
         !(params.reduceMode == ReduceMode::PROD ||
             params.reduceMode == ReduceMode::SUM_SQUARE ||
             params.reduceMode == ReduceMode::L2 ||
@@ -97,8 +100,8 @@ CommonDispatchData ReduceKernel_b_fs_yx_fsv16::SetDefault(const reduce_params& p
 
     auto in_dims = calc_in_dims(params);
 
-    if (is_reduce_xy(params)) {
-        auto input_dims = calc_input_dims(params);
+    if (can_opt_reduce_xy(params)) {
+        auto input_dims = get_input_dims(params);
         dispatchData.gws = { 16,
                             std::min(CeilDiv(input_dims[2].v, SIMD), SIMD),
                             CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v };                 // F, B
@@ -119,9 +122,10 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
     auto in_dims = calc_in_dims(params);
     auto read_offset = calc_read_offset(params);
 
-    // In case of XY reduction
-    if (is_reduce_xy(params)) {
-        auto input_dims = calc_input_dims(params);
+    // Optimization of reduce(x,y) when feature depth is shallow.
+    // In this case, tile the input tensor and create partial result to generate more work items
+    if (can_opt_reduce_xy(params)) {
+        auto input_dims = get_input_dims(params);
         auto num_block_y = std::min(CeilDiv(input_dims[2].v, SIMD), SIMD);
         jit.AddConstant(MakeJitConstant("IS_REDUCE_XY", 1));
         jit.AddConstant(MakeJitConstant("BLOCK_Y_NUM", num_block_y));
