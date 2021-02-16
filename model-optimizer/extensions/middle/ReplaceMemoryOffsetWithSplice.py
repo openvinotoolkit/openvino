@@ -145,8 +145,6 @@ class ReplaceMemoryOffsetWithMemoryNodePattern(MiddleReplacementPattern):
         in_shape = input_port.data.get_shape()
         node_t = abs(node.t)
 
-        params = node.graph.get_op_nodes(op="Parameter")
-
         init_value_memory_out = Const(graph, {'name': 'init_value_' + pair_name,
                                               'value': np.zeros(int64_array([in_shape[0], in_shape[1]*node_t])),
                                               'shape': int64_array([in_shape[0], in_shape[1]*node_t])}).create_node()

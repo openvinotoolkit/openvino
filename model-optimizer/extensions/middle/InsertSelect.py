@@ -85,7 +85,6 @@ class AddSelectBeforeMemoryNodePattern(MiddleReplacementPattern):
         if context_len == 1:
             return
 
-        batch_port = graph.get_op_nodes(op="Parameter")[0].out_port(0)
         in_node_port = node.in_port(0).get_source()
         in_node_shape = node.in_port(0).data.get_shape()
         node.in_port(0).disconnect()
