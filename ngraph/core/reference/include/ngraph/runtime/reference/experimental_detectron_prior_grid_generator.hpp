@@ -16,13 +16,8 @@
 
 #pragma once
 
-#include <algorithm>
-#include <array>
-#include <cassert>
-#include <cmath>
 #include <cstddef>
-#include <functional>
-#include <map>
+#include <cstdint>
 #include <ngraph/runtime/host_tensor.hpp>
 #include <vector>
 #include "ngraph/node.hpp"

@@ -15,10 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/experimental_detectron_prior_grid_generator.hpp"
-#include <algorithm>
-#include <cmath>
-#include <queue>
-#include <vector>
+#include <cstring>
 #include "ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp"
 #include "ngraph/shape.hpp"
 
