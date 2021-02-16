@@ -5,6 +5,7 @@
 #include <numeric>
 #include "vpu/ngraph/operations/static_shape_reshape.hpp"
 #include "vpu/ngraph/utilities.hpp"
+#include <ngraph/validation_util.hpp>
 
 namespace ngraph { namespace vpu { namespace op {
 
@@ -40,8 +41,13 @@ void StaticShapeReshape::validate_and_infer_types() {
 
     const auto& inputShape = get_input_shape(0);
 
-    auto outputDimensionsValues = ::vpu::evaluateTargetShape(targetShape);
-    NODE_VALIDATION_CHECK(this, !outputDimensionsValues.empty(), "StaticShapeReshape (", get_friendly_name(), ") can't evaluate output shape");
+    ngraph::PartialShape targetPShape;
+    if (!ngraph::evaluate_as_partial_shape(targetShape, targetPShape) ||
+        targetPShape.is_dynamic()) {
+        NODE_VALIDATION_CHECK(this, false, "StaticShapeReshape (", get_friendly_name(), ") can't evaluate output shape");
+    }
+
+    auto outputDimensionsValues = targetPShape.to_shape();
 
     for (std::size_t i = 0; i < outputDimensionsValues.size(); ++i) {
         if (outputDimensionsValues[i] == 0 && m_special_zero) {
