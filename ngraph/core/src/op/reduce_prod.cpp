@@ -85,6 +85,8 @@ bool op::v1::ReduceProd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v1_ReduceProd_evaluate);
+    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
     return reduce_prod::evaluate_product(
         inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

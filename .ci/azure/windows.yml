@@ -100,11 +100,6 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
 
-  - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
-    displayName: Stop IncrediBuild
-    continueOnError: true
-    enabled: false
-
   - script: dir $(REPO_DIR)\bin\ /s
     displayName: 'List files'
 
@@ -239,3 +234,8 @@ jobs:
       buildPlatform: 'x64' # Optional
       buildConfiguration: 'Windows' # Optional
       #publishRunAttachments: true # Optional
+ 
+  - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
+    displayName: Stop IncrediBuild
+    continueOnError: true
+    enabled: false

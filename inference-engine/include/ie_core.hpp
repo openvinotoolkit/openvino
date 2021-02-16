@@ -197,7 +197,7 @@ public:
      * The method is targeted to extract information which can be set via SetConfig method.
      *
      * @param deviceName  - A name of a device to get a configuration value.
-     * @param name  - value of config corresponding to config key.
+     * @param name  - config key.
      * @return Value of config corresponding to config key.
      */
     Parameter GetConfig(const std::string& deviceName, const std::string& name) const;
