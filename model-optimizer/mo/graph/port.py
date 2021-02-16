@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -310,9 +310,7 @@ class Port:
             if node_idx in self.node.out_nodes():
                 out_node = self.node.out_node(node_idx)
                 fw_names += get_tensor_names_list(out_node.attrs())
-        if len(fw_names) > 0:
-            return ','.join(fw_names)
-        return None
+        return fw_names
 
     def disconnect(self):
         if self.type == 'out':

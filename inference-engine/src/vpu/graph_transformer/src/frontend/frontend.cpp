@@ -20,7 +20,6 @@
 #include <string>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
-#include <generic_ie.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -146,6 +145,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"HSwish",                                             LAYER_PARSER(parseHSwish)},
         {"Ceiling",                                            LAYER_PARSER(parseCeiling)},
         {"GatherElements",                                     LAYER_PARSER(parseGatherElements)},
+        {"ExpGatherElements",                                  LAYER_PARSER(parseGatherElements)},
         {"Round",                                              LAYER_PARSER(parseRound)},
         {"CTCGreedyDecoderSeqLen",                             LAYER_PARSER(parseCTCGreedyDecoderSeqLen)},
     }} {
@@ -164,8 +164,6 @@ ModelPtr FrontEnd::buildInitialModel(const ie::CNNNetwork& network) {
 
 ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     auto nGraphFunc = network.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
@@ -382,27 +380,30 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
 }
 
 void FrontEnd::processTrivialCases(const Model& model) {
-    std::unordered_map<ie::DataPtr, DataVector> ieToVpuDataVector;
+    std::unordered_map<ie::DataPtr, std::pair<Data, Data>> ieDataToTrivialCase;
     for (const auto& data : model->datas()) {
         const auto& origData = data->origData();
-        if (origData != nullptr) {
-            ieToVpuDataVector[origData].push_back(data);
+        if (origData == nullptr) {
+            continue;
         }
+
+        auto& trivialCase = ieDataToTrivialCase[origData];
+        auto& destination = data->usage() == DataUsage::Output ? trivialCase.second : trivialCase.first;
+        VPU_THROW_UNLESS(ieDataToTrivialCase.count(origData) == 0 || destination == nullptr,
+            "Encountered IE data object {} which has two vpu data objects {} and {} of the same type {} associated with it, while only one is permitted",
+            origData->getName(), destination->name(), data->name(), destination->usage());
+        destination = data;
     }
 
-    std::vector<DataVector> trivialCases;
-    for (const auto& dataObjectsWithTheSameOrigData : ieToVpuDataVector) {
-        if (dataObjectsWithTheSameOrigData.second.size() > 1) {
-            VPU_THROW_UNLESS(dataObjectsWithTheSameOrigData.second.size() == 2,
-                             "There can't be more than two data objects associated with the same original IE data object with name {}",
-                             dataObjectsWithTheSameOrigData.first->getName());
-            trivialCases.push_back(dataObjectsWithTheSameOrigData.second);
-        }
-    }
+    for (const auto& trivialCase : ieDataToTrivialCase) {
+        const auto& trivialCasePair = trivialCase.second;
 
-    for (const auto& trivialCase : trivialCases) {
-        const auto& unconnectedOutput = trivialCase.front()->usage() == DataUsage::Output ? trivialCase.front() : trivialCase.back();
-        const auto& unconnectedInput = unconnectedOutput == trivialCase.front() ? trivialCase.back() : trivialCase.front();
+        const auto& unconnectedInput = trivialCasePair.first;
+        const auto& unconnectedOutput = trivialCasePair.second;
+
+        if (!unconnectedInput || !unconnectedOutput) {
+            continue;
+        }
 
         _stageBuilder->addCopyStage(
             model,
