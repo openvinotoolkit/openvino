@@ -28,7 +28,7 @@ ie_faster_build(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME} PUBLIC ngraph
                                      PRIVATE ngraph_reference)
 
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
+target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
                                           PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
@@ -41,5 +41,4 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 # install
 
-# TODO: uncomment once snippets are integrated into CPU plugin
-# ov_install_static_lib(${TARGET_NAME} core)
+ov_install_static_lib(${TARGET_NAME} core)
