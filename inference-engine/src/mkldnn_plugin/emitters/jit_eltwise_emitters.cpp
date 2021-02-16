@@ -1287,14 +1287,14 @@ size_t jit_logical_not_emitter::aux_vecs_count() const {
 jit_power_static_emitter::jit_power_static_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
     auto parent = node->input(1).get_source_output().get_node_shared_ptr();
-    if (!std::dynamic_pointer_cast<ngraph::op::Constant>(parent)) {
+    if (!std::dynamic_pointer_cast<ngraph::snippets::op::Scalar>(parent)) {
         throw ngraph::ngraph_error("unsupported non constant power");
     }
 
     if (!(node->input(1).get_shape() == ngraph::Shape() || ngraph::shape_size(node->input(1).get_shape()) == 1)) {
         throw ngraph::ngraph_error("unsupported non scalar power");
     }
-    power = ngraph::as_type_ptr<ngraph::op::Constant>(parent)->get_data_ptr<float>()[0];
+    power = ngraph::as_type_ptr<ngraph::snippets::op::Scalar>(parent)->get_data_ptr<float>()[0];
     scale = 1.f;
     shift = 0.f;
     push_arg_entry_of("power", cpu::x64::float2int(power), true);
@@ -1607,6 +1607,11 @@ void jit_negative_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, cons
 
 /// ERF ///
 jit_erf_emitter::jit_erf_emitter(jit_generator *host, cpu_isa_t host_isa, const MKLDNNNode* node, Precision exec_prc)
+: jit_emitter(host, host_isa, node, exec_prc) {
+    prepare_table();
+}
+
+jit_erf_emitter::jit_erf_emitter(jit_generator *host, cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {
     prepare_table();
 }
