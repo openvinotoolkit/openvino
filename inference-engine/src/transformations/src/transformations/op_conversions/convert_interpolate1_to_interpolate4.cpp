@@ -36,7 +36,7 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
             i++;
         }
 
-        auto input_shape_rank = interpolate1->input(0).get_partial_shape().rank().get_length();
+        auto input_shape_rank = inp_partial_shape.rank().get_length();
         auto scalesConstant = ngraph::op::Constant::create(ngraph::element::f32, {scales.size()}, scales);
         auto axisConstant = ngraph::op::Constant::create(ngraph::element::i64, {attrsV0.axes.size()},
                                                          std::vector<std::size_t>{attrsV0.axes.begin(), attrsV0.axes.end()});
