@@ -12,8 +12,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::I32,
 };
 
-using namespace ngraph::element;
-
 const std::vector<ngraph::element::Type> argDepthType_IC = { ngraph::element::i32 };
 const std::vector<int64_t> argDepth_IC = { 1, 5, 1017 };
 const std::vector<ngraph::element::Type> argSetType_IC = { ngraph::element::i32 };
