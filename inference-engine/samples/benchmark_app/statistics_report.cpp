@@ -130,5 +130,5 @@ void StatisticsReport::dumpPerformanceCounters(const std::vector<PerformaceCount
     } else {
         throw std::logic_error("PM data can only be collected for average or detailed report types");
     }
-    slog::info << "Pefromance counters report is stored to " << dumper.getFilename() << slog::endl;
+    slog::info << "Performance counters report is stored to " << dumper.getFilename() << slog::endl;
 }

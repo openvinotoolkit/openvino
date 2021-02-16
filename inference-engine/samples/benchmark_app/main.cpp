@@ -231,7 +231,7 @@ int main(int argc, char *argv[]) {
                     device_config[key] = device_nstreams.at(device);
                 } else if (!device_config.count(key) && (FLAGS_api == "async")) {
                     slog::warn << "-nstreams default value is determined automatically for " << device << " device. "
-                          "Although the automatic selection usually provides a reasonable performance,"
+                          "Although the automatic selection usually provides a reasonable performance, "
                           "but it still may be non-optimal for some cases, for more information look at README." << slog::endl;
                     if (std::string::npos == device.find("MYRIAD")) // MYRIAD sets the default number of streams implicitly (without _AUTO)
                         device_config[key] = std::string(device + "_THROUGHPUT_AUTO");
@@ -644,7 +644,7 @@ int main(int argc, char *argv[]) {
             for (size_t ireq = 0; ireq < nireq; ireq++) {
                 auto reqPerfCounts = inferRequestsQueue.requests[ireq]->getPerformanceCounts();
                 if (FLAGS_pc) {
-                    slog::info << "Pefrormance counts for " << ireq << "-th infer request:" << slog::endl;
+                    slog::info << "Performance counts for " << ireq << "-th infer request:" << slog::endl;
                     printPerformanceCounts(reqPerfCounts, std::cout, getFullDeviceName(ie, FLAGS_d), false);
                 }
                 perfCounts.push_back(reqPerfCounts);
