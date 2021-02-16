@@ -62,6 +62,7 @@
 #include "mvn_inst.h"
 #include "gemm_inst.h"
 #include "reduce_inst.h"
+#include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
 #include "to_string_utils.h"
 #include "gpu/memory_gpu.h"
@@ -1219,7 +1220,8 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::mutable_data::type_id() &&
             prim.type() != cldnn::reduce::type_id() &&
-            prim.type() != cldnn::strided_slice::type_id())
+            prim.type() != cldnn::strided_slice::type_id() &&
+            prim.type() != cldnn::region_yolo::type_id())
             can_use_fsv16 = false;
 
         if (prim.type() == cldnn::quantize::type_id() &&
