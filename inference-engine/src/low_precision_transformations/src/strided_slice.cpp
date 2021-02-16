@@ -17,6 +17,10 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
     auto constant = as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
+    // issue #48857: constant is mistakenly recognized as a scalar. Uncomment after fix
+    //if (NetworkHelper::isScalarLike(constant)) {
+    //    return NetworkHelper::toScalar(constant);
+    //}
 
     if (strSlice->get_input_shape(0).size() != constant->get_shape().size()) {
         const auto constantShape = constant->get_shape();
