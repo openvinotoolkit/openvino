@@ -4,8 +4,8 @@
 
 #include "base.hpp"
 #include "ie_parallel.hpp"
-#include "common/utils.hpp"
 #include "common/tensor_desc_creator.h"
+#include "common/cpu_memcpy.h"
 #include "utils/bfloat16.hpp"
 #include <mkldnn_selective_build.h>
 
@@ -24,10 +24,7 @@ public:
     explicit OneHotImpl(const CNNLayer* layer) {
         try {
             depth     = layer->GetParamAsUInt("depth");
-            on_value  = layer->GetParamAsFloat("on_value", 1.0f);
-            off_value = layer->GetParamAsFloat("off_value", 0.0f);
             axis      = layer->GetParamAsInt("axis", -1);
-
             src_dims = layer->insData[0].lock()->getTensorDesc().getDims();
             dst_dims = layer->outData[0]->getTensorDesc().getDims();
 
@@ -48,8 +45,19 @@ public:
                 THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for the input. Only I32 is supported!";
             }
             output_precision = layer->outData[0]->getTensorDesc().getPrecision();
-            if (!one_of(output_precision, Precision::FP32, Precision::I32, Precision::BF16, Precision::U8, Precision::I8)) {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect precision for the output. Only FP32, I32, BF16, U8 and I8 are supported!";
+            if (Precision::BF16 == output_precision) {
+                MKLDNNPlugin::bfloat16_t bf16_on_value  = layer->GetParamAsFloat("on_value", 1.0f);
+                MKLDNNPlugin::bfloat16_t bf16_off_value = layer->GetParamAsFloat("off_value", 0.0f);
+                cpu_memcpy(&on_value, &bf16_on_value, sizeof(MKLDNNPlugin::bfloat16_t));
+                cpu_memcpy(&off_value, &bf16_off_value, sizeof(MKLDNNPlugin::bfloat16_t));
+            } else if (output_precision.is_float()) {
+                float float_on_value  = layer->GetParamAsFloat("on_value", 1.0f);
+                float float_off_value = layer->GetParamAsFloat("off_value", 0.0f);
+                cpu_memcpy(&on_value, &float_on_value, sizeof(float));
+                cpu_memcpy(&off_value, &float_off_value, sizeof(float));
+            } else {
+                on_value = layer->GetParamAsInt("on_value", 1);
+                off_value = layer->GetParamAsInt("off_value", 0);
             }
 
             LayerConfig config;
@@ -82,14 +90,13 @@ public:
             std::size_t suffix_size = inputs.front()->size() / prefix_size;
 
             OneHotContext ctx = {this, inputs[0], outputs[0], prefix_size, suffix_size, false};
-            OV_SWITCH(MKLDNNPlugin, OneHotExecute, ctx, output_precision,
-                      OV_CASE(Precision::FP32, PrecisionTrait<Precision::FP32>::value_type),
-                      OV_CASE(Precision::I32, PrecisionTrait<Precision::I32>::value_type),
-                      OV_CASE(Precision::BF16, MKLDNNPlugin::bfloat16_t),
-                      OV_CASE(Precision::I8, PrecisionTrait<Precision::I8>::value_type),
-                      OV_CASE(Precision::U8, PrecisionTrait<Precision::U8>::value_type))
+            OV_SWITCH(MKLDNNPlugin, OneHotExecute, ctx, output_precision.size(),
+                      OV_CASE(sizeof(uint32_t), uint32_t),
+                      OV_CASE(sizeof(uint16_t), uint16_t),
+                      OV_CASE(sizeof(uint8_t), uint8_t))
 
             if (!ctx.executed) {
+                snprintf(resp->msg, sizeof(resp->msg), "Unsupported output data type %s.", output_precision.name());
                 return GENERAL_ERROR;
             }
         }
@@ -145,8 +152,8 @@ private:
     };
 
     uint32_t depth;
-    float on_value = 1.f;
-    float off_value = 0.f;
+    uint32_t on_value;
+    uint32_t off_value;
     int32_t axis = -1;
     SizeVector src_dims;
     SizeVector dst_dims;
