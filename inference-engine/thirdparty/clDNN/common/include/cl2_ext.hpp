@@ -29,7 +29,6 @@ typedef cl_d3d11_device_set_khr    cl_device_set_intel;
 typedef cl_va_api_device_source_intel cl_device_source_intel;
 typedef cl_va_api_device_set_intel    cl_device_set_intel;
 #endif
-#include "cl_intel_usm_defs.h"
 
 #include <memory>
 
@@ -116,34 +115,34 @@ A static local variable in an extern inline function always refers to the same o
 */
 inline void* hostMemAlloc(const cl::Context& cpp_context, const cl_mem_properties_intel *properties, size_t size,
     cl_uint alignment, cl_int* err_code_ret) {
-    PFN_clHostMemAllocINTEL fn = load_entrypoint<PFN_clHostMemAllocINTEL>(cpp_context.get(), "clHostMemAllocINTEL");
+    clHostMemAllocINTEL_fn fn = load_entrypoint<clHostMemAllocINTEL_fn>(cpp_context.get(), "clHostMemAllocINTEL");
     return fn(cpp_context.get(), properties, size, alignment, err_code_ret);
 }
 
 inline void* sharedMemAlloc(const cl::Device& cpp_device, const cl::Context& cpp_context, const cl_mem_properties_intel *properties, size_t size,
     cl_uint alignment, cl_int* err_code_ret) {
-    PFN_clSharedMemAllocINTEL fn = load_entrypoint<PFN_clSharedMemAllocINTEL>(cpp_context.get(), "clSharedMemAllocINTEL");
+    clSharedMemAllocINTEL_fn fn = load_entrypoint<clSharedMemAllocINTEL_fn>(cpp_context.get(), "clSharedMemAllocINTEL");
     return fn(cpp_context.get(), cpp_device.get(), properties, size, alignment, err_code_ret);
 }
 
 inline void* deviceMemAlloc(const cl::Device& cpp_device, const cl::Context& cpp_context, const cl_mem_properties_intel *properties, size_t size,
     cl_uint alignment, cl_int* err_code_ret) {
-    PFN_clDeviceMemAllocINTEL fn = load_entrypoint<PFN_clDeviceMemAllocINTEL>(cpp_context.get(), "clDeviceMemAllocINTEL");
+    clDeviceMemAllocINTEL_fn fn = load_entrypoint<clDeviceMemAllocINTEL_fn>(cpp_context.get(), "clDeviceMemAllocINTEL");
     return fn(cpp_context.get(), cpp_device.get(), properties, size, alignment, err_code_ret);
 }
 
 inline cl_int memFree(const cl::Context& cpp_context, void* ptr) {
-    PFN_clMemFreeINTEL fn = load_entrypoint<PFN_clMemFreeINTEL>(cpp_context.get(), "clMemFreeINTEL");
+    clMemFreeINTEL_fn fn = load_entrypoint<clMemFreeINTEL_fn>(cpp_context.get(), "clMemFreeINTEL");
     return fn(cpp_context.get(), ptr);
 }
 
-inline cl_int set_kernel_arg_mem_pointer(const cl::Kernel& kernel, uint32_t index, const void* ptr, PFN_clSetKernelArgMemPointerINTEL fn) {
+inline cl_int set_kernel_arg_mem_pointer(const cl::Kernel& kernel, uint32_t index, const void* ptr, clSetKernelArgMemPointerINTEL_fn fn) {
     return fn(kernel.get(), index, ptr);
 }
 
 inline cl_int enqueue_memcpy(const cl::CommandQueue& cpp_queue, void *dst_ptr, const void *src_ptr,
     size_t bytes_count, bool blocking = true, const std::vector<cl::Event>* wait_list = nullptr, cl::Event* ret_event = nullptr) {
-    PFN_clEnqueueMemcpyINTEL fn = load_entrypoint<PFN_clEnqueueMemcpyINTEL>(cpp_queue.get(), "clEnqueueMemcpyINTEL");
+    clEnqueueMemcpyINTEL_fn fn = load_entrypoint<clEnqueueMemcpyINTEL_fn>(cpp_queue.get(), "clEnqueueMemcpyINTEL");
 
     cl_event tmp;
     cl_int err = fn(
@@ -165,7 +164,7 @@ inline cl_int enqueue_memcpy(const cl::CommandQueue& cpp_queue, void *dst_ptr, c
 inline cl_int enqueue_fill_mem(const cl::CommandQueue& cpp_queue, void *dst_ptr, const void* pattern,
     size_t pattern_size, size_t bytes_count, const std::vector<cl::Event>* wait_list = nullptr,
     cl::Event* ret_event = nullptr) {
-    PFN_clEnqueueMemFillINTEL fn = load_entrypoint<PFN_clEnqueueMemFillINTEL>(cpp_queue.get(), "clEnqueueMemFillINTEL");
+    clEnqueueMemFillINTEL_fn fn = load_entrypoint<clEnqueueMemFillINTEL_fn>(cpp_queue.get(), "clEnqueueMemFillINTEL");
 
     cl_event tmp;
     cl_int err = fn(
@@ -187,7 +186,7 @@ inline cl_int enqueue_fill_mem(const cl::CommandQueue& cpp_queue, void *dst_ptr,
 inline cl_int enqueue_set_mem(const cl::CommandQueue& cpp_queue, void* dst_ptr, cl_int value,
     size_t bytes_count, const std::vector<cl::Event>* wait_list = nullptr,
     cl::Event* ret_event = nullptr) {
-    PFN_clEnqueueMemsetINTEL fn = load_entrypoint<PFN_clEnqueueMemsetINTEL>(cpp_queue.get(), "clEnqueueMemsetINTEL");
+    clEnqueueMemsetINTEL_fn fn = load_entrypoint<clEnqueueMemsetINTEL_fn>(cpp_queue.get(), "clEnqueueMemsetINTEL");
 
     cl_event tmp;
     cl_int err = fn(
@@ -653,15 +652,15 @@ typedef CL_API_ENTRY cl_mem(CL_API_CALL * PFN_clCreateFromMediaSurfaceINTEL)(
     */
     class KernelIntel : public Kernel {
         using Kernel::Kernel;
-        PFN_clSetKernelArgMemPointerINTEL fn;
+        clSetKernelArgMemPointerINTEL_fn fn;
 
     public:
         KernelIntel() : Kernel(), fn(nullptr) {}
         KernelIntel(const Kernel &other, bool supports_usm) : Kernel(other) {
-            fn = supports_usm ? load_entrypoint<PFN_clSetKernelArgMemPointerINTEL>(get(), "clSetKernelArgMemPointerINTEL") : nullptr;
+            fn = supports_usm ? load_entrypoint<clSetKernelArgMemPointerINTEL_fn>(get(), "clSetKernelArgMemPointerINTEL") : nullptr;
         }
 
-        KernelIntel(const Kernel &other, PFN_clSetKernelArgMemPointerINTEL fn) : Kernel(other), fn(fn) { }
+        KernelIntel(const Kernel &other, clSetKernelArgMemPointerINTEL_fn fn) : Kernel(other), fn(fn) { }
 
         KernelIntel clone() const {
             Kernel cloned_kernel(this->getInfo<CL_KERNEL_PROGRAM>(), this->getInfo<CL_KERNEL_FUNCTION_NAME>().c_str());
