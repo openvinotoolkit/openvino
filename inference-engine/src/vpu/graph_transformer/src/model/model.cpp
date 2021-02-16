@@ -1715,7 +1715,10 @@ void ModelObj::replaceDataToShapeParent(
 
     const auto& childProducer = child->producer();
     if (childProducer != nullptr) {
-        removeStageDependency(oldParent->producer(), childProducer);
+        const auto& oldParentProducer = oldParent->producer();
+        if (oldParentProducer != nullptr) {
+            removeStageDependency(oldParent->producer(), childProducer);
+        }
 
         if (isStageDependencyNeeded(childProducer, newParent)) {
             // Shape and data are produced from different stages, make sure that shape is calculated before data
@@ -1740,8 +1743,9 @@ void ModelObj::replaceDataToShapeChild(
     newChild->_parentDataToShapeEdge = edge;
 
     const auto& oldChildProducer = oldChild->producer();
-    if (oldChildProducer != nullptr) {
-        removeStageDependency(parent->producer(), oldChildProducer);
+    const auto& parentProducer = parent->producer();
+    if (parentProducer != nullptr && oldChildProducer != nullptr) {
+        removeStageDependency(parentProducer, oldChildProducer);
     }
 
     const auto& newChildProducer = newChild->producer();
@@ -1830,8 +1834,9 @@ void ModelObj::disconnectDatas(const DataToShapeAllocation& edge) {
     _shapeEdgePtrList.erase(edge->_ptrPosInModel);
 
     const auto& childProducer = child->producer();
-    if (childProducer != nullptr) {
-        removeStageDependency(parent->producer(), childProducer);
+    const auto& parentProducer = parent->producer();
+    if (parentProducer != nullptr && childProducer != nullptr) {
+        removeStageDependency(parentProducer, childProducer);
     }
 }
 
@@ -1884,7 +1889,10 @@ void ModelObj::disconnectStage(const Stage& stage) {
     for (const auto& outEdge : stage->_outputEdges) {
         // Disconnect from dependency
         if (const auto& dataToShapeEdge = outEdge->output()->parentDataToShapeEdge()) {
-            removeStageDependency(dataToShapeEdge->parent()->producer(), stage);
+            const auto& parentProducer = dataToShapeEdge->parent()->producer();
+            if (parentProducer != nullptr) {
+                removeStageDependency(parentProducer, stage);
+            }
         }
         // Disconnect from consumers
         for (const auto& consumerEdge : outEdge->_output->_consumerEdges) {
