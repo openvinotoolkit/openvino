@@ -27,7 +27,6 @@
 
 namespace py = pybind11;
 
-void regclass_Blob(py::module m)
-{
+void regclass_Blob(py::module m) {
     py::class_<InferenceEngine::Blob, std::shared_ptr<InferenceEngine::Blob>> cls(m, "Blob");
 }

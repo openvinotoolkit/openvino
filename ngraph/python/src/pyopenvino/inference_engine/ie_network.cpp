@@ -24,16 +24,16 @@
 #include "pyopenvino/inference_engine/ie_input_info.hpp"
 #include "pyopenvino/inference_engine/ie_network.hpp"
 
-using PyInputsDataMap = std::map<std::string, std::shared_ptr<InferenceEngine::InputInfo>>;
-
-PYBIND11_MAKE_OPAQUE(PyInputsDataMap);
+//using PyInputsDataMap = std::map<std::string, std::shared_ptr<InferenceEngine::InputInfo>>;
+//
+//PYBIND11_MAKE_OPAQUE(PyInputsDataMap);
 
 namespace py = pybind11;
 
 void regclass_IENetwork(py::module m)
 {
     py::class_<InferenceEngine::CNNNetwork, std::shared_ptr<InferenceEngine::CNNNetwork>> cls(
-        m, "IENetwork");
+            m, "IENetwork");
     cls.def(py::init([](py::object* capsule) {
         // get the underlying PyObject* which is a PyCapsule pointer
         auto* pybind_capsule_ptr = capsule->ptr();
@@ -52,7 +52,7 @@ void regclass_IENetwork(py::module m)
 
     cls.def("reshape",
             [](InferenceEngine::CNNNetwork& self,
-               std::map<std::string, std::vector<size_t>>& input_shapes) {
+               const std::map<std::string, std::vector<size_t>>& input_shapes) {
                 self.reshape(input_shapes);
             });
 
@@ -65,14 +65,14 @@ void regclass_IENetwork(py::module m)
                      &InferenceEngine::CNNNetwork::getBatchSize,
                      &InferenceEngine::CNNNetwork::setBatchSize);
 
-    auto py_inputs_data_map = py::bind_map<PyInputsDataMap>(m, "PyInputsDataMap");
+    //auto py_inputs_data_map = py::bind_map<PyInputsDataMap>(m, "PyInputsDataMap");
 
-    py_inputs_data_map.def("keys", [](PyInputsDataMap& self) {
-        return py::make_key_iterator(self.begin(), self.end());
-    });
+//    py_inputs_data_map.def("keys", [](PyInputsDataMap& self) {
+//        return py::make_key_iterator(self.begin(), self.end());
+//    });
 
     cls.def_property_readonly("input_info", [](InferenceEngine::CNNNetwork& self) {
-        PyInputsDataMap inputs;
+        std::map<std::string, std::shared_ptr<InferenceEngine::InputInfo>> inputs;
         const InferenceEngine::InputsDataMap& inputsInfo = self.getInputsInfo();
         for (auto& in : inputsInfo) {
             inputs[in.first] = in.second;
