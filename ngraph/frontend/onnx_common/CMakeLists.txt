@@ -32,7 +32,7 @@ target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX
                                                        $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 
-target_link_libraries(${TARGET_NAME} PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} ngraph)
+target_link_libraries(${TARGET_NAME} PUBLIC onnx PRIVATE ngraph)
 
 target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE
@@ -54,5 +54,5 @@ install(TARGETS ${TARGET_NAME} EXPORT ngraphTargets
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
-        export(TARGETS ${TARGET_NAME} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+        export(TARGETS ${TARGET_NAME} onnx onnx_proto NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
 endif()

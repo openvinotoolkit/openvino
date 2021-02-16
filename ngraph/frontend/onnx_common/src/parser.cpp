@@ -25,7 +25,7 @@ namespace ngraph
 {
     namespace onnx_common
     {
-        ONNX_NAMESPACE::ModelProto parse_from_file(const std::string& file_path)
+        void parse_from_file(ONNX_NAMESPACE::ModelProto& model_proto, const std::string& file_path)
         {
             std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
 
@@ -34,10 +34,10 @@ namespace ngraph
                 throw ngraph_error("Could not open the file: " + file_path);
             };
 
-            return parse_from_istream(file_stream);
+            parse_from_istream(model_proto, file_stream);
         }
 
-        ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream)
+        void parse_from_istream(ONNX_NAMESPACE::ModelProto& model_proto, std::istream& model_stream)
         {
             if (!model_stream.good())
             {
@@ -49,7 +49,6 @@ namespace ngraph
                 }
             }
 
-            ONNX_NAMESPACE::ModelProto model_proto;
             if (!model_proto.ParseFromIstream(&model_stream))
             {
 #ifdef NGRAPH_USE_PROTOBUF_LITE
@@ -70,8 +69,6 @@ namespace ngraph
                 }
 #endif
             }
-
-            return model_proto;
         }
     } // namespace onnx_editor
 } // namespace ngraph
