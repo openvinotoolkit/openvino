@@ -36,9 +36,8 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
     }
 
     cldnn::tensor dataTensor;
-    cldnn::tensor::value_type batch = (p.m_max_batch <= 1)
-                                    ? (inputDims.size() > 3 ? TensorValue(inputDims[0]) : 1)
-                                    : TensorValue(p.m_curBatch);
+    cldnn::tensor::value_type batch = (p.m_max_batch <= 1) ? (!inputDims.empty() ? TensorValue(inputDims[0]) : 1)
+                                                           : TensorValue(p.m_curBatch);
     switch (inputDims.size()) {
     case 6:
         dataTensor = cldnn::tensor(cldnn::batch(batch),
@@ -74,7 +73,7 @@ void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::Paramet
         break;
     case 2:
         if (Layout::NCHW == l || NC == l) {
-            dataTensor = cldnn::tensor(TensorValue(inputDims[0]), TensorValue(inputDims[1]), 1, 1);
+            dataTensor = cldnn::tensor(batch, TensorValue(inputDims[1]), 1, 1);
         } else {
             THROW_IE_EXCEPTION << "Unsupported layout (" << l << ") in 2D input " << inputInfo->name();
         }
