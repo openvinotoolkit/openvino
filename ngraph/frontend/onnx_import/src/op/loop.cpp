@@ -203,7 +203,8 @@ namespace ngraph
                     // Set-up parameters from parent graph which are not changed during Loop's
                     // iterations
                     for (auto out_from_parent_it = outputs_from_parent.begin();
-                         body_inputs_it != body_inputs.end();
+                         body_inputs_it != body_inputs.end() &&
+                         out_from_parent_it != outputs_from_parent.end();
                          ++body_inputs_it, ++out_from_parent_it)
                     {
                         loop->set_invariant_input(*body_inputs_it, *out_from_parent_it);
