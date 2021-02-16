@@ -24,9 +24,7 @@
 #endif
 // clang-format on
 
-#include <iostream>
 #include <numeric>
-#include <string>
 
 #include "gtest/gtest.h"
 #include "runtime/backend.hpp"
@@ -185,19 +183,6 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_prior_grid_eval)
         handle->call({output_priors}, {backend_priors, backend_feature_map, backend_im_data});
 
         auto output_priors_value = read_vector<float>(output_priors);
-
-        std::cout << std::string(80, '*') << "\n";
-        std::cout << "Actual number of floats in calculated result: "
-                  << output_priors_value.size() << "\n";
-        auto num_of_expected_results = expected_results[i].size();
-        std::cout << "Actual calculated result (first "
-                  << num_of_expected_results << " floats):\n    ";
-
-        for (size_t j = 0; j < num_of_expected_results; ++j)
-        {
-            std::cout << output_priors_value[j] << ", ";
-        }
-        std::cout << "\n";
 
         std::vector<float> actual_results(output_priors_value.begin(),
                                           output_priors_value.begin() + ref_results.size());
