@@ -32,6 +32,13 @@ public:
     struct Result {
         bool valid;
         std::string message;
+
+        static Result ok(std::string msg = {}) {
+            return {true, std::move(msg)};
+        }
+        static Result error(std::string msg) {
+            return {false, std::move(msg)};
+        }
     };
 
     static constexpr FunctionsComparator no_default() noexcept {
