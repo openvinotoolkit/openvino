@@ -37,7 +37,10 @@ def runtime(backend_name: str = "CPU") -> "Runtime":
 
 def get_runtime():
     """Return runtime object."""
-    return runtime(backend_name=tests.BACKEND_NAME)
+    if tests.BACKEND_NAME is not None:
+        return runtime(backend_name=tests.BACKEND_NAME)
+    else:
+        return runtime()
 
 
 def _convert_inputs(cnn_network: IENetwork) -> None:

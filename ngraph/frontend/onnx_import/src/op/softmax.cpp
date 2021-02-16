@@ -81,6 +81,47 @@ namespace ngraph
                     return {result};
                 }
             }
+            namespace set_7
+            {
+                OutputVector softmax(const Node& node)
+                {
+                    const auto data = node.get_ng_inputs().at(0);
+                    const auto data_rank = data.get_partial_shape().rank();
+                    NGRAPH_CHECK(data_rank.is_static(),
+                                 "ONNX Softmax data rank needs to be known (static)");
+
+                    const auto axis = node.get_attribute_value<int64_t>("axis", 1);
+
+                    std::shared_ptr<ngraph::Node> result;
+                    switch (data_rank.get_length())
+                    {
+                    case 0:
+                    {
+                        result =
+                            default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
+                        break;
+                    }
+                    case 1:
+                    {
+                        // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
+                        ngraph::normalize_axis(
+                            node.get_description(), axis, data.get_partial_shape().rank());
+                        result = std::make_shared<default_opset::Softmax>(data, 0);
+                        break;
+                    }
+                    default:
+                    {
+                        const auto normalized_axis = ngraph::normalize_axis(
+                            node.get_description(), axis, data.get_partial_shape().rank());
+
+                        result = std::make_shared<default_opset::Softmax>(data, normalized_axis);
+                        break;
+                    }
+                    }
+
+                    return {result};
+                }
+            }
         }
     }
 }

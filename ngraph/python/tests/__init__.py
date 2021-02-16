@@ -197,7 +197,6 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
                                       "indices value that points to non-existing output tensor element")
 
 
-xfail_issue_39704 = xfail_test(reason="ResNet101_DUC_HDC - AssertionError: zoo models results mismatch")
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
