@@ -50,26 +50,31 @@ LIB_INSTALL_CFG = {
         'name': 'hetero',
         'prefix': 'libs.plugins',
         'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
     },
     "gpu_plugin": {
         'name': 'cldnn',
         'prefix': 'libs.plugins',
         'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
     },
     "cpu_plugin": {
         'name': 'mkldnn',
         'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR
+        'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
     },
     "multi_plugin": {
         'name': 'multi',
         'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR
+        'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
     },
     "myriad_plugin": {
         'name': 'myriad',
         'prefix': 'libs.plugins',
         'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
     },
     "ngraph_libs": {
         'name': 'ngraph',
