@@ -164,7 +164,6 @@ class PrepareLibs(build_clib):
         for src_dir in src_dirs:
             copytree(src=src_dir,
                      dst=os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR),
-                     dirs_exist_ok=True,
                      ignore=ignore_patterns(*data_blacklist))
         if Path(WHEEL_LIBS_INSTALL_DIR).exists():
             packages.append(WHEEL_LIBS_PACKAGE)
