@@ -61,6 +61,7 @@
 #include "api/roi_pooling.hpp"
 #include "api/scale.hpp"
 #include "api/scatter_update.hpp"
+#include "api/scatter_elements_update.hpp"
 #include "api/select.hpp"
 #include "api/shuffle_channels.hpp"
 #include "api/softmax.hpp"
@@ -136,6 +137,7 @@ REGISTER_GPU(reverse_sequence);
 REGISTER_GPU(roi_pooling);
 REGISTER_GPU(scale);
 REGISTER_GPU(scatter_update);
+REGISTER_GPU(scatter_elements_update);
 REGISTER_GPU(select);
 REGISTER_GPU(shuffle_channels);
 REGISTER_GPU(softmax);

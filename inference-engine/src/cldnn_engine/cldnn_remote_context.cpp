@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
             { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
         };
-#ifdef WIN32
+#ifdef _WIN32
     case BT_DX_BUF_SHARED:
         return{
             { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER) },
@@ -81,7 +81,7 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
 }
 
 void CLDNNRemoteBlobImpl::allocate_if_needed() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::allocate_if_needed");
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::AllocateIfNeeded");
     auto _impl = getContextImpl(m_context.lock());
     _impl->acquire_lock();
 
@@ -94,7 +94,7 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
         case BlobType::BT_BUF_SHARED:
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_buffer(*eng, m_layout, m_mem)));
             break;
-#ifdef WIN32
+#ifdef _WIN32
         case BlobType::BT_SURF_SHARED:
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_mem, m_plane)));
             break;
@@ -118,7 +118,6 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
 }
 
 void CLDNNRemoteBlobImpl::allocate() noexcept {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::allocate");
     assert(m_memObject == nullptr);
 
     std::shared_ptr<const cldnn::engine> eng = getContextImpl(m_context.lock())->GetEngine();
@@ -130,7 +129,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
     case BlobType::BT_BUF_SHARED:
         m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_buffer(*eng, m_layout, m_mem)));
         break;
-#ifdef WIN32
+#ifdef _WIN32
     case BlobType::BT_SURF_SHARED:
         m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_mem, m_plane)));
         break;
@@ -227,7 +226,6 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     m_type(ContextType::OCL),
     m_config(config),
     m_va_display(nullptr) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecutionContextImpl");
     lock.clear(std::memory_order_relaxed);
     gpu_handle_param _context_id = nullptr;
     gpu_handle_param _va_device = nullptr;

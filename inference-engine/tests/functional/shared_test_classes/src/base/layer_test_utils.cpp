@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2019-2021 Intel Corporation
+// Copyright (C) 2019-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <fstream>
@@ -72,6 +72,7 @@ void TestEnvironment::TearDown() {
     opsets.push_back(ngraph::get_opset3());
     opsets.push_back(ngraph::get_opset4());
     opsets.push_back(ngraph::get_opset5());
+    opsets.push_back(ngraph::get_opset6());
     std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto &opset : opsets) {
         const auto &type_info_set = opset.get_type_info_set();
@@ -211,7 +212,9 @@ void LayerTestsCommon::Serialize() {
     bool success;
     std::string message;
     std::tie(success, message) =
-            compare_functions(result.getFunction(), function);
+            compare_functions(result.getFunction(), function, false, false, false,
+                              true,     // precision
+                              true);    // attributes
 
     EXPECT_TRUE(success) << message;
 
@@ -337,8 +340,12 @@ void LayerTestsCommon::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
     inputs.clear();
 
-    for (const auto &input : executableNetwork.GetInputsInfo()) {
-        const auto &info = input.second;
+    const auto& inputsInfo = executableNetwork.GetInputsInfo();
+    for (const auto& param : function->get_parameters()) {
+        const auto infoIt = inputsInfo.find(param->get_friendly_name());
+        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+
+        const auto& info = infoIt->second;
         auto blob = GenerateInput(*info);
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);

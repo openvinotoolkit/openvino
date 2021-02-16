@@ -76,8 +76,6 @@ xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error
 xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
                                       "Pad. Cannot parse parameter pads_end  from IR for layer B. "
                                       "Value -1,0 cannot be casted to int.")
-xfail_issue_35915 = xfail_test(reason="RuntimeError: Eltwise node with unsupported combination "
-                                      "of input and output types")
 xfail_issue_35916 = xfail_test(reason="RuntimeError: Unsupported input dims count for layer Z")
 xfail_issue_35917 = xfail_test(reason="RuntimeError: Unsupported input dims count for "
                                       "layer MatMul")
@@ -107,8 +105,6 @@ xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Gradient")
 xfail_issue_38701 = xfail_test(reason="RuntimeError: unsupported element type: STRING")
-xfail_issue_38705 = xfail_test(reason="IndexError: deque::_M_range_check: __n (which is 0)"
-                                      ">= this->size() (which is 0)")
 xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimension which is not allowed")
 xfail_issue_38707 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "SoftmaxCrossEntropyLoss")
@@ -130,12 +126,6 @@ xfail_issue_43742 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "If")
 xfail_issue_45457 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::Loop"
                                       "Not constant termination condition body output is not supported")
-xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(OneHot): y>':"
-                                      "While validating node 'v1::OneHot OneHot_<number>"
-                                      "(Convert_13525[0]:i64{3}, depth[0]:f32{},"
-                                      "Squeeze_13532[0]:i32{}, Squeeze_13529[0]:i32{}) -> (dynamic?)'"
-                                      "with friendly_name 'OneHot_13534':"
-                                      "Depth must be integral element type.")
 xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger"
                                       "and QLinearMatMul"
                                       "Input0 scale and input0 zero point shape must be same and 1")
@@ -158,7 +148,7 @@ xfail_issue_38735 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "ai.onnx.preview.training.Adagrad")
 xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "NegativeLogLikelihoodLoss")
-xfail_issue_45177 = xfail_test(reason="RuntimeError: axes has zero dimension which is not allowed")
+xfail_issue_48052 = xfail_test(reason="Dropout op is not supported in traning mode")
 xfail_issue_45180 = xfail_test(reason="RuntimeError: Unsupported dynamic op: ReduceSum")
 xfail_issue_44839 = xfail_test(reason="Huge computation missmatch")
 xfail_issue_44848 = xfail_test(reason="E   Unsupported dynamic op: Range")
@@ -174,7 +164,7 @@ xfail_issue_44968 = xfail_test(reason="E   Unsupported dynamic op: Squeeze")
 xfail_issue_44970 = xfail_test(reason="Assertion error")
 xfail_issue_44976 = xfail_test(reason="E   RuntimeError: Quantize layer with name:"
                                       "FakeQuantize_xxx has non const input on 1 port")
-xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if u16 data type is used")
+xfail_issue_46762 = xfail_test(reason="Incorrect result of Minimum op if uint data type is used")
 xfail_issue_46765 = xfail_test(reason="select_last_index attribute is not supported by ArgMin and ArgMax")
 xfail_issue_47317 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Add): 2>': "
                                       "Check shape_size(axes_shape) == input_rank' failed")
@@ -182,6 +172,7 @@ xfail_issue_47323 = xfail_test(reason="RuntimeError: The plugin does not support
 xfail_issue_47330 = xfail_test(reason="RuntimeError: Eltwise node with name `[name]` doesn't support "
                                       "FP64 precision.")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
+xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -206,10 +197,6 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
                                       "indices value that points to non-existing output tensor element")
 
 
-xfail_issue_39704 = xfail_test(reason="ResNet101_DUC_HDC - AssertionError: zoo models results mismatch")
-xfail_issue_43208 = xfail_test(reason="GPT-2 - AssertionError: zoo models results mismatch")
-xfail_issue_43209 = xfail_test(reason="GPT-2-LM-HEAD - AssertionError: zoo models results mismatch")
-xfail_issue_43213 = xfail_test(reason="RetinaNet Resnet101 - AssertionError: zoo models results mismatch")
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")

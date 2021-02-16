@@ -1952,8 +1952,6 @@ void ModelObj::removeStage(const Stage& stage) {
 void ModelObj::cleanUp() {
     for (const auto& data : datas()) {
         if (data->_usage == DataUsage::Input) {
-            VPU_THROW_UNLESS(!data->_consumerEdges.empty() || !data->childDataToShapeEdges().empty(),
-                    "Input data {} must either have at least one consumer (but got zero) or be a shape data.", data->name());
             IE_ASSERT(data->_parentDataToDataEdge == nullptr);
         } else if (data->_usage == DataUsage::Output) {
             IE_ASSERT(data->_producerEdge != nullptr);

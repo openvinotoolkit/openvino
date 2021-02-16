@@ -34,7 +34,7 @@ namespace CPUTestUtils {
         ncdhw = abcde,
         nCdhw8c = aBcde8b,
         nCdhw16c = aBcde16b,
-        ndhwc = acdeb,
+        ndhwc = acdeb
     } cpu_memory_format_t;
 
     using CPUSpecificParams =  std::tuple<
@@ -114,4 +114,5 @@ const auto conv_avx512_2D_1x1 = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_av
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector);
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams);
+void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount);
 } // namespace CPUTestUtils

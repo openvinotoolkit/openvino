@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,8 @@
 #include "gna_model_serial.hpp"
 #include "runtime/gna_float_runtime.hpp"
 #include <layers/gna_fake_quantize_layer.hpp>
+#include "gna_graph_patterns.hpp"
 
-#include <generic_ie.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
@@ -431,13 +431,256 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
     }
 }
 
+bool GNAPlugin::TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer) {
+    auto initOutput = [this, portId, layer]
+            (intel_dnn_orientation_t orientation, size_t numBytesPerElem, size_t numElem, void* outputPtr) {
+        auto & desc = outputsDesc[portId];
+        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+
+        desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
+        desc.orientation = orientation;
+        desc.num_bytes_per_element = numBytesPerElem;
+        desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
+        desc.num_elements = numElem;
+
+        // binding ptr for first infer request - then others will be setup during relocation
+        gnamem->bind_ptr(&desc.ptrs.front(), outputPtr);
+    };
+
+    // probing gna_primitives
+    auto irLayerAvatar = std::find_if(
+        graphCompiler.dnnComponents.components.begin(),
+        graphCompiler.dnnComponents.components.end(),
+        [&layer](const backend::DnnComponents::storage_type::value_type & value) {
+            return value.name == layer->name;
+    });
+    if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
+        initOutput(irLayerAvatar->dnnComponent.orientation_out, irLayerAvatar->dnnComponent.num_bytes_per_output,
+                   irLayerAvatar->dnnComponent.num_rows_out, &irLayerAvatar->dnnComponent.ptr_outputs);
+        return true;
+    }
+
+    // probing concatInfo
+    if (LayerInfo(layer).isConcat()) {
+        auto concatConnection  = graphCompiler.concat_connection.find(layer->name);
+        if (concatConnection != graphCompiler.concat_connection.end()) {
+            auto precision = layer->outData.front()->getPrecision().size();
+            initOutput(kDnnInterleavedOrientation, precision, concatConnection->second.reserved_size / precision,
+                       &concatConnection->second.gna_ptr);
+            return true;
+        }
+    }
+
+    // probing a constant info, for constant trivial networks support
+    if (LayerInfo(layer).isConst()) {
+        auto const_blob = layer->blobs["custom"];
+        auto constConnection  = graphCompiler.const_connections.find(layer->name);
+        if (constConnection != graphCompiler.const_connections.end()) {
+            initOutput(kDnnInterleavedOrientation, layer->outData.front()->getPrecision().size(),
+                       const_blob->size(), &constConnection->second);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void TransposeTensorFromNCHWToNHWC(size_t precision, size_t rows, size_t columns, uint8_t* buffer, bool transpose_rows,
+                                          const std::vector<TranspositionInfo> &transpositionInfo) {
+    size_t weightsTotalSize = rows * columns * precision;
+    std::vector<uint8_t> transposedWeights(weightsTotalSize);
+    size_t weightsPartOffset = 0;
+    bool transposed = false;
+    for (const auto &transpositionInfoPart : transpositionInfo) {
+        auto partSize = transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
+        size_t weightsPartSize = partSize * precision * (transpose_rows ? rows : columns);
+        if (transpositionInfoPart.transpose &&
+            transpositionInfoPart.num_transpose_rows != 1 &&
+            transpositionInfoPart.num_transpose_columns != 1) {
+            if (transpose_rows) {
+                for (int weightsRowIx = 0; weightsRowIx < rows; ++weightsRowIx) {
+                    auto weightsRowsOffset = weightsRowIx * partSize * precision;
+                    auto cbuffer = buffer + weightsPartOffset + weightsRowsOffset;
+                    auto weights_ptr = transposedWeights.data() + weightsPartOffset + weightsRowsOffset;
+                    for (int colsIx = 0; colsIx < transpositionInfoPart.num_transpose_columns; ++colsIx) {
+                        for (int rowIx = 0; rowIx < transpositionInfoPart.num_transpose_rows; ++rowIx) {
+                            auto offsetWrite = (colsIx * transpositionInfoPart.num_transpose_rows + rowIx) * precision;
+                            auto offsetRead = (transpositionInfoPart.num_transpose_columns * rowIx + colsIx) * precision;
+                            ie_memcpy(weights_ptr + offsetWrite, weightsPartSize - weightsRowsOffset - offsetWrite,
+                                cbuffer + offsetRead, precision);
+                        }
+                    }
+                }
+            } else {
+                auto cbuffer = buffer + weightsPartOffset;
+                auto weights_ptr = transposedWeights.data() + weightsPartOffset;
+                for (int colsIx = 0; colsIx < transpositionInfoPart.num_transpose_columns; ++colsIx) {
+                    for (int rowIx = 0; rowIx < transpositionInfoPart.num_transpose_rows; ++rowIx) {
+                        auto offsetWrite = (colsIx * transpositionInfoPart.num_transpose_rows + rowIx) * columns * precision;
+                        auto offsetRead = (transpositionInfoPart.num_transpose_columns * rowIx + colsIx) * columns * precision;
+                        ie_memcpy(weights_ptr + offsetWrite, weightsPartSize - offsetWrite, cbuffer + offsetRead, columns * precision);
+                    }
+                }
+            }
+            transposed = true;
+        } else {
+            // Just copy data which should not be transposed
+            ie_memcpy(transposedWeights.data() + weightsPartOffset,
+                      weightsPartSize,
+                      buffer + weightsPartOffset,
+                      weightsPartSize);
+        }
+        weightsPartOffset += weightsPartSize;
+    }
+    if (transposed) {
+        ie_memcpy(buffer, weightsTotalSize, transposedWeights.data(), weightsTotalSize);
+    }
+}
+
+void GNAPlugin::ConvertModelLayoutFromNCHWToNHWC(const std::vector<CNNLayerPtr> &layers) {
+    auto printTranspositionInfo = [](const std::vector<TranspositionInfo> &transpositionInfo) {
+        for (const auto &transpositionInfoPart : transpositionInfo) {
+            gnalog() << "transpose=" << transpositionInfoPart.transpose << " rows_num=" << transpositionInfoPart.num_transpose_rows
+                     << " columns_num=" << transpositionInfoPart.num_transpose_columns << "\n";
+        }
+    };
+
+    auto foundPartToTranspose = [](const std::vector<TranspositionInfo> &transpositionInfo) {
+        auto partToTranspose = std::find_if(std::begin(transpositionInfo), std::end(transpositionInfo),
+            [](const TranspositionInfo &infoPart) { return infoPart.transpose; });
+        return partToTranspose != std::end(transpositionInfo);
+    };
+
+    for (auto& l : layers) {
+        // Collect information for inputs transposition
+        if (LayerInfo(l).isInput()) {
+            auto transpositionInfo = FindTranspositionInfoFromNextLayers(l);
+            if (!transpositionInfo.empty()) {
+                transpose_inputs_info.insert({l->name, transpositionInfo});
+                gnalog() << "Input " << l->name << " transposition info: \n";
+                printTranspositionInfo(transpositionInfo);
+            }
+        }
+
+        // Collect information for outputs transposition
+        if (LayerInfo(l).isOutput()) {
+            auto transpositionInfo = FindTranspositionInfoFromPrevLayers(l);
+            if (!transpositionInfo.empty()) {
+                // Swap transposition info rows and columns since we need to transpose output back from NHWC to NCHW
+                for (auto && transpositionInfoPart : transpositionInfo) {
+                    if (transpositionInfoPart.transpose) {
+                        std::swap(transpositionInfoPart.num_transpose_rows, transpositionInfoPart.num_transpose_columns);
+                    }
+                }
+                transpose_outputs_info.insert({l->name, transpositionInfo});
+                gnalog() << "Output " << l->name << " transposition info: \n";
+                printTranspositionInfo(transpositionInfo);
+            }
+        }
+
+        // Transpose weights
+        if (LayerInfo(l).isScaleShift()) {
+            std::vector<TranspositionInfo> transpositionInfo;
+            // Try to find a convolution in previous layers
+            if (InferenceEngine::CNNNetHasPrevLayer(l.get())) {
+                transpositionInfo = FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNNetPrevLayer(l));
+                // If no convolutions are found try to find them in next layers
+                if (!foundPartToTranspose(transpositionInfo)) {
+                    transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
+                }
+            }
+            if (!transpositionInfo.empty()) {
+                auto weightable = dynamic_cast<WeightableLayer*>(l.get());
+                IE_ASSERT(weightable != nullptr);
+                TransposeTensorFromNCHWToNHWC(weightable->precision.size(), 1, weightable->_weights->size(),
+                    weightable->_weights->cbuffer().as<uint8_t*>(), true, transpositionInfo);
+                if (weightable->_biases) {
+                    TransposeTensorFromNCHWToNHWC(weightable->precision.size(), 1, weightable->_biases->size(),
+                        weightable->_biases->cbuffer().as<uint8_t*>(), true, transpositionInfo);
+                }
+                gnalog() << l->name << " weights and biases rows transposition info:\n";
+                printTranspositionInfo(transpositionInfo);
+            }
+        }
+
+        if (LayerInfo(l).isFullyConnected()) {
+            auto weightable = dynamic_cast<WeightableLayer*>(l.get());
+            IE_ASSERT(weightable != nullptr);
+            auto precision = weightable->precision.size();
+            auto out_dims = l->outData[0]->getDims();
+            auto in_dims = l->input()->getDims();
+            auto weightsRows = InferenceEngine::details::product(std::begin(out_dims) + 1, std::end(out_dims));
+            auto weightsColumns = InferenceEngine::details::product(std::begin(in_dims) + 1, std::end(in_dims));
+            // Find a convolution in previous layers to rotate weights rows
+            if (InferenceEngine::CNNNetHasPrevLayer(l.get())) {
+                auto transpositionInfo = FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNNetPrevLayer(l));
+                if (!transpositionInfo.empty()) {
+                    size_t totalColumns = 0;
+                    for (auto && transpositionInfoPart : transpositionInfo) {
+                        totalColumns += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
+                    }
+                    if (weightsColumns != totalColumns) {
+                        THROW_GNA_EXCEPTION << l->name << " weights columns from transposition info (" << totalColumns
+                                            << ") don't match input dimensions (" << weightsColumns << ")";
+                    }
+                    TransposeTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
+                                                  true, transpositionInfo);
+                    gnalog() << l->name << " weights rows transposition info:\n";
+                    printTranspositionInfo(transpositionInfo);
+                }
+            }
+            // Find a convolution in next layers to rotate weights columns
+            if (!l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
+                auto transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
+                if (!transpositionInfo.empty()) {
+                    size_t totalRows = 0;
+                    for (const auto& transpositionInfoPart : transpositionInfo) {
+                        totalRows += transpositionInfoPart.num_transpose_rows * transpositionInfoPart.num_transpose_columns;
+                    }
+                    if (weightsRows != totalRows) {
+                        THROW_GNA_EXCEPTION << l->name << "weights rows from transposition info (" << totalRows
+                                            << ") don't match output dimensions (" << weightsRows << ")";
+                    }
+                    TransposeTensorFromNCHWToNHWC(precision, weightsRows, weightsColumns, weightable->_weights->cbuffer().as<uint8_t*>(),
+                                                  false, transpositionInfo);
+                    gnalog() << l->name << " weights columns transposition info:\n";
+                    printTranspositionInfo(transpositionInfo);
+                }
+            }
+        }
+
+        if (LayerInfo(l).isEltwise()) {
+            // We need to transpose a constant which is an eltwise input
+            auto firstInput = InferenceEngine::CNNNetPrevLayer(l, 0);
+            auto secondInput = InferenceEngine::CNNNetPrevLayer(l, 1);
+            if (!LayerInfo(firstInput).isConst() && !LayerInfo(secondInput).isConst()) {
+                continue;
+            }
+            // Let a constant to be the second input
+            if (LayerInfo(firstInput).isConst()) {
+                std::swap(firstInput, secondInput);
+            }
+            // Find a convolution in previous or next layers
+            auto transpositionInfo = FindTranspositionInfoFromPrevLayers(firstInput);
+            if (!foundPartToTranspose(transpositionInfo)) {
+                transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
+            }
+            if (!transpositionInfo.empty()) {
+                auto blob = secondInput->blobs["custom"];
+                TransposeTensorFromNCHWToNHWC(blob->getTensorDesc().getPrecision().size(), 1, blob->size(),
+                                              blob->buffer().as<uint8_t*>(), true, transpositionInfo);
+                gnalog() << l->name << " data transposition info:\n";
+                printTranspositionInfo(transpositionInfo);
+            }
+        }
+    }
+}
+
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
         const auto& graph = clonedNetwork.getFunction();
-        // Disable shape inference (WA for generic operations)
-        ngraph::op::GenericIE::DisableReshape noReshape(graph);
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
@@ -473,6 +716,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // FQ networks now replaces certain flags in the plugin - flags will'be owerritten
     UpdateGnaQuantModeFromNetwork(network);
     UpdateInputScaleFromNetwork(network);
+
+    auto layers = details::CNNNetSortTopologically(network);
+    if (MustBeConvertedFromNCHWToNHWC(layers)) {
+        ConvertModelLayoutFromNCHWToNHWC(layers);
+    }
 
     // network optimisation phases
     int passIdx = 0;
@@ -561,7 +809,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
 #ifdef PLOT
     std::ofstream file("gna_passes.dot");
-    saveGraphToDot(*newNet, file, [](const CNNLayerPtr layer,
+    saveGraphToDot(newNet, file, [](const CNNLayerPtr layer,
                                            ordered_properties &printed_properties,
                                            ordered_properties &node_properties) {
         // printing quantized params
@@ -624,7 +872,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     // keep inputs information and create input primitives
     inputsDataMap = newNet.getInputsInfo();
     if (inputsDataMap.empty()) {
-        THROW_GNA_EXCEPTION << " No inputs for the topology";
+        gnawarn() << "No inputs for the topology\n";
     }
 
     // keep output dims
@@ -641,36 +889,21 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     for (auto & layer : sortedNoMem) {
         graphCompiler.CreateLayerPrimitive(layer);
     }
+
     for (auto& inputLayer : inputLayers) {
         auto layerInfo = LayerInfo(inputLayer);
         if (layerInfo.isInput() && 0 == inputsDesc->bytes_allocated_for_input[inputLayer->name]) {
             graphCompiler.connectOutput(inputLayer, &inputsDesc->getPtrInputsGlobal(inputLayer->name).front(), 0);
         }
     }
-    // TODO: graph might be static - should we support that
+
     if (graphCompiler.dnnComponents.components.empty()) {
-        THROW_GNA_EXCEPTION << "No GNA primitives created based on topology. This might indicate trivial topology";
+        gnawarn() << "No GNA primitives created based on topology. This might indicate trivial topology\n";
+        trivialTopology = true;
     }
 
     /// setting-up output layers information
     outputsDesc.resize(outputsDataMap.size());
-
-    auto initOutput = [this]
-            (int idx, const intel_dnn_component_t & component, CNNLayerPtr layer) {
-        // auto idx = std::distance(outputsDataMap.begin(), outputPort);
-        auto & desc = outputsDesc[idx];
-        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-
-        desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
-        desc.orientation = component.orientation_out;
-        desc.num_bytes_per_element = component.num_bytes_per_output;
-        desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
-        // TODO: this need to be fixed
-        desc.num_elements = component.num_rows_out;
-
-        // binding ptr for first infer request - then others will be setup during relocation
-        gnamem->bind_ptr(&desc.ptrs.front(), &component.ptr_outputs);
-    };
 
     int portId = 0;
     for (auto && outPort : outputsDataMap) {
@@ -694,43 +927,9 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         gnalog() << "[UFS] searching for : "<< outPort.first << " representation in GNA\n";
         bool stopSearching = false;
 
-        CNNNetDFS(outLayer, [this, &outPort, portId, &stopSearching, &initOutput](CNNLayerPtr layer) {
-            auto irLayerAvatar = std::find_if(
-                graphCompiler.dnnComponents.components.begin(),
-                graphCompiler.dnnComponents.components.end(),
-                [&layer](const backend::DnnComponents::storage_type::value_type & value) {
-                    return value.name == layer->name;
-            });
-
+        CNNNetDFS(outLayer, [this, &outPort, portId, &stopSearching](CNNLayerPtr layer) {
             gnalog() << "[UFS] from : "<< outPort.first <<" reached: " << layer->name << "\n";
-
-            // probing gna_primitives
-            if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
-                initOutput(portId, irLayerAvatar->dnnComponent, layer);
-                stopSearching = true;
-            }
-
-            // probing concatInfo
-            if (!stopSearching && LayerInfo(layer).isConcat()) {
-                auto concatConnection  = graphCompiler.concat_connection.find(layer->name);
-                if (concatConnection != graphCompiler.concat_connection.end()) {
-                    //initOutput(portId, irLayerAvatar->second, layer);
-
-                    auto &desc = outputsDesc[portId];
-                    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-
-                    desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
-                    // TODO: what is orientation for concat
-                    desc.orientation = kDnnInterleavedOrientation;
-                    desc.num_bytes_per_element = layer->outData.front()->getPrecision().size();
-                    desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
-                    desc.num_elements = concatConnection->second.reserved_size / desc.num_bytes_per_element;
-
-                    // binding ptr for first infer request - then others will be setup during relocation
-                    gnamem->bind_ptr(&desc.ptrs.front(), &concatConnection->second.gna_ptr);
-                    stopSearching = true;
-                }
-            }
+            stopSearching = TryToInitOutput(portId, layer);
         }, true, [&stopSearching](InferenceEngine::CNNLayer* from) {
             return make_upstream_order(!stopSearching ? from : nullptr);
         });
@@ -766,14 +965,16 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     dnn->component.insert(dnn->component.begin(), execOrder.begin(), execOrder.end());
 
     // in fp32 mode last PWL cannot be computed without that
-    dnn->InitActiveList(NULL);
+    if (!graphCompiler.dnnComponents.components.empty()) {
+        dnn->InitActiveList(NULL);
+    }
 
 #if GNA_LIB_VER == 2
     gnaModels.push_back(std::make_tuple(make_shared<CPPWrapper<Gna2Model>>()));
 #else
     nnets.emplace_back(make_shared<CPPWrapper<intel_nnet_type_t>>(), -1, InferenceEngine::BlobMap());
 #endif
-    if (!gnaFlags->sw_fp32) {
+    if (!gnaFlags->sw_fp32 && !graphCompiler.dnnComponents.components.empty()) {
         // number of layer gets calculated inside that InitGNAStruct function
 #if GNA_LIB_VER == 2
         dnn->InitGNAStruct(&std::get<0>(gnaModels.front())->obj);
@@ -873,13 +1074,12 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         }
     }
 
-    do_rotate_input = dnn->do_rotate_input;
-    num_rotate_rows = dnn->num_rotate_rows;
-    num_rotate_columns = dnn->num_rotate_columns;
-
-    do_rotate_output = dnn->do_rotate_output;
-    num_rotate_output_rows = dnn->num_rotate_output_rows;
-    num_rotate_output_columns = dnn->num_rotate_output_columns;
+    if (dnn->do_rotate_input && transpose_inputs_info.empty()) {
+        for (auto &inputLayer : inputLayers) {
+            transpose_inputs_info.insert({inputLayer->name,
+                {TranspositionInfo{dnn->do_rotate_input, dnn->num_rotate_rows, dnn->num_rotate_columns}}});
+        }
+    }
 
     DumpXNNToFile();
 
@@ -893,7 +1093,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
 #if GNA_LIB_VER == 2
 void GNAPlugin::createRequestConfigsForGnaModels() {
-    if (!gnadevice) {
+    if (!gnadevice || trivialTopology) {
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(FAKE_REQUEST_CONFIG_ID, -1, InferenceEngine::BlobMap()));
         return;
     }
@@ -962,33 +1162,6 @@ void GNAPlugin::DumpXNNToFile() const {
 #endif
 }
 
-void RotateFeatures(uint8_t *ptr_feat,
-                    size_t element_size,
-                    uint32_t num_feature_vectors,
-                    uint32_t num_feature_vector_elements,
-                    uint32_t num_rotate_rows,
-                    uint32_t num_rotate_columns) {
-    if (num_feature_vector_elements == num_rotate_rows * num_rotate_columns) {
-        std::vector<uint8_t> temp(num_feature_vector_elements * element_size);
-        for (uint32_t k = 0; k < num_feature_vectors; k++) {
-            uint8_t *ptr_in = ptr_feat + k * num_feature_vector_elements * element_size;
-            for (uint32_t i = 0; i < num_rotate_rows; i++) {
-                for (uint32_t j = 0; j < num_rotate_columns; j++) {
-                    ie_memcpy(&temp.front() + (j * num_rotate_rows + i)*element_size,
-                              temp.size() - (i * num_rotate_columns + j)*element_size,
-                              ptr_in + (i * num_rotate_columns + j)*element_size,
-                              element_size);
-                }
-            }
-            ie_memcpy(ptr_in, num_feature_vector_elements * element_size,
-                &temp.front(), num_feature_vector_elements * element_size);
-        }
-    } else {
-        THROW_GNA_EXCEPTION << "Rotate dimensions (" << num_rotate_rows << "," << num_rotate_columns
-                           <<") do not match buffer length of "<< num_feature_vector_elements <<" in RotateFeatures()!";
-    }
-}
-
 uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, InferenceEngine::BlobMap &result) {
 #if GNA_LIB_VER == 2
     auto& nnets = gnaRequestConfigToRequestIdMap;
@@ -1014,8 +1187,9 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     int inputNum = 0;
     for (auto &input : inputs) {
         auto inputLayout = input.second->getTensorDesc().getLayout();
-        if (inputLayout != Layout::NC && inputLayout != Layout::CN && inputLayout != Layout::CHW && inputLayout != Layout::NCHW) {
-            THROW_GNA_EXCEPTION << "Expected input blob to have Layout::NC or Layout::CN, but was: "
+        if (inputLayout != Layout::C && inputLayout != Layout::NC && inputLayout != Layout::CN &&
+            inputLayout != Layout::CHW && inputLayout != Layout::NCHW) {
+            THROW_GNA_EXCEPTION << "Expected input blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was: "
                                 << input.second->getTensorDesc().getLayout();
         }
 
@@ -1030,7 +1204,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             inputLayout = Layout::NC;
         }
 
-        auto is2D = input.second->getTensorDesc().getLayout() == Layout::NC || input.second->getTensorDesc().getLayout() == Layout::CN;
+        auto is1D = input.second->getTensorDesc().getLayout() == Layout::C;
         auto is3D = input.second->getTensorDesc().getLayout() == Layout::CHW;
 
         if (!inputsDesc->ptr_inputs_global_id.count(input.first)) {
@@ -1056,9 +1230,9 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
             }
         }
 
-        auto  importedElements = is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3];
-        auto  importedFrames = is3D ? 1 : dims[0];
-        auto  targetGroups = is2D ? dims[dims.size() - 2] : dims[0]; // TODO: no proper support for groups yet
+        auto  importedElements = is1D ? dims[0] : details::product(++std::begin(dims), std::end(dims));
+        auto  importedFrames = (is3D || is1D) ? 1 : dims[0];
+        auto  targetGroups = is1D ? 1 : dims[0]; // TODO: no proper support for groups yet
 
         auto  importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : 2;
         auto  importedBytes = importedElements * importedFrames * importedElementSizeBytes;
@@ -1079,35 +1253,25 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                      importedElements,
                      importedElements);
 
-        bool CNN2DAtInput = input.second->getTensorDesc().getLayout() == Layout::NCHW && inputOrientation == kDnnNonInterleavedOrientation;
-        bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
-        if (do_rotate_input && ((inputLayout == Layout::NC)
-            != (inputOrientation == kDnnInterleavedOrientation))
-            && !isOneChannel
-            && !CNN2DAtInput) {
-            RotateFeatures(reinterpret_cast<uint8_t *>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
-                           gnadevice ? 2 : 4,
-                           // TODO: only works for cnn4a and google command so far
-                           dims[0],
-                           InferenceEngine::details::product(dims) / dims[0],
-                           num_rotate_rows,
-                           num_rotate_columns);
-        }
-        if (CNN2DAtInput) {
-            auto dims = input.second->getTensorDesc().getDims();
-            auto hwDim = dims[2] * dims[3];
-            auto chanelsDim = dims[1];
-            RotateFeatures(reinterpret_cast<uint8_t*>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
-                gnadevice ? 2 : 4,
-                dims[0],
-                chanelsDim* hwDim,
-                chanelsDim,
-                hwDim);
+        auto transpose_info = transpose_inputs_info.find(input.first);
+        if (transpose_info != std::end(transpose_inputs_info)) {
+            size_t batchSize = (dims.size() > 1) ? dims[0] : 1;
+            size_t elementsPerBatch = (dims.size() > 1) ? InferenceEngine::details::product(dims) / dims[0] : dims[0];
+            size_t transposed_data_size = 0;
+            for (const auto &part_transposition_info : transpose_info->second) {
+                transposed_data_size += part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
+            }
+            if (elementsPerBatch != transposed_data_size) {
+                THROW_GNA_EXCEPTION << "Transposed data size (" << transposed_data_size
+                                    << ") do not match input buffer length of " << elementsPerBatch;
+            }
+            auto input_ptr = reinterpret_cast<uint8_t *>(inputsDesc->getPtrInputsGlobal(input.first)[idx]);
+            TransposeTensorFromNCHWToNHWC(gnadevice ? 2 : 4, batchSize, elementsPerBatch, input_ptr, true, transpose_info->second);
         }
         ++inputNum;
     }
     // If there is no gnadevice infer using reference FP32 transforamtions
-    if (!gnadevice) {
+    if (!gnadevice || trivialTopology) {
         auto runtime = runtime::FP(dnn);
         runtime.infer();
         if (freeNnet != nnets.end()) {
@@ -1152,7 +1316,7 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     // already synced TODO: might be copy required ???
     if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
 
-    if (gnadevice) {
+    if (gnadevice && !trivialTopology) {
         const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
         if (waitStatus == GNA_REQUEST_ABORTED) {
             std::get<1>(nnets[request_idx]) = -1;
@@ -1179,89 +1343,85 @@ GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN
-            || outputBlob->getTensorDesc().getLayout() == Layout::NCHW || outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
-            auto dims = outputBlob->getTensorDesc().getDims();
-            auto is2D = outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN;
-            auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
-            auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
-            auto batchSize = is3D ? 1 : exportOutputDims[0];
-            auto elementsPerBatch = is2D ? exportOutputDims[exportOutputDims.size() - 1]
-                : exportOutputDims[exportOutputDims.size() - 1]
-                * exportOutputDims[exportOutputDims.size() - 2]
-                * exportOutputDims[exportOutputDims.size() - 3];
-
-            if (do_rotate_output) {
-                if (batchSize * elementsPerBatch != num_rotate_output_columns * num_rotate_output_rows) {
-                    THROW_GNA_EXCEPTION << "Rotate output dimensions (" << num_rotate_output_rows << "," << num_rotate_output_columns
-                                        << ") do not match output buffer length of " << batchSize * elementsPerBatch;
-                }
-                uint32_t element_size = outputDesc.num_bytes_per_element;
-                std::vector<uint8_t> temp(num_rotate_output_columns * num_rotate_output_rows * element_size);
-                for (uint32_t k = 0; k < num_rotate_output_columns; ++k) {
-                    uint8_t* ptr_in = reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]) + k * element_size;
-                    for (uint32_t i = 0; i < num_rotate_output_rows; ++i) {
-                        ie_memcpy(&temp.front() + (k *num_rotate_output_rows + i) * element_size,
-                                  element_size,
-                                  ptr_in + (i * num_rotate_output_columns) * element_size,
-                                  element_size);
-                    }
-                }
-                ie_memcpy(outputDesc.ptrs[request_idx], num_rotate_output_columns * num_rotate_output_rows * element_size,
-                    &temp.front(), num_rotate_output_columns * num_rotate_output_rows * element_size);
-            }
-
-            ExportScores(outputBlob->buffer(),
-                         outputDesc.ptrs[request_idx],
-                         outputDesc.orientation,
-                         batchSize,
-                         batchSize,
-                         elementsPerBatch,
-                         elementsPerBatch,
-                         elementsPerBatch,
-                         outputDesc.num_bytes_per_element,
-                         sizeof(float));
-
-            if (gnadevice) {
-#ifdef PLOT
-                FILE* f = nullptr;
-                static int num_infers = 0;
-                {
-                    f = fopen("ex_scores.txt", "w");
-                }
-                num_infers++;
-                if (f) {
-                    auto dims = outputBlob->getTensorDesc().getDims();
-                    for (int i = 0; i < dims[dims.size() - 2]; i++) {
-                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                            fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t*>()[dims[dims.size() - 1] * i + j]);
-                        }
-                        fprintf(f, "\n");
-                    }
-                    fprintf(f, "\n\n");
-                }
-#endif
-                ConvertToFloat(outputBlob->buffer(),
-                    outputBlob->buffer(),
-                    elementsPerBatch,
-                    batchSize,
-                    outputDesc.scale_factor);
-#ifdef PLOT
-                if (f) {
-                    auto dims = outputBlob->getTensorDesc().getDims();
-                    for (int i = 0; i < dims[dims.size() - 2]; i++) {
-                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                            fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
-                        }
-                        fprintf(f, "\n");
-                    }
-                    fclose(f);
-                }
-#endif
-            }
-        } else {
-            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
+        if (!outputBlob->getTensorDesc().getLayout() == Layout::C && !outputBlob->getTensorDesc().getLayout() == Layout::NC &&
+            !outputBlob->getTensorDesc().getLayout() == Layout::CN && !outputBlob->getTensorDesc().getLayout() == Layout::NCHW &&
+            !outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
+            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::C, Layout::NC, Layout::CN, Layout::NCHW or Layout::CHW. But was "
                 << outputBlob->getTensorDesc().getLayout();
+        }
+
+        auto dims = outputBlob->getTensorDesc().getDims();
+        auto is1D = outputBlob->getTensorDesc().getLayout() == Layout::C;
+        auto is3D = outputBlob->getTensorDesc().getLayout() == Layout::CHW;
+        auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
+        auto batchSize = (is1D || is3D) ? 1 : exportOutputDims[0];
+        auto elementsPerBatch = is1D ? exportOutputDims.front() :
+            details::product(++std::begin(exportOutputDims), std::end(exportOutputDims));
+
+        auto transpose_output_info = transpose_outputs_info.find(outputBlobIt.first);
+        if (transpose_output_info != std::end(transpose_outputs_info)) {
+            size_t transposed_data_size = 0;
+            for (const auto &part_transposition_info : transpose_output_info->second) {
+                transposed_data_size += part_transposition_info.num_transpose_rows * part_transposition_info.num_transpose_columns;
+            }
+            if (elementsPerBatch != transposed_data_size) {
+                THROW_GNA_EXCEPTION << "Transposed data size (" << transposed_data_size
+                                    << ") do not match output buffer length of " << elementsPerBatch;
+            }
+            TransposeTensorFromNCHWToNHWC(outputDesc.num_bytes_per_element,
+                                            batchSize,
+                                            elementsPerBatch,
+                                            reinterpret_cast<uint8_t*>(outputDesc.ptrs[request_idx]),
+                                            true,
+                                            transpose_output_info->second);
+        }
+
+        ExportScores(outputBlob->buffer(),
+                        outputDesc.ptrs[request_idx],
+                        outputDesc.orientation,
+                        batchSize,
+                        batchSize,
+                        elementsPerBatch,
+                        elementsPerBatch,
+                        elementsPerBatch,
+                        outputDesc.num_bytes_per_element,
+                        sizeof(float));
+
+        if (gnadevice) {
+#ifdef PLOT
+            FILE* f = nullptr;
+            static int num_infers = 0;
+            {
+                f = fopen("ex_scores.txt", "w");
+            }
+            num_infers++;
+            if (f) {
+                for (int i = 0; i < batchSize; i++) {
+                    for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                        fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t*>()[dims[dims.size() - 1] * i + j]);
+                    }
+                    fprintf(f, "\n");
+                }
+                fprintf(f, "\n\n");
+            }
+#endif
+            ConvertToFloat(outputBlob->buffer(),
+                outputBlob->buffer(),
+                elementsPerBatch,
+                batchSize,
+                outputDesc.scale_factor);
+#ifdef PLOT
+            if (f) {
+                auto dims = outputBlob->getTensorDesc().getDims();
+                for (int i = 0; i < batchSize; i++) {
+                    for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                        fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
+                    }
+                    fprintf(f, "\n");
+                }
+                fclose(f);
+            }
+#endif
         }
 
         output_idx++;
@@ -1291,11 +1451,22 @@ bool GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::Bl
     return  Wait(QueueInference(input, result));
 }
 
+static InferenceEngine::Layout GetLayoutForDims(const InferenceEngine::SizeVector &dims) {
+    switch (dims.size()) {
+    case 1: return C;
+    case 2: return NC;
+    case 3: return CHW;
+    case 4: return NCHW;
+    default:
+        THROW_GNA_EXCEPTION << "Unsupported dimensions size in GNA: " << dims.size();
+    }
+}
+
 Blob::Ptr GNAPlugin::GetOutputBlob(const std::string& name, InferenceEngine::Precision precision) {
     // need to have intermediate blob for interleave conversion
     InferenceEngine::Blob::Ptr outputBlob;
     auto outputDims = outputsDataMap[name]->getTensorDesc().getDims();
-    outputBlob = make_blob_with_precision(TensorDesc(precision, outputDims, outputDims.size() == 2 ? NC : (outputDims.size() == 3 ? CHW : NCHW)));
+    outputBlob = make_blob_with_precision(TensorDesc(precision, outputDims, GetLayoutForDims(outputDims)));
     outputBlob->allocate();
     return outputBlob;
 }
@@ -1305,7 +1476,7 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
     // need to have intermediate blob for interleave conversion
     // TODO: NCHW format support is experimental = c++ MO did insert reshape, while TF mo - not
     auto inputDims = inputsDataMap[name]->getTensorDesc().getDims();
-    inputBlob = make_blob_with_precision(TensorDesc(precision, inputDims, inputDims.size() == 2 ? NC : (inputDims.size() == 3 ? CHW : NCHW)));
+    inputBlob = make_blob_with_precision(TensorDesc(precision, inputDims, GetLayoutForDims(inputDims)));
     inputBlob->allocate();
     return inputBlob;
 }
@@ -1364,7 +1535,9 @@ InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networ
             inputsDesc,
             outputsDesc,
             inputsDataMap,
-            outputsDataMap);
+            outputsDataMap,
+            transpose_inputs_info,
+            transpose_outputs_info);
 
 #if GNA_LIB_VER == 2
     auto getOrientation = [](Gna2Operation & gnaOperation) {
@@ -1383,13 +1556,16 @@ InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networ
     outputsDesc[0].orientation = getOrientation(std::get<0>(nnets.back())->obj.pLayers[std::get<0>(nnets.back())->obj.nLayers - 1]);
 #endif
 
-    do_rotate_input = header.doRotateInput;
-    num_rotate_rows = header.nRotateRows;
-    num_rotate_columns = header.nRotateColumns;
-
-    do_rotate_output = header.doRotateOutput;
-    num_rotate_output_rows = header.nRotateOutputRows;
-    num_rotate_output_columns = header.nRotateOutputColumns;
+    if (header.doRotateInput) {
+        for (auto && input : inputsDataMap) {
+            transpose_inputs_info.insert({input.first, {{header.doRotateInput, header.nRotateRows, header.nRotateColumns}}});
+        }
+    }
+    if (header.doRotateOutput) {
+        for (auto && output : outputsDataMap) {
+            transpose_outputs_info.insert({output.first, {{header.doRotateOutput, header.nRotateOutputRows, header.nRotateOutputColumns}}});
+        }
+    }
 
     for (auto && memory : mt) {
         GNAMemoryLayer memoryLayer(nullptr, nullptr, gnaFlags->sw_fp32 ? 4 : 2);
@@ -1405,12 +1581,20 @@ InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networ
     dnn->WriteGraphWizModel("gna-blob-imported.dot");
 #endif
 #if GNA_LIB_VER == 2
+    trivialTopology = (std::get<0>(gnaModels.back())->obj.NumberOfOperations == 0);
     createRequestConfigsForGnaModels();
+#else
+    trivialTopology = (std::get<0>(nnets.back())->obj.nLayers == 0);
 #endif
     return {};
 }
 
 void GNAPlugin::Export(const std::string &fileName) {
+    std::fstream outStream(fileName, ios_base::out | ios_base::binary);
+    Export(outStream);
+}
+
+void GNAPlugin::Export(std::ostream &outStream) {
     if (inputsDesc->ptr_inputs_global_id.empty() || outputsDesc.empty()) {
         THROW_GNA_EXCEPTION << " network not loaded";
     }
@@ -1420,8 +1604,6 @@ void GNAPlugin::Export(const std::string &fileName) {
         THROW_GNA_EXCEPTION << " exporting network with multiple inputs not supported";
     }
 #endif
-
-    std::fstream outStream(fileName, ios_base::out | ios_base::binary);
 
     // TODO: nnet group parameter looks only used in application - so can we move this line into load network.
     IE_ASSERT(!inputsDataMap.empty());
@@ -1441,8 +1623,8 @@ void GNAPlugin::Export(const std::string &fileName) {
                                  outputsDesc,
                                  inputsDataMap,
                                  outputsDataMap)
-                    .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns, dnn->do_rotate_input)
-                    .SetOutputRotation(dnn->num_rotate_output_rows, dnn->num_rotate_output_columns, dnn->do_rotate_output);
+                    .SetInputRotation(transpose_inputs_info)
+                    .SetOutputRotation(transpose_outputs_info);
 
     for (auto && memoryConnection : graphCompiler.memory_connection) {
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size);
@@ -1451,9 +1633,13 @@ void GNAPlugin::Export(const std::string &fileName) {
     serial.Export(gnamem->getBasePtr(), gnamem->getTotalBytes(), outStream);
 }
 
-void GNAPlugin::GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GNAPlugin::GetPerformanceCounts() {
     if (gnaFlags->performance_counting) {
+        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
         gnadevice->getGnaPerfCounters(perfMap);
+        return perfMap;
+    } else {
+        return {};
     }
 }
 

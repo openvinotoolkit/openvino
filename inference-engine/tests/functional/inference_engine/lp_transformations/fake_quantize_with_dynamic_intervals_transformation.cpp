@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,12 +6,10 @@
 
 #include <map>
 #include <memory>
-#include <sstream>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
-
-#include <ngraph/pass/visualize_tree.hpp>
 #include <low_precision/fake_quantize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"

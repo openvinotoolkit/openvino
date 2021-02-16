@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnWeights& data) {
-    return out << "_" << data.constantShape << "_" << data.outputLowValues << "_" << data.outputHighValues;
+    return out << "_" << data.quantizationLevel << "_" << data.constantShape << "_" << data.outputLowValues << "_" << data.outputHighValues;
 }
 
 }  // namespace subgraph
