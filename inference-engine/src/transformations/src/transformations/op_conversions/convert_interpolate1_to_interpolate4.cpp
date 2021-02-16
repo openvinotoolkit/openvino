@@ -51,6 +51,8 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
             // instead of a conditional statements below when attrsV0.mode == "linear",
             // then we have a performance drop, because CPU and GPU have no optimized
             // version of the 'linear' mode.
+            // TODO: delete this conditional statement, when CPU and GPU will have
+            // optimized version of the 'linear' mode.
             if (input_shape_rank < 5) {
                 attrsV4.mode = ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx;
             } else if (input_shape_rank == 5) {
