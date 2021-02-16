@@ -17,7 +17,7 @@ import sys
 import errno
 import subprocess
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, copytree, ignore_patterns
 from distutils.command.install import install
 from distutils.command.build import build
 from distutils.errors import DistutilsSetupError
@@ -27,7 +27,8 @@ from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from decouple import config
 
-WHEEL_LIBS_INSTALL_DIR = "openvino.libs"
+WHEEL_LIBS_INSTALL_DIR = os.path.join('openvino', 'libs')
+WHEEL_LIBS_PACKAGE = 'openvino.libs'
 PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
 # The following variables can be defined in environment or .env file
@@ -133,6 +134,7 @@ class PrepareLibs(build_clib):
     def run(self):
         self.configure(LIB_INSTALL_CFG)
         self.configure(PY_INSTALL_CFG)
+        self.generate_package(get_dir_list(LIB_INSTALL_CFG))
 
     def configure(self, install_cfg):
         """Collect prebuilt libraries. Install them to the temp directories, set rpath."""
@@ -151,6 +153,22 @@ class PrepareLibs(build_clib):
                 lib_pattern = "*.so" if sys.platform == "linux" else "*.dylib"
                 for path in Path(install_dir).glob(lib_pattern):
                     set_rpath(comp_data['rpath'], path)
+
+    def generate_package(self, src_dirs):
+        """
+        Collect package data files from preinstalled dirs and
+        put all runtime libraries to the subpackage
+        """
+        data_blacklist = ['*.lib', '*.pdb', '*_debug.dll', '*_debug.dylib']
+        # additional blacklist filter, just to fix cmake install issues
+        for src_dir in src_dirs:
+            copytree(src=src_dir,
+                     dst=os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR),
+                     dirs_exist_ok=True,
+                     ignore=ignore_patterns(*data_blacklist))
+        if Path(WHEEL_LIBS_INSTALL_DIR).exists():
+            packages.append(WHEEL_LIBS_PACKAGE)
+            package_data.update({WHEEL_LIBS_PACKAGE: ['*']})
 
 
 class CopyExt(build_ext):
@@ -206,32 +224,7 @@ def set_rpath(rpath, executable):
             sys.exit(f"Could not set rpath: {rpath} for {executable}")
     else:
         sys.exit(f"Could not found {rpath_tool} on the system, "
-              f"please make sure that this tool is installed")
-
-
-def find_data_files(src_dirs):
-    """Collect package data files from src_dirs"""
-    # The install directory for data_files should be a relative path.
-    # It is interpreted relative to the installation prefix
-    # (Python’s sys.prefix for system installations; site.USER_BASE for user installations).
-    if sys.platform == "win32":
-        install_subdir = f"Lib/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
-    else:
-        install_subdir = f"lib/{PYTHON_VERSION}/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
-    # additional blacklist filter, just to fix cmake install issues
-    data_blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.dylib']
-    data_files = []
-    for src_dir in src_dirs:
-        local_base_dir = Path(src_dir)
-        for file_path in local_base_dir.rglob('*'):
-            file_name = os.path.basename(file_path)
-            dir_name = os.path.dirname(file_path)
-            if file_path.is_file() and not any(file_name.endswith(ext) for ext in data_blacklist):
-                data_files.append([
-                    os.path.join(install_subdir, os.path.relpath(dir_name, local_base_dir)),
-                    [str(file_path)]
-                ])
-    return data_files
+                 f"please make sure that this tool is installed")
 
 
 def find_prebuilt_extensions(search_dirs):
@@ -307,6 +300,9 @@ package_license = config('WHEEL_LICENSE', '')
 if os.path.exists(package_license):
     copyfile(package_license, "LICENSE")
 
+packages = find_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
+package_data = {}
+
 setup(
     version=config('WHEEL_VERSION', '0.0.0'),
     author_email=config('WHEEL_AUTHOR_EMAIL', 'openvino_pushbot@intel.com'),
@@ -324,8 +320,8 @@ setup(
         "build_ext": CopyExt,
     },
     ext_modules=find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)),
-    packages=find_packages(','.join(get_dir_list(PY_INSTALL_CFG))),
+    packages=packages,
     package_dir={'': get_package_dir(PY_INSTALL_CFG)},
-    data_files=find_data_files(get_dir_list(LIB_INSTALL_CFG)),
+    package_data=package_data,
     zip_safe=False,
 )
