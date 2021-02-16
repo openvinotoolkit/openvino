@@ -69,7 +69,7 @@ protected:
 
         auto asyncThreadSafeImpl = std::make_shared<AsyncInferRequestType>(
             syncRequestImpl, _taskExecutor, _callbackExecutor);
-        asyncRequest.reset(new InferRequestBase<AsyncInferRequestType>(asyncThreadSafeImpl),
+        asyncRequest.reset(new InferRequestBase(asyncThreadSafeImpl),
             [](IInferRequest *p) { p->Release(); });
         asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 

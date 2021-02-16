@@ -56,8 +56,9 @@ void CpuTestWithFusing::CheckPluginRelatedResults(InferenceEngine::ExecutableNet
         auto layerType = getExecValue("layerType", rtInfo);
         if (layerType == nodeType) {
             auto originalLayersNames = getExecValue("originalLayersNames", rtInfo);
-            auto pos = originalLayersNames.find(nodeType);
-            ASSERT_TRUE(pos != std::string::npos) << "Node type " << nodeType << " has not been found!";
+            std::string opFriendlyName = op->get_friendly_name();
+            auto pos = originalLayersNames.find(opFriendlyName);
+            ASSERT_TRUE(pos != std::string::npos) << "Operation name " << op->get_friendly_name() << " has not been found in originalLayersNames!";
             for (auto fusedOp : fusedOps) {
                 pos = originalLayersNames.find(fusedOp, checkFusingPosition ? pos : 0);
                 ASSERT_TRUE(pos != std::string::npos) << "Fused op " << fusedOp << " has not been found!";

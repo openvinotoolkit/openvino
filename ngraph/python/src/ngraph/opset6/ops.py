@@ -111,3 +111,34 @@ def gather_elements(
     }
 
     return _get_node_factory_opset6().create("GatherElements", inputs, attributes)
+
+
+@nameable_op
+def mvn(
+    data: Node,
+    axes: Node,
+    normalize_variance: bool,
+    eps: float,
+    eps_mode: str,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs MeanVarianceNormalization (MVN).
+
+    @param data: The node with data tensor.
+    @param axes: The node with axes to reduce on.
+    @param normalize_variance: Denotes whether to perform variance normalization.
+    @param eps: The number added to the variance to avoid division by zero
+               when normalizing the value. Scalar value.
+    @param eps_mode: how eps is applied (`inside_sqrt` or `outside_sqrt`)
+    @param name: Optional output node name.
+    @return The new node performing a MVN operation on input tensor.
+    """
+    inputs = as_nodes(data, axes)
+
+    attributes = {
+        "normalize_variance": normalize_variance,
+        "eps": eps,
+        "eps_mode": eps_mode
+    }
+
+    return _get_node_factory_opset6().create("MVN", inputs, attributes)

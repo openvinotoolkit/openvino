@@ -17,8 +17,6 @@
 add_definitions("-DSERIALIZED_ZOO=\"${CMAKE_CURRENT_SOURCE_DIR}/models\"")
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
-set(ONNX_LIBRARIES onnx onnx_proto)
-
 add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
@@ -289,6 +287,7 @@ set(MULTI_TEST_SRC
     backend/gather_nd.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
+    backend/group_convolution_backprop_data.in.cpp
     backend/hard_sigmoid.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
@@ -316,6 +315,7 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
+    backend/proposal.in.cpp
     backend/psroi_pooling.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
@@ -359,6 +359,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_convpool.in.cpp
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
+            onnx/onnx_import_org_openvino.in.cpp
             onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
@@ -372,12 +373,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
-    if(${BACKEND_NAME} MATCHES ^INTERPRETER$)
-        set(TEST_LOOPS 100)
-    else()
-        set(TEST_LOOPS 2)
-    endif()
-
     string(TOLOWER ${BACKEND_NAME} BACKEND_DIR)
     string(REGEX REPLACE "([a-z0-9]+):(.*)" "\\1" BACKEND_DIR ${BACKEND_DIR})
     set(MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/runtime/${BACKEND_DIR}/unit_test.manifest)
@@ -419,9 +414,15 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
+    # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
+    # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
     target_include_directories(unit-test
-        SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
-    target_link_libraries(unit-test PRIVATE ${Protobuf_LIBRARIES} ${ONNX_LIBRARIES})
+        SYSTEM PRIVATE
+            $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
+            ${Protobuf_INCLUDE_DIRS})
+    target_compile_definitions(unit-test
+        PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 
     get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)

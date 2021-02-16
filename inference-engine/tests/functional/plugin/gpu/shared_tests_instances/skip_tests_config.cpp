@@ -51,10 +51,10 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(LSTMSequence).*mode=CONVERT_TO_TI_RAND_SEQ_LEN.*)",
             R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
+            // TODO: Issue: 47773
+            R"(.*(ProposalLayerTest).*)",
 
             // INT8 StridedSlice not supported
             R"(.*(LPT/StridedSliceTransformation).*)",
-            // TODO: Issue: 47219
-            R"(.*DynamicBatchTest.*)",
     };
 }

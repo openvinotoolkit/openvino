@@ -17,6 +17,7 @@
 #include "mkldnn_memory_state.h"
 #include "nodes/mkldnn_memory_node.hpp"
 #include "nodes/common/cpu_memcpy.h"
+#include "mkldnn_async_infer_request.h"
 
 MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsDataMap     networkInputs,
                                                      InferenceEngine::OutputsDataMap    networkOutputs,
@@ -176,9 +177,13 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
 
     graph = execNetwork->_graphs.local().get();
 
+    ThrowIfCanceled();
+
     execDataPreprocessing(_inputs);
 
     changeDefaultPtr();
+
+    ThrowIfCanceled();
 
     PushInputData();
 
@@ -186,18 +191,15 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
         PushStates();
     }
 
-    graph->Infer(m_curBatch);
+    graph->Infer(this, m_curBatch);
 
     if (memoryStates.size() != 0) {
         PullStates();
     }
 
-    graph->PullOutputData(_outputs);
-}
+    ThrowIfCanceled();
 
-InferenceEngine::StatusCode MKLDNNPlugin::MKLDNNInferRequest::Cancel() {
-    graph->Cancel();
-    return InferenceEngine::OK;
+    graph->PullOutputData(_outputs);
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MKLDNNPlugin::MKLDNNInferRequest::GetPerformanceCounts() const {
@@ -396,17 +398,14 @@ void MKLDNNPlugin::MKLDNNInferRequest::changeDefaultPtr() {
                 auto& child = input->second->getChildEdgeAt(i)->getChild();
                 if (child->isConstant())
                     canBeInPlace = false;
-#if defined(COMPILED_CPU_MKLDNN_CONCAT_NODE)
                 auto* concat = dynamic_cast<MKLDNNConcatNode *>(child.get());
                 if (canBeInPlace && concat && concat->isOptimized())
                     canBeInPlace = false;
-#endif
+
                 // Cannot be in-place before split because split is using different ptrs without offsets
-#if defined(COMPILED_CPU_MKLDNN_SPLIT_NODE)
                 auto* split = dynamic_cast<MKLDNNSplitNode *>(child.get());
                 if (canBeInPlace && split)
                     canBeInPlace = false;
-#endif
 
                 if (child->isInplace())
                     canBeInPlace = false;
@@ -474,4 +473,14 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBatch(int new_batch) {
 
 std::vector<InferenceEngine::IVariableStateInternal::Ptr> MKLDNNPlugin::MKLDNNInferRequest::QueryState() {
     return memoryStates;
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::SetAsyncRequest(MKLDNNAsyncInferRequest* asyncRequest) {
+    _asyncRequest = asyncRequest;
+}
+
+void MKLDNNPlugin::MKLDNNInferRequest::ThrowIfCanceled() const {
+    if (_asyncRequest != nullptr) {
+        _asyncRequest->ThrowIfCanceled();
+    }
 }

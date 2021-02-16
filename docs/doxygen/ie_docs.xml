@@ -73,7 +73,7 @@ limitations under the License.
                 <tab type="user" title="Known Issues" url="@ref openvino_docs_MO_DG_Known_Issues_Limitations"/>
             </tab>
             <!-- Model Downloader -->
-            <tab id="model_downloader" type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
+            <tab id="model_downloader" type="user" title="Model Downloader" url="@ref omz_tools_downloader"/>
             <!-- Custom Operations Guide -->
             <tab type="usergroup" title="Custom Operations Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
         </tab>
@@ -81,6 +81,7 @@ limitations under the License.
         <!-- Intermediate Representation and Operations Sets -->
         <tab id="intermediate_representaton_and_operations_sets" type="usergroup" title="Intermediate Representation and Operations Sets" url="@ref openvino_docs_MO_DG_IR_and_opsets">
             <tab type="usergroup" title="Available Operations Sets" url="@ref openvino_docs_ops_opset">
+                <tab type="user" title="opset6 Specification" url="@ref openvino_docs_ops_opset6"/>
                 <tab type="user" title="opset5 Specification" url="@ref openvino_docs_ops_opset5"/>
                 <tab type="user" title="opset4 Specification" url="@ref openvino_docs_ops_opset4"/>
                 <tab type="user" title="opset3 Specification" url="@ref openvino_docs_ops_opset3"/>

@@ -153,8 +153,6 @@ public:
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
-        (void)name;
-
         if (m_xml_node.parent().child("body")) {
             // parameters and results from body are required for port_map attributes serialization
             std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
@@ -247,22 +245,17 @@ public:
                     exec_output.append_attribute("purpose").set_value("execution_condition");
                 }
             }
-        }
-    }
-
-    void on_adapter(const std::string& name,
-                    ngraph::ValueAccessor<void*>& adapter) override {
-        if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
-            using AlignedBufferAdapter =
-                ngraph::AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>;
-            if (auto a = ngraph::as_type<AlignedBufferAdapter>(&adapter)) {
-                const int64_t size = a->size();
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+                m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+            if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
+                const int64_t size = a->get()->size();
                 const int64_t offset = m_bin_data.tellp();
 
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
 
-                auto data = static_cast<const char*>(a->get_ptr());
+                auto data = static_cast<const char*>(a->get()->get_ptr());
                 m_bin_data.write(data, size);
             }
         }
@@ -274,16 +267,8 @@ public:
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<std::string>& adapter) override {
-        if ((m_node_type_name == "GenericIE") &&
-            (name == "__generic_ie_type__")) {
-            // __generic_ie_type__  in GenericIE should not be serialized as a
-            // <data> since it's purpose is to hold name of the layer type
-            // it is a WA to not introduce dependency on plugin_api library
-            m_node_type_name = adapter.get();
-        } else {
-            m_xml_node.append_attribute(name.c_str())
-                .set_value(adapter.get().c_str());
-        }
+        m_xml_node.append_attribute(name.c_str())
+            .set_value(adapter.get().c_str());
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<int64_t>& adapter) override {
@@ -407,9 +392,9 @@ const std::vector<Edge> create_edge_mapping(
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
-    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 5>{
+    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 6>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
-        ngraph::get_opset4(), ngraph::get_opset5()};
+        ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6()};
 
     auto special_opset = get_special_opset_for_op(n->get_type_info());
     if (!special_opset.empty()) {

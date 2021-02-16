@@ -14,7 +14,8 @@ namespace MKLDNNPlugin {
 
 class BF16Transformer {
     const InferenceEngine::details::caseless_set<std::string> _initbf16 =
-        { "convolution", "fullyconnected", "innerproduct", "gemm", "RegionYolo", "Interpolate", "PSROIPooling" };
+        { "convolution", "fullyconnected", "innerproduct", "gemm", "RegionYolo", "Interpolate", "PSROIPooling", "Deconvolution" };
+
     const InferenceEngine::details::caseless_set<std::string> _complementbf16 =
         { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "normalize",
           "sigmoid", "ReLU6", "not", "activation", "HSwish", "mish", "logistic", "mod", "resample",
@@ -22,7 +23,7 @@ class BF16Transformer {
           "broadcast", "convert", "BatchToSpace", "DepthToSpace", "ExtractImagePatches", "concat", "power", "lrn",
           "permute", "ScatterUpdate", "ScatterElementsUpdate", "ScatterNDUpdate", "depthwise",
           "select", "ShuffleChannels", "SpaceToBatch", "SpaceToDepth", "squeeze", "StridedSlice", "unsqueeze", "eltwise",
-          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin", "ScaleShift"};
+          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin", "ScaleShift", "SoftMax"};
 
     const InferenceEngine::details::caseless_set<std::string> _multiinput =
         { "concat", "eltwise" };

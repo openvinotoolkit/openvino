@@ -330,6 +330,31 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_dyn_shape)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_pool_with_indices_output)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/max_pool_with_indices_output.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+
+    const Shape shape{1, 1, 5, 5};
+    std::vector<float> input_values(shape_size(shape));
+    std::iota(input_values.begin(), input_values.end(), 1.f);
+
+    test_case.add_input<float>(shape, input_values);
+
+    std::vector<float> expected_values{13.f, 14.f, 15.f, 15.f, 15.f, 18.f, 19.f, 20.f, 20.f,
+                                       20.f, 23.f, 24.f, 25.f, 25.f, 25.f, 23.f, 24.f, 25.f,
+                                       25.f, 25.f, 23.f, 24.f, 25.f, 25.f, 25.f};
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5}, expected_values);
+
+    // indices output is not supported and is ingored in current implementation
+    // std::vector<int64_t> expected_indices{12, 13, 14, 14, 14, 17, 18, 19, 19, 19, 22, 23, 24, 24,
+    // 24, 22, 23, 24, 24, 24, 22, 23, 24, 24, 24};
+    // test_case.add_expected_output<float>(Shape{1, 1, 5, 5}, expected_indices);
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_global_avg_pool_dyn_shape)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
