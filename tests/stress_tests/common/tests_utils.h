@@ -39,7 +39,7 @@ public:
         test_case_name =
                 "Numprocesses_" + std::to_string(numprocesses) + "_Numthreads_" + std::to_string(numthreads) +
                 "_Numiters_" + std::to_string(numiters) + "_Device_" + update_item_for_name(device) + "_Precision_" +
-                update_item_for_name(precision); + "_Model_" + update_item_for_name(model_name);
+                update_item_for_name(precision) + "_Model_" + update_item_for_name(model_name);
     }
 
 private:
