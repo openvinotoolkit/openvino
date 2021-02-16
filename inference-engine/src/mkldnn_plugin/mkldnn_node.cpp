@@ -57,6 +57,7 @@
 #include "nodes/common/cpu_convert.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "snippets/op/subgraph.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -230,7 +231,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "NonMaxSuppression", NonMaxSuppression},
         { "NonMaxSuppressionIEInternal", NonMaxSuppression},
         { "MatrixNms", MatrixNms},
-        { "MulticlassNms", MulticlassNms}
+        { "MulticlassNms", MulticlassNms},
+        { "Subgraph", Subgraph}
 };
 
 Type TypeFromName(const std::string type) {
