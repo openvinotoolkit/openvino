@@ -43,6 +43,6 @@ class MvnOnnxToMvn(FrontReplacementPattern):
                                                    'normalize_variance': normalize_variance})
             node.in_port(0).get_connection().set_destination(new_mvn.in_port(0))
             node.out_port(0).get_connection().set_source(new_mvn.out_port(0))
-            rename_nodes([(node, node_name + '/tbd'), (new_mvn, node_name)])
+            rename_nodes([(node, node_name + '/to_be_removed'), (new_mvn, node_name)])
 
             graph.remove_node(node.id)
