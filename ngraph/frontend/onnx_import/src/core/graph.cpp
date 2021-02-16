@@ -223,7 +223,11 @@ namespace ngraph
             OutputVector results;
             for (const auto& output : m_graph_proto->output())
             {
-                results.emplace_back(get_ng_node_from_cache(output.name()));
+                const auto& ng_output = get_ng_node_from_cache(output.name());
+                if (!ngraph::op::is_null(ng_output)) // ignore optional outputs
+                {
+                    results.emplace_back(ng_output);
+                }
             }
             return results;
         }

@@ -1,7 +1,16 @@
 # Compile Tool {#openvino_inference_engine_tools_compile_tool_README}
 
-The Compile tool is a C++ application that enables you to dump a loaded executable network blob.
-The tool is delivered as an executable file that can be run on both Linux\* and Windows\*.
+Compile tool is a C++ application that enables you to compile a network for inference on a specific device and export it to a binary file. 
+With the Compile Tool, you can compile a network using supported Inference Engine plugins on a machine that doesn't have the physical device connected and then transfer a generated file to any machine with the target inference device available.
+
+The tool compiles networks for the following target devices using corresponding Inference Engine plugins:
+* Intel® Neural Compute Stick 2 (MYRIAD plugin)
+
+
+> **NOTE**: Intel® Distribution of OpenVINO™ toolkit no longer supports the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA. To compile a network for those devices, use the Compile Tool from the Intel® Distribution of OpenVINO™ toolkit [2020.3 LTS release](https://docs.openvinotoolkit.org/2020.3/_inference_engine_tools_compile_tool_README.html).  
+
+
+The tool is delivered as an executable file that can be run on both Linux* and Windows*.
 The tool is located in the `<INSTALLROOT>/deployment_tools/tools/compile_tool` directory.
 
 The workflow of the Compile tool is as follows:
@@ -56,42 +65,20 @@ compile_tool [OPTIONS]
                                              Value should be equal or greater than -1.
                                              Overwrites value from config.
 
- FPGA-specific options:
-      -DLA_ARCH_NAME             <value>     Optional. Specify architecture name used to compile executable network for FPGA device.
 ```
 
 Running the application with the empty list of options yields an error message.
 
-To dump a blob using a trained network, use the command below:
+For example, to compile a blob for inference on an Intel® Neural Compute Stick 2 from a trained network, run the command below:
 
 ```sh
-./compile_tool -m <path_to_model>/model_name.xml
+./compile_tool -m <path_to_model>/model_name.xml -d MYRIAD
 ```
 
-## FPGA Option
+### Import a Compiled Blob File to Your Application
 
-You can compile executable network without a connected FPGA device with a loaded DLA bitstream.
-To do that, specify the architecture name of the DLA bitstream using the parameter `-DLA_ARCH_NAME`.
-
-## Import and Export Functionality
-
-### Export
-
-To save a blob file from your application, call the `InferenceEngine::ExecutableNetwork::Export()`
-method:
-
-```cpp
-InferenceEngine::ExecutableNetwork executableNetwork = core.LoadNetwork(network, "MYRIAD", {});
-std::ofstream file{"model_name.blob"}
-executableNetwork.Export(file);
-```
-
-### Import
-
-To import a blob with the network into your application, call the
+To import a blob with the network from a generated file into your application, use the
 `InferenceEngine::Core::ImportNetwork` method:
-
-Example:
 
 ```cpp
 InferenceEngine::Core ie;
@@ -99,5 +86,3 @@ std::ifstream file{"model_name.blob"};
 InferenceEngine::ExecutableNetwork = ie.ImportNetwork(file, "MYRIAD", {});
 ```
 
-> **NOTE**: Prior to the import, models must be converted to the Inference Engine format
-> (\*.xml + \*.bin) using the [Model Optimizer tool](https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer).

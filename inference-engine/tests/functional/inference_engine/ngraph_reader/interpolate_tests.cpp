@@ -352,7 +352,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
             </blobs>
         </layer>
         <layer id="4" name="interpolate" precision="FP32" type="Interpolate">
-            <data antialias="False" coordinate_transformation_mode="asymmetric" cube_coeff="123" mode="nearest" nearest_mode="floor" pads_begin="2,3,4,5" pads_end="6,7,8,9" shape_calculation_mode="sizes"/>
+            <data antialias="false" coordinate_transformation_mode="asymmetric" cube_coeff="123" mode="nearest" nearest_mode="floor" pads_begin="2,3,4,5" pads_end="6,7,8,9" shape_calculation_mode="sizes"/>
             <input>
                 <port id="0">
                     <dim>1</dim>

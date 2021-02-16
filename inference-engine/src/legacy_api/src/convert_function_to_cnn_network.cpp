@@ -39,7 +39,6 @@
 #include "legacy/ngraph_ops/rnn_sequence_ie.hpp"
 #include "legacy/ngraph_ops/lstm_sequence_ie.hpp"
 #include "legacy/ngraph_ops/gru_sequence_ie.hpp"
-#include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
 #include "caseless.hpp"
@@ -349,13 +348,6 @@ public:
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void>& adapter) override;
 
-    void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void*>& adapter) override {
-        if (std::string(node->get_type_name()) != "Constant") {
-            const auto data_beg = static_cast<char*>(adapter.get_ptr());
-            params[name] = std::string(data_beg, adapter.size());
-        }
-    }
-
 private:
     std::shared_ptr<::ngraph::Node> node;
     std::map<std::string, std::string> params;
@@ -394,6 +386,11 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
         (void)a;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(& adapter)) {
         (void)a;
+    } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(& adapter)) {
+        if (std::string(node->get_type_name()) != "Constant") {
+            const auto data_beg = static_cast<char*>(a->get()->get_ptr());
+            params[name] = std::string(data_beg, a->get()->size());
+        }
     } else {
         THROW_IE_EXCEPTION << "Error converting ngraph to CNN network. "
                               "Attribute adapter can not be found for " << name << " parameter";
@@ -1438,12 +1435,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             THROW_IE_EXCEPTION << "Interp do not support mode '" << interp_attrs.mode << "'";
         }
 
-        bool align_corners;
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
-
-        std::istringstream(params.at("align_corners")) >> align_corners;
-        res->params["align_corners"] = align_corners ? "1" : "0";
+        res->params["align_corners"] = interp_attrs.align_corners ? "1" : "0";
         return res;
     });
 
@@ -1616,11 +1610,83 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
+    addSpecificCreator({"Interpolate"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                           const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Interpolate", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
     addSpecificCreator({"CropIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
                                       const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Crop", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CropLayer>(attrs);
         res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"ScaleShiftIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                            const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "ScaleShift", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::ScaleShiftLayer>(attrs);
+        res->params = params;
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights);
+        const auto biasNode = node->input_value(2).get_node_shared_ptr();
+        InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
+        return res;
+    });
+
+    addSpecificCreator({"ExecutionNode"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                             const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        auto& rtInfo = node->get_rt_info();
+
+        if (rtInfo.count(ExecGraphInfoSerialization::LAYER_TYPE) == 0) {
+            THROW_IE_EXCEPTION << "No " << ExecGraphInfoSerialization::LAYER_TYPE
+                << " attribute is set in " << node->get_friendly_name() << " node";
+        }
+
+        auto getStringValue = [] (const std::shared_ptr<ngraph::Variant> & variant) {
+            auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(variant);
+            IE_ASSERT(castedVariant != nullptr);
+            return castedVariant->get();
+        };
+
+        LayerParams attrs = {node->get_friendly_name(),
+                            getStringValue(rtInfo[ExecGraphInfoSerialization::LAYER_TYPE]),
+                            details::convertPrecision(node->get_output_element_type(0))};
+        rtInfo.erase(ExecGraphInfoSerialization::LAYER_TYPE);
+
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+
+        for (const auto & kvp : rtInfo) {
+            auto castedVariant = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(kvp.second);
+            // skip RT info which holds fusedNames, etc
+            if (castedVariant)
+                res->params[kvp.first] = getStringValue(castedVariant);
+        }
+
+        return res;
+    });
+
+    addSpecificCreator({"ResampleV2"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                          const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Resample", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+
+        res->params["antialias"] = res->getBoolStrParamAsIntStr("antialias");
+        if (res->params["type"] == "nearest") {
+            res->params["type"] = "caffe.ResampleParameter.NEAREST";
+        } else if (res->params["type"] == "cubic") {
+            res->params["type"] = "caffe.ResampleParameter.CUBIC";
+        } else if (res->params["type"] == "area") {
+            res->params["type"] = "caffe.ResampleParameter.AREA";
+        } else if (res->params["type"] == "linear") {
+            res->params["type"] = "caffe.ResampleParameter.LINEAR";
+        }
         return res;
     });
 
@@ -1643,33 +1709,11 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
-    addSpecificCreator({"GenericIE"}, [](const std::shared_ptr<::ngraph::Node> &node,
-                                         const std::map<std::string, std::string> &params) -> CNNLayerPtr {
-        auto type = params.at("__generic_ie_type__");
-        auto castedLayer = ngraph::as_type_ptr<ngraph::op::GenericIE>(node);
-        LayerParams attrs = {node->get_friendly_name(), type, details::convertPrecision(node->get_output_element_type(0))};
-        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
-        if (type == "RNNCell") {
-          res = std::make_shared<InferenceEngine::RNNCell>(attrs);
-        }
-        if (type == "GRUCell") {
-          res = std::make_shared<InferenceEngine::GRUCell>(attrs);
-        }
-
-        auto weightableLayer = std::dynamic_pointer_cast<InferenceEngine::WeightableLayer>(res);
-        for (const auto& param : castedLayer->getParameters()) {
-            if (param.second.is<Blob::Ptr>()) {
-                res->blobs[param.first] = param.second.as<Blob::Ptr>();
-            } else if (param.second.is<Blob::CPtr>()) {
-                res->blobs[param.first] = std::const_pointer_cast<Blob>(param.second.as<Blob::CPtr>());
-            } else if (param.second.is<std::string>()) {
-                res->params[param.first] = param.second.as<std::string>();
-            }
-            if (weightableLayer && param.first == "weights")
-                weightableLayer->_weights = res->blobs[param.first];
-            if (weightableLayer && param.first == "biases")
-                weightableLayer->_biases = res->blobs[param.first];
-        }
+    addSpecificCreator({"ShuffleChannels"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                               const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "ShuffleChannels", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::ShuffleChannelsLayer>(attrs);
+        res->params = params;
         return res;
     });
 
@@ -1711,24 +1755,11 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 this->node = node;
             }
         };
-        static const std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ScaleShiftIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v4::Interpolate>>(),
-                std::make_shared<Builder::NodeConverter<::ExecGraphInfoSerialization::ExecutionNode>>(),
-        };
         CNNLayerPtr result;
 
-        for (auto &convertor : convertors) {
-            if (!convertor->canCreate(node)) continue;
-            result = convertor->createLayer(node);
-            break;
-        }
-
-        if (!result) {
-            CNNLayerCreator visitor(node);
-            if (node->visit_attributes(visitor)) result = visitor.create();
+        CNNLayerCreator visitor(node);
+        if (node->visit_attributes(visitor)) {
+            result = visitor.create();
         }
 
         if (!result)
