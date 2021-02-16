@@ -197,7 +197,9 @@ def get_dtype(precision):
 
 def fill_blob_with_binary(binary_paths, request_id, batch_size, input_id, input_size, layer):
     binaries = np.ndarray(layer.shape)
-    shape = get_blob_shape(layer, 1) # get blob shape for batch 1
+    shape = layer.shape.copy()
+    if 'N' in layer.layout:
+        shape[layer.layout.index('N')] = 1
     binary_index = request_id * batch_size * input_size + input_id
     dtype = get_dtype(layer.precision)
     for b in range(batch_size):
