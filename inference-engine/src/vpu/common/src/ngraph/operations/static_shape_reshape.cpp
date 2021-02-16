@@ -42,10 +42,8 @@ void StaticShapeReshape::validate_and_infer_types() {
     const auto& inputShape = get_input_shape(0);
 
     ngraph::PartialShape targetPShape;
-    if (!ngraph::evaluate_as_partial_shape(targetShape, targetPShape) ||
-        targetPShape.is_dynamic()) {
-        NODE_VALIDATION_CHECK(this, false, "StaticShapeReshape (", get_friendly_name(), ") can't evaluate output shape");
-    }
+    NODE_VALIDATION_CHECK(this, ngraph::evaluate_as_partial_shape(targetShape, targetPShape) && targetPShape.is_static(),
+                          "StaticShapeReshape (", get_friendly_name(), ") can't evaluate output shape");
 
     auto outputDimensionsValues = targetPShape.to_shape();
 

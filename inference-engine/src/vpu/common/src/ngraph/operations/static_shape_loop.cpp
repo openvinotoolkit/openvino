@@ -23,14 +23,11 @@ void StaticShapeLoop::validate_and_infer_types() {
 
     Loop::validate_and_infer_types();
 
-    ngraph::PartialShape numIterAsShape;
-    if (!ngraph::evaluate_as_partial_shape(input_value(0), numIterAsShape)) {
-        NODE_VALIDATION_CHECK(this, false,
-                              "Encountered a loop for which upper-bound estimation for iterations count ",
-                              input_value(0), " failed");
-    }
+    ngraph::PartialShape iterationsCount;
+    NODE_VALIDATION_CHECK(this, ngraph::evaluate_as_partial_shape(input_value(0), iterationsCount),
+                          "Encountered a loop for which upper-bound estimation for iterations count ", input_value(0), " failed");
 
-    const auto &maxIterationsCount = numIterAsShape[0].get_max_length();
+    const auto& maxIterationsCount = iterationsCount[0].get_max_length();
     NODE_VALIDATION_CHECK(this, maxIterationsCount > 0,
                           "Encountered a loop with non-positive upper-bound estimation for iterations count ",
                           maxIterationsCount);

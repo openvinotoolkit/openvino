@@ -92,7 +92,7 @@ void ngraph::vpu::op::StaticShapeTopK::validate_and_infer_types() {
     m_normalized_axis = ngraph::normalize_axis(this->description(), m_axis, output_shape.rank());
     if (k != 0) {
         output_shape[m_normalized_axis] = k;
-    } else if (m_maximumK == ngraph::Dimension::dynamic()) {
+    } else if (m_maximumK.is_dynamic()) {
         PartialShape kAsShape;
         if (ngraph::evaluate_as_partial_shape(input_value(1), kAsShape)) {
             m_maximumK = kAsShape[0].get_max_length();

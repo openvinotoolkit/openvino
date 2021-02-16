@@ -56,11 +56,8 @@ void StaticShapeBroadcast::validate_and_infer_types() {
     // to evaluate the target shape again, then we will leave the evaluated shape unchanged.
     // For example, EliminateShapeOfAfterDSR remove ShapeOf and pass the second input of DSR.
     ngraph::PartialShape evaluatedTargetShape;
-    if (!ngraph::evaluate_as_partial_shape(input_value(1), evaluatedTargetShape) ||
-        evaluatedTargetShape.is_dynamic()) {
-        NODE_VALIDATION_CHECK(this, false,
-                              "StaticShapeBroadcast (", get_friendly_name(), ") can't evaluate output shape");
-    }
+    NODE_VALIDATION_CHECK(this, ngraph::evaluate_as_partial_shape(input_value(1), evaluatedTargetShape) && evaluatedTargetShape.is_static(),
+                          "StaticShapeBroadcast (", get_friendly_name(), ") can't evaluate output shape");
 
     auto targetShape = evaluatedTargetShape.get_shape();
 
