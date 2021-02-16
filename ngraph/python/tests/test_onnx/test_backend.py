@@ -200,6 +200,7 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_lstm_with_initial_bias_cpu",
      "OnnxBackendNodeModelTest.test_lstm_with_peepholes_cpu"),
     (xfail_issue_46762,
+     "OnnxBackendNodeModelTest.test_min_uint8_cpu",
      "OnnxBackendNodeModelTest.test_min_uint16_cpu",
      "OnnxBackendNodeModelTest.test_min_uint32_cpu",
      "OnnxBackendNodeModelTest.test_min_uint64_cpu"),
