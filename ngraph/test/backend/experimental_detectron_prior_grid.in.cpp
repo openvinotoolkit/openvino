@@ -25,6 +25,7 @@
 // clang-format on
 
 #include <cstring>
+#include <iostream>
 #include <numeric>
 
 #include "gtest/gtest.h"
