@@ -405,6 +405,9 @@ struct Equal<ngraph::float16> {
 template <>
 struct Equal<float> {
     static bool equal_value(float lhs, float rhs) {
+        if (reinterpret_cast<int&>(lhs) == reinterpret_cast<int&>(rhs)) {
+            return true;
+        }
         return std::abs(lhs - rhs) < 1e-4;
     }
 };
@@ -412,6 +415,9 @@ struct Equal<float> {
 template <>
 struct Equal<double> {
     static bool equal_value(double lhs, double rhs) {
+        if (reinterpret_cast<long&>(lhs) == reinterpret_cast<long&>(rhs)) {
+            return true;
+        }
         return std::abs(lhs - rhs) < 1e-5;
     }
 };
