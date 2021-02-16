@@ -619,8 +619,6 @@ tests_expected_to_fail = [
     (xfail_issue_44839,
         "OnnxBackendNodeModelTest.test_logsoftmax_axis_0_cpu",
         "OnnxBackendNodeModelTest.test_logsoftmax_axis_1_cpu",
-        "OnnxBackendNodeModelTest.test_softmax_axis_0_cpu",
-        "OnnxBackendNodeModelTest.test_softmax_axis_1_cpu",
         "OnnxBackendNodeModelTest.test_softmax_default_axis_cpu",
         "OnnxBackendNodeModelTest.test_hardmax_axis_0_cpu",
         "OnnxBackendNodeModelTest.test_hardmax_axis_1_cpu",
