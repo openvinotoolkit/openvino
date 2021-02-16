@@ -53,13 +53,13 @@ LIB_INSTALL_CFG = {
         'rpath': LIBS_RPATH,
     },
     "gpu_plugin": {
-        'name': 'cldnn',
+        'name': 'gpu',
         'prefix': 'libs.plugins',
         'install_dir': PLUGINS_LIBS_DIR,
         'rpath': LIBS_RPATH,
     },
     "cpu_plugin": {
-        'name': 'mkldnn',
+        'name': 'cpu',
         'prefix': 'libs.plugins',
         'install_dir': PLUGINS_LIBS_DIR,
         'rpath': LIBS_RPATH,
