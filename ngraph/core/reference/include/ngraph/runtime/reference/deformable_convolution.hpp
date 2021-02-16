@@ -27,9 +27,11 @@ namespace ngraph
         {
             template <typename T>
             void deformable_convolution(const T* in,
+                                        const T* o,
                                         const T* f,
                                         T* out,
                                         const Shape& in_shape,
+                                        const Shape& o_shape,
                                         const Shape& f_shape,
                                         const Shape& out_shape,
                                         const Strides& strides,
@@ -48,18 +50,14 @@ namespace ngraph
                 const T* group_batch = in;
                 const Shape group_batch_shape = [&]() {
                     Shape new_shape{in_shape};
-                    new_shape[out_batch_axis] = 1;
-                    new_shape[out_channel_axis] /= groups;
+                    new_shape[in_batch_axis] = 1;
+                    new_shape[in_channel_axis] /= groups;
                     return new_shape;
                 }();
                 const size_t group_batch_size = shape_size(group_batch_shape);
 
                 const T* group_filter = f;
-                const Shape group_f_shape = [&]() {
-                    Shape new_shape{++f_shape.begin(), f_shape.end()};
-                    return new_shape;
-                }();
-                const size_t group_filter_size = shape_size(group_f_shape);
+                const size_t group_filter_size = shape_size(f_shape);
 
                 T* group_out = out;
                 const Shape group_out_shape = [&]() {
@@ -69,7 +67,6 @@ namespace ngraph
                     return new_shape;
                 }();
                 const size_t group_out_size = shape_size(group_out_shape);
-
                 for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx)
                 {
                     group_filter = f;
@@ -79,7 +76,7 @@ namespace ngraph
                                                         group_filter,
                                                         group_out,
                                                         group_batch_shape,
-                                                        group_f_shape,
+                                                        f_shape,
                                                         group_out_shape,
                                                         strides,
                                                         dilation,
