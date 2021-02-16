@@ -16,7 +16,7 @@
  limitations under the License.
 """
 
-import sys
+import re
 import argparse
 
 try:
@@ -28,20 +28,25 @@ except ImportError:
 from extract_release_version import extract_release_version
 
 
-def try_to_import_ie(silent: bool, path_to_module: str):
+def import_core_modules(silent: bool, path_to_module: str):
     try:
         from openvino.inference_engine import IECore, get_version
-        from openvino.offline_transformations import ApplyMOCTransformations
+        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI
 
-        ie_version = get_version()
-        mo_version = version.get_version()
+        ie_version = str(get_version())
+        mo_version = str(version.get_version())
 
         if not silent:
             print("\t- {}: \t{}".format("InferenceEngine found in", path_to_module))
             print("{}: \t{}".format("InferenceEngine version", ie_version))
-            print("{}: \t{}".format("Model Optimizer version", mo_version))
+            print("{}: \t    {}".format("Model Optimizer version", mo_version))
 
-        if mo_version not in ie_version:
+        # MO and IE version have a small difference in the beginning of version because
+        # IE version also includes API version. For example:
+        #   InferenceEngine version: 2.1.custom_HEAD_4c8eae0ee2d403f8f5ae15b2c9ad19cfa5a9e1f9
+        #   Model Optimizer version:     custom_HEAD_4c8eae0ee2d403f8f5ae15b2c9ad19cfa5a9e1f9
+        # So to match this versions we skip IE API version.
+        if not re.match(r"^([0-9]+).([0-9]+).{}$".format(mo_version), ie_version):
             extracted_release_version = extract_release_version()
             is_custom_mo_version = extracted_release_version == (None, None)
             if not silent:
@@ -51,7 +56,7 @@ def try_to_import_ie(silent: bool, path_to_module: str):
 
         return True
     except Exception as e:
-        # Do not print a warning if module wasn't found
+        # Do not print a warning if module wasn't found or silent mode is on
         if "No module named 'openvino'" not in str(e) and not silent:
             print("[ WARNING ] {}".format(e))
         return False
@@ -63,5 +68,5 @@ if __name__ == "__main__":
     parser.add_argument("--path_to_module")
     args = parser.parse_args()
 
-    if not try_to_import_ie(args.silent, args.path_to_module):
+    if not import_core_modules(args.silent, args.path_to_module):
         exit(1)

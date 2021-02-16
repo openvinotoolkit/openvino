@@ -16,16 +16,13 @@
  limitations under the License.
 """
 
-import os
-import sys
-
 
 if __name__ == "__main__":
     try:
         from openvino.inference_engine import IECore
-        from openvino.offline_transformations import ApplyMOCTransformations
-    except ImportError as e:
-        print("[ WARNING ] offline_transformations import error: {}".format(e))
+        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI
+    except Exception as e:
+        print("[ WARNING ] {}".format(e))
         exit(1)
 
-    # TODO: call validation pass to check IE components
+    CheckAPI()
