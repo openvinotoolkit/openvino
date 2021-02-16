@@ -226,7 +226,11 @@ TEST_F(NGraphReaderTests, ReadShapeOfFromScalar) {
     </net>
 )V0G0N";
 
-    Blob::CPtr blob;
+    Blob::Ptr blob;
+    blob = make_shared_blob<int64_t>(TensorDesc(Precision::I64, {1}, Layout::C));
+    blob->allocate();
+    auto *data = blob->buffer().as<int64_t *>();
+    data[0] = 0;
     Core reader;
     reader.ReadNetwork(model, blob);
 }
