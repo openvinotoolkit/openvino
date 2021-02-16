@@ -124,6 +124,9 @@ TEST_F(NGraphReaderTests, DISABLED_ReadShapeOfNetwork) {
 }
 
 TEST_F(NGraphReaderTests, ReadShapeOfFromScalar) {
+    // The test checks case when ShapeOf gets a scalar as input and the result tensor has shape [0]. This means an empty
+    // tensor which does not have data. There is nothing to do with this tensor so the test model has another ShapeOf
+    // producing tensor with shape [1] which is the output of the model.
     std::string model = R"V0G0N(
     <net name="model_10" version="10">
         <layers>
