@@ -34,7 +34,7 @@ TEST(type_prop, binary_conv_v1_auto_padding_same)
     const auto auto_pad = op::PadType::SAME_LOWER;
 
     auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
+    auto filters = make_shared<op::Parameter>(element::u1, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
@@ -57,7 +57,7 @@ TEST(type_prop, binary_conv_v1_auto_padding_same_lower_spatial_dims_static)
     const auto auto_pad = op::PadType::SAME_LOWER;
 
     auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
+    auto filters = make_shared<op::Parameter>(element::u1, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
@@ -81,7 +81,7 @@ TEST(type_prop, binary_conv_v1_auto_padding_same_upper_spatial_dims_static)
     const auto auto_pad = op::PadType::SAME_UPPER;
 
     auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
+    auto filters = make_shared<op::Parameter>(element::u1, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
@@ -105,7 +105,7 @@ TEST(type_prop, binary_conv_v1_auto_padding_same_data_batch_spatial_dims_dynamic
     const auto auto_pad = op::PadType::SAME_LOWER;
 
     auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
-    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
+    auto filters = make_shared<op::Parameter>(element::u1, filters_shape);
 
     auto conv = make_shared<op::v1::BinaryConvolution>(
         data_batch, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
@@ -123,7 +123,7 @@ TEST(type_prop, binary_conv_v1_dyn_data_batch)
     const auto auto_pad = op::PadType::EXPLICIT;
 
     const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 3});
+    const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3});
     const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                  filters,
                                                                  Strides{},
@@ -145,7 +145,7 @@ TEST(type_prop, binary_conv_v1_dyn_filters)
     const auto auto_pad = op::PadType::EXPLICIT;
 
     const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5});
-    const auto filters = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto filters = make_shared<op::Parameter>(element::u1, PartialShape::dynamic());
     const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                  filters,
                                                                  Strides{},
@@ -167,7 +167,7 @@ TEST(type_prop, binary_conv_v1_dyn_data_batch_and_filters)
     const auto auto_pad = op::PadType::EXPLICIT;
 
     const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    const auto filters = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto filters = make_shared<op::Parameter>(element::u1, PartialShape::dynamic());
     const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                  filters,
                                                                  Strides{},
@@ -181,17 +181,15 @@ TEST(type_prop, binary_conv_v1_dyn_data_batch_and_filters)
     ASSERT_TRUE(bin_conv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
-// TODO: Remove it if input may be different than float point type
-#if 0
-TEST(type_prop, binary_conv_v1_invalid_data_batch_et)
+TEST(type_prop, binary_conv_v1_invalid_inputs_et)
 {
     const auto mode = op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT;
     const float pad_value = 1.0f;
     const auto auto_pad = op::PadType::EXPLICIT;
-    const auto data_batch = make_shared<op::Parameter>(element::i32, PartialShape{1, 1, 5, 5});
-    const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 3, 3});
     try
     {
+        const auto data_batch = make_shared<op::Parameter>(element::i32, PartialShape{1, 1, 5, 5});
+        const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3, 3});
         const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                      filters,
                                                                      Strides{},
@@ -212,8 +210,34 @@ TEST(type_prop, binary_conv_v1_invalid_data_batch_et)
     {
         FAIL() << "Data batch element type validation check failed for unexpected reason";
     }
-}
+// TODO: Check if u1 is supported in python API
+#if 0
+    try
+    {
+        const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5});
+        const auto filters = make_shared<op::Parameter>(element::u8, PartialShape{1, 1, 3, 3});
+        const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
+                                                                     filters,
+                                                                     Strides{},
+                                                                     CoordinateDiff{},
+                                                                     CoordinateDiff{},
+                                                                     Strides{},
+                                                                     mode,
+                                                                     pad_value,
+                                                                     auto_pad);
+        // filters element type must be u1
+        FAIL() << "Incompatible element type of filters input not detected";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "Filters element type must be u1");
+    }
+    catch (...)
+    {
+        FAIL() << "Filters element type validation check failed for unexpected reason";
+    }
 #endif
+}
 
 TEST(type_prop, binary_conv_v1_incompatible_input_channels)
 {
@@ -222,7 +246,7 @@ TEST(type_prop, binary_conv_v1_incompatible_input_channels)
     const auto auto_pad = op::PadType::EXPLICIT;
 
     auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5});
-    auto filters = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 3});
+    auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 2, 3, 3});
 
     try
     {
@@ -259,7 +283,7 @@ TEST(type_prop, binary_conv_v1_invalid_input_ranks)
     try
     {
         const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5});
-        const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 3, 3, 3});
+        const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3, 3, 3});
         const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                      filters,
                                                                      Strides{},
@@ -288,7 +312,7 @@ TEST(type_prop, binary_conv_v1_invalid_input_ranks)
     {
         const auto data_batch =
             make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5, 5});
-        const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 3, 3});
+        const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3, 3});
         const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                      filters,
                                                                      Strides{},
@@ -330,7 +354,7 @@ TEST(type_prop, binary_conv_v1_invalid_spatial_dims_parameters)
     try
     {
         const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5});
-        const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 3, 3});
+        const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3, 3});
         const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                      filters,
                                                                      strides_3d,
@@ -357,7 +381,7 @@ TEST(type_prop, binary_conv_v1_invalid_spatial_dims_parameters)
     try
     {
         const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5});
-        const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 3});
+        const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3});
         const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                      filters,
                                                                      strides_1d,
@@ -385,7 +409,7 @@ TEST(type_prop, binary_conv_v1_invalid_spatial_dims_parameters)
     {
         const auto data_batch =
             make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5, 5});
-        const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 3, 3, 3});
+        const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3, 3, 3});
         const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                      filters,
                                                                      strides_3d,
