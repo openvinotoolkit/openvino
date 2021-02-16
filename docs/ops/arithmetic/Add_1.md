@@ -12,7 +12,7 @@
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
+    * *none* - no auto-broadcasting is allowed, all input shapes must match
     * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
   * **Type**: string
   * **Default value**: "numpy"
@@ -20,21 +20,21 @@
 
 **Inputs**
 
-* **1**: A tensor of type T. Required.
-* **2**: A tensor of type T. Required.
+* **1**: A tensor of type T with any shape and rank. Required.
+* **2**: A tensor of type T with any shape and rank. Required.
 
 **Outputs**
 
-* **1**: The result of element-wise addition operation. A tensor of type T.
+* **1**: The result of element-wise addition operation. A tensor of type T, if 'auto_broadcast' is 'numpy' shape and rank are determined by multidirectional broadcasting, otherwise they are the same as the inputs. When both inputs are of rank = 0 result is a scalar.
 
 **Types**
 
 * *T*: any numeric type.
 
 **Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attributes is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attribute is not `none`. Broadcasting is performed according to `auto_broadcast` value.
 
-After broadcasting *Add* does the following with the input tensors *a* and *b*:
+After broadcasting *Add* performs addition operation for the input tensors *a* and *b* using formula below:
 
 \f[
 o_{i} = a_{i} + b_{i}
