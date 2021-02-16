@@ -14,15 +14,12 @@
  limitations under the License.
 """
 
-import logging as log
-
 from extensions.ops.ctc_greedy_decoder_seq_len import CTCGreedyDecoderSeqLenOp
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
-from mo.graph.graph import Graph
-from mo.ops.result import Result
+from mo.graph.graph import Graph, rename_nodes
 
 
 class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
@@ -51,6 +48,7 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         ctc_greedy_decoder_tf = match['decoder']
         cast = match['cast']
         sparse_to_dense = match['sparse_to_dense']
+        sparse_to_dense_name = sparse_to_dense.soft_get('name', sparse_to_dense.id)
 
         # for normalizing input chanel need to transpose input data from [T, N, C] to [N, T, C]
         # which supported CTCGreedyDecoderSeqLen op.
@@ -63,8 +61,9 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
 
         ctc_greedy_decoder_tf.in_port(0).get_source().connect(ctc_data_permute.in_port(0))
         merge_repeated_tf = ctc_greedy_decoder_tf.merge_repeated
-        ctc_greedy_decoder = CTCGreedyDecoderSeqLenOp(graph, {'name': ctc_greedy_decoder_tf_name,
+        ctc_greedy_decoder = CTCGreedyDecoderSeqLenOp(graph, {'name': sparse_to_dense_name,
                                                               'merge_repeated': merge_repeated_tf}).create_node()
+        rename_nodes([(sparse_to_dense, sparse_to_dense_name + '/AbandonedName'), (ctc_greedy_decoder, sparse_to_dense_name)])
         ctc_greedy_decoder.in_port(0).connect(ctc_data_permute.out_port(0))
         ctc_greedy_decoder_tf.in_port(1).get_source().connect(ctc_greedy_decoder.in_port(1))
 
