@@ -11,8 +11,6 @@
 
 #include <vector>
 
-using namespace dnnl::impl::utils;
-
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
