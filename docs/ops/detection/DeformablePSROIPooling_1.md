@@ -11,9 +11,9 @@
 *DeformablePSROIPooling* operation takes two or three input tensors: with position score maps, with regions of interests (ROI, box coordinates) and an optional tensor with transformation values (normalized offsets for ROI bins coordinates).
 If only two inputs are provided, position sensitive pooling with regular ROI bins position is calculated (non-deformable).
 If third input is provided, each bin position is transformed by adding corresponding offset to the bin left top corner coordinates. Third input values are usually calculated by regular position sensitive pooling layer, so non-deformable mode (DeformablePSROIPooling with two inputs).
-
 The ROI coordinates are specified as five element tuples: `[batch_id, x_1, y_1, x_2, y_2]` in absolute values.
 
+This operation is compatible with [MXNet DeformablePSROIPooling](https://mxnet.apache.org/versions/1.7.0/api/python/docs/api/contrib/symbol/index.html#mxnet.contrib.symbol.DeformablePSROIPooling) cases where `group_size` is equal to `pooled_size`.
 
 **Attributes**
 
@@ -67,7 +67,7 @@ The ROI coordinates are specified as five element tuples: `[batch_id, x_1, y_1, 
   * **Required**: *no*
 
 * *trans_std*
-  * **Description**: *trans_std* is the value that all third input values(offests) are multiplied with to modulate the magnitude of the offsets.
+  * **Description**: *trans_std* is the value that all third input values (offests) are multiplied with to modulate the magnitude of the offsets.
   * **Range of values**: floating point number
   * **Type**: `float`
   * **Default value**: 1
@@ -102,8 +102,8 @@ Batch indices must be in the range of `[0, N_in-1]`.
 
 * Two inputs (without offsets)
 ```xml
-<layer id="6" name="rfcn_cls_offset" type="DeformablePSROIPooling" version="opset1">
-    <data spatial_scale="0.0625" output_dim="882" group_size="3" mode="bilinear_deformable" spatial_bins_x="4" spatial_bins_y="4" pooled_width="3" pooled_height="3" trans_std="0.0" part_size="3"/>
+<layer ... type="DeformablePSROIPooling" ... >
+    <data spatial_scale="0.0625" output_dim="882" group_size="3" mode="bilinear_deformable" spatial_bins_x="4" spatial_bins_y="4" trans_std="0.0" part_size="3"/>
     <input>
         <port id="0">
             <dim>1</dim>
