@@ -24,7 +24,6 @@
 #endif
 // clang-format on
 
-#include <cstring>
 #include <iostream>
 #include <numeric>
 #include <string>
@@ -165,11 +164,7 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_prior_grid_eval)
 
         auto priors_data = priors_value[i];
 
-        std::vector<float> ref_results(shape_size(s.ref_out_shape), 0);
-
-        memcpy(ref_results.data(),
-               expected_results[i].data(),
-               expected_results[i].size() * sizeof(float));
+        auto& ref_results = expected_results[i];
 
         std::vector<float> feature_map_data(shape_size(s.feature_map_shape));
         std::iota(feature_map_data.begin(), feature_map_data.end(), 0);
@@ -200,10 +195,13 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_prior_grid_eval)
 
         for (size_t j = 0; j < num_of_expected_results; ++j)
         {
-            std::cout << output_priors_value[j] << " ";
+            std::cout << output_priors_value[j] << ", ";
         }
         std::cout << "\n";
-        EXPECT_EQ(ref_results, output_priors_value);
+
+        std::vector<float> actual_results(output_priors_value.begin(),
+                                          output_priors_value.begin() + ref_results.size());
+        EXPECT_EQ(ref_results, actual_results);
         ++i;
     }
 }
