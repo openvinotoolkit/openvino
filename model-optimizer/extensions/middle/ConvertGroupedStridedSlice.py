@@ -69,7 +69,8 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        return [ConvertSlice]
+        from extensions.middle.StridedSliceNormalizer import StridedSliceNormalizer
+        return [ConvertSlice, StridedSliceNormalizer]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleFinish

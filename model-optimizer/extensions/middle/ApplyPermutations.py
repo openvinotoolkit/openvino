@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -133,15 +133,14 @@ class ApplyPermutation(MiddleReplacementPattern):
             input_permutations = [(in_port, edge_attrs['input_permutation']) for in_port, edge_attrs in
                                   node.in_edges().items() if edge_attrs.get('input_permutation') is not None]
             for in_port, input_perm in input_permutations:
-                permutation, port_info = input_perm
+                permutation, port_info, check_shape = input_perm
                 direction, port = port_info.split(':')
                 port = int(port)
                 port_to_check = node.in_port(port) if direction == 'input' else node.out_port(port)
                 permutation_data_node = get_node_with_permutation(node, port_info)
 
                 if permutation_data_node.has_and_set('permutation') and \
-                        not is_input_data_in_correct_layout(node, in_port) and \
-                        len(port_to_check.data.get_shape()) >= 4:
+                        not is_input_data_in_correct_layout(node, in_port) and check_shape(port_to_check):
                     permutation(node, port_info, in_port)
             if node.has_and_set('need_shape_inference'):
                 node.infer(node)
