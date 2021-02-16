@@ -17,7 +17,9 @@
 #include <fstream>
 #include <onnx/onnx_pb.h>
 
+#include "ngraph/log.hpp"
 #include "onnx_import/editor/editor.hpp"
+#include "utils/common.hpp"
 #include "utils/parser.hpp"
 
 using namespace ngraph;
@@ -50,6 +52,18 @@ namespace
             {
                 return input_desc;
             }
+        }
+
+        return nullptr;
+    }
+
+    TensorProto* find_graph_initializer(GraphProto& graph, const std::string& name)
+    {
+        for (int i = 0; i < graph.initializer_size(); ++i)
+        {
+            auto* initializer_desc = graph.mutable_initializer(i);
+            if (initializer_desc->has_name() && initializer_desc->name() == name)
+                return initializer_desc;
         }
 
         return nullptr;
@@ -142,6 +156,48 @@ namespace
             *(tensor_type->mutable_shape()) = std::move(new_onnx_shape);
         }
     }
+
+    void modify_initializer(TensorProto& initializer,
+                            const std::string& name,
+                            const std::shared_ptr<ngraph::op::Constant> values,
+                            ValueInfoProto* input)
+    {
+        const auto elem_type = values->get_element_type();
+        if (NG_2_ONNX_TYPES.count(elem_type) == 0)
+        {
+            throw ngraph_error("Initializer '" + name + "' type cannot be set to: " +
+                               element::Type(elem_type).get_type_name() +
+                               ". This type is not allowed in ONNX.");
+        }
+
+        initializer.Clear();
+
+        initializer.set_name(name);
+        initializer.set_data_type(NG_2_ONNX_TYPES.at(values->get_element_type()));
+
+        for (const auto& dim : values->get_shape())
+        {
+            initializer.add_dims(dim);
+        }
+
+        const auto data_size_in_bytes =
+            shape_size(values->get_shape()) *
+            onnx_import::common::get_onnx_data_size(initializer.data_type());
+        initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
+
+        // update input with type and shape of initializer
+        if (input)
+        {
+            auto tensor_type = input->mutable_type()->mutable_tensor_type();
+            TensorShapeProto shape;
+            for (size_t i = 0; i < initializer.dims_size(); ++i)
+            {
+                shape.add_dim()->set_dim_value(initializer.dims(i));
+            }
+            *tensor_type->mutable_shape() = std::move(shape);
+            tensor_type->set_elem_type(initializer.data_type());
+        }
+    }
 } // namespace
 
 /// \brief A helper class used to hold the ModelProto object as its field
@@ -230,5 +286,33 @@ void onnx_import::ONNXModelEditor::set_input_shapes(
             throw ngraph_error("Could not set custom shape for input: " + input_desc.first +
                                ". Such input was not found in the original ONNX model.");
         }
+    }
+}
+
+void onnx_import::ONNXModelEditor::set_input_values(
+    const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values)
+{
+    auto onnx_graph = m_pimpl->m_model_proto.mutable_graph();
+
+    for (const auto& input : input_values)
+    {
+        auto& name = input.first;
+        auto& values = input.second;
+
+        auto onnx_input = find_graph_input(*onnx_graph, name);
+        auto onnx_initializer = find_graph_initializer(*onnx_graph, name);
+
+        if (!onnx_initializer && !onnx_input)
+        {
+            NGRAPH_INFO << "There is no input nor initializer named '" << name
+                        << "' in original model '" << m_model_path << "'.";
+        }
+
+        if (!onnx_initializer)
+        {
+            onnx_initializer = onnx_graph->add_initializer();
+        }
+
+        modify_initializer(*onnx_initializer, name, values, onnx_input);
     }
 }

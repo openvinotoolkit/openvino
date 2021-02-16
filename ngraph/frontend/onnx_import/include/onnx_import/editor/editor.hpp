@@ -20,6 +20,7 @@
 #include <map>
 #include <memory>
 
+#include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_import/utils/onnx_importer_visibility.hpp"
@@ -69,6 +70,20 @@ namespace ngraph
             ///                     method throws an exception if the model doesn't contain any of
             ///                     the inputs specified in its parameter.
             void set_input_shapes(const std::map<std::string, ngraph::PartialShape>& input_shapes);
+
+            /// \brief Modifies the in-memory representation of the model by setting custom input
+            ///        values for inputs specified in the provided map.
+            ///
+            /// \note This method modifies existing initializer tensor if its name matches one of
+            ///       input_name. Otherwise it adds initializer tensor into the model.
+            ///       If input tensor of matching name is present in the model, its type and shape
+            ///       are modified accordingly.
+            ///
+            /// \param input_values A collection of pairs {input_name: new_input_values} used to
+            ///                     update the ONNX model. Initializers already existing are
+            ///                     overwritten.
+            void set_input_values(
+                const std::map<std::string, std::shared_ptr<ngraph::op::Constant>>& input_values);
 
             /// \brief Returns a non-const reference to the underlying ModelProto object, possibly
             ///        modified by the editor's API calls
