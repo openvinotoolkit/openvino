@@ -11,7 +11,7 @@
 a_{i} = sin(a_{i})
 \f]
 
-The sine of an acute angle $\theta$ is defined in the context of a right triangle: for the specified angle, it is the ratio of the length of the side 
+The sine of an acute angle theta is defined in the context of a right triangle: for the specified angle, it is the ratio of the length of the side 
 that is opposite that angle (the opposite), to the length of the longest side of the triangle (the hypotenuse).
 
 \f[
