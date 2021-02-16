@@ -15,7 +15,7 @@
 """
 
 import hashlib
-from xml.etree.ElementTree import Element, SubElement, tostring, ElementTree
+from xml.etree.ElementTree import Element, SubElement, tostring
 
 from defusedxml.minidom import parseString
 
