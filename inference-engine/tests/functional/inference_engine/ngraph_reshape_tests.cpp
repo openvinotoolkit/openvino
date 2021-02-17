@@ -30,7 +30,6 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "generic_ie.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
 

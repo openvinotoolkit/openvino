@@ -59,8 +59,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
-        // TODO: Issue 47556. [NGraph] CTCGreedyDecoderSeqLen. Invalid type transformation i64 to i32.
-        R"(.*(CTCGreedyDecoderSeqLenLayerTest).*(idxPRC=I64).*)",
+        // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
+        R"(.*BF16.*(jit_avx(?!5)|jit_sse).*)",
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {

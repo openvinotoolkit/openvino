@@ -47,6 +47,7 @@ extensions/back/RemoveUselessConvert.py
 extensions/back/Reshape0DToSqueeze.py
 extensions/back/ReshapeMutation.py
 extensions/back/ResultNormalizer.py
+extensions/back/ResultRename.py
 extensions/back/ReverseInputChannels.py
 extensions/back/RNNSequenceTypeRename.py
 extensions/back/ScalarConstNormalize.py
@@ -605,6 +606,7 @@ extensions/middle/SliceLikeToStridedSlice.py
 extensions/middle/sparse_reshape.py
 extensions/middle/split_tdnn_memoryoffset.py
 extensions/middle/SplitConcatPairToInterpolate.py
+extensions/middle/StridedSliceNormalizer.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
 extensions/middle/TensorIteratorBackEdge.py
@@ -799,7 +801,6 @@ mo/front/common/partial_infer/multi_box_prior.py
 mo/front/common/partial_infer/random_uniform.py
 mo/front/common/partial_infer/reshape.py
 mo/front/common/partial_infer/roipooling.py
-mo/front/common/partial_infer/slice.py
 mo/front/common/partial_infer/utils.py
 mo/front/common/register_custom_ops.py
 mo/front/common/replacement.py
@@ -1037,6 +1038,7 @@ telemetry/backend/backend.py
 telemetry/backend/backend_ga.py
 telemetry/telemetry.py
 telemetry/utils/__init__.py
+telemetry/utils/guid.py
 telemetry/utils/isip.py
 telemetry/utils/message.py
 telemetry/utils/sender.py
