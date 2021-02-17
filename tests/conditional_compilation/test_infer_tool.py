@@ -1,22 +1,21 @@
 import argparse
 import logging as log
 import sys
+import os
+import numpy as np
+from openvino.inference_engine import IENetwork, IECore
 
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
-import os
-
-import numpy as np
-from openvino.inference_engine import IENetwork
 
 
 def python_api_infer(ir_path, device):
     """
      Function to perform IE inference using python API "in place"
+    :param ir_path: Path to XML file of IR
     :param device: Device name for inference
     :return: Dict containing out blob name and out data
     """
 
-    from openvino.inference_engine import IECore
     bin_path = os.path.splitext(ir_path)[0] + '.bin'
     net = IENetwork(model=ir_path, weights=bin_path)
     feed_dict = {}
