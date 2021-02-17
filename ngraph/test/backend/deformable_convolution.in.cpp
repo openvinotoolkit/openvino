@@ -427,7 +427,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_deformable_convolution_2D_2group_1batch_2c
                               filter_shape, outputs, outputs_shape,strides, padding, dilations, group);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISBALED_deformable_convolution_2D_2group_1batch_2_filter_2channel)
+NGRAPH_TEST(${BACKEND_NAME}, DISABLED_deformable_convolution_2D_2group_1batch_2_filter_2channel)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};

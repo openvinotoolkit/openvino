@@ -299,7 +299,7 @@ namespace
                   const HostTensorVector& inputs)
     {
         const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-        const auto offset_data_ptr = inputs[1]->get_data_ptr<ET>(); 
+        const auto offset_data_ptr = inputs[1]->get_data_ptr<ET>();
         const auto filter_data_ptr = inputs[2]->get_data_ptr<ET>();
         auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
         const auto& out_shape = outputs[0]->get_shape();
