@@ -823,6 +823,12 @@ Ptr not_null(Ptr&& p) {
     return std::forward<Ptr>(p);
 }
 
+template <typename InOut1, typename InOut2>
+static bool equal_type_and_partial_shape(const InOut1& lhs, const InOut2& rhs) {
+    return lhs.get_element_type() == rhs.get_element_type() &&
+           lhs.get_partial_shape() == rhs.get_partial_shape();
+}
+
 class NodeAndInputDescription {
 public:
     using SubGraphOp = ngraph::op::util::SubGraphOp;
@@ -832,7 +838,7 @@ public:
 
     explicit NodeAndInputDescription(
         const InputNode& input, const Parameter* parameter, const InputDescripton* description)
-        : input(input), parameter(not_null(parameter)), description(not_null(description)) {}
+        : m_input(input), m_parameter(not_null(parameter)), m_description(not_null(description)) {}
 
     static bool equal_descriptions(const InputDescripton* lhs, const InputDescripton* rhs) {
         if (!lhs || !rhs || lhs->get_type_info() != rhs->get_type_info()) {
@@ -858,22 +864,25 @@ public:
     }
 
     bool parameter_and_input_match() const {
-        if (description->get_type_info() == SubGraphOp::SliceInputDescription::type_info) {
+        if (const SubGraphOp::SliceInputDescription* slice_description =
+                ngraph::as_type<const SubGraphOp::SliceInputDescription>(m_description)) {
+            (void)slice_description;
             ///
             /// TODO shape calculation - required decent formula to check size from Slice
             ///
             return true;
-        } else if (description->get_type_info() == SubGraphOp::MergedInputDescription::type_info) {
-            ///
-            /// TODO - check if validation is OK
-            ///
-            return parameter->get_partial_shape() == input.get_partial_shape();
         } else if (
-            description->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
+            m_description->get_type_info() == SubGraphOp::MergedInputDescription::type_info) {
             ///
             /// TODO - check if validation is OK
             ///
-            return parameter->get_partial_shape() == input.get_partial_shape();
+            return m_parameter->get_partial_shape() == m_input.get_partial_shape();
+        } else if (
+            m_description->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
+            ///
+            /// TODO - check if validation is OK
+            ///
+            return m_parameter->get_partial_shape() == m_input.get_partial_shape();
         }
         return false;
     }
@@ -882,21 +891,20 @@ public:
         ///
         /// TODO comparable vs same_scheme vs ==
         ///
-        return lhs && rhs && lhs->get_element_type() == rhs->get_element_type() &&
-               lhs->get_partial_shape() == rhs->get_partial_shape();
+        return lhs && rhs && equal_type_and_partial_shape(*lhs, *rhs);
     }
 
     friend bool operator==(const NodeAndInputDescription& lhs, const NodeAndInputDescription& rhs) {
-        if (!equal_descriptions(lhs.description, rhs.description)) {
+        if (!equal_descriptions(lhs.m_description, rhs.m_description)) {
             return false;
         }
-        return equal_parameters(lhs.parameter, rhs.parameter);
+        return equal_parameters(lhs.m_parameter, rhs.m_parameter);
     }
 
 private:
-    const InputNode input;
-    const Parameter* parameter;
-    const InputDescripton* description;
+    const InputNode m_input;
+    const Parameter* m_parameter;
+    const InputDescripton* m_description;
 };
 
 class NodeAndOutputDescription {
@@ -908,7 +916,7 @@ public:
 
     explicit NodeAndOutputDescription(
         const OutputNode& output, const Result* result, const OutputDescription* description)
-        : output(output), result(not_null(result)), description(not_null(description)) {}
+        : m_output(output), m_result(not_null(result)), m_description(not_null(description)) {}
 
     static bool equal_descriptions(const OutputDescription* lhs, const OutputDescription* rhs) {
         if (!lhs || !rhs || lhs->get_type_info() != rhs->get_type_info()) {
@@ -936,45 +944,37 @@ public:
     }
 
     bool result_and_output_match() const {
-        const auto& result_out = result->output(0);
-
-        if (description->get_type_info() == SubGraphOp::ConcatOutputDescription::type_info) {
+        if (m_description->get_type_info() == SubGraphOp::ConcatOutputDescription::type_info) {
             ///
             /// TODO shape calculation - required decent formula to check size from Slice
             ///
             return true;
-        } else if (description->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
-            return result_out.get_partial_shape() == output.get_partial_shape();
+        } else if (m_description->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
+            return equal_type_and_partial_shape(m_result->output(0), m_output);
         }
 
-        THROW_IE_EXCEPTION << "Type is not supported: [" << description->get_type_info().name
+        THROW_IE_EXCEPTION << "Type is not supported: [" << m_description->get_type_info().name
                            << "]";
 
         return true;
     }
 
     static bool equal_results(const Result* lhs, const Result* rhs) {
-        if (!lhs || !rhs) {
-            return false;
-        }
-        const auto& lhs_out = lhs->output(0);
-        const auto& rhs_out = rhs->output(0);
-        return lhs_out.get_element_type() == rhs_out.get_element_type() &&
-               lhs_out.get_partial_shape() == rhs_out.get_partial_shape();
+        return lhs && rhs && equal_type_and_partial_shape(lhs->output(0), rhs->output(0));
     }
 
     friend bool operator==(
         const NodeAndOutputDescription& lhs, const NodeAndOutputDescription& rhs) {
-        if (!equal_descriptions(lhs.description, rhs.description)) {
+        if (!equal_descriptions(lhs.m_description, rhs.m_description)) {
             return false;
         }
-        return equal_results(lhs.result, rhs.result);
+        return equal_results(lhs.m_result, rhs.m_result);
     }
 
 private:
-    const OutputNode output;
-    const Result* result;
-    const OutputDescription* description;
+    const OutputNode m_output;
+    const Result* m_result;
+    const OutputDescription* m_description;
 };
 
 class BackEdge {
@@ -984,27 +984,23 @@ public:
     using Id = uint64_t;
 
     explicit BackEdge(const Parameter* parameter, const Result* result)
-        : parameter(not_null(parameter)), result(not_null(result)) {}
+        : m_parameter(not_null(parameter)), m_result(not_null(result)) {}
 
     bool result_and_parameter_match() const {
         ///
         /// TODO how compare parameter vs result
         ///
-        const auto& result_out = result->output(0);
-        return result_out.get_partial_shape() == parameter->get_partial_shape();
+        return equal_type_and_partial_shape(m_result->output(0), *m_parameter);
     }
 
     friend bool operator==(const BackEdge& lhs, const BackEdge& rhs) {
-        ///
-        /// TODO what should be compared between functions BackEdges
-        ///
-        assert(lhs.parameter && rhs.parameter);
-        return lhs.parameter->get_partial_shape() == rhs.parameter->get_partial_shape();
+        return equal_type_and_partial_shape(*lhs.m_parameter, *rhs.m_parameter) &&
+               equal_type_and_partial_shape(lhs.m_result->output(0), rhs.m_result->output(0));
     }
 
 private:
-    const Parameter* parameter;
-    const Result* result;
+    const Parameter* m_parameter;
+    const Result* m_result;
 };
 
 std::vector<NodeAndInputDescription> extract_inputs(ngraph::op::util::SubGraphOp* sub) {
@@ -1042,13 +1038,13 @@ std::vector<BackEdge> extract_backedges(ngraph::op::util::SubGraphOp* sub) {
     std::vector<BackEdge> edges;
     const auto& fn_body = sub->get_function();
 
-    const auto& fs_pamaeters = fn_body->get_parameters();
+    const auto& fs_parameters = fn_body->get_parameters();
     const auto& fs_results = fn_body->get_results();
 
     for (const auto& in_desc : sub->get_input_descriptions()) {
         if (const auto& merged_in_desc =
                 ngraph::as_type_ptr<const MergedInputDescription>(in_desc)) {
-            const auto parameter = fs_pamaeters.at(merged_in_desc->m_body_parameter_index);
+            const auto parameter = fs_parameters.at(merged_in_desc->m_body_parameter_index);
             const auto result = fs_results.at(merged_in_desc->m_body_value_index);
             edges.push_back(BackEdge{parameter.get(), result.get()});
         }
