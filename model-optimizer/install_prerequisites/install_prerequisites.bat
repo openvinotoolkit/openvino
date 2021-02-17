@@ -1,5 +1,5 @@
 @echo off
-:: Copyright (C) 2018-2020 Intel Corporation
+:: Copyright (C) 2018-2021 Intel Corporation
 ::
 ::  Licensed under the Apache License, Version 2.0 (the "License");
 ::  you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ for /F "tokens=1,2,3 delims=. " %%a in ("%version%") do (
 
 if "%Major%" geq "3" (
    if "%Minor%" geq "5" (
-    set python_ver=okay
+   	  set python_ver=okay
    )
 )
 if not "%python_ver%"=="okay" (
@@ -79,30 +79,50 @@ IF /I "%1%" EQU "" (
 
 pip3 install --user -r ..\requirements%postfix%.txt
 
-:: Find or install IE Python bindings
+:: Chek MO version
+set python_command='python %~dp0..\mo\utils\extract_release_version.py'
+FOR /F "delims=" %%i IN (%python_command%) DO set mo_release_version=%%i
+IF "%version%" EQU "None.None" (
+    set mo_is_custom="true"
+) ELSE (
+    set mo_is_custom="false"
+)
+
+:: Check if existing IE Python bindings satisfy requirements
 set errorlevel=
 python %~dp0..\mo\utils\find_ie_version.py
 IF %errorlevel% EQU 0 goto ie_search_end
 
+:: Check if OV already installed via pip
 set errorlevel=
 pip3 show openvino
 IF %errorlevel% EQU 0 (
-    echo [ WARNING ] Existing OpenVINO version doesn't work as expected
-    echo [ WARNING ] Please build IneferenceEngine Python bindings from source
+    IF "%mo_is_custom%" == "true" (
+        echo [ WARNING ] Existing "OpenVINO (TM) Toolkit" pip version is incompatible with Model Optimizer.
+        echo [ WARNING ] For not release Model Optimizer version please build Inference Engine Python API from sources (preferable) or install latest "OpenVINO (TM) Toolkit" version using pip install openvino (may be incompatible).
+    ) ELSE (
+        echo [ WARNING ] Existing "OpenVINO (TM) Toolkit" pip version is incompatible with Model Optimizer.
+        echo [ WARNING ] For release Model Optimizer version which is %mo_release_version% please install "OpenVINO (TM) Toolkit" using pip install openvino==$mo_release_version or build Inference Engine Python API from sources.
+    )
     goto ie_search_end
 )
 
-set python_command='python -c "import sys; import os; sys.path.append(os.path.join(os.pardir)); from mo.utils.version import extract_release_version; print(\"{}.{}\".format(*extract_release_version()))"'
-FOR /F "delims=" %%i IN (%python_command%) DO set version=%%i
-IF "%version%" EQU "None.None" (
-    echo [ WARNING ] Can not extract release version from ModelOptimizer version. The latest OpenVINO version will be installed that may be incompatible with current ModelOptimizer version
+echo [ WARNING ] No available Inference Engine Python API was found. Trying to install "OpenVINO (TM) Toolkit" using pip.
+
+IF "%mo_is_custom%" == "true" (
+    echo [ WARNING ] Custom Model Optimizer version detected.
+    echo [ WARNING ] The desired version of Inference Engine can be installed only for release Model Optimizer version.
+    echo [ WARNING ] The latest "OpenVINO (TM) Toolkit" version will be installed (may be incompatible with current Model Optimizer version).
+    echo [ WARNING ] It is recommended to build Inference Engine from sources even if installation will be successful.
     goto install_last_ov
 )
 
 set errorlevel=
-pip3 install openvino==%version%
+pip3 install openvino==%mo_release_version%
 IF %errorlevel% NEQ 0 (
-    echo [ WARNING ] Can not find OpenVINO version that matches ModelOptimizer version. The latest OpenVINO version will be installed that may be incompatible with current ModelOptimizer version
+    echo [ WARNING ] Can not find "OpenVINO (TM) Toolkit" version %mo_release_version% in pip.
+    echo [ WARNING ] But the latest "OpenVINO (TM) Toolkit" version will be installed (may be incompatible with current Model Optimizer version).
+    echo [ WARNING ] It is recommended to build Inference Engine from sources even if installation will be successful.
     goto install_last_ov
 )
 
@@ -110,17 +130,17 @@ set errorlevel=
 python %~dp0..\mo\utils\find_ie_version.py
 IF %errorlevel% EQU 0 goto ie_search_end
 
-echo [ WARNING ] Installed OpenVINO version doesn't work as expected...Uninstalling
+echo [ WARNING ] Installed "OpenVINO (TM) Toolkit" version %mo_release_version% doesn't work as expected...Uninstalling...
 pip3 uninstall -y openvino
-echo [ WARNING ] Please build IneferenceEngine Python bindings from source
+echo [ WARNING ] Please consider to build Inference Engine Python API from sources
 goto ie_search_end
 
 :install_last_ov
 set errorlevel=
 pip3 install openvino
 IF %errorlevel% NEQ 0 (
-    echo [ WARNING ] No OpenVINO version is available for installation
-    echo [ WARNING ] Please build IneferenceEngine Python bindings from source
+    echo [ WARNING ] No "OpenVINO (TM) Toolkit" version is available in pip for installation.
+    echo [ WARNING ] Please consider to build Inference Engine Python API from sources.
     goto ie_search_end
 )
 
@@ -128,9 +148,9 @@ set errorlevel=
 python %~dp0..\mo\utils\find_ie_version.py
 IF %errorlevel% EQU 0 goto ie_search_end
 
-echo [ WARNING ] Installed OpenVINO version doesn't work as expected...Uninstalling
+echo [ WARNING ] Installed latest "OpenVINO (TM) Toolkit" version doesn't work as expected...Uninstalling...
 pip3 uninstall -y openvino
-echo [ WARNING ] Please build IneferenceEngine Python bindings from source
+echo [ WARNING ] Please consider to build Inference Engine Python API from sources.
 goto ie_search_end
 
 :ie_search_end
