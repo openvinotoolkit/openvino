@@ -58,7 +58,6 @@ xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support dif
                                       "SequenceEmpty, SequenceInsert, SequenceErase, SequenceLength ")
 xfail_issue_33606 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "Det")
-xfail_issue_45486 = xfail_test(reason="Dilations attribute for MaxPool operator is not supported")
 xfail_issue_33644 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "Compress")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -72,6 +71,7 @@ xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has differe
                                       "IN and OUT channels number")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "GatherElements")
+xfail_issue_33633 = xfail_test(reason="MaxPool: dilations unsupported")
 xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error")
 xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
                                       "Pad. Cannot parse parameter pads_end  from IR for layer B. "
@@ -173,6 +173,8 @@ xfail_issue_47330 = xfail_test(reason="RuntimeError: Eltwise node with name `[na
                                       "FP64 precision.")
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
+xfail_issue_49113 = xfail_test(reason="NLL Loss error: While validating ONNX node '<Node(Slice):")
+
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
