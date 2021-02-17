@@ -21,7 +21,7 @@ import argparse
 
 try:
     # needed by find_ie_version.py which call check_ie_bindings.py as python script
-    import version
+    import version # pylint: disable=import-error
 except ImportError:
     import mo.utils.version
 
@@ -30,11 +30,11 @@ from extract_release_version import extract_release_version
 
 def import_core_modules(silent: bool, path_to_module: str):
     try:
-        from openvino.inference_engine import IECore, get_version
-        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI
+        from openvino.inference_engine import IECore, get_version # pylint: disable=import-error
+        from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI # pylint: disable=import-error
 
         ie_version = str(get_version())
-        mo_version = str(version.get_version())
+        mo_version = str(version.get_version()) # pylint: disable=no-member
 
         if not silent:
             print("\t- {}: \t{}".format("Inference Engine found in", path_to_module))
