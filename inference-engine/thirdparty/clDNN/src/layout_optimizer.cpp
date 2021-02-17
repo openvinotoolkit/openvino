@@ -354,8 +354,9 @@ bool layout_optimizer::convolution_byxf_opt(const layout& input_layout,
     return false;
 }
 
-bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
-                                                     const layout &weights_layout,
+bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
+                                                     const layout& output_layout,
+                                                     const layout& weights_layout,
                                                      std::shared_ptr<const convolution> conv,
                                                      bool weak_restrictions) {
     // A set of rules that define when b_fs_yx_fsv16 mem format can be used for int8 case
@@ -367,15 +368,12 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         auto ks_y = weights_layout.size.spatial[1];
 
         size_t in_features_per_group = input_layout.size.feature[0] / conv->groups;
-        size_t out_features_per_group = weights_layout.size.batch[0] / conv->groups;
-        if (weights_layout.format.group_num() > 0) {
-            out_features_per_group = weights_layout.size.batch[0];
-        }
+        size_t out_features_per_group = output_layout.size.feature[0] / conv->groups;
 
         // Check for non-grouped or depthwise convolution
         if (input_layout.format.dimension() == 4 &&
             ((ks_x == 7 && ks_y == 7) || (ks_x == 3 && ks_y == 3) || (ks_x == 1 && ks_y == 1) || (ks_x == 5 && ks_y == 5)) &&
-            weights_layout.size.batch[0] * weights_layout.size.group[0] >= 16 &&
+            output_layout.size.feature[0] >= 16 &&
             ((conv->groups == 1 && conv->split() == 1) ||
              conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]) ||
              conv->split() == static_cast<int32_t>(input_layout.size.feature[0])))
@@ -394,27 +392,27 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
         return false;
     }
     // A set of rules that define when b_fs_yx_fsv16 mem format can be used for fp16/fp32 case
-    auto feature_block_size = 16;
-    auto correct_data_type = input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32;
+    int32_t feature_block_size = 16;
+    int32_t correct_data_type = input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32;
     correct_data_type &= weights_layout.data_type == input_layout.data_type;
-    auto correct_batch = (input_layout.size.batch[0] == 1) || (input_layout.size.batch[0] > 1 && input_layout.data_type == data_types::f32);
-    auto correct_spatial_dims = input_layout.size.spatial[2] == 1 && input_layout.size.spatial[3] == 1;
-    auto required_feature_num = weak_restrictions ? feature_block_size / 2 : feature_block_size;
-    auto correct_in_feature = (input_layout.size.feature[0] >= required_feature_num &&
-                               weights_layout.size.batch[0] * weights_layout.size.group[0] >= required_feature_num);
-    if (!correct_in_feature && input_layout.size.feature[0] <= 4 && weights_layout.size.batch[0] >= feature_block_size)
+    int32_t correct_batch = (input_layout.size.batch[0] == 1) || (input_layout.size.batch[0] > 1 && input_layout.data_type == data_types::f32);
+    int32_t correct_spatial_dims = input_layout.size.spatial[2] == 1 && input_layout.size.spatial[3] == 1;
+    int32_t required_feature_num = weak_restrictions ? feature_block_size / 2 : feature_block_size;
+    int32_t correct_in_feature = (input_layout.size.feature[0] >= required_feature_num &&
+                                  output_layout.size.feature[0] >= required_feature_num);
+    int32_t in_features_per_group = input_layout.size.feature[0] / conv->groups;
+    int32_t out_features_per_group = output_layout.size.feature[0] / conv->groups;
+    if (!correct_in_feature && input_layout.size.feature[0] <= 4 && out_features_per_group >= feature_block_size)
         correct_in_feature = true;
-    auto depthwise = conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]);  // depthwise conv
-    auto out_features_per_group = weights_layout.size.batch[0];
-    auto in_features_per_group = weights_layout.size.feature[0];
-    auto grouped = ((feature_block_size % out_features_per_group == 0) &&
-                    (feature_block_size % in_features_per_group == 0) &&
-                    (feature_block_size / out_features_per_group > 1) &&
-                    (feature_block_size / in_features_per_group > 1) &&
-                    (out_features_per_group != 1) &&
-                    (in_features_per_group != 1)) ||
-                   ((out_features_per_group % feature_block_size == 0 || feature_block_size % out_features_per_group == 0) &&
-                    (in_features_per_group % feature_block_size == 0));
+    int32_t depthwise = conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]);  // depthwise conv
+    int32_t grouped = ((feature_block_size % out_features_per_group == 0) &&
+                       (feature_block_size % in_features_per_group == 0) &&
+                       (feature_block_size / out_features_per_group > 1) &&
+                       (feature_block_size / in_features_per_group > 1) &&
+                       (out_features_per_group != 1) &&
+                       (in_features_per_group != 1)) ||
+                      ((out_features_per_group % feature_block_size == 0 || feature_block_size % out_features_per_group == 0) &&
+                       (in_features_per_group % feature_block_size == 0));
     if (correct_data_type &&
         correct_batch &&
         correct_spatial_dims &&
@@ -424,18 +422,20 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
     return false;
 }
 
-bool layout_optimizer::should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& output_or_weights_layout) {
+bool layout_optimizer::should_select_b_fs_yx_fsv16_layout(convolution_node const& node, layout const& weights_layout) {
     auto prim = node.get_primitive();
     auto input_layout = node.get_dependency(0).get_output_layout();
     auto const cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
     auto fully_support_conv_num = _optimized_conv_count.at({format::b_fs_yx_fsv16, false});
     auto partially_support_conv_num = _optimized_conv_count.at({format::b_fs_yx_fsv16, true});
 
-    auto current_conv_supports_layout = convolution_b_fs_yx_fsv16_opt(input_layout, output_or_weights_layout, prim);
+    auto output_layout = node.calc_output_layout();
+
+    auto current_conv_supports_layout = convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout,  prim);
     auto is_prev_conv_node_supports_layout = node.get_dependency(0).is_type<convolution>() &&
                                              is_format_optimized(node.get_dependency(0).as<convolution>(), format::b_fs_yx_fsv16);
     auto weak_restriction_cond = (partially_support_conv_num - fully_support_conv_num) * cond_denom < 0.15f;
-    auto current_conv_partially_supports_layout = convolution_b_fs_yx_fsv16_opt(input_layout, output_or_weights_layout, prim, true);
+    auto current_conv_partially_supports_layout = convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim, true);
     auto may_use_weak_restrictions = is_prev_conv_node_supports_layout || weak_restriction_cond;
 
     return ((_optimization_attributes.b_fs_yx_fsv16_network) &&
@@ -443,15 +443,13 @@ bool layout_optimizer::should_select_b_fs_yx_fsv16_layout(convolution_node const
            input_layout.format == format::b_fs_yx_fsv16;
 }
 
-bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout,
-                                                      const layout &weights_layout,
+bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(const layout& input_layout,
+                                                      const layout& output_layout,
+                                                      const layout& weights_layout,
                                                       std::shared_ptr<const convolution> conv) {
     // A set of rules that define when b_fs_zyx_fsv16 mem format can be used
     size_t in_features_per_group = input_layout.size.feature[0] / conv->groups;
-    size_t out_features_per_group = weights_layout.size.batch[0] / conv->groups;
-    if (weights_layout.format.group_num() > 0) {
-        out_features_per_group = weights_layout.size.batch[0];
-    }
+    size_t out_features_per_group = output_layout.size.feature[0] / conv->groups;
 
     // Check for fsv16 imad kernel
     if ((input_layout.format.dimension() == 5) &&
@@ -465,12 +463,13 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
     bool data_type_ver = input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32;
     bool w_layout = weights_layout.data_type == input_layout.data_type;
     bool single_dilation = conv->dilation == tensor(1);
-    bool groups_ver = conv->groups == 1 || weights_layout.size.batch[0] % 16 == 0
-        || (conv->groups > 1 && weights_layout.size.batch[0] == 8);
+    bool groups_ver = conv->groups == 1 || out_features_per_group % 16 == 0
+        || (conv->groups > 1 && out_features_per_group == 8);
 
     return format_ver && data_type_ver && w_layout && single_dilation && groups_ver;
 }
-bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout &input_layout,
+bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout& input_layout,
+                                                            const layout& output_layout,
                                                             const layout& weights_layout,
                                                             std::shared_ptr<const convolution> conv) {
     // A set of rules that define when bs_fs_yx_bsv16_fsv16 mem format can be used
@@ -488,21 +487,22 @@ bool layout_optimizer::convolution_bs_fs_yx_bsv16_fsv16_opt(const layout &input_
     auto ks_x = weights_layout.size.spatial[0];
     auto ks_y = weights_layout.size.spatial[1];
     int8_sup &= (input_layout.size.spatial[2] == 1 && ((ks_x == 1 && ks_y == 1) || (ks_x == 3 && ks_y == 3) || (ks_x == 7 && ks_y == 7)) &&
-                 weights_layout.size.batch[0] % 32 == 0 && conv->split() == 1 && conv->dilation == tensor{1});
+                 output_layout.size.feature[0] % 32 == 0 && conv->split() == 1 && conv->dilation == tensor{1});
 
     return (int8_sup || fp16_ver || fp32_ver) && correct_feature && correct_batch && single_group;
 }
 
-bool layout_optimizer::convolution_fs_b_yx_fsv32_opt(layout const& input_layout,
-                                                     layout const& weights_layout,
+bool layout_optimizer::convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
+                                                     const layout& output_layout,
+                                                     const layout& weights_layout,
                                                      std::shared_ptr<const convolution> conv,
                                                      bool weak_restrictions) {
-    auto ofm = weights_layout.size.batch[0] * weights_layout.size.group[0];
+    auto ofm = output_layout.size.feature[0];
     // A set of rules that define when fs_b_yx_fsv32 mem format can be used
     bool correct_batch = input_layout.size.batch[0] > 1;
     bool correct_in_feature = input_layout.size.feature[0] >= 16;
     bool correct_out_feature = weak_restrictions ? ofm >= 16 : ofm > 16;
-    bool dw_conv = static_cast<int>(conv->groups) == weights_layout.size.group[0];
+    bool dw_conv = static_cast<int>(conv->groups) == input_layout.size.feature[0];
     if (!correct_in_feature && input_layout.size.feature[0] == 3 && conv->groups == 1) {   // bfyx with 3 feature -> fs_b_yx_fsv32 case
         correct_in_feature = true;
     }
@@ -672,7 +672,7 @@ format layout_optimizer::imad_case(convolution_node const& node) const {
 
 layout layout_optimizer::get_expected_layout(layout const& current_layout,
                                              convolution_node const& node,
-                                             layout const& output_or_weights_layout) {
+                                             layout const& weights_layout) {
     auto prim = node.get_primitive();
     auto expected_tensor = current_layout.size;
     auto expected_data_type = current_layout.data_type;
@@ -681,23 +681,24 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 
     const float cond_denom = _total_conv > 0 ? 1.0f / static_cast<float>(_total_conv) : 1.0f;
 
+    auto output_layout = node.calc_output_layout();
+
     if ((input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8)) {
         if ((_optimization_attributes.bs_fs_yx_bsv16_fsv16_network && expected_tensor.batch[0] % 16 == 0 &&
-             convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_or_weights_layout, prim))) {
+             convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
             expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
         } else if ((_optimization_attributes.b_fs_yx_fsv16_network &&
-            convolution_b_fs_yx_fsv16_opt(input_layout, output_or_weights_layout, prim))) {
+            convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
             expected_format = cldnn::format::b_fs_yx_fsv16;
         } else if ((_optimization_attributes.b_fs_zyx_fsv16_network &&
-            convolution_b_fs_zyx_fsv16_opt(input_layout, output_or_weights_layout, prim))) {
+            convolution_b_fs_zyx_fsv16_opt(input_layout, output_layout, weights_layout, prim))) {
             expected_format = cldnn::format::b_fs_zyx_fsv16;
         } else {
             expected_format = imad_case(node);
         }
         expected_tensor = current_layout.size;
     } else if (_optimization_attributes.b_fs_zyx_fsv16_network &&
-            convolution_b_fs_zyx_fsv16_opt(input_layout,
-                                           output_or_weights_layout, prim)) {
+               convolution_b_fs_zyx_fsv16_opt(input_layout, output_layout, weights_layout, prim)) {
         expected_tensor = current_layout.size;
         if ((current_layout.data_type == data_types::f32 && expected_tensor.batch[0] % 16 == 0) ||
             (current_layout.data_type == data_types::f16 && expected_tensor.batch[0] % 32 == 0))
@@ -709,27 +710,29 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
         expected_tensor = current_layout.size;
         expected_format = cldnn::format::bfzyx;
     } else if (_optimization_attributes.bs_fs_yx_bsv16_fsv16_network &&
-               convolution_bs_fs_yx_bsv16_fsv16_opt(node.input().get_output_layout(), output_or_weights_layout, prim)) {
+               convolution_bs_fs_yx_bsv16_fsv16_opt(node.input().get_output_layout(), output_layout, weights_layout, prim)) {
         expected_tensor = current_layout.size;
         expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
     } else if (_optimization_attributes.fs_b_yx_fsv32_network && !node.get_transposed() &&
-               ((convolution_fs_b_yx_fsv32_opt(node.get_dependency(0).get_output_layout(),
-                                               node.get_dependency(1).get_output_layout(), prim) ||
+               ((convolution_fs_b_yx_fsv32_opt(input_layout,
+                                               output_layout,
+                                               weights_layout, prim) ||
                (((node.get_dependency(0).is_type<convolution>() && is_format_optimized(node.get_dependency(0).as<convolution>(), format::fs_b_yx_fsv32))
                 || (_optimized_conv_count.at({format::fs_b_yx_fsv32, false}) * cond_denom > 0.8f)) &&
-                convolution_fs_b_yx_fsv32_opt(node.get_dependency(0).get_output_layout(),
-                                              node.get_dependency(1).get_output_layout(), prim, true))))) {
+                convolution_fs_b_yx_fsv32_opt(input_layout,
+                                              output_layout,
+                                              weights_layout, prim, true))))) {
         // Chose fs_b_yx_fsv32 layout in two cases: 1-st: the current conv primitive totally supports fs_b_yx_fsv32 layout
         //                                          2-nd: the previous conv primitive supports fs_b_yx_fsv32 layout and
         //                                                current conv primitives supports this one with weak restrictions -
         //                                                that should be cheaper than reordering data to another layout
         expected_tensor = current_layout.size;
         expected_format = format::fs_b_yx_fsv32;
-    } else if (should_select_b_fs_yx_fsv16_layout(node, output_or_weights_layout)) {
+    } else if (should_select_b_fs_yx_fsv16_layout(node, weights_layout)) {
         expected_tensor = current_layout.size;
         expected_format = cldnn::format::b_fs_yx_fsv16;
     } else if (current_layout.data_type == data_types::f16 &&
-                layout_optimizer::convolution_byxf_opt(node.input().get_output_layout(), current_layout, output_or_weights_layout, node) &&
+                layout_optimizer::convolution_byxf_opt(input_layout, current_layout, weights_layout, node) &&
                 (users_for_convolution_byxf_opt(node, 2) || deps_for_convolution_byxf_opt(node, 2)) &&
                 // todo: remove this condition when yxfb optimizations will be disabled
                 current_layout.format != cldnn::format::yxfb && current_layout.size.batch[0] == 1) {
@@ -739,7 +742,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
                 current_layout.format == format::os_is_yx_osv16_isv4) {
         // imad case
         // nothing to do, just go out from here.
-    } else if (layout_optimizer::convolution_bfyx_opt(current_layout, output_or_weights_layout, prim) ||
+    } else if (layout_optimizer::convolution_bfyx_opt(current_layout, weights_layout, prim) ||
                 (_output_size_handling_enabled && prim->with_output_size) || node.get_transposed()) {
         {
             expected_tensor = current_layout.size;
@@ -907,20 +910,21 @@ void layout_optimizer::set_optimization_attribute(optimization_attributes_type a
 bool layout_optimizer::is_format_optimized(const convolution_node& node, const format& format, bool use_weak_restrictions) {
     auto input_layout = node.input().get_output_layout();
     auto weights_layout = node.weights().get_output_layout();
+    auto output_layout = node.calc_output_layout();
     auto prim = node.get_primitive();
 
     switch (format) {
         case format::b_fs_yx_fsv16:
-            return convolution_b_fs_yx_fsv16_opt(input_layout, weights_layout, prim, use_weak_restrictions) &&
+            return convolution_b_fs_yx_fsv16_opt(input_layout, output_layout, weights_layout, prim, use_weak_restrictions) &&
                    // Work-around for inability to use b_fs_yx_fsv16 and winograd together
                    !should_use_winograd_2x3_s1(prim, input_layout, weights_layout, _output_size_handling_enabled);
         case format::b_fs_zyx_fsv16:
         case format::bs_fs_zyx_bsv16_fsv16:
-            return convolution_b_fs_zyx_fsv16_opt(input_layout, weights_layout, prim);
+            return convolution_b_fs_zyx_fsv16_opt(input_layout, output_layout, weights_layout, prim);
         case format::fs_b_yx_fsv32:
-            return convolution_fs_b_yx_fsv32_opt(input_layout, weights_layout, prim);
+            return convolution_fs_b_yx_fsv32_opt(input_layout, output_layout, weights_layout, prim);
         case format::bs_fs_yx_bsv16_fsv16:
-            return convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, weights_layout, prim);
+            return convolution_bs_fs_yx_bsv16_fsv16_opt(input_layout, output_layout, weights_layout, prim);
         default:
             throw std::invalid_argument(
                 "[Layout optimizer] Other formats in is_format_optimized(...) method are not implemented!");
