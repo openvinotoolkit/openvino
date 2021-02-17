@@ -411,6 +411,9 @@ class StageNode :
 
     VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageTempBufferVector, tempBufferEdges)
 
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageDependencyVector, parentDependencyEdges)
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageDependencyVector, childDependencyEdges)
+
     VPU_MODEL_ATTRIBUTE(Injection, parentStageEdge, nullptr)
     VPU_MODEL_ATTRIBUTE(Injection, injectedStageEdge, nullptr)
 

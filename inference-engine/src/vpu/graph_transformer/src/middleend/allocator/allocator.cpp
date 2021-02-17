@@ -217,8 +217,7 @@ bool Allocator::allocateData(const Data& data) {
         VPU_INTERNAL_CHECK(data->producerEdge() != nullptr,
             "Allocation check failed: data {} with usage {} must have producer, but actually it doesn't",
             data->name(), data->usage());
-        VPU_INTERNAL_CHECK(!data->consumers().empty() || !data->childDataToShapeEdges().empty() ||
-            !data->dependentStagesEdges().empty(),
+        VPU_INTERNAL_CHECK(!data->consumers().empty() || !data->childDataToShapeEdges().empty(),
             "Allocation check failed: data {} with usage {} must have at least one data/stage "
             "depending on it, but it doesn't have either",
             data->name(), data->usage());

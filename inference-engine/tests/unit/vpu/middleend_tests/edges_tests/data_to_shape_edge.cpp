@@ -328,12 +328,12 @@ TEST_F(DataToShapeEdgeProcessingTests, ReplaceDataToShapeParentReplacesConnectio
     ASSERT_EQ(finalShape->childDataToShapeEdges().front(), dataToShapeEdge);
     ASSERT_EQ(dataToShapeEdge->parent(), finalShape);
 
-    ASSERT_TRUE(initialShape->dependentStagesEdges().empty());
-    ASSERT_FALSE(finalShape->dependentStagesEdges().empty());
+    ASSERT_TRUE(firstShapeProcessor->childDependencyEdges().empty());
+    ASSERT_FALSE(secondShapeProcessor->childDependencyEdges().empty());
 
-    const auto& stageDependencyEdge = finalShape->dependentStagesEdges().front();
-    ASSERT_EQ(stageDependencyEdge->dependentStage(), dataProcessor);
-    ASSERT_EQ(stageDependencyEdge->dependency(), finalShape);
+    const auto& stageDependencyEdge = secondShapeProcessor->childDependencyEdges().front();
+    ASSERT_EQ(stageDependencyEdge->child(), dataProcessor);
+    ASSERT_EQ(stageDependencyEdge->parent(), secondShapeProcessor);
 }
 
 TEST_F(DataToShapeEdgeProcessingTests, ReplaceDataToShapeChildReplacesConnections) {
@@ -372,11 +372,11 @@ TEST_F(DataToShapeEdgeProcessingTests, ReplaceDataToShapeChildReplacesConnection
     ASSERT_EQ(finalData->parentDataToShapeEdge(), dataToShapeEdge);
     ASSERT_EQ(dataToShapeEdge->child(), finalData);
 
-    ASSERT_FALSE(processedShape->dependentStagesEdges().empty());
-    const auto& stageDependencyEdge = processedShape->dependentStagesEdges().front();
+    ASSERT_FALSE(shapeProcessor->childDependencyEdges().empty());
+    const auto& stageDependencyEdge = shapeProcessor->childDependencyEdges().front();
 
-    ASSERT_EQ(stageDependencyEdge->dependentStage(), secondDataProcessor);
-    ASSERT_EQ(stageDependencyEdge->dependency(), processedShape);
+    ASSERT_EQ(stageDependencyEdge->child(), secondDataProcessor);
+    ASSERT_EQ(stageDependencyEdge->parent(), shapeProcessor);
 }
 
 TEST_F(DataToShapeEdgeProcessingTests, DisconnectDatasRemovesConnections) {
@@ -408,7 +408,7 @@ TEST_F(DataToShapeEdgeProcessingTests, DisconnectDatasRemovesConnections) {
 
     ASSERT_EQ(processedData->parentDataToShapeEdge(), nullptr);
     ASSERT_TRUE(processedShape->childDataToShapeEdges().empty());
-    ASSERT_TRUE(processedShape->dependentStagesEdges().empty());
+    ASSERT_TRUE(shapeProcessor->childDependencyEdges().empty());
 }
 
 } // namespace vpu

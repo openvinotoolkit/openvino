@@ -126,8 +126,6 @@ class DataNode final :
     VPU_MODEL_ATTRIBUTE(StageOutput, producerEdge, nullptr)
     VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageInputList, consumerEdges)
 
-    VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageDependencyList, dependentStagesEdges)
-
     VPU_MODEL_ATTRIBUTE(StageTempBuffer, tempBufferEdge, nullptr)
 
     /**
@@ -282,7 +280,6 @@ private:
 private:
     inline DataNode() :
         _consumerEdges(&StageInputEdge::_posInData),
-        _dependentStagesEdges(&StageDependencyEdge::_posInData),
         _childDataToDataEdges(&DataToDataAllocationEdge::_posInData),
         _childDataToShapeEdges(&DataToShapeAllocationEdge::_posInData),
         _posInModel(this) {
