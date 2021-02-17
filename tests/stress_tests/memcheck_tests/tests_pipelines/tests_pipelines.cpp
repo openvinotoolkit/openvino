@@ -52,6 +52,7 @@ std::string MemCheckPipeline::get_reference_record_for_test(std::string test_nam
     std::stringstream ss;
     ss << "Record to update reference config: "
        << "<model path=\"" << model_name << "\"" <<
+       " precision=\"" << precision <<
        " test=\"" << test_name << "\" device=\"" << target_device <<
        "\" vmsize=\"" << (int) (measures[VMSIZE] * REPORTING_THRESHOLD) <<
        "\" vmpeak=\"" << (int) (measures[VMPEAK] * REPORTING_THRESHOLD) <<
