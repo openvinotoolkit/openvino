@@ -24,6 +24,8 @@
 #include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
+#include "details/ie_exception.hpp"
+
 namespace {
 inline namespace tools {
 bool isTypeRelaxed(const std::string& type) {
@@ -686,7 +688,8 @@ private:
         }
     }
 
-    void verify_mem_buf(const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
+    void verify_mem_buf(
+        const std::string& name, const std::shared_ptr<ngraph::runtime::AlignedBuffer>& buffer) {
         if (should_return()) {
             return;
         }
@@ -815,7 +818,7 @@ namespace detail {
 template <typename Ptr>
 Ptr not_null(Ptr&& p) {
     if (!p) {
-        throw std::runtime_error{"empty ptr"};
+        THROW_IE_EXCEPTION << "empty pointer";
     }
     return std::forward<Ptr>(p);
 }
@@ -849,15 +852,11 @@ public:
             return true;  // noting extra to check
         }
 
-        throw std::runtime_error{
-            std::string("Type is not supported: [") + lhs->get_type_info().name + "]"};
+        THROW_IE_EXCEPTION << "Type is not supported: [" << lhs->get_type_info().name << "]";
 
         return true;
     }
 
-    ///
-    /// FIX: Is this matching required?
-    ///
     bool parameter_and_input_match() const {
         if (description->get_type_info() == SubGraphOp::SliceInputDescription::type_info) {
             ///
@@ -931,15 +930,11 @@ public:
             return l_output->m_iteration == r_output->m_iteration;
         }
 
-        throw std::runtime_error{
-            std::string("Type is not supported: [") + lhs->get_type_info().name + "]"};
+        THROW_IE_EXCEPTION << "Type is not supported: [" << lhs->get_type_info().name << "]";
 
         return true;
     }
 
-    ///
-    /// FIX: Is this matching required?
-    ///
     bool result_and_output_match() const {
         const auto& result_out = result->output(0);
 
@@ -952,8 +947,8 @@ public:
             return result_out.get_partial_shape() == output.get_partial_shape();
         }
 
-        throw std::runtime_error{
-            std::string("Type is not supported: [") + description->get_type_info().name + "]"};
+        THROW_IE_EXCEPTION << "Type is not supported: [" << description->get_type_info().name
+                           << "]";
 
         return true;
     }
