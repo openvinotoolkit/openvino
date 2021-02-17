@@ -891,12 +891,14 @@ Injection ModelObj::injectStageImpl(
     // Redirect child stage dependencies to parent.
     //
 
-    for (const auto& parentDependencyEdge : child->parentDependencyEdges()) {
+    const auto parentDependencyEdges = child->_parentDependencyEdges;
+    for (const auto& parentDependencyEdge : parentDependencyEdges) {
         edge->_injectedStageDependencies.push_back(parentDependencyEdge);
         replaceStageDependencyChild(parentDependencyEdge, parent);
     }
 
-    for (const auto& childDependencyEdge : child->childDependencyEdges()) {
+    const auto childDependencyEdges = child->_childDependencyEdges;
+    for (const auto& childDependencyEdge : childDependencyEdges) {
         edge->_injectedStageDependencies.push_back(childDependencyEdge);
         replaceStageDependencyParent(childDependencyEdge, parent);
     }
