@@ -21,17 +21,20 @@
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// PermuteKernel_tile_8x8
+// PermuteKernel_tile_8x8_4x4
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class PermuteKernel_tile_8x8 : public KernelBaseOpenCL {
+class PermuteKernel_tile_8x8_4x4 : public KernelBaseOpenCL {
 public:
-    PermuteKernel_tile_8x8() : KernelBaseOpenCL("permute_tile_8x8") {}
-    virtual ~PermuteKernel_tile_8x8() {}
+    PermuteKernel_tile_8x8_4x4() : KernelBaseOpenCL("permute_tile_8x8_4x4") {}
+    virtual ~PermuteKernel_tile_8x8_4x4() {}
 
-    virtual CommonDispatchData SetDefault(const permute_params& params) const;
-    JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const;
+    virtual CommonDispatchData SetDefault(const permute_params& params, const size_t tile_size) const;
+    JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData, const size_t tile_size) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+
+protected:
+    bool Validate(const Params& p, const optional_params& o) const override;
 };
 }  // namespace kernel_selector

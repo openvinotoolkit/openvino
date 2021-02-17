@@ -22,18 +22,10 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // permute_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// TODO: decide the folllowing values w.r.t input shape? 
-// or fix it as 8 in this kernel?
-#define TILE_SIZE_W 8
-#define TILE_SIZE_H 8
-#define VECTORWIDTH 8
 struct permute_params : public base_params {
     permute_params() : base_params(KernelType::PERMUTE) {}
 
     std::vector<uint16_t> order;
-    uint32_t tile_w = TILE_SIZE_W;
-    uint32_t tile_h = TILE_SIZE_H;
-
     virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };
 
