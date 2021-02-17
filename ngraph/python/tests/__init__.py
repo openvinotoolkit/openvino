@@ -39,8 +39,6 @@ xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "MaxUnpool")
 xfail_issue_33512 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "Einsum")
-xfail_issue_33515 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "BitShift")
 xfail_issue_33535 = xfail_test(reason="nGraph does not support the following ONNX operations:"
                                       "DynamicQuantizeLinear")
 xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
