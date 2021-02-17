@@ -279,13 +279,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_model_conv_with_dynamic_batch)
     const auto data_elems = shape_size(data_shape);
     const auto filters_elems = shape_size(filters_shape);
 
-    test_case.add_input<int64_t>(data_shape, std::vector<int64_t>(data_elems, 1));
-    test_case.add_input<int64_t>(filters_shape, std::vector<int64_t>(filters_elems, 1));
-    test_case.add_input<int64_t>(Shape{10}, std::vector<int64_t>(10, 1));
+    test_case.add_input<float>(data_shape, std::vector<float>(data_elems, 1));
+    test_case.add_input<float>(filters_shape, std::vector<float>(filters_elems, 1));
+    test_case.add_input<float>(Shape{10}, std::vector<float>(10, 1));
 
     const auto expected_out_shape = Shape{1, 10, 6, 6};
-    const std::vector<int64_t> expected_values(shape_size(expected_out_shape), 13);
-    test_case.add_expected_output<int64_t>(expected_out_shape, expected_values);
+    const std::vector<float> expected_values(shape_size(expected_out_shape), 13);
+    test_case.add_expected_output<float>(expected_out_shape, expected_values);
 
     test_case.run();
 }
