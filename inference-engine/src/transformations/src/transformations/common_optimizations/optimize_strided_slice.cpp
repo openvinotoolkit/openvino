@@ -225,6 +225,11 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         NodeVector ops_to_replace;
         for (auto & record : output_to_size) {
             if (record.first != fake_output) {
+                const auto out_name = record.first.get_node_shared_ptr()->get_friendly_name();
+                NGRAPH_SUPPRESS_DEPRECATED_START
+                variadic_split->get_output_tensor(i).set_name(out_name);
+                NGRAPH_SUPPRESS_DEPRECATED_END
+
                 record.first.replace(variadic_split->output(i));
                 ops_to_replace.push_back(record.first.get_node_shared_ptr());
             }
