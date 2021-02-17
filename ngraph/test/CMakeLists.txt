@@ -460,3 +460,5 @@ if (NGRAPH_INTERPRETER_ENABLE)
     target_compile_definitions(unit-test PRIVATE NGRAPH_INTERPRETER_ENABLE)
     target_link_libraries(unit-test PRIVATE interpreter_backend)
 endif()
+
+MESSAGE("HERE2" ${ONNX_IMPORT_INCLUDE_DIR})

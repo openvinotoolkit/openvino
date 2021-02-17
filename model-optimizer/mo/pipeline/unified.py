@@ -37,9 +37,19 @@ def unified_pipeline(argv: argparse.Namespace):
 
 def moc_pipeline(argv: argparse.Namespace):
     from openvino.inference_engine import IECore
-    import openvino
+    from openvino.inference_engine import IENetwork
+    import ngraph as ng
+    print('ngrph.dir = ' + str(dir(ng)))
+    from ngraph import FrontEndManager
     ie = IECore()
-    network = ie.read_network(model=argv.input_model)
+    fem = FrontEndManager()
+    print('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))
+    fe = fem.loadByFramework('onnx')
+    print(fe)
+    inputModel = fe.load(argv.input_model)
+    nGraphModel = fe.convert(inputModel)
+    network = ng.function_to_cnn(nGraphModel)
+    #network = ie.read_network(model=argv.input_model)
 
     # Wrap nGraph network to Graph for smoothly pass through the legacy code in MO.
     # This trick doesn't mean that we will hold Graph forever as a wrapper, it is derived from

@@ -16,4 +16,5 @@
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     add_subdirectory(onnx_import)
+    add_subdirectory(generic)
 endif()

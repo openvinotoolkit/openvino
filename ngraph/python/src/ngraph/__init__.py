@@ -25,6 +25,9 @@ except DistributionNotFound:
 
 from ngraph.impl import Node
 from ngraph.impl import Function
+from ngraph.impl import FrontEndManager
+from ngraph.impl import FrontEnd
+from ngraph.impl import InputModel
 from ngraph.helpers import function_from_cnn
 from ngraph.helpers import function_to_cnn
 
