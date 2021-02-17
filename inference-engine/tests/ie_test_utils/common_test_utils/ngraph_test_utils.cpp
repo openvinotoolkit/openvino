@@ -824,7 +824,10 @@ Ptr not_null(Ptr&& p) {
 }
 
 template <typename InOut1, typename InOut2>
-static bool equal_type_and_partial_shape(const InOut1& lhs, const InOut2& rhs) {
+bool equal_type_and_partial_shape(const InOut1& lhs, const InOut2& rhs) {
+    ///
+    /// TODO do we need compare tensor_name here also or not?
+    ///
     return lhs.get_element_type() == rhs.get_element_type() &&
            lhs.get_partial_shape() == rhs.get_partial_shape();
 }
@@ -860,37 +863,53 @@ public:
 
         THROW_IE_EXCEPTION << "Type is not supported: [" << lhs->get_type_info().name << "]";
 
-        return true;
+        return false;
     }
 
-    bool parameter_and_input_match() const {
+    bool parameter_and_input_match(size_t num_iterations) const {
         if (const SubGraphOp::SliceInputDescription* slice_description =
                 ngraph::as_type<const SubGraphOp::SliceInputDescription>(m_description)) {
-            (void)slice_description;
-            ///
-            /// TODO shape calculation - required decent formula to check size from Slice
-            ///
+            if (m_parameter->get_element_type() != m_input.get_element_type()) {
+                return false;
+            }
+            const auto& param_partial_shape = m_parameter->get_partial_shape();
+            const auto& input_partial_shape = m_input.get_partial_shape();
+            if (param_partial_shape.is_dynamic() && input_partial_shape.is_dynamic()) {
+                return true;
+            }
+            if (!param_partial_shape.is_static() || !input_partial_shape.is_static()) {
+                return false;
+            }
+            const auto& param_shape = param_partial_shape.to_shape();
+            const auto& input_shape = input_partial_shape.to_shape();
+            if (param_shape.size() != input_shape.size()) {
+                return false;
+            }
+            if (param_shape[slice_description->m_axis] != slice_description->m_part_size) {
+                return false;
+            }
+            for (size_t i = 0; i != param_shape.size(); ++i) {
+                const auto expected_axis_size =
+                    i == slice_description->m_axis ? slice_description->m_part_size * num_iterations
+                                                   : param_shape[i];
+                if (input_shape[i] != expected_axis_size) {
+                    return false;
+                }
+            }
             return true;
         } else if (
-            m_description->get_type_info() == SubGraphOp::MergedInputDescription::type_info) {
-            ///
-            /// TODO - check if validation is OK
-            ///
-            return m_parameter->get_partial_shape() == m_input.get_partial_shape();
-        } else if (
+            m_description->get_type_info() == SubGraphOp::MergedInputDescription::type_info ||
             m_description->get_type_info() == SubGraphOp::InvariantInputDescription::type_info) {
-            ///
-            /// TODO - check if validation is OK
-            ///
-            return m_parameter->get_partial_shape() == m_input.get_partial_shape();
+            return equal_type_and_partial_shape(*m_parameter, m_input);
         }
+
+        THROW_IE_EXCEPTION << "Type is not supported: [" << m_description->get_type_info().name
+                           << "]";
+
         return false;
     }
 
     static bool equal_parameters(const Parameter* lhs, const Parameter* rhs) {
-        ///
-        /// TODO comparable vs same_scheme vs ==
-        ///
         return lhs && rhs && equal_type_and_partial_shape(*lhs, *rhs);
     }
 
@@ -940,14 +959,35 @@ public:
 
         THROW_IE_EXCEPTION << "Type is not supported: [" << lhs->get_type_info().name << "]";
 
-        return true;
+        return false;
     }
 
-    bool result_and_output_match() const {
-        if (m_description->get_type_info() == SubGraphOp::ConcatOutputDescription::type_info) {
-            ///
-            /// TODO shape calculation - required decent formula to check size from Slice
-            ///
+    bool result_and_output_match(size_t num_iterations) const {
+        if (const auto concat_desciption =
+                ngraph::as_type<const SubGraphOp::ConcatOutputDescription>(m_description)) {
+            if (m_result->output(0).get_element_type() != m_output.get_element_type()) {
+                return false;
+            }
+
+            const auto& output_partial_shape = m_output.get_partial_shape();
+            const auto& result_partial_shape = m_result->output(0).get_partial_shape();
+            if (result_partial_shape.is_dynamic() && output_partial_shape.is_dynamic()) {
+                return true;
+            }
+            if (!result_partial_shape.is_static() || !output_partial_shape.is_static()) {
+                return false;
+            }
+            const auto& output_shape = output_partial_shape.to_shape();
+            const auto& result_shape = result_partial_shape.to_shape();
+            if (result_shape.size() != output_shape.size()) {
+                return false;
+            }
+            for (size_t i = 0; i != result_shape.size(); ++i) {
+                const auto axis_multiplier = i == concat_desciption->m_axis ? num_iterations : 1;
+                if (result_shape[i] * axis_multiplier != output_shape[i]) {
+                    return false;
+                }
+            }
             return true;
         } else if (m_description->get_type_info() == SubGraphOp::BodyOutputDescription::type_info) {
             return equal_type_and_partial_shape(m_result->output(0), m_output);
@@ -956,7 +996,7 @@ public:
         THROW_IE_EXCEPTION << "Type is not supported: [" << m_description->get_type_info().name
                            << "]";
 
-        return true;
+        return false;
     }
 
     static bool equal_results(const Result* lhs, const Result* rhs) {
@@ -987,9 +1027,6 @@ public:
         : m_parameter(not_null(parameter)), m_result(not_null(result)) {}
 
     bool result_and_parameter_match() const {
-        ///
-        /// TODO how compare parameter vs result
-        ///
         return equal_type_and_partial_shape(m_result->output(0), *m_parameter);
     }
 
@@ -1031,10 +1068,6 @@ std::vector<NodeAndOutputDescription> extract_outputs(ngraph::op::util::SubGraph
 
 std::vector<BackEdge> extract_backedges(ngraph::op::util::SubGraphOp* sub) {
     using MergedInputDescription = ngraph::op::util::SubGraphOp::MergedInputDescription;
-    ///
-    /// TODO extract based on body_parameter_index and body_value_index
-    /// Is this OK?
-    ///
     std::vector<BackEdge> edges;
     const auto& fn_body = sub->get_function();
 
@@ -1052,13 +1085,32 @@ std::vector<BackEdge> extract_backedges(ngraph::op::util::SubGraphOp* sub) {
     return edges;
 }
 
-bool not_valid_input(const NodeAndInputDescription& d) {
-    return !d.parameter_and_input_match();
-}
+struct NotValidInputOrOutput {
+    NotValidInputOrOutput(ngraph::op::util::SubGraphOp* sub)
+        : m_num_iterations(get_num_iterations(sub)) {}
 
-bool not_valid_output(const NodeAndOutputDescription& d) {
-    return !d.result_and_output_match();
-}
+    static int64_t get_num_iterations(ngraph::op::util::SubGraphOp* sub) {
+        using namespace ngraph::opset6;
+        if (const auto ti = dynamic_cast<const TensorIterator*>(sub)) {
+            return ti->get_num_iterations();
+        }
+        if (const auto l = dynamic_cast<const Loop*>(sub)) {
+            return l->get_num_iterations();
+        }
+
+        return -1;
+    }
+
+    bool operator()(const NodeAndOutputDescription& d) const {
+        return !d.result_and_output_match(m_num_iterations);
+    }
+
+    bool operator()(const NodeAndInputDescription& d) const {
+        return !d.parameter_and_input_match(m_num_iterations);
+    }
+
+    int64_t m_num_iterations;
+};
 
 bool not_valid_back_edge(const BackEdge& be) {
     return !be.result_and_parameter_match();
@@ -1101,17 +1153,21 @@ Comparator::Result compare_io(
     ngraph::op::util::SubGraphOp* sub_lhs, ngraph::op::util::SubGraphOp* sub_rhs) {
     using namespace detail;
     using Result = Comparator::Result;
+    ///
+    /// TODO split to several functions
+    ///
     const auto& lhs_sub_inputs = extract_inputs(sub_lhs);
     const auto& rhs_sub_inputs = extract_inputs(sub_rhs);
 
     if (lhs_sub_inputs.empty() || rhs_sub_inputs.empty()) {
         return Result::error("no input in subgraph");
     }
+    const auto not_valid_input_output = NotValidInputOrOutput(sub_lhs);
 
-    if (std::any_of(begin(lhs_sub_inputs), end(lhs_sub_inputs), not_valid_input)) {
+    if (std::any_of(begin(lhs_sub_inputs), end(lhs_sub_inputs), not_valid_input_output)) {
         return Result::error("inputs and parameters mismatch");
     }
-    if (std::any_of(begin(rhs_sub_inputs), end(rhs_sub_inputs), not_valid_input)) {
+    if (std::any_of(begin(rhs_sub_inputs), end(rhs_sub_inputs), not_valid_input_output)) {
         return Result::error("inputs and parameters mismatch");
     }
 
@@ -1127,10 +1183,10 @@ Comparator::Result compare_io(
         return Result::error("no output in subgraph");
     }
 
-    if (std::any_of(begin(lhs_sub_outputs), end(lhs_sub_outputs), not_valid_output)) {
+    if (std::any_of(begin(lhs_sub_outputs), end(lhs_sub_outputs), not_valid_input_output)) {
         return Result::error("outputs and results mismatch");
     }
-    if (std::any_of(begin(rhs_sub_outputs), end(rhs_sub_outputs), not_valid_output)) {
+    if (std::any_of(begin(rhs_sub_outputs), end(rhs_sub_outputs), not_valid_input_output)) {
         return Result::error("outputs and results mismatch");
     }
 
