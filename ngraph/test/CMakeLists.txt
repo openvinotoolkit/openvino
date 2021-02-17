@@ -411,11 +411,6 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util
                                         ngraph_backend
                                         libgtest)
 
-if (LINUX)
-    target_compile_options(unit-test PRIVATE -fno-lto)
-    target_link_options(unit-test PRIVATE -Wl,--exclude-libs,ALL -fno-lto)
-endif()
-
 # Protobuf-lite does not support parsing files from prototxt format
 # Since most of the onnx models are stored in this format it have to be disabled
 if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
@@ -431,9 +426,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
 
     get_target_property(ONNX_IMPORTER_SRC_DIR onnx_importer SOURCE_DIR)
     target_include_directories(unit-test PRIVATE ${ONNX_IMPORTER_SRC_DIR}/src)
-
-    get_target_property(ONNX_EDITOR_SRC_DIR onnx_editor SOURCE_DIR)
-    target_include_directories(unit-test PRIVATE ${ONNX_EDITOR_SRC_DIR}/src)
 endif()
 
 target_compile_definitions(unit-test PRIVATE NGRAPH_VERSION_LABEL="${NGRAPH_VERSION_LABEL}")

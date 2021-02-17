@@ -20,11 +20,11 @@
 #include <map>
 #include <memory>
 
-#include "detail/subgraph_extraction.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "onnx_editor/editor.hpp"
+#include "onnx_editor/editor_types.hpp"
 #include "onnx_editor/onnx_editor_visibility.hpp"
 
 namespace ONNX_NAMESPACE
