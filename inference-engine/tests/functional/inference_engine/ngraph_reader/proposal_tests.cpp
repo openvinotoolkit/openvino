@@ -3,7 +3,6 @@
 //
 
 #include <string>
-#include <generic_ie.hpp>
 #include "ngraph/opsets/opset6.hpp"
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadProposalNetwork) {

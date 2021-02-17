@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -29,7 +30,7 @@ bool fuse_type_to_nms5(std::shared_ptr<ngraph::Node> & node, ngraph::element::Ty
 bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
-bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_ctc_greedy_decoder_seq_len(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
 bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
@@ -88,10 +89,10 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset3::NonMaxSuppression::type_info, fuse_type_to_nms3},
         {opset4::NonMaxSuppression::type_info, fuse_type_to_nms4},
         {opset5::NonMaxSuppression::type_info, fuse_type_to_nms5},
+        {opset6::CTCGreedyDecoderSeqLen::type_info, fuse_type_to_ctc_greedy_decoder_seq_len},
         {opset4::TopK::type_info, fuse_type_to_topk},
         {opset4::NonZero::type_info, fuse_type_to_nonzero},
         {opset4::Bucketize::type_info, fuse_type_to_bucketize},
-        {NodeTypeInfo("GenericIE", 1), fuse_type_to_generic_ie},
         {opset4::Equal::type_info, fuse_type_to_binary_comparision<opset4::Equal>},
         {opset4::NotEqual::type_info, fuse_type_to_binary_comparision<opset4::NotEqual>},
         {opset4::Greater::type_info, fuse_type_to_binary_comparision<opset4::Greater>},
@@ -262,6 +263,20 @@ bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Ty
     return false;
 }
 
+bool fuse_type_to_ctc_greedy_decoder_seq_len(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
+    if (auto ctc_decoder = as_type_ptr<opset6::CTCGreedyDecoderSeqLen>(node)) {
+        if (idx == 0 && (to == element::i32 || to == element::i64)) {
+            ctc_decoder->set_classes_index_type(to);
+            return true;
+        }
+        if (idx == 1 && (to == element::i32 || to == element::i64)) {
+            ctc_decoder->set_sequence_length_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
 bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
     if (auto nonzero = as_type_ptr<opset4::NonZero>(node)) {
         if (to == element::i32 || to == element::i64) {
@@ -279,12 +294,6 @@ bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::elemen
             return true;
         }
     }
-    return false;
-}
-
-bool fuse_type_to_generic_ie(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
-    node->set_output_type(idx, to, node->output(idx).get_partial_shape());
-    // return false as we do not replace original node
     return false;
 }
 
@@ -412,9 +421,7 @@ bool fuse_type_to_constant(std::shared_ptr<Node> & node, element::Type to, const
         }
 
         new_const->validate_and_infer_types();
-        if (constant->get_output_target_inputs(0).size() == consumers.size()) {
-            new_const->set_friendly_name(constant->get_friendly_name());
-        }
+        new_const->set_friendly_name(constant->get_friendly_name());
     }
     return false;
 }

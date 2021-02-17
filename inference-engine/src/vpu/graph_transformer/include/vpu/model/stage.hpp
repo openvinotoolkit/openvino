@@ -176,6 +176,7 @@ VPU_DECLARE_ENUM(StageType,
     Ceiling = 138,
     GatherElements = 139,
     Round = 140,
+    CTCGreedyDecoderSeqLen = 141,
 )
 
 //
@@ -409,6 +410,9 @@ class StageNode :
     VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageOutputVector, outputEdges)
 
     VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageTempBufferVector, tempBufferEdges)
+
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageDependencyVector, parentDependencyEdges)
+    VPU_MODEL_ATTRIBUTE_PTR_RANGE(StageDependencyVector, childDependencyEdges)
 
     VPU_MODEL_ATTRIBUTE(Injection, parentStageEdge, nullptr)
     VPU_MODEL_ATTRIBUTE(Injection, injectedStageEdge, nullptr)
