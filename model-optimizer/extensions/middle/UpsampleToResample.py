@@ -24,7 +24,7 @@ from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_height_dim, get_width_dim, get_depth_dim
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, float32_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
@@ -142,7 +142,7 @@ class UpsampleToResample(MiddleReplacementPattern):
         axes_node.out_port(0).connect(interpolate.in_port(3))
 
         scales_node = Const(graph, {'name': upsample_name + '/scales',
-                                    'value': factor_value.astype(np.float32)}).create_node()
+                                    'value': float32_array(factor_value)}).create_node()
         scales_node.out_port(0).connect(interpolate.in_port(2))
 
         upsample.in_port(0).get_connection().set_destination(interpolate.in_port(0))
