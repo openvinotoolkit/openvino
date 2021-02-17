@@ -49,7 +49,7 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
                                 -Wunused-local-typedefs)
     endif()
 
-    set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h)
+    set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h CACHE FILEPATH "")
     set(GENERATOR ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ccheader.py)
 
     add_custom_command(OUTPUT ${GENERATED_HEADER}

@@ -40,10 +40,12 @@ ie_add_plugin(NAME ${TARGET_NAME}
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
+ie_mark_target_as_cc(${TARGET_NAME})
+
 if(SELECTIVE_BUILD STREQUAL "ON")
     # After disabling a block of code, some variables might be unused.
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-        OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR
+       CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
     endif()
 endif()

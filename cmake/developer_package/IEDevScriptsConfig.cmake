@@ -222,6 +222,21 @@ if(ENABLE_FUZZING)
     enable_fuzzing()
 endif()
 
+# macro to mark target as conditionally compiled
+
+function(ie_mark_target_as_cc TARGET_NAME)
+    if(NOT (SELECTIVE_BUILD STREQUAL "ON"))
+        return()
+    endif()
+
+    if(NOT TARGET ${TARGET_NAME})
+        message(FATAL_ERROR "${TARGET_NAME} does not represent target")
+    endif()
+
+    get_target_property(sources ${TARGET_NAME} SOURCES)
+    set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
+endfunction()
+
 # Code style utils
 
 include(cpplint/cpplint)
