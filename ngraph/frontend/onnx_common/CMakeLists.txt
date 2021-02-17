@@ -39,7 +39,6 @@ if(MSVC)
         target_link_libraries(${TARGET_NAME} PRIVATE onnx)
         set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_DEBUG "/WHOLEARCHIVE:onnx_protod.lib /WHOLEARCHIVE:onnxd.lib /WHOLEARCHIVE:libprotobufd.lib")
         set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "/WHOLEARCHIVE:onnx_proto.lib /WHOLEARCHIVE:onnx.lib /WHOLEARCHIVE:libprotobuf.lib")
-        # TODO
 elseif(APPLE)
         target_link_libraries(${TARGET_NAME} PRIVATE -Wl,-all_load
         onnx
