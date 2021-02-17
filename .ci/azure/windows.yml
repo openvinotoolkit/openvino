@@ -55,15 +55,15 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
+      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
+    displayName: 'Make dir'
+
+  - script: |
       certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
       call install_ib_console.bat
     workingDirectory: $(WORK_DIR)
     displayName: 'Install IncrediBuild'
-
-  - script: |
-      rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
-      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
-    displayName: 'Make dir'
 
   - checkout: self
     clean: true
