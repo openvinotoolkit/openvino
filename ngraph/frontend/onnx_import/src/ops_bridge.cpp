@@ -35,6 +35,7 @@
 #include "op/atanh.hpp"
 #include "op/average_pool.hpp"
 #include "op/batch_norm.hpp"
+#include "op/bitshift.hpp"
 #include "op/cast.hpp"
 #include "op/ceil.hpp"
 #include "op/clip.hpp"
@@ -324,6 +325,7 @@ namespace ngraph
             REGISTER_OPERATOR("Atanh", 1, atanh);
             REGISTER_OPERATOR("AveragePool", 1, average_pool);
             REGISTER_OPERATOR("BatchNormalization", 1, batch_norm);
+            REGISTER_OPERATOR("BitShift", 1, bitshift);
             REGISTER_OPERATOR("Cast", 1, cast);
             REGISTER_OPERATOR("Ceil", 1, ceil);
             REGISTER_OPERATOR("Clip", 1, clip);
