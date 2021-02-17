@@ -274,7 +274,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         # IE dependency search doesn't break MO pipeline
         try:
             if find_ie_version(silent=True):
-                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)),
+                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
                                                                'offline_transformations.py')
                 status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=100)
                 if status.returncode != 0 and not argv.silent:

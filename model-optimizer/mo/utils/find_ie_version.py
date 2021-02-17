@@ -140,8 +140,6 @@ def find_ie_version(silent=False):
             continue
         if try_to_import_ie(module=os.path.normpath(module), libs=item['libs'] if 'libs' in item else [], silent=silent):
             return True
-        elif not silent:
-            print("[ WARNING ] Failed to import Inference Engine Python API in: {}".format(os.path.normpath(module)))
 
     return False
 
