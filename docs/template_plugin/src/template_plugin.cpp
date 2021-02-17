@@ -266,7 +266,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
         std::vector<std::string> capabilities = { METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/ };
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
-    } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
+    } else if (METRIC_KEY(DEVICE_ARCHITECTURE) == name) {
         // TODO: fill actual device architecture based on DEVICE_ID passed to `options`
         std::string deviceArch = "TEMPLATE";
         IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, deviceArch);

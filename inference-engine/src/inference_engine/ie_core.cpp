@@ -267,7 +267,7 @@ class Core::Impl : public ICore {
                                       const RemoteContext::Ptr & context) {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::LoadNetwork");
 
-        auto parsed = parseDeviceNameIntoConfig<std::string>(deviceName);
+        auto parsed = parseDeviceNameIntoConfig<std::string>(deviceName, _config);
         auto config = parsed._config;
         std::string deviceFamily = parsed._deviceName; // MULTI:CPU -> MULTI, GPU.0 -> GPU, CPU -> CPU and so on
 
