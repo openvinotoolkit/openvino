@@ -213,7 +213,11 @@ struct onnx_editor::ONNXModelEditor::Impl
 
     Impl() = delete;
 
-    Impl(const std::string& model_path) { onnx_common::parse_from_file(m_model_proto, model_path); }
+    Impl(const std::string& model_path)
+        : m_model_proto{std::move(onnx_common::parse_from_file(model_path))}
+    {
+    }
+
     void infer_shapes() { ONNX_NAMESPACE::shape_inference::InferShapes(m_model_proto); }
     void remove_shape_inference_info() { m_model_proto.mutable_graph()->clear_value_info(); }
 };

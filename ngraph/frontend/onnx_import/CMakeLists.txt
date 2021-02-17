@@ -69,9 +69,13 @@ target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_
 target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # onnx-related directories
-target_include_directories(onnx_importer
-SYSTEM PRIVATE 
-        $<TARGET_PROPERTY:onnx_common,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(onnx_importer PRIVATE
+                $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
+                ${NGRAPH_INCLUDE_PATH})
+
+target_compile_definitions(onnx_importer
+    PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_compile_definitions(onnx_importer PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 

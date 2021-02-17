@@ -32,7 +32,17 @@ target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX
                                                        $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 
-target_link_libraries(${TARGET_NAME} PUBLIC onnx PRIVATE ngraph)
+set(BEFORE_CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
+# onnx symbols should be available for onnx_importer and onnx_editor
+# onnx_common should be the only library that links with onnx
+# it guaranties that there is only one protobuf instance
+string (REPLACE "-Wl,--exclude-libs,ALL" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+
+target_link_libraries(${TARGET_NAME} PRIVATE -Wl,--whole-archive
+                                             onnx
+                                             -Wl,--no-whole-archive
+                                     PRIVATE ngraph)
+set(CMAKE_SHARED_LINKER_FLAGS, ${BEFORE_CMAKE_SHARED_LINKER_FLAGS})
 
 target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE

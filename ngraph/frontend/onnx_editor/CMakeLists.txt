@@ -35,6 +35,13 @@ set(ONNX_EDITOR_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_EDITOR_INCLUDE_DIR}>
                                                        $<INSTALL_INTERFACE:${ONNX_EDITOR_INSTALL_INCLUDE}>)
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_EDITOR_SRC_DIR})
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:onnx_common,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+                $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
+                ${NGRAPH_INCLUDE_PATH})
+target_compile_definitions(${TARGET_NAME}
+        PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 
 # onnx-related directories
 target_include_directories(${TARGET_NAME} 

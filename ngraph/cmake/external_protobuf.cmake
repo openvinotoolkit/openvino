@@ -157,6 +157,10 @@ else()
             endif()
             set_target_properties(${_proto_libs} PROPERTIES
                                    COMPILE_FLAGS "-Wno-unused-variable")
+            set_target_properties(${_proto_libs} PROPERTIES
+                                  CXX_VISIBILITY_PRESET default
+                                  C_VISIBILITY_PRESET default
+                                  VISIBILITY_INLINES_HIDDEN OFF)
         endif()
     endif()
 endif()
