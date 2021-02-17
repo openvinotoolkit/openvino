@@ -640,6 +640,7 @@ extensions/ops/constant_fill.py
 extensions/ops/copyop.py
 extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py
+extensions/ops/ctc_greedy_decoder_seq_len.py
 extensions/ops/ctc_loss.py
 extensions/ops/cumsum.py
 extensions/ops/data_augmentation.py
@@ -981,6 +982,7 @@ mo/utils/ir_reader/extenders/binary_convolution_extender.py
 mo/utils/ir_reader/extenders/bucketize_extender.py
 mo/utils/ir_reader/extenders/conv_extender.py
 mo/utils/ir_reader/extenders/convert_extender.py
+mo/utils/ir_reader/extenders/ctc_greedy_decoder_seq_len_extender.py
 mo/utils/ir_reader/extenders/deconvolution_extender.py
 mo/utils/ir_reader/extenders/deformable_convolution_extender.py
 mo/utils/ir_reader/extenders/experimental_extender.py
