@@ -280,6 +280,7 @@ postprocessing_op_nodes = {
     'TopK': TopKNormalizer.normalize_outputs,
 }
 
+
 def restore_tensor_names(op: Node):
 
     for out_port in op.ports:
@@ -295,22 +296,19 @@ def restore_tensor_names(op: Node):
                                        'of output ports: {}!'.format(op.soft_get('name'), len(op.ports))
             out_port = 0
 
+        out_port = out_port - len(op.in_nodes())
+
         if out_tensor_names is not None:
             # handle tensor names with commas and add them to dictionary as separated
             if out_tensor_names.find(',') >= 0:
                 str_to_replace = '<comma_in_tensor_name>'
                 out_tensor_names = (out_tensor_names.replace('\\,', str_to_replace)).split(',')
-                op.out_node(out_port - len(op.in_nodes()))['fw_tensor_debug_info'] = []
+                op.out_node(out_port)['fw_tensor_debug_info'] = []
                 for out_tensor_name in out_tensor_names:
                     out_tensor_name = out_tensor_name.replace(str_to_replace, ',')
-                    op.out_node(out_port - len(op.in_nodes()))['fw_tensor_debug_info'].append((out_tensor_name,
-                                                                                               out_port,
-                                                                                               out_tensor_name))
-
+                    op.out_node(out_port)['fw_tensor_debug_info'].append((out_tensor_name, out_port, out_tensor_name))
             else:
-                op.out_node(out_port - len(op.in_nodes()))['fw_tensor_debug_info'] = [(out_tensor_names, out_port, out_tensor_names)]
-
-
+                op.out_node(out_port)['fw_tensor_debug_info'] = [(out_tensor_names, out_port, out_tensor_names)]
 
 
 def copy_graph_with_ops(graph: Graph) -> Graph:
