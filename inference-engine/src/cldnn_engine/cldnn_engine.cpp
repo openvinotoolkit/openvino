@@ -58,6 +58,7 @@
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -278,6 +279,7 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
             pass_config->disable<ngraph::pass::ConvertBroadcast3>();
             pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+            pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
             pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 

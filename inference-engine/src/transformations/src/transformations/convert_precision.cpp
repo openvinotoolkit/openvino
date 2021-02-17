@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -29,6 +30,7 @@ bool fuse_type_to_nms5(std::shared_ptr<ngraph::Node> & node, ngraph::element::Ty
 bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_ctc_greedy_decoder_seq_len(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
 bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx);
 
@@ -87,6 +89,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset3::NonMaxSuppression::type_info, fuse_type_to_nms3},
         {opset4::NonMaxSuppression::type_info, fuse_type_to_nms4},
         {opset5::NonMaxSuppression::type_info, fuse_type_to_nms5},
+        {opset6::CTCGreedyDecoderSeqLen::type_info, fuse_type_to_ctc_greedy_decoder_seq_len},
         {opset4::TopK::type_info, fuse_type_to_topk},
         {opset4::NonZero::type_info, fuse_type_to_nonzero},
         {opset4::Bucketize::type_info, fuse_type_to_bucketize},
@@ -254,6 +257,20 @@ bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> & node, ngraph::element::Ty
     if (auto topk = as_type_ptr<opset4::TopK>(node)) {
         if (idx == 1 && (to == element::i32 || to == element::i64)) {
             topk->set_index_element_type(to);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fuse_type_to_ctc_greedy_decoder_seq_len(std::shared_ptr<ngraph::Node> & node, ngraph::element::Type to, size_t idx) {
+    if (auto ctc_decoder = as_type_ptr<opset6::CTCGreedyDecoderSeqLen>(node)) {
+        if (idx == 0 && (to == element::i32 || to == element::i64)) {
+            ctc_decoder->set_classes_index_type(to);
+            return true;
+        }
+        if (idx == 1 && (to == element::i32 || to == element::i64)) {
+            ctc_decoder->set_sequence_length_type(to);
             return true;
         }
     }
