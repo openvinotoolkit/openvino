@@ -33,8 +33,12 @@ class Select(Op):
             'out_ports_count': 1,
             'infer': __class__.infer,
             'type_infer': __class__.type_infer,
+            'auto_broadcast': 'numpy'
         }
         super().__init__(graph, mandatory_props, attrs)
+
+    def backend_attrs(self):
+        return ['auto_broadcast']
 
     @staticmethod
     def infer(node: Node):

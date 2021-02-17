@@ -82,6 +82,10 @@ LRNKernelRef::Parent::DispatchData LRNKernelRef::SetDefault(const lrn_params& pa
 }
 
 KernelsData LRNKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, DONT_USE_IF_HAVE_SOMETHING_ELSE);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority LRNKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

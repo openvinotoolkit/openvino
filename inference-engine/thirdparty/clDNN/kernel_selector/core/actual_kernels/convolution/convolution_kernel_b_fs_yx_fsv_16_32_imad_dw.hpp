@@ -29,6 +29,7 @@ public:
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsData GetKernelsDataForAutoTune(const Params & params, const optional_params & options) const override;
     KernelsData GetTunedKernelsDataByIndex(const Params & params, const optional_params & options, int autoTuneIndex = -1) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 protected:
     bool Validate(const Params& params, const optional_params& options) const override;

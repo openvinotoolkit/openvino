@@ -66,7 +66,6 @@ static void ref_region_yolo(InferenceEngine::TBlob<float> &src, InferenceEngine:
 
     int IW = (src.getTensorDesc().getDims().size() > 3) ? src.getTensorDesc().getDims()[3] : 1;
     int IH = (src.getTensorDesc().getDims().size() > 2) ? src.getTensorDesc().getDims()[2] : 1;
-    int IC = (src.getTensorDesc().getDims().size() > 1) ? src.getTensorDesc().getDims()[1] : 1;
     int B = (src.getTensorDesc().getDims().size() > 0) ? src.getTensorDesc().getDims()[0] : 1;
 
     for (int i = 0; i < src.size(); i++) {

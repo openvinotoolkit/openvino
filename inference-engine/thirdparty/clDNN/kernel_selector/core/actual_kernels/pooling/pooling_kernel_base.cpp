@@ -174,8 +174,7 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
 }
 
 KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params,
-                                                    const optional_params& options,
-                                                    float estimatedTime) const {
+                                                    const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
@@ -196,8 +195,6 @@ KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params,
     if (orgParams.poolType == PoolType::MAX_WITH_ARGMAX)
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
 
-
-    kd.estimatedTime = estimatedTime;
 
     return {kd};
 }

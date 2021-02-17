@@ -27,8 +27,7 @@ namespace {
     constexpr size_t pref_features_per_wi = 16;
 
     size_t get_preferred_lwg_depth(const DataTensor& output, const WeightsTensor& weights, const EngineInfo& info) {
-        constexpr size_t threads_per_eu = 7;
-        size_t max_simd_number = info.computeUnitsCount * threads_per_eu;
+        size_t max_simd_number = static_cast<size_t>(info.maxThreadsPerDevice);
 
         size_t simd_number = CeilDiv(output.X().v * output.Y().v, pref_simd) *
                              CeilDiv(output.Feature().v, pref_features_per_wi) *
@@ -193,10 +192,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Set
     dispatchData.cldnnStyle.blockWidth = simd;
     dispatchData.cldnnStyle.prefetch = autoTuneParam.force_prefetch ? 1 : 0;
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
 }  // SetDefault
+
+KernelsPriority ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
+}
 
 KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetTunedKernelsDataByIndex(const Params& params,
                                                                                 const optional_params& options,

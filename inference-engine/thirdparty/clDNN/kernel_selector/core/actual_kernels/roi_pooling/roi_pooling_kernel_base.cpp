@@ -48,8 +48,7 @@ JitConstants ROIPoolingKernelBase::GetJitConstants(const roi_pooling_params& rp)
 }
 
 KernelsData ROIPoolingKernelBase::GetCommonKernelsData(const Params& params,
-                                                       const optional_params& options,
-                                                       float estimatedTime) const {
+                                                       const optional_params& options) const {
     assert(params.GetType() == KernelType::ROI_POOLING);
     const roi_pooling_params& orgParams = static_cast<const roi_pooling_params&>(params);
 
@@ -69,8 +68,6 @@ KernelsData ROIPoolingKernelBase::GetCommonKernelsData(const Params& params,
     kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     if (orgParams.mode == PoolType::DEFORMABLE_BILINEAR && !orgParams.no_trans)
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
-
-    kd.estimatedTime = estimatedTime;
 
     return {kd};
 }

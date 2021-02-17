@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
@@ -33,12 +34,14 @@ op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
 
 bool ngraph::op::util::ArithmeticReductionKeepDims::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_visit_attributes);
     visitor.on_attribute("keep_dims", m_keep_dims);
     return true;
 }
 
 void op::util::ArithmeticReductionKeepDims::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_util_ArithmeticReductionKeepDims_validate_and_infer_types);
     if (m_keep_dims)
     {
         auto input_shape = get_input_partial_shape(0);
@@ -48,11 +51,11 @@ void op::util::ArithmeticReductionKeepDims::validate_and_infer_types()
         if (input_rank.is_static())
             result_shape = PartialShape::dynamic(input_rank);
 
-        if (input_rank.is_static() && reduction_axes_constant())
+        const auto& axes = get_constant_from_source(input_value(1));
+        if (input_rank.is_static() && axes)
         {
             AxisSet reduction_axes;
-            auto reduction_axes_val =
-                as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
+            auto reduction_axes_val = axes->cast_vector<int64_t>();
             for (auto axis : reduction_axes_val)
             {
                 try
@@ -84,7 +87,7 @@ void op::util::ArithmeticReductionKeepDims::validate_and_infer_types()
                 }
                 else
                 {
-                    dims.push_back(Dimension{1});
+                    dims.emplace_back(Dimension{1});
                 }
             }
             result_shape = PartialShape(dims);

@@ -50,7 +50,7 @@ function(ie_build_pugixml)
     set(BUILD_TESTS_current ${BUILD_TESTS})
     set(BUILD_TESTS OFF CACHE BOOL "Build tests" FORCE)
     set(BUILD_SHARED_LIBS OFF)
-    add_subdirectory(pugixml)
+    add_subdirectory(pugixml EXCLUDE_FROM_ALL)
     set(BUILD_TESTS ${BUILD_TESTS_current} CACHE BOOL "Build tests" FORCE)
 endfunction()
 
@@ -62,26 +62,38 @@ else()
     target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
 endif()
 
-add_subdirectory(stb_lib)
-add_subdirectory(ade)
+add_subdirectory(ade EXCLUDE_FROM_ALL)
 add_subdirectory(fluid/modules/gapi)
 
-set_target_properties(ade fluid stb_image PROPERTIES FOLDER thirdparty)
+set_target_properties(ade fluid PROPERTIES FOLDER thirdparty)
 
 # developer package
 
-ie_developer_export_targets(ade fluid)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS ade fluid)
 
 if (NOT USE_SYSTEM_PUGIXML)
     set_target_properties(pugixml PROPERTIES FOLDER thirdparty)
-    ie_developer_export_targets(pugixml)
+    openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml)
     if(TARGET pugixml_mt)
-        ie_developer_export_targets(pugixml_mt)
+        openvino_developer_export_targets(COMPONENT openvino_common TARGETS pugixml_mt)
         set_target_properties(pugixml_mt PROPERTIES FOLDER thirdparty)
     endif()
 endif()
 
 if(ENABLE_MKL_DNN)
-    set(SDL_cmake_included ON)
-    include(mkldnn.cmake)
+    set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
+    set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
+    set(DNNL_ENABLE_MAX_CPU_ISA OFF CACHE BOOL "" FORCE)     ## TODO: try it later
+    set(DNNL_LIBRARY_TYPE STATIC CACHE BOOL "" FORCE)
+    set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(DNNL_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(DNNL_CPU_RUNTIME "${THREADING}" CACHE BOOL "" FORCE)
+    set(DNNL_BLAS_VENDOR "NONE" CACHE BOOL "" FORCE)
+    set(SDL_cmake_included ON)  ## to skip internal SDL flags. SDL flags are already set on IE level
+    if (ANDROID)
+        set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
+    endif()
+
+    add_subdirectory(mkl-dnn EXCLUDE_FROM_ALL)
+    add_library(mkldnn ALIAS dnnl)
 endif()

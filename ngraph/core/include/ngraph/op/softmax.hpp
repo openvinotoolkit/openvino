@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ namespace ngraph
                 ///
                 /// Output `[d0, ...]`
                 ///
-                Softmax(const Output<Node>& arg, const size_t axis);
+                Softmax(const Output<Node>& arg, const size_t axis = 1);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;

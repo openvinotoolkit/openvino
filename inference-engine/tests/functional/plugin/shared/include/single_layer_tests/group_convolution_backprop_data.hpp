@@ -4,43 +4,12 @@
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <string>
-#include <memory>
-
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-
-typedef std::tuple<
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
-        std::vector<ptrdiff_t>,
-        std::vector<ptrdiff_t>,
-        InferenceEngine::SizeVector,
-        size_t,
-        size_t,
-        ngraph::op::PadType> groupConvBackpropDataSpecificParams;
-typedef std::tuple<
-        groupConvBackpropDataSpecificParams,
-        InferenceEngine::Precision,
-        InferenceEngine::Precision,    // Input precision
-        InferenceEngine::Precision,    // Output precision
-        InferenceEngine::Layout,       // Input layout
-        InferenceEngine::Layout,       // Output layout
-        InferenceEngine::SizeVector,
-        LayerTestsUtils::TargetDevice> groupConvBackpropDataLayerTestParamsSet;
+#include "shared_test_classes/single_layer/group_convolution_backprop_data.hpp"
 
 namespace LayerTestsDefinitions {
 
-class GroupConvBackpropDataLayerTest : public testing::WithParamInterface<groupConvBackpropDataLayerTestParamsSet>,
-                                       virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<groupConvBackpropDataLayerTestParamsSet> obj);
-
-protected:
-    void SetUp() override;
-};
+TEST_P(GroupConvBackpropDataLayerTest, CompareWithRefs) {
+    Run();
+}
 
 }  // namespace LayerTestsDefinitions

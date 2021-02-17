@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 //  pwl_design.cpp : simple activation function designer
@@ -74,7 +74,6 @@ double pivot_search(std::vector<pwl_t>& result,
     double max_epsilon = 0.0;
     double max_epsilon_prev;
     double min_epsilon;
-    double min_epsilon2;
     double sgn = (negative) ? -1.0 : 1.0;
     int j;
 
@@ -370,13 +369,13 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
             pwl.resize(4);
             pwl[0].alpha = pwl[0].t = pwl[0].beta = -std::numeric_limits<float>::infinity();
             pwl[0].m = 0.0;
-            pwl[0].b = pwl[0].beta = KALDI_LSTM_CLIP_LOWER;
-            pwl[1].alpha = pwl[0].t = pwl[1].beta = KALDI_LSTM_CLIP_LOWER;
+            pwl[0].b = pwl[0].beta = l_bound;
+            pwl[1].alpha = pwl[0].t = pwl[1].beta = l_bound;
             pwl[1].m = 1.0;
             pwl[1].b = 0.0;
-            pwl[2].alpha = pwl[0].t = pwl[1].beta = KALDI_LSTM_CLIP_UPPER;
+            pwl[2].alpha = pwl[0].t = pwl[1].beta = u_bound;
             pwl[2].m = 0.0;
-            pwl[2].b = KALDI_LSTM_CLIP_UPPER;
+            pwl[2].b = u_bound;
             pwl[3].alpha = pwl[3].beta = std::numeric_limits<float>::infinity();
 
         } else if (activation_type == kActSign) {
@@ -526,7 +525,7 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
             break;
         case kActKaldiLstmClipping:
-            make_gna_pwl(activation_type, pwl, KALDI_LSTM_CLIP_LOWER, KALDI_LSTM_CLIP_UPPER, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, activation_type.args.clamp.low, activation_type.args.clamp.high, scale_in, scale_out, ptr_segment);
             break;
         case kActLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
@@ -979,20 +978,24 @@ void PwlApply32(intel_dnn_component_t *component,
                 }
             }
             break;
-        case kActKaldiLstmClipping:
+        case kActKaldiLstmClipping: {
+            float upper_limit = component->op.pwl.func_id.args.clamp.high;
+            float lowwer_limit = component->op.pwl.func_id.args.clamp.low;
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
                     float val = ptr_in[i * num_columns + j];
-                    if (val > KALDI_LSTM_CLIP_UPPER) {
-                        ptr_out[i * num_columns + j] = KALDI_LSTM_CLIP_UPPER;
-                    } else if (val < KALDI_LSTM_CLIP_LOWER) {
-                        ptr_out[i * num_columns + j] = KALDI_LSTM_CLIP_LOWER;
+
+                    if (val > upper_limit) {
+                        ptr_out[i * num_columns + j] = upper_limit;
+                    } else if (val < lowwer_limit) {
+                        ptr_out[i * num_columns + j] = lowwer_limit;
                     } else {
                         ptr_out[i * num_columns + j] = val;
                     }
                 }
             }
             break;
+        }
         case kActExp:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
@@ -1047,25 +1050,32 @@ void PwlApply32(intel_dnn_component_t *component,
             }
             break;
         case kActFakeQuantize: {
-            auto input_low   = transform->func_id.args.fakeQuantize.input_low;
-            auto input_high  = transform->func_id.args.fakeQuantize.input_high;
-            auto output_low  = transform->func_id.args.fakeQuantize.output_low;
-            auto output_high = transform->func_id.args.fakeQuantize.output_high;
             auto levels  = transform->func_id.args.fakeQuantize.levels;
-            // TODO: this special modification for spedup-compute give different result with straight FQ forulae
-            // but this used in referencen graph FakeQuantize implementations so we need to honor it for a while
-            float scaleInput = (input_high - input_low) / (levels-1);
-            float scaleOutputs = (output_high - output_low) / (levels-1);
 
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
+                auto inputChannel  = transform->func_id.args.fakeQuantize.inputPerChannel ? i : 0;
+                auto outputChannel = transform->func_id.args.fakeQuantize.outputPerChannel ? i : 0;
+
+                auto input_low   = transform->func_id.args.fakeQuantize.input_low[inputChannel];
+                auto input_high  = transform->func_id.args.fakeQuantize.input_high[inputChannel];
+                auto output_low  = transform->func_id.args.fakeQuantize.output_low[outputChannel];
+                auto output_high = transform->func_id.args.fakeQuantize.output_high[outputChannel];
+
+                // TODO: this special modification for spedup-compute give different result with straight FQ formulae
+                // but this used in reference graph FakeQuantize implementations so we need to honor it for a while
+                float scaleInput = (input_high - input_low) / (levels-1);
+                float scaleOutputs = (output_high - output_low) / (levels-1);
+
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
-                    auto x = ptr_in[i * num_columns + j];
+                    auto offset = i * num_columns + j;
+                    auto x = ptr_in[offset];
+
                     if (x < std::min(input_low, input_high)) {
-                        ptr_out[i * num_columns + j] = output_low;
+                        ptr_out[offset] = output_low;
                     } else if (x > std::max(input_low, input_high)) {
-                        ptr_out[i * num_columns + j] = output_high;
+                        ptr_out[offset] = output_high;
                     } else {
-                        ptr_out[i * num_columns + j] = nearbyint((x - input_low) / scaleInput) * scaleOutputs + output_low;
+                        ptr_out[offset] = nearbyint((x - input_low) / scaleInput) * scaleOutputs + output_low;
                     }
                 }
             }

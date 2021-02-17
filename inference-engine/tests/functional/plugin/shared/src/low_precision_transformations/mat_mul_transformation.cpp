@@ -15,7 +15,7 @@
 #include <transformations/init_node_info.hpp>
 #include "low_precision_transformations/mat_mul_transformation.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "ngraph_functions/low_precision_transformations/mat_mul_function.hpp"
+#include "lpt_ngraph_functions/mat_mul_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -72,6 +72,32 @@ void MatMulTransformation::SetUp() {
         testValues.fqOnData2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    validate();
+}
+
+void MatMulTransformation::validate() {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
+    std::string targetDevice;
+    MatMulTransformationTestValues testValues;
+    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    const auto output = transformed->get_output_op(0);
+    const auto scaleShift = output->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShift->get_type_name();
+    ASSERT_EQ("ScaleShiftIE", typeName);
+}
+
+void MatMulTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<3>(GetParam());
+    const auto actualType = getRuntimePrecision(params.expectedKernelName);
+
+    EXPECT_EQ(actualType, params.expectedRuntimePrecision);
 }
 
 TEST_P(MatMulTransformation, CompareWithRefImpl) {

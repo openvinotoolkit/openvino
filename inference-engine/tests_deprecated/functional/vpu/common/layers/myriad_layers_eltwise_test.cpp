@@ -173,7 +173,6 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadTestsEltwiseMean_smoke,
 );
 
 TEST_F(myriadLayersTestsEltwiseBase, EltwiseWithSameInputs) {
-    StatusCode st;
 
     const std::string model = R"V0G0N(
 <net batch="1" name="VNect: Test" version="2">
@@ -253,28 +252,20 @@ TEST_F(myriadLayersTestsEltwiseBase, EltwiseWithSameInputs) {
     networkOutputs.begin()->second->setPrecision(InferenceEngine::Precision::FP16);
 
     InferenceEngine::Blob::Ptr inputBlob;
+    InferenceEngine::ExecutableNetwork exeNetwork;
 
-    InferenceEngine::IExecutableNetwork::Ptr exeNetwork;
     std::map<std::string, std::string> networkConfig = {{InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE}};
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, network, networkConfig, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(exeNetwork, nullptr) << _resp.msg;
+    ASSERT_NO_THROW(exeNetwork = _vpuPluginPtr->LoadNetwork(network, networkConfig));
 
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(st = exeNetwork->CreateInferRequest(inferRequest, &_resp));
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(inputBlob = inferRequest.GetBlob(networkInputs.begin()->first.c_str()));
 
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = inferRequest->GetBlob(networkInputs.begin()->first.c_str(), inputBlob, &_resp));
-
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     GenRandomData(inputBlob);
 
     InferenceEngine::Blob::Ptr output;
-    ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NO_THROW(st = inferRequest->GetBlob(networkOutputs.begin()->first.c_str(), output, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(inferRequest.Infer());
+    ASSERT_NO_THROW(output = inferRequest.GetBlob(networkOutputs.begin()->first.c_str()));
 
     _refBlob = make_shared_blob<ie_fp16>({Precision::FP16, output->getTensorDesc().getDims(), output->getTensorDesc().getLayout()});
     _refBlob->allocate();
@@ -490,24 +481,16 @@ TEST_F(myriadLayersTests_nightly, MergeEltwiseWithReLU) {
     auto outputInfo = _outputsInfo["last"];
     outputInfo->setPrecision(Precision::FP16);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network,
             { {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE},
               {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
-              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} },
-                                                      &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} }));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
     std::map<std::string, InferenceEngineProfileInfo> perfMap;
-    ASSERT_NO_THROW(st = _inferRequest->GetPerformanceCounts(perfMap, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(perfMap = _inferRequest.GetPerformanceCounts());
 
     auto sumAndReLULayerIt = perfMap.find("sum + sum_relu");
     ASSERT_TRUE(sumAndReLULayerIt != perfMap.end());
@@ -722,24 +705,16 @@ TEST_F(myriadLayersTests_nightly, MergeEltwiseWithLeakyReLU) {
     auto outputInfo = _outputsInfo["last"];
     outputInfo->setPrecision(Precision::FP16);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network,
             { {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE},
               {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
-              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} },
-              &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} }));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
     std::map<std::string, InferenceEngineProfileInfo> perfMap;
-    ASSERT_NO_THROW(st = _inferRequest->GetPerformanceCounts(perfMap, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(perfMap = _inferRequest.GetPerformanceCounts());
 
     auto sumAndReLULayerIt = perfMap.find("sum + sum_leaky_relu");
     ASSERT_TRUE(sumAndReLULayerIt != perfMap.end());
@@ -954,25 +929,17 @@ TEST_F(myriadLayersTests_nightly, MergeEltwiseWithClamp) {
     auto outputInfo = _outputsInfo["last"];
     outputInfo->setPrecision(Precision::FP16);
 
-    StatusCode st;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(
-            _exeNetwork, network,
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(
+            network,
             { {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE},
               {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
-              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} },
-            &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-    ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} }));
 
-    ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-    ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(_inferRequest.Infer());
 
     std::map<std::string, InferenceEngineProfileInfo> perfMap;
-    ASSERT_NO_THROW(st = _inferRequest->GetPerformanceCounts(perfMap, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+    ASSERT_NO_THROW(perfMap = _inferRequest.GetPerformanceCounts());
 
     auto sumAndReLULayerIt = perfMap.find("sum + sum_clamp");
     ASSERT_TRUE(sumAndReLULayerIt != perfMap.end());

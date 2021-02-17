@@ -114,7 +114,6 @@ protected:
         // performance counters
         expectedPrecisions["Add_4"] = "FP32";
         expectedPrecisions["Convolution_6"] = "BF16";
-        expectedPrecisions["AvgPool_8"] = "FP32";
     }
 };
 

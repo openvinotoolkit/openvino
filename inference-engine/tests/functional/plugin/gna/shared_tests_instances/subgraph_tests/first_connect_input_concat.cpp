@@ -7,7 +7,7 @@
 #include "subgraph_tests/first_connect_input_concat.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 

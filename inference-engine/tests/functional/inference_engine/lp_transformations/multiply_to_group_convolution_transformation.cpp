@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,9 +15,9 @@
 #include "low_precision/multiply_to_group_convolution.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/multiply_to_group_convolution_function.hpp"
+#include "lpt_ngraph_functions/multiply_to_group_convolution_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -42,6 +42,7 @@ public:
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     bool transformed;
+    bool haveMultiplyWithNoConstBeforeDequantization;
     Actual actual;
     Expected expected;
 };
@@ -69,8 +70,8 @@ public:
         actualFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
             testValues.inputShape,
             testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization);
-
+            testValues.actual.dequantization,
+            testValues.haveMultiplyWithNoConstBeforeDequantization);
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
@@ -86,7 +87,8 @@ public:
             referenceFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
                 testValues.inputShape,
                 testValues.actual.precisionBeforeDequantization,
-                testValues.actual.dequantization);
+                testValues.actual.dequantization,
+                testValues.haveMultiplyWithNoConstBeforeDequantization);
         }
     }
 
@@ -97,6 +99,8 @@ public:
         result <<
             testValues.inputShape << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
+            testValues.transformed << "_" <<
+            testValues.haveMultiplyWithNoConstBeforeDequantization << "_" <<
             testValues.actual.dequantization;
         return result.str();
     }
@@ -108,6 +112,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         true,
+        false,
         {
             ngraph::element::u8,
             {
@@ -132,6 +137,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         true,
+        false,
         {
             ngraph::element::u8,
             {
@@ -151,11 +157,37 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             }
         }
     },
+    // subtract + multiply
+    {
+        ngraph::Shape{ 1, 4, 1, 1 },
+        LayerTransformation::createParamsU8I8(),
+        true,
+        false,
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {1, 4, 1, 1}, true, 1, ngraph::element::u8, true},
+                {{0.45f, 0.82f, 0.71f, 0.37f}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, ngraph::Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{1, 4, 1, 1}, std::vector<float>{-1.f, -2.f, -3.f, -4.f}),
+            {
+                {},
+                {},
+                {{0.45f, 0.82f, 0.71f, 0.37f}}
+            }
+        }
+    },
     // without convert
     {
         ngraph::Shape{ 1, 4, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         true,
+        false,
         {
             ngraph::element::u8,
             {
@@ -180,6 +212,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         true,
+        false,
         {
             ngraph::element::u8,
             {
@@ -204,6 +237,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1, 1 },
         LayerTransformation::createParamsU8I8(),
         false,
+        false,
         {
             ngraph::element::i8,
             {
@@ -218,6 +252,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
     {
         ngraph::Shape{ 1, 1, 2, 2 },
         LayerTransformation::createParamsU8I8(),
+        false,
         false,
         {
             ngraph::element::u8,
@@ -234,6 +269,7 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         ngraph::Shape{ 1, 4, 1 },
         LayerTransformation::createParamsU8I8(),
         false,
+        false,
         {
             ngraph::element::u8,
             {
@@ -243,6 +279,30 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
             }
         },
         {}
+    },
+    {
+        ngraph::Shape{ 1, 4, 1, 1 },
+        LayerTransformation::createParamsU8I8(),
+        false,
+        true,
+        {
+            ngraph::element::u8,
+            {
+                {},
+                {},
+                {{0.45f, 0.82f, 0.71f, 0.37f}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            std::make_shared<ngraph::opset1::Constant>(ngraph::element::i8, ngraph::Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
+            nullptr,
+            {
+                {},
+                {},
+                {{0.45f, 0.82f, 0.71f, 0.37f}}
+            }
+        }
     },
 };
 

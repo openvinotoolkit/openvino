@@ -10,6 +10,7 @@ namespace vpu {
 
 class ConvertExtractImagePatchesToReorgYolo : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertExtractImagePatchesToReorgYolo();
 };
 

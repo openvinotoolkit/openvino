@@ -9,7 +9,7 @@
 #include <cpp_interfaces/base/ie_executable_network_base.hpp>
 #include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
 
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_imemory_state_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iasync_infer_request_internal.hpp"
 
@@ -20,7 +20,7 @@ using namespace InferenceEngine::details;
 
 template <class T>
 inline typename InferenceEngine::InferRequest make_infer_request(std::shared_ptr<T> impl) {
-    typename InferRequestBase<T>::Ptr req(new InferRequestBase<T>(impl), [](IInferRequest* p) {
+    typename InferRequestBase::Ptr req(new InferRequestBase(impl), [](IInferRequest* p) {
         p->Release();
     });
     return InferenceEngine::InferRequest(req);
@@ -331,6 +331,7 @@ auto req = make_infer_request(mockInferRequestInternal);
 }
 
 TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithZeroLen) {
+    IE_SUPPRESS_DEPRECATED_START
     auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -343,9 +344,11 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithZeroLen) {
     static_cast<IInferRequest::Ptr>(req)->QueryState(pState, 0, nullptr);
     char *name = reinterpret_cast<char *>(1);
     EXPECT_NO_THROW(pState->GetName(name, 0, nullptr));
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithLenOfOne) {
+    IE_SUPPRESS_DEPRECATED_START
     auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -359,9 +362,11 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithLenOfOne) {
     char name[1];
     EXPECT_NO_THROW(pState->GetName(name, 1, nullptr));
     EXPECT_STREQ(name, "");
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithLenOfTwo) {
+    IE_SUPPRESS_DEPRECATED_START
     auto req = make_infer_request(mockInferRequestInternal);
     std::vector<IVariableStateInternal::Ptr> toReturn;
     toReturn.push_back(mockVariableStateInternal);
@@ -375,6 +380,7 @@ TEST_F(VariableStateTests, InfReqVariableStatePropagatesGetNameWithLenOfTwo) {
     char name[2];
     EXPECT_NO_THROW(pState->GetName(name, 2, nullptr));
     EXPECT_STREQ(name, "s");
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_F(VariableStateTests, InfReqVariableStateCanPropagateSetState) {

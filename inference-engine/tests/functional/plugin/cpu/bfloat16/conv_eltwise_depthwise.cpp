@@ -16,7 +16,7 @@
 
 #include "functional_test_utils/blob_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph/opsets/opset1.hpp"
 
 using namespace std;
@@ -32,7 +32,7 @@ public:
     std::shared_ptr<Function> fnPtr;
     SizeVector inputShapes;
     std::map<string, string> expectedPrecisions;
-    float threshold = 3e-2;
+    float threshold = 7e-2;
     Precision netPrecision;
     size_t kernel;
     CoordinateDiff pads;

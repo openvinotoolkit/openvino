@@ -97,7 +97,6 @@ TEST_P(myriadLayers_IR3_PoolingTests_smoke, Pooling) {
     int32_t IH = 0;
     int32_t IC = 0;
     int32_t I_N = 0;
-    size_t  group = 0;
     /*input tensor,               kernel,     stride,    pads_begin, pads_end,  auto_pad,     exclude_pad  method */
     auto p = ::testing::WithParamInterface<IR3_PoolParams>::GetParam();
     auto input_tensor       = std::get<0>(p);
@@ -177,7 +176,6 @@ TEST_P(myriadLayers_IR3_BatchPoolingTests_smoke, Pooling) {
     int32_t IH = 0;
     int32_t IC = 0;
     int32_t I_N = 0;
-    size_t  group = 0;
     /*input tensor,               kernel,     stride,    pads_begin, pads_end,  auto_pad,     exclude_pad  method */
     auto p = ::testing::WithParamInterface<IR3_PoolParams>::GetParam();
     auto input_tensor       = std::get<0>(p);

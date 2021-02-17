@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <cmath>
+#include "itt.hpp"
 
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/add.hpp"
@@ -33,6 +34,11 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::Gelu::type_info;
 
+op::Gelu::Gelu()
+    : FusedOp()
+{
+}
+
 op::Gelu::Gelu(const Output<Node>& data)
     : FusedOp({data})
 {
@@ -41,6 +47,7 @@ op::Gelu::Gelu(const Output<Node>& data)
 
 bool ngraph::op::v0::Gelu::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Gelu_visit_attributes);
     return true;
 }
 
@@ -58,11 +65,16 @@ OutputVector op::Gelu::decompose_op() const
     shared_ptr<ngraph::Node> sqrt_two =
         builder::make_constant(data.get_element_type(), data.get_shape(), std::sqrt(2.0));
 
-    return {half * data * (one + make_shared<ngraph::op::Erf>(data / sqrt_two))};
+    shared_ptr<ngraph::Node> add = std::make_shared<op::v1::Add>(
+        one, make_shared<ngraph::op::Erf>(std::make_shared<op::v1::Divide>(data, sqrt_two)));
+    shared_ptr<ngraph::Node> multiply = std::make_shared<op::v1::Multiply>(half, data);
+
+    return {std::make_shared<op::v1::Multiply>(multiply, add)};
 }
 
 shared_ptr<Node> op::Gelu::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Gelu_clone_with_new_inputs);
     if (new_args.size() != 1)
     {
         throw ngraph_error("Incorrect number of new arguments");

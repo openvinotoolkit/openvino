@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ op::v3::Atanh::Atanh(const Output<Node>& arg)
 
 shared_ptr<Node> op::v3::Atanh::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_Atanh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Atanh>(new_args.at(0));
 }
@@ -56,18 +57,12 @@ namespace atanhop
         out->set_unary(arg0);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_atanh, i32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_atanh, i64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_atanh, u32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_atanh, u64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_atanh, f16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_atanh, f32, arg0, out);
         default: rc = false; break;
         }
         return rc;
@@ -76,6 +71,6 @@ namespace atanhop
 
 bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Atanh::evaluate");
+    NGRAPH_OP_SCOPE(v3_Atanh_evaluate);
     return atanhop::evaluate_atanh(inputs[0], outputs[0]);
 }

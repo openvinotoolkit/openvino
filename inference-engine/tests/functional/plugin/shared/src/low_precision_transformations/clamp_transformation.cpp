@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
-#include "ngraph_functions/low_precision_transformations/clamp_function.hpp"
+#include "lpt_ngraph_functions/clamp_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -42,10 +42,10 @@ void ClampTransformation::SetUp() {
         param.clampLowConst,
         param.clampHighConst);
 
-    validateNGraph();
+    validate();
 }
 
-void ClampTransformation::validateNGraph() {
+void ClampTransformation::validate() {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShape;
     std::string targetDevice;
@@ -53,7 +53,8 @@ void ClampTransformation::validateNGraph() {
     ClampTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
-    auto transformed = transformNGraph(params);
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
     EXPECT_EQ(1ul, transformed->get_output_size());
     std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
 

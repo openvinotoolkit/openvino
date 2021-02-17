@@ -30,9 +30,8 @@ public:
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of output edges.";
 
             precision = layer->insData[GATHER_TREE_STEP_IDX].lock()->getTensorDesc().getPrecision();
-
             if (precision != Precision::FP32 && precision != Precision::I32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect data tensor precision. Only I32 or FP32 are supported.";
+                precision = Precision::FP32;
 
             if (layer->insData[GATHER_TREE_PARENT_IDX].lock()->getTensorDesc().getPrecision() != precision ||
                 layer->insData[GATHER_TREE_MAX_SEQ_LEN].lock()->getTensorDesc().getPrecision() != precision ||
@@ -49,9 +48,9 @@ public:
             if (layer->insData[GATHER_TREE_END_TOKEN].lock()->getTensorDesc().getDims().size() != 1)
                 THROW_IE_EXCEPTION << layer->name << " end_token should be 1 dimension";
 
-            addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                               DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                             { DataConfigurator(ConfLayout::PLN) });
+            addConfig(layer, { DataConfigurator(ConfLayout::PLN, precision), DataConfigurator(ConfLayout::PLN, precision),
+                               DataConfigurator(ConfLayout::PLN, precision), DataConfigurator(ConfLayout::PLN, precision) },
+                             { DataConfigurator(ConfLayout::PLN, precision) });
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

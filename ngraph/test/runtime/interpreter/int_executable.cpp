@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,231 +17,17 @@
 #include "int_executable.hpp"
 #include <cstring>
 #include "backend_manager.hpp"
-#include "ngraph/chrome_trace.hpp"
+#include "evaluates_map.hpp"
 #include "ngraph/except.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph/pass/manager.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
-#include "pass/fused_op_decomposition.hpp"
-#include "pass/liveness.hpp"
-#include "pass/opset0_downgrade.hpp"
-#include "pass/opset1_downgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
-
-using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
-
-namespace
-{
-    constexpr size_t boxes_port = 0;
-    constexpr size_t scores_port = 1;
-    constexpr size_t max_output_boxes_port = 2;
-    constexpr size_t iou_threshold_port = 3;
-    constexpr size_t score_threshold_port = 4;
-    constexpr size_t soft_nms_sigma_port = 5;
-
-    PartialShape
-        infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
-                                     int64_t max_output_boxes_per_class)
-    {
-        const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
-        const auto scores_ps = inputs[scores_port]->get_partial_shape();
-
-        // NonMaxSuppression produces triplets
-        // that have the following format: [batch_index, class_index, box_index]
-        PartialShape result = {Dimension::dynamic(), 3};
-
-        if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
-        {
-            const auto num_boxes_boxes = boxes_ps[1];
-            if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static())
-            {
-                const auto num_boxes = num_boxes_boxes.get_length();
-                const auto num_classes = scores_ps[1].get_length();
-
-                result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
-                            scores_ps[0].get_length();
-            }
-        }
-
-        return result;
-    }
-
-    void normalize_corner(float* boxes, const Shape& boxes_shape)
-    {
-        size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
-        for (size_t i = 0; i < total_num_of_boxes; ++i)
-        {
-            float* current_box = boxes + 4 * i;
-
-            float y1 = current_box[0];
-            float x1 = current_box[1];
-            float y2 = current_box[2];
-            float x2 = current_box[3];
-
-            float ymin = std::min(y1, y2);
-            float ymax = std::max(y1, y2);
-            float xmin = std::min(x1, x2);
-            float xmax = std::max(x1, x2);
-
-            current_box[0] = ymin;
-            current_box[1] = xmin;
-            current_box[2] = ymax;
-            current_box[3] = xmax;
-        }
-    }
-
-    void normalize_center(float* boxes, const Shape& boxes_shape)
-    {
-        size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
-        for (size_t i = 0; i < total_num_of_boxes; ++i)
-        {
-            float* current_box = boxes + 4 * i;
-
-            float x_center = current_box[0];
-            float y_center = current_box[1];
-            float width = current_box[2];
-            float height = current_box[3];
-
-            float y1 = y_center - height / 2.0;
-            float x1 = x_center - width / 2.0;
-            float y2 = y_center + height / 2.0;
-            float x2 = x_center + width / 2.0;
-
-            current_box[0] = y1;
-            current_box[1] = x1;
-            current_box[2] = y2;
-            current_box[3] = x2;
-        }
-    }
-
-    void normalize_box_encoding(float* boxes,
-                                const Shape& boxes_shape,
-                                const V5BoxEncoding box_encoding)
-    {
-        if (box_encoding == V5BoxEncoding::CORNER)
-        {
-            normalize_corner(boxes, boxes_shape);
-        }
-        else
-        {
-            normalize_center(boxes, boxes_shape);
-        }
-    }
-
-    std::vector<float> get_floats(const std::shared_ptr<HostTensor>& input, const Shape& shape)
-    {
-        size_t input_size = shape_size(shape);
-        std::vector<float> result(input_size);
-
-        switch (input->get_element_type())
-        {
-        case element::Type_t::bf16:
-        {
-            bfloat16* p = input->get_data_ptr<bfloat16>();
-            for (size_t i = 0; i < input_size; ++i)
-            {
-                result[i] = float(p[i]);
-            }
-        }
-        break;
-        case element::Type_t::f16:
-        {
-            float16* p = input->get_data_ptr<float16>();
-            for (size_t i = 0; i < input_size; ++i)
-            {
-                result[i] = float(p[i]);
-            }
-        }
-        break;
-        case element::Type_t::f32:
-        {
-            float* p = input->get_data_ptr<float>();
-            memcpy(result.data(), p, input_size * sizeof(float));
-        }
-        break;
-        default: throw std::runtime_error("Unsupported data type in op NonMaxSuppression-5"); break;
-        }
-
-        return result;
-    }
-
-    std::vector<float> prepare_boxes_data(const std::shared_ptr<HostTensor>& boxes,
-                                          const Shape& boxes_shape,
-                                          const V5BoxEncoding box_encoding)
-    {
-        auto result = get_floats(boxes, boxes_shape);
-        normalize_box_encoding(result.data(), boxes_shape, box_encoding);
-        return result;
-    }
-
-    std::vector<float> prepare_scores_data(const std::shared_ptr<HostTensor>& scores,
-                                           const Shape& scores_shape)
-    {
-        auto result = get_floats(scores, scores_shape);
-        return result;
-    }
-}
-
-runtime::interpreter::INTExecutable::InfoForNMS5
-    runtime::interpreter::INTExecutable::get_info_for_nms5_eval(
-        const op::v5::NonMaxSuppression* nms5,
-        const std::vector<std::shared_ptr<HostTensor>>& inputs)
-{
-    InfoForNMS5 result;
-
-    result.max_output_boxes_per_class = nms5->max_boxes_output_from_input();
-    result.iou_threshold = nms5->iou_threshold_from_input();
-    result.score_threshold = nms5->score_threshold_from_input();
-    result.soft_nms_sigma = nms5->soft_nms_sigma_from_input();
-
-    auto selected_indices_shape =
-        infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
-    result.out_shape = selected_indices_shape.to_shape();
-
-    result.boxes_shape = inputs[boxes_port]->get_shape();
-    result.scores_shape = inputs[scores_port]->get_shape();
-
-    result.boxes_data =
-        prepare_boxes_data(inputs[boxes_port], result.boxes_shape, nms5->get_box_encoding());
-    result.scores_data = prepare_scores_data(inputs[scores_port], result.scores_shape);
-
-    result.out_shape_size = shape_size(result.out_shape);
-
-    result.sort_result_descending = nms5->get_sort_result_descending();
-
-    result.output_type = nms5->get_output_type();
-
-    return result;
-}
-
-runtime::interpreter::OP_TYPEID runtime::interpreter::INTExecutable::get_typeid(const Node& node)
-{
-    const NodeTypeInfo& type_info = node.get_type_info();
-    // This expands the op list in op_tbl.hpp into a list of enumerations that look like this:
-    // {Abs::type_info, OP_TYPEID::Abs},
-    // {Acos::type_info, OP_TYPEID::Acos},
-    // ...
-    static const map<NodeTypeInfo, OP_TYPEID> type_info_map{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, OP_TYPEID::ID_SUFFIX(NAME)},
-#include "opset_int_tbl.hpp"
-#undef NGRAPH_OP
-    };
-    OP_TYPEID rc = OP_TYPEID::UnknownOp;
-
-    auto it = type_info_map.find(type_info);
-    if (it != type_info_map.end())
-    {
-        rc = it->second;
-    }
-    return rc;
-}
 
 runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& function,
                                                    bool enable_performance_collection)
@@ -249,27 +35,6 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
     , m_performance_counters_enabled{enable_performance_collection}
 {
     m_function = clone_function(*function);
-    auto is_supported = [](const Node& node) {
-        bool retval = false;
-        switch (INTExecutable::get_typeid(node))
-        {
-        case OP_TYPEID::Clamp:
-        case OP_TYPEID::MatMul:
-        case OP_TYPEID::NormalizeL2:
-        case OP_TYPEID::PRelu:
-        case OP_TYPEID::Squeeze:
-        case OP_TYPEID::Unsqueeze: retval = true; break;
-        default: break;
-        }
-        return retval;
-    };
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::FusedOpDecomposition>(is_supported);
-    pass_manager.register_pass<pass::Opset1Downgrade>();
-    pass_manager.register_pass<pass::Opset0Downgrade>();
-    // Need to decompose any v0 fused ops, which were produced by the downgrade pass
-    pass_manager.register_pass<pass::FusedOpDecomposition>(is_supported);
-    pass_manager.run_passes(m_function);
     for (auto node : m_function->get_ordered_ops())
     {
         m_nodes.push_back(node);
@@ -280,8 +45,6 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
 bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::Tensor>>& outputs,
                                                const vector<shared_ptr<runtime::Tensor>>& inputs)
 {
-    event::Duration d1("call", "Interpreter");
-
     // convert inputs to HostTensor
     vector<shared_ptr<HostTensor>> func_inputs;
     for (const auto& tensor : inputs)
@@ -329,8 +92,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     // for each ordered op in the graph
     for (const auto& op : m_nodes)
     {
-        event::Duration d2(op->description(), "Interpreter");
-        if (op::is_parameter(op))
+        if (dynamic_pointer_cast<op::Parameter>(op) != nullptr)
         {
             continue;
         }
@@ -364,12 +126,13 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
 
         // get op type
         element::Type type;
-        if (is_type<op::Convert>(op) || is_type<op::Quantize>(op) || is_type<op::PriorBox>(op))
+        if (is_type<op::Convert>(op) || is_type<op::PriorBox>(op))
         {
             type = op->get_input_element_type(0);
         }
-        else if (is_type<op::Equal>(op) || is_type<op::Greater>(op) || is_type<op::GreaterEq>(op) ||
-                 is_type<op::Less>(op) || is_type<op::LessEq>(op) || is_type<op::NotEqual>(op))
+        else if (is_type<op::v1::Equal>(op) || is_type<op::v1::Greater>(op) ||
+                 is_type<op::v1::GreaterEqual>(op) || is_type<op::v1::Less>(op) ||
+                 is_type<op::v1::LessEqual>(op) || is_type<op::v1::NotEqual>(op))
         {
             // Get the type of the second input, not the first
             // All BinaryElementwiseComparision ops have the same type for inputs
@@ -387,7 +150,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         }
         if (!op->evaluate(op_outputs, op_inputs))
         {
-            generate_calls(type, *op, op_outputs, op_inputs);
+            evaluate_node(op, op_outputs, op_inputs);
         }
         if (m_performance_counters_enabled)
         {
@@ -400,40 +163,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     }
 
     return true;
-}
-
-void runtime::interpreter::INTExecutable::generate_calls(const element::Type& type,
-                                                         const Node& op,
-                                                         const vector<shared_ptr<HostTensor>>& out,
-                                                         const vector<shared_ptr<HostTensor>>& in)
-{
-    stringstream ss;
-    switch (type)
-    {
-    case element::Type_t::boolean: op_engine<char>(op, out, in); break;
-    case element::Type_t::f32: op_engine<float>(op, out, in); break;
-    case element::Type_t::f64: op_engine<double>(op, out, in); break;
-    case element::Type_t::i8: op_engine<int8_t>(op, out, in); break;
-    case element::Type_t::i16: op_engine<int16_t>(op, out, in); break;
-    case element::Type_t::i32: op_engine<int32_t>(op, out, in); break;
-    case element::Type_t::i64: op_engine<int64_t>(op, out, in); break;
-    case element::Type_t::u8: op_engine<uint8_t>(op, out, in); break;
-    case element::Type_t::u16: op_engine<uint16_t>(op, out, in); break;
-    case element::Type_t::u32: op_engine<uint32_t>(op, out, in); break;
-    case element::Type_t::u64: op_engine<uint64_t>(op, out, in); break;
-    case element::Type_t::undefined:
-    case element::Type_t::dynamic:
-    case element::Type_t::u1:
-    case element::Type_t::bf16:
-    case element::Type_t::f16:
-        ss << "unsupported element type " << type << " op " << op.get_name();
-        throw ngraph_error(ss.str());
-    }
-}
-
-void runtime::interpreter::INTExecutable::set_nan_check(bool enable)
-{
-    m_nan_check_enabled = enable;
 }
 
 vector<runtime::PerformanceCounter>
@@ -565,4 +294,29 @@ vector<shared_ptr<runtime::Tensor>>
         result_tensors.push_back(tensor);
     }
     return result_tensors;
+}
+
+bool runtime::interpreter::INTExecutable::evaluate_node(const std::shared_ptr<Node>& node,
+                                                        const HostTensorVector& outputs,
+                                                        const HostTensorVector& inputs) const
+{
+    auto& map = runtime::interpreter::get_evaluators_map();
+    auto it = map.find(node->get_type_info());
+    bool res = false;
+    if (it != map.end())
+    {
+        res = it->second(node, outputs, inputs);
+        if (!res)
+        {
+            throw ngraph_error(std::string("Running evaluate method for OP ") +
+                               node->get_type_info().name + std::string(" failed!"));
+        }
+    }
+    else
+    {
+        throw unsupported_op(
+            std::string("Interpreter backend doesn't implement evaluate method for OP ") +
+            node->get_type_info().name);
+    }
+    return res;
 }

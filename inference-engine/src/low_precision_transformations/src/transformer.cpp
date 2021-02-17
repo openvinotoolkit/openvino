@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,9 @@
 #include "low_precision/concat.hpp"
 #include "low_precision/concat_multi_channels.hpp"
 
+// decomposition transformations
+#include "low_precision/fake_quantize_decomposition.hpp"
+
 // general transformations
 #include "low_precision/add.hpp"
 #include "low_precision/avg_pool.hpp"
@@ -44,14 +47,15 @@
 #include "low_precision/squeeze.hpp"
 #include "low_precision/subtract.hpp"
 #include "low_precision/split.hpp"
+#include "low_precision/strided_slice.hpp"
 #include "low_precision/transpose.hpp"
 #include "low_precision/unsqueeze.hpp"
 #include "low_precision/variadic_split.hpp"
 #include "low_precision/split.hpp"
 
 // cleanup transformations
-#include "low_precision/convert.hpp"
 #include "low_precision/fuse_convert.hpp"
+#include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_fake_quantize.hpp"
 #include "low_precision/fuse_subtract_to_fake_quantize.hpp"
 #include "low_precision/fuse_multiply_to_fake_quantize.hpp"
@@ -101,28 +105,6 @@ void LowPrecisionTransformations::setQuantizedTensorAlignmentOnWeights(
     }
 }
 
-LowPrecisionTransformations& LowPrecisionTransformations::remove(const std::string& operationType) {
-    removeBranchSpecificTransformations(operationType);
-    removeTransformations(operationType);
-    removeCleanupTransformations(operationType);
-    return *this;
-}
-
-LowPrecisionTransformations& LowPrecisionTransformations::removeBranchSpecificTransformations(const std::string& operationType) {
-    branchSpecificTransformations.erase(operationType);
-    return *this;
-}
-
-LowPrecisionTransformations& LowPrecisionTransformations::removeTransformations(const std::string& operationType) {
-    transformations.erase(operationType);
-    return *this;
-}
-
-LowPrecisionTransformations& LowPrecisionTransformations::removeCleanupTransformations(const std::string& operationType) {
-    cleanupTransformations.erase(operationType);
-    return *this;
-}
-
 std::vector<LayerTransformationPtr> LowPrecisionTransformations::find(const std::string& transformationKey) const {
     auto it = branchSpecificTransformations.find(transformationKey);
     std::vector<LayerTransformationPtr> res;
@@ -153,6 +135,7 @@ std::vector<LayerTransformationPtr> LowPrecisionTransformations::find(const std:
 
 void LowPrecisionTransformations::setParamsManager(IParamsManager* paramsManager) noexcept {
     setParamsManager(paramsManager, branchSpecificTransformations);
+    setParamsManager(paramsManager, decompositionTransformations);
     setParamsManager(paramsManager, transformations);
     setParamsManager(paramsManager, cleanupTransformations);
     setParamsManager(paramsManager, standaloneCleanupTransformations);
@@ -160,6 +143,7 @@ void LowPrecisionTransformations::setParamsManager(IParamsManager* paramsManager
 
 void LowPrecisionTransformations::setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept {
     setLayerTransformationsManager(layerTransformationsManager, branchSpecificTransformations);
+    setLayerTransformationsManager(layerTransformationsManager, decompositionTransformations);
     setLayerTransformationsManager(layerTransformationsManager, transformations);
     setLayerTransformationsManager(layerTransformationsManager, cleanupTransformations);
     setLayerTransformationsManager(layerTransformationsManager, standaloneCleanupTransformations);
@@ -223,6 +207,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
     auto transformer = LowPrecisionTransformations().
         addBranchSpecific<pass::low_precision::ConcatMultiChannelsTransformation, opset1::Concat>(params).
 
+        addDecomposition<pass::low_precision::FakeQuantizeDecompositionTransformation, opset1::FakeQuantize>(params).
+
         add<AddTransformation, opset1::Add>(params).
         add<AvgPoolTransformation, opset1::AvgPool>(params).
         add<ClampTransformation, opset1::Clamp>(params).
@@ -240,10 +226,12 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<ReluTransformation, opset1::Relu>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
         add<SqueezeTransformation, opset1::Squeeze>(params).
+        add<StridedSliceTransformation, opset1::StridedSlice>(params).
         add<TransposeTransformation, opset1::Transpose>(params).
         add<UnsqueezeTransformation, opset1::Unsqueeze>(params).
         add<InterpolateTransformation, opset4::Interpolate>(params).
 
+        addCleanup<FoldConvertTransformation, opset1::Subtract>(params).
         addCleanup<FuseConvertTransformation, opset1::Multiply>(params).
 
         addStandaloneCleanup<FuseSubtractToFakeQuantizeTransformation, opset1::Subtract>(params).
@@ -324,7 +312,9 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(p_node, "TypeRelaxedReplacer");
+    NGRAPH_SUPPRESS_DEPRECATED_START
     transformation->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+    NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
 TypeRelaxedReplacer::TypeRelaxedReplacer() {
@@ -375,13 +365,9 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
     }
 
     {
-        // Step #1: FakeQuantize layer transformation execution
-        LayerTransformationPtr fqTransformation = transformations.find<opset1::FakeQuantize>()[0];
-        if (fqTransformation == nullptr) {
-            THROW_TRANSFORMATION_EXCEPTION << "FakeQuantize transformation was not found";
-        }
+        // Step #1: FakeQuantize decomposition transformation execution
         GraphRewrite pass;
-        fqTransformation->registerMatcherIn(pass, context);
+        registerAllMatchers(transformations.decompositionTransformations, pass, context);
         pass.run_on_function(network);
     }
 

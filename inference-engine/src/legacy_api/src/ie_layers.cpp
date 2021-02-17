@@ -306,6 +306,16 @@ std::string CNNLayer::GetParamAsString(const char* param) const {
     return (*it).second;
 }
 
+std::string CNNLayer::getBoolStrParamAsIntStr(const char *param) const {
+    std::string val = GetParamAsString(param);
+    if (val == "true" || val == "True") {
+        return "1";
+    } else if (val == "false" || val == "False") {
+        return "0";
+    }
+    return val;
+}
+
 std::vector<std::string> CNNLayer::GetParamAsStrings(const char* param, std::vector<std::string> def) const {
     std::string vals = GetParamAsString(param, "");
     std::vector<std::string> result;

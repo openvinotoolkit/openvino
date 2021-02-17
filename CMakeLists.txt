@@ -1,24 +1,24 @@
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
-cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13)
 
 project(OpenVINO)
 
 set(OpenVINO_MAIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(IE_MAIN_SOURCE_DIR ${OpenVINO_MAIN_SOURCE_DIR}/inference-engine)
-list(APPEND CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake")
+
+find_package(IEDevScripts REQUIRED
+             PATHS "${OpenVINO_MAIN_SOURCE_DIR}/cmake/developer_package"
+             NO_CMAKE_FIND_ROOT_PATH
+             NO_DEFAULT_PATH)
 
 include(CTest)
-include(features)
-
-# include developer package
-include(developer_package)
+include(cmake/features.cmake)
 
 # These options are shared with 3rdparty plugins by means of developer package
-include(check_features)
-include(dependencies)
+include(cmake/dependencies.cmake)
 
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
@@ -30,8 +30,11 @@ message (STATUS "CMAKE_C_COMPILER_ID ................... " ${CMAKE_C_COMPILER_ID
 message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 
 # remove file with exported developer targets to force its regeneration
-file(REMOVE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
-file(REMOVE "${CMAKE_BINARY_DIR}/targets.cmake")
+file(REMOVE "${CMAKE_BINARY_DIR}/inference_engine_targets.cmake")
+foreach(component IN LISTS openvino_export_components)
+    file(REMOVE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+    unset(${component} CACHE)
+endforeach()
 
 #
 # Build
@@ -44,39 +47,30 @@ function(build_ngraph)
         endif()
     endfunction()
 
-    set(NGRAPH_BUILD_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} CACHE STRING "" FORCE)
-    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${OpenVINO_MAIN_SOURCE_DIR}/ngraph/cmake/Modules/")
-
     if (ENABLE_SANITIZER)
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER TRUE)
+        ngraph_set(NGRAPH_ADDRESS_SANITIZER ON)
     else ()
-        ngraph_set(NGRAPH_ADDRESS_SANITIZER FALSE)
+        ngraph_set(NGRAPH_ADDRESS_SANITIZER OFF)
     endif ()
-    ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE FALSE)
+    ngraph_set(NGRAPH_PYTHON_BUILD_ENABLE OFF)
 
     if(ENABLE_TESTS AND NOT ANDROID)
-        ngraph_set(NGRAPH_UNIT_TEST_ENABLE TRUE)
+        ngraph_set(NGRAPH_UNIT_TEST_ENABLE ON)
     else()
-        ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
+        ngraph_set(NGRAPH_UNIT_TEST_ENABLE OFF)
     endif()
 
     if(NOT (ANDROID OR WINDOWS_STORE OR (MSVC AND (ARM OR AARCH64)) ))
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
+        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE ON)
     else()
-        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)
+        ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE OFF)
     endif()
-    ngraph_set(NGRAPH_INTERPRETER_ENABLE TRUE)
+    ngraph_set(NGRAPH_INTERPRETER_ENABLE ON)
 
     if(TREAT_WARNING_AS_ERROR)
         ngraph_set(NGRAPH_WARNINGS_AS_ERRORS ON)
     else()
         ngraph_set(NGRAPH_WARNINGS_AS_ERRORS OFF)
-    endif()
-
-    if(COVERAGE)
-        ngraph_set(NGRAPH_CODE_COVERAGE_ENABLE ON)
-    else()
-        ngraph_set(NGRAPH_CODE_COVERAGE_ENABLE OFF)
     endif()
 
     if(ENABLE_SANITIZER)
@@ -94,10 +88,7 @@ function(build_ngraph)
     if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         ie_add_compiler_flags(-Wno-error=uninitialized -Wno-error=literal-conversion)
     elseif(UNIX)
-        ie_add_compiler_flags(-Wno-error=maybe-uninitialized -Wno-error=return-type -fPIC)
-    endif()
-    if(ANDROID)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=defaulted-function-deleted -Wno-error=unused-command-line-argument")
+        ie_add_compiler_flags(-Wno-error=maybe-uninitialized -Wno-error=return-type)
     endif()
 
     # WA for GCC 7.0
@@ -106,7 +97,7 @@ function(build_ngraph)
     elseif(WIN32)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
     endif()
-    
+
     if(ENABLE_LTO)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
@@ -114,42 +105,48 @@ function(build_ngraph)
     ie_cpack_add_component(ngraph)
 
     set(SDL_cmake_included ON)
-    # set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
+    set(NGRAPH_COMPONENT_PREFIX "deployment_tools/ngraph/")
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
+    set(NGRAPH_REF_LIBRARIES ngraph_reference PARENT_SCOPE)
 endfunction()
 
-file(REMOVE "${CMAKE_BINARY_DIR}/openvino_targets_developer.cmake")
-
-unset(OpenVINODeveloperPackageTargets CACHE)
-
 function(openvino_developer_export_targets)
-    set(OpenVINODeveloperPackageTargets "${OpenVINODeveloperPackageTargets};${ARGV}")
+    cmake_parse_arguments(EXPORT "" "COMPONENT" "TARGETS" ${ARGN})
+
+    if(EXPORT_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "openvino_developer_export_targets has unparsed arguments: ${EXPORT_UNPARSED_ARGUMENTS}")
+    endif()
+
+    set(${EXPORT_COMPONENT} "${${EXPORT_COMPONENT}};${EXPORT_TARGETS}")
 
     # to allow exporting of aliased targets with the original names
-    foreach(target_name ${OpenVINODeveloperPackageTargets})
+    foreach(target_name IN LISTS ${EXPORT_COMPONENT})
         if(TARGET "${target_name}")
             get_target_property(original_name ${target_name} ALIASED_TARGET)
             if(TARGET "${original_name}")
                 message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
                         "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
-                list(REMOVE_ITEM OpenVINODeveloperPackageTargets ${target_name})
-                list(APPEND OpenVINODeveloperPackageTargets ${original_name})
+                list(REMOVE_ITEM ${EXPORT_COMPONENT} ${target_name})
+                list(APPEND ${EXPORT_COMPONENT} ${original_name})
             endif()
         endif()
     endforeach()
 
-    list(REMOVE_DUPLICATES OpenVINODeveloperPackageTargets)
-    set(OpenVINODeveloperPackageTargets "${OpenVINODeveloperPackageTargets}" CACHE INTERNAL
-        "Paths to extra Inference Engine plugins" FORCE)
+    list(REMOVE_DUPLICATES ${EXPORT_COMPONENT})
+    set(${EXPORT_COMPONENT} "${${EXPORT_COMPONENT}}" CACHE INTERNAL
+        "A list of OpenVINO ${EXPORT_COMPONENT} exported targets" FORCE)
+
+    list(APPEND openvino_export_components ${EXPORT_COMPONENT})
+    list(REMOVE_DUPLICATES openvino_export_components)
+    set(openvino_export_components "${openvino_export_components}" CACHE INTERNAL
+        "A list of OpenVINO exported components" FORCE)
 endfunction()
 
+add_subdirectory(thirdparty)
 add_subdirectory(openvino)
-
 build_ngraph()
-
 add_subdirectory(inference-engine)
-
 add_subdirectory(model-optimizer)
 add_subdirectory(docs)
 
@@ -160,6 +157,7 @@ add_subdirectory(docs)
 ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
                       SKIP "${OpenVINO_MAIN_SOURCE_DIR}/bin"
                            "${OpenVINO_MAIN_SOURCE_DIR}/build"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest"
                            "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"

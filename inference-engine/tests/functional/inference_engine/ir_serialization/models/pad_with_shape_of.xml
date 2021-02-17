@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<net name="Function_0" version="10">
+	<layers>
+		<layer id="0" name="Parameter_68" type="Parameter" version="opset1">
+			<data shape="6" element_type="f32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>6</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="Constant_69" type="Const" version="opset1">
+			<data element_type="i64" shape="1" offset="0" size="8" />
+			<output>
+				<port id="0" precision="I64">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="Constant_70" type="Const" version="opset1">
+			<data element_type="i64" shape="1" offset="8" size="8" />
+			<output>
+				<port id="0" precision="I64">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="Pad_72" type="Pad" version="opset1">
+			<data pad_mode="reflect" />
+			<input>
+				<port id="0">
+					<dim>6</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+				</port>
+
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>15</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="5" name="ShapeOf_73" type="ShapeOf" version="opset1">
+			<input>
+				<port id="0">
+					<dim>15</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="I64">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="6" name="Reshape_74" type="Reshape" version="opset1">
+			<data special_zero="false" />
+			<input>
+				<port id="0">
+					<dim>15</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>15</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="7" name="Result_75" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>15</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="4" to-port="0" />
+		<edge from-layer="1" from-port="0" to-layer="4" to-port="1" />
+		<edge from-layer="2" from-port="0" to-layer="4" to-port="2" />
+		<edge from-layer="4" from-port="3" to-layer="5" to-port="0" />
+		<edge from-layer="4" from-port="3" to-layer="6" to-port="0" />
+		<edge from-layer="5" from-port="1" to-layer="6" to-port="1" />
+		<edge from-layer="6" from-port="2" to-layer="7" to-port="0" />
+	</edges>
+</net>
