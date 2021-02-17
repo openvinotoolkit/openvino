@@ -76,6 +76,8 @@ class TFSliceToSliceReplacer(FrontReplacementOp):
         select_node.out_port(0).connect(slice_node.in_port(2))
 
         cast = Cast(graph, dict(name=sum_node.name + '/CastToI64', dst_type=np.int64)).create_node()
+        cast_int32max = Cast(graph, dict(name=sum_node.name + '/CastToI64', dst_type=np.int64)).create_node()
         select_node.in_port(2).get_connection().insert_node(cast)
+        select_node.in_port(1).get_connection().insert_node(cast_int32max)
 
         node.out_port(0).get_connection().set_source(slice_node.out_port(0))
