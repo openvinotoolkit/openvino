@@ -23,7 +23,7 @@ class BF16Transformer {
           "broadcast", "convert", "BatchToSpace", "DepthToSpace", "ExtractImagePatches", "concat", "power", "lrn",
           "permute", "ScatterUpdate", "ScatterElementsUpdate", "ScatterNDUpdate", "depthwise",
           "select", "ShuffleChannels", "SpaceToBatch", "SpaceToDepth", "squeeze", "StridedSlice", "unsqueeze", "eltwise",
-          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin", "ScaleShift", "SoftMax"};
+          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin", "ScaleShift", "SoftMax", "OneHot"};
 
     const InferenceEngine::details::caseless_set<std::string> _multiinput =
         { "concat", "eltwise" };
