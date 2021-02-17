@@ -16,16 +16,65 @@
 
 #include <exception>
 #include <fstream>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/text_format.h>
 #include <onnx/onnx_pb.h>
 #include <sstream>
 
+#include "ngraph/except.hpp"
 #include "onnx_test_util.hpp"
-#include "parser.hpp"
 
-using namespace ngraph::onnx_import;
+using namespace ngraph;
+using namespace ngraph::test;
 
 namespace
 {
+    void parse_from_istream(std::istream& model_stream, ONNX_NAMESPACE::ModelProto& model_proto)
+    {
+        if (!model_stream.good())
+        {
+            model_stream.clear();
+            model_stream.seekg(0);
+            if (!model_stream.good())
+            {
+                throw ngraph_error("Provided input stream has incorrect state.");
+            }
+        }
+
+        if (!model_proto.ParseFromIstream(&model_stream))
+        {
+#ifdef NGRAPH_USE_PROTOBUF_LITE
+            throw ngraph_error(
+                "Error during import of ONNX model provided as input stream "
+                " with binary protobuf message.");
+#else
+            // Rewind to the beginning and clear stream state.
+            model_stream.clear();
+            model_stream.seekg(0);
+            google::protobuf::io::IstreamInputStream iistream(&model_stream);
+            // Try parsing input as a prototxt message
+            if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto))
+            {
+                throw ngraph_error(
+                    "Error during import of ONNX model provided as input stream with prototxt "
+                    "protobuf message.");
+            }
+#endif
+        }
+    }
+
+    void parse_from_file(const std::string& file_path, ONNX_NAMESPACE::ModelProto& model_proto)
+    {
+        std::ifstream file_stream{file_path, std::ios::in | std::ios::binary};
+
+        if (!file_stream.is_open())
+        {
+            throw ngraph_error("Could not open the file: " + file_path);
+        };
+
+        parse_from_istream(file_stream, model_proto);
+    }
+
     ComparisonResult compare_nodes(const ONNX_NAMESPACE::GraphProto& graph,
                                    const ONNX_NAMESPACE::GraphProto& ref_graph)
     {
@@ -261,15 +310,16 @@ namespace
 } // namespace
 namespace ngraph
 {
-    namespace onnx_import
+    namespace test
     {
         ComparisonResult compare_onnx_models(const std::string& model,
                                              const std::string& reference_model_path)
         {
             std::stringstream model_stream{model};
-            const auto model_proto = onnx_import::parse_from_istream(model_stream);
-            const auto ref_model = onnx_import::parse_from_file(reference_model_path);
+            ONNX_NAMESPACE::ModelProto model_proto, ref_model;
+            parse_from_istream(model_stream, model_proto);
+            parse_from_file(reference_model_path, ref_model);
             return compare_onnx_graphs(model_proto.graph(), ref_model.graph());
         }
-    } // namespace onnx_import
+    } // namespace test
 } // namespace ngraph
