@@ -18,22 +18,27 @@ import unittest
 
 import numpy as np
 
-from extensions.front.onnx.MVNNormalize import MvnOnnxToMvn
+from extensions.front.onnx.MvnOnnxToMvn import MvnOnnxToMvn
+from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const, connect_front
 
 nodes = {
     **regular_op_with_empty_data('input', {'type': 'Parameter'}),
-    **regular_op_with_empty_data('mvn_onnx', {'op': 'AttributedMVN', 'axes': np.array([2, 3], dtype=np.int64)}),
+    **regular_op_with_empty_data('mvn_onnx', {'op': 'MVNOnnx',
+                                              'axes': int64_array([2, 3]),
+                                              'eps': 1e-9,
+                                              'eps_mode': 'outside_sqrt',
+                                              'normalize_variance': 1}),
     **result(),
 
     # nodes after replacement
-    **const('axes', np.array([2, 3], dtype=np.int64)),
+    **const('axes', int64_array([2, 3])),
     **regular_op_with_empty_data('mvn', {'op': 'MVN', 'type': None}),
 }
 
 
-class MVNNormalizeTest(unittest.TestCase):
+class MvnOnnxToMvnTest(unittest.TestCase):
     def test_mvn_normalize(self):
         graph = build_graph(nodes, [('input', 'mvn_onnx'),
                                     ('mvn_onnx', 'output')],

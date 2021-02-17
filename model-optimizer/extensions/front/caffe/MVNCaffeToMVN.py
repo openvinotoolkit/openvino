@@ -31,7 +31,7 @@ class MVNCaffeToMVN(FrontReplacementPattern):
     enabled = True
 
     def find_and_replace_pattern(self, graph: Graph):
-        for node in graph.get_op_nodes(op='AttributedMVN'):
+        for node in graph.get_op_nodes(op='MVNCaffe'):
             node_name = node.soft_get('name', node.id)
 
             start_axis = 2

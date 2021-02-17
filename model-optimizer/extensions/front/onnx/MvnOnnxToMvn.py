@@ -14,14 +14,9 @@
  limitations under the License.
 """
 from extensions.ops.mvn import MVN
-from extensions.ops.range import Range
-from extensions.ops.rank import Rank
-from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
-
-import numpy as np
 
 
 class MvnOnnxToMvn(FrontReplacementPattern):
@@ -31,16 +26,13 @@ class MvnOnnxToMvn(FrontReplacementPattern):
     enabled = True
 
     def find_and_replace_pattern(self, graph: Graph):
-        for node in graph.get_op_nodes(op='AttributedMVN'):
+        for node in graph.get_op_nodes(op='MVNOnnx'):
             node_name = node.soft_get('name', node.id)
 
-            axes = node.soft_get('axes', np.array([0, 2, 3], dtype=np.int64))
-            normalize_variance = node.soft_get('normalize_variance', 1)
-
-            new_mvn = create_op_with_const_inputs(graph, MVN, {1: axes},
-                                                  {'eps': node.soft_get('eps', 1e-9),
-                                                   'eps_mode': 'outside_sqrt',
-                                                   'normalize_variance': normalize_variance})
+            new_mvn = create_op_with_const_inputs(graph, MVN, {1: node.axes},
+                                                  {'eps': node.eps,
+                                                   'eps_mode': node.eps_mode,
+                                                   'normalize_variance': node.normalize_variance})
             node.in_port(0).get_connection().set_destination(new_mvn.in_port(0))
             node.out_port(0).get_connection().set_source(new_mvn.out_port(0))
             rename_nodes([(node, node_name + '/to_be_removed'), (new_mvn, node_name)])
