@@ -765,6 +765,7 @@ mo/__init__.py
 mo/back/__init__.py
 mo/back/ie_ir_ver_2/__init__.py
 mo/back/ie_ir_ver_2/emitter.py
+mo/back/offline_transformations.py
 mo/back/replacement.py
 mo/front/__init__.py
 mo/front/caffe/__init__.py
@@ -913,7 +914,6 @@ mo/middle/passes/infer.py
 mo/middle/passes/tensor_names.py
 mo/middle/pattern_match.py
 mo/middle/replacement.py
-mo/offline_transformations.py
 mo/ops/__init__.py
 mo/ops/activation.py
 mo/ops/assign.py
