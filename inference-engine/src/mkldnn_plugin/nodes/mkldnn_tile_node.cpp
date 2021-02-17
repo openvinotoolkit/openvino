@@ -36,6 +36,11 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
+    if (precision.size() != sizeof(PrecisionTrait<Precision::I32>::value_type) &&
+        precision.size() != sizeof(PrecisionTrait<Precision::I16>::value_type) &&
+        precision.size() != sizeof(PrecisionTrait<Precision::I8>::value_type)) {
+        THROW_IE_EXCEPTION << "Layer Tile has unsupported input precision: " << precision;
+    }
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
 
     auto& inDims = getParentEdgeAt(0)->getDims();
