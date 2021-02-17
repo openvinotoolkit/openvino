@@ -55,6 +55,12 @@ jobs:
     displayName: 'System info'
 
   - script: |
+      certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
+      call install_ib_console.bat
+    workingDirectory: $(WORK_DIR)
+    displayName: 'Install IncrediBuild'
+
+  - script: |
       rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
       rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
     displayName: 'Make dir'
@@ -84,12 +90,6 @@ jobs:
     displayName: 'Install dependencies'
 
   - script: |
-      certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/install_ib_console.bat install_ib_console.bat
-      call install_ib_console.bat
-    workingDirectory: $(WORK_DIR)
-    displayName: 'Install IncrediBuild'
-
-  - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && cmake -GNinja -DENABLE_FASTER_BUILD=ON -DENABLE_TEMPLATE_PLUGIN=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DIE_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)\modules -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
     workingDirectory: $(BUILD_DIR)
@@ -97,7 +97,7 @@ jobs:
 
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /MaxCPUS=$(IB_MAX_CPUS)
+      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja"
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
 
@@ -125,7 +125,7 @@ jobs:
     continueOnError: true
   - script: |
       set PATH=$(TEST_ENV_PATH)
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml /testlevel=$(IB_MAX_CPUS) >TEST-InferenceEngineUnitTests-IB.log
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml >TEST-InferenceEngineUnitTests-IB.log
       type TEST-InferenceEngineUnitTests-IB.log
     displayName: 'IE UT old IB'
     continueOnError: false
@@ -186,13 +186,18 @@ jobs:
     continueOnError: true
   - script: |
       set PATH=$(TEST_ENV_PATH)
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke*:-*CompareWithRefs/base_size=16_pre_nms_topn=100_post_nms_topn=100_nms_thresh=0.7_feat_stride=1_min_size=1_ratio* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=$(IB_MAX_CPUS) >TEST-cpuFuncTests-IB.log
-      rem "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=$(IB_MAX_CPUS) >TEST-cpuFuncTests-IB.log
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke*:-*CompareWithRefs/base_size=16_pre_nms_topn=100_post_nms_topn=100_nms_thresh=0.7_feat_stride=1_min_size=1_ratio* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=24 >TEST-cpuFuncTests-IB.log
+      rem "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests-IB.xml >TEST-cpuFuncTests-IB.log
       type TEST-cpuFuncTests-IB.log
     displayName: 'CPU FuncTests IB'
     continueOnError: false
   - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-cpuFuncTests-IB.log
     displayName: 'CPU FuncTests Analyze IB'
+    continueOnError: true
+  - script: |
+      set PATH=$(TEST_ENV_PATH)
+      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\cpuFuncTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=cpuFuncTests --gtest_filter=*smoke* -- --gtest_print_time=1
+    displayName: 'CPU FuncTests gtest-parallel'
     continueOnError: true
 
   - script: |
@@ -207,7 +212,7 @@ jobs:
       set PATH=$(TEST_ENV_PATH)
       set DATA_PATH=$(MODELS_PATH)
       set MODELS_PATH=$(MODELS_PATH)
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests.xml /testlevel=$(IB_MAX_CPUS) >TEST-MklDnnFunctionalTests-IB.log
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests.xml >TEST-MklDnnFunctionalTests-IB.log
       type TEST-MklDnnFunctionalTests-IB.log
     displayName: 'MklDnnFunctionalTests IB'
     continueOnError: false
