@@ -42,9 +42,14 @@ namespace ngraph
                         }
                         catch (const ngraph::ngraph_error& exc)
                         {
-                            NGRAPH_WARN << "Could not create an nGraph Constant for an ONNX "
-                                           "Constant node. Detailed error:\n"
-                                        << exc.what();
+                            NGRAPH_WARN
+                                << "\nCould not create an nGraph Constant for an ONNX Constant "
+                                   "node. "
+                                << "Constant with a 0 value was created instead.\n"
+                                << "Verify if the ONNX Constant node contains a correct number of "
+                                   "elements matching the node's shape. \n"
+                                << "Detailed error:\n"
+                                << exc.what();
                             constant = std::make_shared<default_opset::Constant>(type, Shape{}, 0);
                         }
 
