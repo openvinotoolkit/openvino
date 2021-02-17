@@ -51,7 +51,7 @@ def import_core_modules(silent: bool, path_to_module: str):
             is_custom_mo_version = extracted_release_version == (None, None)
             if not silent:
                 print("[ WARNING ] Model Optimizer and Inference Engine versions do no match.")
-                print("[ WARNING ] Please consider to build Inference Engine Python API from sources or reinstall OpenVINO using pip install openvino{} {}".format(
+                print("[ WARNING ] Please consider to build Inference Engine Python API from sources or reinstall \"OpenVINO (TM) Toolkit\" using pip install openvino{} {}".format(
                     "", "(may be incompatible with current Model Optimizer version)" if is_custom_mo_version else "=={}.{}".format(*extracted_release_version), ""))
 
         return True

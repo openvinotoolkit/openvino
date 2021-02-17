@@ -152,10 +152,9 @@ def prepare_ir(argv: argparse.Namespace):
     # IE dependency search doesn't break MO pipeline
     try:
         if not find_ie_version(silent=argv.silent) and not argv.silent:
-            print("[ WARNING ] No Inference Engine python was found. \ "
-                  "At this moment Inference Engine dependency is not mandatory but in future it will be required.")
-            print("[ WARNING ] Please consider to build Inference Engine Python API from sources or try to install OpenVINO using install_prerequisites.{}".format(
-                "bat" if sys.platform == "windows" else "sh"))
+            print("[ WARNING ] No Inference Engine python was found. At this moment Inference Engine dependency is not mandatory but in future it will be required.")
+            print("[ WARNING ] Please consider to build Inference Engine Python API from sources or try to install \"OpenVINO (TM) Toolkit\" using install_prerequisites.{}".format(
+                    "bat" if sys.platform == "windows" else "sh"))
             # in case if IE wasn't found it won't print MO version so we have to print it manually
             print("{}: \t{}".format("Model Optimizer version", get_version()))
     except Exception as e:
