@@ -23,6 +23,8 @@ Parameter GNAPlugin::GetConfig(const std::string& name, const std::map<std::stri
 Parameter GNAPlugin::GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter> & options) const {
     const std::unordered_map<std::string, std::function<Parameter()>> queryApiSupported = {
         {METRIC_KEY(AVAILABLE_DEVICES), [this]() {return GetAvailableDevices();}},
+        // TODO: provide more detailed device architecture like GNA1, GNA2 or GNA3
+        {METRIC_KEY(DEVICE_ARCHITECTURE), [this]() {return std::string{"GNA"};}},
         {METRIC_KEY(SUPPORTED_CONFIG_KEYS), [this]() {return config.GetSupportedKeys();}},
         {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS), [this]() {
             uint32_t nireq = 1;

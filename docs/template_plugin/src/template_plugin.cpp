@@ -240,6 +240,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
             METRIC_KEY(SUPPORTED_CONFIG_KEYS),
             METRIC_KEY(FULL_DEVICE_NAME),
             METRIC_KEY(OPTIMIZATION_CAPABILITIES),
+            METRIC_KEY(DEVICE_ARCHITECTURE),
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, supportedMetrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
@@ -265,6 +266,10 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
         std::vector<std::string> capabilities = { METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/ };
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
+    } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
+        // TODO: fill actual device architecture based on DEVICE_ID passed to `options`
+        std::string deviceArch = "TEMPLATE";
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, deviceArch);
     } else if (METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) == name) {
         // TODO: fill with actual values
         using uint = unsigned int;

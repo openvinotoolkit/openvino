@@ -164,6 +164,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{
             METRIC_KEY(SUPPORTED_METRICS),
             METRIC_KEY(FULL_DEVICE_NAME),
+            METRIC_KEY(DEVICE_ARCHITECTURE),
             METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{
@@ -171,6 +172,9 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
             "TARGET_FALLBACK",
             CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
             CONFIG_KEY_INTERNAL(AGGREGATED_PLUGIN)});
+    } else if (METRIC_KEY(DEVICE_ARCHITECTURE) == name) {
+        // TODO: fill based on actual HETERO devices architectures
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, std::string { "HETERO" });
     } else if (METRIC_KEY(FULL_DEVICE_NAME) == name) {
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, std::string{"HETERO"});
     } else {

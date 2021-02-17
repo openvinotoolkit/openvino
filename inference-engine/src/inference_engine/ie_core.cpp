@@ -219,18 +219,13 @@ class Core::Impl : public ICore {
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
 
     ExecutableNetwork LoadNetworkImpl(const CNNNetwork& network, const std::string& deviceName,
-                                      std::map<std::string, std::string> config,
+                                      std::map<std::string, std::string> _config,
                                       const RemoteContext::Ptr & context) {
         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::LoadNetwork");
 
-        // check whether the network is already compiled and cached
-        auto compileConfig = config;
-        compileConfig["DEVICE_NAME"] = deviceName;
-
-        // save inference engine version instead of plugin GUID
-        // it does not work only for cases when we locally build the same version
-        // multiple times, but change the code frequently
-        compileConfig["INFERENCE_ENGINE_VERSION"] = GetInferenceEngineVersion()->buildNumber;
+        auto parsed = parseDeviceNameIntoConfig<std::string>(deviceName);
+        auto config = parsed._config;
+        std::string deviceFamily = parsed._deviceName; // MULTI:CPU -> MULTI, GPU.0 -> GPU, CPU -> CPU and so on
 
         auto deviceSupportsImport = [&] (ICore * core) -> bool {
             OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::Impl::device_supports_import");
@@ -261,12 +256,6 @@ class Core::Impl : public ICore {
             return supports;
         };
 
-        std::string deviceFamily; // MULTI:CPU -> MULTI, GPU.0 -> GPU, CPU -> CPU and so on
-        {
-            auto parsed = parseDeviceNameIntoConfig<std::string>(deviceName);
-            deviceFamily = parsed._deviceName;
-        }
-
         // Note:
         //   core.SetConfig({ { DECLARE_CONFIG_KEY(CACHE_DIR), "" } }, "MULTI");
         // will cache models only for MULTI itself, but not for MULTI devices
@@ -293,6 +282,35 @@ class Core::Impl : public ICore {
             // Note: the following information from remote context is taken into account:
             // * device name (part of compileConfig under DEVICE_NAME key)
 
+            auto compileConfig = config;
+            std::map<std::string, Parameter> getMetricConfig;
+
+            // TODO: move this information to compiled blob header
+            // save inference engine version instead of plugin GUID
+            // it does not work only for cases when we locally build the same version
+            // multiple times, but change the code frequently
+            compileConfig["INFERENCE_ENGINE_VERSION"] = GetInferenceEngineVersion()->buildNumber;
+
+            // 0. remove DEVICE_ID key
+            auto deviceIt = compileConfig.find(CONFIG_KEY(DEVICE_ID));
+            if (deviceIt != compileConfig.end()) {
+                getMetricConfig[deviceIt->first] = deviceIt->second;
+                compileConfig.erase(deviceIt);
+            }
+
+            // 1. replace it with DEVICE_ARCHITECTURE value
+            std::vector<std::string> supportedMetricKeys =
+                GetCPPPluginByName(deviceFamily).GetMetric(METRIC_KEY(SUPPORTED_METRICS), getMetricConfig);
+            auto archIt = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
+                METRIC_KEY(DEVICE_ARCHITECTURE));
+            if (archIt != supportedMetricKeys.end()) {
+                auto value = GetCPPPluginByName(deviceFamily).GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), getMetricConfig);
+                compileConfig[METRIC_KEY(DEVICE_ARCHITECTURE)] = value.as<std::string>();
+            } else {
+                // WA: take device name at least
+                compileConfig[METRIC_KEY(DEVICE_ARCHITECTURE)] = deviceFamily;
+            }
+
             NetworkCompilationContext context(network, compileConfig);
             cachingIsAvailable = context.isCachingAvailable();
 
@@ -303,31 +321,12 @@ class Core::Impl : public ICore {
 
         std::cout << (cachingIsAvailable ?
             std::string("caching is available") :
-            std::string("caching is not available")) << " for " << deviceName << std::endl;
+            std::string("caching is not available")) << " for " << deviceFamily << std::endl;
 
-        auto removeCacheEntry = [&deviceName] (const std::string & blobFileNameToRemove) {
-            std::cout << "Removed cache entry " << blobFileNameToRemove << " " << deviceName << std::endl;
+        auto removeCacheEntry = [&deviceFamily] (const std::string & blobFileNameToRemove) {
+            std::cout << "Removed cache entry " << blobFileNameToRemove << " " << deviceFamily << std::endl;
             if (FileUtils::fileExist(blobFileNameToRemove))
                 std::remove(blobFileNameToRemove.c_str());
-        };
-
-        auto getImportConfig = [] (const std::map<std::string, std::string> & loadConfig) {
-            // For import config all options are passed as is
-            // Plugin should either:
-            // 1. ignore not compatible options (e.g. binary is compiled with 1 option, while provided different value)
-            // 2. throw exceptions if values for some options are different
-            std::map<std::string, std::string> importConfig;
-            auto copyConfigValue = [&] (const std::string & configKey) {
-                auto it = loadConfig.find(configKey);
-                if (it != loadConfig.end()) {
-                    importConfig[configKey] = it->second;
-                }
-            };
-
-            copyConfigValue(CONFIG_KEY(DEVICE_ID));
-
-            // TODO: return loadConfig as is
-            return importConfig;
         };
 
         ExecutableNetwork execNetwork;
@@ -336,25 +335,24 @@ class Core::Impl : public ICore {
         blobFileName = FileUtils::makePath(modelCacheDir, blobFileName);
 
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
-            auto importConfig = parseDeviceNameIntoConfig<std::string>(deviceName, getImportConfig(config));
             try {
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::ImportNetwork");
-                std::cout << "try to import from core to " << deviceName << "\n\n" << std::endl;
+                std::cout << "try to import from core to " << deviceFamily << "\n\n" << std::endl;
                 std::ifstream networkStream(blobFileName);
                 execNetwork = context ?
-                    ImportNetwork(networkStream, context, importConfig._config) :
-                    ImportNetwork(networkStream, importConfig._deviceName, importConfig._config);
+                    ImportNetwork(networkStream, context, config) :
+                    ImportNetwork(networkStream, deviceFamily, config);
                 networkIsImported = true;
-                std::cout << "Network is imported to " << deviceName << std::endl;
+                std::cout << "Network is imported to " << deviceFamily << std::endl;
             } catch (const NotImplemented &) {
                 // 1. Device does not support ImportNetwork / Export flow
-                std::cout << "[BUG] Import is not implemented O_o " << importConfig._deviceName << std::endl;
+                std::cout << "[BUG] Import is not implemented O_o " << deviceFamily << std::endl;
                 removeCacheEntry(blobFileName);
             } catch (const NetworkNotRead &) {
                 // 2. Device supports this flow, but failed to import network for some reason
                 //    (e.g. device arch is not compatible with device arch network compiled for
                 //     e.g. compiled for MYX, but current device is M2 stick)
-                std::cout << "NetworkNotRead: try to export one more time (remove blob!!) " << importConfig._deviceName << std::endl;
+                std::cout << "NetworkNotRead: try to export one more time (remove blob!!) " << deviceFamily << std::endl;
                 removeCacheEntry(blobFileName);
             } catch (const std::exception & ex) {
                 std::string message = ex.what();
@@ -364,20 +362,19 @@ class Core::Impl : public ICore {
                     std::cout << "Apple RTTI: " << ex.what() << std::endl;
                     removeCacheEntry(blobFileName);
                 } else { // some issues because of import failed
-                    std::cout << "[BUG] Import failed for " << importConfig._deviceName << std::endl;
+                    std::cout << "[BUG] Import failed for " << deviceFamily << std::endl;
                     removeCacheEntry(blobFileName);
                 }
             }
         }
 
         if (!networkIsImported) {
-            auto parsed = parseDeviceNameIntoConfig(deviceName, config);
             {
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::LoadNetwork");
                 // to limit plugin scope
-                auto plugin = GetCPPPluginByName(parsed._deviceName);
-                execNetwork = context ? plugin.LoadNetwork(network, parsed._config) :
-                                        plugin.LoadNetwork(network, context, parsed._config);
+                auto plugin = GetCPPPluginByName(deviceFamily);
+                execNetwork = context ? plugin.LoadNetwork(network, config) :
+                                        plugin.LoadNetwork(network, context, config);
             }
 
             if (cachingIsAvailable) {
@@ -386,14 +383,14 @@ class Core::Impl : public ICore {
                     {
                         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
                         execNetwork.Export(blobFileName);
-                        std::cout << "Network is exported for " << parsed._deviceName
+                        std::cout << "Network is exported for " << deviceFamily
                             << " as " << blobFileName << std::endl;
                     }
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
                     removeCacheEntry(blobFileName);
 
-                    std::cout << "Export is not implemented " << parsed._deviceName << std::endl;
+                    std::cout << "Export is not implemented " << deviceFamily << std::endl;
                 } catch (const std::exception & ex) {
                     std::string message = ex.what();
                     bool appleRTTI = message.find("NOT IMPLMENENTED") != std::string::npos;

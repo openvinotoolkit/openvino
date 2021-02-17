@@ -61,24 +61,24 @@ void ParsedConfigBase::update(
 }
 
 const std::unordered_set<std::string>& ParsedConfigBase::getCompileOptions() const {
-IE_SUPPRESS_DEPRECATED_START
+    IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = {
         CONFIG_KEY(LOG_LEVEL),
         VPU_CONFIG_KEY(LOG_LEVEL)
     };
-IE_SUPPRESS_DEPRECATED_END
+    IE_SUPPRESS_DEPRECATED_END
 
     return options;
 }
 
 const std::unordered_set<std::string>& ParsedConfigBase::getRunTimeOptions() const {
-IE_SUPPRESS_DEPRECATED_START
+    IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = {
         CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
         CONFIG_KEY(LOG_LEVEL),
         VPU_CONFIG_KEY(LOG_LEVEL)
     };
-IE_SUPPRESS_DEPRECATED_END
+    IE_SUPPRESS_DEPRECATED_END
 
     return options;
 }
@@ -106,9 +106,9 @@ void ParsedConfigBase::parse(const std::map<std::string, std::string>& config) {
     setOption(_logLevel, logLevels, config, CONFIG_KEY(LOG_LEVEL));
     setOption(_exclusiveAsyncRequests, switches, config, CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
 
-IE_SUPPRESS_DEPRECATED_START
+    IE_SUPPRESS_DEPRECATED_START
     setOption(_logLevel, logLevels, config, VPU_CONFIG_KEY(LOG_LEVEL));
-IE_SUPPRESS_DEPRECATED_END
+    IE_SUPPRESS_DEPRECATED_END
 
 #ifndef NDEBUG
     if (const auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {

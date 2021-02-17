@@ -111,7 +111,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
 
     _pluginName = "MYRIAD";
 
-IE_SUPPRESS_DEPRECATED_START
+    IE_SUPPRESS_DEPRECATED_START
     _config = {
         { MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
         { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO) },
@@ -132,7 +132,7 @@ IE_SUPPRESS_DEPRECATED_START
         { KEY_CONFIG_FILE, "" },
         { KEY_DEVICE_ID, "" },
     };
-IE_SUPPRESS_DEPRECATED_END
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
@@ -141,7 +141,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
     VPU_PROFILE(ImportNetwork);
 
     auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    parsedConfigCopy.update(config, ConfigMode::Any);
 
     const auto executableNetwork =
             std::make_shared<ExecutableNetwork>(
@@ -205,8 +205,8 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         const auto& optimizationCapabilities = _metrics->OptimizationCapabilities();
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{optimizationCapabilities.cbegin(), optimizationCapabilities.cend()});
-    } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
-        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics->RangeForAsyncInferRequests(_config));
+    } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
+        IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics->DeviceArchitecture());
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {
         const auto& device = getDeviceByName(getSpecifiedDeviceName());
         if (device != nullptr) {

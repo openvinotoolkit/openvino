@@ -26,6 +26,7 @@ MyriadMetrics::MyriadMetrics() {
         METRIC_KEY(OPTIMIZATION_CAPABILITIES),
         METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
         METRIC_KEY(DEVICE_THERMAL),
+        METRIC_KEY(DEVICE_ARCHITECTURE),
     };
 
 IE_SUPPRESS_DEPRECATED_START
@@ -112,6 +113,10 @@ const std::unordered_set<std::string>& MyriadMetrics::SupportedConfigKeys() cons
 
 const std::unordered_set<std::string>& MyriadMetrics::OptimizationCapabilities() const {
     return _optimizationCapabilities;
+}
+
+std::string MyriadMetrics::DeviceArchitecture() const {
+    return "MYRIAD";
 }
 
 RangeType MyriadMetrics::RangeForAsyncInferRequests(
