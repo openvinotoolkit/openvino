@@ -83,22 +83,6 @@ class DummyWith():  # for conditional with statements
         return False
 
 
-class Profiler():
-    def __enter__(self):
-        try:
-            import cProfile as profile
-        except:
-            import profile
-        self.profiler = profile.Profile()
-        self.profiler.enable()
-        return self
-
-    def __exit__(self, type, value, traceback):
-        self.profiler.disable()
-        self.profiler.print_stats('time')
-        return False
-
-
 def get_extensions(name, multiple=False):
     big_name = (name + 's').upper()
     this_module = sys.modules[__name__]
@@ -128,10 +112,6 @@ def get_exporters():
     return get_extensions('exporter')
 
 
-def get_collectors():
-    return get_extensions('collector')
-
-
 verbose_choices = ['fatal', 'error', 'warning', 'info']
 
 
@@ -145,7 +125,6 @@ def parse_args(args):
         format_choices.append("xcode")
     elif sys.platform == 'linux':
         format_choices.append("kernelshark")
-    parser.add_argument("-f", "--format", choices=format_choices, nargs='*', default=[], help='One or many output formats.')
     parser.add_argument("-o", "--output", help='Output folder pattern -<pid> will be added to it')
     parser.add_argument("-b", "--bindir", help='If you run script not from its location')
     parser.add_argument("-i", "--input", help='Provide input folder for transformation (<the one you passed to -o>-<pid>)')
@@ -155,9 +134,7 @@ def parse_args(args):
     parser.add_argument("-c", "--cuts", nargs='*', help='Set "all" to merge all cuts in one trace')
     parser.add_argument("-r", "--ring", type=int, const='5', default=None, action='store', nargs='?', help='Makes trace to cycle inside ring buffer of given length in seconds')
     parser.add_argument("--target", help='Pid of target')
-    parser.add_argument("--stacks", action="store_true", help='Collect stacks')
-    parser.add_argument("--profile", action="store_true", help='Internal: profile runtool execution')
-    parser.add_argument("--collector", choices=list(get_collectors().keys()) + ['default'])
+    parser.add_argument("-s", "--app_status", action="store_true", help='Script returns the application status')
 
     separators = ['!', '?', '%']
     separator = None
@@ -174,14 +151,6 @@ def parse_args(args):
             sys.exit(-1)
         victim = args[separator + 1:]
         victim[-1] = victim[-1].strip()  # removal of trailing '\r' - when launched from .sh
-        if not parsed_args.output:
-            if sys.platform != 'win32':
-                parsed_args.output = '/tmp/isea_collection'
-                print('Collection will be written into:' , parsed_args.output)
-            else:
-                parser.print_help()
-                print("Error: No output (-o) given in launch mode")
-                sys.exit(-1)
         handle_args(parsed_args)
         return parsed_args, victim
     else:  # nothing to launch, transformation mode
@@ -189,20 +158,6 @@ def parse_args(args):
             args[-1] = args[-1].strip()  # removal of trailing '\r' - when launched from .sh
         parsed_args = parser.parse_args(args)
         handle_args(parsed_args)
-        if not parsed_args.input:
-            if sys.platform != 'win32':
-                parsed_args.input = '/tmp/isea_collection'
-                if os.path.exists(parsed_args.input):
-                    print('Collection will be read from:', parsed_args.input)
-                else:
-                    parser.print_help()
-                    sys.exit(-1)
-            else:
-                print("--input argument is required for transformation mode.")
-                parser.print_help()
-                sys.exit(-1)
-        if not parsed_args.format:
-            parsed_args.format = ['gt']
         setattr(parsed_args, 'user_input', parsed_args.input)
         if not parsed_args.output:
             parsed_args.output = parsed_args.input
@@ -239,7 +194,8 @@ def verbose_level(level=None, statics={}):
 
 
 def message(level, txt, statics={}):
-    assert isinstance(statics, dict)
+    if not isinstance(statics, dict):
+        return False
     if level and verbose_level(level) > verbose_level():  # see default in "parse_args"
         return False
 
@@ -265,14 +221,13 @@ def main():
     (args, victim) = parse_args(sys.argv[1:])  # skipping the script name
     reset_global('arguments', args)
 
-    if victim:
+    if args.output:
         ensure_dir(args.output, clean=True)
-        launch(args, victim)
-    else:
-        ext = os.path.splitext(args.input)[1] if not os.path.isdir(args.input) else None
-        transform_all(args)
+    ret_code = launch(args, victim)
     Collector.log('Started with arguments: %s' % str(sys.argv))
-    save_domains()
+    if ret_code != 0 and not args.app_status:
+        ret_code = 0
+    return ret_code
 
 
 def os_lib_ext():
@@ -282,32 +237,11 @@ def os_lib_ext():
         return '.dylib'
     elif 'linux' in sys.platform:
         return '.so'
-    assert (not "Unsupported platform")
-
-
-def get_pids(victim, tracer):
-    assert len(victim) == 1  # one wildcard is supported yet
-    assert sys.platform != 'win32'  # no Windows support yet
-    out, err = tracer.execute('ps -o pid,ppid,command -ax', log=False)
-    if err:
-        tracer.log(err)
-        return []
-
-    parsed = {}
-    for line in out.split('\n'):
-        if not line:
-            continue
-        parts = line.split()
-        if len(parts) < 3:
-            continue
-        cmd = ' '.join(parts[2:])
-        if fnmatch.fnmatch(cmd.lower(), victim[0].lower()) and __file__ not in cmd:  # get matching cmd
-            parsed[parts[0]] = cmd
-            print("Matching cmd:\t", parts[0], cmd)
-    return set(parsed.keys())
+    raise "Unsupported platform"
 
 
 def launch(args, victim):
+    ret_code = 0
     sea.prepare_environ(args)
     sea_itf = sea.ITT('tools')
 
@@ -340,8 +274,7 @@ def launch(args, victim):
             env["INTEL_JIT_PROFILER64"] = paths['64']
 
     env["INTEL_SEA_FEATURES"] = os.environ['INTEL_SEA_FEATURES'] if 'INTEL_SEA_FEATURES' in os.environ else ""
-    env["INTEL_SEA_FEATURES"] += (" " + str(args.format)) if args.format else ""
-    env["INTEL_SEA_FEATURES"] += " stacks" if args.stacks else ""
+    env["INTEL_SEA_FEATURES"] += (" stat")
 
     if args.verbose == 'info':
         env['INTEL_SEA_VERBOSE'] = '1'
@@ -365,26 +298,11 @@ def launch(args, victim):
     environ = global_storage('sea_env')
     for key, val in env.items():
         if key in environ and val != environ[key]:
-            assert key in ['LD_PRELOAD', 'DYLD_INSERT_LIBRARIES']
+            if key not in ['LD_PRELOAD', 'DYLD_INSERT_LIBRARIES']:
+                raise key + ' wasn\'t found!'
             environ[key] += ':' + val
         else:
             environ[key] = val
-
-    if 'kernelshark' in args.format:
-        victim = 'trace-cmd record -e IntelSEAPI/* ' + victim
-
-    tracer = None
-
-    if args.collector:
-        tracer = get_collectors()[args.collector]
-    elif not tracer:  # using default collector per system
-        if 'linux' in sys.platform:
-            tracer = get_collectors()['ftrace']
-        elif 'win32' == sys.platform:
-            tracer = get_collectors()['etw']
-        elif 'darwin' in sys.platform:
-            tracer = get_collectors()['dtrace']
-    run_suspended = False
 
     if args.dir:
         full_victim = os.path.join(args.dir, victim[0])
@@ -393,27 +311,14 @@ def launch(args, victim):
 
     setattr(args, 'victim', victim[0])
 
-    tracer = tracer(args) if tracer else None  # turning class into instance
     if '!' in sys.argv[1:]:
-        assert tracer
+        proc = subprocess.Popen(victim, env=environ, shell=False, cwd=args.dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        if hasattr(tracer, 'launch_victim'):
-            victim[0] = victim[0].replace(' ', r'\ ')
-            proc = tracer.launch_victim(victim, env=environ)
-        else:
-            if run_suspended:  # might consider using preload of SEA lib and do the suspend there. Or allow tracers to run it.
-                suspended = '(cd "%s"; kill -STOP $$; exec %s )' % (args.dir or '.', ' '.join(victim))
-                proc = subprocess.Popen(suspended, env=environ, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            else:
-                proc = subprocess.Popen(victim, env=environ, shell=False, cwd=args.dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            if sys.platform != 'win32' and not run_suspended:  # FIXME: implement suspended start on Windows!
-                if not args.ring:
-                    proc.send_signal(signal.SIGSTOP)
+        if sys.platform != 'win32':  # FIXME: implement suspended start on Windows!
+            if not args.ring:
+                proc.send_signal(signal.SIGSTOP)
 
         args.target = proc.pid
-
-        tracer.start()
 
         if sys.platform != 'win32':  # collector start may be long, so we freeze victim during this time
             print("PID:", proc.pid)
@@ -429,6 +334,7 @@ def launch(args, victim):
         except KeyboardInterrupt:
             print("Stopping all...")
             proc.send_signal(signal.SIGABRT)
+            ret_code = -1
         out, err = proc.communicate()
         if out or err:
             print("\n\n -= Target output =- {\n")
@@ -436,42 +342,16 @@ def launch(args, victim):
             print("\n", "-" * 50, "\n")
             print(err.decode().strip())
             print("\n}\n\n")
-    elif '?' in sys.argv[1:]:
-        print("Attach to:", victim)
-        pids = get_pids(victim, tracer)
-        if not pids:
-            print("Error: nothing found...")
-            return
-        if tracer:
-            args.target = list(pids)
-            tracer.start()
-
-        print("Waiting for CTRL+C...")
-        global_storage('collection')['time']['before'] = time.time()
-
-        def is_running(pid):
-            try:
-                os.kill(int(pid), 0)
-                return True
-            except OSError:
-                return False
-
-        try:
-            while any(is_running(pid) for pid in pids):
-                time.sleep(0.5)
-        except KeyboardInterrupt:
-            pass
+        ret_code = proc.returncode
     else:
         message('error', 'unsupported separator')
         return -1
 
     global_storage('collection')['time']['after'] = time.time()
     print("Stopping collectors...")
-    if tracer:
-        args.trace = tracer.stop()
 
     if not args.output:
-        return []
+        return ret_code
 
     args.input = args.output
 
@@ -486,8 +366,9 @@ def launch(args, victim):
             allowed_pids = [args.target]
         global_storage('collection').setdefault('targets', allowed_pids)
 
-    if args.format:
-        transform_all(args)
+    transform_all(args)
+
+    return ret_code
 
 
 def subst_env_vars(path):
@@ -500,7 +381,6 @@ PermanentCache = os.path.join(UserProfile, '.isea_cache.dict')
 
 def ensure_dir(path, clean, statics={}):
     if path in statics:
-        assert(statics[path] or not clean)
         return
     statics[path] = clean
     if os.path.exists(path):
@@ -837,7 +717,6 @@ class TaskCombinerCommon:
                     else:
                         message('warning', 'Negative length task: %s => %s' % (str(item), str(data)))
             else:
-                assert (self.tree["ring_buffer"] or self.tree['cuts'])
                 if 'str' in data:  # nothing to show without name
                     self.no_begin.append(data)
         elif fn == "frame_begin":
@@ -848,8 +727,6 @@ class TaskCombinerCommon:
             if index is not None:
                 item = frames.pop(index)
                 self.complete_task("frame", item, data)
-            else:
-                assert (self.tree["ring_buffer"] or self.tree['cuts'])
         elif fn == "metadata_add":
             if 'id' in data:
                 task = get_task(data['id'])
@@ -896,7 +773,7 @@ class TaskCombinerCommon:
                 get_task(data['parent']) or find_task(data['parent'])
             )
         else:
-            assert (not "Unsupported type:" + fn)
+            raise "Unsupported type:" + fn
 
     def compress_counter(self, cache, data):
         values = cache['values']
@@ -962,8 +839,7 @@ class Callbacks(TaskCombinerCommon):
             self.tid_map.update(tid_map)
             self.allowed_pids |= set(tid_map.values())
 
-        for fmt in args.format:
-            self.callbacks.append(get_exporters()[fmt](args, tree))
+        self.callbacks.append(get_exporters()['stat'](args, tree))
 
         if args.target:
             if isinstance(args.target, list):
@@ -1033,10 +909,7 @@ class Callbacks(TaskCombinerCommon):
             if not type:
                 return False
 
-        if not is_domain_enabled(data['domain']):
-            return False
-
-        if data.get('internal_name', None) and not is_domain_enabled('%s.%s' % (data['domain'], data['internal_name'])):
+        if data.get('internal_name', None):
             return False
 
         self.__call__(type, data)
@@ -1049,9 +922,6 @@ class Callbacks(TaskCombinerCommon):
                 return False
         if self.handle_special(type, begin, end):  # returns True if event is consumed and doesn't require processing
             return True
-
-        if not is_domain_enabled(begin['domain']):
-            return False
 
         if end:
             # copy here as handler can change the data for own good - this shall not affect other handlers
@@ -1278,7 +1148,8 @@ class Callbacks(TaskCombinerCommon):
                     return args
 
                 def end(self, time_stamp):
-                    assert self.data  # expected to be initialized in self.begin call
+                    if not self.data:
+                        return
                     if time_stamp:
                         end_data = self.data.copy()
                         end_data.update({'time': time_stamp, 'type': self.event_type + 1})
@@ -1674,7 +1545,8 @@ class FileWrapper:
             return None
         call["time"] = tuple[0]
 
-        assert (tuple[1] < len(TaskTypes))  # sanity check
+        if tuple[1] >= len(TaskTypes):
+            return None
         call["type"] = tuple[1]
 
         flags = tuple[2]
@@ -1843,14 +1715,14 @@ def resolve_cmd(args, path, load_addr, ptr, cache={}):
     elif 'linux' in sys.platform:
         cmd = 'addr2line %s -e "%s" -i -p -f -C' % (to_hex(ptr), path)
     else:
-        assert (not "Unsupported platform!")
+        raise "Unsupported platform!"
 
     env = dict(os.environ)
     if "INTEL_SEA_VERBOSE" in env:
         del env["INTEL_SEA_VERBOSE"]
 
     try:
-        proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+        proc = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
         (symbol, err) = proc.communicate()
     except IOError:
         err = traceback.format_exc()
@@ -2044,45 +1916,6 @@ def get_name(begin):
         return "<unknown>"
 
 
-def get_filter_path():
-    filter = os.environ.get('INTEL_SEA_FILTER')
-    if filter:
-        filter = subst_env_vars(filter)
-    else:
-        filter = os.path.join(UserProfile, '.isea_domains.fltr')
-    return filter
-
-
-def is_domain_enabled(domain, default=True):
-    domains = global_storage('sea.is_domain_enabled', {})
-    if not domains:
-        filter = get_filter_path()
-        try:
-            with open(filter) as file:
-                for line in file:
-                    enabled = not line.startswith('#')
-                    name = line.strip(' #\n\r')
-                    domains[name] = enabled
-                    if not enabled:
-                        message('warning', 'The domain "%s" is disabled in %s' % (name, filter))
-        except IOError:
-            pass
-    if domain not in domains:
-        domains[domain] = default
-    return domains[domain]
-
-
-def save_domains():
-    domains = global_storage('sea.is_domain_enabled', {})
-
-    filter = get_filter_path()
-    print("Saving domains:", filter)
-
-    with open(filter, 'w') as file:
-        for key, value in domains.items():
-            file.write('%s%s\n' % ('#' if not value else '', key))
-
-
 class GraphCombiner(TaskCombiner):
     def __init__(self, args, tree):
         TaskCombiner.__init__(self, args, tree)
@@ -2240,7 +2073,8 @@ class Collector:
 
     @classmethod
     def log(cls, msg, stack=False):
-        assert type(stack) is bool  # to avoid "log" function being misused as "print" where comma allows more args
+        if not type(stack) is bool:
+            stack = False
         msg = msg.strip()
         cut = '\n' + '-' * 100 + '\n'
         msg = cut + msg + '\n\n' + (''.join(traceback.format_stack()[:-1]) if stack else '') + cut
@@ -2260,7 +2094,7 @@ class Collector:
         if sys.version[0] == '3':
             kwargs['encoding'] = 'utf8'
 
-        (out, err) = subprocess.Popen(cmd, shell=True, **kwargs).communicate()
+        (out, err) = subprocess.Popen(cmd, shell=False, **kwargs).communicate()
         if log:
             cls.log("\ncmd:\t%s:\nout:\t%s\nerr:\t%s\ntime: %s" % (cmd, str(out).strip(), str(err).strip(), str(timedelta(seconds=(time.time() - start_time)))), stack=True if err else False)
         if verbose_level() == verbose_level('info'):
@@ -2281,9 +2115,9 @@ class Collector:
             info = subprocess.STARTUPINFO()
             info.dwFlags = subprocess.STARTF_USESHOWWINDOW
             info.wShowWindow = 0  # SW_HIDE
-            subprocess.Popen(cmd, shell=True, startupinfo=info, stdin=None, stdout=None, stderr=None, creationflags=(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP), **kwargs)
+            subprocess.Popen(cmd, shell=False, startupinfo=info, stdin=None, stdout=None, stderr=None, creationflags=(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP), **kwargs)
         else:
-            subprocess.Popen(cmd, shell=True, stdin=None, stdout=None, stderr=None, **kwargs)
+            subprocess.Popen(cmd, shell=False, stdin=None, stdout=None, stderr=None, **kwargs)
 
     def start(self):
         raise NotImplementedError('Collector.start is not implemented!')
@@ -2308,6 +2142,7 @@ class Collector:
 
 if __name__ == "__main__":
     start_time = time.time()
-    main()
+    ret_code = main()
     elapsed = time.time() - start_time
     print("Time Elapsed:", str(timedelta(seconds=elapsed)).split('.')[0])
+    exit(ret_code)

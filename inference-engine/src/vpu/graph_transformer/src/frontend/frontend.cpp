@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,6 @@
 #include <string>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
-#include <generic_ie.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -46,6 +45,8 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
+#include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
 
 namespace vpu {
 
@@ -144,7 +145,9 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"HSwish",                                             LAYER_PARSER(parseHSwish)},
         {"Ceiling",                                            LAYER_PARSER(parseCeiling)},
         {"GatherElements",                                     LAYER_PARSER(parseGatherElements)},
+        {"ExpGatherElements",                                  LAYER_PARSER(parseGatherElements)},
         {"Round",                                              LAYER_PARSER(parseRound)},
+        {"CTCGreedyDecoderSeqLen",                             LAYER_PARSER(parseCTCGreedyDecoderSeqLen)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -161,8 +164,6 @@ ModelPtr FrontEnd::buildInitialModel(const ie::CNNNetwork& network) {
 
 ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     auto nGraphFunc = network.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
@@ -171,6 +172,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
     manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+    manager.register_pass<vpu::MergeGatherGatherElements>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
     manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t>{
@@ -193,6 +195,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
     pass_config->disable<ngraph::pass::ConvertMinimum>();
     pass_config->disable<ngraph::pass::HSwishDecomposition>();
+    pass_config->disable<ngraph::pass::MVN6Decomposition>();
 
     auto transformationPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         return !!std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
@@ -376,6 +379,42 @@ void FrontEnd::parseLayer(const Model& model, const ie::CNNLayerPtr& layer, cons
     }
 }
 
+void FrontEnd::processTrivialCases(const Model& model) {
+    std::unordered_map<ie::DataPtr, std::pair<Data, Data>> ieDataToTrivialCase;
+    for (const auto& data : model->datas()) {
+        const auto& origData = data->origData();
+        if (origData == nullptr) {
+            continue;
+        }
+
+        auto& trivialCase = ieDataToTrivialCase[origData];
+        auto& destination = data->usage() == DataUsage::Output ? trivialCase.second : trivialCase.first;
+        VPU_THROW_UNLESS(ieDataToTrivialCase.count(origData) == 0 || destination == nullptr,
+            "Encountered IE data object {} which has two vpu data objects {} and {} of the same type {} associated with it, while only one is permitted",
+            origData->getName(), destination->name(), data->name(), destination->usage());
+        destination = data;
+    }
+
+    for (const auto& trivialCase : ieDataToTrivialCase) {
+        const auto& trivialCasePair = trivialCase.second;
+
+        const auto& unconnectedInput = trivialCasePair.first;
+        const auto& unconnectedOutput = trivialCasePair.second;
+
+        if (!unconnectedInput || !unconnectedOutput) {
+            continue;
+        }
+
+        _stageBuilder->addCopyStage(
+            model,
+            unconnectedInput->name() + "@copy",
+            nullptr,
+            {unconnectedInput},
+            {unconnectedOutput},
+            "processTrivialCase");
+    }
+}
+
 void FrontEnd::defaultOnUnsupportedLayerCallback(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs,
                                                  const std::string& extraMessage) {
     const auto& env = CompileEnv::get();
@@ -472,6 +511,12 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
         VPU_LOGGER_SECTION(env.log);
 
         parseInputAndOutputData(model);
+
+        //
+        // Process trivial cases like `input->output`, `const->output`
+        //
+
+        processTrivialCases(model);
 
         if (!CompileEnv::get().config.disableConvertStages) {
             addDataTypeConvertStages(model);

@@ -16,3 +16,6 @@
 
 add_subdirectory(ittapi)
 add_subdirectory(itt_collector)
+add_subdirectory(xbyak)
+
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS xbyak)

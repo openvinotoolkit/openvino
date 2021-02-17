@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,9 +54,15 @@ void ConvolutionLayerTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    std::vector<float> filter_weights;
+    if (targetDevice == CommonTestUtils::DEVICE_GNA) {
+        auto filter_size = std::accumulate(std::begin(kernel), std::end(kernel), 1, std::multiplies<size_t>());
+        filter_weights = CommonTestUtils::generate_float_numbers(convOutChannels * inputShape[1] * filter_size,
+                                                                 -0.5f, 0.5f);
+    }
     auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(
             ngraph::builder::makeConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
-                                             padEnd, dilation, padType, convOutChannels));
+                                             padEnd, dilation, padType, convOutChannels, false, filter_weights));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(conv)};
     function = std::make_shared<ngraph::Function>(results, params, "convolution");
 }

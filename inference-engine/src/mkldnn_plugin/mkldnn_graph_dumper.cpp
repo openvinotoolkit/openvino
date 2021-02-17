@@ -8,8 +8,8 @@
 #include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "mkldnn_debug.h"
-#include "generic_ie.hpp"
 #include <ngraph/variant.hpp>
+#include "ngraph/ngraph.hpp"
 
 #include <vector>
 #include <string>
@@ -136,7 +136,6 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
         holder->add_control_dependency(node);
     }
 
-    ngraph::op::GenericIE::DisableReshape reshape(nodes);
     auto function = std::make_shared<ngraph::Function>(results, params, graph._name);
     InferenceEngine::CNNNetwork net(function);
     return net;
