@@ -70,6 +70,7 @@ public:
      * NC - for 2-dimensional,
      * CHW - for 3-dimensional,
      * NCHW - for 4-dimensional
+     * NCDHW - for 5-dimensional
      * The default input layout might be changed preferred one using setLayout() function.
      * @return The precision used for input blob creation
      */
@@ -125,6 +126,7 @@ public:
 
     /**
      * @brief Returns the tensor descriptor
+     * @return A const reference to a tensor descriptor
      */
     const TensorDesc& getTensorDesc() const {
         if (!_inputData) {

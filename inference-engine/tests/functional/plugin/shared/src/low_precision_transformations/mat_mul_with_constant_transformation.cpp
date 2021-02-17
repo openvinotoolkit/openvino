@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@
 #include <transformations/init_node_info.hpp>
 #include "low_precision_transformations/mat_mul_transformation.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "ngraph_functions/low_precision_transformations/mat_mul_function.hpp"
+#include "lpt_ngraph_functions/mat_mul_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -27,6 +27,7 @@ std::string MatMulWithConstantTransformation::getTestCaseName(testing::TestParam
 
     std::ostringstream result;
     result <<
+        testValues.inputShape << "_" <<
         precision << "_" <<
         targetDevice << "_" <<
         testValues.fqOnData << "_" <<
@@ -69,6 +70,31 @@ void MatMulWithConstantTransformation::SetUp() {
         testValues.fqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    validate();
+}
+
+void MatMulWithConstantTransformation::validate() {
+    ngraph::element::Type precision;
+    std::string targetDevice;
+    MatMulWithConstantTransformationTestValues testValues;
+    std::tie(precision, targetDevice, testValues) = this->GetParam();
+
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    const auto output = transformed->get_output_op(0);
+    const auto scaleShift = output->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShift->get_type_name();
+    ASSERT_TRUE("ScaleShiftIE" == typeName || "Eltwise" == typeName);
+}
+
+void MatMulWithConstantTransformation::Run() {
+    LayerTestsCommon::Run();
+
+    const auto params = std::get<2>(GetParam());
+    const auto actualType = getRuntimePrecision(params.layerName);
+
+    EXPECT_EQ(actualType, params.expectedKernelType);
 }
 
 TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {

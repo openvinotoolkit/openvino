@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -211,7 +211,7 @@ TEST(opset, new_op)
     fred = shared_ptr<Node>(opset1_copy.create_insensitive("FReD"));
     EXPECT_TRUE(fred);
     // Fred should not be in the registry
-    ASSERT_FALSE(FactoryRegistry<Node>::get().has_factory<NewOp>());
+    ASSERT_FALSE(get_opset1().contains_type(NewOp::type_info));
 }
 
 TEST(opset, dump)

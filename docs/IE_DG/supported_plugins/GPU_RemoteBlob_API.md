@@ -102,15 +102,15 @@ Refer to the sections below to see pseudo-code of usage examples.
 
 This example uses the OpenCL context obtained from an executable network object.
 
-@snippet openvino/docs/snippets/GPU_RemoteBlob_API0.cpp part0
+@snippet snippets/GPU_RemoteBlob_API0.cpp part0
 
 ### Running GPU Plugin Inference within User-Supplied Shared Context
 
-@snippet openvino/docs/snippets/GPU_RemoteBlob_API1.cpp part1
+@snippet snippets/GPU_RemoteBlob_API1.cpp part1
 
 ### Direct Consuming of the NV12 VAAPI Video Decoder Surface on Linux
 
-@snippet openvino/docs/snippets/GPU_RemoteBlob_API2.cpp part2
+@snippet snippets/GPU_RemoteBlob_API2.cpp part2
 
 ## See Also
 

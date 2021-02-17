@@ -10,9 +10,9 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    // InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
 const std::vector<MultiplyWithOneParentTransformationValues> values = {
@@ -24,7 +24,7 @@ const std::vector<MultiplyWithOneParentTransformationValues> values = {
 INSTANTIATE_TEST_CASE_P(smoke_LPT, MultiplyWithOneParentTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(values)),
     MultiplyWithOneParentTransformation::getTestCaseName);

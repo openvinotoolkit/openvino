@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -128,7 +128,7 @@ namespace ngraph
                                         sample_y_high = sample_y_low + 1;
                                     }
 
-                                    if (sample_x_low >= feature_map_height - 1)
+                                    if (sample_x_low >= feature_map_width - 1)
                                     {
                                         sample_x_high = sample_x_low = feature_map_width - 1;
                                         sample_x = static_cast<T>(sample_x_low);

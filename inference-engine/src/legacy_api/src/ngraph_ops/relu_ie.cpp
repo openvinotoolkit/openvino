@@ -31,3 +31,8 @@ void op::ReLUIE::validate_and_infer_types() {
         m_output_type == element::undefined ? get_input_element_type(0) : m_output_type,
         get_input_partial_shape(0));
 }
+
+bool op::ReLUIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("negative_slope", m_negative_slope);
+    return true;
+}

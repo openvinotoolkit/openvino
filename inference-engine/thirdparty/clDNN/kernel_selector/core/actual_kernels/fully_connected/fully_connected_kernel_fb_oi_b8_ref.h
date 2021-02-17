@@ -24,6 +24,7 @@ public:
     FullyConnected_fb_oi_b8_ref() : FullyConnectedKernelBase("fully_connected_gpu_fb_oi_b8_fp32_ref") {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

@@ -1,62 +1,33 @@
 # Copyright (C) 2018-2020 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 project(InferenceEngine)
 
-set(CMAKE_MODULE_PATH "${IE_MAIN_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+if(CMAKE_SOURCE_DIR STREQUAL "${InferenceEngine_SOURCE_DIR}")
+    message(FATAL_ERROR "Cmake source directory must point to <openvino_root>")
+endif()
 
-include(features_ie)
-
-# include developer package
-include(developer_package_ie)
-
-# These options are shared with 3rdparty plugins by means of developer package
-include(check_features_ie)
+include(cmake/features.cmake)
 
 # resolving dependencies for the project
-include(dependencies)
-
-# Fuzz tests also building without ENABLE_FUZZING
-include(fuzzing)
-
-if (ENABLE_FUZZING)
-    enable_fuzzing()
-endif()
+include(cmake/dependencies.cmake)
 
 find_package(Threads REQUIRED)
 
-unset(IEDeveloperPackageTargets CACHE)
 function(ie_developer_export_targets)
-    set(IEDeveloperPackageTargets "${IEDeveloperPackageTargets};${ARGV}")
-
-    # to allow exporting of aliased targets with the original names
-    foreach(target_name ${IEDeveloperPackageTargets})
-        if(TARGET "${target_name}")
-            get_target_property(original_name ${target_name} ALIASED_TARGET)
-            if(TARGET "${original_name}")
-                message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
-                        "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
-                list(REMOVE_ITEM IEDeveloperPackageTargets ${target_name})
-                list(APPEND IEDeveloperPackageTargets ${original_name})
-            endif()
-        endif()
-    endforeach()
-
-    list(REMOVE_DUPLICATES IEDeveloperPackageTargets)
-    set(IEDeveloperPackageTargets "${IEDeveloperPackageTargets}" CACHE INTERNAL
-        "Paths to extra Inference Engine plugins" FORCE)
+    openvino_developer_export_targets(COMPONENT inference_engine TARGETS ${ARGN})
 endfunction()
 
 function(ie_developer_export)
-    export(TARGETS ${OpenVINODeveloperPackageTargets} NAMESPACE IE::
-        APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
+    set(all_dev_targets gflags ie_libraries)
+    foreach(component IN LISTS openvino_export_components)
+        export(TARGETS ${${component}} NAMESPACE IE::
+            APPEND FILE "${CMAKE_BINARY_DIR}/${component}_dev_targets.cmake")
+        list(APPEND all_dev_targets ${${component}})
+    endforeach()
 
-    export(TARGETS ${IEDeveloperPackageTargets} NAMESPACE IE::
-        APPEND FILE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
-
-    # Custom target to build only Inference Engine Developer Package targets
-    add_custom_target(ie_dev_targets ALL DEPENDS ${OpenVINODeveloperPackageTargets} ${IEDeveloperPackageTargets} gflags
-                      inference_engine_ir_reader inference_engine_ir_v7_reader)
+    add_custom_target(ie_dev_targets ALL DEPENDS ${all_dev_targets})
 endfunction()
 
 add_subdirectory(thirdparty)
@@ -81,7 +52,7 @@ function(ie_build_samples)
                 MINGW64 CMAKE_BUILD_TYPE CMAKE_MACOSX_RPATH)
         unset(${var})
     endforeach()
-    include(sanitizer)
+    include("${IEDevScripts_DIR}/compile_flags/sanitizer.cmake")
     add_subdirectory(samples)
 endfunction()
 
@@ -89,18 +60,11 @@ endfunction()
 # they must be built even if samples build is disabled (required for tests and tools).
 ie_build_samples()
 
-file(GLOB_RECURSE SAMPLES_SOURCES samples/*.cpp samples/*.hpp samples/*.h)
-add_cpplint_target(sample_cpplint
-    FOR_SOURCES ${SAMPLES_SOURCES}
-    EXCLUDE_PATTERNS "thirdparty/*" "pugixml/*")
-
 if (ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
 
 add_subdirectory(ie_bridges/c)
-
-add_cpplint_report_target()
 
 #
 # Install
@@ -174,23 +138,23 @@ endif()
 # Developer package
 #
 
-ie_developer_export_targets(format_reader)
-ie_developer_export_targets(${NGRAPH_LIBRARIES})
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS format_reader)
+openvino_developer_export_targets(COMPONENT ngraph TARGETS ${NGRAPH_LIBRARIES})
 
 # for Template plugin
 if(NGRAPH_INTERPRETER_ENABLE)
-    ie_developer_export_targets(ngraph_backend interpreter_backend)
+    openvino_developer_export_targets(COMPONENT ngraph TARGETS ngraph_backend interpreter_backend)
 endif()
 
 ie_developer_export()
 
 configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/developer_package_config.cmake.in"
+    "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineDeveloperPackageConfig.cmake.in"
     "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig.cmake"
     @ONLY)
 
 configure_file(
-    "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
+    "${IE_MAIN_SOURCE_DIR}/cmake/templates/InferenceEngineConfig-version.cmake.in"
     "${CMAKE_BINARY_DIR}/InferenceEngineDeveloperPackageConfig-version.cmake"
     COPYONLY)
 
@@ -199,7 +163,7 @@ configure_file(
 #
 
 if(ENABLE_COVERAGE)
-    include(coverage_ie)
+    include(cmake/coverage.cmake)
 endif()
 
 #
@@ -216,7 +180,7 @@ function(register_extra_modules)
         file(WRITE "${iedevconfig_file}" "\# !! AUTOGENERATED: DON'T EDIT !!\n\n")
         file(APPEND "${iedevconfig_file}" "ie_deprecated_no_errors()\n")
 
-        foreach(target IN LISTS OpenVINODeveloperPackageTargets IEDeveloperPackageTargets)
+        foreach(target IN LISTS ${openvino_export_components})
             if(target)
                 file(APPEND "${iedevconfig_file}" "add_library(IE::${target} ALIAS ${target})\n")
             endif()

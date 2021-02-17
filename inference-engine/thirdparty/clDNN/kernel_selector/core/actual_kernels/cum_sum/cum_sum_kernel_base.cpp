@@ -93,8 +93,7 @@ CumSumKernelBase::DispatchData CumSumKernelBase::SetDefault(const cum_sum_params
 }
 
 KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params,
-                                                   const optional_params& options,
-                                                   float estimatedTime) const {
+                                                   const optional_params& options) const {
     KernelData kd = KernelData::Default<cum_sum_params>(params);
     cum_sum_params& newParams = *static_cast<cum_sum_params*>(kd.params.get());
 
@@ -110,8 +109,6 @@ KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params,
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
-
-    kd.estimatedTime = estimatedTime;
 
     return {kd};
 }

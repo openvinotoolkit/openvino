@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,5 +43,20 @@ namespace ngraph
         void update(const VariableInfo& variable_info) { m_info = variable_info; }
     private:
         VariableInfo m_info;
+    };
+
+    template <>
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<Variable>>
+        : public DirectValueAccessor<std::shared_ptr<Variable>>
+    {
+    public:
+        explicit AttributeAdapter(std::shared_ptr<Variable>& value)
+            : DirectValueAccessor<std::shared_ptr<Variable>>(value)
+        {
+        }
+
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Variable>>",
+                                                    0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 }

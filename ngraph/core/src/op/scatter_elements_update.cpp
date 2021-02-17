@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,11 +37,13 @@ op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
 
 bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_visit_attributes);
     return true;
 }
 
 void op::v3::ScatterElementsUpdate::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types);
     element::Type data_et = get_input_element_type(0);
     element::Type indices_et = get_input_element_type(1);
     element::Type updates_et = get_input_element_type(2);
@@ -93,9 +95,16 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types()
                           " and: ",
                           updates_shape);
 
-    if (ngraph::op::is_constant(input_value(3).get_node()) && data_shape.rank().is_static())
+    set_output_size(1);
+    set_output_type(0, data_et, data_shape);
+
+    if (data_shape.is_dynamic())
+        set_input_is_relevant_to_shape(0);
+    if (data_shape.rank().is_dynamic())
+        return;
+
+    if (const auto& axis_input = get_constant_from_source(input_value(3)))
     {
-        const auto axis_input = as_type_ptr<op::v0::Constant>(input_value(3).get_node_shared_ptr());
         auto axis = axis_input->cast_vector<int64_t>().at(0);
 
         int64_t data_rank_length = data_shape.rank().get_length();
@@ -112,19 +121,12 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types()
             "]. Got axis value: ",
             axis);
     }
-
-    if (data_shape.is_dynamic())
-    {
-        set_input_is_relevant_to_shape(0);
-    }
-
-    set_output_size(1);
-    set_output_type(0, data_et, data_shape);
 }
 
 shared_ptr<Node>
     op::v3::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const
 {
+    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           inputs.size() == get_input_size(),
                           "clone_with_new_inputs() required inputs size: ",
@@ -162,8 +164,13 @@ namespace scatter_element_update
         return true;
     }
 
-#define TYPE_AXS_CASE(a)                                                                           \
-    case element::Type_t::a: rc = evaluate<DT, IT, element::Type_t::a>
+#define TYPE_AXS_CASE(a, ...)                                                                      \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(scatter_element_update_axs, _, a));                             \
+        rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__);                                    \
+    }                                                                                              \
+    break;
 
     template <element::Type_t DT, element::Type_t IT>
     bool evaluate(const HostTensorPtr& arg0,
@@ -180,29 +187,26 @@ namespace scatter_element_update
 
         switch (axis_type)
         {
-            TYPE_AXS_CASE(i8)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(i16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(i32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(i64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(u8)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(u16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(u32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(u64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
+            TYPE_AXS_CASE(i8, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_AXS_CASE(i16, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_AXS_CASE(i32, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_AXS_CASE(i64, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_AXS_CASE(u8, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_AXS_CASE(u16, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_AXS_CASE(u32, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_AXS_CASE(u64, arg0, arg1, arg2, arg3, out, normalized_axis);
         default: rc = false; break;
         }
         return rc;
     }
 
-#define TYPE_IND_CASE(a)                                                                           \
-    case element::Type_t::a: rc = evaluate<DT, element::Type_t::a>
+#define TYPE_IND_CASE(a, ...)                                                                      \
+    case element::Type_t::a:                                                                       \
+    {                                                                                              \
+        NGRAPH_OP_SCOPE(OV_CC_CAT3(scatter_element_update_ind, _, a));                             \
+        rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__);                                        \
+    }                                                                                              \
+    break;
 
     template <element::Type_t DT>
     bool evaluate(const HostTensorPtr& arg0,
@@ -219,22 +223,14 @@ namespace scatter_element_update
 
         switch (indices_type)
         {
-            TYPE_IND_CASE(i8)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(i16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(i32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(i64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(u8)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(u16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(u32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(u64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
+            TYPE_IND_CASE(i8, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_IND_CASE(i16, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_IND_CASE(i32, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_IND_CASE(i64, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_IND_CASE(u8, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_IND_CASE(u16, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_IND_CASE(u32, arg0, arg1, arg2, arg3, out, normalized_axis);
+            TYPE_IND_CASE(u64, arg0, arg1, arg2, arg3, out, normalized_axis);
         default: rc = false; break;
         }
         return rc;
@@ -251,31 +247,29 @@ namespace scatter_element_update
 
         switch (out->get_element_type())
         {
-            TYPE_CASE(i16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
+            NGRAPH_TYPE_CASE(
+                evaluate_scatter_element_update, i16, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(
+                evaluate_scatter_element_update, i32, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(
+                evaluate_scatter_element_update, i64, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(
+                evaluate_scatter_element_update, u32, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(
+                evaluate_scatter_element_update, u64, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(
+                evaluate_scatter_element_update, f16, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(
+                evaluate_scatter_element_update, f32, arg0, arg1, arg2, arg3, out, normalized_axis);
         default: rc = false; break;
         }
         return rc;
     }
 }
 
-bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
-                                             const HostTensorVector& inputs) const
+bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(
+    const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::ScatterElementsUpdate::evaluate");
-
     NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(),
                  "axis element type is not integral data type");
 
@@ -298,4 +292,11 @@ bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
 
     return scatter_element_update::evaluate_scatter_element_update(
         inputs[0], inputs[1], inputs[2], inputs[3], outputs[0], normalized_axis);
+}
+
+bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
+                                             const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
+    return evaluate_scatter_element_update(outputs, inputs);
 }

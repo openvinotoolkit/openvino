@@ -11,8 +11,8 @@ from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
 from openvino.tools.benchmark.utils.utils import next_step, config_network_inputs, get_number_iterations, \
     process_help_inference_string, print_perf_counters, dump_exec_graph, get_duration_in_milliseconds, \
-    get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, update_shapes, \
-    adjust_shapes_batch, load_config, dump_config
+    get_command_line_arguments, parse_nstreams_value_per_device, parse_devices, get_inputs_info, \
+    get_batch_size, load_config, dump_config
 from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
 
 
@@ -26,9 +26,9 @@ def run(args):
     statistics = None
     try:
         if args.number_streams is None:
-                logger.warn(" -nstreams default value is determined automatically for a device. "
-                            "Although the automatic selection usually provides a reasonable performance, "
-                            "but it still may be non-optimal for some cases, for more information look at README. ")
+                logger.warning(" -nstreams default value is determined automatically for a device. "
+                               "Although the automatic selection usually provides a reasonable performance, "
+                               "but it still may be non-optimal for some cases, for more information look at README. ")
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
@@ -90,15 +90,15 @@ def run(args):
                 ## set to user defined value
                 config[device]['PERF_COUNT'] = 'YES' if args.perf_counts else 'NO'
             elif 'PERF_COUNT' in config[device].keys() and config[device]['PERF_COUNT'] == 'YES':
-                logger.warn("Performance counters for {} device is turned on. ".format(device) +
-                            "To print results use -pc option.")
+                logger.warning("Performance counters for {} device is turned on. ".format(device) +
+                               "To print results use -pc option.")
             elif args.report_type in [ averageCntReport, detailedCntReport ]:
-                logger.warn("Turn on performance counters for {} device ".format(device) +
-                            "since report type is {}.".format(args.report_type))
+                logger.warning("Turn on performance counters for {} device ".format(device) +
+                               "since report type is {}.".format(args.report_type))
                 config[device]['PERF_COUNT'] = 'YES'
             elif args.exec_graph_path is not None:
-                logger.warn("Turn on performance counters for {} device ".format(device) +
-                            "due to execution graph dumping.")
+                logger.warning("Turn on performance counters for {} device ".format(device) +
+                               "due to execution graph dumping.")
                 config[device]['PERF_COUNT'] = 'YES'
             else:
                 ## set to default value
@@ -115,10 +115,11 @@ def run(args):
                                         "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>")
                     config[device][key] = device_number_streams[device]
                 elif key not in config[device].keys() and args.api_type == "async":
-                    logger.warn("-nstreams default value is determined automatically for {} device. ".format(device) +
-                                "Although the automatic selection usually provides a reasonable performance,"
-                                "but it still may be non-optimal for some cases, for more information look at README.")
-                    config[device][key] = device + "_THROUGHPUT_AUTO"
+                    logger.warning("-nstreams default value is determined automatically for {} device. ".format(device) +
+                                   "Although the automatic selection usually provides a reasonable performance,"
+                                   "but it still may be non-optimal for some cases, for more information look at README.")
+                    if device != MYRIAD_DEVICE_NAME:  ## MYRIAD sets the default number of streams implicitly
+                        config[device][key] = device + "_THROUGHPUT_AUTO"
                 if key in config[device].keys():
                     device_number_streams[device] = config[device][key]
 
@@ -135,8 +136,8 @@ def run(args):
                     config[device]['CPU_BIND_THREAD'] = args.infer_threads_pinning
                 elif 'CPU_BIND_THREAD' not in config[device].keys():
                     if MULTI_DEVICE_NAME in device_name and GPU_DEVICE_NAME in device_name:
-                        logger.warn("Turn off threads pinning for {}".format(device) +
-                                    "device since multi-scenario with GPU device is used.")
+                        logger.warning("Turn off threads pinning for {}".format(device) +
+                                       "device since multi-scenario with GPU device is used.")
                         config[device]['CPU_BIND_THREAD'] = 'NO'
                     else:
                         ## set to default value
@@ -149,10 +150,11 @@ def run(args):
                 set_throughput_streams()
 
                 if MULTI_DEVICE_NAME in device_name and CPU_DEVICE_NAME in device_name:
-                    logger.warn("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " \
-                                "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
+                    logger.warning("Turn on GPU trottling. Multi-device execution with the CPU + GPU performs best with GPU trottling hint, " +
+                                   "which releases another CPU thread (that is otherwise used by the GPU driver for active polling)")
                     config[device]['CLDNN_PLUGIN_THROTTLE'] = '1'
             elif device == MYRIAD_DEVICE_NAME:
+                set_throughput_streams()
                 config[device]['LOG_LEVEL'] = 'LOG_INFO'
             elif device == GNA_DEVICE_NAME:
                 if is_flag_set_in_command_line('qb'):
@@ -191,15 +193,10 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            shapes = {k: v.input_data.shape.copy() for k, v in ie_network.input_info.items()}
-            reshape = False
-            if args.shape:
-                reshape |= update_shapes(shapes, args.shape, ie_network.input_info)
-            if args.batch_size and args.batch_size != ie_network.batch_size:
-                reshape |= adjust_shapes_batch(shapes, args.batch_size, ie_network.input_info)
-
+            app_inputs_info, reshape = get_inputs_info(args.shape, args.layout, args.batch_size, ie_network.input_info)
             if reshape:
                 start_time = datetime.utcnow()
+                shapes = { k : v.shape for k,v in app_inputs_info.items() }
                 logger.info(
                     'Reshaping network: {}'.format(', '.join("'{}': {}".format(k, v) for k, v in shapes.items())))
                 ie_network.reshape(shapes)
@@ -211,13 +208,15 @@ def run(args):
                                                   ('reshape network time (ms)', duration_ms)
                                               ])
 
-            batch_size = ie_network.batch_size
-            logger.info('Network batch size: {}'.format(ie_network.batch_size))
+            # use batch size according to provided layout and shapes
+            batch_size = get_batch_size(app_inputs_info) if args.layout else ie_network.batch_size
+
+            logger.info('Network batch size: {}'.format(batch_size))
 
             # --------------------- 6. Configuring input of the model --------------------------------------------------
             next_step()
 
-            config_network_inputs(ie_network)
+            config_network_inputs(ie_network, app_inputs_info)
 
             # --------------------- 7. Loading the model to the device -------------------------------------------------
             next_step()
@@ -251,6 +250,7 @@ def run(args):
                                           [
                                               ('import network time (ms)', duration_ms)
                                           ])
+            app_inputs_info, _ = get_inputs_info(args.shape, args.layout, args.batch_size, exe_network.input_info)
             if batch_size == 0:
                 batch_size = 1
 
@@ -280,7 +280,7 @@ def run(args):
         if args.paths_to_input:
             for path in args.paths_to_input:
                 paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
-        set_inputs(paths_to_input, batch_size, exe_network.input_info, infer_requests, args.mode)
+        set_inputs(paths_to_input, batch_size, app_inputs_info, infer_requests)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@
 #include <memory>
 
 #include "backend_visibility.hpp"
-#include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/pass/pass.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
+
 namespace ngraph
 {
     namespace pass
@@ -75,4 +75,5 @@ namespace ngraph
         };
     }
 }
+
 NGRAPH_SUPPRESS_DEPRECATED_END

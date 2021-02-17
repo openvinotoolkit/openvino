@@ -41,7 +41,11 @@ ParamsKey DepthToSpaceKernelRef::GetSupportedKey() const {
 }
 
 KernelsData DepthToSpaceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority DepthToSpaceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 
 JitConstants DepthToSpaceKernelRef::GetJitConstants(const depth_to_space_params& params) const {

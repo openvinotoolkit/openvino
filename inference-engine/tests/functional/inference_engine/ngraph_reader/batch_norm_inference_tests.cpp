@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadBatchNormInferenceNetwork) {
             </output>
         </layer>
         <layer id="11" name="conv_weights" type="Const" version="opset1">
-            <data offset="0" size="36" />
+            <data element_type="f32" offset="0" shape="3,3,1,1" size="36"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>3</dim>
@@ -56,7 +56,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadBatchNormInferenceNetwork) {
             </output>
         </layer>
         <layer id="1" name="a" type="Const" version="opset1">
-            <data offset="0" size="12"/>
+            <data element_type="f32" offset="0" shape="3" size="12"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>3</dim>
@@ -64,7 +64,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadBatchNormInferenceNetwork) {
             </output>
         </layer>
         <layer id="2" name="a1" type="Const" version="opset1">
-            <data offset="12" size="12"/>
+            <data element_type="f32" offset="12" shape="3" size="12"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>3</dim>
@@ -72,7 +72,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadBatchNormInferenceNetwork) {
             </output>
         </layer>
         <layer id="3" name="a2" type="Const" version="opset1">
-            <data offset="24" size="12"/>
+            <data element_type="f32" offset="24" shape="3" size="24"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>3</dim>
@@ -80,7 +80,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadBatchNormInferenceNetwork) {
             </output>
         </layer>
         <layer id="4" name="a3" type="Const" version="opset1">
-            <data offset="36" size="12"/>
+            <data element_type="f32" offset="36" shape="3" size="12"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>3</dim>

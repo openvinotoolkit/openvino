@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include <cctype>
 #include <map>
 
 #include "ngraph/attribute_visitor.hpp"
@@ -31,10 +32,10 @@ namespace ngraph
     NGRAPH_API EnumNames<op::PadMode>& EnumNames<op::PadMode>::get()
     {
         static auto enum_names = EnumNames<op::PadMode>("op::PadMode",
-                                                        {{"CONSTANT", op::PadMode::CONSTANT},
-                                                         {"EDGE", op::PadMode::EDGE},
-                                                         {"REFLECT", op::PadMode::REFLECT},
-                                                         {"SYMMETRIC", op::PadMode::SYMMETRIC}});
+                                                        {{"constant", op::PadMode::CONSTANT},
+                                                         {"edge", op::PadMode::EDGE},
+                                                         {"reflect", op::PadMode::REFLECT},
+                                                         {"symmetric", op::PadMode::SYMMETRIC}});
         return enum_names;
     }
 
@@ -48,10 +49,10 @@ namespace ngraph
     NGRAPH_API EnumNames<op::PadType>& EnumNames<op::PadType>::get()
     {
         static auto enum_names = EnumNames<op::PadType>("op::PadType",
-                                                        {{"EXPLICIT", op::PadType::EXPLICIT},
-                                                         {"SAME_LOWER", op::PadType::SAME_LOWER},
-                                                         {"SAME_UPPER", op::PadType::SAME_UPPER},
-                                                         {"VALID", op::PadType::VALID}});
+                                                        {{"explicit", op::PadType::EXPLICIT},
+                                                         {"same_lower", op::PadType::SAME_LOWER},
+                                                         {"same_upper", op::PadType::SAME_UPPER},
+                                                         {"valid", op::PadType::VALID}});
         return enum_names;
     }
 
@@ -66,7 +67,7 @@ namespace ngraph
     {
         static auto enum_names = EnumNames<op::RoundingType>(
             "op::RoundingType",
-            {{"FLOOR", op::RoundingType::FLOOR}, {"CEIL", op::RoundingType::CEIL}});
+            {{"floor", op::RoundingType::FLOOR}, {"ceil", op::RoundingType::CEIL}});
         return enum_names;
     }
 
@@ -82,10 +83,10 @@ namespace ngraph
     {
         static auto enum_names =
             EnumNames<op::AutoBroadcastType>("op::AutoBroadcastType",
-                                             {{"NONE", op::AutoBroadcastType::NONE},
-                                              {"EXPLICIT", op::AutoBroadcastType::EXPLICIT},
-                                              {"NUMPY", op::AutoBroadcastType::NUMPY},
-                                              {"PDPD", op::AutoBroadcastType::PDPD}});
+                                             {{"none", op::AutoBroadcastType::NONE},
+                                              {"explicit", op::AutoBroadcastType::EXPLICIT},
+                                              {"numpy", op::AutoBroadcastType::NUMPY},
+                                              {"pdpd", op::AutoBroadcastType::PDPD}});
         return enum_names;
     }
     constexpr DiscreteTypeInfo AttributeAdapter<op::AutoBroadcastType>::type_info;
@@ -95,11 +96,11 @@ namespace ngraph
     {
         static auto enum_names =
             EnumNames<op::BroadcastType>("op::BroadcastType",
-                                         {{"NONE", op::BroadcastType::NONE},
-                                          {"NUMPY", op::BroadcastType::NUMPY},
-                                          {"EXPLICIT", op::BroadcastType::EXPLICIT},
-                                          {"PDPD", op::BroadcastType::PDPD},
-                                          {"BIDIRECTIONAL", op::BroadcastType::BIDIRECTIONAL}});
+                                         {{"none", op::BroadcastType::NONE},
+                                          {"numpy", op::BroadcastType::NUMPY},
+                                          {"explicit", op::BroadcastType::EXPLICIT},
+                                          {"pdpd", op::BroadcastType::PDPD},
+                                          {"bidirectional", op::BroadcastType::BIDIRECTIONAL}});
         return enum_names;
     }
 
@@ -118,7 +119,7 @@ namespace ngraph
     NGRAPH_API EnumNames<op::EpsMode>& EnumNames<op::EpsMode>::get()
     {
         static auto enum_names = EnumNames<op::EpsMode>(
-            "op::EpsMode", {{"ADD", op::EpsMode::ADD}, {"MAX", op::EpsMode::MAX}});
+            "op::EpsMode", {{"add", op::EpsMode::ADD}, {"max", op::EpsMode::MAX}});
         return enum_names;
     }
 
@@ -128,6 +129,7 @@ namespace ngraph
     {
         return s << as_string(type);
     }
+
     template <>
     NGRAPH_API EnumNames<op::TopKSortType>& EnumNames<op::TopKSortType>::get()
     {
@@ -161,15 +163,21 @@ namespace ngraph
 
     op::AutoBroadcastType op::AutoBroadcastSpec::type_from_string(const std::string& type) const
     {
+        auto lowercase_type = type;
+        std::transform(lowercase_type.begin(),
+                       lowercase_type.end(),
+                       lowercase_type.begin(),
+                       [](char c) { return std::tolower(c); });
+
         static const std::map<std::string, AutoBroadcastType> allowed_values = {
-            {"NONE", AutoBroadcastType::NONE},
-            {"NUMPY", AutoBroadcastType::NUMPY},
-            {"PDPD", AutoBroadcastType::PDPD},
-            {"EXPLICIT", AutoBroadcastType::EXPLICIT}};
+            {"none", AutoBroadcastType::NONE},
+            {"numpy", AutoBroadcastType::NUMPY},
+            {"pdpd", AutoBroadcastType::PDPD},
+            {"explicit", AutoBroadcastType::EXPLICIT}};
 
-        NGRAPH_CHECK(allowed_values.count(type) > 0, "Invalid 'type' value passed in.");
+        NGRAPH_CHECK(allowed_values.count(lowercase_type) > 0, "Invalid 'type' value passed in.");
 
-        return allowed_values.at(type);
+        return allowed_values.at(lowercase_type);
     }
 
     bool AttributeAdapter<op::AutoBroadcastSpec>::visit_attributes(AttributeVisitor& visitor)

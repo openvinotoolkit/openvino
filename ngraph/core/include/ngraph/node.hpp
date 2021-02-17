@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate.hpp"
+#include "ngraph/coordinate_diff.hpp"
 #include "ngraph/deprecated.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/output.hpp"
@@ -207,6 +208,9 @@ namespace ngraph
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const;
+        virtual bool evaluate_lower(const HostTensorVector& output_values) const;
+        virtual bool evaluate_upper(const HostTensorVector& output_values) const;
+
         virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
         /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
         ///
@@ -232,7 +236,12 @@ namespace ngraph
         /// Sets the number of outputs
         void set_output_size(size_t output_size);
 
-        void revalidate_and_infer_types() { validate_and_infer_types(); }
+        void invalidate_values();
+        void revalidate_and_infer_types()
+        {
+            invalidate_values();
+            validate_and_infer_types();
+        }
         /// \brief Get the string name for the type of the node, such as `Add` or `Multiply`.
         ///        The class name, must not contain spaces as it is used for codegen.
         /// \returns A const reference to the node's type name
@@ -326,6 +335,8 @@ namespace ngraph
         descriptor::Tensor& get_input_tensor(size_t i) const;
 
         /// Returns the tensor name for output i
+        NGRAPH_DEPRECATED(
+            "The tensor name was deprecated. Use get_output_tensor(i).get_names() instead.")
         const std::string& get_output_tensor_name(size_t i) const;
 
         std::set<Input<Node>> get_output_target_inputs(size_t i) const;
@@ -346,6 +357,8 @@ namespace ngraph
         const PartialShape& get_input_partial_shape(size_t i) const;
 
         /// Returns the tensor name for input i
+        NGRAPH_DEPRECATED(
+            "The tensor name was deprecated. Use get_input_tensor(i).get_names() instead.")
         const std::string& get_input_tensor_name(size_t i) const;
 
         std::unordered_set<descriptor::Tensor*> liveness_new_list;

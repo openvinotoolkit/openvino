@@ -48,7 +48,7 @@ struct memory_impl : refcounted_obj<memory_impl> {
         // - To be Weights format (Data memory can be reused by memory_pool, which can lead to errors)
         // - To have zero paddings
         // - To be completely filled with data
-        if (!format::is_weights_format(l.format) || format::is_winograd(l.format) || format::is_image_2d(l.format)) {
+        if ((!format::is_weights_format(l.format) && !format::is_simple_data_format(l.format)) || format::is_winograd(l.format) || format::is_image_2d(l.format)) {
             return true;
         }
 
@@ -84,7 +84,7 @@ struct simple_attached_memory : memory_impl {
     void unlock() override {}
     void fill(unsigned char, event_impl::ptr) override {}
     shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
-#ifdef WIN32
+#ifdef _WIN32
         nullptr,
 #else
         0,

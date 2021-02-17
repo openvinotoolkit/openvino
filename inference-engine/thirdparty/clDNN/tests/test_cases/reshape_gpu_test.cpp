@@ -39,7 +39,9 @@ void verify_int(const int32_t& output_value, const int32_t& value) {
 }
 
 template <class ElemType>
-void generic_reshape_test(format fmt, tensor const& input_size, tensor const& reshape_size, bool in_place, padding const& input_padd = padding(), padding const& output_padd = padding()) {
+void generic_reshape_test(format fmt, tensor const& input_size, tensor const& reshape_size,
+    bool /* in_place */, padding const& input_padd = padding(),
+    padding const& output_padd = padding()) {
     const auto& engine = get_test_engine();
 
     //allocate input memory

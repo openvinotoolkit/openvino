@@ -74,6 +74,13 @@ INTERPRETER.fused_clamp_bfloat16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
 
+# Revise reference implementation
+onnx_dyn_model_hardmax
+onnx_model_quantize_linear_const_scale_const_zero_p
+onnx_model_quantize_linear
+onnx_model_quantize_linear_axis_zero
+onnx_model_quantize_linear_axis_negative
+
 # Backward conv
 INTERPRETER.convolution_2d_1item
 INTERPRETER.convolution_2d_1item_padded_1_1x1_1
@@ -118,12 +125,22 @@ onnx_model_lstm_bdir_short_input_seq_peepholes
 lstm_cell_bias_peepholes
 lstm_cell_bias_peepholes_clip_input_forget
 
+
+# Check 'n_data_channels % groups == 0' failed
+dyn_group_convolution_backprop_data
+
+# Check 'num_dyn_nodes_this_pass < num_dyn_nodes_last_pass' failed
+dyn_convolution_backprop_data
+
 # unsupported element type f16
 INTERPRETER.ctc_greedy_decoder_f16
 
+# Issue 37473. Fails on ia32 platforms only
+onnx_model_softmax_axis_0
+onnx_model_reshape_negative_dim
+
 # LogSoftmax's reference implementation doesn't handle scalar input properly
 onnx_model_logsoftmax_0D
-
 # Input body shape is changed during Loop iterations
 # Exception is throw during Loop shape inference
 onnx_controlflow_loop_concat_values
@@ -139,3 +156,22 @@ onnx_controlflow_loop_power
 # The test fails in CI on Ubuntu i386
 # There's an overflow of some kind: 2147483647 is not close to -2147483648 at index 2
 quantize_clamp_int32
+
+# u16 type is not supported in Minimum evaluate method
+minimum_u16
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronDetectionOutpu
+INTERPRETER.onnx_model_experimental_detectron_detection_output
+INTERPRETER.onnx_model_experimental_detectron_detection_output_most_attrs_default
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronTopKROIs
+INTERPRETER.onnx_model_experimental_detectron_topk_rios
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronGenerateProposalsSingleImage
+INTERPRETER.onnx_model_experimental_detectron_generate_proposals_single_image
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronPriorGridGenerator
+INTERPRETER.onnx_model_experimental_detectron_prior_grid_generator
+
+# Interpreter backend doesn't implement evaluate method for OP ExperimentalDetectronROIFeatureExtractor
+INTERPRETER.onnx_model_experimental_detectron_roi_feature_extractor

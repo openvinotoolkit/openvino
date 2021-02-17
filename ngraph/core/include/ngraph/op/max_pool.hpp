@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,24 +49,8 @@ namespace ngraph
                         const Shape& pads_begin,
                         const Shape& pads_end,
                         const Shape& kernel,
-                        op::RoundingType rounding_mode,
-                        const PadType& auto_pad);
-
-                /// \brief Constructs a batched max pooling operation.
-                ///
-                /// \param arg The node producing the input data batch tensor.
-                /// \param strides The strides.
-                /// \param pads_begin The beginning of padding shape.
-                /// \param pads_end The end of padding shape.
-                /// \param kernel The kernel shape.
-                /// \param rounding_mode Whether to use ceiling or floor rounding type while
-                /// computing output shape.
-                MaxPool(const Output<Node>& arg,
-                        const Strides& strides,
-                        const Shape& pads_begin,
-                        const Shape& pads_end,
-                        const Shape& kernel,
-                        op::RoundingType rounding_mode);
+                        op::RoundingType rounding_mode = op::RoundingType::FLOOR,
+                        const PadType& auto_pad = op::PadType::EXPLICIT);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 size_t get_version() const override { return 1; }
@@ -108,12 +92,14 @@ namespace ngraph
                 Shape m_pads_begin;
                 Shape m_pads_end;
                 PadType m_auto_pad;
-                op::RoundingType m_rounding_type{op::RoundingType::FLOOR};
+                op::RoundingType m_rounding_type;
 
             private:
                 bool update_auto_padding(const PartialShape& in_shape,
                                          Shape& new_pads_end,
                                          Shape& new_pads_begin) const;
+                bool evaluate_maxpool(const HostTensorVector& outputs,
+                                      const HostTensorVector& inputs) const;
             };
         } // namespace v1
     }     // namespace op

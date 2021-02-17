@@ -11,7 +11,7 @@
 #include <vector>
 
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
-#include <cpp_interfaces/impl/ie_memory_state_internal.hpp>
+#include <cpp_interfaces/impl/ie_variable_state_internal.hpp>
 
 class MockIInferRequestInternal : public InferenceEngine::IInferRequestInternal {
 public:

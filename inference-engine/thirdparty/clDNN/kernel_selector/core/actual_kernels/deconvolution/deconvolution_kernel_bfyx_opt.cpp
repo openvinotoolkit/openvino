@@ -26,6 +26,8 @@ ParamsKey DeconvolutionKernel_bfyx_opt::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableTensorOffset();
@@ -36,6 +38,7 @@ ParamsKey DeconvolutionKernel_bfyx_opt::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
     k.EnableGroupedConvolution();
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -52,8 +55,11 @@ CommonDispatchData DeconvolutionKernel_bfyx_opt::SetDefault(const deconvolution_
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_6;
     return dispatchData;
+}
+
+KernelsPriority DeconvolutionKernel_bfyx_opt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 
 JitConstants DeconvolutionKernel_bfyx_opt::GetJitConstants(const deconvolution_params& params) const {

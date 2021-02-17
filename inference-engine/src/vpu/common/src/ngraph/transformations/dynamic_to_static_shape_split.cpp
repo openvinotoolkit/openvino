@@ -14,6 +14,17 @@
 
 namespace vpu {
 
+void validateSplit(const ngraph::Node& split) {
+    VPU_THROW_UNLESS(split.get_input_size() >= 2, "There is Split operation \"{}\" without specified axis", split.get_friendly_name());
+    const auto& axis = ngraph::as_type_ptr<ngraph::opset5::Constant>(split.input_value(1).get_node_shared_ptr());
+    VPU_THROW_UNLESS(axis != nullptr, "There is Split operation \"{}\" with dynamic axis \"{}\", but only constant axis is supported",
+        split.get_friendly_name(), split.input_value(1).get_node_shared_ptr()->get_friendly_name());
+    const auto axisValue = ngraph::normalize_axis(split.description(), axis->cast_vector<std::int64_t>().front(), split.get_input_partial_shape(0).rank());
+    VPU_THROW_UNLESS(split.get_input_partial_shape(0)[axisValue].is_static(),
+        "There is Split operation \"{}\" by dynamic dimension, but only split by static dimension is supported: shape = \"{}\", axis = \"{}\"",
+        split.get_friendly_name(), split.get_input_partial_shape(0), axisValue);
+}
+
 void dynamicToStaticShapeSplit(std::shared_ptr<ngraph::Node> target) {
     const auto split = ngraph::as_type_ptr<ngraph::opset5::Split>(target);
     VPU_THROW_UNLESS(split,

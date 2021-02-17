@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,6 @@ public:
     const size_t outputChannelsCount;
 
 private:
-    QuantizationDetails &operator=(const QuantizationDetails & /*target*/) { return *this; }
     static void validate(std::shared_ptr<Node> constantLayer);
     static std::vector<float> getBlobValue(std::shared_ptr<Node> constantLayer);
 };

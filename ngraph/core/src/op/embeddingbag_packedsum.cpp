@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/embeddingbag_packedsum.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 
 using namespace std;
@@ -38,6 +39,7 @@ op::v3::EmbeddingBagPackedSum::EmbeddingBagPackedSum(const Output<Node>& emb_tab
 shared_ptr<Node>
     op::v3::EmbeddingBagPackedSum::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v3_EmbeddingBagPackedSum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 2)
     {

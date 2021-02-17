@@ -97,57 +97,56 @@ def test_unregister_plugin(device):
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(RuntimeError) as e:
         ie.load_network(net, device)
-    assert 'Device with "{}" name is not registered in the InferenceEngine'.format(device) in str(e.value)
+    assert f"Device with '{device}' name is not registered in the InferenceEngine" in str(e.value)
 
 
 def test_available_devices(device):
     ie = IECore()
     devices = ie.available_devices
-    assert device in devices, "Current device '{}' is not listed in available devices '{}'".format(device,
-                                                                                                   ', '.join(devices))
+    assert device in devices, f"Current device '{device}' is not listed in available devices '{', '.join(devices)}'"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason="Cannot run test on device {}," "Plugin specific test".format(os.environ.get("TEST_DEVICE")))
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_list_of_str():
     ie = IECore()
     param = ie.get_metric("CPU", "OPTIMIZATION_CAPABILITIES")
     assert isinstance(param, list), "Parameter value for 'OPTIMIZATION_CAPABILITIES' " \
-                                    "metric must be a list but {} is returned".format(type(param))
+                                    f"metric must be a list but {type(param)} is returned"
     assert all(isinstance(v, str) for v in param), "Not all of the parameter values for 'OPTIMIZATION_CAPABILITIES' " \
                                                    "metric are strings!"
 
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason="Cannot run test on device {}," "Plugin specific test".format(os.environ.get("TEST_DEVICE")))
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_two_ints():
     ie = IECore()
     param = ie.get_metric("CPU", "RANGE_FOR_STREAMS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_STREAMS' " \
-                                     "metric must be tuple but {} is returned".format(type(param))
+                                     f"metric must be tuple but {type(param)} is returned"
     assert all(isinstance(v, int) for v in param), "Not all of the parameter values for 'RANGE_FOR_STREAMS' " \
                                                    "metric are integers!"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason="Cannot run test on device {}," "Plugin specific test".format(os.environ.get("TEST_DEVICE")))
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_tuple_of_three_ints():
     ie = IECore()
     param = ie.get_metric("CPU", "RANGE_FOR_ASYNC_INFER_REQUESTS")
     assert isinstance(param, tuple), "Parameter value for 'RANGE_FOR_ASYNC_INFER_REQUESTS' " \
-                                     "metric must be tuple but {} is returned".format(type(param))
+                                     f"metric must be tuple but {type(param)} is returned"
     assert all(isinstance(v, int) for v in param), "Not all of the parameter values for " \
                                                    "'RANGE_FOR_ASYNC_INFER_REQUESTS' metric are integers!"
 
 
 @pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason="Cannot run test on device {}," "Plugin specific test".format(os.environ.get("TEST_DEVICE")))
+                    reason=f"Cannot run test on device {os.environ.get('TEST_DEVICE')}, Plugin specific test")
 def test_get_metric_str():
     ie = IECore()
     param = ie.get_metric("CPU", "FULL_DEVICE_NAME")
     assert isinstance(param, str), "Parameter value for 'FULL_DEVICE_NAME' " \
-                                   "metric must be string but {} is returned".format(type(param))
+                                   f"metric must be string but {type(param)} is returned"
 
 
 def test_read_network_from_xml():

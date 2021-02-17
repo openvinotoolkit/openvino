@@ -19,13 +19,8 @@ class TRANSFORMATIONS_API RemoveFilteringBoxesBySize;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::RemoveFilteringBoxesBySize: public ngraph::pass::GraphRewrite {
+class ngraph::pass::RemoveFilteringBoxesBySize: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    RemoveFilteringBoxesBySize() : GraphRewrite() {
-        remove_filtering_boxes_by_size();
-    }
-
-private:
-    void remove_filtering_boxes_by_size();
+    RemoveFilteringBoxesBySize();
 };

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,7 +90,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
 
             std::vector<int> newReshapeConstValues(reshapeConstValues);
             for (int i = static_cast<int>(newReshapeConstValues.size() - 1); i >= 0; --i) {
-                if (newOperationConstantShape.size() <= i) {
+                if (static_cast<int64_t>(newOperationConstantShape.size()) <= i) {
                     // new dimension was added
                     newReshapeConstValues[i] = 1;
                 } else if (newOperationConstantShape[i] == 1ul) {
@@ -113,8 +113,10 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
             //    2. only second dimension can be changed
 
             const bool shouldBroadcast = (shape_size(newReshapeConstValues) != 1ul) && (reshapeConstValues[1] != 0) &&
-                (((reshapeConstValues[1] != -1) && (constantShape[1] != reshapeConstValues[1])) ||
-                ((reshapeConstValues[1] == -1) && (constantShape[1] != overallValue)));
+                (((reshapeConstValues[1] != -1) &&
+                    (static_cast<int64_t>(constantShape[1]) != reshapeConstValues[1])) ||
+                ((reshapeConstValues[1] == -1) &&
+                    (constantShape[1] != overallValue)));
 
             const std::shared_ptr<Node> broadcastedConstant = shouldBroadcast ?
                 fold<opset1::Broadcast>(
@@ -145,11 +147,15 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
 
 bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::Reshape> reshape = as_type_ptr<opset1::Reshape>(m.get_match_root());
-    if ((reshape == nullptr) || (!canBeTransformed(context, reshape))) {
+    if (NetworkHelper::isConstantPath(reshape)) {
         return false;
     }
 
-    reshape = as_type_ptr<opset1::Reshape>(separateInStandaloneBranch(reshape));
+    if (!canBeTransformed(context, reshape)) {
+        return false;
+    }
+
+    reshape = as_type_ptr<opset1::Reshape>(NetworkHelper::separateInStandaloneBranch(reshape));
     reshapeDequantizationConstant(reshape);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
     return true;
@@ -250,9 +256,11 @@ bool ReshapeTransformation::canBeTransformed(
             return false;
         }
     } else {
-        for (size_t i = 0; i < 2ul; ++i) {
-            if (inputShape[i] != outputShape[i]) {
-                return false;
+        if (ngraph::shape_size(subtractShape) > 1 || ngraph::shape_size(multiplyShape) > 1) {
+            for (size_t i = 0; i < 2ul; ++i) {
+                if (inputShape[i] != outputShape[i]) {
+                    return false;
+                }
             }
         }
 

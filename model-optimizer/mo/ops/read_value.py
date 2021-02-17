@@ -24,7 +24,7 @@ class ReadValue(Op):
         super().__init__(graph, {
             'type': self.op,
             'op': self.op,
-            'version': 'opset3',
+            'version': 'opset6',
             'infer': self.infer,
             'type_infer': self.type_infer,
             'in_ports_count': 1,

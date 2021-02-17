@@ -27,6 +27,7 @@ public:
     virtual ~ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16() {}
 
     ParamsKey GetSupportedKey() const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {

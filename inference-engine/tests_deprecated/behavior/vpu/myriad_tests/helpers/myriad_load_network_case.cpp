@@ -21,8 +21,7 @@ void MyriadLoadNetworkTestCase::SetUp() {
 }
 
 void MyriadLoadNetworkTestCase::LoadNetwork() {
-    ASSERT_NO_THROW(InferenceEngine::IExecutableNetwork::Ptr exe_network =
-                            ie->LoadNetwork(cnnNetwork, "MYRIAD"));
+    ASSERT_NO_THROW(ie->LoadNetwork(cnnNetwork, "MYRIAD"));
 }
 
 bool MyriadLoadNetworkTestCase::IsDeviceAvailable(std::string device_name) {

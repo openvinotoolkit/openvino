@@ -24,6 +24,7 @@ public:
 
     bool Validate(const Params& p, const optional_params& o) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
     JitConstants GetJitConstants(const reorder_params& params) const override;
     DispatchData SetDefault(const reorder_params& arg) const override;

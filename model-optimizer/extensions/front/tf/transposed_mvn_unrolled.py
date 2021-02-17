@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ from extensions.ops.mvn import MVN
 from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.front.tf.graph_utils import create_op_node_with_second_input
+from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.ops.reshape import Reshape
 from mo.ops.shape import Shape
@@ -173,8 +173,10 @@ class TransposedMVNUnrolled(FrontReplacementSubgraph):
         variance = match['variance']
         eps_port_num = 0 if add.in_port(0).get_connection().get_source().node.id != variance.id else 1
         eps = add.in_port(eps_port_num).get_connection().get_source().node
-        mvn_node = MVN(graph, dict(name=div_name + '/MVN/MVN_T_', required_reduction_indices=[1, 2, 3],
-                                   eps=eps.value)).create_node()
+        mvn_node = create_op_with_const_inputs(graph, MVN, {1: int64_array([1, 2, 3])},
+                                               dict(name=div_name + '/MVN/MVN_T_',
+                                                    eps=eps.value, normalize_variance=1,
+                                                    eps_mode='inside_sqrt'))
         first_permute.out_port(0).connect(mvn_node.in_port(0))
 
         second_permute = create_op_node_with_second_input(graph, Transpose, permute_order,

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,11 +29,13 @@ constexpr NodeTypeInfo op::Erf::type_info;
 
 bool ngraph::op::v0::Erf::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Erf_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Erf::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Erf_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Erf>(new_args.at(0));
 }
@@ -61,20 +63,13 @@ namespace erfop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_erf, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_erf, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -83,6 +78,6 @@ namespace erfop
 
 bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Erf::evaluate");
+    NGRAPH_OP_SCOPE(v0_Erf_evaluate);
     return erfop::evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

@@ -33,7 +33,7 @@ full_name_patterns_to_skip = ['^mo/utils/unittest/.*\.py$',
                               ]
 if platform.system() == 'Windows':
     full_name_patterns_to_skip = [i.replace('/', '\\\\') for i in full_name_patterns_to_skip]
-dirs_to_search = ['mo', 'extensions', 'tf_call_ie_layer']
+dirs_to_search = ['mo', 'extensions', 'tf_call_ie_layer', 'telemetry']
 
 
 def is_match(name: str, patterns: ()):

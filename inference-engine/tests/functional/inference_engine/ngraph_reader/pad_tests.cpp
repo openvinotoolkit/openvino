@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ReadPadNoPadValue) {
             </output>
         </layer>
         <layer id="1" name="data1" precision="I64" type="Const" version="opset1">
-            <data offset="0" size="32"/>
+            <data element_type="i64" offset="0" shape="4" size="32"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>4</dim>
@@ -28,7 +28,7 @@ TEST_F(NGraphReaderTests, ReadPadNoPadValue) {
             </output>
         </layer>
         <layer id="2" name="data2" precision="I64" type="Const" version="opset1">
-            <data offset="32" size="32"/>
+            <data element_type="i64" offset="32" shape="4" size="32"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>4</dim>
@@ -148,7 +148,7 @@ TEST_F(NGraphReaderTests, ReadPadWithPadValue) {
             </output>
         </layer>
         <layer id="1" name="data1" precision="I64" type="Const" version="opset1">
-            <data offset="0" size="32"/>
+            <data element_type="i64" offset="0" shape="4" size="32"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>4</dim>
@@ -156,7 +156,7 @@ TEST_F(NGraphReaderTests, ReadPadWithPadValue) {
             </output>
         </layer>
         <layer id="2" name="data2" precision="I64" type="Const" version="opset1">
-            <data offset="32" size="32"/>
+            <data element_type="i64" offset="32" shape="4" size="32"/>
             <output>
                 <port id="0" precision="I64">
                     <dim>4</dim>
@@ -164,7 +164,7 @@ TEST_F(NGraphReaderTests, ReadPadWithPadValue) {
             </output>
         </layer>
         <layer id="6" name="data3" precision="FP32" type="Const" version="opset1">
-            <data offset="64" size="8"/>
+            <data element_type="f32" offset="64" shape="" size="8"/>
             <output>
                 <port id="0" precision="FP32">
                 </port>

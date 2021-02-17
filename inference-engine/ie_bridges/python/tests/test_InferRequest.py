@@ -387,9 +387,9 @@ def test_get_perf_counts(device):
     del net
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Can't run test on device {},"
-                                                                          "Dynamic batch fully supported only on CPU".format(
-    os.environ.get("TEST_DEVICE", "CPU")))
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                            "Dynamic batch fully supported only on CPU")
 def test_set_batch_size(device):
     ie_core = ie.IECore()
     ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
@@ -491,7 +491,7 @@ def test_resize_algorithm_work(device):
 
     net.input_info['data'].preprocess_info.resize_algorithm = ie.ResizeAlgorithm.RESIZE_BILINEAR
 
-    exec_net_2 = ie_core.load_network(net, 'CPU')
+    exec_net_2 = ie_core.load_network(net, device)
 
     import cv2
 

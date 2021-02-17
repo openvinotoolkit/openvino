@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from collections import namedtuple
 import networkx as nx
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import add_attrs_props, update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.utils import class_registration
@@ -339,6 +340,8 @@ class PermuteAttrs:
     Attr = namedtuple('Attr', ['name', 'port', 'func'])
 
     common_permutation = lambda node, permutation, attr: node[attr][permutation.perm]
+    slice_permutation = lambda node, permutation, attr: node[attr][  # doesn't depend from permutation variable
+        PermuteAttrs.get_nhwc_to_nchw_permutation(len(node[attr])).perm]
     common_permutation_inv = lambda node, permutation, attr: permutation.inv[node[attr]]
 
     # List of default permutations
@@ -353,9 +356,11 @@ class PermuteAttrs:
             'dilation': common_permutation,
             'kernel_shape': common_permutation,
             'output_shape': common_permutation,
-            'slices': common_permutation,
-            'shrink_axis_mask': common_permutation,
-            'new_axis_mask': common_permutation,
+            'begin_mask': slice_permutation,
+            'end_mask': slice_permutation,
+            'shrink_axis_mask': slice_permutation,
+            'new_axis_mask': slice_permutation,
+            'ellipsis_mask': slice_permutation,
             'axes': common_permutation_inv,
             'axis': common_permutation_inv,
             'batch_dims': common_permutation_inv,
@@ -445,7 +450,7 @@ class PermuteAttrs:
             # Exclude 3D shapes from permutation process: identity permutation
             perm = list(range(0, dims_number))
         inv = PermuteAttrs.get_inverse_permutation(perm)
-        return PermuteAttrs.Permutation(perm=np.array(perm), inv=np.array(inv))
+        return PermuteAttrs.Permutation(perm=int64_array(perm), inv=int64_array(inv))
 
     @staticmethod
     def get_nchw_to_nhwc_permutation(dims_number: int):
@@ -456,4 +461,4 @@ class PermuteAttrs:
             # Exclude 3D shapes from permutation process: identity permutation
             perm = list(range(0, dims_number))
         inv = PermuteAttrs.get_inverse_permutation(perm)
-        return PermuteAttrs.Permutation(perm=np.array(perm), inv=np.array(inv))
+        return PermuteAttrs.Permutation(perm=int64_array(perm), inv=int64_array(inv))

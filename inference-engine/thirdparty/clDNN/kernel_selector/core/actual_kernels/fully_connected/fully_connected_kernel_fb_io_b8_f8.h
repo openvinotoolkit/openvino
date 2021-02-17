@@ -23,6 +23,7 @@ class FullyConnected_fb_io_b8_f8 : public FullyConnectedBlockKernelBase {
 public:
     FullyConnected_fb_io_b8_f8() : FullyConnectedBlockKernelBase("fully_connected_gpu_fb_io_b8_f8_vload") {}
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

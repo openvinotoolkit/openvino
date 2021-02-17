@@ -108,6 +108,7 @@ Standard MXNet\* symbols:
 | SoftmaxActivation | No |
 | SoftmaxOutput | No |
 | SoftSign | No |
+| Take | The attribute 'mode' is not supported |
 | Tile | No |
 | UpSampling | No |
 | Where | No |
@@ -123,11 +124,13 @@ Standard TensorFlow\* operations:
 | :----------| :----------|
 | Acosh | No |
 | Add | No |
+| AddV2 | No |
 | AddN | No |
 | ArgMax | No |
 | Asinh | No |
 | Atanh | No |
 | AvgPool | No |
+| AvgPoolV2 | Supported only for constant kernel_size and strides inputs |
 | BatchToSpaceND | No |
 | BiasAdd | No |
 | Bucketize | CPU only |
@@ -158,6 +161,8 @@ Standard TensorFlow\* operations:
 | Floor | No |
 | FloorDiv | No |
 | FusedBatchNorm | No |
+| FusedBatchNormV2 | No |
+| FusedBatchNormV3 | No |
 | Gather | No |
 | GatherNd | No |
 | GatherV2 | No |
@@ -176,6 +181,7 @@ Standard TensorFlow\* operations:
 | MatMul | No |
 | Max | No |
 | MaxPool | No |
+| MaxPoolV2 | Supported only for constant kernel_size and strides inputs |
 | Maximum | No |
 | Mean | No |
 | Merge | Supported only when it is fused to the TensorIterator layer |
@@ -227,7 +233,7 @@ Standard TensorFlow\* operations:
 | Square| No |
 | Squeeze | The case when squeeze axis is not specified is not supported |
 | StopGradient | Not needed for shape inference |
-| StridedSlice | No |
+| StridedSlice | Supported only for constant begin, end, and strides inputs |
 | Sub | No |
 | Sum | No |
 | Swish | No |
@@ -338,6 +344,7 @@ Standard ONNX\* operators:
 | Floor | No |
 | GRU | No |
 | Gather | No |
+| GatherElements | Doesn't work with negative indices |
 | GatherND | No |
 | GatherTree | No |
 | Gemm | No |

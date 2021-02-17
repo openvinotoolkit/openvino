@@ -20,20 +20,16 @@ public:
     }
 };
 
-class MKLDNNTestEngine: public MKLDNNPlugin::Engine {
-public:
-    MKLDNNPlugin::MKLDNNGraph& getGraph(InferenceEngine::IExecutableNetwork::Ptr execNetwork) {
-        auto * execNetworkInt =
-                dynamic_cast<InferenceEngine::ExecutableNetworkBase<InferenceEngine::ExecutableNetworkInternal> *>(execNetwork.get());
-        if (!execNetworkInt)
-            THROW_IE_EXCEPTION << "Cannot find loaded network!";
-
-        auto * network = reinterpret_cast<MKLDNNTestExecNetwork *>(execNetworkInt->getImpl().get());
-        if (!network)
-            THROW_IE_EXCEPTION << "Cannot get mkldnn graph!";
-        return network->getGraph();
-    }
+struct TestExecutableNetworkBase : public InferenceEngine::ExecutableNetworkBase {
+    using InferenceEngine::ExecutableNetworkBase::_impl;
+    ~TestExecutableNetworkBase() override = default;
 };
+
+static MKLDNNPlugin::MKLDNNGraph& getGraph(InferenceEngine::IExecutableNetwork::Ptr execNetwork) {
+    return reinterpret_cast<MKLDNNTestExecNetwork*>(
+        reinterpret_cast<TestExecutableNetworkBase*>(
+            execNetwork.get())->_impl.get())->getGraph();
+}
 
 class MKLDNNGraphLeaksTests: public ::testing::Test {
 protected:
@@ -257,11 +253,11 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
 
         ASSERT_NE(1, network.getOutputsInfo().size());
 
-        std::shared_ptr<MKLDNNTestEngine> score_engine(new MKLDNNTestEngine());
+        std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
         InferenceEngine::ExecutableNetwork exeNetwork1;
         ASSERT_NO_THROW(exeNetwork1 = score_engine->LoadNetwork(network, {}));
 
-        size_t modified_outputs_size = score_engine->getGraph(exeNetwork1).GetOutputNodes().size();
+        size_t modified_outputs_size = getGraph(exeNetwork1).GetOutputNodes().size();
 
         InferenceEngine::CNNNetwork network2;
         ASSERT_NO_THROW(network2 = core.ReadNetwork(model, weights_ptr));
@@ -270,10 +266,12 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
         InferenceEngine::ExecutableNetwork exeNetwork2;
         ASSERT_NO_THROW(exeNetwork2 = score_engine->LoadNetwork(network2, {}));
 
-        size_t original_outputs_size = score_engine->getGraph(exeNetwork2).GetOutputNodes().size();
+        size_t original_outputs_size = getGraph(exeNetwork2).GetOutputNodes().size();
 
         ASSERT_NE(modified_outputs_size, original_outputs_size);
         ASSERT_EQ(1, original_outputs_size);
+    } catch (std::exception& e) {
+        FAIL() << e.what();
     } catch (...) {
         FAIL();
     }

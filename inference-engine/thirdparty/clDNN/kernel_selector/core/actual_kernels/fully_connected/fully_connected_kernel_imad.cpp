@@ -117,7 +117,6 @@ KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const
                                                     options,
                                                     input.GetLayout(),
                                                     WeightsLayout::os_is_yx_osv16_isv4,
-                                                    FORCE_PRIORITY_1,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
@@ -126,4 +125,7 @@ KernelsData FullyConnectedKernelIMAD::GetKernelsData(const Params& params, const
     return res;
 }
 
+KernelsPriority FullyConnectedKernelIMAD::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
+}
 }  // namespace kernel_selector

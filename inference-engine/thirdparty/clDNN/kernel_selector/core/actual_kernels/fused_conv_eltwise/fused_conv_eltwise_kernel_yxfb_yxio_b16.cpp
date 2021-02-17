@@ -85,16 +85,16 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_yxfb_yxio
     const size_t batchesPerWorkItem = GetBatchesPerWorkItem(batch_size, arg.inputs[0].GetDType());
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(arg.inputs[0].GetDType());
 
-    if (arg.inputs[0].GetDType() == Datatype::F16) {
-        dispatchData.efficiency = FORCE_PRIORITY_7;
-    } else {
-        dispatchData.efficiency = FORCE_PRIORITY_9;
-    }
-
     dispatchData.lws[0] = min_lws;
     dispatchData.gws[0] = filter_ofm_num * batch_size / (ofmPerWorkItem * batchesPerWorkItem);
 
     return dispatchData;
+}
+
+KernelsPriority fused_conv_eltwise_kernel_yxfb_yxio_b16::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    auto const& p = static_cast<const fused_conv_eltwise_params&>(params);
+
+    return p.inputs[0].GetDType() == Datatype::F16 ? FORCE_PRIORITY_7 : FORCE_PRIORITY_9;
 }
 
 bool fused_conv_eltwise_kernel_yxfb_yxio_b16::Validate(const Params& p, const optional_params& o) const {

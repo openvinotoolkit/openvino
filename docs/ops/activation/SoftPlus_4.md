@@ -9,9 +9,9 @@
 **Detailed description**: For each element from the input tensor calculates corresponding
 element in the output tensor with the following formula:
 
-    \f[
-    SoftPlus(x) = ln(e^{x} + 1.0)
-    \f]
+\f[
+SoftPlus(x) = ln(e^{x} + 1.0)
+\f]
 
 **Attributes**: *SoftPlus* operation has no attributes.
 

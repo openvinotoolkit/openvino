@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,6 +52,10 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& inputs) const override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+            private:
+                bool evaluate_scatter_element_update(const HostTensorVector& outputs,
+                                                     const HostTensorVector& inputs) const;
             };
         }
         using v3::ScatterElementsUpdate;

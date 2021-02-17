@@ -18,6 +18,16 @@ graph {
           output: "current_a"
           name: "loop_body_mul"
           op_type: "Mul"
+          attribute {
+            name: "broadcast"
+            i: 1
+            type: INT
+          }
+          attribute {
+            name: "axis"
+            i: 0
+            type: INT
+          }
         }
         node {
           input: "cond_in"
@@ -34,9 +44,7 @@ graph {
         name: "simple add"
         initializer {
           dims: 1
-          dims: 2
           data_type: 1
-          float_data: 1
           float_data: 1
           name: "b"
         }

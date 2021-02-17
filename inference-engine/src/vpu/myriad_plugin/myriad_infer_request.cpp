@@ -13,6 +13,7 @@
 #include <vpu/utils/perf_report.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/profiling.hpp>
+#include <vpu/utils/shape_io.hpp>
 
 #include "myriad_executable_network.h"
 #include "myriad_infer_request.h"
@@ -236,8 +237,7 @@ void MyriadInferRequest::GetResult() {
 
         auto ieOutDims = ieOutDesc.getDims();
 
-        // Eject dynamic output shape (suffix "@shape") and copy it to vector of dimensions in reverse order
-        const auto& shapeInfo = _outputInfo.offset.find(ieBlobName + "@shape");
+        const auto& shapeInfo = _outputInfo.offset.find(createIOShapeName(ieBlobName));
         // if (isDynamic)
         if (shapeInfo != _outputInfo.offset.end()) {
             auto outData = networkOutputs[ieBlobName];
@@ -280,7 +280,7 @@ void MyriadInferRequest::GetResult() {
     }
 }
 
-void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MyriadInferRequest::GetPerformanceCounts() const {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
 
     if (_log->isActive(LogLevel::Info)) {
@@ -289,7 +289,7 @@ void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
         }
     }
 
-    perfMap = vpu::parsePerformanceReport(
+    return vpu::parsePerformanceReport(
         _stagesMetaData,
         perfInfo.data(), static_cast<int>(perfInfo.size()),
         _config.perfReport(), _config.printReceiveTensorTime());

@@ -58,30 +58,22 @@ def main():
     model = args.model
     log.info(f"Loading network:\n\t{model}")
     net = ie.read_network(model=model)
-    func = ng.function_from_cnn(net)
-    ops = func.get_ordered_ops()
     # -----------------------------------------------------------------------------------------------------
 
     # ------------- 2. Load Plugin for inference engine and extensions library if specified --------------
     log.info("Device info:")
     versions = ie.get_versions(args.device)
-    print("{}{}".format(" " * 8, args.device))
-    print("{}MKLDNNPlugin version ......... {}.{}".format(" " * 8, versions[args.device].major,
-                                                          versions[args.device].minor))
-    print("{}Build ........... {}".format(" " * 8, versions[args.device].build_number))
+    print(f"{' ' * 8}{args.device}")
+    print(f"{' ' * 8}MKLDNNPlugin version ......... {versions[args.device].major}.{versions[args.device].minor}")
+    print(f"{' ' * 8}Build ........... {versions[args.device].build_number}")
 
     if args.cpu_extension and "CPU" in args.device:
         ie.add_extension(args.cpu_extension, "CPU")
-        log.info("CPU extension loaded: {}".format(args.cpu_extension))
+        log.info(f"CPU extension loaded: {args.cpu_extension}")
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- 3. Read and preprocess input --------------------------------------------
-
-    print("inputs number: " + str(len(net.input_info.keys())))
-
     for input_key in net.input_info:
-        print("input shape: " + str(net.input_info[input_key].input_data.shape))
-        print("input key: " + input_key)
         if len(net.input_info[input_key].input_data.layout) == 4:
             n, c, h, w = net.input_info[input_key].input_data.shape
 
@@ -92,13 +84,12 @@ def main():
         ih, iw = image.shape[:-1]
         images_hw.append((ih, iw))
         log.info("File was added: ")
-        log.info("        {}".format(args.input[i]))
+        log.info(f"        {args.input}")
         if (ih, iw) != (h, w):
-            log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
+            log.warning(f"Image {args.input} is resized from {image.shape[:-1]} to {(h, w)}")
             image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
-
     # -----------------------------------------------------------------------------------------------------
 
     # --------------------------- 4. Configure input & output ---------------------------------------------
@@ -124,21 +115,30 @@ def main():
     data[input_name] = images
 
     if input_info_name != "":
-        infos = np.ndarray(shape=(n, c), dtype=float)
+        detection_size = net.input_info[input_info_name].input_data.shape[1]
+        infos = np.ndarray(shape=(n, detection_size), dtype=float)
         for i in range(n):
             infos[i, 0] = h
             infos[i, 1] = w
-            infos[i, 2] = 1.0
+            for j in range(2, detection_size):
+                infos[i, j] = 1.0
         data[input_info_name] = infos
 
     # --------------------------- Prepare output blobs ----------------------------------------------------
     log.info('Preparing output blobs')
 
-    output_name, output_info = "", net.outputs[next(iter(net.outputs.keys()))]
-    output_ops = {op.friendly_name : op for op in ops \
-                  if op.friendly_name in net.outputs and op.get_type_name() == "DetectionOutput"}
-    if len(output_ops) != 0:
-        output_name, output_info = output_ops.popitem()
+    output_name, output_info = "", None
+    func = ng.function_from_cnn(net)
+    if func:
+        ops = func.get_ordered_ops()
+        for op in ops:
+            if op.friendly_name in net.outputs and op.get_type_name() == "DetectionOutput":
+                output_name = op.friendly_name
+                output_info = net.outputs[output_name]
+                break
+    else:
+        output_name = list(net.outputs.keys())[0]
+        output_info = net.outputs[output_name]
 
     if output_name == "":
         log.error("Can't find a DetectionOutput layer in the topology")
@@ -176,8 +176,8 @@ def main():
             ymin = np.int(ih * proposal[4])
             xmax = np.int(iw * proposal[5])
             ymax = np.int(ih * proposal[6])
-            print("[{},{}] element, prob = {:.6}    ({},{})-({},{}) batch id : {}" \
-                  .format(number, label, confidence, xmin, ymin, xmax, ymax, imid), end="")
+            print(f"[{number},{label}] element, prob = {confidence:.6f}    ({xmin},{ymin})-({xmax},{ymax}) "
+                  f"batch id : {imid}", end="")
             if proposal[2] > 0.5:
                 print(" WILL BE PRINTED!")
                 if not imid in boxes.keys():
@@ -189,12 +189,12 @@ def main():
             else:
                 print()
 
+    tmp_image = cv2.imread(args.input)
     for imid in classes:
-        tmp_image = cv2.imread(args.input[imid])
         for box in boxes[imid]:
             cv2.rectangle(tmp_image, (box[0], box[1]), (box[2], box[3]), (232, 35, 244), 2)
-        cv2.imwrite("out.bmp", tmp_image)
-        log.info("Image out.bmp created!")
+    cv2.imwrite("out.bmp", tmp_image)
+    log.info("Image out.bmp created!")
     # -----------------------------------------------------------------------------------------------------
 
     log.info("Execution successful\n")

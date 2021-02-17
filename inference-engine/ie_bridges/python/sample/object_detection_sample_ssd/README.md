@@ -55,15 +55,15 @@ Options:
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-To run the sample, you can use RMNet_SSD or other object-detection models. You can download the pre-trained models with the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or from [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the sample, you can use RMNet_SSD or other object-detection models. You can download [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models using the [Model Downloader](@ref omz_tools_downloader_README).
 
 > **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 > 
 > The sample accepts models in ONNX format (.onnx) that do not require preprocessing.
 
-You can do inference of an image using a trained RMNet_SSD network on FPGA with fallback to CPU using the following command:
+You can do inference of an image using the [person detection SSD model](@ref omz_models_intel_person_detection_retail_0013_description_person_detection_retail_0013) from the Open Model Zoo on CPU using the following command:
 ```
-    python3 object_detection_sample_ssd.py -i <path_to_image>/cat.bmp -m <path_to_model>/alexnet_fp32.xml -nt 5 -d HETERO:FPGA,CPU
+    python3 object_detection_sample_ssd.py -i <path_to_image>/cat.bmp -m <path_to_model>/person-detection-retail-0013.xml -d CPU
 ```
 
 ## Sample Output

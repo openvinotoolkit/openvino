@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 """
 Copyright (C) 2018-2019 Intel Corporation
 

@@ -194,7 +194,6 @@ static auto Executors = ::testing::Values(
                                                streams, threads/streams, IStreamsExecutor::ThreadBindingType::NONE});
     },
     [] {
-        auto threads = parallel_get_max_threads();
         return std::make_shared<ImmediateExecutor>();
     }
 );

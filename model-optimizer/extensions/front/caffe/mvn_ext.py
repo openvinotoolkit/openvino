@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.mvn import MVN
+from extensions.ops.mvn import MVNCaffe
 from mo.front.caffe.collect_attributes import collect_attributes
 from mo.front.extractor import FrontExtractorOp
 
@@ -30,5 +30,5 @@ class MVNFrontExtractor(FrontExtractorOp):
         attrs = collect_attributes(param)
 
         # update the attributes of the node
-        MVN.update_node_stat(node, attrs)
+        MVNCaffe.update_node_stat(node, attrs)
         return cls.enabled

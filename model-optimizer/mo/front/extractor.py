@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -129,6 +129,20 @@ def attr_getter(node: Node, name: str):
         elif type(node[name]) is not np.ndarray:
             return str(node[name])
     return None
+
+
+def bool_to_str(node: Node, attr: str):
+    # Function converts 0/1 or bool False/True values to str 'false'/'true' which need to appear in IR
+    attribute_name = node.soft_get(attr, None)
+    if attribute_name is None:
+        return None
+    if isinstance(attribute_name, bool):
+        return str(attribute_name).lower()
+    elif attribute_name in [0, 1]:
+        return str(bool(attribute_name)).lower()
+    else:
+        raise Error('Wrong value {} for boolean attribute {} in node {}'.format(
+            attribute_name, attr, node.soft_get('name')))
 
 
 def kernel_getter(node: Node, dim: int):
@@ -441,7 +455,7 @@ def extract_node_attrs(graph: Graph, extractor: callable):
     return graph
 
 
-def get_node_id_with_ports(graph: Graph, node_name: str):
+def get_node_id_with_ports(graph: Graph, node_name: str, skip_if_no_port=True):
     """
     Extracts port and node ID out of user provided name
     :param graph: graph to operate on
@@ -462,12 +476,12 @@ def get_node_id_with_ports(graph: Graph, node_name: str):
             node = Node(graph, graph.get_node_id_by_name(name))
             if match.group(1):
                 in_port = int(match.group(1).replace(':', ''))
-                if in_port not in [e['in'] for e in node.in_edges().values()]:
+                if skip_if_no_port and in_port not in [e['in'] for e in node.in_edges().values()]:
                     # skip found node if it doesn't have such port number
                     continue
             if match.group(3):
                 out_port = int(match.group(3).replace(':', ''))
-                if out_port not in [e['out'] for e in node.out_edges().values()]:
+                if skip_if_no_port and out_port not in [e['out'] for e in node.out_edges().values()]:
                     # skip found node if it doesn't have such port number
                     continue
 

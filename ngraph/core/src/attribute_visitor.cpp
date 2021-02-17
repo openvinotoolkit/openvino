@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -166,6 +166,12 @@ void AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::vector<
 }
 
 void AttributeVisitor::on_adapter(const string& name, ValueAccessor<std::vector<string>>& adapter)
+{
+    on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
+}
+
+void AttributeVisitor::on_adapter(const string& name,
+                                  ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter)
 {
     on_adapter(name, static_cast<ValueAccessor<void>&>(adapter));
 }

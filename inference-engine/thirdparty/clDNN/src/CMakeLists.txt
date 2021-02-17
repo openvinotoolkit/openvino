@@ -164,6 +164,7 @@ set_property(TARGET "${CLDNN_BUILD__PROJ}" PROPERTY OUTPUT_NAME   "${CLDNN_BUILD
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE
     clDNN_OpenCL
     cldnn_kernel_selector
+    openvino::itt
   )
 
 if(WIN32)
@@ -172,20 +173,3 @@ elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE pthread)
 endif()
 target_link_libraries("${CLDNN_BUILD__PROJ}" PRIVATE ${CLDNN__SYSTEM_LINK_LIBRARIES})
-
-# ========================================== Installation ==============================================
-
-# API headers.
-install(DIRECTORY "${CLDNN__API_DIR}/"
-    DESTINATION "include/clDNN"
-    FILE_PERMISSIONS OWNER_WRITE OWNER_READ GROUP_READ WORLD_READ
-  )
-# Binaries.
-install(TARGETS "${CLDNN_BUILD__PROJ}"
-    ARCHIVE DESTINATION "lib"
-    LIBRARY DESTINATION "lib"
-    RUNTIME DESTINATION "bin"
-    INCLUDES DESTINATION "include/clDNN"
-  )
-
-# ======================================================================================================

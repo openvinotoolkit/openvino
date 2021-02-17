@@ -1,10 +1,23 @@
 # Legacy Mode for Caffe* Custom Layers  {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers}
 
-> **NOTE**: This functionality is deprecated and will be removed in future releases.
+> **NOTE**: This functionality is deprecated and will be removed in the future releases.
 
-Model Optimizer can register custom layers in a way that the output shape is calculated by the Caffe\* framework installed on your system. This chapter covers this option.
+Model Optimizer can register custom layers in a way that the output shape is calculated by the Caffe\* framework
+installed on your system. This approach has several limitations:
 
-> **NOTE**: Caffe Python\* API has an issue when layer name does not correspond to the name of its top. The fix was implemented on [BVLC Caffe\*](https://github.com/BVLC/caffe/commit/35a7b87ad87457291dfc79bf8a7e7cf7ef278cbb). The Caffe framework on your computer must contain this fix. Otherwise, Caffe framework can unexpectedly fail during the fallback procedure.
+* If your layer output shape depends on dynamic parameters, input data or previous layers parameters, calculation of
+output shape of the layer via Caffe can be incorrect. For example, `SimplerNMS` is filtering out bounding boxes that do
+not satisfy the condition. Internally, Caffe fallback forwards the whole net without any meaningful data - just some
+noise. It is natural to get only one bounding box (0,0,0,0) instead of expected number (for example, 15). There is an
+option to patch Caffe accordingly, however, it makes success of Intermediate Representation generation on the patched
+Caffe on the particular machine. To keep the solution independent from Caffe, we recommend to use extensions mechanism
+for such layers described in the [Model Optimizer Extensibility](Customize_Model_Optimizer.md).
+* It is not possible to produce Intermediate Representation on a machine that does not have Caffe installed.
+
+> **NOTE**: Caffe Python\* API has an issue when layer name does not correspond to the name of its top. The fix was
+> implemented on [BVLC Caffe\*](https://github.com/BVLC/caffe/commit/35a7b87ad87457291dfc79bf8a7e7cf7ef278cbb). The
+> Caffe framework on your computer must contain this fix. Otherwise, Caffe framework can unexpectedly fail during the
+> fallback procedure.
 
 > **NOTE**: The Caffe fallback feature was validated against [this GitHub revision](https://github.com/BVLC/caffe/tree/99466224dac86ddb86296b1e727794fb836bd80f). You may have issues with forks or later Caffe framework versions.
 
@@ -25,7 +38,8 @@ Where:
 
 **Example**:
 
-1.  `Proposal` layer has parameters, and they appear in the Intermediate Representation. The parameters are stored in the `proposal_param` property of the layer:
+1.  `Proposal` layer has parameters, and they appear in the Intermediate Representation. The parameters are stored in
+the `proposal_param` property of the layer:
 ```shell
 \<CustomLayer NativeType="Proposal" hasParam ="true" protoParamName = "proposal_param"/\> 
 ```
@@ -33,16 +47,6 @@ Where:
 ```shell 
 \<CustomLayer NativeType="CustomLayer" hasParam ="false"/\>
 ```
-
-For this feature, you need an appropriate version of Caffe installed on the computer on which you run the Model Optimizer.
-
-## Constraints of Using the Caffe Fallback
-
-Several layers in the Caffe\* framework can have shapes that dynamically depend on the input data, not only the layers that proceed the layer and its parameters. For example, `SimplerNMS` is filtering out bounding boxes that do not satisfy the condition. Internally, Caffe fallback forwards the whole net without any meaningful data - just some noise. It is natural to get only one bounding box (0,0,0,0) instead of expected number (for example, 15). There is an option to patch Caffe accordingly, however, it makes success of Intermediate Representation generation on the patched Caffe on the particular machine. To keep the solution independent from Caffe, we recommend to use extensions mechanism for such layers.
-
-Known cases like `Proposal`, `DetectionOutput`, `SimplerNMS` are implemented as extensions and can be used out of the box.
-
-A detailed description of supported layers is in the [Operations Specification](../../../ops/opset.md) document.
 
 ## Building Caffe\*
 

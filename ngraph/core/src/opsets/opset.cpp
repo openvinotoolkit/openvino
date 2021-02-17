@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -132,6 +132,25 @@ const ngraph::OpSet& ngraph::get_opset5()
         {
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
 #include "ngraph/opsets/opset5_tbl.hpp"
+#undef NGRAPH_OP
+            opset_is_initialized = true;
+        }
+    }
+    return opset;
+}
+
+const ngraph::OpSet& ngraph::get_opset6()
+{
+    static std::mutex init_mutex;
+    static bool opset_is_initialized = false;
+    static OpSet opset;
+    if (!opset_is_initialized)
+    {
+        std::lock_guard<std::mutex> guard(init_mutex);
+        if (!opset_is_initialized)
+        {
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#include "ngraph/opsets/opset6_tbl.hpp"
 #undef NGRAPH_OP
             opset_is_initialized = true;
         }

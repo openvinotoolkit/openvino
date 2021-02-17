@@ -235,6 +235,7 @@ TEST(ie_core_get_metric, getMetric) {
     const char *device_name = "CPU";
     const char *metric_name = "SUPPORTED_CONFIG_KEYS";
     ie_param_t param;
+    param.params = nullptr;
     IE_EXPECT_OK(ie_core_get_metric(core, device_name, metric_name, &param));
 
     ie_param_free(&param);
@@ -249,6 +250,7 @@ TEST(ie_core_get_config, getConfig) {
     const char *device_name = "CPU";
     const char *config_name = "CPU_THREADS_NUM";
     ie_param_t param;
+    param.params = nullptr;
     IE_EXPECT_OK(ie_core_get_config(core, device_name, config_name, &param));
     EXPECT_STREQ(param.params, "0");
 
@@ -847,6 +849,7 @@ TEST(ie_exec_network_get_config, getConfig) {
     EXPECT_NE(nullptr, exe_network);
 
     ie_param_t param;
+    param.params = nullptr;
     IE_EXPECT_OK(ie_exec_network_get_config(exe_network, "CPU_THREADS_NUM", &param));
 
     ie_param_free(&param);
@@ -901,6 +904,7 @@ TEST(ie_exec_network_get_metric, getMetric) {
     EXPECT_NE(nullptr, exe_network);
 
     ie_param_t param;
+    param.params = nullptr;
     IE_EXPECT_OK(ie_exec_network_get_metric(exe_network, "SUPPORTED_CONFIG_KEYS", &param));
 
     ie_param_free(&param);
@@ -1735,11 +1739,16 @@ TEST(ie_blob_make_memory_nv12, inferRequestWithNV12Blob) {
 
     ie_blob_t *output_blob = nullptr;
     IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
+    EXPECT_NE(nullptr, output_blob);
 
     ie_blob_buffer_t buffer;
+    buffer.buffer = nullptr;
     IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-    float *output_data = (float *)(buffer.buffer);
-    EXPECT_NEAR(output_data[1], 0.f, 1.e-5);
+    EXPECT_NE(buffer.buffer, nullptr);
+    if (buffer.buffer) {
+        float *output_data = (float *)(buffer.buffer);
+        EXPECT_NEAR(output_data[1], 0.f, 1.e-5);
+    }
 
     ie_blob_free(&output_blob);
     ie_blob_free(&blob_nv12);

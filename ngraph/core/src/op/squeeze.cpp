@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,6 +33,11 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_RTTI_DEFINITION(op::v0::Squeeze, "Squeeze", 0);
 
+op::Squeeze::Squeeze()
+    : FusedOp()
+{
+}
+
 op::Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes)
     : FusedOp({data, axes})
 {
@@ -47,7 +52,7 @@ void op::Squeeze::pre_validate_and_infer_types()
     bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
     bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
 
-    auto axes_constant = as_type_ptr<op::v0::Constant>(axes_node);
+    auto axes_constant = get_constant_from_source(axes_node);
     bool axes_is_empty_constant =
         (axes_constant) ? axes_constant->cast_vector<int64_t>().empty() : false;
 
@@ -113,6 +118,7 @@ void op::Squeeze::pre_validate_and_infer_types()
 
 bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Squeeze_visit_attributes);
     return true;
 }
 
@@ -132,6 +138,7 @@ OutputVector op::Squeeze::decompose_op() const
 
 shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Squeeze_clone_with_new_inputs);
     if (new_args.size() != 2)
     {
         throw ngraph_error("Incorrect number of new arguments");
@@ -142,10 +149,38 @@ shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args
 namespace squeeze
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
+    bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& arg1, const HostTensorPtr& out)
     {
-        runtime::reference::copy(
-            arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(out->get_shape()));
+        const auto data_rank = arg0->get_partial_shape().rank().get_length();
+        const auto axes_num = shape_size(arg1->get_shape());
+
+        auto out_shape = arg0->get_shape();
+        if (axes_num == 0)
+        {
+            out_shape.erase(remove(out_shape.begin(), out_shape.end(), 1), out_shape.end());
+        }
+        else
+        {
+            auto norm_axes = normalize_axes(
+                "",
+                std::vector<int64_t>(arg1->get_data_ptr<ET>(), arg1->get_data_ptr<ET>() + axes_num),
+                data_rank);
+            set<size_t, greater<size_t>> ordered_axes(norm_axes.begin(), norm_axes.end());
+
+            for (const auto& axis : ordered_axes)
+            {
+                if (out_shape[axis] != 1)
+                {
+                    throw ngraph_error("Squeeze dimension is not equal to 1");
+                }
+                out_shape.erase(out_shape.begin() + axis);
+            }
+        }
+        out->set_shape(out_shape);
+
+        runtime::reference::copy(arg0->get_data_ptr<char>(),
+                                 out->get_data_ptr<char>(),
+                                 shape_size(out_shape) * out->get_element_type().size());
         return true;
     }
 
@@ -153,55 +188,19 @@ namespace squeeze
                           const HostTensorPtr& arg1,
                           const HostTensorPtr& out)
     {
-        auto element_type = arg0->get_element_type();
-        out->set_element_type(element_type);
-
-        auto data_shape = arg0->get_shape();
-        int64_t data_rank = static_cast<int64_t>(data_shape.size());
-        auto axes_shape = arg1->get_shape();
-        NGRAPH_CHECK(axes_shape.size() <= 1, "Axes to remove must be a vector or empty.");
-
-        auto out_shape = data_shape;
-        // Empty axes vector
-        if (axes_shape.size() == 0 || axes_shape[0] == 0)
-        {
-            out_shape.erase(std::remove(out_shape.begin(), out_shape.end(), 1), out_shape.end());
-        }
-        else
-        {
-            // Get axes
-            vector<int64_t> axes = read_index_vector(arg1);
-            // Normalize axes
-            std::transform(axes.begin(),
-                           axes.end(),
-                           axes.begin(),
-                           [data_rank](int64_t i) -> int64_t { return i < 0 ? data_rank + i : i; });
-            // Sort in decreasing order
-            std::set<int64_t, greater<int64_t>> axes_set(axes.begin(), axes.end());
-            for (int64_t axis : axes_set)
-            {
-                NGRAPH_CHECK(axis >= 0 && axis < data_rank, "Axis is out of bounds: ", axis);
-                NGRAPH_CHECK(out_shape[axis] == 1, "Only axis of size 1 can be removed.");
-                out_shape.erase(out_shape.begin() + axis);
-            }
-        }
-        out->set_shape(out_shape);
+        auto element_type = arg1->get_element_type();
 
         bool rc = true;
         switch (element_type)
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i8, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i16, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i32, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i64, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u8, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u16, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u32, arg0, arg1, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u64, arg0, arg1, out);
         default: rc = false; break;
         }
         return rc;
@@ -211,8 +210,27 @@ namespace squeeze
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Squeeze::evaluate");
+    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate);
+    // TODO: change the behaviour after the support of Squeeze with one input
+    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, inputs.size()));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
     return squeeze::evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
+}
+
+bool op::v0::Squeeze::evaluate_lower(const HostTensorVector& output_values) const
+{
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v0::Squeeze::evaluate_upper(const HostTensorVector& output_values) const
+{
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
+    if (inputs().size() > 1 && !input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v0::Squeeze::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

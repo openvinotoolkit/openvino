@@ -29,7 +29,6 @@ if (NOT MSVC)
       SET_RAW
         "-Wno-error=conversion-null"
         "-Wno-error=type-limits"
-        "-Wno-error=unused-variable"
     )
 endif ()
 

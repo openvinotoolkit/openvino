@@ -4,34 +4,12 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <tuple>
-#include <vector>
-
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/single_layer/scatter_elements_update.hpp"
 
 namespace LayerTestsDefinitions {
-using axisShapeInShape = std::tuple<
-        std::vector<size_t>,    // input shape
-        std::vector<size_t>,    // update shape
-        int>;                   // axis
 
-using scatterElementsUpdateParamsTuple = typename std::tuple<
-        axisShapeInShape,                  // shape description
-        std::vector<size_t>,               // indices value
-        InferenceEngine::Precision,        // Network precision
-        InferenceEngine::Precision,        // indices precision
-        std::string>;                      // Device name
-
-class ScatterElementsUpdateLayerTest : public testing::WithParamInterface<scatterElementsUpdateParamsTuple>,
-                                       virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<scatterElementsUpdateParamsTuple> &obj);
-    static std::vector<axisShapeInShape> combineShapes(
-        const std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>>& inputShapes);
-
-protected:
-    void SetUp() override;
+TEST_P(ScatterElementsUpdateLayerTest, CompareWithRefs) {
+    Run();
 };
+
 }  // namespace LayerTestsDefinitions

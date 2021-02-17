@@ -4,6 +4,13 @@ This topic demonstrates how to run the Benchmark Python* Tool, which performs in
 
 > **NOTE:** This topic describes usage of Python implementation of the Benchmark Tool. For the C++ implementation, refer to [Benchmark C++ Tool](../../samples/benchmark_app/README.md).
 
+> **TIP**: You also can work with the Benchmark Tool inside the OpenVINO™ [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) (DL Workbench).
+> [DL Workbench](@ref workbench_docs_Workbench_DG_Introduction) is a platform built upon OpenVINO™ and provides a web-based graphical environment that enables you to optimize, fine-tune, analyze, visualize, and compare
+> performance of deep learning models on various Intel® architecture
+> configurations. In the DL Workbench, you can use most of OpenVINO™ toolkit components.
+> <br>
+> Proceed to an [easy installation from Docker](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub) to get started.
+
 ## How It Works
 
 Upon start-up, the application reads command-line parameters and loads a network and images/binary files to the Inference Engine plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend on the mode defined with the `-api` command-line parameter.
@@ -102,11 +109,18 @@ Options:
   -t TIME, --time TIME  Optional. Time in seconds to execute topology.
   -progress [PROGRESS]  Optional. Show progress bar (can affect performance
                         measurement). Default values is "False".
+  -shape SHAPE          Optional. Set shape for input. For example,
+                        "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]"
+                        in case of one input size.
+  -layout LAYOUT        Optional. Prompts how network layouts should be
+                        treated by application. For example,
+                        "input1[NCHW],input2[NC]" or "[NCHW]" in case of one
+                        input size.
   -nstreams NUMBER_STREAMS, --number_streams NUMBER_STREAMS
                        Optional. Number of streams to use for inference on the CPU/GPU in throughput mode
                        (for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> or just <nstreams>).
-                       Default value is determined automatically for a device. 
-                       Please note that although the automatic selection usually provides a reasonable performance, 
+                       Default value is determined automatically for a device.
+                       Please note that although the automatic selection usually provides a reasonable performance,
                        it still may be non-optimal for some cases, especially for very small networks.
   -nthreads NUMBER_THREADS, --number_threads NUMBER_THREADS
                         Number of threads to use for inference on the CPU
@@ -129,13 +143,13 @@ If a model has only image input(s), please a provide folder with images or a pat
 If a model has some specific input(s) (not images), please prepare a binary file(s), which is filled with data of appropriate precision and provide a path to them as input.
 If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-To run the tool, you can use public or Intel's pre-trained models. To download the models, use the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the tool, you can use [public](@ref omz_models_public_index) or [Intel's](@ref omz_models_intel_index) pre-trained models from the Open Model Zoo. The models can be downloaded using the [Model Downloader](@ref omz_tools_downloader_README).
 
 > **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 ## Examples of Running the Tool
 
-This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or FPGA devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.  
+This section provides step-by-step instructions on how to run the Benchmark Tool with the `googlenet-v1` public model on CPU or FPGA devices. As an input, the `car.png` file from the `<INSTALL_DIR>/deployment_tools/demo/` directory is used.
 
 > **NOTE:** The Internet access is required to execute the following steps successfully. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
@@ -152,9 +166,9 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ```
    ```sh
    python3 mo.py --input_model <models_dir>/public/googlenet-v1/googlenet-v1.caffemodel --data_type FP32 --output_dir <ir_dir>
-   ```     
+   ```
 3. Run the tool with specifying the `<INSTALL_DIR>/deployment_tools/demo/car.png` file as an input image, the IR of the `googlenet-v1` model and a device to perform inference on. The following commands demonstrate running the Benchmark Tool in the asynchronous mode on CPU and FPGA devices:
-   
+
    * On CPU:
    ```sh
     python3 benchmark_app.py -m <ir_dir>/googlenet-v1.xml -d CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true -b 1
@@ -168,7 +182,7 @@ The application outputs number of executed iterations, total duration of executi
 Additionally, if you set the `-pc` parameter, the application outputs performance counters.
 If you set `-exec_graph_path`, the application reports executable graph information serialized.
 
-Below are fragments of sample output for CPU and FPGA devices: 
+Below are fragments of sample output for CPU and FPGA devices:
 * For CPU:
    ```
    [Step 8/9] Measuring performance (Start inference asynchronously, 60000 ms duration, 4 inference requests in parallel using 4 streams)

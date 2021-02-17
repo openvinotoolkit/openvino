@@ -280,7 +280,7 @@ python3 mo_tf.py --input_model inception_v1.pb -b 1 --tensorflow_custom_operatio
 
 * Launching the Model Optimizer for Inception V1 frozen model and use custom sub-graph replacement file `transform.json` for model conversion. For more information about this feature, refer to [Sub-Graph Replacement in the Model Optimizer](../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
 ```sh
-python3 mo_tf.py --input_model inception_v1.pb -b 1 --tensorflow_use_custom_operations_config transform.json
+python3 mo_tf.py --input_model inception_v1.pb -b 1 --transformations_config transform.json
 ```
 
 * Launching the Model Optimizer for Inception V1 frozen model and dump information about the graph to TensorBoard log dir `/tmp/log_dir`

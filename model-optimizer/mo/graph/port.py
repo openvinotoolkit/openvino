@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -277,6 +277,40 @@ class Port:
             node = Node(self.node.graph, n)
             consumer_ports.append(node.in_port(d['in'], control_flow=self.control_flow))
         return consumer_ports
+
+    def get_tensor_names(self, port_renumber: bool = False):
+        def get_tensor_names_list(attrs):
+            tensor_names_list = []
+            if 'fw_tensor_debug_info' in attrs:
+                if attrs['fw_tensor_debug_info'] is None:
+                    return tensor_names_list
+                for attr in attrs['fw_tensor_debug_info']:
+                    if attr is not None and len(attr) >= 3:
+                        tensor_name = attr[2]
+                        if tensor_name is not None and len(tensor_name) > 0:
+                            tensor_names_list.append(tensor_name.replace(',', '\\,'))
+            return tensor_names_list
+
+        assert self.type != 'in', "Can't get tensor names for input port at {} node".format(self.node.name)
+
+        fw_names = []
+        if self.node.graph.stage == 'front':
+            if self.idx in self.node.out_edges():
+                out_edge = self.node.out_edge(self.idx)
+                fw_names += get_tensor_names_list(out_edge)
+        else:
+            # before port renumbering we use sequential numbering
+            node_idx = self.idx
+            if port_renumber:
+                if self.node.type != 'Const':
+                    # after port renumbering port indices start from zero,
+                    # but data node indices remain the same
+                    node_idx = self.idx + len(self.node.in_nodes())
+
+            if node_idx in self.node.out_nodes():
+                out_node = self.node.out_node(node_idx)
+                fw_names += get_tensor_names_list(out_node.attrs())
+        return fw_names
 
     def disconnect(self):
         if self.type == 'out':

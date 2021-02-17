@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ op::Relu::Relu(const Output<Node>& arg)
 
 shared_ptr<Node> op::Relu::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Relu_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Relu>(new_args.at(0));
 }
@@ -56,20 +57,13 @@ namespace relu
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_relu, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_relu, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_relu, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_relu, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_relu, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_relu, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_relu, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -78,6 +72,12 @@ namespace relu
 
 bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Relu::evaluate");
+    NGRAPH_OP_SCOPE(v0_Relu_evaluate);
     return relu::evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+}
+
+bool op::Relu::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v0_Relu_visit_attributes);
+    return true;
 }

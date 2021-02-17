@@ -19,6 +19,7 @@ from extensions.ops.activation_ops import SoftPlus
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph, rename_nodes
+from mo.middle.pattern_match import check_value
 
 
 class SoftplusFusion(FrontReplacementSubgraph):
@@ -32,7 +33,7 @@ class SoftplusFusion(FrontReplacementSubgraph):
             nodes=[
                 ('exp', dict(op='Exp')),
                 ('add', dict(op='Add')),
-                ('const_1', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 1.0, atol=1e-6))),
+                ('const_1', dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 1.0, atol=1e-6)))),
                 ('ln', dict(op='Log')),
             ],
             edges=[

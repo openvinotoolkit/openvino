@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/shape.hpp"
 
-#include <limits>
+#include <ngraph/validation_util.hpp>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -47,11 +47,13 @@ op::v1::Gather::Gather(const Output<Node>& params,
 
 bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Gather_visit_attributes);
     return true;
 }
 
 void op::v1::Gather::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Gather_validate_and_infer_types);
     const auto& input_rank = get_input_partial_shape(PARAMS).rank();
     const auto& axis_shape = get_input_partial_shape(AXIS);
     const auto& axis_rank = axis_shape.rank();
@@ -79,7 +81,6 @@ void op::v1::Gather::validate_and_infer_types()
     }
 
     element::Type result_et = get_input_element_type(PARAMS);
-    element::Type indices_et = get_input_element_type(INDICES);
 
     const PartialShape& params_shape = get_input_partial_shape(PARAMS);
     const PartialShape& indices_shape = get_input_partial_shape(INDICES);
@@ -117,8 +118,7 @@ void op::v1::Gather::validate_and_infer_types()
 int64_t op::v1::Gather::get_axis() const
 {
     int64_t axis = AXIS_NOT_SET_VALUE;
-    auto axes_input_node = input_value(AXIS).get_node_shared_ptr();
-    if (auto const_op = as_type_ptr<op::Constant>(axes_input_node))
+    if (const auto& const_op = get_constant_from_source(input_value(AXIS)))
     {
         axis = const_op->cast_vector<int64_t>()[0];
     }
@@ -135,6 +135,7 @@ int64_t op::v1::Gather::get_axis() const
 
 shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Gather_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Gather>(new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
 }
@@ -204,20 +205,13 @@ namespace gather
 
         switch (out->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(boolean)(arg0, arg1, out, axis);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis);
+            NGRAPH_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis);
         default: rc = false; break;
         }
         return rc;
@@ -290,9 +284,9 @@ namespace gather
     }
 } // namespace gather
 
-bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v1::Gather::evaluate_gather(const HostTensorVector& outputs,
+                                     const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Gather::evaluate");
     int64_t axis = 0;
     switch (inputs[2]->get_element_type())
     {
@@ -316,6 +310,30 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
         }
     }
     return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
+}
+
+bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    NGRAPH_OP_SCOPE(v1_Gather_evaluate);
+    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 3));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
+    return evaluate_gather(outputs, inputs);
+}
+
+bool op::v1::Gather::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!input_value(INDICES).get_tensor().has_and_set_bound() ||
+        !input_value(AXIS).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Gather::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!input_value(INDICES).get_tensor().has_and_set_bound() ||
+        !input_value(AXIS).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Gather::constant_fold(OutputVector& output_values, const OutputVector& input_values)

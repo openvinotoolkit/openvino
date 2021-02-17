@@ -27,6 +27,7 @@ public:
     virtual ~DeformableConvolutionKernel_bfyx_Ref() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
 
 protected:
     ParamsKey GetSupportedKey() const override;

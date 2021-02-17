@@ -15,12 +15,12 @@
 namespace LayerTestsDefinitions {
 
 std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeAndScaleShiftTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShapes, targetDevice, params, fakeQuantizeOnData) = obj.param;
+    std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = obj.param;
 
     std::ostringstream result;
     result << netPrecision << "_" << targetDevice << "_" << fakeQuantizeOnData;
@@ -28,21 +28,37 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing
 }
 
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
 
     function = ngraph::builder::subgraph::FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
-        FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),
+        netPrecision,
         inputShape,
         fakeQuantizeOnData);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    validate();
+}
 
-    EXPECT_EQ(1ul, function->get_output_size());
+void FuseFakeQuantizeAndScaleShiftTransformation::validate() {
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShape;
+    std::string targetDevice;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
+
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+    EXPECT_EQ(1ul, transformed->get_output_size());
     EXPECT_EQ(1ul, function->get_output_op(0)->get_input_size());
+
+    const auto output = transformed->get_output_op(0);
+    const auto fakeQuantize = output->get_input_node_shared_ptr(0);
+    const std::string typeName = fakeQuantize->get_type_name();
+    ASSERT_EQ("FakeQuantize", typeName);
 }
 
 TEST_P(FuseFakeQuantizeAndScaleShiftTransformation, CompareWithRefImpl) {

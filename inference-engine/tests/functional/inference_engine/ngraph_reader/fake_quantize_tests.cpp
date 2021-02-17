@@ -22,7 +22,7 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
             </output>
         </layer>
         <layer id="1" name="const_1" precision="FP32" type="Const" version="opset1">
-            <data offset="14272" size="224"/>
+            <data element_type="f32" offset="14272" shape="1,56,1,1" size="224"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -33,7 +33,7 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
             </output>
         </layer>
         <layer id="2" name="const_2" precision="FP32" type="Const" version="opset1">
-            <data offset="14272" size="224"/>
+            <data element_type="f32" offset="14272" shape="1,56,1,1" size="224"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -44,7 +44,7 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
             </output>
         </layer>
         <layer id="3" name="const_3" precision="FP32" type="Const" version="opset1">
-            <data offset="14496" size="4"/>
+            <data element_type="f32" offset="14496" shape="1,1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -55,7 +55,7 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
             </output>
         </layer>
         <layer id="4" name="const_4" precision="FP32" type="Const" version="opset1">
-            <data offset="14500" size="4"/>
+            <data element_type="f32" offset="14500" shape="1,1,1,1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

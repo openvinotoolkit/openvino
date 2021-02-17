@@ -1,5 +1,5 @@
 """
- Copyright (C) 2020 Intel Corporation
+ Copyright (C) 2020-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ from mo.utils.utils import refer_to_faq_msg
 
 class TFLoader(Loader):
     enabled = True
+    run_not_recursively = True
 
     def load(self, graph: Graph):
         argv = graph.graph['cmd_params']

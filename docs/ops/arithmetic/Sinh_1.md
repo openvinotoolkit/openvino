@@ -16,7 +16,7 @@
 
 **Outputs**
 
-* **1**: The result of element-wise sinh operation. A tensor of type T.
+* **1**: The result of element-wise sinh operation. A tensor of type *T*.
 
 **Types**
 

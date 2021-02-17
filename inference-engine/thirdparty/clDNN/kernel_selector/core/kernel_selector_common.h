@@ -37,6 +37,7 @@ namespace kernel_selector {
 #endif
 
 // TODO: current solution until we will have kernel selection time based
+#define KernelsPriority float
 #define FORCE_PRIORITY_1 (0.0000001f)
 #define FORCE_PRIORITY_2 (0.0000002f)
 #define FORCE_PRIORITY_3 (0.0000003f)
@@ -200,7 +201,6 @@ struct KernelData {
     std::vector<clKernelData> kernels;
     std::vector<size_t> internalBufferSizes;
     Datatype internalBufferDataType = Datatype::UNSUPPORTED;
-    float estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     uint64_t runTime = std::numeric_limits<uint64_t>::max();  // kernel run time in nanoseconds
 
     bool reorderInput = false;
@@ -215,7 +215,6 @@ struct KernelData {
         const T& orgParams = static_cast<const T&>(_params);
         kd.params = std::make_shared<T>(orgParams);
         kd.kernels.resize(kernel_nums);
-        kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;  // for KW
         kd.runTime = std::numeric_limits<uint64_t>::max();
         kd.reorderInput = false;  // for KW
         kd.autoTuneIndex = -1;

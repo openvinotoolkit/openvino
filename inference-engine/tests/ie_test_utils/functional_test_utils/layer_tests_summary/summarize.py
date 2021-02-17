@@ -48,7 +48,10 @@ def merge_xmls(xmls):
 
 xmls = []
 for xml in args.xml:
-    xmls.append(ET.parse(xml).getroot())
+    try:
+        xmls.append(ET.parse(xml).getroot())
+    except ET.ParseError:
+        print("Error parsing", xml)
 
 root = merge_xmls(xmls)
 timestamp = root.attrib["timestamp"]

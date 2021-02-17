@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,16 +17,16 @@
 #include <algorithm>
 #include <deque>
 #include <iostream>
-#include <pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <regex>
 #include <unordered_set>
 #include <vector>
 
-#include "graph_rewrite.hpp"
 #include "itt.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
+#include "ngraph/pass/graph_rewrite.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -109,12 +109,14 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         // it's type
         // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
         // and default algorithm is used.
-        NodeTypeInfo root_type_info = root->get_type_info();
         if (auto p = dynamic_pointer_cast<pattern::op::Pattern>(root))
         {
             if (auto any_type = dynamic_pointer_cast<pattern::op::WrapType>(p))
             {
-                root_type_info = any_type->get_wrapped_type();
+                for (const auto& root_type_info : any_type->get_wrapped_types())
+                {
+                    type_to_matcher[root_type_info].push_back(matcher_index);
+                }
             }
             else
             {
@@ -122,7 +124,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 break;
             }
         }
-        type_to_matcher[root_type_info].push_back(matcher_index);
+        else
+        {
+            type_to_matcher[root->get_type_info()].push_back(matcher_index);
+        }
 
         // TODO: traverse parents for root_type_info in order to register complete list of matchers
         // including ones triggered by parent type info.
@@ -251,6 +256,7 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
             if (m->match(node->output(0)))
             {
                 NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                NGRAPH_PASS_CALLBACK(m);
                 bool status = callback(*m.get());
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
@@ -387,6 +393,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
         if (m->match(node->output(0)))
         {
             NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+            NGRAPH_PASS_CALLBACK(m);
             bool status = callback(*m.get());
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();
@@ -401,5 +408,7 @@ bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "ngraph::pass::MatcherPass::apply");
     m_new_nodes.clear();
-    return m_handler(node);
+    if (m_handler)
+        return m_handler(node);
+    return false;
 }

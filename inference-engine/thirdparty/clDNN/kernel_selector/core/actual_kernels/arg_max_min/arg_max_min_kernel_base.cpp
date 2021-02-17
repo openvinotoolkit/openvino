@@ -45,7 +45,7 @@ ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelBase::SetDefault(const arg_max_
     return dispatchData;
 }
 
-KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options, float estimatedTime) const {
+KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
@@ -62,8 +62,6 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
-
-    kd.estimatedTime = estimatedTime;
 
     return {kd};
 }

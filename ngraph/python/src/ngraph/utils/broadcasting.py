@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 def get_broadcast_axes(
     output_shape: TensorShape, input_shape: TensorShape, axis: int = None
 ) -> AxisSet:
-    """! Generate a list of broadcast axes for ngraph++ broadcast.
+    """Generate a list of broadcast axes for ngraph++ broadcast.
 
     Informally, a broadcast "adds" axes to the input tensor,
     replicating elements from the input tensor as needed to fill the new dimensions.

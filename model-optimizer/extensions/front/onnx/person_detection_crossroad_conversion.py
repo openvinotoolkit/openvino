@@ -1,5 +1,5 @@
 """
- Copyright (c) 2020 Intel Corporation
+ Copyright (c) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -41,10 +41,7 @@ def insert_experimental_layers(graph: Graph, input_fpn_heads: list, inp: str, ou
 
     input_fpn_head_nodes = [Node(graph, node_id) for node_id in input_fpn_heads]
     fpn_roi_align = ExperimentalDetectronROIFeatureExtractor(graph, {'name': output_name,
-                                                                     'distribute_rois_between_levels': 1,
-                                                                     'image_id': 0,
                                                                      'output_size': 7,
-                                                                     'preserve_rois_order': 1,
                                                                      'pyramid_scales': int64_array(
                                                                          [4, 8, 16, 32, 64]),
                                                                      'sampling_ratio': 2, }).create_node()

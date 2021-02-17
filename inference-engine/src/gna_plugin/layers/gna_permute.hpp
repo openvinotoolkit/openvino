@@ -7,6 +7,7 @@
 #include <vector>
 #include <list>
 #include <utility>
+#include "ie_common.h"
 #include "gna_plugin_log.hpp"
 
 namespace GNAPluginNS {
@@ -101,4 +102,20 @@ template <class T>
 inline typename PermuteSequence<T>::cnt_type genPermutations(const std::initializer_list<T> & lst) {
     return genPermutations(lst.begin(), lst.end());
 }
+
+/**
+ * @brief returns dimensions order for permute from input to output layout
+ * @param in_layout
+ * @param out_layout
+ */
+inline std::vector<int> GetPermuteOrder(InferenceEngine::Layout in_layout, InferenceEngine::Layout out_layout) {
+    if (in_layout == InferenceEngine::Layout::NHWC && out_layout == InferenceEngine::Layout::NCHW) {
+        return {0, 3, 1, 2};
+    }
+    if (in_layout == InferenceEngine::Layout::NCHW && out_layout == InferenceEngine::Layout::NHWC) {
+        return {0, 2, 3, 1};
+    }
+    return {0, 1, 2, 3};
+}
+
 }  // namespace GNAPluginNS

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <sstream>
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/parameter.hpp"
@@ -24,11 +25,8 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::Parameter::type_info;
 
-op::Parameter::Parameter(const element::Type& element_type,
-                         const PartialShape& pshape,
-                         const bool cacheable)
-    : m_cacheable(cacheable)
-    , m_partial_shape(pshape)
+op::Parameter::Parameter(const element::Type& element_type, const PartialShape& pshape)
+    : m_partial_shape(pshape)
     , m_element_type(element_type)
     , m_is_relevant_to_shapes(false)
 {
@@ -37,7 +35,7 @@ op::Parameter::Parameter(const element::Type& element_type,
 
 bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("cacheable", m_cacheable);
+    NGRAPH_OP_SCOPE(v0_Parameter_visit_attributes);
     visitor.on_attribute("shape", m_partial_shape);
     visitor.on_attribute("element_type", m_element_type);
     return true;
@@ -45,12 +43,14 @@ bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
 
 void op::Parameter::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_Parameter_validate_and_infer_types);
     Op::validate_and_infer_types();
     set_output_type(0, m_element_type, m_partial_shape);
 }
 
 shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Parameter_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Parameter>(m_element_type, m_partial_shape);
 }

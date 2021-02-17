@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,6 +56,8 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
 
             protected:
                 ngraph::element::Type m_destination_type;

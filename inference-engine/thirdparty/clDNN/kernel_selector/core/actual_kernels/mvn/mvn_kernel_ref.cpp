@@ -70,6 +70,10 @@ std::string MVNKernelRef::GetKernelName(const mvn_params& params) const {
 }
 
 KernelsData MVNKernelRef::GetKernelsData(const Params& params, const optional_params& optParams) const {
-    return GetCommonKernelsData(params, optParams, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, optParams);
+}
+
+KernelsPriority MVNKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

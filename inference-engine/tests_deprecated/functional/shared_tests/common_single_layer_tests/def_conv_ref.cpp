@@ -194,8 +194,6 @@ void ref_def_conv_common(const std::vector<InferenceEngine::Blob::Ptr> srcs,
     size_t OD = dst_dims.size() == 5lu ? dst_dims[2] : 1lu;
     size_t OC = prm.out_c;
 
-    size_t DG = prm.deformable_group;
-
     const auto* src_data = srcs[0]->cbuffer().as<const ie_fp16 *>();
     const auto* trans_data = srcs[1]->cbuffer().as<const ie_fp16 *>();
     auto* dst_data = dst.buffer().as<ie_fp16 *>();

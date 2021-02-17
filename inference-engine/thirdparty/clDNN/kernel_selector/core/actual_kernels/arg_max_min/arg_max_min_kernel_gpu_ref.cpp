@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,6 +34,10 @@ ParamsKey ArgMaxMinKernelGPURef::GetSupportedKey() const {
 }
 
 KernelsData ArgMaxMinKernelGPURef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_9);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority ArgMaxMinKernelGPURef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

@@ -13,6 +13,9 @@ using namespace ::testing;
 using namespace std;
 using namespace mkldnn;
 
+constexpr auto depthwise_scale_shift = mkldnn::algorithm::depthwise_scale_shift;
+constexpr auto depthwise_prelu = mkldnn::algorithm::depthwise_prelu;
+
 struct conv_params {
     size_t krn_w;
     size_t krn_h;

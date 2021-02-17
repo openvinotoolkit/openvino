@@ -14,12 +14,26 @@
 :: See the License for the specific language governing permissions and
 :: limitations under the License.
 
+
 set ROOT=%~dp0
 call :GetFullPath "%ROOT%\.." ROOT
 set SCRIPT_NAME=%~nx0
 
 set "INTEL_OPENVINO_DIR=%ROOT%"
 set "INTEL_CVSDK_DIR=%INTEL_OPENVINO_DIR%"
+
+set "python_version="
+
+:: command line arguments parsing
+:input_arguments_loop
+if not "%1"=="" (
+    if "%1"=="-pyver" (
+        set "python_version=%2"
+        shift
+    )
+    shift
+    goto :input_arguments_loop
+)
 
 :: OpenCV
 if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
@@ -38,9 +52,21 @@ set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\model_optimizer;%PATH%"
 :: Inference Engine
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\share"
 set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\hddl"
-set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\bin;%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Release;%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%PATH%"
+set "OPENMP_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\omp\lib"
+set "GNA_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\gna\lib"
+
+set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Release;%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENMP_DIR%;%GNA_DIR%;%PATH%"
 if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions (
 set ARCH_ROOT_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions
+)
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions (
+set ARCH_ROOT_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\bin\intel64\arch_descriptions
+)
+
+:: TBB
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb (
+set "PATH=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\bin;%PATH%"
+set "TBB_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\external\tbb\cmake"
 )
 
 :: nGraph
@@ -56,14 +82,17 @@ if errorlevel 1 (
    exit /B 1
 )
 
-:: Check Python version
-for /F "tokens=* USEBACKQ" %%F IN (`python --version 2^>^&1`) DO (
-   set pyversion=%%F
+:: Check Python version if user did not pass -pyver
+
+if "%python_version%" == "" (
+    for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(str(sys.version_info[0])+'.'+str(sys.version_info[1]))" 2^>^&1`) DO (
+       set python_version=%%F
+    )
 )
 
-for /F "tokens=1,2,3 delims=. " %%a in ("%pyversion%") do (
-   set pyversion_major=%%b
-   set pyversion_minor=%%c
+for /F "tokens=1,2 delims=. " %%a in ("%python_version%") do (
+   set pyversion_major=%%a
+   set pyversion_minor=%%b
 )
 
 if "%pyversion_major%" geq "3" (

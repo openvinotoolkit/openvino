@@ -30,6 +30,7 @@ public:
                                            const int autoTuneIndex = -1) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
 
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
     struct tune_params {

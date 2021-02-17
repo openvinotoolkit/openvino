@@ -119,11 +119,12 @@ public:
 
             store_prob = layer->outData.size() == 2;
             if (store_prob) {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
-                                 {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)});
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                                 DataConfigurator(ConfLayout::PLN, Precision::FP32)},
+                                 {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32)});
             } else {
-                addConfig(layer, {DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN)},
-                                 {DataConfigurator(ConfLayout::PLN)});
+                addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                                 DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
             }
         } catch (const InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();

@@ -32,7 +32,7 @@ ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
         auto input_shape_rank = tile->get_input_partial_shape(0).rank().get_length();
         int64_t cur_dim_id = tiles.size() - 1;
 
-        if (tiles.size() != input_shape_rank) return false;
+        if (static_cast<int64_t>(tiles.size()) != input_shape_rank) return false;
 
         // IE Tile operations supports only one axis to be tiled
         // bool already_set = false;

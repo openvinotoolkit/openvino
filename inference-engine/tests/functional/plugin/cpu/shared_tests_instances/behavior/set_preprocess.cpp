@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <base/behavior_test_utils.hpp>
 #include "multi-device/multi_device_config.hpp"
 
 #include "behavior/set_preprocess.hpp"

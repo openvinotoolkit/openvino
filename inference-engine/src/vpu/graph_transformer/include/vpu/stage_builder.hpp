@@ -327,6 +327,8 @@ public:
             const std::string& name,
             const ie::CNNLayerPtr& layer,
             bool align_corners,
+            InterpolateMode mode,
+            InterpolateCoordTransMode coordinateTransformationMode,
             const Data& input,
             const Data& output);
 
@@ -340,6 +342,21 @@ public:
             float factor,
             const Data& input,
             const Data& output);
+
+    Stage addGatherElementsStage(const Model &model,
+                                 const std::string &name,
+                                 const ie::CNNLayerPtr &layer,
+                                 const DataVector &inputs,
+                                 const Data &output, int32_t axis,
+                                 bool rowIndicesMode);
+
+    Stage addCTCGreedyDecoderSeqLenStage(const Model& model,
+                                         const std::string& name,
+                                         const ie::CNNLayerPtr& layer,
+                                         const DataVector& inputs,
+                                         const DataVector& outputs,
+                                         bool mergeRepeated,
+                                         int32_t blankIndex);
 };
 
 }  // namespace vpu

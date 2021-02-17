@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "bucketize.hpp"
+#include "ngraph/op/bucketize.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -34,6 +35,7 @@ op::v3::Bucketize::Bucketize(const Output<Node>& data,
 
 bool op::v3::Bucketize::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v3_Bucketize_visit_attributes);
     visitor.on_attribute("output_type", m_output_type);
     visitor.on_attribute("with_right_bound", m_with_right_bound);
     return true;
@@ -41,18 +43,32 @@ bool op::v3::Bucketize::visit_attributes(AttributeVisitor& visitor)
 
 void op::v3::Bucketize::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v3_Bucketize_validate_and_infer_types);
     const PartialShape& data_pshape = get_input_partial_shape(0);
     const PartialShape& buckets_pshape = get_input_partial_shape(1);
 
+    const auto data_et = get_input_element_type(0);
+    const auto buckets_et = get_input_element_type(1);
+
+    NODE_VALIDATION_CHECK(this,
+                          data_et.is_real() || data_et.is_integral_number(),
+                          "Data input type must be numeric. Got: ",
+                          data_et);
+
+    NODE_VALIDATION_CHECK(this,
+                          buckets_et.is_real() || buckets_et.is_integral_number(),
+                          "Buckets input type must be numeric. Got: ",
+                          buckets_et);
+
     NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
-                          "Output type must be i32 or i64. Default is i64");
+                          "Output type must be i32 or i64. Got: ",
+                          m_output_type);
 
-    if (buckets_pshape.is_static())
-    {
-        NODE_VALIDATION_CHECK(
-            this, buckets_pshape.rank().compatible(1), "buckets input must be a 1D tensor");
-    }
+    NODE_VALIDATION_CHECK(this,
+                          buckets_pshape.rank().compatible(1),
+                          "Buckets input must be a 1D tensor. Got: ",
+                          buckets_pshape);
 
     if (data_pshape.is_dynamic())
     {
@@ -65,6 +81,7 @@ void op::v3::Bucketize::validate_and_infer_types()
 
 shared_ptr<Node> op::v3::Bucketize::clone_with_new_inputs(const OutputVector& inputs) const
 {
+    NGRAPH_OP_SCOPE(v3_Bucketize_clone_with_new_inputs);
     check_new_args_count(this, inputs);
 
     return make_shared<v3::Bucketize>(

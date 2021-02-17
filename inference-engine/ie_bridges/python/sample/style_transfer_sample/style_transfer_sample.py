@@ -81,11 +81,11 @@ def main():
     for i in range(n):
         image = cv2.imread(args.input[i])
         if image.shape[:-1] != (h, w):
-            log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
+            log.warning(f"Image {args.input[i]} is resized from {image.shape[:-1]} to {(h, w)}")
             image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
-    log.info("Batch size is {}".format(n))
+    log.info(f"Batch size is {n}")
 
     # Loading model to the plugin
     log.info("Loading model to the plugin")
@@ -107,9 +107,9 @@ def main():
         data[data < 0] = 0
         data[data > 255] = 255
         data = data[::] - (args.mean_val_r, args.mean_val_g, args.mean_val_b)
-        out_img = os.path.join(os.path.dirname(__file__), "out_{}.bmp".format(batch))
+        out_img = os.path.join(os.path.dirname(__file__), f"out_{batch}.bmp")
         cv2.imwrite(out_img, data)
-        log.info("Result image was saved to {}".format(out_img))
+        log.info(f"Result image was saved to {out_img}")
     log.info("This sample is an API example, for any performance measurements please use the dedicated benchmark_app tool\n")
 
 

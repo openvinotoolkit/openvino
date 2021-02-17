@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_tensoriterator_node.h"
-#include "desc_iterator.hpp"
+
 #include <legacy/ie_layers.h>
 #include <legacy/ie_layers_internal.hpp>
 #include <string>
@@ -50,7 +50,8 @@ static InferenceEngine::LayerConfig make_plain_config(const InferenceEngine::CNN
 class PortIteratorHelper : public PortMapHelper {
 public:
     PortIteratorHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, bool sliced_src,
-                       const InferenceEngine::TensorIterator::PortMap &slice_rule, const mkldnn::engine& eng) {
+                       const InferenceEngine::TensorIterator::PortMap &slice_rule, const mkldnn::engine& eng)
+                       : sliced_src(sliced_src) {
         const auto &full_blob = sliced_src ? from : to;
         const auto &part_blob = !sliced_src ? from : to;
 
@@ -71,56 +72,59 @@ public:
         // make chunk view
         auto chunk_desc =  full_blob->GetDescriptor();
         chunk_desc.data.dims[axis] = abs_stride;
-        chunk_desc.data.layout_desc.blocking.padding_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
+        chunk_desc.data.padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
 
-        mem_holder.push_back(full_blob->GetPrimitive());
-        auto full_mem_handler = full_blob->GetPrimitive().get_data_handle();
-        mem_holder.emplace_back(mkldnn::memory::primitive_desc(chunk_desc, eng), full_mem_handler);
-        auto &chunk_mem_prim = mem_holder.back();
+        full_mem = full_blob->GetPrimitive();
+        const auto full_mem_handler = full_mem.get_data_handle();
+        mkldnn::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
 
         auto elem_size = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(chunk_desc.data.data_type));
 
-        chunk_stride_in_byte = chunk_desc.data.layout_desc.blocking.strides[0][axis] * elem_size * abs_stride;
+        chunk_stride_in_byte = chunk_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
         chunk_offset_in_byte = sign_of_stride < 0 ? (iter_count - 1) * chunk_stride_in_byte : 0;
         chunk_stride_in_byte *= sign_of_stride;
 
         if (sliced_src) {
-            reorders.emplace_back(chunk_mem_prim, to->GetPrimitive());
+            mem_holder_src = chunk_mem;
+            mem_holder_dst = to->GetPrimitive();
         } else {
-            reorders.emplace_back(from->GetPrimitive(), chunk_mem_prim);
+            mem_holder_src = from->GetPrimitive();
+            mem_holder_dst = chunk_mem;
         }
+        reorder = {mem_holder_src, mem_holder_dst};
     }
 
     void execute(mkldnn::stream strm, int iter) override {
         IE_ASSERT(iter >= 0 && iter < iter_count);
 
-        auto full_mem = mem_holder[FULL_DATA];
-        auto chunk_mem = mem_holder[CHUNK_DATA];
-
+        auto &chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
         chunk_mem.set_data_handle(static_cast<uint8_t *>(full_mem.get_data_handle()) +
                 chunk_offset_in_byte + chunk_stride_in_byte * iter);
 
-        strm.submit({reorders.begin(), reorders.end()});
+        reorder.execute(strm, mem_holder_src, mem_holder_dst);
     }
 
 private:
     ptrdiff_t chunk_stride_in_byte = 0;
     ptrdiff_t chunk_offset_in_byte = 0;
 
-    const int FULL_DATA = 0;
-    const int CHUNK_DATA = 1;
+    bool sliced_src;
+    mkldnn::memory full_mem;
+
     int iter_count;
 };
 
 class BackEdgePortHelper : public PortMapHelper {
 public:
     BackEdgePortHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
-        reorders.emplace_back(from->GetPrimitive(), to->GetPrimitive());
+        mem_holder_src = from->GetPrimitive();
+        mem_holder_dst = to->GetPrimitive();
+        reorder = {mem_holder_src, mem_holder_dst};
     }
 
     void execute(mkldnn::stream strm, int iter) override {
         if (iter != 0) {
-            strm.submit({reorders.begin(), reorders.end()});
+            reorder.execute(strm, mem_holder_src, mem_holder_dst);
         }
     }
 };
@@ -129,13 +133,13 @@ class IterCountPortHelper : public PortMapHelper {
 public:
     IterCountPortHelper(const MKLDNNMemoryPtr &to, const mkldnn::engine& eng) {
         // Only scalar I32 tensor is supported
-        IE_ASSERT(to->GetDataType() == memory::s32);
+        IE_ASSERT(to->GetDataType() == memory::data_type::s32);
         IE_ASSERT(to->GetDims() == memory::dims{1});
-        mem_holder.push_back(to->GetPrimitive());
+        mem_holder_dst = to->GetPrimitive();
     }
 
     void execute(mkldnn::stream strm, int n_iter) override {
-        auto mem = mem_holder[0];
+        auto mem = mem_holder_dst;
         auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
         *data_ptr = n_iter;
     }
@@ -144,14 +148,13 @@ public:
 class asBoolCheck : public PortChecker {
 public:
     asBoolCheck(const MKLDNNMemoryPtr &mem) {
-        IE_ASSERT(mem->GetDataType() == memory::u8);
+        IE_ASSERT(mem->GetDataType() == memory::data_type::u8);
         IE_ASSERT(mem->GetDims() == memory::dims{1});
-        mem_holder.push_back(mem->GetPrimitive());
+        mem_holder = mem->GetPrimitive();
     }
 
     int getStatus() override {
-        auto mem = mem_holder[0];
-        auto data_ptr = static_cast<uint8_t*>(mem.get_data_handle());
+        auto data_ptr = static_cast<uint8_t*>(mem_holder.get_data_handle());
         return *data_ptr == static_cast<uint8_t>(0) ? 0 : 1;
     }
 };
@@ -159,14 +162,13 @@ public:
 class asIntCheck : public PortChecker {
 public:
     asIntCheck(const MKLDNNMemoryPtr &mem) {
-        IE_ASSERT(mem->GetDataType() == memory::s32);
+        IE_ASSERT(mem->GetDataType() == memory::data_type::s32);
         IE_ASSERT(mem->GetDims() == memory::dims{1});
-        mem_holder.push_back(mem->GetPrimitive());
+        mem_holder = mem->GetPrimitive();
     }
 
     int getStatus() override {
-        auto mem = mem_holder[0];
-        auto data_ptr = static_cast<uint32_t*>(mem.get_data_handle());
+        auto data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
         return *data_ptr;
     }
 };
@@ -185,7 +187,8 @@ private:
 }  // namespace MKLDNNPlugin
 
 MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {}
+        MKLDNNNode(layer, eng, cache),
+        sub_graph(eng) {}
 
 void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
     auto *ti = dynamic_cast<class InferenceEngine::TensorIterator*>(getCnnLayer().get());

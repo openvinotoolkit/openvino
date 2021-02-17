@@ -7,7 +7,7 @@
 #include "subgraph_tests/conv_eltwise_fusion.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     const std::vector<ngraph::element::Type> types{ngraph::element::f32, ngraph::element::f16};

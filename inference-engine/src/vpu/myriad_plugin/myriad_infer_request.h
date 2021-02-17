@@ -52,8 +52,8 @@ public:
     void InferAsync();
     void GetResult();
 
-    void
-    GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>
+    GetPerformanceCounts() const override;
 };
 
 }  // namespace MyriadPlugin

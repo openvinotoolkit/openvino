@@ -21,7 +21,7 @@
 #endif
 
 static std::string get_extension_path() {
-    return FileUtils::makeSharedLibraryName<char>(
+    return FileUtils::makePluginLibraryName<char>(
         {}, std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
@@ -53,10 +53,12 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
     bool success;
     std::string message;
     std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
+        compare_functions(result.getFunction(), expected.getFunction(), true);
 
     ASSERT_TRUE(success) << message;
 }
+
+#ifdef NGRAPH_ONNX_IMPORT_ENABLE
 
 TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.prototxt";
@@ -73,10 +75,12 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
     bool success;
     std::string message;
     std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
+        compare_functions(result.getFunction(), expected.getFunction(), true);
 
     ASSERT_TRUE(success) << message;
 }
+
+#endif
 
 TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
@@ -97,7 +101,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
     bool success;
     std::string message;
     std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
+        compare_functions(result.getFunction(), expected.getFunction(), true);
 
     ASSERT_TRUE(success) << message;
 }

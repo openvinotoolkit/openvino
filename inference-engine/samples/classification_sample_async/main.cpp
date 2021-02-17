@@ -169,6 +169,8 @@ int main(int argc, char *argv[]) {
             auto minputHolder = minput->wmap();
 
             auto data = minputHolder.as<PrecisionTrait<Precision::U8>::value_type *>();
+            if (data == nullptr)
+                throw std::runtime_error("Input blob has not allocated buffer");
             /** Iterate over all input images **/
             for (size_t image_id = 0; image_id < imagesData.size(); ++image_id) {
                 /** Iterate over all pixel in image (b,g,r) **/
@@ -217,6 +219,8 @@ int main(int argc, char *argv[]) {
         // --------------------------- 8. Process output -------------------------------------------------------
         slog::info << "Processing output blobs" << slog::endl;
         OutputsDataMap outputInfo(network.getOutputsInfo());
+        if (outputInfo.empty())
+            throw std::runtime_error("Can't get output blobs");
         Blob::Ptr outputBlob = inferRequest.GetBlob(outputInfo.begin()->first);
 
         /** Validating -nt value **/

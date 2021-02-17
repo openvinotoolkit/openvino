@@ -39,7 +39,7 @@ void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace = -1;
     config.inConfs[0].constant = false;
     config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, memory::format::any);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, memory::format_tag::any);
 }
 
 void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
@@ -50,7 +50,6 @@ void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
     inputMemoryNode->storeState(srcMemory);
 }
 
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 MKLDNNMemoryInputNode::MKLDNNMemoryInputNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNInputNode(layer, eng, cache), MKLDNNMemoryNode(layer), dataStore(new MKLDNNMemory{eng}) {
     if (created()) {
@@ -76,14 +75,8 @@ void MKLDNNMemoryInputNode::createPrimitive() {
  */
 inline
 static void simple_copy(MKLDNNMemory& dst, const MKLDNNMemory& src) {
-    auto getDataWithOff = [] (const MKLDNNMemory& mem) {
-        auto elemSize = MKLDNNExtensionUtils::sizeOfDataType(mem.GetDataType());
-        return static_cast<uint8_t*>(mem.GetData()) +
-                mem.GetDescriptor().data.layout_desc.blocking.offset_padding * elemSize;
-    };
-
-    auto srcPtr = getDataWithOff(src);
-    auto dstPtr = getDataWithOff(dst);
+    auto srcPtr = static_cast<uint8_t*>(src.GetPtr());
+    auto dstPtr = static_cast<uint8_t*>(dst.GetPtr());
     auto srcSizeInByte = src.GetSize();
     auto dstSizeInByte = dst.GetSize();
 
@@ -129,7 +122,6 @@ MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerInput(
     }
     return &holder;
 }
-#endif
 
 MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerOutput(MKLDNNMemoryOutputNode * node) {
     std::lock_guard<std::mutex> lock{MKLDNNMemoryNodeVirtualEdge::holderMutex};
@@ -137,13 +129,9 @@ MKLDNNMemoryNodeVirtualEdge::Holder* MKLDNNMemoryNodeVirtualEdge::registerOutput
     auto& holder = MKLDNNMemoryNodeVirtualEdge::getExisted();
     auto sibling = MKLDNNMemoryNodeVirtualEdge::getByName(holder, node->getId());
     if (sibling != nullptr) {
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
         auto inputNode = dynamic_cast<MKLDNNMemoryInputNode*>(sibling);
         IE_ASSERT(inputNode != nullptr);
         node->setInputNode(inputNode);
-#else
-        THROW_IE_EXCEPTION << "CPU Plugin doesn't contain Input layer!";
-#endif
     } else {
         holder[node->getId()] = node;
     }
@@ -159,7 +147,5 @@ void MKLDNNMemoryNodeVirtualEdge::remove(MKLDNNMemoryNode * node, Holder* holder
     }
 }
 
-#if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
 REG_MKLDNN_PRIM_FOR(MKLDNNMemoryInputNode, MemoryInput);
-#endif
 REG_MKLDNN_PRIM_FOR(MKLDNNMemoryOutputNode, MemoryOutput);

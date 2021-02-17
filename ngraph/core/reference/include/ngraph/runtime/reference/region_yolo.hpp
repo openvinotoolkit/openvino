@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -93,7 +93,6 @@ namespace ngraph
                 NGRAPH_CHECK(input_shape.size() == 4);
 
                 const int batches = input_shape[0];
-                const int channels = input_shape[1];
                 const int height = input_shape[2];
                 const int width = input_shape[3];
 

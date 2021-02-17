@@ -65,7 +65,7 @@ struct shared_mem_params {
     shared_handle context;        ///< OpenCL context for external operations
     shared_handle user_device;    ///< DX/VA device for external operations
     shared_handle mem;            ///< memory object handle
-#ifdef WIN32
+#ifdef _WIN32
     shared_handle surface;        ///< VA/DXVA surface handle
 #else
     shared_surface surface;
@@ -90,7 +90,7 @@ struct memory {
     static memory share_image(const engine& engine, const layout& layout, shared_handle img, uint32_t net_id = 0);
 
     /// Create shared memory object on @p engine over specified @p plane of video decoder surface @p surf using specified @p layout
-#ifdef WIN32
+#ifdef _WIN32
     static memory share_surface(const engine& engine, const layout& layout, shared_handle surf, uint32_t plane,
         uint32_t net_id = 0);
     static memory share_dx_buffer(const engine& engine, const layout& layout, shared_handle res, uint32_t net_id = 0);

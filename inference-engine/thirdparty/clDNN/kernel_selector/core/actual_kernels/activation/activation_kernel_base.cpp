@@ -35,8 +35,6 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
         dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
     }
 
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return dispatchData;
 }
 
@@ -96,8 +94,6 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
     if (!newParams.inputActivationParams.empty()) {
         kernel.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
     }
-
-    kd.estimatedTime = dispatchData.efficiency;
 
     return {kd};
 }

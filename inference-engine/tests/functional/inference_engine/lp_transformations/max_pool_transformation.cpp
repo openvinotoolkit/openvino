@@ -16,8 +16,8 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/max_pool_function.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/max_pool_function.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
 
 
 using namespace testing;
@@ -29,6 +29,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ngraph::element::Type preicsionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
     };
 
@@ -36,6 +37,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ngraph::element::Type preicsionAfterOperation;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
     };
 
@@ -58,6 +60,7 @@ public:
             shape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization1,
+            testValues.actual.preicsionAfterOperation,
             testValues.actual.dequantization2);
 
         SimpleLowPrecisionTransformer transform;
@@ -68,6 +71,7 @@ public:
             shape,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantization1,
+            testValues.expected.preicsionAfterOperation,
             testValues.expected.dequantization2);
     }
 
@@ -104,11 +108,13 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             { {}, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }},
+            ngraph::element::f32,
             {}
         },
         {
             ngraph::element::u8,
             {},
+            ngraph::element::u8,
             { ngraph::element::f32, {}, { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }}
         }
     },
@@ -122,11 +128,13 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
                 { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
                 { {0.02f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 }
             },
+            ngraph::element::f32,
             {}
         },
         {
             ngraph::element::u8,
             {},
+            ngraph::element::u8,
             {
                 ngraph::element::f32,
                 { {128.f}, ngraph::element::f32, {}, true, 1, ngraph::element::f32 },
@@ -140,11 +148,13 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             { ngraph::element::f32, { 128 }, { 0.02f }},
+            ngraph::element::f32,
             {}
         },
         {
             ngraph::element::u8,
             {},
+            ngraph::element::u8,
             { ngraph::element::f32, { 128 }, { 0.02f }}
         }
     },
@@ -154,11 +164,13 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             { ngraph::element::f32, {}, { 0.02f }},
+            ngraph::element::f32,
             {}
         },
         {
             ngraph::element::u8,
             {},
+            ngraph::element::u8,
             { ngraph::element::f32, {}, { 0.02f }}
         }
     },
@@ -166,28 +178,32 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         {
-            ngraph::element::u8,
+            ngraph::element::f32,
             { ngraph::element::f32, { 128 }, { 0.02f }},
+            ngraph::element::f32,
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::f32,
             {},
-            { ngraph::element::f32, { 128 }, { 0.02f }}
+            ngraph::element::f32,
+            { {}, { 128 }, { 0.02f }}
         }
     },
     // Convert + Subtract + Multiply
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         {
-            ngraph::element::u8,
+            ngraph::element::f32,
             { ngraph::element::f32, {}, { 0.02f }},
+            ngraph::element::f32,
             {}
         },
         {
-            ngraph::element::u8,
+            ngraph::element::f32,
             {},
-            { ngraph::element::f32, {}, { 0.02f }}
+            ngraph::element::f32,
+            { {}, {}, { 0.02f }}
         }
     }
 };

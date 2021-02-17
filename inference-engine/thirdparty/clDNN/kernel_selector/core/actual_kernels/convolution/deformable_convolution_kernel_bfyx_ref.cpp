@@ -53,6 +53,10 @@ KernelsData DeformableConvolutionKernel_bfyx_Ref::GetKernelsData(const Params& p
     return GetTunedKernelsDataByIndex(params, options);
 }
 
+KernelsPriority DeformableConvolutionKernel_bfyx_Ref::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
+
 bool DeformableConvolutionKernel_bfyx_Ref::Validate(const Params& params, const optional_params& options) const {
     if (!ConvolutionKernelBase::Validate(params, options))
         return false;

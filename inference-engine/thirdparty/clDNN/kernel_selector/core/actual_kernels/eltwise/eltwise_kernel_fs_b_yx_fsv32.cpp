@@ -111,8 +111,10 @@ KernelsData EltwiseKernel_fs_b_yx_fsv32::GetKernelsData(const Params& params, co
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
-    kd.estimatedTime = FORCE_PRIORITY_8;
-
     return {kd};
+}
+
+KernelsPriority EltwiseKernel_fs_b_yx_fsv32::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

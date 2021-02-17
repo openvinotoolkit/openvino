@@ -55,6 +55,7 @@ struct deconvolution : public primitive_base<deconvolution> {
           stride(stride),
           with_output_size(false),
           groups(1),
+          grouped_weights_shape(false),
           weights(weights),
           bias(bias) {}
     /// @brief Constructs deconvolution primitive.
@@ -81,6 +82,7 @@ struct deconvolution : public primitive_base<deconvolution> {
           stride(stride),
           with_output_size(false),
           groups(groups),
+          grouped_weights_shape(false),
           weights(weights),
           bias(bias) {}
 
@@ -104,6 +106,7 @@ struct deconvolution : public primitive_base<deconvolution> {
           stride(stride),
           with_output_size(false),
           groups(1),
+          grouped_weights_shape(false),
           weights(weights),
           bias(std::vector<primitive_id>(0)) {}
 
@@ -129,6 +132,7 @@ struct deconvolution : public primitive_base<deconvolution> {
           stride(stride),
           with_output_size(false),
           groups(groups),
+          grouped_weights_shape(false),
           weights(weights),
           bias(std::vector<primitive_id>(0)) {}
 
@@ -157,6 +161,7 @@ struct deconvolution : public primitive_base<deconvolution> {
           with_output_size(true),
           output_size(output_size),
           groups(1),
+          grouped_weights_shape(false),
           weights(weights),
           bias(bias) {}
 
@@ -180,6 +185,7 @@ struct deconvolution : public primitive_base<deconvolution> {
                   tensor stride,
                   tensor input_offset,
                   tensor output_size,
+                  bool grouped_weights_shape,
                   const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           input_offset(input_offset),
@@ -187,6 +193,7 @@ struct deconvolution : public primitive_base<deconvolution> {
           with_output_size(true),
           output_size(output_size),
           groups(groups),
+          grouped_weights_shape(grouped_weights_shape),
           weights(weights),
           bias(bias) {}
 
@@ -213,6 +220,7 @@ struct deconvolution : public primitive_base<deconvolution> {
           with_output_size(true),
           output_size(output_size),
           groups(1),
+          grouped_weights_shape(false),
           weights(weights),
           bias(std::vector<primitive_id>(0)) {}
 
@@ -283,6 +291,8 @@ struct deconvolution : public primitive_base<deconvolution> {
     tensor output_size;
     /// @brief Number of feature groups (grouped convolution). If more than 1 then weights/bias count needs to be 1.
     uint32_t groups;
+    /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
+    bool grouped_weights_shape;
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
     /// @brief List of primitive ids containing bias data.

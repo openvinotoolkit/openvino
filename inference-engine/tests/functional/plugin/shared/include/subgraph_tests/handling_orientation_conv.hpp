@@ -4,28 +4,12 @@
 
 #pragma once
 
-#include <tuple>
-#include <vector>
-#include <string>
-#include <memory>
+#include "shared_test_classes/subgraph/handling_orientation_conv.hpp"
 
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
-#include "ngraph_functions/builders.hpp"
+namespace SubgraphTestsDefinitions {
 
-namespace LayerTestsDefinitions {
-typedef std::tuple<
-        InferenceEngine::Precision,        //Network precision
-        std::string,                       //Device name
-        std::map<std::string, std::string> //Configuration
-> HandlingOrientationParams;
-
-class HandlingOrientationClass : public testing::WithParamInterface<HandlingOrientationParams>,
-                        virtual public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(const testing::TestParamInfo<HandlingOrientationParams> &obj);
-
-protected:
-    void SetUp() override;
+TEST_P(HandlingOrientationClass, CompareWithRefs){
+    Run();
 };
-}  // namespace LayerTestsDefinitions
+
+}  // namespace SubgraphTestsDefinitions

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,8 +43,12 @@ KernelsData reorder_biplanar_nv12::GetKernelsData(const Params& params, const op
     if (orgParams.inputs.size() != 2) {
         return {};
     }
-    KernelsData kd = GetCommonKernelsData(orgParams, options, FORCE_PRIORITY_9);
+    KernelsData kd = GetCommonKernelsData(orgParams, options);
     kd[0].kernels[0].arguments = GetArgsDesc(2, false, false);
     return kd;
+}
+
+KernelsPriority reorder_biplanar_nv12::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

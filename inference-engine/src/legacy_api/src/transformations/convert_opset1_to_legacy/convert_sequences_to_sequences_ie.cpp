@@ -112,7 +112,10 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
         if (seq_axis == 1) {
             ngraph::replace_node(lstm_sequence, {unsqueeze_1->output(0), unsqueeze_2->output(0), unsqueeze_3->output(0)});
         } else {
-            auto transpose_after = lstm_sequence->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+            const auto &lstm_target_inputs = lstm_sequence->output(0).get_target_inputs();
+            if (lstm_target_inputs.empty())
+                return false;
+            auto transpose_after = lstm_target_inputs.begin()->get_node()->shared_from_this();
             ngraph::replace_node(transpose_after, unsqueeze_1);
             ngraph::replace_node(lstm_sequence, {lstm_sequence_ie->output(0), unsqueeze_2->output(0), unsqueeze_3->output(0)});
         }
@@ -179,7 +182,10 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         if (seq_axis == 1) {
             ngraph::replace_node(gru_sequence, {unsqueeze_1->output(0), unsqueeze_2->output(0)});
         } else {
-            auto transpose_after = gru_sequence->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+            const auto &gru_target_inputs = gru_sequence->output(0).get_target_inputs();
+            if (gru_target_inputs.empty())
+                return false;
+            auto transpose_after = gru_target_inputs.begin()->get_node()->shared_from_this();
             ngraph::replace_node(transpose_after, unsqueeze_1);
             ngraph::replace_node(gru_sequence, {gru_sequence_ie->output(0), unsqueeze_2->output(0)});
         }
@@ -247,7 +253,10 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
         if (seq_axis == 1) {
             ngraph::replace_node(rnn_sequence, {unsqueeze_1->output(0), unsqueeze_2->output(0)});
         } else {
-            auto transpose_after = rnn_sequence->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+            const auto &rnn_target_inputs = rnn_sequence->output(0).get_target_inputs();
+            if (rnn_target_inputs.empty())
+                return false;
+            auto transpose_after = rnn_target_inputs.begin()->get_node()->shared_from_this();
             ngraph::replace_node(transpose_after, unsqueeze_1);
             ngraph::replace_node(rnn_sequence, {rnn_sequence_ie->output(0), unsqueeze_2->output(0)});
         }

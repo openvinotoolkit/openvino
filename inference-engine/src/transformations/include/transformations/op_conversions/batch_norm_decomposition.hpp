@@ -19,7 +19,6 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API BatchNormDecomposition;
-class TRANSFORMATIONS_API BatchNormV5Decomposition;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -28,10 +27,4 @@ class ngraph::pass::BatchNormDecomposition: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     BatchNormDecomposition();
-};
-
-class ngraph::pass::BatchNormV5Decomposition: public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    BatchNormV5Decomposition();
 };

@@ -12,7 +12,7 @@
 
 #include <transformations/init_node_info.hpp>
 #include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/low_precision_transformations/concat_function.hpp"
+#include "lpt_ngraph_functions/concat_function.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -72,6 +72,35 @@ void ConcatWithIntermediateTransformation::SetUp() {
         transparentIntermediate,
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} });
+
+    validate();
+}
+
+void ConcatWithIntermediateTransformation::validate() {
+    ngraph::element::Type netPrecision;
+    InferenceEngine::SizeVector inputShape;
+    std::string targetDevice;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    bool transparentIntermediate;
+    bool multichannel;
+    std::tie(netPrecision, inputShape, targetDevice, params, transparentIntermediate, multichannel) = this->GetParam();
+
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+    ASSERT_EQ(2ul, transformed->get_output_size());
+
+    const auto concatOutput = transformed->get_output_op(0);
+    const auto scaleShiftOrConcat = concatOutput->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShiftOrConcat->get_type_name();
+    if (transparentIntermediate) {
+        ASSERT_EQ("ScaleShiftIE", typeName);
+    } else {
+        ASSERT_EQ("Concat", typeName);
+    }
+
+    const auto convOutput = transformed->get_output_op(1);
+    const auto convolution = convOutput->get_input_node_shared_ptr(0);
+    const std::string convName = convolution->get_type_name();
+    ASSERT_EQ("ConvolutionIE", convName);
 }
 
 TEST_P(ConcatWithIntermediateTransformation, CompareWithRefImpl) {

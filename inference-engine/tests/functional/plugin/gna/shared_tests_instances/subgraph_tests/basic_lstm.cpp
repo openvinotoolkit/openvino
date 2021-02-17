@@ -7,7 +7,7 @@
 #include "common_test_utils/test_constants.hpp"
 #include "subgraph_tests/basic_lstm.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {

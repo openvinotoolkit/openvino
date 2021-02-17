@@ -20,4 +20,4 @@
  * @return none.
  */
 
-void cpu_convert(void *srcPtr, void *dstPtr, InferenceEngine::Precision srcPrc, InferenceEngine::Precision dstPrc, const size_t size);
+void cpu_convert(const void *srcPtr, void *dstPtr, InferenceEngine::Precision srcPrc, InferenceEngine::Precision dstPrc, const size_t size);

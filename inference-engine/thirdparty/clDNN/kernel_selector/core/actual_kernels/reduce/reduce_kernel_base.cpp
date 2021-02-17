@@ -228,8 +228,7 @@ Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) const 
 }
 
 KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
-                                                   const optional_params& options,
-                                                   float estimatedTime) const {
+                                                   const optional_params& options) const {
     if (!Validate(p, options)) {
         return {};
     }
@@ -255,7 +254,6 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params));
-    kd.estimatedTime = estimatedTime;
 
     return {kd};
 }

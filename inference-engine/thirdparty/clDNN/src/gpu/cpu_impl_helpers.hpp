@@ -38,7 +38,7 @@ struct bounding_box {
     bounding_box() : bounding_box(0, 0, 0, 0) {}
 
     bounding_box(float centerx, float centery, float width, float height, center_point_construct_tag)
-        : bounding_box(centerx - width / 2, centery - height / 2, centerx + width / 2, centery + width / 2) {}
+        : bounding_box(centerx - width / 2, centery - height / 2, centerx + width / 2, centery + height / 2) {}
 
     bounding_box(float ax, float ay, float bx, float by, two_corners_construct_tag)
         : bounding_box(std::min(ax, bx), std::min(ay, by), std::max(ax, bx), std::max(ay, by)) {}

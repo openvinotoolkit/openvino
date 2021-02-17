@@ -45,7 +45,8 @@ const std::vector<ConcatWithSplitTransformationParam> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithSplitTransformation,
+// TODO: Split/VariadicSplit operations are not supported in ConcatTransformation
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_LPT, ConcatWithSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 6, 10, 10 })),

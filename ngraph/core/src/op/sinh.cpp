@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,11 +36,13 @@ op::Sinh::Sinh(const Output<Node>& arg)
 
 bool ngraph::op::v0::Sinh::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Sinh_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Sinh::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Sinh_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Sinh>(new_args.at(0));
 }
@@ -62,20 +64,13 @@ namespace sinhop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_sinh, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sinh, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sinh, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sinh, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sinh, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sinh, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_sinh, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -84,6 +79,6 @@ namespace sinhop
 
 bool op::Sinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Sinh::evaluate");
+    NGRAPH_OP_SCOPE(v0_Sinh_evaluate);
     return sinhop::evaluate_sinh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

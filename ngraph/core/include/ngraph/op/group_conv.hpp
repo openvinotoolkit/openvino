@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,8 +20,6 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {
@@ -96,13 +94,13 @@ namespace ngraph
             };
 
             /// \brief Data batch backprop for batched convolution operation.
-            class NGRAPH_API GroupConvolutionBackpropData : public op::util::FusedOp
+            class NGRAPH_API GroupConvolutionBackpropData : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"GroupConvolutionBackpropData", 1};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a batched-convolution data batch-backprop operation.
-                GroupConvolutionBackpropData() = default;
+                GroupConvolutionBackpropData();
                 // clang-format off
                 //
                 // \brief      Constructs a batched-convolution data batch-backprop operation.
@@ -210,8 +208,7 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual bool is_dynamic() const override;
-                virtual OutputVector decompose_op() const override;
-                virtual void pre_validate_and_infer_types() override;
+                void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -249,8 +246,7 @@ namespace ngraph
                 PadType m_auto_pad;
                 CoordinateDiff m_output_padding;
             };
+
         } // namespace v1
     }     // namespace op
 } // namespace ngraph
-
-NGRAPH_SUPPRESS_DEPRECATED_END

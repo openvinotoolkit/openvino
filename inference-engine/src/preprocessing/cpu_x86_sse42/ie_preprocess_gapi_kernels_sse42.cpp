@@ -42,6 +42,11 @@
 #error CV_SIMD128 is required!
 #endif
 
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstrict-overflow"
+#endif
+
 #include <cstring>
 
 using namespace cv;
@@ -51,7 +56,7 @@ namespace gapi {
 namespace kernels {
 
 // 8UC1 Resize (bi-linear)
-void calcRowLinear_8UC1(      uint8_t *dst[],
+void calcRowLinear_8UC1(uint8_t       *dst[],
                         const uint8_t *src0[],
                         const uint8_t *src1[],
                         const short    alpha[],

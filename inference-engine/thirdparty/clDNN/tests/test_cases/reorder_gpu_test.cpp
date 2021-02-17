@@ -1646,7 +1646,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16)
 
     auto output = outputs.begin()->second.get_memory();
 
-    auto get_bsv16_fsv16_index = [] (int32_t b_size, int32_t f_size, int32_t z_size, int32_t y_size, int32_t x_size, int32_t b,
+    auto get_bsv16_fsv16_index = [] (int32_t /* b_size */, int32_t /* f_size */, int32_t z_size, int32_t y_size, int32_t x_size, int32_t b,
                                      int32_t f_pad_before, int32_t f, int32_t f_pad_after,
                                      int32_t z_pad_before, int32_t z, int32_t z_pad_after,
                                      int32_t y_pad_before, int32_t y, int32_t y_pad_after,
@@ -1728,7 +1728,7 @@ TEST(reorder_gpu_f32, bfzyx_to_bsv16_fsv16_padded)
 
     auto output = outputs.begin()->second.get_memory();
 
-    auto get_bsv16_fsv16_index = [] (int32_t b_size, int32_t f_size, int32_t z_size, int32_t y_size, int32_t x_size, int32_t b,
+    auto get_bsv16_fsv16_index = [] (int32_t /* b_size */, int32_t /* f_size */, int32_t z_size, int32_t y_size, int32_t x_size, int32_t b,
                                      int32_t f_pad_before, int32_t f, int32_t f_pad_after,
                                      int32_t z_pad_before, int32_t z, int32_t z_pad_after,
                                      int32_t y_pad_before, int32_t y, int32_t y_pad_after,

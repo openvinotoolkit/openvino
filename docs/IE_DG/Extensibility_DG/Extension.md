@@ -1,15 +1,18 @@
 # Extension Library {#openvino_docs_IE_DG_Extensibility_DG_Extension}
 
 Inference Engine provides an InferenceEngine::IExtension interface, which defines the interface for Inference Engine Extension libraries.
-All extension libraries should be inherited from this interface.
+All extension libraries should be inherited from this interface. The example below contains implementation of two operations: `Template`
+used as an example in this document and `FFT` used as a more complex example from the [Custom Operations Guide](../../HOWTO/Custom_Layers_Guide.md).
+
+> **NOTE**: `FFT` operation is implemented using OpenCV library functions `cv::dft` and `cv::idft`.
 
 Based on that, declaration of an extension class can look as follows:
 
-@snippet extension.hpp extension:header
+@snippet template_extension/extension.hpp extension:header
 
 The extension library should contain and export the method InferenceEngine::CreateExtension, which creates an `Extension` class:
 
-@snippet extension.cpp extension:CreateExtension
+@snippet template_extension/extension.cpp extension:CreateExtension
 
 Also, an `Extension` object should implement the following methods:
 
@@ -17,7 +20,7 @@ Also, an `Extension` object should implement the following methods:
 
 * InferenceEngine::IExtension::GetVersion returns information about version of the library
 
-@snippet extension.cpp extension:GetVersion
+@snippet template_extension/extension.cpp extension:GetVersion
 
 Implement the  InferenceEngine::IExtension::getOpSets method if the extension contains custom layers. 
 Read the [guide about custom operations](AddingNGraphOps.md) for more information.

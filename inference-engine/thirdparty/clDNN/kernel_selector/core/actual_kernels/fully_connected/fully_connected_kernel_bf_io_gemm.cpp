@@ -47,9 +47,11 @@ FullyConnected_bf_io_GEMM::DispatchData FullyConnected_bf_io_GEMM::SetDefault(co
     dispatchData.gws = { globalWorkSizeX, params.output.Feature().v, 1 };
     dispatchData.lws = { localWorkSizeX, 1, 1 };
 
-    dispatchData.efficiency = FORCE_PRIORITY_6;
-
     return dispatchData;
+}
+
+KernelsPriority FullyConnected_bf_io_GEMM::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 
 JitConstants FullyConnected_bf_io_GEMM::GetJitConstants(const fully_connected_params& params,
@@ -82,7 +84,6 @@ KernelsData FullyConnected_bf_io_GEMM::GetKernelsData(const Params& params, cons
                                                     options,
                                                     DataLayout::bf,
                                                     WeightsLayout::oiyx,
-                                                    FORCE_PRIORITY_6,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);

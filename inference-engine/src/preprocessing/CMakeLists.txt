@@ -122,9 +122,11 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DI
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
-# Create shared library file from object library
+add_cpplint_target(${TARGET_NAME}_obj_cpplint FOR_TARGETS ${TARGET_NAME}_obj)
 
-add_library(${TARGET_NAME} SHARED
+# Create module library file from object library
+
+add_library(${TARGET_NAME} MODULE
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME}
@@ -146,8 +148,6 @@ endif()
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
-
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
@@ -185,4 +185,4 @@ ie_developer_export_targets(${TARGET_NAME})
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+        LIBRARY DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core)

@@ -62,9 +62,11 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelGeneric::SetDef
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_2;
-
     return dispatchData;
+}
+
+KernelsPriority BinaryConvolutionKernelGeneric::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_2;
 }
 
 bool BinaryConvolutionKernelGeneric::Validate(const Params& p, const optional_params& o) const {

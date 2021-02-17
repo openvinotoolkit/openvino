@@ -347,6 +347,8 @@ TEST_F(VPU_AdjustDataBatchTest, DISABLED_BranchedWithBatchAndSplitItemsInTheEnd)
     const auto& branch1 = branches[0];
     const auto& branch2 = branches[1];
     const auto& data4 = CheckSingleConnection(branch1, 3);
+    (void)data4;
     const auto& data5 = CheckSingleConnection(branch2, 4);
     const auto& data6 = checkSingleLoopEnd(data5);
+    (void)data6;
 }

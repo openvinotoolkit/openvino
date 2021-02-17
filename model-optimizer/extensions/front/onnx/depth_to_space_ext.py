@@ -34,9 +34,9 @@ class DepthToSpaceFrontExtractor(FrontExtractorOp):
         onnx_mode = onnx_attr(node, 'mode', 's', default=b'DCR').decode()
         assert onnx_mode in ['DCR', 'CRD'], 'Unrecognized mode provided for DepthToSpace node {}'.format(node_name)
         if onnx_mode == 'DCR':
-            mode = 'depth_first'
-        else:
             mode = 'blocks_first'
+        else:
+            mode = 'depth_first'
 
         DepthToSpaceOp.update_node_stat(node, {'block_size': block_size, 'mode': mode})
         return cls.enabled

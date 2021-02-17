@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,14 +19,15 @@
 #include <numeric>
 #include <sstream>
 
+#include "core/graph.hpp"
+#include "core/null_node.hpp"
+#include "exceptions.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/provenance.hpp"
-#include "onnx_import/core/graph.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
-#include "onnx_import/utils/provenance_tag.hpp"
+#include "utils/common.hpp"
+#include "utils/provenance_tag.hpp"
 
 namespace ngraph
 {
@@ -66,6 +67,25 @@ namespace ngraph
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model)
             : Graph(graph_proto, model, std::unique_ptr<GraphCache>(new GraphCache()))
         {
+            // Remove dangling Parameters
+            for (auto param_it = m_parameters.begin(); param_it != m_parameters.end();)
+            {
+                if ((*param_it)->get_output_target_inputs(0).size() == 0)
+                {
+                    const auto& name = (*param_it)->get_friendly_name();
+                    auto out_it = std::find_if(
+                        m_outputs.begin(), m_outputs.end(), [&name](const ValueInfo& info) {
+                            return info.get_name() == name;
+                        });
+                    if (out_it == m_outputs.end())
+                    {
+                        m_cache->remove_node(name);
+                        param_it = m_parameters.erase(param_it);
+                        continue;
+                    }
+                }
+                param_it++;
+            }
         }
 
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto,
@@ -95,9 +115,15 @@ namespace ngraph
                     }
                     catch (const ngraph::ngraph_error& exc)
                     {
-                        NGRAPH_WARN << "Could not create an nGraph Constant for initializer '"
-                                    << initializer_tensor.name() << "'. Detailed error:\n"
-                                    << exc.what();
+                        NGRAPH_WARN
+                            << "\nCould not create an nGraph Constant for initializer '"
+                            << initializer_tensor.name() << "'. \n"
+                            << "Constant with a 0 value was created, make sure connected input is "
+                               "optional.\n"
+                            << "Otherwise verify if the initializer contains a correct number of "
+                               "elements matching the initializer's shape. \n"
+                            << "Detailed error:\n"
+                            << exc.what();
                         ng_constant =
                             default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
                     }
@@ -197,7 +223,11 @@ namespace ngraph
             OutputVector results;
             for (const auto& output : m_graph_proto->output())
             {
-                results.emplace_back(get_ng_node_from_cache(output.name()));
+                const auto& ng_output = get_ng_node_from_cache(output.name());
+                if (!ngraph::op::is_null(ng_output)) // ignore optional outputs
+                {
+                    results.emplace_back(ng_output);
+                }
             }
             return results;
         }
@@ -247,7 +277,21 @@ namespace ngraph
                     break;
                 }
 
-                ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
+                auto onnx_node_name = onnx_node.get_name();
+                if (onnx_node_name.empty())
+                {
+                    ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
+                }
+                else
+                {
+                    ng_node_vector[i].get_node()->set_friendly_name(onnx_node.get_name());
+                }
+
+                // null node does not have tensor
+                if (!ngraph::op::is_null(ng_node_vector[i]))
+                {
+                    ng_node_vector[i].get_tensor().set_names({onnx_node.output(i)});
+                }
             }
         }
 
@@ -309,37 +353,46 @@ namespace ngraph
                   model,
                   std::unique_ptr<SubgraphCache>(new SubgraphCache(parent_graph.get_graph_cache())))
         {
-            std::vector<std::shared_ptr<ngraph::Node>> subgraph_root_nodes;
-            const auto& outputs = as_result_vector(get_ng_outputs());
-            for (auto& out : outputs)
+            // find all nodes on edge parent graph-subgraph
+            // (it means input of node from parent graph, output from subgraph)
+            for (const auto& node_proto : proto.node())
             {
-                subgraph_root_nodes.push_back(out);
-            }
-            const auto& params = get_ng_parameters();
-            for (auto& param : params)
-            {
-                subgraph_root_nodes.push_back(param);
-            }
-            const auto subgraph_nodes = topological_sort(subgraph_root_nodes);
-
-            const auto& parent_graph_parameters = parent_graph.get_ng_parameters();
-            for (const auto& node : subgraph_nodes)
-            {
-                if (op::is_parameter(node))
+                int input_index = 0;
+                for (const auto& in_name : node_proto.input())
                 {
-                    const auto sub_it = std::find(m_parameters.begin(), m_parameters.end(), node);
-                    // not present as subgraph parameter
-                    if (sub_it == m_parameters.end())
+                    if (m_cache->node_scope(in_name) == NodeScope::ParentGraph)
                     {
-                        const auto parent_it = std::find(
-                            parent_graph_parameters.begin(), parent_graph_parameters.end(), node);
-                        if (parent_it != m_parameters.end())
+                        const auto& from_parent_node = m_cache->get_node(in_name);
+                        // constants are skipped
+                        if (!ngraph::is_type<ngraph::op::Constant>(
+                                from_parent_node.get_node_shared_ptr()))
                         {
-                            m_parameters.push_back(*parent_it);
+                            for (const auto& out_name : node_proto.output())
+                            {
+                                if (m_cache->node_scope(out_name) == NodeScope::SubGraph)
+                                {
+                                    auto out_node_to_replace_input = m_cache->get_node(out_name);
+                                    auto new_param = std::make_shared<ngraph::op::Parameter>(
+                                        from_parent_node.get_element_type(),
+                                        from_parent_node.get_partial_shape());
+                                    // replace input from parent scope with parameter
+                                    out_node_to_replace_input.get_node()
+                                        ->input(input_index)
+                                        .replace_source_output(new_param);
+                                    m_parameters.push_back(new_param);
+                                    m_outputs_from_parent.push_back(from_parent_node);
+                                }
+                            }
                         }
                     }
+                    ++input_index;
                 }
             }
+        }
+
+        const std::vector<Output<ngraph::Node>> Subgraph::get_outputs_from_parent() const
+        {
+            return m_outputs_from_parent;
         }
 
     } // namespace onnx_import
