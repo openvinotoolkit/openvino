@@ -57,6 +57,7 @@
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -227,6 +228,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
     pass_config->disable<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
     pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+    pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
