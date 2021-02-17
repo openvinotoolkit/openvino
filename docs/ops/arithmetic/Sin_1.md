@@ -24,7 +24,7 @@ sin_{\theta} = \frac{Opposite}{Hypotenuse}
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: An tensor of type T and arbitrary rank. **Required.**
 
 **Outputs**
 
