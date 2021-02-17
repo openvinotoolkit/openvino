@@ -526,7 +526,7 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     auto effectiveInputWidth = in_width;
     auto effectiveInputHeight = in_height;
 
-    if (cnn2dInputPaddingSupported) {
+    if (policy.cnn2dInputPaddingSupported) {
         effectiveInputWidth += convolution._padding_x * 2;
         effectiveInputHeight += convolution._padding_y * 2;
     } else if (convolution._padding_x != 0 || convolution._padding_y != 0 ||
