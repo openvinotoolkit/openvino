@@ -159,20 +159,19 @@ class PrepareLibs(build_clib):
         Collect package data files from preinstalled dirs and
         put all runtime libraries to the subpackage
         """
-        data_blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.dylib']
         # additional blacklist filter, just to fix cmake install issues
+        data_blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.dylib']
+        package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
             for file_path in local_base_dir.rglob('*'):
                 file_name = os.path.basename(file_path)
                 if file_path.is_file() and not any(file_name.endswith(ext) for ext in data_blacklist):
-                    dst_file = os.path.join(get_package_dir(PY_INSTALL_CFG),
-                                            WHEEL_LIBS_INSTALL_DIR,
-                                            os.path.relpath(file_path, local_base_dir))
+                    dst_file = os.path.join(package_dir, os.path.relpath(file_path, local_base_dir))
                     os.makedirs(os.path.dirname(dst_file), exist_ok=True)
                     copyfile(file_path, dst_file)
 
-        if Path(WHEEL_LIBS_INSTALL_DIR).exists():
+        if Path(package_dir).exists():
             packages.append(WHEEL_LIBS_PACKAGE)
             package_data.update({WHEEL_LIBS_PACKAGE: ['*']})
 
