@@ -19,7 +19,7 @@ from mo.graph.graph import Node
 from mo.ops.broadcast import Broadcast
 
 
-class SliceExtractor(FrontExtractorOp):
+class BroadcastExtractor(FrontExtractorOp):
     op = 'BroadcastTo'
     enabled = True
 
