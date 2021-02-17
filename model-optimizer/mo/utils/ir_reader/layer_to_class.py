@@ -282,7 +282,6 @@ postprocessing_op_nodes = {
 
 
 def restore_tensor_names(op: Node):
-
     for out_port in op.ports:
         # op.ports is our internal attribute, dictionary, where keys are numbers of output ports
         # and values are tuples with shape and tensor name:
@@ -299,7 +298,7 @@ def restore_tensor_names(op: Node):
         out_port = out_port - len(op.in_nodes())
 
         if out_tensor_names is not None:
-            # handle tensor names with commas and add them to dictionary as separated
+            # handle tensor names with commas and add them to dictionary as separate items
             if out_tensor_names.find(',') >= 0:
                 str_to_replace = '<comma_in_tensor_name>'
                 out_tensor_names = (out_tensor_names.replace('\\,', str_to_replace)).split(',')
@@ -372,7 +371,6 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
 
     # Nodes postprocessing stage in new graph
     for op in new_graph.get_op_nodes():
-        # tensor names restoring
         restore_tensor_names(op)
 
         # operations postprocessing with some special types
