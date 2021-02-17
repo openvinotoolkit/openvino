@@ -158,7 +158,7 @@ class Core::Impl : public ICore {
 
     mutable std::map<std::string, InferencePlugin> plugins;
 
-    class CoreConfig {
+    class CoreConfig final {
         std::string _modelCacheDir {};
         bool _isModelCacheEnabled = false;
         std::map<std::string, std::string> _config;
@@ -201,6 +201,50 @@ class Core::Impl : public ICore {
 
         bool isModelCacheEnabled() const { return _isModelCacheEnabled; }
         std::string getModelCacheDir() const { return _modelCacheDir; }
+    };
+
+    class CompiledBlobHeader final {
+        std::string _ie_version;
+
+    public:
+        CompiledBlobHeader() = default;
+
+        explicit CompiledBlobHeader(const std::string & ie_version) :
+            _ie_version(ie_version) {
+        }
+
+        const std::string & getIeVersion() const {
+            return _ie_version;
+        }
+
+        friend std::istream & operator >> (std::istream & stream, CompiledBlobHeader & header) {
+            std::string XmlStr;
+            std::getline(stream, XmlStr);
+
+            pugi::xml_document document;
+            pugi::xml_parse_result res = document.load_string(XmlStr.c_str());
+
+            if (res.status != pugi::status_ok) {
+                THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ) << "Error reading compiled blob header";
+            }
+
+            pugi::xml_node compiledBlobNode = document.document_element();
+            header._ie_version = XMLParseUtils::GetStrAttr(compiledBlobNode, "ie_version");
+
+            return stream;
+        }
+
+        friend std::ostream & operator << (std::ostream & stream, const CompiledBlobHeader & header) {
+            pugi::xml_document document;
+            auto compiledBlobNode = document.append_child("compiled_blob");
+            compiledBlobNode.append_attribute("ie_version").set_value(header._ie_version.c_str());
+
+            document.save(stream, nullptr, pugi::format_raw);
+            document.reset();
+            stream << std::endl;
+
+            return stream;
+        }
     };
 
     // Core settings for specific devices
@@ -285,12 +329,6 @@ class Core::Impl : public ICore {
             auto compileConfig = config;
             std::map<std::string, Parameter> getMetricConfig;
 
-            // TODO: move this information to compiled blob header
-            // save inference engine version instead of plugin GUID
-            // it does not work only for cases when we locally build the same version
-            // multiple times, but change the code frequently
-            compileConfig["INFERENCE_ENGINE_VERSION"] = GetInferenceEngineVersion()->buildNumber;
-
             // 0. remove DEVICE_ID key
             auto deviceIt = compileConfig.find(CONFIG_KEY(DEVICE_ID));
             if (deviceIt != compileConfig.end()) {
@@ -338,7 +376,16 @@ class Core::Impl : public ICore {
             try {
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::ImportNetwork");
                 std::cout << "try to import from core to " << deviceFamily << "\n\n" << std::endl;
-                std::ifstream networkStream(blobFileName);
+                std::ifstream networkStream(blobFileName, std::ios_base::binary | std::ios_base::in);
+
+                CompiledBlobHeader header;
+                networkStream >> header;
+
+                if (header.getIeVersion() != GetInferenceEngineVersion()->buildNumber) {
+                    // network cannot be read
+                    throw NetworkNotRead("");
+                }
+
                 execNetwork = context ?
                     ImportNetwork(networkStream, context, config) :
                     ImportNetwork(networkStream, deviceFamily, config);
@@ -382,7 +429,10 @@ class Core::Impl : public ICore {
                     // need to export network for further import from "cache"
                     {
                         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
-                        execNetwork.Export(blobFileName);
+                        std::ofstream networkStream(blobFileName, std::ios_base::out | std::ios_base::binary);
+
+                        networkStream << CompiledBlobHeader(GetInferenceEngineVersion()->buildNumber);
+                        execNetwork.Export(networkStream);
                         std::cout << "Network is exported for " << deviceFamily
                             << " as " << blobFileName << std::endl;
                     }
