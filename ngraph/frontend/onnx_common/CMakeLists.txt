@@ -32,17 +32,29 @@ target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX
                                                        $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 
-set(BEFORE_CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
 # onnx symbols should be available for onnx_importer and onnx_editor
 # onnx_common should be the only library that links with onnx
 # it guaranties that there is only one protobuf instance
-string (REPLACE "-Wl,--exclude-libs,ALL" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
+if(MSVC)
+        target_link_libraries(${TARGET_NAME} PRIVATE onnx)
+        set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_DEBUG "/WHOLEARCHIVE:onnx_protod.lib /WHOLEARCHIVE:onnxd.lib /WHOLEARCHIVE:libprotobufd.lib")
+        set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "/WHOLEARCHIVE:onnx_proto.lib /WHOLEARCHIVE:onnx.lib /WHOLEARCHIVE:libprotobuf.lib")
+        # TODO
+elseif(APPLE)
+        target_link_libraries(${TARGET_NAME} PRIVATE -Wl,-all_load
+        onnx
+        -Wl,-noall_load)
+else()
+        set(BEFORE_CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
+        string (REPLACE "-Wl,--exclude-libs,ALL" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
 
-target_link_libraries(${TARGET_NAME} PRIVATE -Wl,--whole-archive
-                                             onnx
-                                             -Wl,--no-whole-archive
-                                     PRIVATE ngraph)
-set(CMAKE_SHARED_LINKER_FLAGS, ${BEFORE_CMAKE_SHARED_LINKER_FLAGS})
+        target_link_libraries(${TARGET_NAME} PRIVATE -Wl,--whole-archive
+                                                onnx
+                                                -Wl,--no-whole-archive)
+        set(CMAKE_SHARED_LINKER_FLAGS, ${BEFORE_CMAKE_SHARED_LINKER_FLAGS})
+endif()
+
+target_link_libraries(${TARGET_NAME} PRIVATE ngraph)
 
 target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE
