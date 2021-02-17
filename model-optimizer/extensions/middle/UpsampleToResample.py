@@ -92,10 +92,10 @@ class UpsampleToResample(MiddleReplacementPattern):
 
         if input_shape_rank == 4:
             begin_value = int64_array([get_height_dim(layout, input_shape_rank)])
-            factor_value = np.array([height_scale, width_scale])
+            factor_value = int64_array([height_scale, width_scale])
         else:
             begin_value = int64_array([get_depth_dim(layout, input_shape_rank)])
-            factor_value = np.array([depth_scale, height_scale, width_scale])
+            factor_value = int64_array([depth_scale, height_scale, width_scale])
 
         ss = create_op_with_const_inputs(graph, StridedSlice,
                                          {1: begin_value,
@@ -141,7 +141,8 @@ class UpsampleToResample(MiddleReplacementPattern):
         mul.out_port(0).connect(interpolate.in_port(1))
         axes_node.out_port(0).connect(interpolate.in_port(3))
 
-        scales_node = Const(graph, {'name': upsample_name + '/scales', 'value': factor_value}).create_node()
+        scales_node = Const(graph, {'name': upsample_name + '/scales',
+                                    'value': factor_value.astype(np.float32)}).create_node()
         scales_node.out_port(0).connect(interpolate.in_port(2))
 
         upsample.in_port(0).get_connection().set_destination(interpolate.in_port(0))
