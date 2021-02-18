@@ -23,16 +23,19 @@ MKLDNNInputNode::MKLDNNInputNode(const InferenceEngine::CNNLayerPtr& layer, cons
     constant = ConstantType::NoConst;
     if (layer && CaselessEq<std::string>()(layer->type, "const")) {
         constant = ConstantType::Const;
-        if (layer->blobs.size() != 1 || getType() != Input || !layer->blobs.begin()->second)
+        if (layer->blobs.size() != 1
+            || getType() != Input
+            || !layer->blobs.begin()->second
+            || layer->outData.empty())
             IE_THROW() << "Incorrect const input " << getName();
-        cloneIfRequired(layer->blobs.begin()->second);
+        cloneIfRequired(layer->blobs.begin()->second, layer->outData[0]->getTensorDesc());
     }
 }
 
-void MKLDNNInputNode::cloneIfRequired(const InferenceEngine::Blob::Ptr & blob) {
+void MKLDNNInputNode::cloneIfRequired(const InferenceEngine::Blob::Ptr & blob, const InferenceEngine::TensorDesc & tensorDesc) {
     ieConstBlob = blob;
 
-    auto memDesc = MKLDNNMemoryDesc(blob->getTensorDesc());
+    auto memDesc = MKLDNNMemoryDesc(tensorDesc);
 
     if (weightCache) {
         char ptr[32];
@@ -59,7 +62,6 @@ void MKLDNNInputNode::cloneIfRequired(const InferenceEngine::Blob::Ptr & blob) {
         constBlob->Create(memDesc, blob->buffer());
     }
 }
-
 
 void MKLDNNInputNode::getSupportedDescriptors() {
     if (getType() == Input) {

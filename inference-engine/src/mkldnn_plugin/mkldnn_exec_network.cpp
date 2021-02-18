@@ -29,6 +29,8 @@ using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+void CreateConstInputs(CNNNetwork& clonedNetwork);
+
 InferenceEngine::IInferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                           InferenceEngine::OutputsDataMap networkOutputs) {
@@ -98,170 +100,9 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
         }
     }
 
-    OV_ITT_TASK_NEXT(taskChain, "createConstInputs");
-    auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, const std::vector<size_t>& shape, const std::string& name) {
-        LayerParams attrs = {layer->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
-        auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
-        constLayer->blobs["custom"] = blob;
-
-        const TensorDesc& td = {blob->getTensorDesc().getPrecision(), shape, TensorDesc::getLayoutByDims(shape)};
-
-        DataPtr newEdgeAfterLayer(new Data(constLayer->name, td));
-        newEdgeAfterLayer->setName(constLayer->name);
-        getCreatorLayer(newEdgeAfterLayer) = constLayer;
-        getInputTo(newEdgeAfterLayer).clear();
-
-        IE_SUPPRESS_DEPRECATED_START
-        auto icnnnet = static_cast<ICNNNetwork::Ptr>(_clonedNetwork);
-        IE_SUPPRESS_DEPRECATED_END
-        auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(icnnnet);
-        IE_ASSERT(implNetwork != nullptr);
-        implNetwork->addData(constLayer->name.c_str(), newEdgeAfterLayer);
-        implNetwork->addLayer(constLayer);
-
-        constLayer->outData.push_back(newEdgeAfterLayer);
-        getInputTo(newEdgeAfterLayer)[layer->name] = layer;
-        layer->insData.push_back(newEdgeAfterLayer);
-    };
-
-    // The code block below transforms legacy layers to the form more compatible with opset1 in order to simplify future migration
-    // TODO: remove after plug-in is migrated on opset1
-    auto all_layers = details::CNNNetSortTopologically(_clonedNetwork);
-    for (auto &layer : all_layers) {
-        if (layer->type == "ScaleShift" && layer->insData.size() == 1) {
-            auto constDimsRank = layer->insData[0].lock()->getDims().size();
-
-            Blob::Ptr scalesBlob = layer->blobs["weights"];
-            if (scalesBlob != nullptr) {
-                std::vector<size_t> shape(constDimsRank, 1);
-                shape[shape.size() > 1 ? 1 : 0] = scalesBlob->size();
-
-                createConstInputTo(layer, scalesBlob, shape, "weights");
-            }
-
-            Blob::Ptr shiftBlob = layer->blobs["biases"];
-            if (shiftBlob != nullptr) {
-                std::vector<size_t> shape(constDimsRank, 1);
-                shape[shape.size() > 1 ? 1 : 0] = shiftBlob->size();
-
-                createConstInputTo(layer, shiftBlob, shape, "biases");
-            } else if (scalesBlob != nullptr) {
-                Blob::Ptr biases = make_shared_blob<float>(scalesBlob->getTensorDesc());
-                if (biases == nullptr)
-                    IE_THROW() << "Cannot make 'biases' shared blob";
-                biases->allocate();
-                auto biasesPtr = biases->buffer().as<float*>();
-                for (size_t i = 0; i < biases->size(); i++)
-                    biasesPtr[i] = 0;
-
-                std::vector<size_t> shape(constDimsRank, 1);
-                shape[shape.size() > 1 ? 1 : 0] = biases->size();
-
-                createConstInputTo(layer, biases, shape, "biases");
-            }
-        } else if (layer->type == "PReLU" && layer->insData.size() == 1) {
-            Blob::Ptr scalesBlob = layer->blobs["weights"];
-            if (scalesBlob != nullptr) {
-                std::vector<size_t> shape(layer->insData[0].lock()->getDims().size(), 1);
-                shape[shape.size() > 1 ? 1 : 0] = scalesBlob->size();
-
-                createConstInputTo(layer, scalesBlob, shape, "weights");
-            }
-        } else if (layer->type == "DeformableConvolution") {
-            auto * defConvLayer = dynamic_cast<DeformableConvolutionLayer*>(layer.get());
-            if (defConvLayer == nullptr)
-                IE_THROW() << "Cannot convert deformable convolution layer.";
-
-            Blob::Ptr weightsBlob = defConvLayer->blobs["weights"];
-            if (weightsBlob != nullptr) {
-                std::vector<size_t> shape;
-
-                if (defConvLayer->_group != 1) {
-                    shape.push_back(defConvLayer->_group);
-                }
-                shape.push_back(defConvLayer->_out_depth);
-                shape.push_back(defConvLayer->input()->getDims()[1]);
-                for (int i = 1; i <= defConvLayer->_kernel.size(); i++) {
-                    shape.push_back(defConvLayer->_kernel[defConvLayer->_kernel.size() - i]);
-                }
-
-                createConstInputTo(layer, weightsBlob, shape, "weights");
-
-                defConvLayer->blobs.clear();
-                defConvLayer->_weights = nullptr;
-            }
-        } else if (layer->type == "BinaryConvolution") {
-            auto * binConvLayer = dynamic_cast<BinaryConvolutionLayer*>(layer.get());
-            if (binConvLayer == nullptr)
-                IE_THROW() << "Cannot convert binary convolution layer.";
-
-            Blob::Ptr weightsBlob = binConvLayer->blobs["weights"];
-            if (weightsBlob != nullptr) {
-                std::vector<size_t> shape;
-
-                if (binConvLayer->_group != 1) {
-                    shape.push_back(binConvLayer->_group);
-                }
-                shape.push_back(binConvLayer->_out_depth);
-                shape.push_back(binConvLayer->input()->getDims()[1]);
-                for (int i = 1; i <= binConvLayer->_kernel.size(); i++) {
-                    shape.push_back(binConvLayer->_kernel[binConvLayer->_kernel.size() - i]);
-                }
-
-                createConstInputTo(layer, weightsBlob, shape, "weights");
-
-                binConvLayer->blobs.clear();
-                binConvLayer->_weights = nullptr;
-            }
-        } else if (layer->type == "Convolution") {
-            auto * convLayer = dynamic_cast<ConvolutionLayer*>(layer.get());
-            if (convLayer == nullptr)
-                THROW_IE_EXCEPTION << "Cannot convert convolution layer.";
-
-            bool const isGrouped = convLayer->_group != 1;
-            size_t const groupNum = convLayer->_group;
-            size_t const groupIC = isGrouped
-                                ? convLayer->input()->getDims()[1] / groupNum
-                                : convLayer->input()->getDims()[1];
-            size_t const groupOC = isGrouped
-                                ? convLayer->_out_depth / groupNum
-                                : convLayer->_out_depth;
-
-            auto weightsBlobIt = convLayer->blobs.find("weights");
-            auto biasesBlobIt = convLayer->blobs.find("biases");
-
-            if (weightsBlobIt != convLayer->blobs.end()) {
-                Blob::Ptr weightsBlob = weightsBlobIt->second;
-
-                std::vector<size_t> shape;
-
-                if (isGrouped) {
-                    shape.reserve(convLayer->_kernel.size() + 3);
-                    shape.emplace_back(groupNum);
-                    shape.emplace_back(groupOC);
-                    shape.emplace_back(groupIC);
-                } else {
-                    shape.reserve(convLayer->_kernel.size() + 2);
-                    shape.emplace_back(groupOC);
-                    shape.emplace_back(groupIC);
-                }
-
-                for (int i = 1; i <= convLayer->_kernel.size(); i++) {
-                    shape.emplace_back(convLayer->_kernel[convLayer->_kernel.size() - i]);
-                }
-
-                createConstInputTo(layer, weightsBlob, shape, "weights");
-            }
-
-            if (biasesBlobIt != convLayer->blobs.end()) {
-                Blob::Ptr biasesBlob = biasesBlobIt->second;
-                std::vector<size_t> shape = { groupOC * groupNum };
-                createConstInputTo(layer, biasesBlob, shape, "biases");
-            }
-        }
-    }
-
     OV_ITT_TASK_SKIP(taskChain);
+
+    CreateConstInputs(_clonedNetwork);
 
     if (_cfg.batchLimit > 1) {
         // check topology for applicability

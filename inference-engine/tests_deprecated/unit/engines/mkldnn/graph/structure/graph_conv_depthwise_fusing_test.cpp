@@ -257,19 +257,24 @@ protected:
             auto& nodes = graph.getNodes();
             nodes = graph.getNodes();
             if (p.in.c == 3) {
-                ASSERT_EQ(nodes.size(), 3);
-                ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);
-                ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Convolution);
-                ASSERT_TRUE(nodes[1].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
-                ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Output);
-            } else {
                 ASSERT_EQ(nodes.size(), 5);
-                ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);
-                ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Reorder);
-                ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Convolution);
-                ASSERT_TRUE(nodes[2].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
-                ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Reorder);
+                ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);    // Convolution biases
+                ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Input);    // Convolution weights
+                ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Input);
+                ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Convolution);
+                ASSERT_TRUE(nodes[3].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
                 ASSERT_EQ(nodes[4].get()->getType(), MKLDNNPlugin::Type::Output);
+            } else {
+                ASSERT_EQ(nodes.size(), 8);
+                ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);    // Convolution biases
+                ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Input);    // Convolution weights
+                ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Reorder);  // Convolution weights reorder
+                ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Input);
+                ASSERT_EQ(nodes[4].get()->getType(), MKLDNNPlugin::Type::Reorder);
+                ASSERT_EQ(nodes[5].get()->getType(), MKLDNNPlugin::Type::Convolution);
+                ASSERT_TRUE(nodes[5].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
+                ASSERT_EQ(nodes[6].get()->getType(), MKLDNNPlugin::Type::Reorder);
+                ASSERT_EQ(nodes[7].get()->getType(), MKLDNNPlugin::Type::Output);
             }
 
             InferenceEngine::SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};

@@ -98,7 +98,7 @@ TEST_F(MKLDNNGraphReorderTests, CreateReorder) {
             ASSERT_EQ(MKLDNNPlugin::impl_desc_type::ref_any,
                       nodes[i]->getSupportedPrimitiveDescriptors()[0].getImplementationType());
             ASSERT_EQ(1, nodes[i]->getSupportedPrimitiveDescriptors()[0].getConfig().inConfs.size());
-            if (i == 1) {
+            if (i == 2 || i == 4) {
                 ASSERT_EQ(InferenceEngine::Layout::NCHW, nodes[i]->getSupportedPrimitiveDescriptors()[0].getConfig().inConfs[0].desc.getLayout());
                 ASSERT_NE(InferenceEngine::Layout::NCHW, nodes[i]->getSupportedPrimitiveDescriptors()[0].getConfig().outConfs[0].desc.getLayout());
             } else {
