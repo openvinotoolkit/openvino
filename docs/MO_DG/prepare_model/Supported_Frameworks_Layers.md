@@ -134,7 +134,7 @@ Standard TensorFlow\* operations:
 | BatchToSpaceND | No |
 | BiasAdd | No |
 | Bucketize | CPU only |
-| Broadcast_to| No |
+| BroadcastTo| No |
 | Cast | No |
 | Ceil | No |
 | Concat | No |
