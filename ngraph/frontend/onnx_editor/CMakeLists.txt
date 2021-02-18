@@ -43,12 +43,10 @@ target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
 target_compile_definitions(${TARGET_NAME}
         PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 
-# onnx-related directories
-target_include_directories(${TARGET_NAME} 
-SYSTEM PRIVATE 
-        $<TARGET_PROPERTY:onnx_common,INTERFACE_INCLUDE_DIRECTORIES>)
-
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH})
+target_include_directories(${TARGET_NAME} PRIVATE
+                $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
+                $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
+                ${NGRAPH_INCLUDE_PATH})
 
 if(NGRAPH_USE_PROTOBUF_LITE)
         target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)

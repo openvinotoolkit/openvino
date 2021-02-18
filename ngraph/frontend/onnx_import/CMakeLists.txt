@@ -68,7 +68,6 @@ target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_
 
 target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-# onnx-related directories
 target_include_directories(onnx_importer PRIVATE
                 $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
                 $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
