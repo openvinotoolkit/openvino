@@ -59,7 +59,7 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
         log_info("Memory consumption after LoadNetwork:");
         memCheckPipeline.record_measures(test_name);
 
-        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, device));
+        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
         return memCheckPipeline.measure();
     };
 
@@ -93,7 +93,7 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
         log_info("Memory consumption after Inference:");
         memCheckPipeline.record_measures(test_name);
 
-        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, device));
+        log_debug(memCheckPipeline.get_reference_record_for_test(test_name, model_name, precision, device));
         return memCheckPipeline.measure();
     };
 

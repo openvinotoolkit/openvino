@@ -47,7 +47,7 @@ void MemCheckPipeline::record_measures(const std::string & id) {
 }
 
 std::string MemCheckPipeline::get_reference_record_for_test(std::string test_name, std::string model_name,
-                                              std::string target_device) {
+                                                            std::string precision, std::string target_device) {
     std::array<long, MeasureValueMax> measures = measure();
     std::stringstream ss;
     ss << "Record to update reference config: "
