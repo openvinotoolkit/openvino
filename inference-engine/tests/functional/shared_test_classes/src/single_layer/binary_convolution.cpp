@@ -32,7 +32,7 @@ std::string BinaryConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<b
     result << "D=" << CommonTestUtils::vec2str(dilation) << "_";
     result << "O=" << convOutChannels << "_";
     result << "AP=" << padType << "_";
-    result << "PV" << padValue << "_";
+    result << "PV=" << padValue << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
