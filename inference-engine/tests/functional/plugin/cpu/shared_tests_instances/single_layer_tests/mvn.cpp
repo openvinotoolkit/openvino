@@ -130,18 +130,6 @@ INSTANTIATE_TEST_CASE_P(smoke_MVN_1D, Mvn6LayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Mvn6LayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_Decomposition_1D, Mvn6LayerTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(std::vector<std::vector<size_t>>{{3}, {9}, {55}}),
-                            ::testing::ValuesIn(dataPrecisions),
-                            ::testing::ValuesIn(idxPrecisions),
-                            ::testing::ValuesIn(std::vector<std::vector<int>>{{}}),
-                            ::testing::ValuesIn(normalizeVariance),
-                            ::testing::ValuesIn(epsilonF),
-                            ::testing::ValuesIn(epsMode),
-                            ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        Mvn6LayerTest::getTestCaseName);
-
 INSTANTIATE_TEST_CASE_P(smoke_Decomposition_3D, Mvn6LayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(std::vector<std::vector<size_t>>{{1, 32, 17}, {1, 37, 9}}),
