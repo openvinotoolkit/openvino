@@ -982,7 +982,7 @@ int main(int argc, char *argv[]) {
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto moutputHolder = moutput->rmap();
                                     auto byteSize =
-                                            inferRequest.numFramesThisBatch * numScoresPerFrame * sizeof(float);
+                                            numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame,
                                                 moutputHolder.as<const void *>(),
                                                 byteSize);
