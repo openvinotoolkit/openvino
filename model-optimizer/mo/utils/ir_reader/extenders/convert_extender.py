@@ -26,7 +26,6 @@ class Convert_extender(Extender):
     def extend(op: Node):
         op['dst_type'] = destination_type_to_np_data_type(op.destination_type)
         # CompressQuantizeWeights generates IR with constant sub-graph, that should not be ConstFolded:
-        #   Const(u8) -> Convert(to fp) -> FakeQuantize
+        #   Const(u8) -> Convert(to fp) -> (some eltwise operations) -> FakeQuantize
         if op.in_node().in_node().soft_get('type') == 'Const':
-            if op.out_node().out_node().soft_get('type') == 'FakeQuantize':
-                op['stop_value_propagation'] = True
+            op['stop_value_propagation'] = True
