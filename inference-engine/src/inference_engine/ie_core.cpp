@@ -250,6 +250,43 @@ class Core::Impl : public ICore {
         }
     };
 
+    class CacheManager {
+    public:
+        virtual void writeCacheEntry(const std::string & id, std::ofstream & stream) = 0;
+        virtual void removeCacheEntry(const std::string & id) = 0;
+        virtual void readCacheEntry(const std::string & id, std::ifstream & stream) = 0;
+        virtual ~CacheManager() = default;
+    };
+
+    class FileStorageCacheManager final : public CacheManager {
+        std::string m_modelCacheDir;
+
+        std::string getBlobFile(const std::string & blobHash) const {
+            return FileUtils::makePath(m_modelCacheDir, blobHash);
+        }
+
+    public:
+        explicit FileStorageCacheManager(const std::string & modelCacheDir) :
+            m_modelCacheDir(modelCacheDir) {
+        }
+
+        ~FileStorageCacheManager() override = default;
+
+        void writeCacheEntry(const std::string & blobHash, std::ofstream & stream) override {
+            stream.open(getBlobFile(blobHash), std::ios_base::binary);
+        }
+
+        void removeCacheEntry(const std::string & blobHash) override {
+            auto blobFileName = getBlobFile(blobHash);
+            if (FileUtils::fileExist(blobFileName))
+                std::remove(blobFileName.c_str());
+        }
+
+        void readCacheEntry(const std::string & blobHash, std::ifstream & stream) override {
+            stream.open(getBlobFile(blobHash), std::ios_base::binary);
+        }
+    };
+
     // Core settings for specific devices
     mutable std::map<std::string, CoreConfig> coreConfig;
 
@@ -261,6 +298,7 @@ class Core::Impl : public ICore {
 
     std::unordered_set<std::string> opsetNames;
     std::vector<IExtensionPtr> extensions;
+    std::shared_ptr<CacheManager> cacheManager;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -315,12 +353,15 @@ class Core::Impl : public ICore {
         CoreConfig localCoreConfig(this, deviceFamily, config, coreConfig[deviceFamily]);
         bool modelCacheEnabled = localCoreConfig.isModelCacheEnabled(),
             cachingIsAvailable = false, networkIsImported = false;
-        std::string blobFileName, modelCacheDir = localCoreConfig.getModelCacheDir();
+        std::string blobID, modelCacheDir = localCoreConfig.getModelCacheDir();
 
         // TEST CODE: FORCE MODEL CACHE
         {
             modelCacheEnabled = true;
             modelCacheDir = getIELibraryPath();
+
+            // TODO: don't create it every time
+            cacheManager = std::make_shared<FileStorageCacheManager>(modelCacheDir);
         }
 
         if (modelCacheEnabled && deviceSupportsImport(this)) {
@@ -357,29 +398,25 @@ class Core::Impl : public ICore {
 
             // auto-hashing
             if (cachingIsAvailable)
-                blobFileName = context.computeHash() + ".blob";
+                blobID = context.computeHash() + ".blob";
         }
 
         std::cerr << (cachingIsAvailable ?
             std::string("caching is available") :
             std::string("caching is not available")) << " for " << deviceFamily << std::endl;
 
-        auto removeCacheEntry = [&deviceFamily] (const std::string & blobFileNameToRemove) {
-            std::cerr << "Removed cache entry " << blobFileNameToRemove << " " << deviceFamily << std::endl;
-            if (FileUtils::fileExist(blobFileNameToRemove))
-                std::remove(blobFileNameToRemove.c_str());
-        };
-
         ExecutableNetwork execNetwork;
 
         // make a full path
-        blobFileName = FileUtils::makePath(modelCacheDir, blobFileName);
+        std::string blobFileName = FileUtils::makePath(modelCacheDir, blobID);
 
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
             try {
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::ImportNetwork");
                 std::cerr << "try to import from core to " << deviceFamily << "\n\n" << std::endl;
-                std::ifstream networkStream(blobFileName, std::ios_base::binary);
+
+                std::ifstream networkStream;
+                cacheManager->readCacheEntry(blobID, networkStream);
 
                 CompiledBlobHeader header;
                 networkStream >> header;
@@ -397,23 +434,23 @@ class Core::Impl : public ICore {
             } catch (const NotImplemented &) {
                 // 1. Device does not support ImportNetwork / Export flow
                 std::cerr << "[BUG] Import is not implemented O_o " << deviceFamily << std::endl;
-                removeCacheEntry(blobFileName);
+                cacheManager->removeCacheEntry(blobID);
             } catch (const NetworkNotRead &) {
                 // 2. Device supports this flow, but failed to import network for some reason
                 //    (e.g. device arch is not compatible with device arch network compiled for
                 //     e.g. compiled for MYX, but current device is M2 stick)
                 std::cerr << "NetworkNotRead: try to export one more time (remove blob!!) " << deviceFamily << std::endl;
-                removeCacheEntry(blobFileName);
+                cacheManager->removeCacheEntry(blobID);
             } catch (const std::exception & ex) {
                 std::string message = ex.what();
                 bool appleRTTI = message.find("NOT IMPLMENENTED") != std::string::npos;
 
                 if (appleRTTI) { // Apple RTTI
                     std::cerr << "Apple RTTI: " << ex.what() << std::endl;
-                    removeCacheEntry(blobFileName);
+                    cacheManager->removeCacheEntry(blobID);
                 } else { // some issues because of import failed
                     std::cerr << "[BUG] Import failed for " << deviceFamily << std::endl;
-                    removeCacheEntry(blobFileName);
+                    cacheManager->removeCacheEntry(blobID);
                 }
             }
         }
@@ -436,11 +473,11 @@ class Core::Impl : public ICore {
                         networkStream << CompiledBlobHeader(GetInferenceEngineVersion()->buildNumber);
                         execNetwork.Export(networkStream);
                         std::cerr << "Network is exported for " << deviceFamily
-                            << " as " << blobFileName << std::endl;
+                            << " as " << blobID << std::endl;
                     }
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
-                    removeCacheEntry(blobFileName);
+                    cacheManager->removeCacheEntry(blobID);
 
                     std::cerr << "Export is not implemented " << deviceFamily << std::endl;
                 } catch (const std::exception & ex) {
@@ -449,10 +486,10 @@ class Core::Impl : public ICore {
 
                     if (appleRTTI) { // APPLE RTTI issue
                         std::cerr << "Apple RTTI: " << message << std::endl;
-                        removeCacheEntry(blobFileName);
+                        cacheManager->removeCacheEntry(blobID);
                     } else { // network cannot be exported due to plugin bugs
                         std::cerr << "[BUG] Failed to export model " << ex.what() << std::endl;
-                        removeCacheEntry(blobFileName);
+                        cacheManager->removeCacheEntry(blobID);
                     }
                 }
             }
