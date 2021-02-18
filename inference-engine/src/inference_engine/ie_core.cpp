@@ -221,8 +221,8 @@ class Core::Impl : public ICore {
             std::string xmlStr;
             std::getline(stream, xmlStr);
 
-            std::cout << "Header " << std::endl;
-            std::cout << xmlStr << std::endl;
+            std::cerr << "Header " << std::endl;
+            std::cerr << xmlStr << std::endl;
 
             pugi::xml_document document;
             pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
@@ -297,7 +297,7 @@ class Core::Impl : public ICore {
             }
 
             if (!supports) {
-                std::cout << deviceName << " does not support import" << std::endl;
+                std::cerr << deviceName << " does not support import" << std::endl;
             }
 
             return supports;
@@ -360,12 +360,12 @@ class Core::Impl : public ICore {
                 blobFileName = context.computeHash() + ".blob";
         }
 
-        std::cout << (cachingIsAvailable ?
+        std::cerr << (cachingIsAvailable ?
             std::string("caching is available") :
             std::string("caching is not available")) << " for " << deviceFamily << std::endl;
 
         auto removeCacheEntry = [&deviceFamily] (const std::string & blobFileNameToRemove) {
-            std::cout << "Removed cache entry " << blobFileNameToRemove << " " << deviceFamily << std::endl;
+            std::cerr << "Removed cache entry " << blobFileNameToRemove << " " << deviceFamily << std::endl;
             if (FileUtils::fileExist(blobFileNameToRemove))
                 std::remove(blobFileNameToRemove.c_str());
         };
@@ -378,7 +378,7 @@ class Core::Impl : public ICore {
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
             try {
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::ImportNetwork");
-                std::cout << "try to import from core to " << deviceFamily << "\n\n" << std::endl;
+                std::cerr << "try to import from core to " << deviceFamily << "\n\n" << std::endl;
                 std::ifstream networkStream(blobFileName, std::ios_base::binary);
 
                 CompiledBlobHeader header;
@@ -393,26 +393,26 @@ class Core::Impl : public ICore {
                     ImportNetwork(networkStream, context, config) :
                     ImportNetwork(networkStream, deviceFamily, config);
                 networkIsImported = true;
-                std::cout << "Network is imported to " << deviceFamily << std::endl;
+                std::cerr << "Network is imported to " << deviceFamily << std::endl;
             } catch (const NotImplemented &) {
                 // 1. Device does not support ImportNetwork / Export flow
-                std::cout << "[BUG] Import is not implemented O_o " << deviceFamily << std::endl;
+                std::cerr << "[BUG] Import is not implemented O_o " << deviceFamily << std::endl;
                 removeCacheEntry(blobFileName);
             } catch (const NetworkNotRead &) {
                 // 2. Device supports this flow, but failed to import network for some reason
                 //    (e.g. device arch is not compatible with device arch network compiled for
                 //     e.g. compiled for MYX, but current device is M2 stick)
-                std::cout << "NetworkNotRead: try to export one more time (remove blob!!) " << deviceFamily << std::endl;
+                std::cerr << "NetworkNotRead: try to export one more time (remove blob!!) " << deviceFamily << std::endl;
                 removeCacheEntry(blobFileName);
             } catch (const std::exception & ex) {
                 std::string message = ex.what();
                 bool appleRTTI = message.find("NOT IMPLMENENTED") != std::string::npos;
 
                 if (appleRTTI) { // Apple RTTI
-                    std::cout << "Apple RTTI: " << ex.what() << std::endl;
+                    std::cerr << "Apple RTTI: " << ex.what() << std::endl;
                     removeCacheEntry(blobFileName);
                 } else { // some issues because of import failed
-                    std::cout << "[BUG] Import failed for " << deviceFamily << std::endl;
+                    std::cerr << "[BUG] Import failed for " << deviceFamily << std::endl;
                     removeCacheEntry(blobFileName);
                 }
             }
@@ -435,23 +435,23 @@ class Core::Impl : public ICore {
                         std::ofstream networkStream(blobFileName, std::ios_base::binary);
                         networkStream << CompiledBlobHeader(GetInferenceEngineVersion()->buildNumber);
                         execNetwork.Export(networkStream);
-                        std::cout << "Network is exported for " << deviceFamily
+                        std::cerr << "Network is exported for " << deviceFamily
                             << " as " << blobFileName << std::endl;
                     }
                 } catch (const NotImplemented &) {
                     // 1. Network export flow is not implemented in device
                     removeCacheEntry(blobFileName);
 
-                    std::cout << "Export is not implemented " << deviceFamily << std::endl;
+                    std::cerr << "Export is not implemented " << deviceFamily << std::endl;
                 } catch (const std::exception & ex) {
                     std::string message = ex.what();
                     bool appleRTTI = message.find("NOT IMPLMENENTED") != std::string::npos;
 
                     if (appleRTTI) { // APPLE RTTI issue
-                        std::cout << "Apple RTTI: " << message << std::endl;
+                        std::cerr << "Apple RTTI: " << message << std::endl;
                         removeCacheEntry(blobFileName);
                     } else { // network cannot be exported due to plugin bugs
-                        std::cout << "[BUG] Failed to export model " << ex.what() << std::endl;
+                        std::cerr << "[BUG] Failed to export model " << ex.what() << std::endl;
                         removeCacheEntry(blobFileName);
                     }
                 }

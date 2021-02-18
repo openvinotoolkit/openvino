@@ -44,12 +44,12 @@ struct NetworkCompilationContext final {
         } catch (const std::bad_cast &) {
             // IR v7 or older is passed: cannot cast to CNNNetworkNGraphImpl
             m_cachingIsAvailable = false;
-            std::cout << "IR v7 is passed; skip import and export" << std::endl;
+            std::cerr << "IR v7 is passed; skip import and export" << std::endl;
         } catch (const ngraph::ngraph_error & ex) {
             // failed to serialize the model - caching is not available
             m_cachingIsAvailable = false;
-            std::cout << ex.what() << std::endl;
-            std::cout << "failed to serialize the model; skip import and export" << std::endl;
+            std::cerr << ex.what() << std::endl;
+            std::cerr << "failed to serialize the model; skip import and export" << std::endl;
         }
 
         if (!m_cachingIsAvailable)
@@ -91,7 +91,7 @@ struct NetworkCompilationContext final {
 
         // compute hash on weights if any
         if (!m_weights.empty()) {
-            std::cout << "Compute hash on weights" << std::endl;
+            std::cerr << "Compute hash on weights" << std::endl;
             for (const auto & c : m_weights) {
                 auto data = reinterpret_cast<const std::uint8_t *>(c->get_data_ptr());
                 auto data_size = c->get_element_type().size() * ngraph::shape_size(c->get_shape());

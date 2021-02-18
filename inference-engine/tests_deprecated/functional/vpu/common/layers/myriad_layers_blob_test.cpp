@@ -168,12 +168,7 @@ TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetCompileOptionPrintsWar
     ASSERT_NO_THROW(importedNetwork = _vpuPluginPtr->ImportNetwork(modelFilenameStream.str(), config));
 
     std::string content = redirectCoutStream.str();
-    for (auto &&elem : config) {
-        std::stringstream expectedMsgStream;
-        expectedMsgStream << "[Warning][VPU][Config] " << elem.first;
-        std::string msg = expectedMsgStream.str();
-        ASSERT_TRUE(content.find(msg) != std::string::npos) << msg;
-    }
+    ASSERT_TRUE(content.empty());
 }
 
 TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetRuntimeOptionDoesNotPrintWarning)
