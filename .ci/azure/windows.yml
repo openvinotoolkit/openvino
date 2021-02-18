@@ -178,8 +178,9 @@ jobs:
       set PATH=$(TEST_ENV_PATH)
       set DATA_PATH=$(MODELS_PATH)
       set MODELS_PATH=$(MODELS_PATH)
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests-IB.xml
-    displayName: 'MklDnnFunctionalTests - IB'
+      rem "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests-IB.xml
+      $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
+    displayName: 'MklDnnFunctionalTests'
     continueOnError: false
 
   - script: |
