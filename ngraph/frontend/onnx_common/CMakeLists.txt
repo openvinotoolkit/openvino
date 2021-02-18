@@ -52,6 +52,7 @@ else()
                                                 -Wl,--no-whole-archive)
         set(CMAKE_SHARED_LINKER_FLAGS, ${BEFORE_CMAKE_SHARED_LINKER_FLAGS})
 endif()
+add_dependencies(${TARGET_NAME} onnx onnx_proto ${Protobuf_LIBRARIES})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph)
 
