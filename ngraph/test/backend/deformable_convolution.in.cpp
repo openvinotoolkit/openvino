@@ -476,7 +476,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_deformable_convolution_2D_2group_1batch_2_
 }
 
 // --------------------- 2D deformable convolution ------------------------------------------
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_1batch_1channel)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_offsets_1batch_1channel)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -589,7 +589,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_1batch_1channel_padding)
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_1batch_1channel_stride)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_offsets_1batch_1channel_stride)
 {
     const Strides strides{2, 2};
     const CoordinateDiff padding{0, 0};
@@ -812,7 +812,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_1batch_2channel)
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_1batch_2filter)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_offsets_1batch_2filter)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -905,7 +905,7 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_1batch_2filter)
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_2batch_1channel)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_offsets_2batch_1channel)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
