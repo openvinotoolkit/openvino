@@ -89,7 +89,7 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
+    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
                                             const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
@@ -131,6 +131,18 @@ public:
      */
     virtual ~ICore() = default;
 };
+
+/**
+ * @brief Type of magic value
+ * @ingroup ie_dev_api_plugin_api
+ */
+using ExportMagic = std::array<char, 4>;
+
+/**
+ * @brief Magic number used by ie core to identify exported network with plugin name
+ * @ingroup ie_dev_api_plugin_api
+ */
+constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
 
 /**
  * @private

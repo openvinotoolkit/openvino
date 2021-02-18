@@ -152,7 +152,7 @@ public:
      * operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
+    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
                                     const std::map<std::string, std::string>& config = {});
 
     /**
