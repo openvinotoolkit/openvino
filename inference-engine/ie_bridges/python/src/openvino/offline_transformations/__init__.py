@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Copyright (C) 2021 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 import os
@@ -12,10 +11,6 @@ if sys.platform == "win32":
     # add the location of openvino dlls to your system PATH.
     openvino_dlls = os.path.join(os.path.dirname(__file__), "..", "..", "openvino", "libs")
     os.environ["PATH"] = os.path.abspath(openvino_dlls) + ";" + os.environ["PATH"]
-=======
-
-
->>>>>>> update license
 
 from .offline_transformations_api import *
 __all__ = ['ApplyMOCTransformations']
