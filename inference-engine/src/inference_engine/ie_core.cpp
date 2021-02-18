@@ -253,11 +253,11 @@ class Core::Impl : public ICore {
     class CacheManager {
     public:
         using Ptr = std::shared_ptr<CacheManager>;
-
-        virtual void writeCacheEntry(const std::string & id, std::ofstream & stream) = 0;
-        virtual void removeCacheEntry(const std::string & id) = 0;
-        virtual void readCacheEntry(const std::string & id, std::ifstream & stream) = 0;
         virtual ~CacheManager() = default;
+
+        virtual std::unique_ptr<std::ostream> writeCacheEntry(const std::string & id) = 0;
+        virtual std::unique_ptr<std::istream> readCacheEntry(const std::string & id) = 0;
+        virtual void removeCacheEntry(const std::string & id) = 0;
     };
 
     class FileStorageCacheManager final : public CacheManager {
@@ -274,8 +274,9 @@ class Core::Impl : public ICore {
 
         ~FileStorageCacheManager() override = default;
 
-        void writeCacheEntry(const std::string & blobHash, std::ofstream & stream) override {
-            stream.open(getBlobFile(blobHash), std::ios_base::binary);
+        std::unique_ptr<std::ostream> writeCacheEntry(const std::string & blobHash) override {
+            auto stream = std::make_unique<std::ofstream>(getBlobFile(blobHash), std::ios_base::binary);
+            return stream;
         }
 
         void removeCacheEntry(const std::string & blobHash) override {
@@ -284,8 +285,15 @@ class Core::Impl : public ICore {
                 std::remove(blobFileName.c_str());
         }
 
-        void readCacheEntry(const std::string & blobHash, std::ifstream & stream) override {
-            stream.open(getBlobFile(blobHash), std::ios_base::binary);
+        std::unique_ptr<std::istream> readCacheEntry(const std::string & blobHash) override {
+            auto blobFileName = getBlobFile(blobHash);
+            std::unique_ptr<std::istream> stream;
+
+            if (FileUtils::fileExist(blobFileName)) {
+                stream = std::make_unique<std::ifstream>(getBlobFile(blobHash), std::ios_base::binary);
+            }
+
+            return stream;
         }
     };
 
@@ -409,34 +417,33 @@ class Core::Impl : public ICore {
 
         ExecutableNetwork execNetwork;
 
-        // make a full path
-        std::string blobFileName = FileUtils::makePath(modelCacheDir, blobID + ".blob");
-        std::cerr << blobID << std::endl;
-        std::cerr << blobFileName << std::endl;
-
-        if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
+        if (cachingIsAvailable) {
             try {
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::ImportNetwork");
                 std::cerr << "try to import from core to " << deviceFamily << "\n\n" << std::endl;
 
-                std::ifstream networkStream;
-                cacheManager->readCacheEntry(blobID, networkStream);
+                auto networkStreamPtr = cacheManager->readCacheEntry(blobID);
 
-                CompiledBlobHeader header;
-                networkStream >> header;
+                // blob is in cache
+                if (networkStreamPtr) {
+                    std::istream & networkStream = *networkStreamPtr;
 
-                if (header.getIeVersion() != GetInferenceEngineVersion()->buildNumber) {
-                    // network cannot be read
-                    std::cerr << "Blob header version " << header.getIeVersion() << std::endl;
-                    std::cerr << "IE current version " << GetInferenceEngineVersion()->buildNumber << std::endl;
-                    throw NetworkNotRead("Version does not match");
+                    CompiledBlobHeader header;
+                    networkStream >> header;
+
+                    if (header.getIeVersion() != GetInferenceEngineVersion()->buildNumber) {
+                        // network cannot be read
+                        std::cerr << "Blob header version " << header.getIeVersion() << std::endl;
+                        std::cerr << "IE current version " << GetInferenceEngineVersion()->buildNumber << std::endl;
+                        throw NetworkNotRead("Version does not match");
+                    }
+
+                    execNetwork = context ?
+                        ImportNetwork(networkStream, context, config) :
+                        ImportNetwork(networkStream, deviceFamily, config);
+                    networkIsImported = true;
+                    std::cerr << "Network is imported to " << deviceFamily << std::endl;
                 }
-
-                execNetwork = context ?
-                    ImportNetwork(networkStream, context, config) :
-                    ImportNetwork(networkStream, deviceFamily, config);
-                networkIsImported = true;
-                std::cerr << "Network is imported to " << deviceFamily << std::endl;
             } catch (const NotImplemented &) {
                 // 1. Device does not support ImportNetwork / Export flow
                 std::cerr << "[BUG] Import is not implemented O_o " << deviceFamily << std::endl;
@@ -476,7 +483,9 @@ class Core::Impl : public ICore {
                     // need to export network for further import from "cache"
                     {
                         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
-                        std::ofstream networkStream(blobFileName, std::ios_base::binary);
+                        auto networkStreamPtr = cacheManager->writeCacheEntry(blobID);
+                        IE_ASSERT(networkStreamPtr != nullptr);
+                        std::ostream & networkStream = *networkStreamPtr;
                         networkStream << CompiledBlobHeader(GetInferenceEngineVersion()->buildNumber);
                         execNetwork.Export(networkStream);
                         std::cerr << "Network is exported for " << deviceFamily
