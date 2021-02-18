@@ -61,8 +61,8 @@ class TFSliceToSliceReplacer(FrontReplacementOp):
         ends_casted_to_i64 = Cast(graph, {'name': slice_name + '/CastToI64',
                                           'dst_type': np.int64}).create_node([ends_node])
         # if size[i] == 1 then take max_ends values
-        chosen_ends = Select(graph, {'name': slice_name + '/chosen_ends'}).create_node([where_max_ends_is_needed,
+        correct_ends = Select(graph, {'name': slice_name + '/chosen_ends'}).create_node([where_max_ends_is_needed,
                                                                                         max_ends, ends_casted_to_i64])
-        chosen_ends.out_port(0).connect(slice_node.in_port(2))
+        correct_ends.out_port(0).connect(slice_node.in_port(2))
 
         tf_slice_node.out_port(0).get_connection().set_source(slice_node.out_port(0))
