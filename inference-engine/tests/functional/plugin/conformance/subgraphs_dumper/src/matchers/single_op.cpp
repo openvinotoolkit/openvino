@@ -144,14 +144,10 @@ bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node, const std
         return false;
     }
     // Match ports values
-    for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
-        std::vector<size_t> ignored_ports;
+    const auto &cfg = get_config(node);
+    std::vector<size_t> ignored_ports = cfg->ignored_ports;
 
-        if (matcher_configs_unwraped.find(node->get_type_info().name) != matcher_configs_unwraped.end()) {
-            ignored_ports = matcher_configs_unwraped[node->get_type_info().name].ignored_ports;
-        } else {
-            ignored_ports = matcher_configs_unwraped["default"].ignored_ports;
-        }
+    for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
         if (std::find(ignored_ports.begin(), ignored_ports.end(), port_id) != ignored_ports.end()) {
             continue;
         }
@@ -165,7 +161,7 @@ bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node, const std
         if (cur_const_input != nullptr && ref_const_input != nullptr &&
             !compare_constants_data(cur_const_input, ref_const_input)) {
             return false;
-        // Check that input nodes on the port both not constants
+            // Check that input nodes on the port both not constants
         } else if ((cur_const_input != nullptr && ref_const_input == nullptr) ||
                    (cur_const_input == nullptr && ref_const_input != nullptr)) {
             return false;
@@ -176,14 +172,20 @@ bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node, const std
 
 SingleOpMatcher::SingleOpMatcher() {
     default_configs = {
-            // Default config - only ignore constants on 1st port
-            MatcherConfig<>({}, {}, {0}),
-            // Convolutions, MatMul and eltwise config - ignore zero and 1st ports to not compare data and weights
-            MatcherConfig<ngraph::op::v1::Convolution, ngraph::op::v1::ConvolutionBackpropData>({"Convolution", "GroupConvolution", "ConvolutionBackpropData",
-                           "GroupConvolutionBackpropData", "MatMul", "Add", "Multiply", "Subtract", "Power",
-                           "ReduceMax", "ReduceMin"},
-                          {}, {0, 1}),
-            // FakeQuantize config - ignore 0-4 ports to not compare data and limits
-            MatcherConfig<ngraph::op::v0::FakeQuantize>({"FakeQuantize"}, {}, {0, 1, 2, 3, 4})
+            std::make_shared<MatcherConfig<>>(std::vector<std::string>{}, std::vector<size_t>{0}),
+            std::make_shared<MatcherConfig<ngraph::opset6::FakeQuantize>>(std::vector<std::string>{},
+                                                                          std::vector<size_t>{0, 1, 2, 3, 4}),
+            std::make_shared<MatcherConfig<
+                    ngraph::opset6::Convolution,
+                    ngraph::opset6::ConvolutionBackpropData,
+                    ngraph::opset6::GroupConvolution,
+                    ngraph::opset6::GroupConvolutionBackpropData,
+                    ngraph::opset6::MatMul,
+                    ngraph::opset6::Add,
+                    ngraph::opset6::Multiply,
+                    ngraph::opset6::Subtract,
+                    ngraph::opset6::Power,
+                    ngraph::opset6::ReduceMax,
+                    ngraph::opset6::ReduceMin>>(std::vector<std::string>{}, std::vector<size_t>{0, 1}),
     };
 }

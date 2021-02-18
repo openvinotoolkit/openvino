@@ -21,7 +21,6 @@ MatchersManager::MatchersManager(const std::string &cfg_path) {
     }
     for (const auto &it : m_registry) {
         m_matchers[it.first] = it.second();
-        m_matchers[it.first]->validate_and_unwrap_config();
     }
 }
 

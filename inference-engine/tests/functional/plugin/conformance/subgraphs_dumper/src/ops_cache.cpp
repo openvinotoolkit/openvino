@@ -4,6 +4,7 @@
 #include <sstream>
 #include <ngraph/validation_util.hpp>
 #include <ops_cache.hpp>
+#include <op_cloner.hpp>
 #include "inference_engine.hpp"
 #include "common_test_utils/file_utils.hpp"
 
@@ -13,44 +14,19 @@ using namespace SubgraphsDumper;
 
 void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
                                const std::string &source_model) {
-    bool op_found = false;
-    if (!m_ops_cache.empty()) {
-        for (auto &it : m_ops_cache) {
+    const bool op_found = [&] {
+        for (auto &&it : m_ops_cache) {
             // TODO: Extend for subgraphs comparison if num_neighbors_to_cache != 0
             if (manager.match_any(it.first, op)) {
-                op_found = true;
                 it.second += 1;
-                break;
+                return true;
             }
         }
-    }
+        return false;
+    }();
     if (!op_found) {
         // TODO: Extend for subgraphs caching if num_neighbors_to_cache != 0
-        ngraph::OutputVector op_inputs;
-        bool input_shapes_static = true;
-        for (const auto &input : op->inputs()) {
-            if (ngraph::op::is_constant(input.get_source_output().get_node_shared_ptr())) {
-                op_inputs.push_back(input.get_source_output().get_node_shared_ptr()->clone_with_new_inputs({}));
-            } else {
-                if (input.get_source_output().get_tensor().get_partial_shape().is_dynamic()) {
-                    // TODO: Handle dynamic shapes properly
-                    input_shapes_static = false;
-                    break;
-                }
-                op_inputs.push_back(std::make_shared<ngraph::op::Parameter>(input.get_element_type(),
-                                                                            input.get_source_output().get_shape()));
-            }
-        }
-        if (input_shapes_static) {
-            auto op_clone = op->clone_with_new_inputs(op_inputs);
-            if (!source_model.empty()) {
-                auto source_model_name = source_model;
-                ngraph::Node::RTMap &rt_info = op_clone->get_rt_info();
-                // TODO: Store both list of model where OP appears and the model from which it cached
-                rt_info["source_model"] = std::make_shared<ngraph::VariantWrapper<std::string>>(source_model_name);
-            }
-            m_ops_cache.push_back({op_clone, 1});
-        }
+        m_ops_cache.emplace_back(SubgraphsDumper::cloners_map[op->get_type_info()](op), 0);
     }
 }
 
@@ -111,7 +87,8 @@ void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
             // TODO: How to define element type for multi-output ops
             auto op_el_type = op.first->get_output_element_type(0).get_type_name();
             auto current_op_folder =
-                    serialization_dir + CommonTestUtils::FileSeparator + op.first->get_type_info().name + CommonTestUtils::FileSeparator + op_el_type;
+                    serialization_dir + CommonTestUtils::FileSeparator + op.first->get_type_info().name +
+                    CommonTestUtils::FileSeparator + op_el_type;
             std::cout << current_op_folder << std::endl;
             if (!CommonTestUtils::directoryExists(current_op_folder)) {
                 CommonTestUtils::createDirectoryRecursive(current_op_folder);

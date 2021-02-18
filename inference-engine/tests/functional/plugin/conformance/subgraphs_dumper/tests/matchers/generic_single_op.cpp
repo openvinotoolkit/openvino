@@ -75,3 +75,15 @@ TEST_F(SingleOpMatcherTest, AllPortsAreParams_AttrsNotEqual) {
     const auto op2 = std::make_shared<::Concat>(OutputVector({param3, param4}), 2);
     ASSERT_FALSE(matcher.match(op1, op2));
 }
+
+// Check nodes Add OPs match with different constants on ports
+TEST_F(SingleOpMatcherTest, ChecAddOpConfiguration) {
+    const auto const1 = std::make_shared<Constant>(Type_t::f32, Shape({5, 5}), 1);
+    const auto const2 = std::make_shared<Constant>(Type_t::f32, Shape({5, 5}), 2);
+    const auto op1 = std::make_shared<v1::Add>(const1, const2);
+
+    const auto const3 = std::make_shared<Constant>(Type_t::f32, Shape({5, 5}), 3);
+    const auto const4 = std::make_shared<Constant>(Type_t::f32, Shape({5, 5}), 4);
+    const auto op2  = std::make_shared<v1::Add>(const1, const2);
+    ASSERT_TRUE(matcher.match(op1, op2));
+}

@@ -23,7 +23,7 @@ public:
     bool match_any(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref);
 
     // TODO: Implement default xml config file generation by Matchers
-    void generate_config() {};
+    void generate_config() {}
 
 private:
     std::vector<bool> run_matchers(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref);

@@ -11,22 +11,40 @@ namespace SubgraphsDumper {
 
 class MatchersManager;
 
-template<typename ...OPTypes>
-struct MatcherConfig {
-    MatcherConfig() : target_ops({}), ignored_ports({}), ignored_attributes({}) {}
-
-    MatcherConfig(const std::vector<std::string> &_target_ops,
-                  const std::vector<std::string> &_ignored_attributes,
-                  const std::vector<size_t> &_ignored_ports) : target_ops(_target_ops),
-                                                               ignored_attributes(_ignored_attributes),
-                                                               ignored_ports(_ignored_ports) {}
+class iMatcherConfig {
+public:
+    using Ptr = std::shared_ptr<iMatcherConfig>;
 
     // Empty vectors stands for any of possible values
-    std::vector<std::string> target_ops;  // extend to handle operation version
     std::vector<std::string> ignored_attributes;
     std::vector<size_t> ignored_ports;
+    bool is_fallback_config;
 
-    bool op_in_config(const std::shared_ptr<ngraph::Node> &node) {
+    virtual bool op_in_config(const std::shared_ptr<ngraph::Node> &node) = 0;
+};
+
+template<typename ...OPTypes>
+struct MatcherConfig : public iMatcherConfig {
+public:
+    MatcherConfig() {
+        if (sizeof...(OPTypes) == 0) {
+            is_fallback_config = true;
+        }
+    }
+    MatcherConfig(const std::vector<std::string> &_ignored_attributes,
+                  const std::vector<size_t> &_ignored_ports) : ignored_attributes(_ignored_attributes),
+                                                               ignored_ports(_ignored_ports) {
+        if (sizeof...(OPTypes) == 0) {
+            is_fallback_config = true;
+        }
+    }
+
+    // Empty vectors stands for any of possible values
+    std::vector<std::string> ignored_attributes = {};
+    std::vector<size_t> ignored_ports = {};
+    bool is_fallback_config = false;
+
+    bool op_in_config(const std::shared_ptr<ngraph::Node> &node) override {
         std::initializer_list<bool> vals{(ngraph::is_type<OPTypes>(node))...};
         return std::any_of(vals.begin(), vals.end(), [](bool i) { return i; });
     };
@@ -44,9 +62,8 @@ protected:
 
     virtual void configure(const pugi::xml_document &cfg) = 0;
 
-    void validate_and_unwrap_config();
+    iMatcherConfig::Ptr get_config(const std::shared_ptr<ngraph::Node> &node);
 
-    std::tuple<MatcherConfig<>> default_configs;
-    std::map<std::string, MatcherConfig<>> matcher_configs_unwraped;
+    std::vector<iMatcherConfig::Ptr> default_configs;
 };
 } // namespace SubgraphsDumper
