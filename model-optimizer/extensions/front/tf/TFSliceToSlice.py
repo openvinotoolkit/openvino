@@ -25,6 +25,7 @@ from mo.graph.graph import Graph, rename_nodes
 from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.slice import Slice
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 
 
 class TFSliceToSliceReplacer(FrontReplacementOp):
@@ -50,13 +51,11 @@ class TFSliceToSliceReplacer(FrontReplacementOp):
         tf_slice_node.in_port(2).get_connection().set_destination(add_node.in_port(0))
         slice_node.in_port(1).get_connection().add_destination(add_node.in_port(1))
 
-        minus_one_node = Const(graph, {'name': slice_name + '/minus_one', 'value': int64_array(-1)}).create_node()
         shapeof_node = Shape(graph, {'name': slice_name + '/ShapeOf'}).create_node()
         slice_node.in_port(0).get_connection().add_destination(shapeof_node.in_port(0))
 
         # nodes to check if size == -1, if so take the whole range
-        eq_node = Equal(graph, {'name': slice_name + '/equal'}).create_node()
-        minus_one_node.out_port(0).connect(eq_node.in_port(0))
+        eq_node = create_op_with_const_inputs(graph, Equal, {0: int64_array(-1)}, {'name': slice_name + '/equal'})
         add_node.in_port(0).get_connection().add_destination(eq_node.in_port(1))
 
         # select requires equal dtypes
