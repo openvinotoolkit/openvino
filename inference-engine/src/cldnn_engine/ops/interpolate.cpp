@@ -124,7 +124,15 @@ void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Inter
     int antialias = attrs.antialias;
     float cube_coeff = attrs.cube_coeff;
 
-    auto cldnnSampleType = GetResampleType(attrs.mode);
+    // [WA] Replace linear mode with linear_onnx to emulate the old behavior from v1->v4 Interpolate converison
+    // This WA must be removed as soon as optimized kernel supports linear mode
+    auto input_shape_rank = op->get_input_shape(0).size();
+    auto mode = attrs.mode;
+    if (mode == ngraph::op::v4::Interpolate::InterpolateMode::linear && input_shape_rank < 5) {
+        mode = ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx;
+    }
+
+    auto cldnnSampleType = GetResampleType(mode);
     auto shapeCalcMode = GetShapeCalculationMode(attrs.shape_calculation_mode);
     auto coordTransMode = GetCoordinateTransformationMode(attrs.coordinate_transformation_mode);
     auto nearestMode = GetNearestMode(attrs.nearest_mode);
