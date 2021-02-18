@@ -36,13 +36,13 @@ target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 # onnx_common should be the only library that links with onnx
 # it guaranties that there is only one protobuf instance
 if(MSVC)
-        target_link_libraries(${TARGET_NAME} PRIVATE onnx)
-        set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_DEBUG "/WHOLEARCHIVE:onnx_protod.lib /WHOLEARCHIVE:onnxd.lib /WHOLEARCHIVE:libprotobufd.lib")
-        set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "/WHOLEARCHIVE:onnx_proto.lib /WHOLEARCHIVE:onnx.lib /WHOLEARCHIVE:libprotobuf.lib")
-elseif(APPLE)
-        target_link_libraries(${TARGET_NAME} PRIVATE -Wl,-all_load
-        onnx
-        -Wl,-noall_load)
+        target_link_libraries(${TARGET_NAME} PRIVATE -WHOLEARCHIVE:$<TARGET_FILE:onnx>)
+        target_link_libraries(${TARGET_NAME} PRIVATE -WHOLEARCHIVE:$<TARGET_FILE:onnx_proto>)
+        target_link_libraries(${TARGET_NAME} PRIVATE -WHOLEARCHIVE:$<TARGET_FILE:${Protobuf_LIBRARIES}>)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        target_link_libraries(${TARGET_NAME} PRIVATE -Wl,-force_load,$<TARGET_FILE:onnx>)
+        target_link_libraries(${TARGET_NAME} PRIVATE -Wl,-force_load,$<TARGET_FILE:onnx_proto>)
+        target_link_libraries(${TARGET_NAME} PRIVATE -Wl,-force_load,$<TARGET_FILE:${Protobuf_LIBRARIES}>)
 else()
         set(BEFORE_CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
         string (REPLACE "-Wl,--exclude-libs,ALL" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
@@ -61,6 +61,8 @@ target_include_directories(${TARGET_NAME}
                 $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
                 ${Protobuf_INCLUDE_DIRS}
                 ${NGRAPH_INCLUDE_PATH})
+target_compile_definitions(${TARGET_NAME}
+        PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
 
 if(NGRAPH_USE_PROTOBUF_LITE)
         target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)
