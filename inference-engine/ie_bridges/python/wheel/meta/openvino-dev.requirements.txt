@@ -9,7 +9,7 @@ networkx==2.2
 tqdm==4.31.1
 py-cpuinfo==4.0.0
 PyYAML
-pillow>=2.6.1
+pillow>=8.1.0
 scikit-image
 scikit-learn
 yamlloader
