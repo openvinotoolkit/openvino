@@ -19,8 +19,8 @@ namespace SubgraphTestsDefinitions {
         std::vector<size_t> levels;
         std::vector<std::vector<size_t>> constShape;
         std::vector<float> inputParams;
-        std::vector<float> clamp_min_max;
-        std::tie(levels, constShape, clamp_min_max, inputParams) = fqParams;
+        std::vector<float> clampMinMax;
+        std::tie(levels, constShape, clampMinMax, inputParams) = fqParams;
 
         std::ostringstream result;
         result << "InputShape=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -38,8 +38,8 @@ namespace SubgraphTestsDefinitions {
         if (inputParams.size() == 3) {
             result << "_inputArg=" << inputParams[0] << "_" << inputParams[1] << "_" << inputParams[2];
         }
-        if (clamp_min_max.size() == 2) {
-            result << "_clampMaxMin=" << clamp_min_max[0] << "_" << clamp_min_max[1];
+        if (clampMinMax.size() == 2) {
+            result << "_clampMaxMin=" << clampMinMax[0] << "_" << clampMinMax[1];
         }
         return result.str();
     }

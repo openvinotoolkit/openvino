@@ -33,21 +33,41 @@ const std::vector<std::pair<std::string, ConfigType>> gnaQuantModes = {
 };
 
 const std::vector<std::vector<size_t>> inputShapes = {
-        {1, 250}, {1, 640}, {1, 1024}
+        {1, 250},
+        {1, 640},
+        {1, 1024}
 };
 
-const std::vector<size_t> levels_fp = {65535};
-const std::vector<std::vector<float>> inputParams = {{-16, 16, 1}, {-40, 40, 1}};
-const std::vector<std::vector<float>> clamp_max_min = { {-5, 5}, {-20, 20}};
+const std::vector<size_t> level = {65535};
+const std::vector<std::vector<float>> inputParams = {
+                                                     {-16, 16, 1},
+                                                     {-40, 40, 1},
+                                                     {0, 10, 1},
+                                                     {-50, 0, 1},
+                                                     {0, 50, 1},
+                                                     {-100, 100, 1},
+                                                     {-5, 5, 1},
+                                                     {-10, 10, 1},
+                                                     {-14, 14, 1}
+};
+const std::vector<std::vector<float>> clampMaxMin = {
+                                                      {-5, 5},
+                                                      {-20, 20},
+                                                      {-25, 0},
+                                                      {-30, 25},
+                                                      {0, 40},
+                                                      {-10, 10},
+                                                      {-14, 14}
+};
 
 const std::vector<std::vector<std::vector<size_t>>> constShapes = {
         {{1}}
 };
 
 const auto fqParams = ::testing::Combine(
-        ::testing::Values(levels_fp),
+        ::testing::Values(level),
         ::testing::ValuesIn(constShapes),
-        ::testing::ValuesIn(clamp_max_min),
+        ::testing::ValuesIn(clampMaxMin),
         ::testing::ValuesIn(inputParams)
 );
 
