@@ -21,10 +21,7 @@ You need to run Inference Engine build with the following flags:
   cd <INSTALL_DIR>/openvino
   mkdir -p build
   cd build
-```
-If you have only one python3 in your system, you can just run:
-```shellscript
-  cmake -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=`which python3` ..	
+  cmake -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=`which python3` ..
 ```
 Or if you have more than one python3 version you can set it up:
 ```shellscript
