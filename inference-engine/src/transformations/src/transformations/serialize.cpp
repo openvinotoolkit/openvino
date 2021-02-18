@@ -536,14 +536,16 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
 
         // dynamic_to_static function converts dynamic dimensions to static using
         // upperbound (get_max_length) dimension value.
-        auto dynamic_to_static = [](const PartialShape & shape) -> PartialShape {
+        auto dynamic_to_static = [&op](const PartialShape & shape) -> PartialShape {
             if (shape.is_static() || shape.rank().is_dynamic()) {
                 return shape;
             }
             auto out_shape = PartialShape::dynamic(shape.rank());
             for (int64_t i = 0; i < shape.rank().get_length(); ++i) {
                 const auto & in_dim = shape[i];
-                out_shape[i] = (in_dim.is_dynamic() ? Dimension(in_dim.get_max_length()) : in_dim);
+                auto upper_bound = in_dim.get_max_length();
+                NGRAPH_CHECK(upper_bound != -1, "Dynamic dimension cannot be resolved in ", op);
+                out_shape[i] = (in_dim.is_dynamic() ? Dimension(upper_bound) : in_dim);
             }
             return out_shape;
         };
