@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
- 
+
 #include "details/ie_exception.hpp"
 #include "details/ie_so_loader.h"
 #include "file_utils.h"
@@ -204,7 +204,7 @@ class SharedObjectLoader::Impl {
         ExcludeCurrentDirectoryW();
         LoadPluginFromDirectoryW(pluginName);
 
-        if(!shared_object) {
+        if (!shared_object) {
             shared_object = LoadLibraryW(pluginName);
         }
 
