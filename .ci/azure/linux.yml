@@ -14,7 +14,6 @@ jobs:
 - job: Lin
   # About 150% of total time
   timeoutInMinutes: 90
-  enable: false
 
   pool:
     name: LIN_VMSS_VENV_F16S_WU2
