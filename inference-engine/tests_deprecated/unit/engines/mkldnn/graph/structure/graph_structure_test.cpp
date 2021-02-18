@@ -188,8 +188,9 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReorders) {
             reorders_num++;
         }
     }
-    ASSERT_EQ(reorders_num, 3);
+    ASSERT_EQ(reorders_num, 4);
 }
+
 
 TEST_F(MKLDNNGraphStructureTests, TestRedundantReorderBeforeConvWithC_3) {
     std::string model = R"V0G0N(
@@ -293,14 +294,9 @@ TEST_F(MKLDNNGraphStructureTests, TestRedundantReorderBeforeConvWithC_3) {
     for (auto &node : nodes) {
         if (node->getType() == MKLDNNPlugin::Reorder) {
             reorders_num++;
-            if (node->getChildEdgeAt(0)->getChild()->getName() == "init_conv"){
-                ASSERT_EQ(MKLDNNPlugin::Convolution, node->getChildEdgeAt(0)->getChild()->getType());
-                ASSERT_EQ(InferenceEngine::Layout::NCHW,
-                          node->getChildEdgeAt(0)->getBlob()->getTensorDesc().getLayout());
-            }
         }
     }
-    size_t expected = 1;
+    size_t expected = 2;
     ASSERT_EQ(reorders_num, expected);
 }
 
@@ -438,8 +434,8 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersBeforeConcat) {
     float * data = weights->buffer();
 
     fill_data((float *) weights->buffer(), weights->size() / sizeof(float));
-    size_t idx = 592; // Convolution weights
-    size_t size = 8; // Scale and shift sizes
+    size_t idx = 592;   // Convolution 588 weights + 4 biases
+    size_t size = 8;    // Scale and shift sizes
     for (size_t i = 0; i < size; i++, idx++) {
         data[idx] = 1.f;
     }
@@ -463,7 +459,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersBeforeConcat) {
             reorders_num++;
         }
     }
-    ASSERT_EQ(reorders_num, 2);
+    ASSERT_EQ(reorders_num, 3);
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {1, 3, 7, 7}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
     src->allocate();
@@ -734,7 +730,7 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersBeforeDWConvolution) {
             reorders_num++;
         }
     }
-    size_t expected = InferenceEngine::with_cpu_x86_avx2()  ? 2 : 3;
+    size_t expected = InferenceEngine::with_cpu_x86_avx2()  ? 4 : 5;
     ASSERT_EQ(reorders_num, expected);
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {2, 3, 5, 5}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
@@ -2568,10 +2564,10 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithEltwiseBeforeConcat) {
         if (node->getType() == MKLDNNPlugin::Reorder) {
             reorders_num++;
             ASSERT_EQ(MKLDNNPlugin::Input, node->getParentEdgeAt(0)->getParent()->getType());
-            ASSERT_EQ(MKLDNNPlugin::Eltwise, node->getChildEdgeAt(0)->getChild()->getType());
+            ASSERT_EQ(MKLDNNPlugin::Concatenation, node->getChildEdgeAt(0)->getChild()->getType());
         }
     }
-    ASSERT_EQ(reorders_num, 0);
+    ASSERT_EQ(reorders_num, 1);
 }
 TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersRmnet_SSSSD) {
     std::string model = R"V0G0N(
@@ -2996,11 +2992,15 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersRmnet_SSSSD) {
     for (auto &node : nodes) {
         if (node->getType() == MKLDNNPlugin::Reorder) {
             reorders_num++;
-            ASSERT_EQ(MKLDNNPlugin::Output, node->getChildEdgeAt(0)->getChild()->getType());
+            if (node->getParentEdgeAt(0)->getParent()->getType() == MKLDNNPlugin::Input
+                && node->getParentEdgeAt(0)->getParent()->isConstant())
+                ASSERT_EQ(MKLDNNPlugin::Convolution, node->getChildEdgeAt(0)->getChild()->getType());
+            else
+                ASSERT_EQ(MKLDNNPlugin::Output, node->getChildEdgeAt(0)->getChild()->getType());
         }
     }
 
-    ASSERT_EQ(reorders_num, 1);
+    ASSERT_EQ(reorders_num, 8);
 }
 
 TEST_F(MKLDNNGraphStructureTests, TestFailedPartDPN92) {
@@ -3792,10 +3792,14 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersForXceptionTopology) {
     for (auto &node : nodes) {
         if (node->getType() == MKLDNNPlugin::Reorder) {
             reorders_num++;
-            ASSERT_EQ(MKLDNNPlugin::Output, node->getChildEdgeAt(0)->getChild()->getType());
+            if (node->getParentEdgeAt(0)->getParent()->getType() == MKLDNNPlugin::Input
+                && node->getParentEdgeAt(0)->getParent()->isConstant())
+                ASSERT_EQ(MKLDNNPlugin::Convolution, node->getChildEdgeAt(0)->getChild()->getType());
+            else
+                ASSERT_EQ(MKLDNNPlugin::Output, node->getChildEdgeAt(0)->getChild()->getType());
         }
     }
-    ASSERT_EQ(reorders_num, 1);
+    ASSERT_EQ(reorders_num, 13);
 }
 
 TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersForGrayscaleInput) {
@@ -3857,10 +3861,14 @@ TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersForGrayscaleInput) {
     for (auto &node : nodes) {
         if (node->getType() == MKLDNNPlugin::Reorder) {
             reorders_num++;
-            ASSERT_EQ(MKLDNNPlugin::Output, node->getChildEdgeAt(0)->getChild()->getType());
+            if (node->getParentEdgeAt(0)->getParent()->getType() == MKLDNNPlugin::Input
+                && node->getParentEdgeAt(0)->getParent()->isConstant())
+                ASSERT_EQ(MKLDNNPlugin::Convolution, node->getChildEdgeAt(0)->getChild()->getType());
+            else
+                ASSERT_EQ(MKLDNNPlugin::Output, node->getChildEdgeAt(0)->getChild()->getType());
         }
     }
-    ASSERT_EQ(reorders_num, 1);
+    ASSERT_EQ(reorders_num, 2);
 }
 
 TEST_F(MKLDNNGraphStructureTests, TestFailedPartPlateRecognitionBarrier0001) {
@@ -5560,13 +5568,16 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionWith2DepthwiseOpFusing) {
     graph.CreateGraph(network);
 
     const auto& nodes = graph.getNodes();
-    ASSERT_EQ(nodes.size(), 5);
-    ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);
-    ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Reorder);
-    ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Convolution);
-    ASSERT_TRUE(nodes[2].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
-    ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Reorder);
-    ASSERT_EQ(nodes[4].get()->getType(), MKLDNNPlugin::Type::Output);
+    ASSERT_EQ(nodes.size(), 8);
+    ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);    // Convolution biases
+    ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Input);    // Convolution weights
+    ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Reorder);  // Convolution weights reorder
+    ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Input);
+    ASSERT_EQ(nodes[4].get()->getType(), MKLDNNPlugin::Type::Reorder);
+    ASSERT_EQ(nodes[5].get()->getType(), MKLDNNPlugin::Type::Convolution);
+    ASSERT_TRUE(nodes[5].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
+    ASSERT_EQ(nodes[6].get()->getType(), MKLDNNPlugin::Type::Reorder);
+    ASSERT_EQ(nodes[7].get()->getType(), MKLDNNPlugin::Type::Output);
 
     InferenceEngine::TensorDesc src_desc(InferenceEngine::Precision::FP32, {1, 32, 300, 600}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(src_desc);
@@ -5699,12 +5710,15 @@ TEST_F(MKLDNNGraphStructureTests, TestConvolutionWith2EltwiseOpFusing) {
     graph.CreateGraph(network);
 
     const auto& nodes = graph.getNodes();
-    ASSERT_EQ(nodes.size(), 4);
-    ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);
-    ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Convolution);
-    ASSERT_TRUE(nodes[1].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
-    ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Reorder);
-    ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Output);
+    ASSERT_EQ(nodes.size(), 7);
+    ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);    // Convolution biases
+    ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Input);    // Convolution weights
+    ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Reorder);  // Convolution weights reorder
+    ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Input);
+    ASSERT_EQ(nodes[4].get()->getType(), MKLDNNPlugin::Type::Convolution);
+    ASSERT_TRUE(nodes[4].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
+    ASSERT_EQ(nodes[5].get()->getType(), MKLDNNPlugin::Type::Reorder);
+    ASSERT_EQ(nodes[6].get()->getType(), MKLDNNPlugin::Type::Output);
 
     InferenceEngine::TensorDesc src_desc(InferenceEngine::Precision::FP32, {1, 1, 300, 600}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(src_desc);
@@ -5841,11 +5855,13 @@ TEST_F(MKLDNNGraphStructureTests, TestGemmConvolutionWith2DepthwiseOpFusing) {
     graph.CreateGraph(network);
 
     const auto& nodes = graph.getNodes();
-    ASSERT_EQ(nodes.size(), 3);
-    ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);
-    ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Convolution);
-    ASSERT_TRUE(nodes[1].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
-    ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Output);
+    ASSERT_EQ(nodes.size(), 5);
+    ASSERT_EQ(nodes[0].get()->getType(), MKLDNNPlugin::Type::Input);    // Convolution biases
+    ASSERT_EQ(nodes[1].get()->getType(), MKLDNNPlugin::Type::Input);    // Convolution weights
+    ASSERT_EQ(nodes[2].get()->getType(), MKLDNNPlugin::Type::Input);
+    ASSERT_EQ(nodes[3].get()->getType(), MKLDNNPlugin::Type::Convolution);
+    ASSERT_TRUE(nodes[3].get()->isFusedWith(MKLDNNPlugin::Type::Eltwise));
+    ASSERT_EQ(nodes[4].get()->getType(), MKLDNNPlugin::Type::Output);
 
     InferenceEngine::TensorDesc src_desc(InferenceEngine::Precision::FP32, {1, 8, 300, 600}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(src_desc);

@@ -303,7 +303,7 @@ protected:
 
 using smoke_conv_u8s32 = smoke_ConvolutionInt8OnlyTest<uint8_t>;
 
-TEST_P(smoke_conv_u8s32, TestsConvolution) {
+TEST_P(smoke_conv_u8s32, DISABLED_TestsConvolution) {
 }
 
 std::string getTestCaseInt8Name(testing::TestParamInfo<conv_test_params> obj) {

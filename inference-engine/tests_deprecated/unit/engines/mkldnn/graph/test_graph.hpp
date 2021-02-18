@@ -19,6 +19,7 @@
 
 #include <gtest/gtest.h>
 #include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_layers.h>
 #include <nodes/list.hpp>
 #include <mkldnn_graph.h>
 #include <mkldnn_memory.h>
@@ -223,17 +224,21 @@ public:
     }
 
     void MoveInternalBlobsToConstLayers(InferenceEngine::details::CNNNetworkImpl* netImpl) {
-        auto createConstInputTo = [&](InferenceEngine::CNNLayerPtr layer, InferenceEngine::Blob::Ptr blob, std::string name) {
+        auto createConstInputTo = [&](InferenceEngine::CNNLayerPtr layer, InferenceEngine::Blob::Ptr blob, const std::string & name, std::vector<size_t> shape = {}) {
             InferenceEngine::LayerParams attrs = {layer.get()->name + "_const_" + name, "Const", InferenceEngine::Precision::FP32};
             auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
             constLayer->blobs["custom"] = blob;
 
-            std::vector<size_t> constDims(layer->insData[0].lock()->getDims().size(), 1);
-            if (constDims.size() > 1)
-                constDims[1] = blob.get()->size();
-            else
-                constDims[0] = blob.get()->size();
-            const InferenceEngine::TensorDesc& td = {InferenceEngine::Precision::FP32, constDims, InferenceEngine::TensorDesc::getLayoutByDims(constDims)};
+            if (shape.empty()) {
+                shape.resize(layer->insData[0].lock()->getDims().size(), 1);
+
+                if (shape.size() > 1)
+                    shape[1] = blob.get()->size();
+                else
+                    shape[0] = blob.get()->size();
+            }
+
+            const InferenceEngine::TensorDesc& td = {InferenceEngine::Precision::FP32, shape, InferenceEngine::TensorDesc::getLayoutByDims(shape)};
 
             InferenceEngine::DataPtr newEdgeAfterLayer(new InferenceEngine::Data(constLayer->name, td));
             newEdgeAfterLayer->setName(constLayer->name);
@@ -254,7 +259,7 @@ public:
         auto all_layers = InferenceEngine::details::CNNNetSortTopologically(
             InferenceEngine::CNNNetwork(netImpl->shared_from_this()));
         for (auto &layer : all_layers) {
-            if (layer->type == "ScaleShift" && layer->insData.size() == 1) {
+            if (InferenceEngine::details::CaselessEq<std::string>()(layer->type, "ScaleShift") && layer->insData.size() == 1) {
                 InferenceEngine::Blob::Ptr scalesBlob = layer->blobs["weights"];
                 if (scalesBlob != nullptr)
                     createConstInputTo(layer, scalesBlob, "weights");
@@ -262,10 +267,55 @@ public:
                 InferenceEngine::Blob::Ptr shiftBlob = layer->blobs["biases"];
                 if (shiftBlob != nullptr)
                     createConstInputTo(layer, shiftBlob, "biases");
-            } else if (layer->type == "PReLU" && layer->insData.size() == 1) {
+            } else if (InferenceEngine::details::CaselessEq<std::string>()(layer->type, "PReLU") && layer->insData.size() == 1) {
                 InferenceEngine::Blob::Ptr scalesBlob = layer->blobs["weights"];
                 if (scalesBlob != nullptr)
                     createConstInputTo(layer, scalesBlob, "weights");
+            } else if (InferenceEngine::details::CaselessEq<std::string>()(layer->type, "Convolution") && layer->insData.size() == 1) {
+                auto * convLayer = dynamic_cast<InferenceEngine::ConvolutionLayer*>(layer.get());
+                if (convLayer == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot convert convolution layer.";
+
+                bool const isGrouped = convLayer->_group != 1;
+                size_t const groupNum = convLayer->_group;
+                size_t const groupIC = isGrouped
+                                    ? convLayer->input()->getDims()[1] / groupNum
+                                    : convLayer->input()->getDims()[1];
+                size_t const groupOC = isGrouped
+                                    ? convLayer->_out_depth / groupNum
+                                    : convLayer->_out_depth;
+
+                auto weightsBlobIt = convLayer->blobs.find("weights");
+                auto biasesBlobIt = convLayer->blobs.find("biases");
+
+                if (weightsBlobIt != convLayer->blobs.end()) {
+                    auto weightsBlob = weightsBlobIt->second;
+
+                    std::vector<size_t> shape;
+
+                    if (isGrouped) {
+                        shape.reserve(convLayer->_kernel.size() + 3);
+                        shape.emplace_back(groupNum);
+                        shape.emplace_back(groupOC);
+                        shape.emplace_back(groupIC);
+                    } else {
+                        shape.reserve(convLayer->_kernel.size() + 2);
+                        shape.emplace_back(groupOC);
+                        shape.emplace_back(groupIC);
+                    }
+
+                    for (int i = 1; i <= convLayer->_kernel.size(); i++) {
+                        shape.emplace_back(convLayer->_kernel[convLayer->_kernel.size() - i]);
+                    }
+
+                    createConstInputTo(layer, weightsBlob, "weights", shape);
+                }
+
+                if (biasesBlobIt != convLayer->blobs.end()) {
+                    auto biasesBlob = biasesBlobIt->second;
+                    std::vector<size_t> shape = { groupOC * groupNum };
+                    createConstInputTo(layer, biasesBlob, "biases", shape);
+                }
             }
         }
     }

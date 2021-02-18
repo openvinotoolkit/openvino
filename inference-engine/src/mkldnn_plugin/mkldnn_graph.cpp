@@ -388,13 +388,6 @@ void MKLDNNGraph::SetOriginalLayerNames() {
 
     // Do it before cleanup. Because it will lose original layers information
     for (auto &graphNode : graphNodes) {
-        auto nodeType = graphNode->getType();
-        if (nodeType == Reorder || nodeType == Output) continue;
-
-        if (graphNode->getOriginalLayers().empty()) {
-            graphNode->addOriginalLayer(graphNode->getCnnLayer());
-        }
-
         if (graphNode->getFusedWith().size() || graphNode->getMergeWith().size()) {
             // Original layer names
             std::vector<MKLDNNNodePtr> internal = graphNode->getFusedWith();

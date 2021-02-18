@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "test_graph.hpp"
 #include "mkldnn_graph.h"
 #include "mkldnn_graph_dumper.h"
 #include "ie_blob.h"
@@ -62,7 +63,7 @@ public:
 
 TEST(MKLDNNLayersTests, DumpSimpleGraph) {
     auto net = NetGen().net();
-    MKLDNNGraph graph;
+    MKLDNNGraphTestClass graph;
     MKLDNNExtensionManager::Ptr extMgr;
     MKLDNNWeightsSharing::Ptr cache;
 
@@ -71,16 +72,19 @@ TEST(MKLDNNLayersTests, DumpSimpleGraph) {
     auto dump_net = dump_graph_as_ie_net(graph);
     auto layers = details::CNNNetSortTopologically(dump_net);
 
-    ASSERT_EQ(layers.size(), 4);
+    ASSERT_EQ(layers.size(), 7);
     ASSERT_EQ(layers[0]->type, "Input");
-    ASSERT_EQ(layers[1]->type, "Convolution");
+    ASSERT_EQ(layers[1]->type, "Const");    // Weights
     ASSERT_EQ(layers[2]->type, "Reorder");
-    ASSERT_EQ(layers[3]->type, "Output");
+    ASSERT_EQ(layers[3]->type, "Const");    // Biases
+    ASSERT_EQ(layers[4]->type, "Convolution");
+    ASSERT_EQ(layers[5]->type, "Reorder");
+    ASSERT_EQ(layers[6]->type, "Output");
 }
 
 TEST(MKLDNNLayersTests, DumpSimpleGraphToDot) {
     auto net = NetGen().net();
-    MKLDNNGraph graph;
+    MKLDNNGraphTestClass graph;
     MKLDNNExtensionManager::Ptr extMgr;
     MKLDNNWeightsSharing::Ptr cache;
     graph.CreateGraph(net, extMgr, cache);
@@ -92,7 +96,7 @@ TEST(MKLDNNLayersTests, DumpSimpleGraphToDot) {
     std::cout << dot;
     ASSERT_EQ(std::count(dot.begin(), dot.end(), '{'), 1); // 1-graph
     ASSERT_EQ(std::count(dot.begin(), dot.end(), '}'), 1);
-    ASSERT_EQ(std::count(dot.begin(), dot.end(), '['), 10); // 4-node 3-data 3-shape
-    ASSERT_EQ(std::count(dot.begin(), dot.end(), ']'), 10);
-    ASSERT_EQ(std::count(dot.begin(), dot.end(), '>'), 6); // connection
+    ASSERT_EQ(std::count(dot.begin(), dot.end(), '['), 19); // 7-nodes 6-data 6-shape
+    ASSERT_EQ(std::count(dot.begin(), dot.end(), ']'), 19);
+    ASSERT_EQ(std::count(dot.begin(), dot.end(), '>'), 12); // connection
 }
