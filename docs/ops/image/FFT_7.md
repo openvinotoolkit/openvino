@@ -26,9 +26,9 @@
 
 *   **2**: `axes` - 1D tensor specifying dimension indices where FFT is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 3d input `signal_size`. Required.
 
-*   **3**: `signal_size` - 1D tensor describing signal size with respect to axes from the input `axes`. For any `i in range(0, len(axes))`, if `signal_size[i] == -1`, then FFT is calculated for full size of the axis `axes[i]`. If `signal_size[i] > input_shape[axes[i]]`, then input data are zero-padded with respect to the axis `axes[i]`. Finally, `signal_size[i] < input_shape[axes[i]]`, then input data are trimmedwith respect to the axis `axes[i]`. Optional, with default value `[d for d in input_shape]`.
+*   **3**: `signal_size` - 1D tensor describing signal size with respect to axes from the input `axes`. For any `i in range(0, len(axes))`, if `signal_size[i] == -1`, then FFT is calculated for full size of the axis `axes[i]`. If `signal_size[i] > input_shape[axes[i]]`, then input data are zero-padded with respect to the axis `axes[i]`. Finally, `signal_size[i] < input_shape[axes[i]]`, then input data are trimmedwith respect to the axis `axes[i]`. Optional, with default value `[input_shape[a] for a in axes]`.
 
 **Outputs**
 
-*   **1**: Resulting tensor with elements of the same type as input `data` tensor. The shape of the output matches input `data` shape except spatial dimensions mentioned in `axes` attribute. For other dimensions shape matches sizes from `sizes` in order specified in `axes`.
+*   **1**: Resulting tensor with elements of the same type as input `data` tensor. The shape of the output matches input `data` shape except dimensions mentioned in `axes` input. For other dimensions shape matches sizes from `signal_size` in order specified in `axes`.
 
