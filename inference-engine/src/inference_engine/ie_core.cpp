@@ -252,6 +252,8 @@ class Core::Impl : public ICore {
 
     class CacheManager {
     public:
+        using Ptr = std::shared_ptr<CacheManager>;
+
         virtual void writeCacheEntry(const std::string & id, std::ofstream & stream) = 0;
         virtual void removeCacheEntry(const std::string & id) = 0;
         virtual void readCacheEntry(const std::string & id, std::ifstream & stream) = 0;
@@ -262,7 +264,7 @@ class Core::Impl : public ICore {
         std::string m_modelCacheDir;
 
         std::string getBlobFile(const std::string & blobHash) const {
-            return FileUtils::makePath(m_modelCacheDir, blobHash);
+            return FileUtils::makePath(m_modelCacheDir, blobHash + ".blob");
         }
 
     public:
@@ -298,7 +300,7 @@ class Core::Impl : public ICore {
 
     std::unordered_set<std::string> opsetNames;
     std::vector<IExtensionPtr> extensions;
-    std::shared_ptr<CacheManager> cacheManager;
+    CacheManager::Ptr cacheManager;
 
     std::map<std::string, PluginDescriptor> pluginRegistry;
     mutable std::mutex pluginsMutex;  // to lock parallel access to pluginRegistry and plugins
@@ -389,7 +391,7 @@ class Core::Impl : public ICore {
                 auto value = GetCPPPluginByName(deviceFamily).GetMetric(METRIC_KEY(DEVICE_ARCHITECTURE), getMetricConfig);
                 compileConfig[METRIC_KEY(DEVICE_ARCHITECTURE)] = value.as<std::string>();
             } else {
-                // WA: take device name at least
+                // WA: take device name at least if device does not support DEVICE_ARCHITECTURE metric
                 compileConfig[METRIC_KEY(DEVICE_ARCHITECTURE)] = deviceFamily;
             }
 
@@ -398,7 +400,7 @@ class Core::Impl : public ICore {
 
             // auto-hashing
             if (cachingIsAvailable)
-                blobID = context.computeHash() + ".blob";
+                blobID = context.computeHash();
         }
 
         std::cerr << (cachingIsAvailable ?
@@ -408,7 +410,9 @@ class Core::Impl : public ICore {
         ExecutableNetwork execNetwork;
 
         // make a full path
-        std::string blobFileName = FileUtils::makePath(modelCacheDir, blobID);
+        std::string blobFileName = FileUtils::makePath(modelCacheDir, blobID + ".blob");
+        std::cerr << blobID << std::endl;
+        std::cerr << blobFileName << std::endl;
 
         if (cachingIsAvailable && FileUtils::fileExist(blobFileName)) {
             try {
@@ -423,7 +427,9 @@ class Core::Impl : public ICore {
 
                 if (header.getIeVersion() != GetInferenceEngineVersion()->buildNumber) {
                     // network cannot be read
-                    throw NetworkNotRead("");
+                    std::cerr << "Blob header version " << header.getIeVersion() << std::endl;
+                    std::cerr << "IE current version " << GetInferenceEngineVersion()->buildNumber << std::endl;
+                    throw NetworkNotRead("Version does not match");
                 }
 
                 execNetwork = context ?
@@ -435,10 +441,11 @@ class Core::Impl : public ICore {
                 // 1. Device does not support ImportNetwork / Export flow
                 std::cerr << "[BUG] Import is not implemented O_o " << deviceFamily << std::endl;
                 cacheManager->removeCacheEntry(blobID);
-            } catch (const NetworkNotRead &) {
+            } catch (const NetworkNotRead & ex) {
                 // 2. Device supports this flow, but failed to import network for some reason
                 //    (e.g. device arch is not compatible with device arch network compiled for
                 //     e.g. compiled for MYX, but current device is M2 stick)
+                std::cerr << "!!" << ex.what() << std::endl;
                 std::cerr << "NetworkNotRead: try to export one more time (remove blob!!) " << deviceFamily << std::endl;
                 cacheManager->removeCacheEntry(blobID);
             } catch (const std::exception & ex) {
@@ -449,7 +456,7 @@ class Core::Impl : public ICore {
                     std::cerr << "Apple RTTI: " << ex.what() << std::endl;
                     cacheManager->removeCacheEntry(blobID);
                 } else { // some issues because of import failed
-                    std::cerr << "[BUG] Import failed for " << deviceFamily << std::endl;
+                    std::cerr << "[BUG] Import failed for " << deviceFamily << "(" << message << ")" << std::endl;
                     cacheManager->removeCacheEntry(blobID);
                 }
             }

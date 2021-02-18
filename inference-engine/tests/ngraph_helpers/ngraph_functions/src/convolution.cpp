@@ -28,6 +28,7 @@ std::shared_ptr<Node> makeConvolution(const ngraph::Output<Node> &in,
     std::vector<size_t> filterWeightsShape = {numOutChannels, shape[1]};
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
+    filterWeightsNode->set_friendly_name("Filder_Weights_for_Conv");
     auto conv = std::make_shared<opset1::Convolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations,
                                                       autoPad);
     if (addBiases) {
