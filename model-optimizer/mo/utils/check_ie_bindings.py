@@ -16,6 +16,7 @@
  limitations under the License.
 """
 
+import os
 import re
 import argparse
 
@@ -33,11 +34,13 @@ def import_core_modules(silent: bool, path_to_module: str):
         from openvino.inference_engine import IECore, get_version # pylint: disable=import-error
         from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI # pylint: disable=import-error
 
+        import openvino
+
         ie_version = str(get_version())
         mo_version = str(version.get_version()) # pylint: disable=no-member
 
         if not silent:
-            print("\t- {}: \t{}".format("Inference Engine found in", path_to_module))
+            print("\t- {}: \t{}".format("Inference Engine found in", os.path.dirname(openvino.__file__)))
             print("{}: \t{}".format("Inference Engine version", ie_version))
             print("{}: \t    {}".format("Model Optimizer version", mo_version))
 
@@ -51,8 +54,8 @@ def import_core_modules(silent: bool, path_to_module: str):
             is_custom_mo_version = extracted_release_version == (None, None)
             if not silent:
                 print("[ WARNING ] Model Optimizer and Inference Engine versions do no match.")
-                print("[ WARNING ] Please consider to build Inference Engine Python API from sources or reinstall \"OpenVINO (TM) Toolkit\" using pip install openvino{} {}".format(
-                    "", "(may be incompatible with current Model Optimizer version)" if is_custom_mo_version else "=={}.{}".format(*extracted_release_version), ""))
+                print("[ WARNING ] Consider building the Inference Engine Python API from sources or reinstall OpenVINO (TM) toolkit using \"pip install openvino{}\" {}".format(
+                    "", "(may be incompatible with the current Model Optimizer version)" if is_custom_mo_version else "=={}.{}".format(*extracted_release_version), ""))
 
         return True
     except Exception as e:
