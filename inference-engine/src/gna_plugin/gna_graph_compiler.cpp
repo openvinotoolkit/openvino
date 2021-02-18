@@ -638,31 +638,6 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
 
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
-    // When there's a NCHW convolution as a last layer, the output needs to be transposed back to NCHW
-    // TODO: Jira: 43659 - the issue also appears when after conv there's an eltwise or activation
-    // For last layer or when next ones are only non functional, the data can be reordered when exporting scores
-    // For other cases inserting permute is required if data are reordered
-    auto keepsLayout = [](CNNLayerPtr l) {
-        return LayerInfo(l).isNonFunctional() || LayerInfo(l).isActivation() || LayerInfo(l).isPooling();
-    };
-    if (getInputTo(outputs).empty() || !CNNNetHasNextLayerSkipCertain(layer, 0, 0, keepsLayout)) {
-        // if height dim and width dim both equal 1, the permute is not needed to return correct results
-        // if height dim doesn't equal 1, the case requires additional permute
-        // auto inputDimsCheck = (in_channels != 1 ||
-        //     (in_height == 1 && in_width == 1) ||
-        //     in_height != 1);
-        const auto outputNeedsTranspose = out_channels > 1 && out_height * out_width > 1;
-
-        //if kernel is pow of 2 and heigher than 8, then the issue doesn't appear
-        // auto kernelCheck = convolution._kernel_x > 15 && !(convolution._kernel_x & (convolution._kernel_x - 1));
-        // if (!inputDimsCheck && !kernelCheck) {
-        if (outputNeedsTranspose) {
-            dnn->do_rotate_output = true;
-            dnn->num_rotate_output_rows = out_height * out_width;
-            dnn->num_rotate_output_columns = out_channels;
-        }
-    }
-
     const auto kernelHW = convolution._kernel_y * convolution._kernel_x;
 
     std::vector<uint8_t> transposedWeights;
