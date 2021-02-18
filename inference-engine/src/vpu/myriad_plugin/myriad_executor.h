@@ -13,6 +13,7 @@
 
 #include <mvnc.h>
 #include "myriad_mvnc_wrapper.h"
+#include "configuration/myriad_configuration.hpp"
 
 #include <ie_parameter.hpp>
 
@@ -86,7 +87,7 @@ public:
      * @brief Get myriad device
      * @return Already booted and empty device or new booted device
      */
-    DevicePtr openDevice(std::vector<DevicePtr> &devicePool, const MyriadConfig& config);
+    DevicePtr openDevice(std::vector<DevicePtr> &devicePool, const MyriadConfiguration& config);
 
     static void closeDevices(std::vector<DevicePtr> &devicePool, std::shared_ptr<IMvnc> mvnc);
 
@@ -134,8 +135,7 @@ private:
      * @param configPlatform Boot the selected platform
      * @param configProtocol Boot device with selected protocol
      */
-    ncStatus_t bootNextDevice(std::vector<DevicePtr> &devicePool,
-                              const MyriadConfig& config);
+    ncStatus_t bootNextDevice(std::vector<DevicePtr> &devicePool, const MyriadConfiguration& config);
 };
 
 typedef std::shared_ptr<MyriadExecutor> MyriadExecutorPtr;

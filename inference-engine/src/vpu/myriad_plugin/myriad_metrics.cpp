@@ -31,6 +31,7 @@ MyriadMetrics::MyriadMetrics() {
     };
 
 IE_SUPPRESS_DEPRECATED_START
+    // TODO: remove once all options are migrated
     _supportedConfigKeys = {
         MYRIAD_ENABLE_HW_ACCELERATION,
         MYRIAD_ENABLE_RECEIVING_TENSOR_TIME,

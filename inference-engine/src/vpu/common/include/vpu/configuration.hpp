@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,7 +29,6 @@ struct CompilationConfig {
 
     bool detectBatch = true;
 
-    Optional<bool> copyOptimization;
     Optional<bool> injectSwOps;
     Optional<bool> packDataInCmx;
     bool mergeHwPoolToConv = true;

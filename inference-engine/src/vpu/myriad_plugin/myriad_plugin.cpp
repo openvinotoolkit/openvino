@@ -34,31 +34,34 @@ IExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
-    auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config);
+    auto executableNetworkConfiguration = _parsedConfig;
+    executableNetworkConfiguration.from(config);
+    executableNetworkConfiguration.validate();
 
-    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
-    _parsedConfig.update(config);
+    _parsedConfig.from(config);
 
+    // TODO: remove once all options are migrated
     for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-    auto supported_keys = _metrics->SupportedConfigKeys();
-    if (std::find(supported_keys.begin(),
-        supported_keys.end(), name) == supported_keys.end()) {
-        IE_THROW() << "Unsupported config key : " << name;
-    }
+    // TODO: remove once all options are migrated
+    const auto& supportedKeys = _metrics->SupportedConfigKeys();
+    VPU_THROW_UNSUPPORTED_OPTION_UNLESS(supportedKeys.count(name) == 1 || _parsedConfig.supports(name), "Unsupported configuration key: {}", name);
 
     Parameter result;
-    auto option = _config.find(name);
-    if (option != _config.end())
-        result = option->second;
+    if (_parsedConfig.supports(name)) {
+        result = _parsedConfig.asParameter(name);
+    } else if (_config.count(name)) {
+        // TODO: remove once all options are migrated
+        result = _config.at(name);
+    }
 
     return result;
 }
@@ -70,7 +73,7 @@ QueryNetworkResult Engine::QueryNetwork(
     QueryNetworkResult res;
 
     auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config);
+    parsedConfigCopy.from(config);
 
     const auto deviceName = parsedConfigCopy.deviceName();
     if (!deviceName.empty()) {
@@ -111,6 +114,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
 
     _pluginName = "MYRIAD";
 
+    // TODO: remove once all options are migrated
 IE_SUPPRESS_DEPRECATED_START
     _config = {
         { MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
@@ -140,14 +144,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(ImportNetwork);
 
-    auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    auto executableNetworkConfiguration = _parsedConfig;
+    executableNetworkConfiguration.fromAtRuntime(config);
+    executableNetworkConfiguration.validate();
 
-    const auto executableNetwork =
-            std::make_shared<ExecutableNetwork>(
-                model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(model, _mvnc, _devicePool, executableNetworkConfiguration, GetCore());
     executableNetwork->SetPointerToPlugin(shared_from_this());
-
     return executableNetwork;
 }
 
@@ -186,7 +188,10 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
         const auto& supportedMetrics = _metrics->SupportedMetrics();
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, std::vector<std::string>{supportedMetrics.cbegin(), supportedMetrics.cend()});
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        const auto& supportedConfigKeys = _metrics->SupportedConfigKeys();
+        // TODO: remove once all options are migrated
+        auto supportedConfigKeys = _metrics->SupportedConfigKeys();
+        const auto& publicKeys = _parsedConfig.getPublicKeys();
+        supportedConfigKeys.insert(publicKeys.cbegin(), publicKeys.cend());
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{supportedConfigKeys.cbegin(), supportedConfigKeys.cend()});
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         const auto& optimizationCapabilities = _metrics->OptimizationCapabilities();
