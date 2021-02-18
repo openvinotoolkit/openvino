@@ -71,12 +71,6 @@ public:
             ASSERT_TRUE(std::find(queryToState.begin(), queryToState.end(), next_memory.GetName()) != queryToState.end())
                                         << "State " << next_memory.GetName() << " expected to be in memory states but it is not!";
         }
-        executableNetwork = importedNetwork;
-        size_t nIteration = 3;
-        for ( ; nIteration != 0; nIteration--) {
-            Infer();
-            Validate();
-        }
     }
 
 protected:
@@ -87,10 +81,10 @@ protected:
 
         auto params = ngraph::builder::makeParams(ngPrc, {{1, 336}});
         auto mem_c = ngraph::builder::makeConstant(ngPrc, {1, 336}, std::vector<size_t>{1});
-        auto mem_r = std::make_shared<ngraph::op::ReadValue>(mem_c, "id");
+        auto mem_r = std::make_shared<ngraph::opset3::ReadValue>(mem_c, "id");
 
         auto mul = std::make_shared<ngraph::opset1::Multiply>(params[0], mem_r);
-        auto mem_w = std::make_shared<ngraph::op::Assign>(mul, "id");
+        auto mem_w = std::make_shared<ngraph::opset3::Assign>(mul, "id");
 
         auto relu = std::make_shared<ngraph::opset1::Relu>(mul);
         mem_w->add_control_dependency(mem_r);

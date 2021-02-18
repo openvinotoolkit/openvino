@@ -17,6 +17,7 @@
 #else
 #include <mm_malloc.h>
 #include <serial/headers/2dot2/gna_model_header.hpp>
+#include <serial/headers/2dot5/gna_model_header.hpp>
 
 #endif
 
@@ -127,6 +128,7 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                     break;
                 }
                 case 5:
+                case 6:
                     readNBytes(&header, sizeof(Header2dot5::ModelHeader), is);
                     break;
                 default:
@@ -289,12 +291,12 @@ void GNAModelSerial::Import(void *basePointer,
     for (int i = 0; i != nStates; i++) {
         void *pSegment;
         if ( modelHeader.version.major == 2 ) {
-            if ( modelHeader.version.minor < 5 ) {
+            if ( modelHeader.version.minor < 6 ) {
                 readOffset(pSegment, basePointer, is);
                 uint32_t segmentSz;
                 readBits(segmentSz, is);
                 if (pstates) {
-                    (*pstates)[i] = { pSegment, segmentSz, "noname"};
+                    (*pstates)[i] = { pSegment, segmentSz, "noname", 1.0f};
                 }
             } else {
                 readOffset(pSegment, basePointer, is);
@@ -304,8 +306,10 @@ void GNAModelSerial::Import(void *basePointer,
                 readNBits<32>(nameSize, is);
                 std::string inName("", nameSize);
                 readNBytes(&inName[0], nameSize, is);
+                float scale_factor = 1.0f;
+                readBits(scale_factor, is);
                 if (pstates) {
-                    (*pstates)[i] = { pSegment, segmentSz, inName};
+                    (*pstates)[i] = { pSegment, segmentSz, inName, scale_factor};
                 }
             }
         }
@@ -442,12 +446,14 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         void* gna_ptr = nullptr;
         uint32_t reserved_size;
         std::string name;
-        std::tie(gna_ptr, reserved_size, name) = state;
+        float scale_factor;
+        std::tie(gna_ptr, reserved_size, name, scale_factor) = state;
         writeBits(offsetFromBase(gna_ptr), os);
         writeBits(reserved_size, os);
         const auto nameSize = strlen(name.c_str()) + 1;
         writeBits(static_cast<uint32_t>(nameSize), os);
         writeNBytes(name.c_str(), nameSize, os);
+        writeBits(scale_factor, os);
     }
 
     // once structure has been written lets push gna graph
@@ -586,15 +592,28 @@ void GNAModelSerial::Import(void *basePointer,
 
     for (int i = 0; i != nStates; i++) {
         void *pSegment;
-        readOffset(pSegment, basePointer, is);
-        uint32_t segmentSz;
-        readBits(segmentSz, is);
-        uint32_t nameSize = 0;
-        readNBits<32>(nameSize, is);
-        std::string inName("", nameSize);
-        readNBytes(&inName[0], nameSize, is);
-        if (pstates) {
-            (*pstates)[i] = std::make_tuple(pSegment, segmentSz, inName);
+        if ( modelHeader.version.major == 2 ) {
+            if ( modelHeader.version.minor < 6 ) {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz;
+                readBits(segmentSz, is);
+                if (pstates) {
+                    (*pstates)[i] = { pSegment, segmentSz, "noname", 1.0f};
+                }
+            } else {
+                readOffset(pSegment, basePointer, is);
+                uint32_t segmentSz;
+                readBits(segmentSz, is);
+                uint32_t nameSize = 0;
+                readNBits<32>(nameSize, is);
+                std::string inName("", nameSize);
+                readNBytes(&inName[0], nameSize, is);
+                float scale_factor = 1.0f;
+                readBits(scale_factor, is);
+                if (pstates) {
+                    (*pstates)[i] = { pSegment, segmentSz, inName, scale_factor};
+                }
+            }
         }
     }
 
@@ -744,12 +763,14 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         void* gna_ptr = nullptr;
         uint32_t reserved_size;
         std::string name;
-        std::tie(gna_ptr, reserved_size, name) = state;
+        float scale_factor;
+        std::tie(gna_ptr, reserved_size, name, scale_factor) = state;
         writeBits(offsetFromBase(gna_ptr), os);
         writeBits(reserved_size, os);
         const auto nameSize = strlen(name.c_str()) + 1;
         writeBits(static_cast<uint32_t>(nameSize), os);
         writeNBytes(name.c_str(), nameSize, os);
+        writeBits(scale_factor, os);
     }
 
     // once structure has been written lets push gna graph

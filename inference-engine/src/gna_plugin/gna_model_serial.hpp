@@ -22,7 +22,7 @@
  */
 class GNAModelSerial {
  public:
-    using MemoryType = std::vector<std::tuple<void*, uint32_t, std::string>>;
+    using MemoryType = std::vector<std::tuple<void*, uint32_t, std::string, float>>;
 
 private:
 #if GNA_LIB_VER == 2
@@ -125,8 +125,8 @@ private:
      * @param layerName
      * @return
      */
-    GNAModelSerial & AddState(void* descriptor_ptr, size_t size, std::string layerName = "noname") {
-        states.emplace_back(descriptor_ptr, size, layerName);
+    GNAModelSerial & AddState(void* descriptor_ptr, size_t size, std::string layerName = "noname", float scale_factor = 1.0f) {
+        states.emplace_back(descriptor_ptr, size, layerName, scale_factor);
         return *this;
     }
 
