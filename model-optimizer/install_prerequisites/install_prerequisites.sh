@@ -140,10 +140,10 @@ find_ie_bindings() {
         # Check if OpenVINO version was installed using pip
         if check_ov_package "$python_executable" "$requires_sudo"; then
             if $mo_is_custom; then
-                print_warning "Existing OpenVINO (TM) toolkit pip version is incompatible with Model Optimizer."
+                print_warning "OpenVINO (TM) Toolkit version installed in pip is incompatible with the Model Optimizer."
                 print_warning "For the custom Model Optimizer version consider building Inference Engine Python API from sources (preferable) or install the highest OpenVINO (TM) toolkit version using \"pip install openvino\""
             else
-                print_warning "Existing OpenVINO (TM) toolkit pip version is incompatible with Model Optimizer."
+                print_warning "OpenVINO (TM) Toolkit version installed in pip is incompatible with the Model Optimizer."
                 print_warning "For the release version of the Model Optimizer, which is $mo_release_version, install the OpenVINO (TM) toolkit using \"pip install openvino==$mo_release_version\" or build the Inference Engine Python API from sources."
             fi
             return 0
