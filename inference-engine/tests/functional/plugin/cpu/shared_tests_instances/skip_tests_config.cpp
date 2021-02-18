@@ -61,7 +61,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
         R"(.*BF16.*(jit_avx(?!5)|jit_sse).*)",
-        // TODO: Enable for CPU plugin comparison
+        // TODO: Incorrect blob sizes for node BinaryConvolution_X
         R"(.*BinaryConvolutionLayerTest.*)"
     };
 

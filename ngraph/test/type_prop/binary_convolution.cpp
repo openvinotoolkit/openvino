@@ -210,33 +210,7 @@ TEST(type_prop, binary_conv_v1_invalid_inputs_et)
     {
         FAIL() << "Data batch element type validation check failed for unexpected reason";
     }
-// TODO: Check if u1 is supported in python API
-#if 0
-    try
-    {
-        const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5});
-        const auto filters = make_shared<op::Parameter>(element::u8, PartialShape{1, 1, 3, 3});
-        const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
-                                                                     filters,
-                                                                     Strides{},
-                                                                     CoordinateDiff{},
-                                                                     CoordinateDiff{},
-                                                                     Strides{},
-                                                                     mode,
-                                                                     pad_value,
-                                                                     auto_pad);
-        // filters element type must be u1
-        FAIL() << "Incompatible element type of filters input not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(), "Filters element type must be u1");
-    }
-    catch (...)
-    {
-        FAIL() << "Filters element type validation check failed for unexpected reason";
-    }
-#endif
+    // TODO: Add test with check filters element type once u1 is supported in nGraph Python API
 }
 
 TEST(type_prop, binary_conv_v1_incompatible_input_channels)

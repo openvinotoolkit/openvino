@@ -82,13 +82,8 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
                           "Data batch element type must be float point. Got: ",
                           data_batch_et);
 
-// TODO: Check if u1 is supported in python API
-#if 0
-    element::Type filters_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(
-        this, filters_et == element::u1, "Filters element type must be u1. Got: ", filters_et);
-#endif
-    // TODO: Maybe use PartialShape::merge_rank()
+    // TODO: Add NodeValidationCheck to filters et once u1 is supported in nGraph Python API
+
     NODE_VALIDATION_CHECK(this,
                           data_batch_pshape.rank().compatible(filters_pshape.rank()),
                           "Shapes for data batch and filters must have same rank. Got: ",
