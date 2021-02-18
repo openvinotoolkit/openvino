@@ -1509,8 +1509,8 @@ namespace
             runtime::reference::one_hot<INPUT_TYPE>(inputs[0]->get_data_ptr<INPUT_TYPE>(),
                                                     inputs[0]->get_shape(),
                                                     outputs[0]->get_data_ptr<char>(),
+                                                    outputs[0]->get_shape(),
                                                     outputs[0]->get_element_type().size(),
-                                                    outputs[0]->get_shape()[axis],
                                                     axis,
                                                     inputs[2]->get_data_ptr<char>(),
                                                     inputs[3]->get_data_ptr<char>());

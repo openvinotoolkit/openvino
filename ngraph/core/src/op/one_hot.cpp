@@ -142,8 +142,8 @@ namespace one_hot
         runtime::reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
                                                 indices->get_shape(),
                                                 out->get_data_ptr<char>(),
+                                                out->get_shape(),
                                                 out->get_element_type().size(),
-                                                out->get_shape()[axis],
                                                 axis,
                                                 on_value->get_data_ptr<char>(),
                                                 off_value->get_data_ptr<char>());
@@ -169,5 +169,9 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
+    const auto& out_shape = output_values[0]->get_partial_shape();
+    const auto& ind_shape = input_values[0]->get_partial_shape();
+    NGRAPH_CHECK(ind_shape.is_static() && out_shape.is_static(),
+                 "Only static input/output shapes are supported");
     return one_hot::evaluate_onehot(output_values, input_values, get_axis());
 }

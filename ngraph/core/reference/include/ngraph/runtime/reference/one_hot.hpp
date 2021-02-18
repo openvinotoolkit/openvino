@@ -25,13 +25,18 @@ namespace ngraph
             void one_hot(const INPUT_TYPE* indices,
                          const Shape& indices_shape,
                          char* out,
+                         const Shape& out_shape,
                          const size_t out_elem_size,
-                         const size_t depth,
                          const int64_t one_hot_axis,
                          const char* on_value,
                          const char* off_value)
             {
+                NGRAPH_CHECK(one_hot_axis >= 0 && one_hot_axis < out_shape.size(),
+                             "Invalid axis value.");
                 const size_t num_ind = shape_size(indices_shape);
+                const size_t depth = out_shape[one_hot_axis];
+                NGRAPH_CHECK(num_ind * depth == shape_size(out_shape),
+                             "Inconsistent input/output shapes or wrong axis.");
                 // Step 1: Set off_value to the output.
                 for (auto p = out; p < out + num_ind * depth * out_elem_size; p += out_elem_size)
                     std::copy(off_value, off_value + out_elem_size, p);
