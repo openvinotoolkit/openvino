@@ -119,11 +119,11 @@ TEST(TransformationTests, PadFusionConvolution) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
+        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
         auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
         auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, op::PadMode::CONSTANT);
-        auto filters = std::make_shared<opset5::Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 4, 4});
         auto conv = std::make_shared<opset5::Convolution>(pad, filters, Strides{1, 1},
                                                           CoordinateDiff{0, 0}, CoordinateDiff{1, 1}, Shape{1, 1});
         f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
@@ -134,8 +134,8 @@ TEST(TransformationTests, PadFusionConvolution) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
-        auto filters = std::make_shared<opset5::Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
+        auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 4, 4});
         auto conv = std::make_shared<opset5::Convolution>(data, filters, Strides{1, 1},
                                                           CoordinateDiff{1, 1}, CoordinateDiff{3, 3}, Shape{1, 1},
                                                           op::PadType::EXPLICIT);
@@ -248,11 +248,11 @@ TEST(TransformationTests, NegativePadFusionNonConstantPadMode) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
+        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
         auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
         auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, op::PadMode::REFLECT);
-        auto filters = std::make_shared<opset5::Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 4, 4});
         auto conv = std::make_shared<opset5::Convolution>(pad, filters, Strides{1, 1},
                                                           CoordinateDiff{0, 0}, CoordinateDiff{1, 1}, Shape{1, 1});
         f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
@@ -263,11 +263,11 @@ TEST(TransformationTests, NegativePadFusionNonConstantPadMode) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
+        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
         auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
         auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, op::PadMode::REFLECT);
-        auto filters = std::make_shared<opset5::Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 4, 4});
         auto conv = std::make_shared<opset5::Convolution>(pad, filters, Strides{1, 1},
                                                           CoordinateDiff{0, 0}, CoordinateDiff{1, 1}, Shape{1, 1});
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
@@ -282,12 +282,12 @@ TEST(TransformationTests, NegativePadFusionNonZeroPadValue) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
+        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
         auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
         auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-        auto pad_value = opset5::Constant::create(element::i32, Shape{}, {2});
+        auto pad_value = opset5::Constant::create(element::f32, Shape{}, {2});
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-        auto filters = std::make_shared<opset5::Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 4, 4});
         auto conv = std::make_shared<opset5::Convolution>(pad, filters, Strides{1, 1},
                                                           CoordinateDiff{0, 0}, CoordinateDiff{1, 1}, Shape{1, 1});
         f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
@@ -298,12 +298,12 @@ TEST(TransformationTests, NegativePadFusionNonZeroPadValue) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
+        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
         auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 1, 1});
         auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-        auto pad_value = opset5::Constant::create(element::i32, Shape{}, {2});
+        auto pad_value = opset5::Constant::create(element::f32, Shape{}, {2});
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-        auto filters = std::make_shared<opset5::Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 4, 4});
         auto conv = std::make_shared<opset5::Convolution>(pad, filters, Strides{1, 1},
                                                           CoordinateDiff{0, 0}, CoordinateDiff{1, 1}, Shape{1, 1});
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
@@ -318,12 +318,12 @@ TEST(TransformationTests, NegativePadFusionPadForBatchSize) {
 
     Shape data_shape{1, 3, 14, 14};
     {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
+        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
         auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {1, 0, 1, 1});
         auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-        auto pad_value = opset5::Constant::create(element::i32, Shape{}, {0});
+        auto pad_value = opset5::Constant::create(element::f32, Shape{}, {0});
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-        auto filters = std::make_shared<opset5::Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 4, 4});
         auto conv = std::make_shared<opset5::Convolution>(pad, filters, Strides{1, 1},
                                                           CoordinateDiff{0, 0}, CoordinateDiff{1, 1}, Shape{1, 1});
         f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
@@ -334,12 +334,12 @@ TEST(TransformationTests, NegativePadFusionPadForBatchSize) {
         ASSERT_NO_THROW(check_rt_info(f));
     }
     {
-        auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
+        auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
         auto pads_begin = opset5::Constant::create(element::i32, Shape{4}, {1, 0, 1, 1});
         auto pads_end = opset5::Constant::create(element::i32, Shape{4}, {0, 0, 2, 2});
-        auto pad_value = opset5::Constant::create(element::i32, Shape{}, {0});
+        auto pad_value = opset5::Constant::create(element::f32, Shape{}, {0});
         auto pad = std::make_shared<opset5::Pad>(data, pads_begin, pads_end, pad_value, op::PadMode::CONSTANT);
-        auto filters = std::make_shared<opset5::Parameter>(element::i32, Shape{1, 3, 4, 4});
+        auto filters = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 4, 4});
         auto conv = std::make_shared<opset5::Convolution>(pad, filters, Strides{1, 1},
                                                           CoordinateDiff{0, 0}, CoordinateDiff{1, 1}, Shape{1, 1});
         f_ref = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});

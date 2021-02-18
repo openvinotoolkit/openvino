@@ -14,9 +14,7 @@ TEST_P(ConvolutionLayerTest, Serialize) {
 }
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16,
-    InferenceEngine::Precision::I16, InferenceEngine::Precision::I32,
-    InferenceEngine::Precision::I64};
+    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
 const std::vector<std::vector<size_t>> kernels = {{3, 5}};
 const std::vector<std::vector<size_t>> strides = {{1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 3}};
