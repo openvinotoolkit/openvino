@@ -34,7 +34,7 @@ def import_core_modules(silent: bool, path_to_module: str):
         from openvino.inference_engine import IECore, get_version # pylint: disable=import-error
         from openvino.offline_transformations import ApplyMOCTransformations, CheckAPI # pylint: disable=import-error
 
-        import openvino
+        import openvino # pylint: disable=import-error
 
         ie_version = str(get_version())
         mo_version = str(version.get_version()) # pylint: disable=no-member
