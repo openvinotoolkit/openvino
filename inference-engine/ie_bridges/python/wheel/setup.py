@@ -31,12 +31,12 @@ WHEEL_LIBS_INSTALL_DIR = "openvino.libs"
 PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
 # The following variables can be defined in environment or .env file
-CMAKE_BUILD_DIR = os.path.normpath(config('CMAKE_BUILD_DIR', "."))
-CORE_LIBS_DIR = os.path.normpath(config('CORE_LIBS_DIR', ''))
-PLUGINS_LIBS_DIR = os.path.normpath(config('PLUGINS_LIBS_DIR', ''))
-NGRAPH_LIBS_DIR = os.path.normpath(config('NGRAPH_LIBS_DIR', ''))
-TBB_LIBS_DIR = os.path.normpath(config('TBB_LIBS_DIR', ''))
-PY_PACKAGES_DIR = os.path.normpath(config('PY_PACKAGES_DIR', ''))
+CMAKE_BUILD_DIR = config('CMAKE_BUILD_DIR', ".")
+CORE_LIBS_DIR = config('CORE_LIBS_DIR', '')
+PLUGINS_LIBS_DIR = config('PLUGINS_LIBS_DIR', '')
+NGRAPH_LIBS_DIR = config('NGRAPH_LIBS_DIR', '')
+TBB_LIBS_DIR = config('TBB_LIBS_DIR', '')
+PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', '')
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
 
 LIB_INSTALL_CFG = {

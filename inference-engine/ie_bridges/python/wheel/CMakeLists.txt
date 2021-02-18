@@ -17,7 +17,7 @@ set(SETUP_ENV   "${CMAKE_CURRENT_SOURCE_DIR}/.env.in")
 
 set(CORE_LIBS_DIR ${IE_CPACK_RUNTIME_PATH})
 set(PLUGINS_LIBS_DIR ${IE_CPACK_RUNTIME_PATH})
-set(NGRAPH_LIBS_DIR ${IE_CPACK_IE_DIR}/../ngraph/lib)
+set(NGRAPH_LIBS_DIR deployment_tools/ngraph/lib)
 set(PY_PACKAGES_DIR ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION})
 set(TBB_LIBS_DIR deployment_tools/inference_engine/external/tbb/lib)
 
