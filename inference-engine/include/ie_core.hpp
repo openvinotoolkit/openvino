@@ -134,8 +134,8 @@ public:
     /**
      * @brief Creates an executable network from a previously exported network
      *
-     * @param deviceName Name of device load executable network on
      * @param modelFileName Path to the location of the exported file
+     * @param deviceName Name of device load executable network on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
      * @return An executable network reference
@@ -146,13 +146,13 @@ public:
 
     /**
      * @brief Creates an executable network from a previously exported network
-     * @param deviceName Name of device load executable network on
      * @param networkModel network model stream
+     * @param deviceName Name of device load executable network on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
      * @return An executable network reference
      */
-    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+    ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config = {});
 
     /**

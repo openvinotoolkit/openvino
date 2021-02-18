@@ -64,19 +64,17 @@ public:
     }
 
     void Export(const std::string& modelFileName) override {
-        // we need to write to stringstream first
-        // because in case of exception in ExportImpl the file is not created
-        std::stringstream strm;
-        ExportImpl(strm);
-        std::ofstream(modelFileName.c_str()) << strm.rdbuf();
+        std::ofstream networkModel(modelFileName, std::ios::binary);
+
+        if (!networkModel.is_open()) {
+            THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export.";
+        }
+
+        ExportImpl(networkModel);
     }
 
     void Export(std::ostream& networkModel) override {
-        std::stringstream strm;
-        strm.write(exportMagic.data(), exportMagic.size());
-        strm << _plugin->GetName() << std::endl;
-        ExportImpl(strm);
-        networkModel << strm.rdbuf();
+        ExportImpl(networkModel);
     }
 
     CNNNetwork GetExecGraphInfo() override {

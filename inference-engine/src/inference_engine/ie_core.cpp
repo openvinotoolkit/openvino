@@ -576,14 +576,7 @@ public:
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
 
         if (parsed._deviceName.empty()) {
-            ExportMagic magic = {};
-            auto currentPos = networkModel.tellg();
-            networkModel.read(magic.data(), magic.size());
-            auto exportedWithName = (exportMagic == magic);
-            if (exportedWithName) {
-                std::getline(networkModel, parsed._deviceName);
-            }
-            networkModel.seekg(currentPos, networkModel.beg);
+            THROW_IE_EXCEPTION << "Device name is empty";
         }
 
         return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
