@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.mvn import AttributedMVN
+from extensions.ops.mvn import MVNCaffe
 from mo.front.caffe.collect_attributes import collect_attributes
 from mo.front.extractor import FrontExtractorOp
 
@@ -35,5 +35,5 @@ class MVNFrontExtractor(FrontExtractorOp):
             attrs['across_channels'] = 0
 
         # update the attributes of the node
-        AttributedMVN.update_node_stat(node, attrs)
+        MVNCaffe.update_node_stat(node, attrs)
         return cls.enabled
