@@ -92,6 +92,7 @@ void op::v1::Convolution::validate_and_infer_types()
         ").");
 #else
     element::Type result_et = data_batch_et;
+    (void)filters_et;
 #endif
     if (m_strides.size() == 0)
     {
