@@ -60,18 +60,34 @@ static NDims calc_in_dims(const reduce_params& params) {
     return in_dims;
 }
 
+static bool is_xy_opt_supported(const ReduceMode& mode) {
+    switch(mode) {
+        case ReduceMode::MAX:
+        case ReduceMode::MIN:
+        case ReduceMode::MEAN:
+        case ReduceMode::SUM:
+        case ReduceMode::AND:
+        case ReduceMode::OR:
+        case ReduceMode::L1:
+        case ReduceMode::LOG_SUM_EXP:
+            return true;
+        // prod, sum_squre, L2 and log_sum doesn't work with reduce(x,y) optimization.
+        case ReduceMode::PROD:
+        case ReduceMode::SUM_SQUARE:
+        case ReduceMode::L2:
+        case ReduceMode::LOG_SUM:
+        default:
+            return false;
+    }
+}
+
 static bool can_opt_reduce_xy(const reduce_params& params) {
     auto axes = params.reduceAxes;
     auto input_dims = get_input_dims(params);
-    return axes.size() == 2 && 
+    return is_xy_opt_supported(params.reduceMode) && axes.size() == 2 &&
         std::find(axes.begin(), axes.end(), AXIS_Y) != std::end(axes) &&
         std::find(axes.begin(), axes.end(), AXIS_X) != std::end(axes) &&
-        input_dims[1].v <= XY_OPT_F_LIMITS &&
-        // prod, sum_squre, L2 and log_sum doesn't work with reduce(x,y) optimization.
-        !(params.reduceMode == ReduceMode::PROD ||
-            params.reduceMode == ReduceMode::SUM_SQUARE ||
-            params.reduceMode == ReduceMode::L2 ||
-            params.reduceMode == ReduceMode::LOG_SUM);
+        input_dims[1].v <= XY_OPT_F_LIMITS;
 }
 
 ParamsKey ReduceKernel_b_fs_yx_fsv16::GetSupportedKey() const {
@@ -106,8 +122,7 @@ CommonDispatchData ReduceKernel_b_fs_yx_fsv16::SetDefault(const reduce_params& p
                             std::min(CeilDiv(input_dims[2].v, SIMD), SIMD),
                             CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v };                 // F, B
         dispatchData.lws = { 16, dispatchData.gws[1], 1 };
-    }
-    else {
+    } else {
         dispatchData.gws = { 16,
                          CeilDiv(in_dims[3].v, calc_read_offset(params)) * in_dims[2].v,  // X, Y
                          CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v };                    // F, B

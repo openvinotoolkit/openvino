@@ -161,7 +161,6 @@ KERNEL(reduce_fsv16)(
 )
 {
 #if IS_REDUCE_XY
-    // __local ACCUMULATOR_TYPE lg_storage[COMMON_OUTPUT_BATCH_NUM][COMMON_OUTPUT_FEATURE_NUM][BLOCK_Y_NUM];
     __local ACCUMULATOR_TYPE lg_storage[SIMD][BLOCK_Y_NUM];
     const uint lid0 = (uint)get_local_id(0);
     const uint lid1 = (uint)get_local_id(1);

@@ -1617,8 +1617,6 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
     }
 }
 
-#define REDUCE_PROF 0
-
 template <data_types InputT, data_types OutputT>
 class ReduceXYWithBigTensorTestBase : public ::testing::TestWithParam<TestParamType_general_reduce_gpu> {
 protected:
@@ -1723,111 +1721,54 @@ public:
             network network(engine, topology, options);
             network.set_input_data("input", input_mem);
 
-#if REDUCE_PROF
-#include <limits>
-            double total_ms = 0;
-            double min = std::numeric_limits<double>::max();
-            double max = -std::numeric_limits<double>::max();
+            network.execute();
 
-    
-            for (int i = 0; i < 10; i++)
-            {
-#endif
-                network.execute();
+            auto out_mem = network.get_output("reduce").get_memory();
+            auto out_ptr = out_mem.pointer<output_t>();
+            auto out_lay = out_mem.get_layout();
 
-                auto out_mem = network.get_output("reduce").get_memory();
-                auto out_ptr = out_mem.pointer<output_t>();
-                auto out_lay = out_mem.get_layout();
+            ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
+            ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
+            ASSERT_EQ(out_lay.size.spatial[3], reference_result[0][0].size());           // w
+            ASSERT_EQ(out_lay.size.spatial[2], reference_result[0][0][0].size());        // z
+            ASSERT_EQ(out_lay.size.spatial[1], reference_result[0][0][0][0].size());     // y
+            ASSERT_EQ(out_lay.size.spatial[0], reference_result[0][0][0][0][0].size());  // x
 
-                ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
-                ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
-                ASSERT_EQ(out_lay.size.spatial[3], reference_result[0][0].size());           // w
-                ASSERT_EQ(out_lay.size.spatial[2], reference_result[0][0][0].size());        // z
-                ASSERT_EQ(out_lay.size.spatial[1], reference_result[0][0][0][0].size());     // y
-                ASSERT_EQ(out_lay.size.spatial[0], reference_result[0][0][0][0][0].size());  // x
+            bool need_adjust_threshold = (typeid(output_t) == typeid(output_data_type<data_types::i8>::type));
+            for (size_t bi = 0; bi < reference_result.size(); bi++)
+                for (size_t fi = 0; fi < reference_result[0].size(); fi++)
+                    for (size_t wi = 0; wi < reference_result[0][0].size(); wi++)
+                        for (size_t zi = 0; zi < reference_result[0][0][0].size(); zi++)
+                            for (size_t yi = 0; yi < reference_result[0][0][0][0].size(); yi++) {
+                                for (size_t xi = 0; xi < reference_result[0][0][0][0][0].size(); xi++) {
+                                    tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
+                                    size_t offset = out_lay.get_linear_offset(coords);
+                                    auto val = out_ptr[offset];
+                                    auto val_ref = static_cast<output_t>(reference_result[bi][fi][wi][zi][yi][xi]);
+                                    bool equal = need_adjust_threshold ?
+                                        are_equal(val_ref, val, 1e-1f, 1.0f, 10.0f) : are_equal(val_ref, val, 1e-1f);
 
-#if REDUCE_PROF
-                if (i == 0)
-                {
-#endif
-                    bool need_adjust_threshold = (typeid(output_t) == typeid(output_data_type<data_types::i8>::type));
-                    for (size_t bi = 0; bi < reference_result.size(); bi++)
-                        for (size_t fi = 0; fi < reference_result[0].size(); fi++)
-                            for (size_t wi = 0; wi < reference_result[0][0].size(); wi++)
-                                for (size_t zi = 0; zi < reference_result[0][0][0].size(); zi++)
-                                    for (size_t yi = 0; yi < reference_result[0][0][0][0].size(); yi++) {
-                                        for (size_t xi = 0; xi < reference_result[0][0][0][0][0].size(); xi++) {
-                                            tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
-                                            size_t offset = out_lay.get_linear_offset(coords);
-                                            auto val = out_ptr[offset];
-                                            auto val_ref = static_cast<output_t>(reference_result[bi][fi][wi][zi][yi][xi]);
-                                            bool equal = need_adjust_threshold ?
-                                                are_equal(val_ref, val, 1e-1f, 1.0f, 10.0f) : are_equal(val_ref, val, 1e-1f);
+                                    if (!equal)
+                                        std::cout << "Reduce mode: " << (int)target_mode << ", "
+                                                << "Reference value at batch: " << bi << " output_f: " << fi
+                                                << " y: " << yi << " x: " << xi << " = " << val_ref << " Val = " << val
+                                                << std::endl;
 
-                                            if (!equal)
-                                                std::cout << "Reduce mode: " << (int)target_mode << ", "
-                                                        << "Reference value at batch: " << bi << " output_f: " << fi
-                                                        << " y: " << yi << " x: " << xi << " = " << val_ref << " Val = " << val
-                                                        << std::endl;
-                                            
-                                            EXPECT_TRUE(equal);
+                                    EXPECT_TRUE(equal);
 
-                                            if (!equal)
-                                                break;    
-                                        }
-                                    }
-#if REDUCE_PROF
-                }
-
-                for(auto& p : network.get_executed_primitives()) {
-                    if (p.first == "reduce")
-                    {
-                        for (auto pi : p.second.get_profiling_info())
-                        {
-                            if (pi.name == "executing")
-                            {
-                                double ms = std::chrono::duration_cast<std::chrono::microseconds>(pi.value->value()).count() / 1000.0;
-                                // std::cout << "reduce " << pi.name << " time: " << ms << " ms" << std::endl;
-                                total_ms += ms;
-                                if (min > ms)
-                                    min = ms;
-                                if (max < ms)
-                                    max = ms;
+                                    if (!equal)
+                                        break;
+                                }
                             }
-                        }
-                    }
-                }
-            }
-            std::cout << "[record]|" << (size_t)input_lay.data_type << "|" << input_lay.size << "|" << (int)target_mode << "|" << total_ms / 10.0 << "|" << min << "|" << max << std::endl;
-#endif
         }
     }
 };
 
 
-class general_reduce_gpu_xy_f32 : public ReduceXYWithBigTensorTestBase<data_types::f32, data_types::f32> {
-public:
-#if REDUCE_PROF
-#include "api/engine.hpp"
-    general_reduce_gpu_xy_f32()
-    {
-        cldnn::engine_configuration cfg {true};
-        this->engine = cldnn::engine(cfg);
-    }
-#endif
-};
+class general_reduce_gpu_xy_f32 : public ReduceXYWithBigTensorTestBase<data_types::f32, data_types::f32> {};
 TEST_P(general_reduce_gpu_xy_f32, base) { execute(); }
 
-class general_reduce_gpu_xy_i8 : public ReduceXYWithBigTensorTestBase<data_types::i8, data_types::i8> {
-public:
-#if REDUCE_PROF
-    general_reduce_gpu_xy_i8()
-    {
-        cldnn::engine_configuration cfg {true, false, false, "", "", true, "", "C:/work/cl_dump/"};
-        this->engine = cldnn::engine(cfg);
-    }
-#endif
-};
+class general_reduce_gpu_xy_i8 : public ReduceXYWithBigTensorTestBase<data_types::i8, data_types::i8> {};
 TEST_P(general_reduce_gpu_xy_i8, base) { execute(); }
 
 INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_xy_f32,
