@@ -17,7 +17,7 @@ import sys
 import errno
 import subprocess
 from pathlib import Path
-from shutil import copyfile, copytree, ignore_patterns
+from shutil import copyfile
 from distutils.command.install import install
 from distutils.command.build import build
 from distutils.errors import DistutilsSetupError
