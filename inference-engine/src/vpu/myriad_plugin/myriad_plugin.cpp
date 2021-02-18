@@ -205,6 +205,8 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
         const auto& optimizationCapabilities = _metrics->OptimizationCapabilities();
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, std::vector<std::string>{optimizationCapabilities.cbegin(), optimizationCapabilities.cend()});
+    } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
+        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics->RangeForAsyncInferRequests(_config));
     } else if (name == METRIC_KEY(DEVICE_ARCHITECTURE)) {
         IE_SET_METRIC_RETURN(DEVICE_ARCHITECTURE, _metrics->DeviceArchitecture());
     } else if (name == METRIC_KEY(DEVICE_THERMAL)) {

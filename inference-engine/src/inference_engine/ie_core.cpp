@@ -218,11 +218,14 @@ class Core::Impl : public ICore {
         }
 
         friend std::istream & operator >> (std::istream & stream, CompiledBlobHeader & header) {
-            std::string XmlStr;
-            std::getline(stream, XmlStr);
+            std::string xmlStr;
+            std::getline(stream, xmlStr);
+
+            std::cout << "Header " << std::endl;
+            std::cout << xmlStr << std::endl;
 
             pugi::xml_document document;
-            pugi::xml_parse_result res = document.load_string(XmlStr.c_str());
+            pugi::xml_parse_result res = document.load_string(xmlStr.c_str());
 
             if (res.status != pugi::status_ok) {
                 THROW_IE_EXCEPTION_WITH_STATUS(NETWORK_NOT_READ) << "Error reading compiled blob header";
@@ -376,7 +379,7 @@ class Core::Impl : public ICore {
             try {
                 OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::ImportNetwork");
                 std::cout << "try to import from core to " << deviceFamily << "\n\n" << std::endl;
-                std::ifstream networkStream(blobFileName, std::ios_base::binary | std::ios_base::in);
+                std::ifstream networkStream(blobFileName, std::ios_base::binary);
 
                 CompiledBlobHeader header;
                 networkStream >> header;
@@ -429,8 +432,7 @@ class Core::Impl : public ICore {
                     // need to export network for further import from "cache"
                     {
                         OV_ITT_SCOPED_TASK(itt::domains::IE_LT, "Core::LoadNetwork::Export");
-                        std::ofstream networkStream(blobFileName, std::ios_base::out | std::ios_base::binary);
-
+                        std::ofstream networkStream(blobFileName, std::ios_base::binary);
                         networkStream << CompiledBlobHeader(GetInferenceEngineVersion()->buildNumber);
                         execNetwork.Export(networkStream);
                         std::cout << "Network is exported for " << deviceFamily

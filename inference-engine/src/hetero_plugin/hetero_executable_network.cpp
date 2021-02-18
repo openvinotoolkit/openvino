@@ -572,27 +572,31 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     auto subnetworksNode = heteroNode.append_child("subnetworks");
     for (auto&& subnetwork : networks) {
         auto subnet = subnetwork._clonedNetwork;
-        IE_ASSERT(subnet.getFunction() != nullptr);
 
         auto subnetworkNode = subnetworksNode.append_child("subnetwork");
         subnetworkNode.append_attribute("device").set_value(subnetwork._device.c_str());
 
-        // inputs info
-        auto subnetworkInputsNode = subnetworkNode.append_child("inputs");
-        auto inputInfo = subnet.getInputsInfo();
-        for (auto&& input : inputInfo) {
-            auto inputNode = subnetworkInputsNode.append_child("input");
-            inputNode.append_attribute("name").set_value(input.first.c_str());
-            inputNode.append_attribute("precision").set_value(input.second->getPrecision().name());
-        }
+        // subnet can be empty if HeteroExecutableNetwork was exported before and for example
+        // for MYRIAD device subnetwork._clonedNetwork is empty, since subnetwork._network
+        // represents compiled executable network. And we don't need to save inputs and outputs info here
+        if (static_cast<ICNNNetwork::Ptr>(subnet)) {
+            // inputs info
+            auto subnetworkInputsNode = subnetworkNode.append_child("inputs");
+            auto inputInfo = subnet.getInputsInfo();
+            for (auto&& input : inputInfo) {
+                auto inputNode = subnetworkInputsNode.append_child("input");
+                inputNode.append_attribute("name").set_value(input.first.c_str());
+                inputNode.append_attribute("precision").set_value(input.second->getPrecision().name());
+            }
 
-        // outputs info
-        auto subnetworkOutputsNode = subnetworkNode.append_child("outputs");
-        auto outputInfo = subnet.getOutputsInfo();
-        for (auto&& output : outputInfo) {
-            auto outputNode = subnetworkOutputsNode.append_child("output");
-            outputNode.append_attribute("name").set_value(output.first.c_str());
-            outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());
+            // outputs info
+            auto subnetworkOutputsNode = subnetworkNode.append_child("outputs");
+            auto outputInfo = subnet.getOutputsInfo();
+            for (auto&& output : outputInfo) {
+                auto outputNode = subnetworkOutputsNode.append_child("output");
+                outputNode.append_attribute("name").set_value(output.first.c_str());
+                outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());
+            }
         }
     }
 

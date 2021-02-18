@@ -89,7 +89,7 @@ public:
      * operation*
      * @return An executable network reference
      */
-    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName = {},
+    virtual ExecutableNetwork ImportNetwork(std::istream& networkModel, const std::string& deviceName,
                                             const std::map<std::string, std::string>& config = {}) = 0;
 
     /**
