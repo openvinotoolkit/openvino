@@ -80,6 +80,7 @@ void op::v1::Convolution::validate_and_infer_types()
         }
     }
 
+#if 0 // WA; remove when CVS-34286 is resolved.
     element::Type result_et;
     NODE_VALIDATION_CHECK(
         this,
@@ -89,7 +90,9 @@ void op::v1::Convolution::validate_and_infer_types()
         ", filters element type: ",
         filters_et,
         ").");
-
+#else
+    element::Type result_et = data_batch_et;
+#endif
     if (m_strides.size() == 0)
     {
         m_strides = conv_default_strides(this, data_batch_shape, filters_shape);
