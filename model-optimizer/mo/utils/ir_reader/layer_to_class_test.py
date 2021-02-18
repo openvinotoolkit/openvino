@@ -1,5 +1,5 @@
 """
- Copyright (c) 2018-2020 Intel Corporation
+ Copyright (c) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ from generator import generator, generate
 
 from mo.graph.graph import Node
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.ir_reader.layer_to_class import groupconv_to_conv
+from mo.utils.ir_reader.layer_to_class import groupconv_to_conv, restore_tensor_names
 from mo.utils.unittest.graph import build_graph
 
 
@@ -107,3 +107,39 @@ class TestFunction(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+    def test_restore_tensor_names(self):
+
+        shape = [1, 3, 224, 224]
+
+        nodes_attributes = {
+            'input': {'kind': 'op', 'type': 'Parameter', 'ports': {0: (shape, 'abc,def')}},
+            'input_data': {'shape': shape, 'kind': 'data'},
+            'add': {'kind': 'op', 'type': 'Add', 'ports': {2: (shape, 'ghi\,jkl')}},
+            'add_data': {'shape': shape, 'kind': 'data'},
+            'add_const': {'kind': 'op', 'type': 'Const', 'ports': {0: (shape, 'mno,pqr\,stu')}},
+            'add_const_data': {'shape': shape, 'kind': 'data'},
+            'result': {'kind': 'op', 'type': 'Result', 'ports': {0: (shape, None)}}
+        }
+
+        edges = [('input', 'input_data'),
+                 ('input_data', 'add'),
+                 ('add_const', 'add_const_data'),
+                 ('add_const_data', 'add'),
+                 ('add', 'add_data'),
+                 ('add_data', 'result'),
+                 ]
+
+        graph = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
+
+        for op in graph.get_op_nodes():
+            restore_tensor_names(op)
+
+        node_1 = Node(graph, 'input_data')
+        node_2 = Node(graph, 'add_data')
+        node_3 = Node(graph, 'add_const_data')
+
+        assert node_1['fw_tensor_debug_info'] == [('abc', 0, 'abc'), ('def', 0, 'def')], 'Restored debug info is wrong!'
+        assert node_2['fw_tensor_debug_info'] == [('ghi,jkl', 0, 'ghi,jkl')], 'Restored debug info is wrong!'
+        assert node_3['fw_tensor_debug_info'] == [('mno', 0, 'mno'), ('pqr,stu', 0, 'pqr,stu')],\
+            'Restored debug info is wrong!'
