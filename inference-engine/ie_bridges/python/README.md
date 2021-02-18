@@ -18,12 +18,21 @@ Build Inference Engine Python API alongside with the Inference Engine build.
 You need to run Inference Engine build with the following flags:
 
 ```shellscript
-  cd <IE_ROOT>
+  cd <INSTALL_DIR>/openvino
   mkdir -p build
   cd build
-  cmake -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=`which python3.6` \
-  	-DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.6m.so \
-  	-DPYTHON_INCLUDE_DIR=/usr/include/python3.6 ..
+```
+If you have only one python3 in your system, you can just run:
+```shellscript
+  cmake -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=`which python3` ..	
+```
+Or if you have more than one python3 version you can set it up:
+```shellscript
+  cmake -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=`which python3.8` \
+  	-DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.8m.so \
+  	-DPYTHON_INCLUDE_DIR=/usr/include/python3.8 ..
+```
+```shellscript
   make -j16
 ```
 
