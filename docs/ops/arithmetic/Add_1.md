@@ -13,15 +13,15 @@
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
     * *none* - no auto-broadcasting is allowed, all input shapes must match
-    * *numpy* - numpy broadcasting rules, aligned with ONNX Broadcasting. Description is available in <a href="https://github.com/onnx/onnx/blob/master/docs/Broadcasting.md">ONNX docs</a>.
+    * *numpy* - numpy broadcasting rules, description is available in <a href="https://github.com/openvinotoolkit/openvino/blob/master/docs/ops/movement/Broadcast_1.md">Broadcast op</a>.
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
 
 **Inputs**
 
-* **1**: A tensor of type T with any shape and rank. Required.
-* **2**: A tensor of type T with any shape and rank. Required.
+* **1**: A tensor of type T and arbitrary shape and rank. Required.
+* **2**: A tensor of type T and arbitrary shape and rank. Required.
 
 **Outputs**
 
