@@ -116,22 +116,14 @@ jobs:
 
   - script: |
       set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml >TEST-InferenceEngineUnitTests.log
-      type TEST-InferenceEngineUnitTests.log
+      $(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: false
-  - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-InferenceEngineUnitTests.log
-    displayName: 'IE UT Analyze'
-    continueOnError: true
+
   - script: |
       set PATH=$(TEST_ENV_PATH)
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml >TEST-InferenceEngineUnitTests-IB.log
-      type TEST-InferenceEngineUnitTests-IB.log
-    displayName: 'IE UT old IB'
-    continueOnError: false
-  - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-InferenceEngineUnitTests-IB.log
-    displayName: 'IE UT Analyze IB'
-    continueOnError: true
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml
+    displayName: 'IE UT old - IB'
 
   - script: |
       set PATH=$(TEST_ENV_PATH)
@@ -177,30 +169,9 @@ jobs:
 
   - script: |
       set PATH=$(TEST_ENV_PATH)
-      $(BIN_DIR)\cpuFuncTests --gtest_filter=*smoke*:-*CompareWithRefs/base_size=16_pre_nms_topn=100_post_nms_topn=100_nms_thresh=0.7_feat_stride=1_min_size=1_ratio* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml >TEST-cpuFuncTests.log
-      type TEST-cpuFuncTests.log
-    displayName: 'CPU FuncTests'
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke*:-*CompareWithRefs/base_size=16_pre_nms_topn=100_post_nms_topn=100_nms_thresh=0.7_feat_stride=1_min_size=1_ratio* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=16
+    displayName: 'CPU FuncTests - IB'
     continueOnError: false
-    enabled: false
-  - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-cpuFuncTests.log
-    displayName: 'CPU FuncTests Analyze'
-    continueOnError: true
-    enabled: false
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke*:-*CompareWithRefs/base_size=16_pre_nms_topn=100_post_nms_topn=100_nms_thresh=0.7_feat_stride=1_min_size=1_ratio* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=8 >TEST-cpuFuncTests-IB.log
-      rem "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests-IB.xml >TEST-cpuFuncTests-IB.log
-      type TEST-cpuFuncTests-IB.log
-    displayName: 'CPU FuncTests IB'
-    continueOnError: false
-  - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-cpuFuncTests-IB.log
-    displayName: 'CPU FuncTests Analyze IB'
-    continueOnError: true
-  - script: |
-      set PATH=$(TEST_ENV_PATH)
-      python $(WORK_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\cpuFuncTests --workers=$(WORKERS_NUMBER) --dump_json_test_results=cpuFuncTests --gtest_filter=*smoke* -- --gtest_print_time=1
-    displayName: 'CPU FuncTests gtest-parallel'
-    continueOnError: true
 
   - script: |
       set PATH=$(TEST_ENV_PATH)
@@ -214,13 +185,9 @@ jobs:
       set PATH=$(TEST_ENV_PATH)
       set DATA_PATH=$(MODELS_PATH)
       set MODELS_PATH=$(MODELS_PATH)
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests.xml >TEST-MklDnnFunctionalTests-IB.log
-      type TEST-MklDnnFunctionalTests-IB.log
-    displayName: 'MklDnnFunctionalTests IB'
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests-IB.xml
+    displayName: 'MklDnnFunctionalTests - IB'
     continueOnError: false
-  - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-MklDnnFunctionalTests-IB.log
-    displayName: 'MklDnnFunctionalTests Analyze IB'
-    continueOnError: true
 
   - script: |
       set PATH=$(TEST_ENV_PATH)
