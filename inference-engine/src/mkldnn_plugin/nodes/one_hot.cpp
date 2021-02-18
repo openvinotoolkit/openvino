@@ -11,6 +11,8 @@
 
 #include <vector>
 
+using namespace MKLDNNPlugin;
+
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
