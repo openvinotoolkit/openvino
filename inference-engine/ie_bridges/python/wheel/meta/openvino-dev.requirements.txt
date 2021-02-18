@@ -19,4 +19,9 @@ pydicom
 sentencepiece
 tokenizers
 editdistance
+parasail
+fast-ctc-decode
+rawpy
+nltk
+opencv-python
 openvino==2021.3.0
