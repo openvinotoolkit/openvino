@@ -158,7 +158,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
 #if VECTORWIDTH_SAME_AS_TILE_SIZE
-    int32_t vector_width = tile_size;
+    size_t vector_width = tile_size;
 #endif
     // Note: this is default mode and different vector width is not being used now.
     uint64_t total_lws = dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2];
@@ -220,7 +220,7 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     // SLM size: elemsize * tile_size * tile_size * work_items <= 64K
     size_t elem_size = sizeof(params.output.GetDType());
     size_t max_local_mem_size = 64 * 1024;
-    size_t max_num_work_items = std::min(256lu, max_local_mem_size / (elem_size * tile_size * tile_size));
+    size_t max_num_work_items = std::min((size_t)256, (size_t)max_local_mem_size / (elem_size * tile_size * tile_size));
 
     for (size_t i = 0; i < dims.size(); ++i) {
         size_t dim = dims[i];
