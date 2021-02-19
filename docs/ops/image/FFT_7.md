@@ -10,7 +10,7 @@
 
 **Attributes**:
 
-* *normalize_mode*
+* *normalization_mode*
 
   * **Description**: specifies type of normalization mode
   * **Range of values**: one of `forward`, `backward`, `ortho`
@@ -41,3 +41,27 @@
 
 **Example**:
 
+There is no `signal_size` input:
+```xml
+<layer ... type="FFT" ... >
+    <data normalization_mode="forward"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>320</dim>
+            <dim>320</dim>
+            <dim>2</dim>
+        </port>
+        <port id="1">
+            <dim>2</dim> <!-- [1, 2] -->
+        </port>
+    <output>
+        <port id="2">
+            <dim>1</dim>
+            <dim>320</dim>
+            <dim>320</dim>
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
