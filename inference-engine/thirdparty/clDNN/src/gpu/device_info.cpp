@@ -165,7 +165,7 @@ bool is_local_block_io_supported(const cl::Device& device) {
             "    dst[lid] = read.s0 + 1;"
             "}";
         cl::Program program(ctx, kernel_code);
-        if (program.build({ device }, "-Dcl_intel_subgroup_local_block_io") != CL_SUCCESS)
+        if (program.build(device, "-Dcl_intel_subgroup_local_block_io") != CL_SUCCESS)
             return false;
         cl::Buffer buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * 8);
         cl::Kernel kernel(program, "is_local_block_io_supported");

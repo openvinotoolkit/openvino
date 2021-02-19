@@ -11,13 +11,13 @@ addIeTargetTest(
         ROOT
             ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
-            ${CLDNN__IOCL_ICD_INCDIRS}
+            ${CLDNN__OCL_ICD_INCDIRS}
             ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             clDNNPlugin
         LINK_LIBRARIES
             funcSharedTests
-            ${CLDNN__IOCL_ICD_LIBPATH}
+            ${CLDNN__OCL_ICD_LIBPATH}
         ADD_CPPLINT
         LABELS
             GPU

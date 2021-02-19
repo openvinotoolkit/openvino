@@ -39,7 +39,7 @@ namespace gpu {
 typedef CL_API_ENTRY cl_command_queue(CL_API_CALL* pfn_clCreateCommandQueueWithPropertiesINTEL)(
     cl_context context,
     cl_device_id device,
-    const cl_queue_properties* properties,
+    const cl_queue_properties_khr* properties,
     cl_int* errcodeRet);
 
 class ocl_error : public std::runtime_error {
