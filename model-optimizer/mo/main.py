@@ -19,6 +19,7 @@ import datetime
 import logging as log
 import os
 import sys
+import subprocess
 import traceback
 from collections import OrderedDict
 
@@ -42,6 +43,7 @@ from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 from mo.utils.versions_checker import check_requirements
+from mo.utils.find_ie_version import find_ie_version
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -90,7 +92,6 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
                         lines.append('\t{}: \t{}'.format(desc, 'Default'))
                         continue
                 lines.append('\t{}: \t{}'.format(desc, getattr(argv, op, 'NONE')))
-    lines.append('Model Optimizer version: \t{}'.format(get_version()))
     print('\n'.join(lines), flush=True)
 
 
@@ -146,6 +147,19 @@ def prepare_ir(argv: argparse.Namespace):
 
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
+
+    # This try-except is additional reinsurance that the IE
+    # dependency search does not break the MO pipeline
+    try:
+        if not find_ie_version(silent=argv.silent) and not argv.silent:
+            print("[ WARNING ] Could not find the Inference Engine Python API. At this moment, the Inference Engine dependency is not required, but will be required in future releases.")
+            print("[ WARNING ] Consider building the Inference Engine Python API from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
+                    "bat" if sys.platform == "windows" else "sh"))
+            # If the IE was not found, it will not print the MO version, so we have to print it manually
+            print("{}: \t{}".format("Model Optimizer version", get_version()))
+    except Exception as e:
+        # TODO: send exception message
+        pass
 
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
@@ -254,9 +268,24 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-        print('\n[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
-        print('[ SUCCESS ] XML file: {}.xml'.format(os.path.join(output_dir, argv.model_name)))
-        print('[ SUCCESS ] BIN file: {}.bin'.format(os.path.join(output_dir, argv.model_name)))
+        orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
+
+        # This try-except is additional reinsurance that the IE
+        # dependency search does not break the MO pipeline
+        try:
+            if find_ie_version(silent=True):
+                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
+                                                               'offline_transformations.py')
+                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=100)
+                if status.returncode != 0 and not argv.silent:
+                    print("[ WARNING ] offline_transformations return code {}".format(status.returncode))
+        except Exception as e:
+            # TODO: send error message
+            pass
+
+        print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
+        print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
+        print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))
 
     return 0
 

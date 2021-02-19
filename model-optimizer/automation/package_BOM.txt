@@ -769,6 +769,7 @@ mo/__init__.py
 mo/back/__init__.py
 mo/back/ie_ir_ver_2/__init__.py
 mo/back/ie_ir_ver_2/emitter.py
+mo/back/offline_transformations.py
 mo/back/replacement.py
 mo/front/__init__.py
 mo/front/caffe/__init__.py
@@ -964,11 +965,14 @@ mo/pipeline/common.py
 mo/pipeline/unified.py
 mo/utils/__init__.py
 mo/utils/broadcasting.py
+mo/utils/check_ie_bindings.py
 mo/utils/class_registration.py
 mo/utils/cli_parser.py
 mo/utils/custom_replacement_config.py
 mo/utils/dsu.py
 mo/utils/error.py
+mo/utils/extract_release_version.py
+mo/utils/find_ie_version.py
 mo/utils/find_inputs.py
 mo/utils/get_ov_update_message.py
 mo/utils/graph.py
