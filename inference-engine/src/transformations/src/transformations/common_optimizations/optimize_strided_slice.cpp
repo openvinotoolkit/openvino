@@ -178,6 +178,13 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
                         valid_for_replacement = false;
                     if (ss_plan.second.strides[i] != 1)
                         valid_for_replacement = false;
+
+                    for (auto& target_input : ss_plan.first->output(0).get_target_inputs()) {
+                        if (is_type<op::Result>(target_input.get_node())) {
+                            valid_for_replacement = false;
+                            break;
+                        }
+                    }
                     output_to_partition.push_back({ss_plan.first->output(0), ss_plan.second.begins[i], ss_plan.second.ends[i]});
                 }
                 if (!valid_for_replacement) break;
@@ -225,11 +232,6 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         NodeVector ops_to_replace;
         for (auto & record : output_to_size) {
             if (record.first != fake_output) {
-                const auto out_name = record.first.get_node_shared_ptr()->get_friendly_name();
-                NGRAPH_SUPPRESS_DEPRECATED_START
-                variadic_split->get_output_tensor(i).set_name(out_name);
-                NGRAPH_SUPPRESS_DEPRECATED_END
-
                 record.first.replace(variadic_split->output(i));
                 ops_to_replace.push_back(record.first.get_node_shared_ptr());
             }
