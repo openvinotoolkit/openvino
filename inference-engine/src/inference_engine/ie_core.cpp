@@ -290,7 +290,7 @@ class Core::Impl : public ICore {
             std::shared_ptr<std::istream> stream;
 
             if (FileUtils::fileExist(blobFileName)) {
-                stream = std::make_shared<std::ifstream>(getBlobFile(blobHash), std::ios_base::binary);
+                stream = std::make_shared<std::ifstream>(blobFileName, std::ios_base::binary);
             }
 
             return stream;
