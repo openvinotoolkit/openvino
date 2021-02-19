@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,8 +39,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
         R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
         R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
-        // TODO: Issue: 40957
-        R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 25533

@@ -34,7 +34,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
     This class normalize RNNSequence layers to IE-compatible from of weights, inputs and outputs.
 
     In this pass next will be done:
-        1. Weights repack (squeeze all useless shapes in all blobls and concatenate W and R together, also add
+        1. Weights repack (squeeze all useless shapes in all blobs and concatenate W and R together, also add
                             bin param and all similar staff )
         1. UNSqueeze num directions (in states and )
         2. Initial states squeeze
@@ -104,7 +104,7 @@ class RNNSequenceNormalize(MiddleReplacementPattern):
             B_tmp[:, :, :, 3, :] = B[:, :, 1, 2, :][:, :, np.newaxis, :]
             B = B_tmp
         else:
-            B = np.add.reduce(B, axis=2, keepdims=True)
+            B = np.sum(B, axis=2, keepdims=True)
 
         # Concatenate W, R to IE-compatible format
         assert len(W.shape) == 5
