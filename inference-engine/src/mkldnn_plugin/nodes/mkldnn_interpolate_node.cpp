@@ -1594,7 +1594,25 @@ private:
 };
 
 MKLDNNInterpolateNode::MKLDNNInterpolateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+        : MKLDNNNode(layer, eng, cache) {
+    std::string modeString = layer->GetParamAsString("mode");
+    if (modeString == "nearest") {
+        mode = InterpolateMode::nearest;
+    } else if (modeString == "linear") {
+        size_t rank = layer->insData[0].lock()->getDims().size();
+        if (rank < 5) {
+            mode = InterpolateMode::linear_onnx;
+        } else {
+            mode = InterpolateMode::linear;
+        }
+    } else if (modeString == "linear_onnx") {
+        mode = InterpolateMode::linear_onnx;
+    } else if (modeString == "cubic") {
+        mode = InterpolateMode::cubic;
+    } else {
+        THROW_IE_EXCEPTION << "Interpolate layer with name '" << getName() << "' does not support interpolate mode:" << modeString;
+    }
+}
 
 // shapeND: n     c     d     h    w
 // blockND: ncdhw cdhw  dhw   hw   w    1
@@ -1642,19 +1660,6 @@ void MKLDNNInterpolateNode::getSupportedDescriptors() {
     if (getChildEdges().empty())
         THROW_IE_EXCEPTION << "Interpolate layer with name '" << getName() << "' has incorrect number of output edges";
 
-    auto *layer = getCnnLayer().get();
-    std::string modeString = layer->GetParamAsString("mode");
-    if (modeString == "nearest") {
-        mode = InterpolateMode::nearest;
-    } else if (modeString == "linear") {
-        mode = InterpolateMode::linear;
-    } else if (modeString == "linear_onnx") {
-        mode = InterpolateMode::linear_onnx;
-    } else if (modeString == "cubic") {
-        mode = InterpolateMode::cubic;
-    } else {
-        THROW_IE_EXCEPTION << "Interpolate layer with name '" << getName() << "' does not support interpolate mode:" << modeString;
-    }
     srcDim = getParentEdgeAt(DATA_ID)->getDims().ToSizeVector();
     int dataRank = srcDim.size();
     switch (dataRank) {
@@ -1680,7 +1685,8 @@ void MKLDNNInterpolateNode::getSupportedDescriptors() {
             break;
     }
 
-    modeString = layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
+    auto *layer = getCnnLayer().get();
+    std::string modeString = layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
     if (modeString == "half_pixel") {
         coordTransMode = InterpolateCoordTransMode::half_pixel;
     } else if (modeString == "pytorch_half_pixel") {
