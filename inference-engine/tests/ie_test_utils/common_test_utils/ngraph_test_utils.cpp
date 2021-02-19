@@ -405,14 +405,22 @@ struct Equal<ngraph::float16> {
 template <>
 struct Equal<float> {
     static bool equal_value(float lhs, float rhs) {
+      if (std::isfinite(lhs) && std::isfinite(rhs)) {
         return std::abs(lhs - rhs) < 1e-4;
+      }
+      return (std::isinf(lhs) && std::isinf(rhs)) ||
+             (std::isnan(lhs) && std::isnan(rhs));
     }
 };
 
 template <>
 struct Equal<double> {
     static bool equal_value(double lhs, double rhs) {
+      if (std::isfinite(lhs) && std::isfinite(rhs)) {
         return std::abs(lhs - rhs) < 1e-5;
+      }
+      return (std::isinf(lhs) && std::isinf(rhs)) ||
+             (std::isnan(lhs) && std::isnan(rhs));
     }
 };
 
