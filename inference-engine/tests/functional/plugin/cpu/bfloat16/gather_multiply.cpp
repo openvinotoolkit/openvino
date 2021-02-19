@@ -100,7 +100,7 @@ protected:
         // performance counters
 
         expectedPrecisions["Matmul_0"] = "BF16";
-        expectedPrecisions["Mul_1"] = "FP32";
+        expectedPrecisions["Mul_1"] = "BF16";
     }
 };
 

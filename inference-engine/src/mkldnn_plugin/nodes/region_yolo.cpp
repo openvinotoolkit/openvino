@@ -14,7 +14,6 @@
 #include <mkldnn_extension_utils.h>
 #include "utils/bfloat16.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
-#include "common/cpu_memcpy.h"
 #include "mkldnn.hpp"
 #include <cpu/x64/jit_generator.hpp>
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>

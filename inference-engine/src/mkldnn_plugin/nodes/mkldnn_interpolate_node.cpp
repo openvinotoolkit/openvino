@@ -148,7 +148,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
 
         this->postamble();
 
-        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core))
+        if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && emu_vcvtneps2bf16 != nullptr)
             emu_vcvtneps2bf16->emit_data();
 
         for (auto& inj : eltwise_injectors)
@@ -243,7 +243,7 @@ private:
     Xbyak::Label l_table_constant;
     Opmask k_mask = Xbyak::Opmask(1);
 
-    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16;
+    std::unique_ptr<jit_emu_vcvtneps2bf16> emu_vcvtneps2bf16 = nullptr;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -3069,21 +3069,21 @@ void MKLDNNInterpolateNode::setValue(uint8_t *base, size_t offset, float value, 
     switch (prec) {
         case Precision::U8: {
             uint8_t data = static_cast<uint8_t>(value < 0 ? 0 : value);
-            std::memcpy(baseOffset, &data, 1);
+            cpu_memcpy(baseOffset, &data, 1);
             break;
         }
         case Precision::I8: {
             int8_t data = static_cast<int8_t>(value);
-            std::memcpy(baseOffset, &data, 1);
+            cpu_memcpy(baseOffset, &data, 1);
             break;
         }
         case Precision::BF16: {
             uint16_t data = bfloat16_t(value).to_bits();
-            std::memcpy(baseOffset, &data, 2);
+            cpu_memcpy(baseOffset, &data, 2);
             break;
         }
         case Precision::FP32: {
-            std::memcpy(baseOffset, &value, sizeof(float));
+            cpu_memcpy(baseOffset, &value, sizeof(float));
             break;
         }
         default: {
