@@ -19,15 +19,16 @@ import datetime
 import logging as log
 import os
 import sys
+import subprocess
 import traceback
 from collections import OrderedDict
 
 import numpy as np
 
+import telemetry.telemetry as tm
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.graph.graph import Graph
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively, for_each_sub_graph_recursively
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
@@ -35,12 +36,14 @@ from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mo
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
 from mo.utils.error import Error, FrameworkError
+from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 from mo.utils.versions_checker import check_requirements
+from mo.utils.find_ie_version import find_ie_version
 
 
 def replace_ext(name: str, old: str, new: str):
@@ -89,7 +92,6 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
                         lines.append('\t{}: \t{}'.format(desc, 'Default'))
                         continue
                 lines.append('\t{}: \t{}'.format(desc, getattr(argv, op, 'NONE')))
-    lines.append('Model Optimizer version: \t{}'.format(get_version()))
     print('\n'.join(lines), flush=True)
 
 
@@ -113,6 +115,8 @@ def prepare_ir(argv: argparse.Namespace):
 
     log.debug(str(argv))
     log.debug("Model Optimizer started")
+    t = tm.Telemetry()
+    t.start_session()
 
     model_name = "<UNKNOWN_NAME>"
     if argv.model_name:
@@ -144,6 +148,19 @@ def prepare_ir(argv: argparse.Namespace):
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
 
+    # This try-except is additional reinsurance that the IE
+    # dependency search does not break the MO pipeline
+    try:
+        if not find_ie_version(silent=argv.silent) and not argv.silent:
+            print("[ WARNING ] Could not find the Inference Engine Python API. At this moment, the Inference Engine dependency is not required, but will be required in future releases.")
+            print("[ WARNING ] Consider building the Inference Engine Python API from sources or try to install OpenVINO (TM) Toolkit using \"install_prerequisites.{}\"".format(
+                    "bat" if sys.platform == "windows" else "sh"))
+            # If the IE was not found, it will not print the MO version, so we have to print it manually
+            print("{}: \t{}".format("Model Optimizer version", get_version()))
+    except Exception as e:
+        # TODO: send exception message
+        pass
+
     ret_code = check_requirements(framework=argv.framework)
     if ret_code:
         raise Error('check_requirements exit with return code {}'.format(ret_code))
@@ -151,12 +168,10 @@ def prepare_ir(argv: argparse.Namespace):
     if is_tf and argv.tensorflow_use_custom_operations_config is not None:
         argv.transformations_config = argv.tensorflow_use_custom_operations_config
 
-    mean_file_offsets = None
     if is_caffe and argv.mean_file and argv.mean_values:
         raise Error('Both --mean_file and mean_values are specified. Specify either mean file or mean values. ' +
                     refer_to_faq_msg(17))
     elif is_caffe and argv.mean_file and argv.mean_file_offsets:
-
         values = get_tuple_values(argv.mean_file_offsets, t=int, num_exp_values=2)
         mean_file_offsets = np.array([int(x) for x in values[0].split(',')])
         if not all([offset >= 0 for offset in mean_file_offsets]):
@@ -207,7 +222,6 @@ def prepare_ir(argv: argparse.Namespace):
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
-    ret_res = 1
     if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
         extensions = argv.extensions.split(',')
     else:
@@ -216,18 +230,23 @@ def prepare_ir(argv: argparse.Namespace):
     argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
                                                                                    argv.freeze_placeholder_with_value)
     if is_tf:
+        t.send_event('mo', 'framework', 'tf')
         from mo.front.tf.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_caffe:
+        t.send_event('mo', 'framework', 'caffe')
         from mo.front.caffe.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_mxnet:
+        t.send_event('mo', 'framework', 'mxnet')
         from mo.front.mxnet.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_kaldi:
+        t.send_event('mo', 'framework', 'kaldi')
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     elif is_onnx:
+        t.send_event('mo', 'framework', 'onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
     graph = unified_pipeline(argv)
@@ -249,9 +268,24 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
     if not (argv.framework == 'tf' and argv.tensorflow_custom_operations_config_update):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
-        print('\n[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
-        print('[ SUCCESS ] XML file: {}.xml'.format(os.path.join(output_dir, argv.model_name)))
-        print('[ SUCCESS ] BIN file: {}.bin'.format(os.path.join(output_dir, argv.model_name)))
+        orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
+
+        # This try-except is additional reinsurance that the IE
+        # dependency search does not break the MO pipeline
+        try:
+            if find_ie_version(silent=True):
+                path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
+                                                               'offline_transformations.py')
+                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=100)
+                if status.returncode != 0 and not argv.silent:
+                    print("[ WARNING ] offline_transformations return code {}".format(status.returncode))
+        except Exception as e:
+            # TODO: send error message
+            pass
+
+        print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
+        print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
+        print('[ SUCCESS ] BIN file: {}.bin'.format(orig_model_name))
 
     return 0
 
@@ -282,6 +316,9 @@ def driver(argv: argparse.Namespace):
 
 
 def main(cli_parser: argparse.ArgumentParser, framework: str):
+    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_version())
+    telemetry.start_session()
+    telemetry.send_event('mo', 'version', get_version())
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user
@@ -297,6 +334,9 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         ret_code = driver(argv)
         if ov_update_message:
             print(ov_update_message)
+        telemetry.send_event('mo', 'conversion_result', 'success')
+        telemetry.end_session()
+        telemetry.force_shutdown(1.0)
         return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
@@ -320,4 +360,8 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         log.error(traceback.format_exc())
         log.error("---------------- END OF BUG REPORT --------------")
         log.error("-------------------------------------------------")
+
+    telemetry.send_event('mo', 'conversion_result', 'fail')
+    telemetry.end_session()
+    telemetry.force_shutdown(1.0)
     return 1

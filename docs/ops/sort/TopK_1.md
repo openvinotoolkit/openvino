@@ -68,6 +68,8 @@ Sorting and minimum/maximum are controlled by `sort` and `mode` attributes:
   * *mode*=`min`, *sort*=`index` - ascending by index
   * *mode*=`min`, *sort*=`none`  - undefined
 
+If there are several elements with the same value then their output order is not determined.
+
 **Example**
 
 ```xml

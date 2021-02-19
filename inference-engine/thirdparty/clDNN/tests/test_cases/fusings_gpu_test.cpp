@@ -3269,7 +3269,7 @@ TEST_P(mvn_activation, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        mvn("mvn", "input", false, p.normalize_variance),
+        mvn("mvn", "input", p.normalize_variance, 1e-10f, false, false),
         activation("act", "mvn", activation_func::hyperbolic_tan),
         reorder("reorder_bfyx", "act", format::bfyx, data_types::f32)
     );
@@ -3307,7 +3307,7 @@ TEST_P(mvn_scale_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        mvn("mvn", "input", false, p.normalize_variance),
+        mvn("mvn", "input", p.normalize_variance, 1e-10f, false, false),
         data("scale_data", get_mem(get_per_channel_layout(p))),
         scale("scale", "mvn", "scale_data"),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
@@ -3352,7 +3352,7 @@ TEST_P(mvn_scale_activation_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        mvn("mvn", "input", false, p.normalize_variance),
+        mvn("mvn", "input", p.normalize_variance, 1e-10f, false, false),
         data("scale_data", get_mem(get_per_channel_layout(p))),
         scale("scale", "mvn", "scale_data"),
         activation("act", "scale", activation_func::hyperbolic_tan),
@@ -3411,7 +3411,7 @@ class mvn_eltwise : public MVNFusingTest {};
 TEST_P(mvn_eltwise, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", layout{ p.input_type, p.input_format, p.input_size }),
-                 mvn("mvn", "input", false, p.normalize_variance),
+                 mvn("mvn", "input", p.normalize_variance, 1e-10f, false, false),
                  data("eltw_data", get_mem(layout{ p.input_type, p.default_format, p.elwise_size })),
                  eltwise("eltw", {"mvn", "eltw_data"}, eltwise_mode::sum, data_types::f32),
                  reorder("reorder_bfyx", "eltw", p.default_format, data_types::f32)

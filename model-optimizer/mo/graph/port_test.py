@@ -39,50 +39,50 @@ class TestsGetTensorNames(unittest.TestCase):
                                                                                            ('Op1', 0, 'Op1,Op2')]})])
         graph.stage = 'front'
         input_node = Node(graph, 'input')
-        self.assertTrue(input_node.out_port(0).get_tensor_names() == 'input,Op1\\,Op2')
+        self.assertTrue(input_node.out_port(0).get_tensor_names() == ['input', 'Op1\\,Op2'])
 
         op1_node = Node(graph, 'Op1')
         op1_node.add_output_port(0)
-        self.assertTrue(op1_node.out_port(0).get_tensor_names() is None)
+        self.assertTrue(op1_node.out_port(0).get_tensor_names() == [])
 
     def test_middle(self):
         graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'),
                                     ('input_data', 'Op2')])
 
         input_node = Node(graph, 'input')
-        self.assertTrue(input_node.out_port(0).get_tensor_names() == 'input,Op1\\,Op2')
+        self.assertTrue(input_node.out_port(0).get_tensor_names() == ['input', 'Op1\\,Op2'])
 
         op1_node = Node(graph, 'Op1')
         op1_node.add_output_port(0)
-        self.assertTrue(op1_node.out_port(0).get_tensor_names() is None)
+        self.assertTrue(op1_node.out_port(0).get_tensor_names() == [])
 
         op2_node = Node(graph, 'Op2')
         op2_node.add_output_port(0)
-        self.assertTrue(op2_node.out_port(0).get_tensor_names() is None)
+        self.assertTrue(op2_node.out_port(0).get_tensor_names() == [])
 
     def test_port_renumber(self):
         graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'),
                                     ('Op1', 'Op1_data', {'out': 1}), ('Op1_data', 'Op2')])
         input_node = Node(graph, 'input')
-        self.assertTrue(input_node.out_port(0).get_tensor_names(port_renumber=True) == 'input,Op1\\,Op2')
+        self.assertTrue(input_node.out_port(0).get_tensor_names(port_renumber=True) == ['input', 'Op1\\,Op2'])
 
         op1_node = Node(graph, 'Op1')
         op1_node.add_output_port(0)
 
-        self.assertTrue(op1_node.out_port(0).get_tensor_names(port_renumber=True) == 'Op1\\,Op2')
+        self.assertTrue(op1_node.out_port(0).get_tensor_names(port_renumber=True) == ['Op1\\,Op2'])
 
     def test_reconnect_middle_case1(self):
         graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'), ('Op3', 'Op3_data')])
         input_node = Node(graph, 'input')
 
         input_node_out_port = input_node.out_port(0)
-        self.assertTrue(input_node_out_port.get_tensor_names() == 'input,Op1\\,Op2')
+        self.assertTrue(input_node_out_port.get_tensor_names() == ['input', 'Op1\\,Op2'])
 
         op3_node = Node(graph, 'Op3')
         input_node_out_port.get_connection().set_source(op3_node.out_port(0))
 
         self.assertTrue(input_node_out_port.get_tensor_names() is None)
-        self.assertTrue(op3_node.out_port(0).get_tensor_names() == 'Op3,input,Op1\\,Op2')
+        self.assertTrue(op3_node.out_port(0).get_tensor_names() == ['Op3', 'input', 'Op1\\,Op2'])
 
     def test_reconnect_front_case1(self):
         graph = build_graph(nodes, [('input', 'Op1', {'in': 0, 'out': 0, 'fw_tensor_debug_info': [('input', 0, 'input'),
@@ -93,26 +93,26 @@ class TestsGetTensorNames(unittest.TestCase):
         input_node = Node(graph, 'input')
 
         input_node_out_port = input_node.out_port(0)
-        self.assertTrue(input_node_out_port.get_tensor_names() == 'input,Op1\\,Op2')
+        self.assertTrue(input_node_out_port.get_tensor_names() == ['input', 'Op1\\,Op2'])
 
         op3_node = Node(graph, 'Op3')
         input_node_out_port.get_connection().set_source(op3_node.out_port(0))
 
-        self.assertTrue(input_node_out_port.get_tensor_names() is None)
-        self.assertTrue(op3_node.out_port(0).get_tensor_names() == 'Op3,input,Op1\\,Op2')
+        self.assertTrue(input_node_out_port.get_tensor_names() == [])
+        self.assertTrue(op3_node.out_port(0).get_tensor_names() == ['Op3', 'input', 'Op1\\,Op2'])
 
     def test_reconnect_middle_case1(self):
         graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'), ('Op3', 'Op3_data')])
         input_node = Node(graph, 'input')
 
         input_node_out_port = input_node.out_port(0)
-        self.assertTrue(input_node_out_port.get_tensor_names() == 'input,Op1\\,Op2')
+        self.assertTrue(input_node_out_port.get_tensor_names() == ['input', 'Op1\\,Op2'])
 
         op3_node = Node(graph, 'Op3')
         input_node_out_port.get_connection().set_source(op3_node.out_port(0))
 
-        self.assertTrue(input_node_out_port.get_tensor_names() is None)
-        self.assertTrue(op3_node.out_port(0).get_tensor_names() == 'Op3,input,Op1\\,Op2')
+        self.assertTrue(input_node_out_port.get_tensor_names() == [])
+        self.assertTrue(op3_node.out_port(0).get_tensor_names() == ['Op3', 'input', 'Op1\\,Op2'])
 
     def test_reconnect_middle_case2(self):
         graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1', {'out': 0}),
@@ -120,10 +120,10 @@ class TestsGetTensorNames(unittest.TestCase):
         input_node = Node(graph, 'input')
 
         input_node_out_port = input_node.out_port(0)
-        self.assertTrue(input_node_out_port.get_tensor_names() == 'input,Op1\\,Op2')
+        self.assertTrue(input_node_out_port.get_tensor_names() == ['input', 'Op1\\,Op2'])
 
         op3_node = Node(graph, 'Op3')
         input_node_out_port.get_connection().set_source(op3_node.out_port(0))
 
-        self.assertTrue(input_node_out_port.get_tensor_names() is None)
-        self.assertTrue(op3_node.out_port(0).get_tensor_names() == 'Op3,input,Op1\\,Op2')
+        self.assertTrue(input_node_out_port.get_tensor_names() == [])
+        self.assertTrue(op3_node.out_port(0).get_tensor_names() == ['Op3', 'input', 'Op1\\,Op2'])

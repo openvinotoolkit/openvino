@@ -134,6 +134,7 @@ Standard TensorFlow\* operations:
 | BatchToSpaceND | No |
 | BiasAdd | No |
 | Bucketize | CPU only |
+| BroadcastTo | No |
 | Cast | No |
 | Ceil | No |
 | Concat | No |
@@ -233,7 +234,7 @@ Standard TensorFlow\* operations:
 | Square| No |
 | Squeeze | The case when squeeze axis is not specified is not supported |
 | StopGradient | Not needed for shape inference |
-| StridedSlice | No |
+| StridedSlice | Supported only for constant begin, end, and strides inputs |
 | Sub | No |
 | Sum | No |
 | Swish | No |

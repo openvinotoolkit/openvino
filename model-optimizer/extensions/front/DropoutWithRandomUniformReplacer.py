@@ -20,6 +20,7 @@ import numpy as np
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
+from mo.middle.pattern_match import check_value
 from mo.ops.broadcast import Broadcast
 
 
@@ -51,7 +52,7 @@ class DropoutWithRandomUniformReplacer(FrontReplacementSubgraph):
                 ('shape', dict(op='ShapeOf')),
                 ('random_uniform', dict(op='RandomUniform')),
                 ('mul', dict(op='Mul')),
-                ('add_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 0.0, atol=0))),
+                ('add_const', dict(op='Const', value=lambda v: check_value(v, lambda x: np.allclose(x, 0.0, atol=0)))),
                 ('add', dict(op='Add')),
                 ('add2', dict(op='Add')),
                 ('floor', dict(op='Floor')),
