@@ -53,6 +53,7 @@
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
@@ -266,6 +267,28 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                                node->input_value(0).get_shape().size() == 3lu &&
                                node->input_value(1).get_shape().size() == 3lu;
                     });
+
+            pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
+                [](const_node_ptr &node) -> bool {
+                    const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
+                    if (mvn != nullptr && node->get_input_size() == 2) {
+                        if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
+                            auto axesVal = axesNode->cast_vector<int>();
+                            auto& mvnShape = mvn->get_output_shape(0);
+                            if (mvnShape.size() == 1)
+                                return false;
+                            if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2))
+                                return false;
+                            int value = mvnShape.size() - 1;
+                            for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
+                                if (axesVal[i] != value)
+                                    return false;
+                            }
+                            return true;
+                        }
+                    }
+                    return false;
+                });
 
             // List of enabled/disabled transformations
             pass_config->disable<ngraph::pass::ConvertGELU>();

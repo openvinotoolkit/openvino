@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (c) 2016-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,6 +66,7 @@ using lookt_axis = kernel_selector::LookUpTableAxis;
 using lrn_mode = kernel_selector::LRNMode;
 using normalize_mode = kernel_selector::NormalizeMode;
 using mvn_mode = kernel_selector::MVNMode;
+using mvn_eps_mode = kernel_selector::MVNEpsMode;
 using kernel_divider_mode = kernel_selector::KernelDividerMode;
 using eltwise_mode = kernel_selector::EltwiseMode;
 using eltwise_input_mode = kernel_selector::EltwiseInputMode;
