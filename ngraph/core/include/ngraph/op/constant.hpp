@@ -319,8 +319,10 @@ namespace ngraph
                 /// \param values A vector of values to use as the constant data.
                 template <typename T>
                 static std::shared_ptr<op::v0::Constant>
-                    create(const element::Type& type, Shape shape, const std::vector<T> values)
+                    create(element::Type type, const Shape& shape, const std::vector<T>& values)
                 {
+                    static_assert(sizeof(element::Type) <= sizeof(std::ptrdiff_t),
+                                  "pass by value is fine");
                     auto result = std::make_shared<op::v0::Constant>(type, shape, values);
                     result->validate_and_infer_types();
                     return result;
@@ -333,8 +335,10 @@ namespace ngraph
                 /// \param values An initializer_list of values to use as the constant data.
                 template <typename T>
                 static std::shared_ptr<op::v0::Constant>
-                    create(const element::Type& type, Shape shape, std::initializer_list<T> values)
+                    create(element::Type type, const Shape& shape, std::initializer_list<T> values)
                 {
+                    static_assert(sizeof(element::Type) <= sizeof(std::ptrdiff_t),
+                                  "pass by value is fine");
                     auto result =
                         std::make_shared<op::v0::Constant>(type, shape, std::vector<T>{values});
                     result->validate_and_infer_types();
