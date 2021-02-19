@@ -1414,7 +1414,6 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_squared_difference_broadcast)
     test_case.run();
 }
 
-
 // TODO: Issue: 37511
 NGRAPH_TEST(${BACKEND_NAME}, DISABLED_fake_quantize)
 {

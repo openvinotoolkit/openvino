@@ -170,18 +170,26 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_default_attrs)
                        0.74174305f};
 
     ht_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
-    ht_test_case.add_expected_output<float>(
-        Shape{batch_size, hidden_size},
-        {0.81014400720596313, 0.76665538549423218, 0.82509011030197144, 0.6479143500328064, 0.66586339473724365, 0.74838578701019287});
+    ht_test_case.add_expected_output<float>(Shape{batch_size, hidden_size},
+                                            {0.81014400720596313,
+                                             0.76665538549423218,
+                                             0.82509011030197144,
+                                             0.6479143500328064,
+                                             0.66586339473724365,
+                                             0.74838578701019287});
     ht_test_case.run();
 
     auto ct_function = make_shared<Function>(OutputVector{lstm_cell->output(1)},
                                              ParameterVector{X, H_t, C_t, W, R, B});
     auto ct_test_case = test::TestCase<TestEngine>(ct_function);
     ct_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
-    ct_test_case.add_expected_output<float>(
-        Shape{batch_size, hidden_size},
-        {1.6800162792205811, 1.1150213479995728, 1.4578367471694946, 1.0649888515472412, 0.93761754035949707, 1.3659683465957642});
+    ct_test_case.add_expected_output<float>(Shape{batch_size, hidden_size},
+                                            {1.6800162792205811,
+                                             1.1150213479995728,
+                                             1.4578367471694946,
+                                             1.0649888515472412,
+                                             0.93761754035949707,
+                                             1.3659683465957642});
     ct_test_case.run();
 }
 
@@ -256,18 +264,26 @@ NGRAPH_TEST(${BACKEND_NAME}, lstm_cell_bias_clip)
                        0.74174305f};
 
     ht_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
-    ht_test_case.add_expected_output<float>(
-        Shape{batch_size, hidden_size},
-        {0.81014400720596313, 0.76665538549423218, 0.82387429475784302, 0.6479143500328064, 0.66586339473724365, 0.74838578701019287});
+    ht_test_case.add_expected_output<float>(Shape{batch_size, hidden_size},
+                                            {0.81014400720596313,
+                                             0.76665538549423218,
+                                             0.82387429475784302,
+                                             0.6479143500328064,
+                                             0.66586339473724365,
+                                             0.74838578701019287});
     ht_test_case.run();
 
     auto ct_function = make_shared<Function>(OutputVector{lstm_cell->output(1)},
                                              ParameterVector{X, H_t, C_t, W, R, B});
     auto ct_test_case = test::TestCase<TestEngine>(ct_function);
     ct_test_case.add_multiple_inputs(vector<vector<float>>{in_X, in_Ht, in_Ct, in_W, in_R, in_B});
-    ct_test_case.add_expected_output<float>(
-        Shape{batch_size, hidden_size},
-        {1.6800162792205811, 1.1150213479995728, 1.4510968923568726, 1.0649888515472412, 0.93761754035949707, 1.3659683465957642});
+    ct_test_case.add_expected_output<float>(Shape{batch_size, hidden_size},
+                                            {1.6800162792205811,
+                                             1.1150213479995728,
+                                             1.4510968923568726,
+                                             1.0649888515472412,
+                                             0.93761754035949707,
+                                             1.3659683465957642});
     ct_test_case.run();
 }
 
