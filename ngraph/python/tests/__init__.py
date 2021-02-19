@@ -47,8 +47,6 @@ xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "Scan")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
-xfail_issue_33540 = xfail_test(reason="RuntimeError: GRUCell operation has a form that is not supported "
-                                      "GRUCell_<number> should be converted to GRUCellIE operation")
 xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations:"
                                       "IsNaN and isInf")
 xfail_issue_33595 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -62,8 +60,6 @@ xfail_issue_33644 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "Compress")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "TfIdfVectorizer")
-xfail_issue_34310 = xfail_test(reason="RuntimeError: Error of validate layer: LSTMSequence_<number> with "
-                                      "type: LSTMSequence. Layer is not instance of RNNLayer class")
 xfail_issue_34314 = xfail_test(reason="RuntimeError: RNNCell operation has a form that is not "
                                "supported.RNNCell_<number> should be converted to RNNCellIE operation")
 xfail_issue_40957 = xfail_test(reason="RuntimeError: MKLDNNGraph::CreateGraph: No inputs for the topology")
@@ -100,7 +96,6 @@ xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get
                                       "with index 0 contains dynamic shapes: {<value>}. Try to use "
                                       "CNNNetwork::reshape() method in order to specialize shapes "
                                       "before the conversion.")
-xfail_issue_38086 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Gradient")
@@ -202,3 +197,4 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
+xfail_issue_49207 = xfail_test(reason="Function references undeclared parameters")
