@@ -138,8 +138,10 @@ def bool_to_str(node: Node, attr: str):
         return None
     if isinstance(attribute_name, bool):
         return str(attribute_name).lower()
-    elif attribute_name in [0, 1, '0', '1']:
+    elif attribute_name in [0, 1]:
         return str(bool(attribute_name)).lower()
+    elif attribute_name in ['0', '1']:
+        return str(bool(int(attribute_name))).lower()
     else:
         raise Error('Wrong value {} for boolean attribute {} in node {}'.format(
             attribute_name, attr, node.soft_get('name')))
