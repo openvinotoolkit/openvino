@@ -1,0 +1,27 @@
+# Convert PyTorch* QuartzNet to the Intermediate Representation {#openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_QuartzNet}
+
+[NeMo project](https://github.com/NVIDIA/NeMo) provides QuartzNet model.
+
+## Download the Pre-Trained QuartzNet Model
+
+To download pre-trained model please refer to [NeMo Developer Guide](https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/main/).
+Here are the instructions that can be used to obtain QuartzNet in ONNX* format.
+```python
+import nemo
+import nemo.collections.asr as nemo_asr
+
+quartznet = nemo_asr.models.ASRConvCTCModel.from_pretrained(model_info='QuartzNet15x5-En')
+# Export QuartzNet model to ONNX* format
+quartznet.exporrt('qn.onnx')
+```
+This code will produce 3 ONNX* model files: `encoder_qt.onnx`, `decoder_qt.onnx`, `qn.onnx`.
+They are `decoder`, `encoder` and a combined `decoder(encoder(x))` models respectively.
+
+## Convert ONNX* QuartzNet model to IR
+
+```sh
+./mo.py --input_model encoder_qt.onnx --input_shape [B,64,X]
+./mo.py --input_model decoder_qt.onnx --input_shape [B,1024,Y]
+```
+
+Where shape is determined by the length of input.
