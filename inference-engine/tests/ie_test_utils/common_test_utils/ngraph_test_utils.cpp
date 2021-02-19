@@ -1325,11 +1325,12 @@ Comparator::Result Comparator::compare(
     for (size_t i = 0; i < node1->inputs().size(); ++i) {
         if (should_compare(CmpValues::CONST_VALUES)) {
             using Constant = ngraph::opset1::Constant;
+            const auto equal_value =
+                ::attributes::detail::equal::Equal<std::shared_ptr<Constant>>::equal_value;
+
             auto const1 = ngraph::as_type_ptr<Constant>(node1->get_input_node_shared_ptr(i));
             auto const2 = ngraph::as_type_ptr<Constant>(node2->get_input_node_shared_ptr(i));
-            using namespace ::attributes::detail::equal;
-            if (const1 && const2 &&
-                !Equal<std::shared_ptr<Constant>>::equal_value(const1, const2)) {
+            if (const1 && const2 && !equal_value(const1, const2)) {
                 err_log << "Different Constant values detected\n"
                         << node1->description() << " Input(" << i << ") and "
                         << node2->description() << " Input(" << i << ")" << std::endl;
