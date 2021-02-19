@@ -22,8 +22,7 @@ except ImportError:
     from mo.utils.version import get_version
 
 
-def extract_release_version():
-    version = get_version()
+def extract_release_version(version):
     patterns = [
         # captures release version set by CI for example: '2021.1.0-1028-55e4d5673a8'
         r"^([0-9]+).([0-9]+)*",
@@ -39,4 +38,4 @@ def extract_release_version():
 
 
 if __name__ == "__main__":
-    print("{}.{}".format(*extract_release_version()))
+    print("{}.{}".format(*extract_release_version(get_version())))

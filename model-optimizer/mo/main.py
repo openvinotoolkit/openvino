@@ -19,6 +19,7 @@ import datetime
 import logging as log
 import os
 import sys
+import platform
 import subprocess
 import traceback
 from collections import OrderedDict
@@ -280,7 +281,15 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                 if status.returncode != 0 and not argv.silent:
                     print("[ WARNING ] offline_transformations return code {}".format(status.returncode))
         except Exception as e:
-            # TODO: send error message
+            message = str(dict({
+                "platform": platform.platform(),
+                "mo_version": get_version(),
+                "ie_version": "",  # TODO: add
+                "python_version": "",  # TODO: add
+                "error_message": str(e),  # TODO: parse common error types
+            }))
+            t = tm.Telemetry()
+            t.send_event('mo', 'offline_transformations_failed', message)
             pass
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
