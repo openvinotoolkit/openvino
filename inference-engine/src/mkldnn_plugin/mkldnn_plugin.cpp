@@ -15,7 +15,6 @@
 #include <vector>
 #include <tuple>
 #include <ie_system_conf.h>
-#include <generic_ie.hpp>
 #include <nodes/list.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_transformer.h>
@@ -58,6 +57,7 @@
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -106,8 +106,6 @@ Engine::~Engine() {
 
 static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     auto nGraphFunc = clonedNetwork.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitNodeInfo>();
@@ -122,7 +120,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::ConvertPriorBox>();
-    manager.register_pass<ngraph::pass::MVN6Decomposition>();
     manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
@@ -230,6 +227,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
     pass_config->disable<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
     pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+    pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 

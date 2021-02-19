@@ -285,6 +285,9 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate);
+    // FIXME: 4th input is optional, but it is required by the following code
+    NGRAPH_CHECK(this, validate_host_tensor_vector(input_values, 4));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(output_values, 1));
     return strided_slice::evaluate_strided_slice(input_values[0],
                                                  input_values[1],
                                                  input_values[2],
