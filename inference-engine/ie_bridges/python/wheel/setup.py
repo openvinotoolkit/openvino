@@ -319,6 +319,8 @@ setup(
     install_requires=get_dependencies(config('WHEEL_REQUIREMENTS', "requirements.txt")),
     long_description=get_description(config('WHEEL_OVERVIEW', 'pypi_overview.md')),
     long_description_content_type="text/markdown",
+    download_url=config('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
+    url=config('WHEEL_URL', 'https://docs.openvinotoolkit.org/latest/index.html'),
     cmdclass={
         "build": CustomBuild,
         "install": CustomInstall,
