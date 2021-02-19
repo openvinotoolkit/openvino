@@ -9,16 +9,12 @@ license terms for third party or open source software included in or with the So
 
 OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
 
-The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
-- Enables CNN-based deep learning inference on the edge
-- Supports heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-- Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
-
 **Included with the Installation and installed by default:**
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Inference Engine](../IE_DG/inference_engine_intro.md)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
+| [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                                                              |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](https://docs.openvinotoolkit.org/latest/omz_tools_accuracy_checker_README.html), [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html)  |
 
 ## System Requirements
 
@@ -30,9 +26,6 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
   - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
   - Windows Server* 2016 or higher
 
-**Packages**
-- Ubuntu 18.04:  `openvino`
-- Ubuntu 20.04:  `openvino-ubuntu20`
 
 ## Install the runtime or developer packages using the PyPI repository
 
@@ -47,29 +40,26 @@ python3 -m pip install --upgrade pip
 
 Run the command below: <br>
 
-Ubuntu 18.04: 
    ```sh
-   pip install openvino
-   ```
-Ubuntu 20.04: 
-   ```sh
-   pip install openvino-ubuntu20
+   pip install openvino-dev
    ```
 
 ### Step 4. Verify that the Runtime package is installed
 
 Run the command below:
 ```sh
-python3 -c "from openvino.inference_engine import IECore"
+python3 -c "pot -h"
 ```
    
 Now you are ready to develop and run your application.
 
 ## Additional Resources
 
-- [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit).
-- [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org).
+- Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
+- OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
+- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
-- [Intel® Distribution of OpenVINO™ toolkit PIP home page](https://pypi.org/project/openvino/)
+- For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
+
 
