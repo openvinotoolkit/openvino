@@ -65,3 +65,32 @@ There is no `signal_size` input:
     </output>
 </layer>
 ```
+
+
+There is `signal_size` input:
+```xml
+<layer ... type="FFT" ... >
+    <data normalization_mode="forward"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>320</dim>
+            <dim>320</dim>
+            <dim>2</dim>
+        </port>
+        <port id="1">
+            <dim>2</dim> <!-- [1, 2] -->
+        </port>
+        <port id="2">
+            <dim>2</dim> <!-- [512, 100] -->
+        </port>
+    <output>
+        <port id="3">
+            <dim>1</dim>
+            <dim>512</dim>
+            <dim>100</dim>
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
