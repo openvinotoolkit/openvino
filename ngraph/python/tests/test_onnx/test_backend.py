@@ -61,7 +61,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_39658,
                    xfail_issue_39659,
                    xfail_issue_39662,
-                   xfail_issue_40957,
                    xfail_issue_43742,
                    xfail_issue_44839,
                    xfail_issue_44848,
@@ -84,7 +83,9 @@ from tests import (BACKEND_NAME,
                    xfail_issue_47330,
                    xfail_issue_47337,
                    xfail_issue_48052,
-                   xfail_issue_49113)
+                   xfail_issue_49113,
+                   xfail_issue_48098,
+                   xfail_issue_48100)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -189,11 +190,6 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_dynamicquantizelinear_expanded_cpu",
      "OnnxBackendNodeModelTest.test_dynamicquantizelinear_max_adjusted_expanded_cpu",
      "OnnxBackendNodeModelTest.test_quantizelinear_cpu"),
-    (xfail_issue_40957,
-     "OnnxBackendNodeModelTest.test_constant_cpu",
-     "OnnxBackendNodeModelTest.test_eyelike_populate_off_main_diagonal_cpu",
-     "OnnxBackendNodeModelTest.test_eyelike_without_dtype_cpu",
-     "OnnxBackendNodeModelTest.test_eyelike_with_dtype_cpu"),
     (xfail_issue_34310,
      "OnnxBackendNodeModelTest.test_lstm_defaults_cpu",
      "OnnxBackendNodeModelTest.test_lstm_with_initial_bias_cpu",
@@ -635,7 +631,13 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_quantizelinear_axis_cpu",),
     (xfail_issue_33593,
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
-     "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",)
+     "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",),
+    (xfail_issue_48098,
+     "OnnxBackendNodeModelTest.test_training_dropout_cpu",
+     "OnnxBackendNodeModelTest.test_training_dropout_default_cpu",
+     "OnnxBackendNodeModelTest.test_training_dropout_zero_ratio_cpu",),
+    (xfail_issue_48100,
+     "OnnxBackendNodeModelTest.test_eyelike_with_dtype_cpu",)
 ]
 
 for test_group in tests_expected_to_fail:

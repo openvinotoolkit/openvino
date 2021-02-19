@@ -29,7 +29,6 @@ from tests import (
     xfail_issue_38701,
     xfail_issue_43742,
     xfail_issue_45457,
-    xfail_issue_40957,
     xfail_issue_37957,
     xfail_issue_38084,
     xfail_issue_39669,
@@ -37,7 +36,9 @@ from tests import (
     xfail_issue_40686,
     xfail_issue_37973,
     xfail_issue_47430,
-    xfail_issue_47495)
+    xfail_issue_47495,
+    xfail_issue_48145,
+    xfail_issue_48190)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
@@ -175,13 +176,13 @@ if len(zoo_models) > 0:
     if tests.MODEL_ZOO_XFAIL:
         execution_xfail_list = [
             # ONNX Model Zoo
-            (xfail_issue_40957, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
-            (xfail_issue_40957, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet50_11_fcn_resnet50_11_model_cpu"),
             (xfail_issue_47430, "test_onnx_model_zoo_vision_object_detection_segmentation_fcn_model_fcn_resnet101_11_fcn_resnet101_11_model_cpu"),
+            (xfail_issue_48145, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
+            (xfail_issue_48190, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
 
             # Model MSFT
             (xfail_issue_37973, "test_MSFT_opset7_tf_inception_v2_model_cpu"),

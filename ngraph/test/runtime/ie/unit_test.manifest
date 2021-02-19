@@ -42,6 +42,7 @@ onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
 # Result mismatch
+onnx_model_shape
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
 onnx_model_softmax
@@ -52,9 +53,6 @@ onnx_model_addmul_abc
 IE_CPU.interpolate_down_scales_const_linear
 
 # data [<name>] doesn't exist
-onnx_model_sum_one_input
-onnx_model_shape
-onnx_model_eye_like
 convert_float32_bool
 broadcast_trivial
 aliased_output
@@ -62,7 +60,6 @@ bool_init_raw
 bool_const_op
 onnx_model_tile
 onnx_model_tile_static
-onnx_model_softmax_0D
 onnx_model_logsoftmax_0D
 builder_opset1_collapse_none
 
