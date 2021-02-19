@@ -718,8 +718,7 @@ private:
             m_cmp_result += "missing attribute name: '" + name + "'";
             return;
         }
-        Comparator c(m_check_flags);  // TODO check if m_check_flags might be move to equal::Equal
-        // TODO enable subgraph search in Comparator
+        Comparator c(m_check_flags);
         const auto result = c.compare(*ref_value, adapter.get());
         if (!result.valid) {
             m_cmp_result += result.message;
@@ -825,9 +824,6 @@ Ptr not_null(Ptr&& p) {
 
 template <typename InOut1, typename InOut2>
 bool equal_type_and_partial_shape(const InOut1& lhs, const InOut2& rhs) {
-    ///
-    /// TODO do we need compare tensor_name here also or not?
-    ///
     return lhs.get_element_type() == rhs.get_element_type() &&
            lhs.get_partial_shape() == rhs.get_partial_shape();
 }
@@ -1086,20 +1082,7 @@ std::vector<BackEdge> extract_backedges(ngraph::op::util::SubGraphOp* sub) {
 }
 
 struct NotValidInputOrOutput {
-    NotValidInputOrOutput(ngraph::op::util::SubGraphOp* sub)
-        : m_num_iterations(get_num_iterations(sub)) {}
-
-    static int64_t get_num_iterations(ngraph::op::util::SubGraphOp* sub) {
-        using namespace ngraph::opset6;
-        if (const auto ti = dynamic_cast<const TensorIterator*>(sub)) {
-            return ti->get_num_iterations();
-        }
-        if (const auto l = dynamic_cast<const Loop*>(sub)) {
-            return l->get_num_iterations();
-        }
-
-        return -1;
-    }
+    NotValidInputOrOutput(int64_t num_iterations) : m_num_iterations(num_iterations) {}
 
     bool operator()(const NodeAndOutputDescription& d) const {
         return !d.result_and_output_match(m_num_iterations);
@@ -1147,76 +1130,125 @@ bool equal_body_ports(ngraph::opset6::Loop* lhs, ngraph::opset6::Loop* rhs) {
     return NodeAndOutputDescription::equal_results(lhs_result.get(), rhs_result.get());
 }
 
+class CompareSubGraphs {
+public:
+    using Result = Comparator::Result;
+    using SubGraphOp = ngraph::op::util::SubGraphOp;
+
+    Result compare(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs) {
+        const auto lhs_it_no = get_num_iterations(sub_lhs);
+        const auto rhs_it_no = get_num_iterations(sub_rhs);
+        if (lhs_it_no != rhs_it_no) {
+            return Result::error("different number of iterations");
+        }
+
+        not_valid_input_output = lhs_it_no;
+
+        const auto result_for_inputs = compare_inputs(sub_lhs, sub_rhs);
+        if (!result_for_inputs.valid) {
+            return result_for_inputs;
+        }
+
+        const auto result_for_outputs = compare_outputs(sub_lhs, sub_rhs);
+        if (!result_for_outputs.valid) {
+            return result_for_outputs;
+        }
+
+        return compare_backedges(sub_lhs, sub_rhs);
+    }
+
+private:
+    Result compare_inputs(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs) const {
+        const auto& lhs_sub_inputs = extract_inputs(sub_lhs);
+        const auto& rhs_sub_inputs = extract_inputs(sub_rhs);
+
+        if (lhs_sub_inputs.empty() || rhs_sub_inputs.empty()) {
+            return Result::error("no input in subgraph");
+        }
+
+        if (std::any_of(begin(lhs_sub_inputs), end(lhs_sub_inputs), not_valid_input_output)) {
+            return Result::error("inputs and parameters mismatch");
+        }
+        if (std::any_of(begin(rhs_sub_inputs), end(rhs_sub_inputs), not_valid_input_output)) {
+            return Result::error("inputs and parameters mismatch");
+        }
+
+        if (lhs_sub_inputs.size() != rhs_sub_inputs.size() ||
+            !std::is_permutation(
+                begin(lhs_sub_inputs), end(lhs_sub_inputs), begin(rhs_sub_inputs))) {
+            return Result::error("different SubGraph InputDescription");
+        }
+        return Result::ok();
+    }
+
+    Result compare_outputs(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs) const {
+        const auto& lhs_sub_outputs = extract_outputs(sub_lhs);
+        const auto& rhs_sub_outputs = extract_outputs(sub_rhs);
+
+        if (lhs_sub_outputs.empty() || rhs_sub_outputs.empty()) {
+            return Result::error("no output in subgraph");
+        }
+
+        if (std::any_of(begin(lhs_sub_outputs), end(lhs_sub_outputs), not_valid_input_output)) {
+            return Result::error("outputs and results mismatch");
+        }
+        if (std::any_of(begin(rhs_sub_outputs), end(rhs_sub_outputs), not_valid_input_output)) {
+            return Result::error("outputs and results mismatch");
+        }
+
+        if (lhs_sub_outputs.size() != rhs_sub_outputs.size() ||
+            !std::is_permutation(
+                begin(lhs_sub_outputs), end(lhs_sub_outputs), begin(rhs_sub_outputs))) {
+            return Result::error("different SubGraph OutputDescription");
+        }
+        return Result::ok();
+    }
+
+    Result compare_backedges(SubGraphOp* sub_lhs, SubGraphOp* sub_rhs) const {
+        const auto lhs_back_edges = extract_backedges(sub_lhs);
+        const auto rhs_back_edges = extract_backedges(sub_rhs);
+
+        if (std::any_of(begin(lhs_back_edges), end(lhs_back_edges), not_valid_back_edge)) {
+            return Result::error("back edges mismatch");
+        }
+        if (std::any_of(begin(rhs_back_edges), end(rhs_back_edges), not_valid_back_edge)) {
+            return Result::error("back edges mismatch");
+        }
+
+        if (lhs_back_edges.size() != rhs_back_edges.size() ||
+            !std::is_permutation(
+                begin(lhs_back_edges), end(lhs_back_edges), begin(rhs_back_edges))) {
+            return Result::error("different SubGraph BackEdges");
+        }
+        if (auto loop_lhs = ngraph::as_type<ngraph::opset6::Loop>(sub_lhs)) {
+            auto loop_rhs = ngraph::as_type<ngraph::opset6::Loop>(sub_rhs);
+            if (!equal_body_ports(loop_lhs, loop_rhs)) {
+                return Result::error("different Special Body Ports");
+            }
+        }
+        return Result::ok();
+    }
+
+    static int64_t get_num_iterations(ngraph::op::util::SubGraphOp* sub) {
+        using namespace ngraph::opset6;
+        if (const auto ti = dynamic_cast<const TensorIterator*>(sub)) {
+            return ti->get_num_iterations();
+        }
+        if (const auto l = dynamic_cast<const Loop*>(sub)) {
+            return l->get_num_iterations();
+        }
+
+        return -1;
+    }
+
+    NotValidInputOrOutput not_valid_input_output{-1};
+};
+
 }  // namespace detail
 
 Comparator::Result compare_io(
     ngraph::op::util::SubGraphOp* sub_lhs, ngraph::op::util::SubGraphOp* sub_rhs) {
-    using namespace detail;
-    using Result = Comparator::Result;
-    ///
-    /// TODO split to several functions
-    ///
-    const auto& lhs_sub_inputs = extract_inputs(sub_lhs);
-    const auto& rhs_sub_inputs = extract_inputs(sub_rhs);
-
-    if (lhs_sub_inputs.empty() || rhs_sub_inputs.empty()) {
-        return Result::error("no input in subgraph");
-    }
-    const auto not_valid_input_output = NotValidInputOrOutput(sub_lhs);
-
-    if (std::any_of(begin(lhs_sub_inputs), end(lhs_sub_inputs), not_valid_input_output)) {
-        return Result::error("inputs and parameters mismatch");
-    }
-    if (std::any_of(begin(rhs_sub_inputs), end(rhs_sub_inputs), not_valid_input_output)) {
-        return Result::error("inputs and parameters mismatch");
-    }
-
-    if (lhs_sub_inputs.size() != rhs_sub_inputs.size() ||
-        !std::is_permutation(begin(lhs_sub_inputs), end(lhs_sub_inputs), begin(rhs_sub_inputs))) {
-        return Result::error("different SubGraph InputDescription");
-    }
-
-    const auto& lhs_sub_outputs = extract_outputs(sub_lhs);
-    const auto& rhs_sub_outputs = extract_outputs(sub_rhs);
-
-    if (lhs_sub_outputs.empty() || rhs_sub_outputs.empty()) {
-        return Result::error("no output in subgraph");
-    }
-
-    if (std::any_of(begin(lhs_sub_outputs), end(lhs_sub_outputs), not_valid_input_output)) {
-        return Result::error("outputs and results mismatch");
-    }
-    if (std::any_of(begin(rhs_sub_outputs), end(rhs_sub_outputs), not_valid_input_output)) {
-        return Result::error("outputs and results mismatch");
-    }
-
-    if (lhs_sub_outputs.size() != rhs_sub_outputs.size() ||
-        !std::is_permutation(
-            begin(lhs_sub_outputs), end(lhs_sub_outputs), begin(rhs_sub_outputs))) {
-        return Result::error("different SubGraph OutputDescription");
-    }
-
-    const auto lhs_back_edges = extract_backedges(sub_lhs);
-    const auto rhs_back_edges = extract_backedges(sub_rhs);
-
-    if (std::any_of(begin(lhs_back_edges), end(lhs_back_edges), not_valid_back_edge)) {
-        return Result::error("back edges mismatch");
-    }
-    if (std::any_of(begin(rhs_back_edges), end(rhs_back_edges), not_valid_back_edge)) {
-        return Result::error("back edges mismatch");
-    }
-
-    if (lhs_back_edges.size() != rhs_back_edges.size() ||
-        !std::is_permutation(begin(lhs_back_edges), end(lhs_back_edges), begin(rhs_back_edges))) {
-        return Result::error("different SubGraph BackEdges");
-    }
-    if (auto loop_lhs = ngraph::as_type<ngraph::opset6::Loop>(sub_lhs)) {
-        auto loop_rhs = ngraph::as_type<ngraph::opset6::Loop>(sub_rhs);
-        if (!equal_body_ports(loop_lhs, loop_rhs)) {
-            return Result::error("different Special Body Ports");
-        }
-    }
-    return Result::ok();
+    return detail::CompareSubGraphs{}.compare(sub_lhs, sub_rhs);
 }
 }  // namespace subgraph
 
