@@ -35,36 +35,25 @@ inline std::shared_ptr<ngraph::Function> makeConvPoolRelu(std::vector<size_t> in
     auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(relu1, const2, false);
     reshape2->set_friendly_name("Reshape_2");
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(reshape2)};
-    results.front()->set_friendly_name("Result");
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     return fnPtr;
 }
 
 inline std::shared_ptr<ngraph::Function> makeSplitConvConcat(std::vector<size_t> inputShape = {1, 4, 20, 20},
-                                                             ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
+                                                            ngraph::element::Type_t ngPrc = ngraph::element::Type_t::f32) {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    params.front()->set_friendly_name("Param_1");
     auto split = ngraph::builder::makeSplit(params[0], ngPrc, 2, 1);
-    split->set_friendly_name("Split_1");
 
     auto conv1 = ngraph::builder::makeConvolution(split->output(0), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    conv1->set_friendly_name("Conv_1");
     auto relu1 = std::make_shared<ngraph::opset1::Relu>(conv1);
-    relu1->set_friendly_name("Relu_1");
 
     auto conv2 = ngraph::builder::makeConvolution(split->output(1), ngPrc, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
                                                   ngraph::op::PadType::EXPLICIT, 5);
-    conv2->set_friendly_name("Conv_2");
     auto relu2 = std::make_shared<ngraph::opset1::Relu>(conv2);
-    relu2->set_friendly_name("Relu_2");
 
     auto concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{relu1->output(0), relu2->output(0)}, 1);
-    concat->set_friendly_name("Concat");
-
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(concat)};
-    results.front()->set_friendly_name("Result");
-
     std::shared_ptr<ngraph::Function> fnPtr = std::make_shared<ngraph::Function>(results, params);
     fnPtr->set_friendly_name("SplitConvConcat");
     return fnPtr;
