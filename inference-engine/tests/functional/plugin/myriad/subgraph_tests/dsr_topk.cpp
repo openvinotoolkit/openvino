@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,8 +64,9 @@ protected:
 
         const auto inputSubgraph = createInputSubgraphWithDSR(dataType, topkSetup.dataShapes);
 
+        const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(inputSubgraph->input_value(0), ngraph::element::i32);
         const auto gather = std::make_shared<ngraph::opset3::Gather>(
-                inputSubgraph->input_value(1),
+                shapeOf,
                 ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {topkSetup.axis}),
                 ngraph::opset3::Constant::create(ngraph::element::i32, {1}, {0}));
         const auto upper_bound = ngraph::opset3::Constant::create(inputSubgraph->get_input_element_type(1), {1}, {topkSetup.k});
