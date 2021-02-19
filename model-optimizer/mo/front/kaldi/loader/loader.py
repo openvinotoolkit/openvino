@@ -22,7 +22,7 @@ import numpy as np
 
 from extensions.ops.elementwise import Mul
 from extensions.ops.split import AttributedVariadicSplit
-from mo.front.common.partial_infer.utils import float_array
+from mo.front.common.partial_infer.utils import float_array, int64_array
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \
     collect_until_token, collect_until_token_and_read, create_edge_attrs, get_args_for_specifier
@@ -200,11 +200,13 @@ def load_kaldi_nnet3_model(graph, file_descr, nnet_name):
     # add information for shape calculation for MemoryOffset
     # shape calculation for MemoryOffset can't be done through shape of previous layer because
     # it is separated in 2 parts to remove cycle from graph
+    batch = graph.graph['cmd_params'].batch if graph.graph['cmd_params'].batch is not None else 1
     for node in graph.get_op_nodes(**{'op': 'Parameter'}):
         for o_n_name, params in node.get_outputs():
             o_n = Node(graph, o_n_name)
             if o_n['op'] == 'MemoryOffset':
-                o_n['parameters']['element_size'] = node['shape'][1]
+                # don't take batch from Parameter, it will be override
+                o_n['parameters']['element_size'] = int64_array([batch, node['shape'][1]])
 
     load_components(file_descr, graph, component_layer_map)
 
@@ -245,6 +247,7 @@ def load_components(file_descr, graph, component_layer_map=None):
             file_descr.seek(start_index)
 
         if is_nnet3:
+            batch = graph.graph['cmd_params'].batch if graph.graph['cmd_params'].batch is not None else 1
             if name in component_layer_map:
                 layer_id = component_layer_map[name][0]
                 for layer in component_layer_map[name]:
@@ -255,7 +258,7 @@ def load_components(file_descr, graph, component_layer_map=None):
                     for o_n_name, params in node.get_outputs():
                         o_n = Node(graph, o_n_name)
                         if o_n['op'] == 'MemoryOffset' and dim != 0:
-                            o_n['parameters']['element_size'] = dim
+                            o_n['parameters']['element_size'] = int64_array([batch, dim])
             else:
                 raise Error("Something wrong with layer {}".format(name))
         else:
@@ -385,10 +388,11 @@ def read_node(file_descr, graph, component_layer_map, layer_node_map):
         # read dim info where possible to simplify shape calculation for MemoryOffset
         # shape calculation for MemoryOffset can't be done through shape of previous layer because
         # it is separated in 2 parts to remove cycle from graph
+        batch = graph.graph['cmd_params'].batch if graph.graph['cmd_params'].batch is not None else 1
         for o_n_name, params in node.get_outputs():
             o_n = Node(graph, o_n_name)
             if o_n['op'] == 'MemoryOffset':
-                o_n['parameters']['element_size'] = dim
+                o_n['parameters']['element_size'] = int64_array([batch, dim])
     else:
         raise Error("Unsupported node specifier {}".format(tokens[0]))
     return True
