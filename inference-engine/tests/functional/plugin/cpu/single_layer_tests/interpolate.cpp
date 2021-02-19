@@ -101,12 +101,7 @@ protected:
             selectedType = getPrimitiveType();
         }
         selectedType.push_back('_');
-        if (configuration.find(PluginConfigParams::KEY_ENFORCE_BF16) != configuration.end() &&
-            configuration[PluginConfigParams::KEY_ENFORCE_BF16] == PluginConfigParams::YES) {
-            selectedType += "BF16";
-        } else {
-            selectedType += "FP32";
-        }
+        selectedType += "FP32";
     }
 };
 
