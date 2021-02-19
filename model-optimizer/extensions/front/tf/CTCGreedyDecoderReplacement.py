@@ -38,10 +38,8 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
                    ('sparse_to_dense', dict(op='SparseToDense'))
                    ],
             edges=[('decoder', 'sparse_to_dense', {'out': 0}),
-                   ('decoder', 'sparse_to_dense', {'out': 2}),
                    ('decoder', 'cast', {'out': 1}),
-                   ('cast', 'sparse_to_dense', {'out': 0})
-                   ]
+                   ('cast', 'sparse_to_dense', {'out': 0})]
         )
 
     def replace_sub_graph(self, graph: Graph, match: dict):
