@@ -2421,6 +2421,33 @@ CV_ALWAYS_INLINE v_uint8x16 v_shuffle(const v_uint8x16& a, const v_uint8x16& mas
 #endif
 }
 
+CV_ALWAYS_INLINE v_uint8x16 v_slli_si128(v_uint8x16 a, const int imm)
+{
+    uint8x16_t ret;
+    if (imm <= 0) {
+        ret = a.val;
+    }
+    if (imm > 15) {
+        ret = vdupq_n_u8(0);
+    } else {
+        ret = vextq_u8(vdupq_n_u8(0), a.val, 16 - (imm));
+    }
+    return v_uint8x16(ret);
+}
+
+CV_ALWAYS_INLINE v_uint8x16 v_srli_si128(v_uint8x16 a, const int imm)
+{
+    uint8x16_t ret;
+    if (imm <= 0) {
+        ret = a.val;
+    }
+    if (imm > 15) {
+        ret = vdupq_n_u8(0);
+    } else {
+        ret = vextq_u8(a.val, vdupq_n_u8(0), imm);
+    }
+    return v_uint8x16(ret);
+}
 
 CV_CPU_OPTIMIZATION_HAL_NAMESPACE_END
 

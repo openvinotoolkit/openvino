@@ -128,23 +128,25 @@ void copyRow_32F(const float in[], float out[], int length) {
 }
 
 template<int chanNum>
-void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
-                             const uint8_t* src0[],
-                             const uint8_t* src1[],
-                             const short    alpha[],
-                             const short    clone[],  // 4 clones of alpha
-                             const short    mapsx[],
-                             const short    beta[],
-                             uint8_t  tmp[],
-                             const Size& inSz,
-                             const Size& outSz,
-                             int      lpi) {
-    constexpr int half_nlanes = static_cast<int>(v_uint8::nlanes / 2);
+CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(
+                             std::array<std::array<uint8_t*, 4>, chanNum>& dst,
+                                                            const uint8_t* src0[],
+                                                            const uint8_t* src1[],
+                                                            const short    alpha[],
+                                                            const short    clone[],  // 4 clones of alpha
+                                                            const short    mapsx[],
+                                                            const short    beta[],
+                                                            uint8_t  tmp[],
+                                                            const Size& inSz,
+                                                            const Size& outSz,
+                                                            int      lpi) {
     constexpr int nlanes = static_cast<int>(v_int8::nlanes);
+    constexpr int half_nlanes = nlanes / 2;
 
     if (4 == lpi) {
         // vertical pass
-        GAPI_DbgAssert(inSz.width >= half_nlanes);
+        int inLength = inSz.width * chanNum;
+        GAPI_DbgAssert(inLength >= half_nlanes);
 
         v_int16 b0 = vx_setall_s16(beta[0]);
         v_int16 b1 = vx_setall_s16(beta[1]);
@@ -159,9 +161,8 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
                                           1, 5, 9, 13, 3, 7, 11, 15};
         v_uint8 hmask = vx_load(_mask_horizontal);
 
-        int inLength = inSz.width * chanNum;
-
-        for (int w = 0; w < inLength; ) {
+        int w = 0;
+        for (;;) {
             for (; w <= inLength - half_nlanes && w >= 0; w += half_nlanes) {
                 v_int16 val0_0 = v_reinterpret_as_s16(vx_load_expand(&src0[0][w]));
                 v_int16 val0_1 = v_reinterpret_as_s16(vx_load_expand(&src0[1][w]));
@@ -186,8 +187,8 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
                 v_uint8 q0 = v_pack_u(r0, r1);
                 v_uint8 q1 = v_pack_u(r2, r3);
 
-                v_uint8 q2 = v_blend<0xCC /*0b11001100*/>(q0, q1 << 4);
-                v_uint8 q3 = v_blend<0xCC /*0b11001100*/>(q0 >> 4, q1);
+                v_uint8 q2 = v_blend<0xCC /*0b11001100*/>(q0, v_slli_si128(q1, 4));
+                v_uint8 q3 = v_blend<0xCC /*0b11001100*/>(v_srli_si128(q0, 4), q1);
 
                 v_uint8 q4 = v_shuffle(q2, vmask);
                 v_uint8 q5 = v_shuffle(q3, vmask);
@@ -198,21 +199,23 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
 
             if (w < inLength) {
                 w = inLength - half_nlanes;
+                continue;
             }
+            break;
         }
 
         // horizontal pass
         GAPI_DbgAssert(outSz.width >= half_nlanes);
-        for (int x = 0; x < outSz.width; ) {
+        v_uint8 val_0, val_1, val_2, val_3;
+        constexpr int shift = static_cast<int>(half_nlanes / 4);
+        int x = 0;
+        for (;;) {
             for (; x <= outSz.width - half_nlanes && x >= 0; x += half_nlanes) {
                 v_int16 a10 = vx_load(&clone[4 * x]);
                 v_int16 a32 = vx_load(&clone[4 * (x + 2)]);
                 v_int16 a54 = vx_load(&clone[4 * (x + 4)]);
                 v_int16 a76 = vx_load(&clone[4 * (x + 6)]);
 
-                v_uint8 val_0, val_1, val_2, val_3;
-
-                constexpr int shift = static_cast<int>(half_nlanes / 4);
                 for (int c = 0; c < chanNum; ++c) {
                     v_gather_channel(val_0, tmp, &mapsx[x], chanNum, c, 0);
                     v_gather_channel(val_1, tmp, &mapsx[x], chanNum, c, shift);
@@ -245,8 +248,8 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
                     v_uint8 q2 = v_shuffle(q0, hmask);
                     v_uint8 q3 = v_shuffle(q1, hmask);
 
-                    v_uint8 q4 = v_blend<0xCC /*0b11001100*/>(q2, q3 << 4);
-                    v_uint8 q5 = v_blend<0xCC /*0b11001100*/>(q2 >> 4, q3);
+                    v_uint8 q4 = v_blend<0xCC /*0b11001100*/>(q2, v_slli_si128(q3, 4));
+                    v_uint8 q5 = v_blend<0xCC /*0b11001100*/>(v_srli_si128(q2, 4), q3);
 
                     v_store_low(&dst[c][0][x], q4);
                     v_store_high(&dst[c][1][x], q4);
@@ -257,35 +260,43 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
 
             if (x < outSz.width) {
                 x = outSz.width - half_nlanes;
+                continue;
             }
+            break;
         }
 
     } else {  // if any lpi
+        int inLength = inSz.width * chanNum;
+        GAPI_DbgAssert(inLength >= half_nlanes);
+
         for (int l = 0; l < lpi; ++l) {
             short beta0 = beta[l];
 
             // vertical pass
-            GAPI_DbgAssert(inSz.width * chanNum >= half_nlanes);
-            for (int w = 0; w < inSz.width * chanNum; ) {
-                for (; w <= inSz.width * chanNum - half_nlanes; w += half_nlanes) {
+            int w = 0;
+            for (;;) {
+                for (; w <= inLength - half_nlanes; w += half_nlanes) {
                     v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(&src0[l][w]));
                     v_int16 s1 = v_reinterpret_as_s16(vx_load_expand(&src1[l][w]));
                     v_int16 t = v_mulhrs(s0 - s1, beta0) + s1;
                     v_pack_u_store(tmp + w, t);
                 }
 
-                if (w < inSz.width * chanNum) {
-                    w = inSz.width * chanNum - half_nlanes;
+                if (w < inLength) {
+                    w = inLength - half_nlanes;
+                    continue;
                 }
+                break;
             }
 
             // horizontal pass
             GAPI_DbgAssert(outSz.width >= half_nlanes);
-            for (int x = 0; x < outSz.width; ) {
+            int x = 0;
+            for (;;) {
                 for (; x <= outSz.width - half_nlanes && x >= 0; x += half_nlanes) {
+                    v_int16 a0 = vx_load(&alpha[x]);
+
                     for (int c = 0; c < chanNum; ++c) {
-                        v_int16 a0 = vx_load(&alpha[x]);        // as signed Q1.1.14
-                        //v_int16 sx = vx_load(&mapsx[x]);        // as integer (int16)
                         v_int16 t0 = v_gather_channel<chanNum>(tmp, &mapsx[x], c, 0);
                         v_int16 t1 = v_gather_channel<chanNum>(tmp, &mapsx[x], c, 1);
                         v_int16 d = v_mulhrs(t0 - t1, a0) + t1;
@@ -295,7 +306,9 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
 
                 if (x < outSz.width) {
                     x = outSz.width - half_nlanes;
+                    continue;
                 }
+                break;
             }
         }
     }
@@ -314,7 +327,6 @@ void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3>& dst,
                       const Size& outSz,
                       int      lpi) {
     constexpr const int chanNum = 3;
-
     calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
 }
 
