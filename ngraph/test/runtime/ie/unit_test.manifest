@@ -203,8 +203,8 @@ onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 onnx_model_max_pool_dyn_rank_without_default_attrs
 
+# (Constant W, R inputs are required) Ticket: 49207
 # Function references undeclared parameters
-# (Constant W, R, B inputs are required)
 # LSTMSequence
 IE_CPU.onnx_model_lstm_fwd_large_batch_no_clip
 IE_CPU.onnx_model_lstm_fwd_mixed_seq
@@ -1065,9 +1065,10 @@ non_zero
 non_zero_all_1s
 non_zero_all_0s
 
-# Operation has a form that is not supported. 
+# (Constant W, R inputs are required) Ticket: 49207
+# W, R inputs as Parameter, default clip value
+# Operation has a form that is not supported.
 # LSTMCell_... should be converted to LSTMCellIE operation.
-# No decomposition, No support for W, R inputs as Parameter, clip == 0
 lstm_cell_zero_bias_default_attrs
 lstm_cell_bias_default_attrs
 # RNNCell_.. should be converted to RNNCellIE operation.
