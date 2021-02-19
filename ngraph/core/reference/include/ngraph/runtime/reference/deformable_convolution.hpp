@@ -147,6 +147,12 @@ namespace ngraph
                 const size_t group_offset_size = shape_size(group_batch_shape);
 
                 const T* group_filter = f;
+                const Shape group_filter_shape = [&]() {
+                    Shape new_shape{f_shape};
+                    new_shape[filter_out_ch_axis] /= groups;
+                    new_shape[filter_in_ch_axis] /= groups;
+                    return new_shape;
+                }();
                 const size_t group_filter_size = shape_size(f_shape);
 
                 T* group_out = out;
