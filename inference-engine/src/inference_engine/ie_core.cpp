@@ -255,8 +255,8 @@ class Core::Impl : public ICore {
         using Ptr = std::shared_ptr<CacheManager>;
         virtual ~CacheManager() = default;
 
-        virtual std::unique_ptr<std::ostream> writeCacheEntry(const std::string & id) = 0;
-        virtual std::unique_ptr<std::istream> readCacheEntry(const std::string & id) = 0;
+        virtual std::shared_ptr<std::ostream> writeCacheEntry(const std::string & id) = 0;
+        virtual std::shared_ptr<std::istream> readCacheEntry(const std::string & id) = 0;
         virtual void removeCacheEntry(const std::string & id) = 0;
     };
 
@@ -274,8 +274,8 @@ class Core::Impl : public ICore {
 
         ~FileStorageCacheManager() override = default;
 
-        std::unique_ptr<std::ostream> writeCacheEntry(const std::string & blobHash) override {
-            auto stream = std::make_unique<std::ofstream>(getBlobFile(blobHash), std::ios_base::binary);
+        std::shared_ptr<std::ostream> writeCacheEntry(const std::string & blobHash) override {
+            auto stream = std::make_shared<std::ofstream>(getBlobFile(blobHash), std::ios_base::binary);
             return stream;
         }
 
@@ -285,12 +285,12 @@ class Core::Impl : public ICore {
                 std::remove(blobFileName.c_str());
         }
 
-        std::unique_ptr<std::istream> readCacheEntry(const std::string & blobHash) override {
+        std::shared_ptr<std::istream> readCacheEntry(const std::string & blobHash) override {
             auto blobFileName = getBlobFile(blobHash);
-            std::unique_ptr<std::istream> stream;
+            std::shared_ptr<std::istream> stream;
 
             if (FileUtils::fileExist(blobFileName)) {
-                stream = std::make_unique<std::ifstream>(getBlobFile(blobHash), std::ios_base::binary);
+                stream = std::make_shared<std::ifstream>(getBlobFile(blobHash), std::ios_base::binary);
             }
 
             return stream;
