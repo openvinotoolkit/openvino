@@ -6,6 +6,15 @@
 
 **Short description**: *Add* performs element-wise addition operation with two given tensors applying multi-directional broadcast rules.
 
+**Detailed description**
+Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attribute is not `none`. Broadcasting is performed according to `auto_broadcast` value.
+
+After broadcasting *Add* performs addition operation for the input tensors *a* and *b* using formula below:
+
+\f[
+o_{i} = a_{i} + b_{i}
+\f]
+
 **Attributes**:
 
 * *auto_broadcast*
@@ -31,14 +40,6 @@
 
 * *T*: any numeric type.
 
-**Detailed description**
-Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attribute is not `none`. Broadcasting is performed according to `auto_broadcast` value.
-
-After broadcasting *Add* performs addition operation for the input tensors *a* and *b* using formula below:
-
-\f[
-o_{i} = a_{i} + b_{i}
-\f]
 
 **Examples**
 
@@ -46,6 +47,7 @@ o_{i} = a_{i} + b_{i}
 
 ```xml
 <layer ... type="Add">
+    <data auto_broadcast="none"/>
     <input>
         <port id="0">
             <dim>256</dim>
@@ -68,6 +70,7 @@ o_{i} = a_{i} + b_{i}
 *Example 2: broadcast*
 ```xml
 <layer ... type="Add">
+    <data auto_broadcast="numpy"/>
     <input>
         <port id="0">
             <dim>8</dim>
