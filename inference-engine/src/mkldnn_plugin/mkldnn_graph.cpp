@@ -205,9 +205,6 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
 
 void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
     InputsDataMap inputs = network.getInputsInfo();
-    if (inputs.empty()) {
-        THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: No inputs for the topology";
-    }
 
     this->_name = network.getName();
 
