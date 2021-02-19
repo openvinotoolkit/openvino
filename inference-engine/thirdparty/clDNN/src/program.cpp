@@ -1221,7 +1221,8 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::mutable_data::type_id() &&
             prim.type() != cldnn::reduce::type_id() &&
             prim.type() != cldnn::strided_slice::type_id() &&
-            prim.type() != cldnn::region_yolo::type_id())
+            prim.type() != cldnn::region_yolo::type_id() &&
+            prim.type() != cldnn::mvn::type_id())
             can_use_fsv16 = false;
 
         if (prim.type() == cldnn::quantize::type_id() &&
