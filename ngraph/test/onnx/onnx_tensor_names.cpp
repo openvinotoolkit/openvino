@@ -38,10 +38,10 @@ NGRAPH_TEST(onnx_tensor_names, simple_model)
     auto ops = function->get_ordered_ops();
     ASSERT_EQ(ops[0]->get_friendly_name(), "input");
     ASSERT_EQ(ops[0]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"input"});
-    ASSERT_EQ(ops[1]->get_friendly_name(), "relu");
+    ASSERT_EQ(ops[1]->get_friendly_name(), "relu_t");
     ASSERT_EQ(ops[1]->get_output_tensor(0).get_names(), std::unordered_set<std::string>{"relu_t"});
     // ops[2] is a constant created in the ONNX importer as part of Identity operator
-    ASSERT_EQ(ops[3]->get_friendly_name(), "ident");
+    ASSERT_EQ(ops[3]->get_friendly_name(), "final_output");
     ASSERT_EQ(ops[3]->get_output_tensor(0).get_names(),
               std::unordered_set<std::string>{"final_output"});
     ASSERT_EQ(ops[4]->get_friendly_name(), "final_output");
