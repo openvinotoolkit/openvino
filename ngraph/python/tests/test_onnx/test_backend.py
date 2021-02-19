@@ -34,7 +34,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_33633,
                    xfail_issue_33644,
                    xfail_issue_33651,
-                   xfail_issue_34314,
                    xfail_issue_36535,
                    xfail_issue_38091,
                    xfail_issue_38699,
@@ -82,7 +81,7 @@ from tests import (BACKEND_NAME,
                    xfail_issue_48052,
                    xfail_issue_49113,
                    xfail_issue_48098,
-                   xfail_issue_48100
+                   xfail_issue_48100,
                    xfail_issue_49207)
 
 
@@ -265,8 +264,6 @@ tests_expected_to_fail = [
     (xfail_issue_38706,
      "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu"),
     (xfail_issue_38736,
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_sum_log_prob_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3d4d5_none_no_weight_log_prob_expanded_cpu",  # noqa
      "OnnxBackendNodeModelTest.test_softmax_cross_entropy_sum_expanded_cpu",
      "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3_sum_weight_high_ignore_index_expanded_cpu",  # noqa
      "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_3d_log_prob_expanded_cpu",  # noqa

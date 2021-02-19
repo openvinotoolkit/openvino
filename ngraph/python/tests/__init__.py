@@ -58,8 +58,6 @@ xfail_issue_33644 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "Compress")
 xfail_issue_33651 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "TfIdfVectorizer")
-xfail_issue_34314 = xfail_test(reason="RuntimeError: RNNCell operation has a form that is not "
-                               "supported.RNNCell_<number> should be converted to RNNCellIE operation")
 xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
                                       "IN and OUT channels number")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
