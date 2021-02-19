@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,13 +36,7 @@ public:
 
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override;
 
-    PartialShape getEvaluatedShape() const { return m_evaluatedOutputShape; }
-    void setEvaluatedShape(const PartialShape& shape) { m_evaluatedOutputShape = shape; }
-
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
-
-private:
-    PartialShape m_evaluatedOutputShape;
 };
 
 }  // namespace op
