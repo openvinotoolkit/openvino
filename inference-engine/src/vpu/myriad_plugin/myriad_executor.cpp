@@ -89,6 +89,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
     const ncDeviceProtocol_t& configProtocol = config.protocol();
     const std::string& configDevName = config.deviceName();
     PowerConfig powerConfig = config.powerConfig();
+    int enableAsyncDma = config.asyncDma();
     int lastDeviceIdx = devicePool.empty() ? -1 : devicePool.back()->_deviceIdx;
 
     ncStatus_t statusOpen = NC_ERROR;
@@ -203,6 +204,14 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
         _log->warning("Failed to set configuration for Power Manager");
         ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
         return status;
+    }
+
+    status = ncDeviceSetOption(device._deviceHandle, NC_RW_ENABLE_ASYNC_DMA, reinterpret_cast<void*>(&enableAsyncDma), sizeof(dataLength));
+
+    if (status != NC_OK) {
+        _log->warning("Failed to set option for async DMA");
+        ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
+            return status;
     }
 
     /* TODO: what should we do if we do not know maximum available graphs? What if we got number <= 0? */
