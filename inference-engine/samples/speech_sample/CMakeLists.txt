@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+
 ie_add_sample(NAME speech_sample
-              SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-              HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/speech_sample.hpp")
+              SOURCES ${SRC}
+              HEADERS ${HDR})

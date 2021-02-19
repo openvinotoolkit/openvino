@@ -25,6 +25,7 @@
 #include <samples/common.hpp>
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
+#include "utils.hpp"
 
 #define MAX_SCORE_DIFFERENCE 0.0001f
 #define MAX_VAL_2B_FEAT 16384
@@ -34,19 +35,6 @@ using namespace InferenceEngine;
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::duration<double, std::ratio<1, 1000>> ms;
 typedef std::chrono::duration<float> fsec;
-typedef struct {
-    uint32_t numScores;
-    uint32_t numErrors;
-    float threshold;
-    float maxError;
-    float rmsError;
-    float sumError;
-    float sumRmsError;
-    float sumSquaredError;
-    float maxRelError;
-    float sumRelError;
-    float sumSquaredRelError;
-} score_error_t;
 
 struct InferRequestStruct {
     InferRequest inferRequest;
@@ -54,116 +42,10 @@ struct InferRequestStruct {
     uint32_t numFramesThisBatch;
 };
 
-void CheckNumberOfInputs(size_t numInputs, size_t numInputArkFiles) {
-    if (numInputs != numInputArkFiles) {
+void CheckNumberOfInputs(size_t numInputs, size_t numInputFiles) {
+    if (numInputs != numInputFiles) {
         throw std::logic_error("Number of network inputs (" + std::to_string(numInputs) + ")"
-                               " is not equal to number of ark files (" + std::to_string(numInputArkFiles) + ")");
-    }
-}
-
-void GetKaldiArkInfo(const char *fileName,
-                     uint32_t numArrayToFindSize,
-                     uint32_t *ptrNumArrays,
-                     uint32_t *ptrNumMemoryBytes) {
-    uint32_t numArrays = 0;
-    uint32_t numMemoryBytes = 0;
-
-    std::ifstream in_file(fileName, std::ios::binary);
-    if (in_file.good()) {
-        while (!in_file.eof()) {
-            std::string line;
-            uint32_t numRows = 0u, numCols = 0u, num_bytes = 0u;
-            std::getline(in_file, line, '\0');  // read variable length name followed by space and NUL
-            std::getline(in_file, line, '\4');  // read "BFM" followed by space and control-D
-            if (line.compare("BFM ") != 0) {
-                break;
-            }
-            in_file.read(reinterpret_cast<char *>(&numRows), sizeof(uint32_t));  // read number of rows
-            std::getline(in_file, line, '\4');                                   // read control-D
-            in_file.read(reinterpret_cast<char *>(&numCols), sizeof(uint32_t));  // read number of columns
-            num_bytes = numRows * numCols * sizeof(float);
-            in_file.seekg(num_bytes, in_file.cur);                               // read data
-
-            if (numArrays == numArrayToFindSize) {
-                numMemoryBytes += num_bytes;
-            }
-            numArrays++;
-        }
-        in_file.close();
-    } else {
-        fprintf(stderr, "Failed to open %s for reading in GetKaldiArkInfo()!\n", fileName);
-        exit(-1);
-    }
-
-    if (ptrNumArrays != NULL) *ptrNumArrays = numArrays;
-    if (ptrNumMemoryBytes != NULL) *ptrNumMemoryBytes = numMemoryBytes;
-}
-
-void LoadKaldiArkArray(const char *fileName, uint32_t arrayIndex, std::string &ptrName, std::vector<uint8_t> &memory,
-                       uint32_t *ptrNumRows, uint32_t *ptrNumColumns, uint32_t *ptrNumBytesPerElement) {
-    std::ifstream in_file(fileName, std::ios::binary);
-    if (in_file.good()) {
-        uint32_t i = 0;
-        while (i < arrayIndex) {
-            std::string line;
-            uint32_t numRows = 0u, numCols = 0u;
-            std::getline(in_file, line, '\0');  // read variable length name followed by space and NUL
-            std::getline(in_file, line, '\4');  // read "BFM" followed by space and control-D
-            if (line.compare("BFM ") != 0) {
-                break;
-            }
-            in_file.read(reinterpret_cast<char *>(&numRows), sizeof(uint32_t));     // read number of rows
-            std::getline(in_file, line, '\4');                                     // read control-D
-            in_file.read(reinterpret_cast<char *>(&numCols), sizeof(uint32_t));     // read number of columns
-            in_file.seekg(numRows * numCols * sizeof(float), in_file.cur);         // read data
-            i++;
-        }
-        if (!in_file.eof()) {
-            std::string line;
-            std::getline(in_file, ptrName, '\0');     // read variable length name followed by space and NUL
-            std::getline(in_file, line, '\4');       // read "BFM" followed by space and control-D
-            if (line.compare("BFM ") != 0) {
-                fprintf(stderr, "Cannot find array specifier in file %s in LoadKaldiArkArray()!\n", fileName);
-                exit(-1);
-            }
-            in_file.read(reinterpret_cast<char *>(ptrNumRows), sizeof(uint32_t));        // read number of rows
-            std::getline(in_file, line, '\4');                                            // read control-D
-            in_file.read(reinterpret_cast<char *>(ptrNumColumns), sizeof(uint32_t));    // read number of columns
-            in_file.read(reinterpret_cast<char *>(&memory.front()),
-                         *ptrNumRows * *ptrNumColumns * sizeof(float));  // read array data
-        }
-        in_file.close();
-    } else {
-        fprintf(stderr, "Failed to open %s for reading in GetKaldiArkInfo()!\n", fileName);
-        exit(-1);
-    }
-
-    *ptrNumBytesPerElement = sizeof(float);
-}
-
-void SaveKaldiArkArray(const char *fileName,
-                       bool shouldAppend,
-                       std::string name,
-                       void *ptrMemory,
-                       uint32_t numRows,
-                       uint32_t numColumns) {
-    std::ios_base::openmode mode = std::ios::binary;
-    if (shouldAppend) {
-        mode |= std::ios::app;
-    }
-    std::ofstream out_file(fileName, mode);
-    if (out_file.good()) {
-        out_file.write(name.c_str(), name.length());  // write name
-        out_file.write("\0", 1);
-        out_file.write("BFM ", 4);
-        out_file.write("\4", 1);
-        out_file.write(reinterpret_cast<char *>(&numRows), sizeof(uint32_t));
-        out_file.write("\4", 1);
-        out_file.write(reinterpret_cast<char *>(&numColumns), sizeof(uint32_t));
-        out_file.write(reinterpret_cast<char *>(ptrMemory), numRows * numColumns * sizeof(float));
-        out_file.close();
-    } else {
-        throw std::runtime_error(std::string("Failed to open %s for writing in SaveKaldiArkArray()!\n") + fileName);
+                               " is not equal to number of  files (" + std::to_string(numInputFiles) + ")");
     }
 }
 
@@ -187,156 +69,10 @@ float ScaleFactorForQuantization(void *ptrFloatMemory, float targetMax, uint32_t
     return (scaleFactor);
 }
 
-void ClearScoreError(score_error_t *error) {
-    error->numScores = 0;
-    error->numErrors = 0;
-    error->maxError = 0.0;
-    error->rmsError = 0.0;
-    error->sumError = 0.0;
-    error->sumRmsError = 0.0;
-    error->sumSquaredError = 0.0;
-    error->maxRelError = 0.0;
-    error->sumRelError = 0.0;
-    error->sumSquaredRelError = 0.0;
-}
-
-void UpdateScoreError(score_error_t *error, score_error_t *totalError) {
-    totalError->numErrors += error->numErrors;
-    totalError->numScores += error->numScores;
-    totalError->sumRmsError += error->rmsError;
-    totalError->sumError += error->sumError;
-    totalError->sumSquaredError += error->sumSquaredError;
-    if (error->maxError > totalError->maxError) {
-        totalError->maxError = error->maxError;
-    }
-    totalError->sumRelError += error->sumRelError;
-    totalError->sumSquaredRelError += error->sumSquaredRelError;
-    if (error->maxRelError > totalError->maxRelError) {
-        totalError->maxRelError = error->maxRelError;
-    }
-}
-
-uint32_t CompareScores(float *ptrScoreArray,
-                       void *ptrRefScoreArray,
-                       score_error_t *scoreError,
-                       uint32_t numRows,
-                       uint32_t numColumns) {
-    uint32_t numErrors = 0;
-
-    ClearScoreError(scoreError);
-
-    float *A = ptrScoreArray;
-    float *B = reinterpret_cast<float *>(ptrRefScoreArray);
-    for (uint32_t i = 0; i < numRows; i++) {
-        for (uint32_t j = 0; j < numColumns; j++) {
-            float score = A[i * numColumns + j];
-            float refscore = B[i * numColumns + j];
-            float error = fabs(refscore - score);
-            float rel_error = error / (static_cast<float>(fabs(refscore)) + 1e-20f);
-            float squared_error = error * error;
-            float squared_rel_error = rel_error * rel_error;
-            scoreError->numScores++;
-            scoreError->sumError += error;
-            scoreError->sumSquaredError += squared_error;
-            if (error > scoreError->maxError) {
-                scoreError->maxError = error;
-            }
-            scoreError->sumRelError += rel_error;
-            scoreError->sumSquaredRelError += squared_rel_error;
-            if (rel_error > scoreError->maxRelError) {
-                scoreError->maxRelError = rel_error;
-            }
-            if (error > scoreError->threshold) {
-                numErrors++;
-            }
-        }
-    }
-    scoreError->rmsError = sqrt(scoreError->sumSquaredError / (numRows * numColumns));
-    scoreError->sumRmsError += scoreError->rmsError;
-    scoreError->numErrors = numErrors;
-
-    return (numErrors);
-}
-
 float StdDevError(score_error_t error) {
     return (sqrt(error.sumSquaredError / error.numScores
                  - (error.sumError / error.numScores) * (error.sumError / error.numScores)));
 }
-
-float StdDevRelError(score_error_t error) {
-    return (sqrt(error.sumSquaredRelError / error.numScores
-                 - (error.sumRelError / error.numScores) * (error.sumRelError / error.numScores)));
-}
-
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#ifdef _WIN32
-#include <intrin.h>
-#include <windows.h>
-#else
-
-#include <cpuid.h>
-
-#endif
-
-inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
-                         unsigned int *ecx, unsigned int *edx) {
-    size_t level = *eax;
-#ifdef _WIN32
-    int regs[4] = {static_cast<int>(*eax), static_cast<int>(*ebx), static_cast<int>(*ecx), static_cast<int>(*edx)};
-    __cpuid(regs, level);
-    *eax = static_cast<uint32_t>(regs[0]);
-    *ebx = static_cast<uint32_t>(regs[1]);
-    *ecx = static_cast<uint32_t>(regs[2]);
-    *edx = static_cast<uint32_t>(regs[3]);
-#else
-    __get_cpuid(level, eax, ebx, ecx, edx);
-#endif
-}
-
-// return GNA module frequency in MHz
-float getGnaFrequencyMHz() {
-    uint32_t eax = 1;
-    uint32_t ebx = 0;
-    uint32_t ecx = 0;
-    uint32_t edx = 0;
-    uint32_t family = 0;
-    uint32_t model = 0;
-    const uint8_t sixth_family = 6;
-    const uint8_t cannon_lake_model = 102;
-    const uint8_t gemini_lake_model = 122;
-    const uint8_t ice_lake_model = 126;
-    const uint8_t next_model = 140;
-
-    native_cpuid(&eax, &ebx, &ecx, &edx);
-    family = (eax >> 8) & 0xF;
-
-    // model is the concatenation of two fields
-    // | extended model | model |
-    // copy extended model data
-    model = (eax >> 16) & 0xF;
-    // shift
-    model <<= 4;
-    // copy model data
-    model += (eax >> 4) & 0xF;
-
-    if (family == sixth_family) {
-        switch (model) {
-            case cannon_lake_model:
-            case ice_lake_model:
-            case next_model:
-                return 400;
-            case gemini_lake_model:
-                return 200;
-            default:
-                return 1;
-        }
-    } else {
-        // counters not supported and we returns just default value
-        return 1;
-    }
-}
-
-#endif  // if not ARM
 
 void printReferenceCompareResults(score_error_t const &totalError,
                                   size_t framesNum,
@@ -350,58 +86,6 @@ void printReferenceCompareResults(score_error_t const &totalError,
     stream << "       stdev error: " <<
            StdDevError(totalError) << std::endl << std::endl;
     stream << std::endl;
-}
-
-void printPerformanceCounters(std::map<std::string,
-        InferenceEngine::InferenceEngineProfileInfo> const &utterancePerfMap,
-                              size_t callsNum,
-                              std::ostream &stream, std::string fullDeviceName) {
-#if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-    stream << std::endl << "Performance counts:" << std::endl;
-    stream << std::setw(10) << std::right << "" << "Counter descriptions";
-    stream << std::setw(22) << "Utt scoring time";
-    stream << std::setw(18) << "Avg infer time";
-    stream << std::endl;
-
-    stream << std::setw(46) << "(ms)";
-    stream << std::setw(24) << "(us per call)";
-    stream << std::endl;
-
-    for (const auto &it : utterancePerfMap) {
-        std::string const &counter_name = it.first;
-        float current_units = static_cast<float>(it.second.realTime_uSec);
-        float call_units = current_units / callsNum;
-        // if GNA HW counters
-        // get frequency of GNA module
-        float freq = getGnaFrequencyMHz();
-        current_units /= freq * 1000;
-        call_units /= freq;
-        stream << std::setw(30) << std::left << counter_name.substr(4, counter_name.size() - 1);
-        stream << std::setw(16) << std::right << current_units;
-        stream << std::setw(21) << std::right << call_units;
-        stream << std::endl;
-    }
-    stream << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << fullDeviceName << std::endl;
-    std::cout << std::endl;
-#endif
-}
-
-void getPerformanceCounters(InferenceEngine::InferRequest &request,
-                            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfCounters) {
-    auto retPerfCounters = request.GetPerformanceCounts();
-
-    for (const auto &pair : retPerfCounters) {
-        perfCounters[pair.first] = pair.second;
-    }
-}
-
-void sumPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> const &perfCounters,
-                            std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &totalPerfCounters) {
-    for (const auto &pair : perfCounters) {
-        totalPerfCounters[pair.first].realTime_uSec += pair.second.realTime_uSec;
-    }
 }
 
 std::vector<std::string> ParseScaleFactors(const std::string& str) {
@@ -540,10 +224,6 @@ int main(int argc, char *argv[]) {
             return 0;
         }
 
-        if (FLAGS_l.empty()) {
-            slog::info << "No extensions provided" << slog::endl;
-        }
-
         auto isFeature = [&](const std::string xFeature) { return FLAGS_d.find(xFeature) != std::string::npos; };
 
         bool useGna = isFeature("GNA");
@@ -552,28 +232,16 @@ int main(int argc, char *argv[]) {
                 useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t) FLAGS_bs;
 
-        std::vector<std::string> inputArkFiles;
+
+        std::vector<std::string> inputFiles;
         std::vector<uint32_t> numBytesThisUtterance;
         uint32_t numUtterances(0);
+
         if (!FLAGS_i.empty()) {
-            std::string outStr;
             std::istringstream stream(FLAGS_i);
-
-            uint32_t currentNumUtterances(0), currentNumBytesThisUtterance(0);
-            while (getline(stream, outStr, ',')) {
-                std::string filename(fileNameNoExt(outStr) + ".ark");
-                inputArkFiles.push_back(filename);
-
-                GetKaldiArkInfo(filename.c_str(), 0, &currentNumUtterances, &currentNumBytesThisUtterance);
-                if (numUtterances == 0) {
-                    numUtterances = currentNumUtterances;
-                } else if (currentNumUtterances != numUtterances) {
-                    throw std::logic_error("Incorrect input files. Number of utterance must be the same for all ark files");
-                }
-                numBytesThisUtterance.push_back(currentNumBytesThisUtterance);
-            }
+            ArkFile::SetNumBytesForCurrentUtterance(stream, inputFiles, numBytesThisUtterance, numUtterances);
         }
-        size_t numInputArkFiles(inputArkFiles.size());
+        size_t numInputFiles(inputFiles.size());
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 1. Load inference engine -------------------------------------
@@ -592,7 +260,7 @@ int main(int argc, char *argv[]) {
         if (!FLAGS_m.empty()) {
             /** Read network model **/
             network = ie.ReadNetwork(FLAGS_m);
-            CheckNumberOfInputs(network.getInputsInfo().size(), numInputArkFiles);
+            CheckNumberOfInputs(network.getInputsInfo().size(), numInputFiles);
             // -------------------------------------------------------------------------------------------------
 
             // --------------------------- 3. Set batch size ---------------------------------------------------
@@ -625,10 +293,10 @@ int main(int argc, char *argv[]) {
                            << FLAGS_rg << slog::endl;
             } else {
                 auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
-                if (numInputArkFiles != scaleFactorInput.size()) {
+                if (numInputFiles != scaleFactorInput.size()) {
                     std::string errMessage("Incorrect command line for multiple inputs: "
                         + std::to_string(scaleFactorInput.size()) + " scale factors provided for "
-                        + std::to_string(numInputArkFiles) + " input files.");
+                        + std::to_string(numInputFiles) + " input files.");
                     throw std::logic_error(errMessage);
                 }
 
@@ -643,14 +311,14 @@ int main(int argc, char *argv[]) {
             if (!FLAGS_rg.empty()) {
                 slog::info << "Using scale factor from provided imported gna model: " << FLAGS_rg << slog::endl;
             } else {
-                for (size_t i = 0; i < numInputArkFiles; i++) {
-                    auto inputArkName = inputArkFiles[i].c_str();
+                for (size_t i = 0; i < numInputFiles; i++) {
+                    auto inputFileName = inputFiles[i].c_str();
                     std::string name;
                     std::vector<uint8_t> ptrFeatures;
                     uint32_t numArrays(0), numBytes(0), numFrames(0), numFrameElements(0), numBytesPerElement(0);
-                    GetKaldiArkInfo(inputArkName, 0, &numArrays, &numBytes);
+                    ArkFile::GetKaldiArkInfo(inputFileName, 0, &numArrays, &numBytes);
                     ptrFeatures.resize(numBytes);
-                    LoadKaldiArkArray(inputArkName,
+                    ArkFile::LoadKaldiArkArray(inputFileName,
                         0,
                         name,
                         ptrFeatures,
@@ -753,7 +421,7 @@ int main(int argc, char *argv[]) {
         // --------------------------- 8. Prepare input blobs --------------------------------------------------
         /** Taking information about all topology inputs **/
         ConstInputsDataMap cInputInfo = executableNet.GetInputsInfo();
-        CheckNumberOfInputs(cInputInfo.size(), numInputArkFiles);
+        CheckNumberOfInputs(cInputInfo.size(), numInputFiles);
 
         /** Stores all input blobs data **/
         std::vector<Blob::Ptr> ptrInputBlobs;
@@ -847,7 +515,7 @@ int main(int argc, char *argv[]) {
             std::vector<uint8_t> ptrReferenceScores;
             score_error_t frameError, totalError;
 
-            ptrUtterances.resize(inputArkFiles.size());
+            ptrUtterances.resize(inputFiles.size());
 
             // initialize memory state before starting
             for (auto &&state : inferRequests.begin()->inferRequest.QueryState()) {
@@ -867,14 +535,14 @@ int main(int argc, char *argv[]) {
 
                 slog::info << "Number scores per frame : " << numScoresPerFrame << slog::endl;
 
-                numFrameElementsInput.resize(numInputArkFiles);
-                for (size_t i = 0; i < inputArkFiles.size(); i++) {
+                numFrameElementsInput.resize(numInputFiles);
+                for (size_t i = 0; i < inputFiles.size(); i++) {
                     std::vector<uint8_t> ptrUtterance;
-                    auto inputArkFilename = inputArkFiles[i].c_str();
+                    auto inputFilename = inputFiles[i].c_str();
                     uint32_t currentNumFrames(0), currentNumFrameElementsInput(0), currentNumBytesPerElementInput(0);
-                    GetKaldiArkInfo(inputArkFilename, utteranceIndex, &n, &numBytesThisUtterance[i]);
+                    ArkFile::GetKaldiArkInfo(inputFilename, utteranceIndex, &n, &numBytesThisUtterance[i]);
                     ptrUtterance.resize(numBytesThisUtterance[i]);
-                    LoadKaldiArkArray(inputArkFilename,
+                    ArkFile::LoadKaldiArkArray(inputFilename,
                                       utteranceIndex,
                                       uttName,
                                       ptrUtterance,
@@ -906,9 +574,9 @@ int main(int argc, char *argv[]) {
                 ptrScores.resize(numFrames * numScoresPerFrame * sizeof(float));
                 if (!FLAGS_r.empty()) {
                     std::string refUtteranceName;
-                    GetKaldiArkInfo(reference_name_files[next_output].c_str(), utteranceIndex, &n, &numBytesReferenceScoreThisUtterance);
+                    ArkFile::GetKaldiArkInfo(reference_name_files[next_output].c_str(), utteranceIndex, &n, &numBytesReferenceScoreThisUtterance);
                     ptrReferenceScores.resize(numBytesReferenceScoreThisUtterance);
-                    LoadKaldiArkArray(reference_name_files[next_output].c_str(),
+                    ArkFile::LoadKaldiArkArray(reference_name_files[next_output].c_str(),
                                       utteranceIndex,
                                       refUtteranceName,
                                       ptrReferenceScores,
@@ -921,7 +589,7 @@ int main(int argc, char *argv[]) {
 
                 std::cout << "Utterance " << utteranceIndex << ": " << std::endl;
 
-                ClearScoreError(&totalError);
+                Score::ClearScoreError(&totalError);
                 totalError.threshold = frameError.threshold = MAX_SCORE_DIFFERENCE;
                 auto outputFrame = &ptrScores.front();
                 std::vector<uint8_t *> inputFrame;
@@ -932,7 +600,7 @@ int main(int argc, char *argv[]) {
                 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> callPerfMap;
 
                 size_t frameIndex = 0;
-                uint32_t numFramesArkFile = numFrames;
+                uint32_t numFramesFile = numFrames;
                 numFrames += FLAGS_cw_l + FLAGS_cw_r;
                 uint32_t numFramesThisBatch{batchSize};
 
@@ -1006,20 +674,20 @@ int main(int argc, char *argv[]) {
                                     }
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto moutputHolder = moutput->rmap();
-                                    CompareScores(moutputHolder.as<float *>(),
+                                    Score::CompareScores(moutputHolder.as<float *>(),
                                                   &ptrReferenceScores[inferRequest.frameIndex *
                                                                       numFrameElementsReference *
                                                                       numBytesPerElementReference],
                                                   &frameError,
                                                   inferRequest.numFramesThisBatch,
                                                   numFrameElementsReference);
-                                    UpdateScoreError(&frameError, &totalError);
+                                    Score::UpdateScoreError(&frameError, &totalError);
                                 }
                                 if (FLAGS_pc) {
                                     // retrieve new counters
-                                    getPerformanceCounters(inferRequest.inferRequest, callPerfMap);
+                                    PerformanceCounters::GetPerformanceCounters(inferRequest.inferRequest, callPerfMap);
                                     // summarize retrieved counters with all previous
-                                    sumPerformanceCounters(callPerfMap, utterancePerfMap);
+                                    PerformanceCounters::SumPerformanceCounters(callPerfMap, utterancePerfMap);
                                 }
                             }
                         }
@@ -1030,7 +698,7 @@ int main(int argc, char *argv[]) {
                         }
 
                         if (FLAGS_iname.empty()) {
-                            size_t num_files = FLAGS_iname.empty() ? numInputArkFiles : ptrInputBlobs.size();
+                            size_t num_files = FLAGS_iname.empty() ? numInputFiles : ptrInputBlobs.size();
                             for (size_t i = 0; i < num_files; ++i) {
                                 MemoryBlob::Ptr minput = as<MemoryBlob>(ptrInputBlobs[i]);
                                 if (!minput) {
@@ -1055,14 +723,14 @@ int main(int argc, char *argv[]) {
                         inferRequest.numFramesThisBatch = numFramesThisBatch;
 
                         frameIndex += numFramesThisBatch;
-                        for (size_t j = 0; j < inputArkFiles.size(); j++) {
+                        for (size_t j = 0; j < inputFiles.size(); j++) {
                             if (FLAGS_cw_l > 0 || FLAGS_cw_r > 0) {
                                 int idx = frameIndex - FLAGS_cw_l;
-                                if (idx > 0 && idx < static_cast<int>(numFramesArkFile)) {
+                                if (idx > 0 && idx < static_cast<int>(numFramesFile)) {
                                     inputFrame[j] += sizeof(float) * numFrameElementsInput[j] * numFramesThisBatch;
-                                } else if (idx >= static_cast<int>(numFramesArkFile)) {
+                                } else if (idx >= static_cast<int>(numFramesFile)) {
                                     inputFrame[j] = &ptrUtterances[j].front() +
-                                                    (numFramesArkFile - 1) * sizeof(float) * numFrameElementsInput[j] *
+                                                    (numFramesFile - 1) * sizeof(float) * numFrameElementsInput[j] *
                                                     numFramesThisBatch;
                                 } else if (idx <= 0) {
                                     inputFrame[j] = &ptrUtterances[j].front();
@@ -1091,8 +759,8 @@ int main(int argc, char *argv[]) {
 
                 if (!FLAGS_o.empty()) {
                     bool shouldAppend = (utteranceIndex == 0) ? false : true;
-                    SaveKaldiArkArray(output_name_files[next_output].c_str(), shouldAppend, uttName, &ptrScores.front(),
-                                      numFramesArkFile, numScoresPerFrame);
+                    ArkFile::SaveKaldiArkArray(output_name_files[next_output].c_str(), shouldAppend, uttName, &ptrScores.front(),
+                                      numFramesFile, numScoresPerFrame);
                 }
 
                 /** Show performance results **/
@@ -1104,7 +772,7 @@ int main(int argc, char *argv[]) {
                           << std::endl;
                 if (FLAGS_pc) {
                     // print
-                    printPerformanceCounters(utterancePerfMap, frameIndex, std::cout, getFullDeviceName(ie, FLAGS_d));
+                    PerformanceCounters::PrintPerformanceCounters(utterancePerfMap, frameIndex, std::cout, getFullDeviceName(ie, FLAGS_d));
                 }
                 if (!FLAGS_r.empty()) {
                     printReferenceCompareResults(totalError, numFrames, std::cout);
