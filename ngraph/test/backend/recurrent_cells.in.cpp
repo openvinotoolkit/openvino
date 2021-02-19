@@ -14,16 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <algorithm>
-#include <cinttypes>
-#include <cmath>
-#include <cstdlib>
-#include <iterator>
-#include <limits>
-#include <numeric>
-#include <random>
-#include <string>
-
 // clang-format off
 #ifdef ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
 #define DEFAULT_FLOAT_TOLERANCE_BITS ${BACKEND_NAME}_FLOAT_TOLERANCE_BITS
@@ -39,8 +29,6 @@
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
