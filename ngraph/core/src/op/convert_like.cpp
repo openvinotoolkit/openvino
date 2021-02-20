@@ -51,9 +51,11 @@ shared_ptr<Node> op::v1::ConvertLike::clone_with_new_inputs(const OutputVector& 
     return make_shared<ConvertLike>(new_args.at(0), new_args.at(1));
 }
 
-bool op::v1::ConvertLike::constant_fold(OutputVector& output_values, const OutputVector& input_values)
+bool op::v1::ConvertLike::constant_fold(OutputVector& output_values,
+                                        const OutputVector& input_values)
 {
-    if (auto data_const = std::dynamic_pointer_cast<op::Constant>(input_values[0].get_node_shared_ptr()))
+    if (auto data_const =
+            std::dynamic_pointer_cast<op::Constant>(input_values[0].get_node_shared_ptr()))
     {
         auto convert = make_shared<Convert>(input_values[0], input_values[1].get_element_type());
         convert->constant_fold(output_values, OutputVector{data_const});
