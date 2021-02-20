@@ -23,7 +23,6 @@
 // Tile size : 4x4 or 8x8
 #define MIN_TILE_SIZE 4
 #define DEFAULT_TILE_SIZE 8
-#define VEC_WIDTH_SAME_AS_TILE_SIZE 1
 
 namespace kernel_selector {
 
@@ -58,12 +57,15 @@ static inline size_t GetTileSize(const permute_params& params) {
     // supports 4x4 or 8x8 tiling
     if (params.inputs[0].X().v < DEFAULT_TILE_SIZE || params.inputs[0].Feature().v < DEFAULT_TILE_SIZE)
         return MIN_TILE_SIZE;
+
+    if ((params.inputs[0].GetDType() == Datatype::INT64) || (params.output.GetDType() == Datatype::INT64))
+        return MIN_TILE_SIZE;
+
     return DEFAULT_TILE_SIZE;
 }
 
 static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
     std::vector<std::string> res;
-#if VEC_WIDTH_SAME_AS_TILE_SIZE
     switch (size) {
         case 4 :
             res = {"b", "y", "(x * TILE_SIZE + i)", "(f * TILE_SIZE + lh)"};
@@ -76,27 +78,12 @@ static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
             break;
         default : throw std::runtime_error("Unsupported combination\n");
     }
-#else
-    switch (size) {
-        case 4 :
-            res = {"b", "y", "(x * TILE_SIZE + lw * VEC_WIDTH + i)", "(f * TILE_SIZE + lh)"};
-            break;
-        case 5 :
-            res = {"b", "z", "y", "(x * TILE_SIZE + lw * VEC_WIDTH + i)", "(f * TILE_SIZE + lh)"};
-            break;
-        case 6 :
-            res = {"b", "w", "z", "y", "(x * TILE_SIZE + lw * VEC_WIDTH + i)", "(f * TILE_SIZE + lh)"};
-            break;
-        default : throw std::runtime_error("Unsupported combination\n");
-    }
-#endif
     return res;
 
 }
 
 static inline std::string GetTiledOutputOrder(size_t size) {
     std::string order_str = "";
-#if VEC_WIDTH_SAME_AS_TILE_SIZE
     switch (size) {
         case 4 :
             order_str = "b, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
@@ -110,28 +97,10 @@ static inline std::string GetTiledOutputOrder(size_t size) {
         default : throw std::runtime_error("Unsupported combination\n");
     }
     return order_str;
-
-#else
-    switch (size) {
-        case 4 :
-            order_str = "b, y, (x * TILE_SIZE + lh), (f * TILE_SIZE + lw * VEC_WIDTH)";
-            break;
-        case 5 :
-            order_str = "b, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE + lw * VEC_WIDTH)";
-            break;
-        case 6 :
-            order_str = "b, w, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE + lw * VEC_WIDTH)";
-            break;
-        default : throw std::runtime_error("Unsupported combination\n");
-    }
-    return order_str;
-#endif
 }
 
 static inline std::string GetTiledInputOrder(size_t size) {
     std::string order_str = "";
-
-#if VEC_WIDTH_SAME_AS_TILE_SIZE
     switch (size) {
         case 4 :
             order_str = "b, (f * TILE_SIZE + lh), y, (x * TILE_SIZE)";
@@ -144,20 +113,6 @@ static inline std::string GetTiledInputOrder(size_t size) {
             break;
         default : throw std::runtime_error("Unsupported combination\n");
     }
-#else
-    switch (size) {
-        case 4 :
-            order_str = "b, (f * TILE_SIZE + lh), y, (x * TILE_SIZE + lw * VEC_WIDTH)";
-            break;
-        case 5 :
-            order_str = "b, (f * TILE_SIZE + lh), z, y, (x * TILE_SIZE + lw * VEC_WIDTH)";
-            break;
-        case 6 :
-            order_str = "b, (f * TILE_SIZE + lh), w, z, y, (x * TILE_SIZE + lw * VEC_WIDTH)";
-            break;
-        default : throw std::runtime_error("Unsupported combination\n");
-    }
-#endif
     return order_str;
 }
 
@@ -165,13 +120,10 @@ static inline std::string GetTiledInputOrder(size_t size) {
 JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
     size_t tile_size = GetTileSize(params);
-#if VEC_WIDTH_SAME_AS_TILE_SIZE
     size_t vector_width = tile_size;
-#endif
     // Note: this is default mode and different vector width is not being used now.
     uint64_t total_lws = dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2];
     jit.AddConstant(MakeJitConstant("VEC_WIDTH", vector_width));
-    jit.AddConstant(MakeJitConstant("VEC_WIDTH_SAME_AS_TILE_SIZE", 1));
     jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(params.inputs[0].GetDims().size())));
     jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(params.output.GetDims().size())));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));

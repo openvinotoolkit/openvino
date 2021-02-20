@@ -57,8 +57,8 @@ INSTANTIATE_TEST_CASE_P(
  * 5D permute tests
  */
 const std::vector<std::vector<size_t>> inputShapes5D = {
-        std::vector<size_t>{2, 8, 64, 32, 64},
-        std::vector<size_t>{2, 5, 64, 32, 64},
+        std::vector<size_t>{2, 3, 4, 12, 64},
+        std::vector<size_t>{2, 5, 11, 32, 32},
         std::vector<size_t>{2, 8, 64, 32, 5},
         std::vector<size_t>{2, 5, 64, 32, 5},
 };
@@ -93,10 +93,10 @@ INSTANTIATE_TEST_CASE_P(
  * 6D permute tests
  */
 const std::vector<std::vector<size_t>> inputShapes6D = {
-        std::vector<size_t>{2, 8, 64, 32, 32, 64},
-        std::vector<size_t>{2, 5, 64, 32, 32, 64},
-        std::vector<size_t>{2, 8, 64, 32, 32, 5},
-        std::vector<size_t>{2, 5, 64, 32, 32, 5},
+        std::vector<size_t>{2, 8, 5, 13, 11, 16},
+        std::vector<size_t>{2, 11, 6, 2, 15, 10},
+        std::vector<size_t>{2, 13, 1, 3, 14, 32},
+        std::vector<size_t>{2, 14, 3, 4, 4, 22},
 };
 
 const std::vector<std::vector<size_t>> inputOrder6D = {

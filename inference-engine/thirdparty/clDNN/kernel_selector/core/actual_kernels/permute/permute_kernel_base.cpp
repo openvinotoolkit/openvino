@@ -5,17 +5,14 @@ namespace kernel_selector {
 
 bool PermuteKernelBase::Validate(const Params& p, const optional_params& o) const {
     if (p.GetType() != KernelType::PERMUTE || o.GetType() != KernelType::PERMUTE) {
-        printf("val fail 1\n");
         return false;
     }
     const permute_params& params = static_cast<const permute_params&>(p);
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op)) {
-            printf("val fail 2\n");
             return false;
         }
     }
-
     return true;
 }
 
