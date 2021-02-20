@@ -19,13 +19,13 @@ log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=s
 def input_preparation(net):
     """
     Function to prepare reproducible from run to run input data
-    :param net: IENetwork read object
-    :return: Dict containing ndarray of ones with the dimension of net input items
+    :param net: IENetwork object
+    :return: Dict where keys are layers' names and values are numpy arrays with layers' shapes
     """
 
     feed_dict = {}
-    for layer, name in net.inputs.items():
-        feed_dict.update({layer: np.ones(shape=name.shape)})
+    for layer_name, layer_data in net.inputs.items():
+        feed_dict.update({layer_name: np.ones(shape=layer_data.shape)})
     return feed_dict
 
 
@@ -59,7 +59,8 @@ def cli_parser():
     parser = argparse.ArgumentParser(description='Arguments for python API inference')
     parser.add_argument('-m', dest='ir_path', required=True, help='Path to XML file of IR')
     parser.add_argument('-d', dest='device', required=True, help='Target device to infer on')
-    parser.add_argument('-r', dest='out_path', required=True, help='Dumps results to the output file')
+    parser.add_argument('-r', dest='out_path', required=True,
+                        help='Dumps results to the output file')
     args = parser.parse_args()
     ir_path = args.ir_path
     device = args.device
