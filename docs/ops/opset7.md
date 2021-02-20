@@ -1,4 +1,4 @@
-# Operation Set `opset7` Specification {#openvino_docs_ops_opset6}
+# Operation Set `opset7` Specification {#openvino_docs_ops_opset7}
 
 This specification document describes `opset7` operation set supported in OpenVINO.
 Support for each particular operation from the list below depends on the capabilities available in a inference plugin
