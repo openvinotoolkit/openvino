@@ -50,6 +50,8 @@ else()
     message(FATAL_ERROR "Python was not found!")
 endif()
 
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${PYTHON_VERSION})
+
 # compile options
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
