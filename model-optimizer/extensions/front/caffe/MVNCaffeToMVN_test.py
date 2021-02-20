@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 
-from extensions.front.caffe.MVNNormalizer import MVNCaffeToMVN
+from extensions.front.caffe.MVNCaffeToMVN import MVNCaffeToMVN
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const, connect_front
 
@@ -37,7 +37,7 @@ nodes = {
 }
 
 
-class MVNNormalizerTest(unittest.TestCase):
+class MVNCaffeToMVNTest(unittest.TestCase):
     def test_mvn_normalizer(self):
         graph = build_graph(nodes, [('input', 'mvn_caffe'),
                                     ('mvn_caffe', 'output')],
