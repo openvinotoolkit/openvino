@@ -70,12 +70,14 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
     }
 
     if ((dequantization1.data.get_node() == nullptr) ||
-        (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
+        (dequantization1.empty() && !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()) &&
+                                    !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
         return false;
     }
 
     if ((dequantization2.data.get_node() == nullptr) ||
-        (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()))) {
+        (dequantization2.empty() && !is_type<opset1::Constant>(dequantization2.data.get_node_shared_ptr()) &&
+                                    !is_type<opset1::Constant>(dequantization1.data.get_node_shared_ptr()))) {
         return false;
     }
 

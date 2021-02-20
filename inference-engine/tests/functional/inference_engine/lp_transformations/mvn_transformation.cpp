@@ -47,6 +47,11 @@ public:
     Expected expected;
 };
 
+typedef std::tuple<
+    ngraph::element::Type,
+    MVNTransformationTestValues
+> MVNTransformationParams;
+
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
     os << "{ ";
@@ -60,12 +65,14 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) 
     return os;
 }
 
-class MVNTransformation : public LayerTransformation, public testing::WithParamInterface<MVNTransformationTestValues> {
+class MVNTransformation : public LayerTransformation, public testing::WithParamInterface<MVNTransformationParams> {
 public:
     void SetUp() override {
-        const MVNTransformationTestValues testValues = GetParam();
+        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const MVNTransformationTestValues testValues = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MVNFunction::getOriginal(
+            precision,
             testValues.inputShape,
             testValues.reductionAxes,
             testValues.normalizeVariance,
@@ -77,6 +84,7 @@ public:
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::MVNFunction::getReference(
+            precision,
             testValues.inputShape,
             testValues.reductionAxes,
             testValues.normalizeVariance,
@@ -86,11 +94,13 @@ public:
             testValues.expected.dequantizationAfter);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<MVNTransformationTestValues> obj) {
-        const MVNTransformationTestValues testValues = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<MVNTransformationParams> obj) {
+        const ngraph::element::Type precision = std::get<0>(obj.param);
+        const MVNTransformationTestValues testValues = std::get<1>(obj.param);
 
         std::ostringstream result;
         result <<
+            precision << "_" <<
             toString(testValues.params) << "_" <<
             testValues.inputShape << "_" <<
             testValues.reductionAxes << "_" <<
@@ -100,6 +110,11 @@ public:
             testValues.expected.dequantizationBefore;
         return result.str();
     }
+};
+
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    ngraph::element::f16
 };
 
 const std::vector<MVNTransformationTestValues> testValues = {
@@ -276,5 +291,7 @@ TEST_P(MVNTransformation, CompareFunctions) {
 INSTANTIATE_TEST_CASE_P(
     smoke_LPT,
     MVNTransformation,
-    ::testing::ValuesIn(testValues),
+    ::testing::Combine(
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(testValues)),
     MVNTransformation::getTestCaseName);

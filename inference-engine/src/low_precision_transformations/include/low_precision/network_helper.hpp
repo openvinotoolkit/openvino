@@ -91,7 +91,8 @@ public:
         const float min,
         const float max,
         const bool hasZeroPoint,
-        const bool updatePrecision);
+        const bool updatePrecision,
+        const element::Type deqPrecision = element::f32);
 
     static std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -105,8 +106,7 @@ public:
         const ngraph::element::Type originalPrecision,
         const ngraph::Shape dataNodeOutputShape,
         element::Type precision,
-        float min,
-        float max);
+        const element::Type deqPrecision = element::f32);
 
     static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
         std::shared_ptr<opset1::FakeQuantize> fq,
@@ -114,7 +114,8 @@ public:
         float min,
         float max,
         const bool hasZeroPoint,
-        const bool updatePrecision);
+        const bool updatePrecision,
+        const element::Type deqPrecision = element::f32);
 
     static bool areQuantizeAndDequantizeSupportedForSubtract(const std::shared_ptr<const ngraph::Node>& node);
 

@@ -37,6 +37,7 @@ public:
         const FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
+        const element::Type netPrecision,
         const ngraph::Shape& inputShape1,
         const ngraph::element::Type precisionBeforeDequantization1,
         const DequantizationOperations& dequantization1,
