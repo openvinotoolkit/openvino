@@ -1356,7 +1356,7 @@ size_t NetworkHelper::getParentOutputIndex(const std::shared_ptr<ngraph::Node>& 
 std::vector<Output<Node>> NetworkHelper::getInputs(const std::shared_ptr<ngraph::Node>& node) {
     std::vector<Output<Node>> inputs(node->get_input_size());
     for (size_t i = 0; i < node->get_input_size(); ++i) {
-        inputs[i] = node->get_input_node_shared_ptr(i);
+        inputs[i] = node->get_input_source_output(i);
     }
     return inputs;
 }
