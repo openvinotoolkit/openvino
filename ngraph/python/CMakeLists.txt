@@ -18,6 +18,8 @@ cmake_minimum_required (VERSION 3.13)
 
 project (pyngraph)
 
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${PYTHON_VERSION})
+
 if(NOT DEFINED OpenVINO_MAIN_SOURCE_DIR)
     find_package(InferenceEngineDeveloperPackage QUIET)
     find_package(ngraph REQUIRED)
