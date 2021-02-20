@@ -54,6 +54,7 @@ shared_ptr<Node> op::v1::ConvertLike::clone_with_new_inputs(const OutputVector& 
 bool op::v1::ConvertLike::constant_fold(OutputVector& output_values,
                                         const OutputVector& input_values)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v1::ConvertLike::constant_fold");
     if (auto data_const =
             std::dynamic_pointer_cast<op::Constant>(input_values[0].get_node_shared_ptr()))
     {
