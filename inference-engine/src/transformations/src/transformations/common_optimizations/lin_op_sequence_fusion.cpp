@@ -11,21 +11,9 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <transformations/utils/utils.hpp>
 
 using namespace ngraph;
-
-template <class T>
-Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & input1) {
-    auto eltwise = std::make_shared<T>(input0, input1);
-    OutputVector output(eltwise->get_output_size());
-    if (!eltwise->constant_fold(output, {input0, input1})) {
-        throw ngraph_error("Can not constant fold eltwise node");
-    }
-    if (output.size() != 1) {
-        throw ngraph_error("Eltwise constant fold has unexpected number of outputs: " + std::to_string(output.size()));
-    }
-    return output[0];
-}
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::LinOpSequenceFusion, "LinOpSequenceFusion", 0);
 
@@ -64,7 +52,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         auto new_mul = register_new_node<opset3::Multiply>(input, mul_const);
 
         // Add two constants using opset3::Add constant folding and create new Add operation
-        auto new_add = std::make_shared<opset3::Add>(new_mul, eltwise_fold<opset3::Multiply>(add_const, mul_const));
+        auto new_add = std::make_shared<opset3::Add>(new_mul, op::util::eltwise_fold<opset3::Multiply>(add_const, mul_const));
 
         copy_runtime_info({add, mul}, {new_mul, new_add});
         new_add->set_friendly_name(mul->get_friendly_name());
@@ -99,7 +87,7 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
 
         // Replace Add->Add with single Add
         // Add operation will be added to the list of ops requested for pattern matching
-        auto new_add = register_new_node<opset3::Add>(input, eltwise_fold<opset3::Add>(add1_const, add2_const));
+        auto new_add = register_new_node<opset3::Add>(input, op::util::eltwise_fold<opset3::Add>(add1_const, add2_const));
 
         copy_runtime_info({add1, add2}, new_add);
         new_add->set_friendly_name(add2->get_friendly_name());
@@ -134,7 +122,7 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
 
         // Replace Multiply->Multiply with single Multiply
         // Multiply operation will be added to the list of ops requested for pattern matching
-        auto new_mul = register_new_node<opset3::Multiply>(input, eltwise_fold<opset3::Multiply>(mul1_const, mul2_const));
+        auto new_mul = register_new_node<opset3::Multiply>(input, op::util::eltwise_fold<opset3::Multiply>(mul1_const, mul2_const));
 
         copy_runtime_info({mul1, mul2}, new_mul);
         new_mul->set_friendly_name(mul2->get_friendly_name());
