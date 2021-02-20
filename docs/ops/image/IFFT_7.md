@@ -1,4 +1,4 @@
-## IFFT <a name="IFFT"></a> {#openvino_docs_ops_image_FFT_7}
+## IFFT <a name="IFFT"></a> {#openvino_docs_ops_image_IFFT_7}
 
 **Versioned name**: *IFFT-7*
 
