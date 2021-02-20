@@ -15,23 +15,33 @@
 
 #pragma once
 
-#include "kernel_base_opencl.h"
-#include "permute_params.h"
-#include <vector>
+#include "permute_kernel_base.h"
 
 namespace kernel_selector {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PermuteKernelRef
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class PermuteKernelRef : public KernelBaseOpenCL {
+class PermuteKernelRef : public PermuteKernelBase {
 public:
-    PermuteKernelRef() : KernelBaseOpenCL("permute_ref") {}
+    using Parent = PermuteKernelBase;
+    using Parent::Parent;
+    PermuteKernelRef() : PermuteKernelBase("permute_ref") {}
     virtual ~PermuteKernelRef() {}
 
-    JitConstants GetJitConstants(const permute_params& params) const;
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
-    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const;
     ParamsKey GetSupportedKey() const override;
+
+protected:
+    JitConstants GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const override;
+    CommonDispatchData SetDefault(const permute_params& params) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return {
+            FusedOpType::ACTIVATION,
+            FusedOpType::QUANTIZE,
+            FusedOpType::ELTWISE,
+            FusedOpType::SCALE
+        };
+    }
 };
 }  // namespace kernel_selector

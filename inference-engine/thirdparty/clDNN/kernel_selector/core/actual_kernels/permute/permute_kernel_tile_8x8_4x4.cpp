@@ -53,7 +53,15 @@ ParamsKey PermuteKernel_tile_8x8_4x4::GetSupportedKey() const {
     k.EnableBatching();
     return k;
 }
-static inline std::vector<std::string> GetTiledFusedOpOrderVector(size_t size) {
+
+static inline size_t GetTileSize(const permute_params& params) {
+    // supports 4x4 or 8x8 tiling
+    if (params.inputs[0].X().v < DEFAULT_TILE_SIZE || params.inputs[0].Feature().v < DEFAULT_TILE_SIZE)
+        return MIN_TILE_SIZE;
+    return DEFAULT_TILE_SIZE;
+}
+
+static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
     std::vector<std::string> res;
 #if VEC_WIDTH_SAME_AS_TILE_SIZE
     switch (size) {
@@ -154,9 +162,9 @@ static inline std::string GetTiledInputOrder(size_t size) {
 }
 
 
-JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData, const size_t tile_size) const {
-    JitConstants jit = MakeBaseParamsJitConstants(params);
-
+JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
+    size_t tile_size = GetTileSize(params);
 #if VEC_WIDTH_SAME_AS_TILE_SIZE
     size_t vector_width = tile_size;
 #endif
@@ -205,7 +213,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     jit.AddConstant(MakeJitConstant("TRANS_BUF_SIZE", (tile_size / vector_width) * tile_size * total_lws) );
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> output_order = GetTiledFusedOpOrderVector(params.output.GetDims().size());
+        std::vector<std::string> output_order = GetFusedOpOrderVector(params.output.GetDims().size());
         FusedOpsConfiguration conf = {"", output_order, "input_var", params.inputs[0].GetDType(), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
@@ -244,9 +252,10 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     return lws;
 }
 
-CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& params, const size_t tile_size) const {
+CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& params) const {
     CommonDispatchData dispatchData;
     const auto& in =  params.inputs[0];
+    size_t tile_size = GetTileSize(params);
     switch (in.GetLayout()) {
         case DataLayout::bfyx:
             dispatchData.gws = {CEIL_DIV(in.X().v , tile_size), in.Y().v, CEIL_DIV(in.Feature().v, tile_size) * in.Batch().v};
@@ -266,32 +275,27 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& 
 }
 
 bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params& o) const {
+    if (!Parent::Validate(p, o)) return false;
+
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
         // Target transform: Rotate feature dim to back to be taken as inner-most axis
         // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
+        // ex) 0(b), 3(f), 1(y), 2(x)
         if ((int32_t) order[1] != order.size() - 1) return false;
-        for (int32_t i = 3; i < (int32_t) order.size(); ++i) {
+        if ((int32_t) order[0] != 0) return false;
+        for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
             if ((int32_t)order[i] !=  (i - 1)) return false;
         }
         return true;
     };
 
-    if (p.GetType() != KernelType::PERMUTE || o.GetType() != KernelType::PERMUTE) {
-        return false;
-    }
-
     const permute_params& params = static_cast<const permute_params&>(p);
 
-    if (!is_rotating_except_batch(params.order)) {
+    if (params.inputs[0].GetDims().size() != params.output.GetDims().size()) {
         return false;
     }
 
-    for (auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
-    }
-
-    if (params.inputs[0].GetDims().size() != params.output.GetDims().size()) {
+    if (!is_rotating_except_batch(params.order)) {
         return false;
     }
 
@@ -300,28 +304,6 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params
     }
 
     return true;
-}
-
-KernelsData PermuteKernel_tile_8x8_4x4::GetKernelsData(const Params& params, const optional_params& options) const {
-    if (!Validate(params, options)) {
-        return {};
-    }
-
-    KernelData kd = KernelData::Default<permute_params>(params);
-    permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
-    size_t tile_size = DEFAULT_TILE_SIZE;
-    // supports 4x4 or 8x8 tiling
-    if (newParams.inputs[0].X().v < DEFAULT_TILE_SIZE || newParams.inputs[0].Feature().v < DEFAULT_TILE_SIZE)
-        tile_size = MIN_TILE_SIZE;
-
-    auto dispatchData = SetDefault(newParams, tile_size);
-    auto cldnn_jit = GetJitConstants(newParams, dispatchData, tile_size);
-    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
-    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
-    auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 1, GetFusedPrimitiveInputsCount(params));
-
-    return {kd};
 }
 
 KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& params/*params*/, const optional_params& /*options*/) const {

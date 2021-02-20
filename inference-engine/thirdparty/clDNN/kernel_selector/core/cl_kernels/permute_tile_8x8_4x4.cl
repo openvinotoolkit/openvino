@@ -115,7 +115,7 @@ KERNEL (permute_tile_8x8_4x4)(
 #if VEC_WIDTH_SAME_AS_TILE_SIZE
             // read
             unsigned int input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
-            INPUTVTYPE read_data = AS_OUTPUTVTYPE(VLOAD(0, input + input_idx));
+            INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx));
             // transpose
             unroll_for (int i = 0; i < TILE_SIZE; ++i) {
 #if HAS_FUSED_OPS
@@ -130,7 +130,7 @@ KERNEL (permute_tile_8x8_4x4)(
             for (int lw = 0; lw < N_VECTORS_IN_TILE; ++lw) {
                 // read
                 unsigned int input_idx = INPUT0_GET_TILED_INDEX(INPUT0_TILED_ORDER);
-                INPUTVTYPE read_data = AS_OUTPUTVTYPE(VLOAD(0, input + input_idx + lw));
+                INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx + lw));
                 // transpose
                 unsigned int dst_h = lw * VEC_WIDTH;
                 unsigned int dst_w = lh / VEC_WIDTH;
