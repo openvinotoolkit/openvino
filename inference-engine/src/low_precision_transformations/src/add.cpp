@@ -75,7 +75,7 @@ std::shared_ptr<opset1::Subtract> fuseWithSubtract(const std::shared_ptr<Node>& 
 
     const auto newSubtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
         std::vector<element::Type>{element::f32, element::f32},
-        std::vector<element::Type>{ element::f32 },
+        std::vector<element::Type>{ op->get_output_element_type(0) },
         ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0), element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(newSubConst, element::f32).get());
     NetworkHelper::copyInfo(add, newSubtract);
@@ -189,7 +189,10 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
             std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ element::f32 },
             ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
             ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
-        newMultiply = std::make_shared<DequantizationMultiply>(newAddOrSubtract, multiplyEmptyPathValues);
+        newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+            std::vector<element::Type>{element::f32, element::f32}, std::vector<element::Type>{ add->get_output_element_type(0) },
+            ngraph::op::TemporaryReplaceOutputType(newAddOrSubtract, element::f32).get(),
+            ngraph::op::TemporaryReplaceOutputType(multiplyEmptyPathValues, element::f32).get());
 
         replace_node(add, newMultiply);
         NetworkHelper::copyInfo(add, newAddOrSubtract);

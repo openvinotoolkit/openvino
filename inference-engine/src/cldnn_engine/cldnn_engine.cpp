@@ -322,10 +322,6 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         if (enableInt8) {
             OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
             using namespace ngraph::pass::low_precision;
-            ngraph::pass::Manager conversion_manager;
-            // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-            conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
-            conversion_manager.run_passes(nGraphFunc);
             auto params = LayerTransformation::Params(true,                                                        // updatePrecisions
                                                       LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
                                                       LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
