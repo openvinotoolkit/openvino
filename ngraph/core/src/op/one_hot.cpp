@@ -142,8 +142,8 @@ namespace one_hot
         runtime::reference::one_hot<INPUT_TYPE>(indices->get_data_ptr<INPUT_TYPE>(),
                                                 indices->get_shape(),
                                                 out->get_data_ptr<char>(),
-                                                out->get_shape(),
                                                 out->get_element_type().size(),
+                                                out->get_shape()[axis],
                                                 axis,
                                                 on_value->get_data_ptr<char>(),
                                                 off_value->get_data_ptr<char>());
@@ -169,9 +169,20 @@ bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
 {
     NGRAPH_OP_SCOPE(v1_OneHot_evaluate);
-    const auto& out_shape = output_values[0]->get_partial_shape();
-    const auto& ind_shape = input_values[0]->get_partial_shape();
-    NGRAPH_CHECK(ind_shape.is_static() && out_shape.is_static(),
+    NGRAPH_CHECK(validate_host_tensor_vector(input_values, 4));
+    NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
+
+    const auto& ind_Pshape = input_values[0]->get_partial_shape();
+    const auto& out_Pshape = output_values[0]->get_partial_shape();
+    NGRAPH_CHECK(ind_Pshape.is_static() && out_Pshape.is_static(),
                  "Only static input/output shapes are supported");
-    return one_hot::evaluate_onehot(output_values, input_values, get_axis());
+    const auto out_shape = out_Pshape.get_shape();
+    const auto axis = get_axis();
+    NGRAPH_CHECK(axis >= 0 && axis < out_shape.size(), "Invalid axis value.");
+    const auto depth = get_constant_from_source(input_value(1))->cast_vector<int64_t>()[0];
+    const auto ind_shape = ind_Pshape.get_shape();
+    NGRAPH_CHECK(shape_size(ind_shape) * depth == shape_size(out_shape),
+                 "Incompatible I/O shapes or wrong depth value.");
+    NGRAPH_CHECK(out_shape[axis] == depth, "Incompatible axis and depth values.");
+    return one_hot::evaluate_onehot(output_values, input_values, axis);
 }

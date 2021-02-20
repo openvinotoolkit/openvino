@@ -1493,37 +1493,6 @@ namespace
         }
         return true;
     }
-
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v1::OneHot>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using INPUT_TYPE = typename element_type_traits<ET>::value_type;
-        switch (inputs[0]->get_element_type())
-        {
-        case element::Type_t::i32:
-        case element::Type_t::i64:
-        {
-            auto axis = op->get_axis();
-            runtime::reference::one_hot<INPUT_TYPE>(inputs[0]->get_data_ptr<INPUT_TYPE>(),
-                                                    inputs[0]->get_shape(),
-                                                    outputs[0]->get_data_ptr<char>(),
-                                                    outputs[0]->get_shape(),
-                                                    outputs[0]->get_element_type().size(),
-                                                    axis,
-                                                    inputs[2]->get_data_ptr<char>(),
-                                                    inputs[3]->get_data_ptr<char>());
-            break;
-        }
-        default:
-            std::stringstream ss;
-            ss << "Unhandled input precision " << inputs[0]->get_element_type().get_type_name()
-               << " in v1::OneHot evaluate call";
-            throw ngraph_error(ss.str());
-        }
-        return true;
-    }
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::RNNCell>& op,
                   const HostTensorVector& outputs,
