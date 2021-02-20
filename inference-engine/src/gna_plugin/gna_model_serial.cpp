@@ -129,7 +129,7 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
                 }
                 case 5:
                 case 6:
-                    readNBytes(&header, sizeof(Header2dot5::ModelHeader), is);
+                    readNBytes(&header, sizeof(HeaderLatest::ModelHeader), is);
                     break;
                 default:
                     THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should have values in range 1 to 4 and is: " << header.version.minor;
@@ -293,14 +293,14 @@ void GNAModelSerial::Import(void *basePointer,
         if ( modelHeader.version.major == 2 ) {
             if ( modelHeader.version.minor < 6 ) {
                 readOffset(pSegment, basePointer, is);
-                uint32_t segmentSz;
+                uint32_t segmentSz = 0;
                 readBits(segmentSz, is);
                 if (pstates) {
-                    (*pstates)[i] = { pSegment, segmentSz, "noname", 1.0f};
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, "noname", 1.0f );
                 }
             } else {
                 readOffset(pSegment, basePointer, is);
-                uint32_t segmentSz;
+                uint32_t segmentSz = 0;
                 readBits(segmentSz, is);
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
@@ -309,7 +309,7 @@ void GNAModelSerial::Import(void *basePointer,
                 float scale_factor = 1.0f;
                 readBits(scale_factor, is);
                 if (pstates) {
-                    (*pstates)[i] = { pSegment, segmentSz, inName, scale_factor};
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor);
                 }
             }
         }
@@ -444,9 +444,9 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     writeBits(static_cast<uint32_t>(states.size()), os);
     for (auto && state : states) {
         void* gna_ptr = nullptr;
-        uint32_t reserved_size;
+        uint32_t reserved_size = 0;
         std::string name;
-        float scale_factor;
+        float scale_factor = 1.0f;
         std::tie(gna_ptr, reserved_size, name, scale_factor) = state;
         writeBits(offsetFromBase(gna_ptr), os);
         writeBits(reserved_size, os);
@@ -595,14 +595,14 @@ void GNAModelSerial::Import(void *basePointer,
         if ( modelHeader.version.major == 2 ) {
             if ( modelHeader.version.minor < 6 ) {
                 readOffset(pSegment, basePointer, is);
-                uint32_t segmentSz;
+                uint32_t segmentSz = 0;
                 readBits(segmentSz, is);
                 if (pstates) {
-                    (*pstates)[i] = { pSegment, segmentSz, "noname", 1.0f};
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, "noname", 1.0f);
                 }
             } else {
                 readOffset(pSegment, basePointer, is);
-                uint32_t segmentSz;
+                uint32_t segmentSz = 0;
                 readBits(segmentSz, is);
                 uint32_t nameSize = 0;
                 readNBits<32>(nameSize, is);
@@ -611,7 +611,7 @@ void GNAModelSerial::Import(void *basePointer,
                 float scale_factor = 1.0f;
                 readBits(scale_factor, is);
                 if (pstates) {
-                    (*pstates)[i] = { pSegment, segmentSz, inName, scale_factor};
+                    (*pstates)[i] = std::make_tuple( pSegment, segmentSz, inName, scale_factor );
                 }
             }
         }
@@ -761,9 +761,9 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     writeBits(static_cast<uint32_t>(states.size()), os);
     for (auto && state : states) {
         void* gna_ptr = nullptr;
-        uint32_t reserved_size;
+        uint32_t reserved_size = 0;
         std::string name;
-        float scale_factor;
+        float scale_factor = 1.0f;
         std::tie(gna_ptr, reserved_size, name, scale_factor) = state;
         writeBits(offsetFromBase(gna_ptr), os);
         writeBits(reserved_size, os);

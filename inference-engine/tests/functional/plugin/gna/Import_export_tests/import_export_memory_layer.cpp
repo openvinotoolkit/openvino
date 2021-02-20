@@ -71,6 +71,8 @@ public:
             ASSERT_TRUE(std::find(queryToState.begin(), queryToState.end(), next_memory.GetName()) != queryToState.end())
                                         << "State " << next_memory.GetName() << " expected to be in memory states but it is not!";
         }
+        InferenceEngine::InferRequest importInfer = importedNetwork.CreateInferRequest();
+        importInfer.Infer();
     }
 
 protected:
