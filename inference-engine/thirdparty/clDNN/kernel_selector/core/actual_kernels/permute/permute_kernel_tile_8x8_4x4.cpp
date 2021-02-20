@@ -23,7 +23,7 @@
 // Tile size : 4x4 or 8x8
 #define MIN_TILE_SIZE 4
 #define DEFAULT_TILE_SIZE 8
-#define VECTORWIDTH_SAME_AS_TILE_SIZE 1
+#define VEC_WIDTH_SAME_AS_TILE_SIZE 1
 
 namespace kernel_selector {
 
@@ -55,7 +55,7 @@ ParamsKey PermuteKernel_tile_8x8_4x4::GetSupportedKey() const {
 }
 static inline std::vector<std::string> GetTiledFusedOpOrderVector(size_t size) {
     std::vector<std::string> res;
-#if VECTORWIDTH_SAME_AS_TILE_SIZE
+#if VEC_WIDTH_SAME_AS_TILE_SIZE
     switch (size) {
         case 4 :
             res = {"b", "y", "(x * TILE_SIZE + i)", "(f * TILE_SIZE + lh)"};
@@ -71,13 +71,13 @@ static inline std::vector<std::string> GetTiledFusedOpOrderVector(size_t size) {
 #else
     switch (size) {
         case 4 :
-            res = {"b", "y", "(x * TILE_SIZE + lw * VECTORWIDTH + i)", "(f * TILE_SIZE + lh)"};
+            res = {"b", "y", "(x * TILE_SIZE + lw * VEC_WIDTH + i)", "(f * TILE_SIZE + lh)"};
             break;
         case 5 :
-            res = {"b", "z", "y", "(x * TILE_SIZE + lw * VECTORWIDTH + i)", "(f * TILE_SIZE + lh)"};
+            res = {"b", "z", "y", "(x * TILE_SIZE + lw * VEC_WIDTH + i)", "(f * TILE_SIZE + lh)"};
             break;
         case 6 :
-            res = {"b", "w", "z", "y", "(x * TILE_SIZE + lw * VECTORWIDTH + i)", "(f * TILE_SIZE + lh)"};
+            res = {"b", "w", "z", "y", "(x * TILE_SIZE + lw * VEC_WIDTH + i)", "(f * TILE_SIZE + lh)"};
             break;
         default : throw std::runtime_error("Unsupported combination\n");
     }
@@ -88,7 +88,7 @@ static inline std::vector<std::string> GetTiledFusedOpOrderVector(size_t size) {
 
 static inline std::string GetTiledOutputOrder(size_t size) {
     std::string order_str = "";
-#if VECTORWIDTH_SAME_AS_TILE_SIZE
+#if VEC_WIDTH_SAME_AS_TILE_SIZE
     switch (size) {
         case 4 :
             order_str = "b, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
@@ -106,13 +106,13 @@ static inline std::string GetTiledOutputOrder(size_t size) {
 #else
     switch (size) {
         case 4 :
-            order_str = "b, y, (x * TILE_SIZE + lh), (f * TILE_SIZE + lw * VECTORWIDTH)";
+            order_str = "b, y, (x * TILE_SIZE + lh), (f * TILE_SIZE + lw * VEC_WIDTH)";
             break;
         case 5 :
-            order_str = "b, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE + lw * VECTORWIDTH)";
+            order_str = "b, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE + lw * VEC_WIDTH)";
             break;
         case 6 :
-            order_str = "b, w, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE + lw * VECTORWIDTH)";
+            order_str = "b, w, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE + lw * VEC_WIDTH)";
             break;
         default : throw std::runtime_error("Unsupported combination\n");
     }
@@ -123,7 +123,7 @@ static inline std::string GetTiledOutputOrder(size_t size) {
 static inline std::string GetTiledInputOrder(size_t size) {
     std::string order_str = "";
 
-#if VECTORWIDTH_SAME_AS_TILE_SIZE
+#if VEC_WIDTH_SAME_AS_TILE_SIZE
     switch (size) {
         case 4 :
             order_str = "b, (f * TILE_SIZE + lh), y, (x * TILE_SIZE)";
@@ -139,13 +139,13 @@ static inline std::string GetTiledInputOrder(size_t size) {
 #else
     switch (size) {
         case 4 :
-            order_str = "b, (f * TILE_SIZE + lh), y, (x * TILE_SIZE + lw * VECTORWIDTH)";
+            order_str = "b, (f * TILE_SIZE + lh), y, (x * TILE_SIZE + lw * VEC_WIDTH)";
             break;
         case 5 :
-            order_str = "b, (f * TILE_SIZE + lh), z, y, (x * TILE_SIZE + lw * VECTORWIDTH)";
+            order_str = "b, (f * TILE_SIZE + lh), z, y, (x * TILE_SIZE + lw * VEC_WIDTH)";
             break;
         case 6 :
-            order_str = "b, (f * TILE_SIZE + lh), w, z, y, (x * TILE_SIZE + lw * VECTORWIDTH)";
+            order_str = "b, (f * TILE_SIZE + lh), w, z, y, (x * TILE_SIZE + lw * VEC_WIDTH)";
             break;
         default : throw std::runtime_error("Unsupported combination\n");
     }
@@ -157,13 +157,13 @@ static inline std::string GetTiledInputOrder(size_t size) {
 JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& params, const CommonDispatchData& dispatchData, const size_t tile_size) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-#if VECTORWIDTH_SAME_AS_TILE_SIZE
+#if VEC_WIDTH_SAME_AS_TILE_SIZE
     size_t vector_width = tile_size;
 #endif
     // Note: this is default mode and different vector width is not being used now.
     uint64_t total_lws = dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2];
-    jit.AddConstant(MakeJitConstant("VECTORWIDTH", vector_width));
-    jit.AddConstant(MakeJitConstant("VECTORWIDTH_SAME_AS_TILE_SIZE", 1));
+    jit.AddConstant(MakeJitConstant("VEC_WIDTH", vector_width));
+    jit.AddConstant(MakeJitConstant("VEC_WIDTH_SAME_AS_TILE_SIZE", 1));
     jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(params.inputs[0].GetDims().size())));
     jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(params.output.GetDims().size())));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
@@ -195,10 +195,10 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     jit.AddConstant(MakeJitConstant("NORMAL_TILE_CONDITION", normal_tile_cond));
     jit.AddConstant(MakeJitConstant("X_REMAINDER_CONDITION", x_remainder_cond));
     jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", f_remainder_cond));
-    jit.AddConstant(MakeJitConstant("INPUTVTYPE", "CAT(INPUT0_TYPE, VECTORWIDTH)"));
-    jit.AddConstant(MakeJitConstant("OUTPUTVTYPE", "CAT(OUTPUT_TYPE, VECTORWIDTH)"));
-    jit.AddConstant(MakeJitConstant("VLOAD", "CAT(vload, VECTORWIDTH)"));
-    jit.AddConstant(MakeJitConstant("VSTORE", "CAT(vstore, VECTORWIDTH)"));
+    jit.AddConstant(MakeJitConstant("INPUTVTYPE", "CAT(INPUT0_TYPE, VEC_WIDTH)"));
+    jit.AddConstant(MakeJitConstant("OUTPUTVTYPE", "CAT(OUTPUT_TYPE, VEC_WIDTH)"));
+    jit.AddConstant(MakeJitConstant("VLOAD", "CAT(vload, VEC_WIDTH)"));
+    jit.AddConstant(MakeJitConstant("VSTORE", "CAT(vstore, VEC_WIDTH)"));
     jit.AddConstant(MakeJitConstant("AS_INPUTVTYPE", "CAT(as_, INPUTVTYPE)"));
     jit.AddConstant(MakeJitConstant("AS_OUTPUTVTYPE", "CAT(as_, OUTPUTVTYPE)"));
     jit.AddConstant(MakeJitConstant("LOCAL_BUF_STRIDE", (tile_size / vector_width) * tile_size));
@@ -212,14 +212,13 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     return jit;
 }
 
-static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const std::vector<size_t>& gws, const size_t tile_size)
-{
+static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const std::vector<size_t>& gws, const size_t tile_size) {
     std::vector<size_t> lws{1, 1, 1};
     std::vector<size_t> dims{0, 2, 1};
 
     // SLM size: elemsize * tile_size * tile_size * work_items <= 64K
     size_t elem_size = sizeof(params.output.GetDType());
-    size_t max_local_mem_size = 64 * 1024;
+    size_t max_local_mem_size = params.engineInfo.maxLocalMemSize;
     size_t max_num_work_items = std::min((size_t)256, (size_t)max_local_mem_size / (elem_size * tile_size * tile_size));
 
     for (size_t i = 0; i < dims.size(); ++i) {
@@ -267,15 +266,33 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& 
 }
 
 bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p, const optional_params& o) const {
+    std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
+        // Target transform: Rotate feature dim to back to be taken as inner-most axis
+        // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
+        if ((int32_t) order[1] != order.size() - 1) return false;
+        for (int32_t i = 3; i < (int32_t) order.size(); ++i) {
+            if ((int32_t)order[i] !=  (i - 1)) return false;
+        }
+        return true;
+    };
+
     if (p.GetType() != KernelType::PERMUTE || o.GetType() != KernelType::PERMUTE) {
         return false;
     }
 
     const permute_params& params = static_cast<const permute_params&>(p);
 
+    if (!is_rotating_except_batch(params.order)) {
+        return false;
+    }
+
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             return false;
+    }
+
+    if (params.inputs[0].GetDims().size() != params.output.GetDims().size()) {
+        return false;
     }
 
     if (params.output.PitchesDifferFromLogicalDims() || params.inputs[0].PitchesDifferFromLogicalDims()) {
@@ -308,23 +325,15 @@ KernelsData PermuteKernel_tile_8x8_4x4::GetKernelsData(const Params& params, con
 }
 
 KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& params/*params*/, const optional_params& /*options*/) const {
-
-    std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
-        // Target transform: Rotate feature dim to back to be taken as inner-most axis
-        // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
-        if ((int32_t) order[1] != order.size() - 1) return false;
-        for (int32_t i = 3; i < (int32_t) order.size(); ++i) {
-            if ((int32_t)order[i] !=  (i - 1)) return false;
-        }
-        return true;
-    };
-
     KernelData kd = KernelData::Default<permute_params>(params);
     permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
 
-    if (is_rotating_except_batch(newParams.order) && (newParams.inputs[0].Feature().v > MIN_TILE_SIZE) && (newParams.inputs[0].X().v > MIN_TILE_SIZE)) {
+    if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) && (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
         return FORCE_PRIORITY_1;
-    } else
-        return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    } else if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) || (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
+        return FORCE_PRIORITY_2;
+    } else {
+        return FORCE_PRIORITY_3;
+    }
 }
 }  // namespace kernel_selector
