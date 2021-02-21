@@ -120,6 +120,11 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
             }
         }
 
+        // avoid division by zero
+        if (!std::all_of(valueVec.cbegin(), valueVec.cend(), [](const float value) { return !(value == 0.f || std::abs(value) < 1.e-32); })) {
+            return nullptr;
+        }
+
         inputLowConst_f32 = fq::updateShape(fold<opset1::Divide>(inputLowConst_f32, value), fakeQuantize->get_output_shape(0));
         inputHightConst_f32 = fq::updateShape(fold<opset1::Divide>(inputHightConst_f32, value), fakeQuantize->get_output_shape(0));
     } else if (is_type<opset1::Divide>(eltwise) && checkElementwise(eltwise)) {
