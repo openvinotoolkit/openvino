@@ -318,6 +318,28 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
+    // multiply by zero
+    {
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            {},
+            element::u8,
+            { {element::f32}, { {-128, -128, -128} }, { {0.01f, 0.f, 0.01f} } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::u8,
+            { {element::f32}, { {-128, -128, -128} }, { {0.01f, 0.f, 0.01f} } },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(

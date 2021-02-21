@@ -4,6 +4,7 @@
 
 #include "low_precision/fake_quantize.hpp"
 
+#include <cmath>
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
 
@@ -128,6 +129,11 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
             if (val < 0) {
                 return nullptr;
             }
+        }
+
+        // avoid division by zero
+        if (std::any_of(valueVec.cbegin(), valueVec.cend(), [](const float value) { return (value == 0.f) || (std::abs(value) < 1.e-32); })) {
+            return nullptr;
         }
 
         inputLowConst_f32 = fq::updateShape(fold<opset1::Divide>(inputLowConst_f32, value), fakeQuantize->get_output_shape(0));
