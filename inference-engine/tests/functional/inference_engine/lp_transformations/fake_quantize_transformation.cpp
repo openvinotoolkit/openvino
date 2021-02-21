@@ -109,7 +109,7 @@ TEST_P(FakeQuantizeTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    ngraph::element::i32,
+    //ngraph::element::i32,
     ngraph::element::f16
 };
 

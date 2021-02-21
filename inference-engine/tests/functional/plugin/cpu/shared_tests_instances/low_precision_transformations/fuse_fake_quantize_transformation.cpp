@@ -64,6 +64,19 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
+    // issue #40611 for FP32
+    {
+        ngraph::Shape{1, 3, 16, 16},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        {
+            { },
+            { },
+            ngraph::element::i32,
+            { {ngraph::element::f32}, {}, {} },
+            ngraph::element::f32,
+            { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } }
+        }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseFakeQuantizeTransformation,
