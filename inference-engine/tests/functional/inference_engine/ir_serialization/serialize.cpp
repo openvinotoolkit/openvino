@@ -43,11 +43,7 @@ TEST_P(SerializationTest, CompareFunctions) {
     InferenceEngine::Core ie;
     InferenceEngine::CNNNetwork expected;
 
-    if (!m_binary_path.empty()) {
-        expected = ie.ReadNetwork(m_model_path, m_binary_path);
-    } else {
-        expected = ie.ReadNetwork(m_model_path);
-    }
+    expected = ie.ReadNetwork(m_model_path, m_binary_path);
     expected.serialize(m_out_xml_path, m_out_bin_path);
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 

@@ -37,13 +37,7 @@ bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
 
-    for (const auto& output_description : m_output_descriptions)
-    {
-        if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description))
-        {
-            m_num_iterations = ((std::abs(concat->m_end - concat->m_start)) / concat->m_part_size);
-        }
-    }
+    set_num_iteratrions_if_no_slice_inputs(); // TODO can be move to validate_and_infer_types
 
     return true;
 }
@@ -213,6 +207,8 @@ void op::v0::TensorIterator::validate_and_infer_types()
                     out_shape = Shape(1);
                 }
 
+                /// when reading from IR set_num_iteratrions_if_no_slice_inputs have to be
+                /// called before this check
                 if (m_num_iterations != -1)
                 {
                     // for simple RNN case where stride is the same as part_size
@@ -242,6 +238,35 @@ void op::v0::TensorIterator::validate_and_infer_types()
 std::shared_ptr<Function> op::v0::TensorIterator::get_function()
 {
     return get_body();
+}
+
+namespace
+{
+    template <typename Desc>
+    bool has_slice_input_desc(const Desc& desc)
+    {
+        const auto is_slice_input_desc = +[](typename Desc::const_reference d) {
+            return is_type<op::util::SubGraphOp::SliceInputDescription>(d);
+        };
+        return std::any_of(begin(desc), end(desc), is_slice_input_desc);
+    }
+} // namespace
+
+void op::v0::TensorIterator::set_num_iteratrions_if_no_slice_inputs()
+{
+    if (m_num_iterations != -1 || has_slice_input_desc(get_input_descriptions()))
+    {
+        return;
+    }
+
+    for (const auto& output_description : m_output_descriptions)
+    {
+        if (auto concat = as_type_ptr<ConcatOutputDescription>(output_description))
+        {
+            m_num_iterations = ((std::abs(concat->m_end - concat->m_start)) / concat->m_part_size);
+            break;
+        }
+    }
 }
 
 std::shared_ptr<Node>
