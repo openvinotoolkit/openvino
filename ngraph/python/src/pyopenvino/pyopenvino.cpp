@@ -14,8 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-//#include <pybind11/pybind11.h>
-#include "../../pybind11/include/pybind11/pybind11.h"
+#include <pybind11/pybind11.h>
 #include "inference_engine/ie_blob.hpp"
 #include "inference_engine/ie_core.hpp"
 #include "inference_engine/ie_executable_network.hpp"

@@ -17,7 +17,6 @@
 #include <ie_data.h>
 
 #include "pyopenvino/inference_engine/ie_data.hpp"
-#include "../../../pybind11/include/pybind11/pybind11.h"
 #include "common.hpp"
 #include <pybind11/stl.h>
 

@@ -35,6 +35,7 @@ debug_optimization_flags = [
     "O1", "O2", "O3", "O4", "Ofast", "Os", "Oz", "Og", "O", "DNDEBUG"
 ]
 
+NGRAPH_LIBS = ["ngraph", "onnx_importer", "inference_engine"]
 
 def find_ngraph_dist_dir():
     """Return location of compiled ngraph library home."""
@@ -258,82 +259,71 @@ packages = [
     "openvino.inference_engine"
 ]
 
-include_dirs = [PYNGRAPH_SRC_DIR, NGRAPH_CPP_INCLUDE_DIR, IE_CPP_INCLUDE_DIR, PYBIND11_INCLUDE_DIR]
 
 IE_CPP_LIBRARY_DIR = os.path.join(OPENVINO_DIST_PATH, "deployment_tools", "inference_engine", "lib", "intel64")
 
 library_dirs = [NGRAPH_CPP_LIBRARY_DIR, IE_CPP_LIBRARY_DIR]
 
-extra_compile_args = []
-extra_link_args = []
+cmdclass = {}
+for super_class in [_build, _install, _develop]:
+    class command(super_class):
+        """Add user options for build, install and develop commands."""
 
-data_files = [
-    (
-        "lib",
-        [
-            os.path.join(NGRAPH_CPP_LIBRARY_DIR, library)
-            for library in os.listdir(NGRAPH_CPP_LIBRARY_DIR)
-            if os.path.isfile(os.path.join(NGRAPH_CPP_LIBRARY_DIR, library))
-        ],
-    ),
-]
+        cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
+        user_options = super_class.user_options + [
+            ("config=", None, "Build configuration [{}].".format("|".join(cmake_build_types))),
+            ("jobs=", None, "Specifies the number of jobs to use with make."),
+            ("cmake-args=", None, "Additional options to be passed to CMake.")
+        ]
+        def initialize_options(self):
+            """Set default values for all the options that this command supports."""
+            super().initialize_options()
+            self.config = None
+            self.jobs = None
+            self.cmake_args = None
 
-print("NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME", NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME)
-
-ext_modules = [
-    Extension(
-        "_pyngraph",
-        sources=sources,
-        include_dirs=include_dirs,
-        define_macros=[("VERSION_INFO", __version__)],
-        library_dirs=library_dirs,
-        libraries=[NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME],
-        extra_compile_args=extra_compile_args,
-        extra_link_args=extra_link_args,
-        language="c++",
-    ),
-    Extension(
-        "openvino.pyopenvino",
-        sources=pyopenvino_sources,
-        include_dirs=include_dirs,
-        library_dirs=library_dirs,
-        libraries=["inference_engine"],
-        extra_compile_args=extra_compile_args,
-        extra_link_args=extra_link_args,
-        language="c++",
-    ),
-]
+    cmdclass[super_class.__name__] = command
 
 
-def add_platform_specific_link_args(link_args):
-    """Add linker flags specific for the OS detected during the build."""
-    if sys.platform.startswith("linux"):
-        link_args += ["-Wl,-rpath,$ORIGIN/../.."]
-        link_args += ["-z", "noexecstack"]
-        link_args += ["-z", "relro"]
-        link_args += ["-z", "now"]
-    elif sys.platform == "darwin":
-        link_args += ["-Wl,-rpath,@loader_path/../.."]
-        link_args += ["-stdlib=libc++"]
-    elif sys.platform == "win32":
-        link_args += ["/LTCG"]
+class CMakeExtension(Extension):
+    """Build extension stub."""
+
+    def __init__(self, name, sources=None):
+        if sources is None:
+            sources = []
+        super().__init__(name=name, sources=sources)
 
 
-class BuildExt(build_ext):
-    """A custom build extension for adding compiler-specific options."""
+class BuildCMakeExt(build_ext):
+    """Builds module using cmake instead of the python setuptools implicit build."""
 
-    def _add_extra_compile_arg(self, flag, compile_args):
-        """Return True if successfully added given flag to compiler args."""
-        if has_flag(self.compiler, flag):
-            compile_args += [flag]
-            return True
-        return False
+    cmake_build_types = ["Release", "Debug", "RelWithDebInfo", "MinSizeRel"]
+    user_options = [
+        ("config=", None, "Build configuration [{}].".format("|".join(cmake_build_types))),
+        ("jobs=", None, "Specifies the number of jobs to use with make."),
+        ("cmake-args=", None, "Additional options to be passed to CMake.")
+    ]
 
-    def _add_debug_or_release_flags(self):
-        """Return compiler flags for Release and Debug build types."""
-        if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-            if sys.platform == "win32":
-                return ["/Od", "/Zi", "/RTC1"]
+    def initialize_options(self):
+        """Set default values for all the options that this command supports."""
+        super().initialize_options()
+        self.build_base = "build"
+        self.config = None
+        self.jobs = None
+        self.cmake_args = None
+
+    def finalize_options(self):
+        """Set final values for all the options that this command supports."""
+        super().finalize_options()
+
+        for cmd in ["build", "install", "develop"]:
+            self.set_undefined_options(cmd, ("config", "config"),
+                                       ("jobs", "jobs"),
+                                       ("cmake_args", "cmake_args"))
+
+        if not self.config:
+            if self.debug:
+                self.config = "Debug"
             else:
                 return ["-O0", "-g"]
         else:
