@@ -19,8 +19,6 @@
 #include <ie_layouts.h>
 #include <ie_precision.hpp>
 
-#include <pybind11/stl.h>
-#include "../../../pybind11/include/pybind11/pybind11.h"
 #include "ie_blob.h"
 #include "pyopenvino/inference_engine/ie_blob.hpp"
 #include "pyopenvino/inference_engine/tensor_description.hpp"

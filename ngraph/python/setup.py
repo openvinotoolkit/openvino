@@ -36,7 +36,7 @@ OPENVINO_ROOT_DIR = os.path.normpath(os.path.join(PYNGRAPH_ROOT_DIR, "../.."))
 # Change current working dircectory to ngraph/python
 os.chdir(PYNGRAPH_ROOT_DIR)
 
-NGRAPH_LIBS = ["ngraph", "onnx_importer"]
+NGRAPH_LIBS = ["ngraph", "onnx_importer", "inference_engine"]
 
 packages = [
     "ngraph",
