@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright 2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,6 +32,12 @@ namespace ngraph
                     return (uint8_t)((val >> bit) & 0x0001);
                 }
 
+                template <typename T>
+                inline bool xnor(T a, T b)
+                {
+                    return a == b;
+                }
+
                 template <typename T_IN, typename T_F>
                 void binary_convolve_3D_channels(const ConvolutionParams& p,
                                                  const T_IN* batch,
@@ -59,6 +65,7 @@ namespace ngraph
                     const size_t input_channel_size = shape_size(input_channel_shape);
                     const Shape filter_channel_shape(++filter_shape.begin(), filter_shape.end());
                     const size_t filter_channel_size = shape_size(filter_channel_shape);
+                    const T_IN bit_count = static_cast<T_IN>(filter_channel_size);
 
                     for (int i_z = -p.pads_begin[0];
                          i_z <= (p.pads_end[0] + input_size_z - dilated_filter_size_z);
@@ -74,7 +81,7 @@ namespace ngraph
                             {
                                 auto input_channel = batch;
                                 auto filter_channel = filter;
-                                T_IN sum = 0;
+                                T_IN popcount = 0;
                                 size_t filter_channels_count = filter_shape[0];
                                 while (filter_channels_count--)
                                 {
@@ -109,9 +116,9 @@ namespace ngraph
                                                     filter_channel[f_buf_idx / n_bits],
                                                     (n_bits - 1) - (f_buf_idx % n_bits));
 
-                                                if (in_val == static_cast<T_IN>(f_val))
+                                                if (xnor(in_val, static_cast<T_IN>(f_val)))
                                                 {
-                                                    sum += static_cast<T_IN>(1);
+                                                    popcount += static_cast<T_IN>(1);
                                                 }
                                             }
                                         }
@@ -119,25 +126,20 @@ namespace ngraph
                                     input_channel += input_channel_size;
                                     filter_channel += filter_channel_size;
                                 }
-                                *out = (2 * sum - static_cast<T_IN>(filter_channel_size));
+                                *out = (2 * popcount - bit_count);
                                 ++out;
                             }
                         }
                     }
                 }
             }
-            template <typename T_IN, typename T_F>
-            void binary_convolution(const T_IN* in,
-                                    const T_F* f,
-                                    T_IN* out,
-                                    const Shape& in_shape,
-                                    const Shape& f_shape,
-                                    const Shape& out_shape,
-                                    const Strides& strides,
-                                    const Strides& dilations,
-                                    const CoordinateDiff& pads_begin,
-                                    const CoordinateDiff& pads_end,
-                                    const float pad_value)
+
+            void validate_convolution_parameters(const Shape& in_shape,
+                                                 const Shape& f_shape,
+                                                 const Strides& strides,
+                                                 const Strides& dilations,
+                                                 const CoordinateDiff& pads_begin,
+                                                 const CoordinateDiff& pads_end)
             {
                 // this implementation supports 1D, 2D and 3D convolutions
                 NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
@@ -160,6 +162,23 @@ namespace ngraph
                 NGRAPH_CHECK((pads_begin.size() == pads_end.size()) &&
                                  (pads_begin.size() == spatial_dims),
                              "Pads not defined for all and only spatial dimensions");
+            }
+
+            template <typename T_IN, typename T_F>
+            void binary_convolution(const T_IN* in,
+                                    const T_F* f,
+                                    T_IN* out,
+                                    const Shape& in_shape,
+                                    const Shape& f_shape,
+                                    const Shape& out_shape,
+                                    const Strides& strides,
+                                    const Strides& dilations,
+                                    const CoordinateDiff& pads_begin,
+                                    const CoordinateDiff& pads_end,
+                                    const float pad_value)
+            {
+                validate_convolution_parameters(
+                    in_shape, f_shape, strides, dilations, pads_begin, pads_end);
 
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later
