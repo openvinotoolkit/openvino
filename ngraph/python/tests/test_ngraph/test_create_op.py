@@ -35,6 +35,7 @@ integral_np_types = [
     np.uint64,
 ]
 
+
 def test_binary_convolution():
     strides = np.array([1, 1])
     pads_begin = np.array([0, 0])
