@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2021 Intel Corporation
+// Copyright 2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -103,47 +103,6 @@ static void ConvolutionTest(const std::vector<T_IN>& inputs,
 }
 
 // clang-format off
-// --------------------- 1D convolution ------------------------------------------
-NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_1D_1batch_1channel_no_padding)
-{
-    const Strides strides{1};
-    const CoordinateDiff padding{0};
-    const Strides dilations{1};
-
-    const Shape inputs_shape{1, 1, 5};
-    const std::vector<float> inputs_conv{1.0f, -1.0f, -1.0f, 1.0f, -1.0f};
-    const std::vector<float> inputs_bin_conv{1.0f, 0.0f, 0.0f, 1.0f, 0.0f};
-
-    const Shape filters_shape{1, 1, 3};
-    const std::vector<float> filters_conv{1.0f, -1.0f, 1.0f};
-    const std::vector<uint8_t> filters_bin_conv{160}; // filters 1D: {1.0f, 0.0f, 1.0f}
-
-    const Shape outputs_shape{1, 1, 3};
-    const std::vector<float> outputs{1.0f, 1.0f, -3.0f};
-
-    BinaryConvolutionTest(
-        inputs_bin_conv,
-        inputs_shape,
-        filters_bin_conv,
-        filters_shape,
-        outputs,
-        outputs_shape,
-        strides,
-        padding,
-        dilations);
-
-    ConvolutionTest(
-        inputs_conv,
-        inputs_shape,
-        filters_conv,
-        filters_shape,
-        outputs,
-        outputs_shape,
-        strides,
-        padding,
-        dilations);
-}
-
 // --------------------- 2D convolution ------------------------------------------
 NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_1batch_1channel_no_padding)
 {
@@ -167,14 +126,11 @@ NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_1batch_1channel_no_padding)
                                           -1.0f, 1.0f, -1.0f,
                                           1.0f, -1.0f, 1.0f};
 
-    //BinaryConvolution filters 2D:      {1.0f, 0.0f, 1.0f,
-    //                                    0.0f, 1.0f, 0.0f,
-    //                                    1.0f, 0.0f, 1.0f};
-    const std::vector<uint8_t> filters_bin_conv{170, 128};
+    const std::vector<uint8_t> filters_bin_conv{0xAA, 0x80}; // 10101010 10000000
 
     const Shape outputs_shape{1, 1, 2, 2};
     const std::vector<float> outputs{1.0f, 1.0f,
-                                    3.0f, -1.0f};
+                                     3.0f, -1.0f};
 
     BinaryConvolutionTest(
         inputs_bin_conv,

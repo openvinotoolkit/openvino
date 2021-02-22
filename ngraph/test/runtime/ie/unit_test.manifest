@@ -1609,8 +1609,5 @@ evaluate_mvn_6_across_chanells
 evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
 
-# CPU plugin only supports 2D
-bin_convolution_1D_1batch_1channel_no_padding
-
-# Incorrect blob sizes for node BinaryConvolution_X
+# Issue 49621: Incorrect blob sizes for node BinaryConvolution_X
 bin_convolution_2D_1batch_1channel_no_padding
