@@ -59,33 +59,16 @@ void regclass_InferRequest(py::module m)
     cls.def(
         "set_completion_callback",
         &InferenceEngine::InferRequest::SetCompletionCallback<std::function<void(
-            InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>); // py::object and cast
-                                                                            // to std::function?
-
-    cls.def("infer", [](InferenceEngine::InferRequest& self) {
-        // TODO: add InferenceEngine::ResponseDesc response and IE_CHECK_CALL
-        // self.start_time = std::chrono::high_resolution_clock::now();
-        self.Infer();
-        // self.end_time = std::chrono::high_resolution_clock::now();
-    });
-    // &PyInferRequest::InferRequest::Infer);
-    cls.def("async_infer", [](InferenceEngine::InferRequest& self) {
-        // TODO: add InferenceEngine::ResponseDesc response and IE_CHECK_CALL
-        // self.start_time = std::chrono::high_resolution_clock::now();
-        self.StartAsync();
-    });
-    // &PyInferRequest::InferRequest::StartAsync);
+            InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>);
+    cls.def("infer", &InferenceEngine::InferRequest::Infer);
+    cls.def("async_infer",
+            &InferenceEngine::InferRequest::StartAsync,
+            py::call_guard<py::gil_scoped_release>());
     cls.def("wait",
             &InferenceEngine::InferRequest::Wait,
-            py::arg("millis_timeout") = InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
+            py::arg("millis_timeout") = InferenceEngine::IInferRequest::WaitMode::RESULT_READY,
+            py::call_guard<py::gil_scoped_acquire>());
 
-    // Same as old latency
-    // cls.def("get_execution_time", [](PyInferRequest::InferRequest& self) {
-    //     auto _time = static_cast<double>(
-    //         std::chrono::duration_cast<std::chrono::nanoseconds>(self.end_time - self.start_time)
-    //             .count());
-    //     return _time * 0.000001;
-    // });
     //    cls.def_property_readonly("input_blobs", [](){
     //
     //    });
