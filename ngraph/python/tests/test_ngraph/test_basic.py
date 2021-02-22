@@ -231,6 +231,11 @@ def test_constant_get_data_bool():
     assert np.allclose(input_data, retrieved_data)
 
 
+def test_parameter_u1():
+    node = ng.parameter([2, 2], name="data", dtype=ng.utils.types.u1)
+    assert node.get_output_element_type(0) == Type.u1
+
+
 @pytest.mark.parametrize("data_type", [np.float32, np.float64])
 def test_constant_get_data_floating_point(data_type):
     np.random.seed(133391)
