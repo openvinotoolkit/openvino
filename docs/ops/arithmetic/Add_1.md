@@ -22,7 +22,7 @@ o_{i} = a_{i} + b_{i}
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
     * *none* - no auto-broadcasting is allowed, all input shapes must match
-    * *numpy* - numpy broadcasting rules, description is available in <a href="https://github.com/openvinotoolkit/openvino/blob/master/docs/ops/movement/Broadcast_1.md">Broadcast op</a>.
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast_1](../movement/Broadcast_1.md).
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
