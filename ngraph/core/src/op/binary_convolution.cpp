@@ -80,7 +80,9 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
     element::Type filters_et = get_input_element_type(1);
 
     NGRAPH_CHECK(filters_et == element::Type_t::u1,
-                "Filters u1 element type is required, got (", filters_et, ")");
+                 "Filters u1 element type is required, got (",
+                 filters_et,
+                 ")");
 
     PartialShape result_shape = PartialShape::dynamic();
     if (data_batch_shape.rank().is_static())
