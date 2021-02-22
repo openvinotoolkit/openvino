@@ -9,6 +9,8 @@ import time
 import re
 import logging
 import requests
+from retrying import retry
+
 
 from ms_teams_communicator import MSTeamsCommunicator
 from jenkins_wrapper import JenkinsWrapper
@@ -138,6 +140,7 @@ class Watchdog:
             data = {_PR_REPORTS_CONFIG_KEY: {}}
         return data
 
+    @retry(wait_fixed=10000, stop_max_delay=600000)
     def _check_pr(self, pr):
         """Check pull request (if there's no reason to skip).
 
@@ -259,6 +262,7 @@ class Watchdog:
         else:
             return False
 
+    @retry(wait_fixed=10000, stop_max_delay=600000)
     def _check_missing_status(self, pr):
         """Verify if missing status is expected.
 
@@ -377,7 +381,9 @@ class Watchdog:
         :type status:               github.CommitStatus.CommitStatus
         :type pr:                   github.PullRequest.PullRequest
         """
-        try:
+
+        @retry(wait_fixed=10000, stop_max_delay=600000)
+        def check_statuses():
             # Retrieve build number for Jenkins build related to this PR
             build_number = self._retrieve_build_number(status.target_url)
             # CI build finished - verify if expected output is present
@@ -400,6 +406,8 @@ class Watchdog:
             else:
                 message = 'ONNX CI job for PR# {}: unrecognized status: {}'.format(pr.number, status.description)
                 self._queue_message(message, message_severity='error', pr=pr)
+        try:
+            check_statuses()
         except Exception:
             # Log Watchdog internal error in case any status can't be properly verified
             message = 'Failed to verify status "{}" for PR# {}'.format(status.description, pr.number)
