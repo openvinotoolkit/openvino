@@ -35,9 +35,7 @@ integral_np_types = [
     np.uint64,
 ]
 
-
-@pytest.mark.parametrize("dtype", np_types)
-def test_binary_convolution(dtype):
+def test_binary_convolution():
     strides = np.array([1, 1])
     pads_begin = np.array([0, 0])
     pads_end = np.array([0, 0])
@@ -49,8 +47,8 @@ def test_binary_convolution(dtype):
     input1_shape = [1, 1, 3, 3]
     expected_shape = [1, 1, 7, 7]
 
-    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=dtype)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
+    parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=np.float32)
+    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=ng.utils.types.u1)
 
     node = ng.binary_convolution(
         parameter_input0, parameter_input1, strides, pads_begin, pads_end, dilations, mode, pad_value,
