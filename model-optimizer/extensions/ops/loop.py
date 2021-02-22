@@ -406,7 +406,8 @@ class Loop(TensorIterator):
                     new_port_id += 1
 
             for port_idx_to_remove in reversed(range(new_port_id, max_port_id + 1)):
-                loop_node.delete_input_port(port_idx_to_remove)
+                if port_idx_to_remove in loop_node.in_ports().keys():
+                    loop_node.delete_input_port(port_idx_to_remove)
 
     @staticmethod
     def re_numerate_output_ports(loop_node: Node):
