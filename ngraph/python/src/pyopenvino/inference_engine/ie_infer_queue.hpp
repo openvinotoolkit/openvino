@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +18,27 @@
 
 #include <pybind11/pybind11.h>
 
-#include <chrono>
-
-#include <cpp/ie_infer_request.hpp>
-
 namespace py = pybind11;
 
-void regclass_InferRequest(py::module m);
+class InferQueue
+{
+public:
+    explicit InferQueue(InferenceEngine::ExecutableNetwork& net, size_t id, QueueCallbackFunction callbackQueue) :
+        _request(net.CreateInferRequest()),
+        _id(id),
+        _callbackQueue(callbackQueue) {
+        _request.SetCompletionCallback(
+                [&]() {
+                    _endTime = Time::now();
+                    _callbackQueue(_id, getExecutionTimeInMilliseconds());
+                });
+    }
+
+    void infer(size_t id, py::dict data);
+    void start();
+    void set_infer_callback();
+
+private:
+}
+
+void regclass_InferQueue(py::module m);
