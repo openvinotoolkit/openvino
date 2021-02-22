@@ -211,6 +211,7 @@ TEST(type_prop, binary_conv_v1_invalid_inputs_et)
         FAIL() << "Data batch element type validation check failed for unexpected reason";
     }
     // TODO: Add test with check filters element type once u1 is supported in nGraph Python API
+    // (#49517)
 }
 
 TEST(type_prop, binary_conv_v1_incompatible_input_channels)
