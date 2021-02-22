@@ -50,7 +50,6 @@ KernelsData LSTMGemmKernelBase::GetCommonKernelsData(const Params& params, const
 
     KernelData kd = KernelData::Default<lstm_gemm_params>(params, orgParams.inputs.size());
 
-    float efficiency = FORCE_PRIORITY_9;
     const auto& input = orgParams.inputs[0];
 
     auto newParams = orgParams;
@@ -75,8 +74,6 @@ KernelsData LSTMGemmKernelBase::GetCommonKernelsData(const Params& params, const
     if (orgParams.hasBias) {
         kernel.arguments.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }
-
-    kd.estimatedTime = efficiency;
 
     return {kd};
 }

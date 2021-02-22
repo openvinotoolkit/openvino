@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,8 +8,8 @@
 #include <ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "mkldnn_debug.h"
-#include "generic_ie.hpp"
 #include <ngraph/variant.hpp>
+#include "ngraph/ngraph.hpp"
 
 #include <vector>
 #include <string>
@@ -136,7 +136,6 @@ InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph
         holder->add_control_dependency(node);
     }
 
-    ngraph::op::GenericIE::DisableReshape reshape(nodes);
     auto function = std::make_shared<ngraph::Function>(results, params, graph._name);
     InferenceEngine::CNNNetwork net(function);
     return net;
@@ -250,13 +249,15 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
     serialization_info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
 
     std::string outputLayoutsStr;
-    auto outLayouts = node->getSelectedPrimitiveDescriptor()->getOutputLayouts();
-    if (!outLayouts.empty()) {
-        outputLayoutsStr = mkldnn_fmt2str(static_cast<mkldnn_memory_format_t>(outLayouts[0]));
+    auto outDescs = node->getSelectedPrimitiveDescriptor()->getConfig().outConfs;
+
+    if (!outDescs.empty()) {
+        auto fmt0 = MKLDNNMemoryDesc(outDescs[0].desc).getFormat();
+        outputLayoutsStr = mkldnn::utils::fmt2str(fmt0);
 
         bool isAllEqual = true;
-        for (size_t i = 1; i < outLayouts.size(); i++) {
-            if (outLayouts[i - 1] != outLayouts[i]) {
+        for (size_t i = 1; i < outDescs.size(); i++) {
+            if (MKLDNNMemoryDesc(outDescs[i - 1].desc).getFormat() != MKLDNNMemoryDesc(outDescs[i].desc).getFormat()) {
                 isAllEqual = false;
                 break;
             }
@@ -264,11 +265,13 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
 
         // If all output layouts are the same, we store the name only once
         if (!isAllEqual) {
-            for (size_t i = 1; i < outLayouts.size(); i++)
-                outputLayoutsStr += "," + std::string(mkldnn_fmt2str(static_cast<mkldnn_memory_format_t>(outLayouts[i])));
+            for (size_t i = 1; i < outDescs.size(); i++) {
+                auto fmt = MKLDNNMemoryDesc(outDescs[i].desc).getFormat();
+                outputLayoutsStr += "," + std::string(mkldnn::utils::fmt2str(fmt));
+            }
         }
     } else {
-        outputLayoutsStr = mkldnn_fmt2str(mkldnn_format_undef);
+        outputLayoutsStr = mkldnn::utils::fmt2str(mkldnn::memory::format_tag::undef);
     }
     serialization_info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = outputLayoutsStr;
 
@@ -280,6 +283,8 @@ std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &no
     }
 
     serialization_info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
+
+    serialization_info[ExecGraphInfoSerialization::RUNTIME_PRECISION] = node->getRuntimePrecision().name();
 
     return serialization_info;
 }

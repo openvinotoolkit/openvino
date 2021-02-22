@@ -28,11 +28,11 @@ MockPlugin::LoadNetwork(const CNNNetwork &network,
     if (_target) {
         return _target->LoadNetwork(network, config);
     } else {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+        THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
     }
 }
 
-ExecutableNetworkInternal::Ptr
+InferenceEngine::ExecutableNetworkInternal::Ptr
 MockPlugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                                const std::map<std::string, std::string>& config) {
     return {};

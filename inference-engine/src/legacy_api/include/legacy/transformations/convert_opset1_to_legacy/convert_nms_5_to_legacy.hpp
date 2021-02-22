@@ -28,6 +28,6 @@ class INFERENCE_ENGINE_API_CLASS(ConvertNMS5ToLegacyMatcher);
 class ngraph::pass::ConvertNMS5ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertNMS5ToLegacyMatcher();
+    ConvertNMS5ToLegacyMatcher(bool force_i32_output_type = true);
 };
 

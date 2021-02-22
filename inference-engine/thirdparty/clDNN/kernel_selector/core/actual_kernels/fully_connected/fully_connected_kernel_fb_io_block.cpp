@@ -118,12 +118,6 @@ bool FullyConnected_fb_io_block::Validate(const Params& p, const optional_params
 KernelsData FullyConnected_fb_io_block::GetKernelsData(const Params& params, const optional_params& optParams) const {
     assert(params.GetType() == KernelType::FULLY_CONNECTED);
 
-    const auto& orgParams = static_cast<const fully_connected_params&>(params);
-
-    float estimated_time = orgParams.inputs[0].GetDType() == Datatype::F16 && orgParams.output.Batch().v >= 16
-                               ? FORCE_PRIORITY_3
-                               : FORCE_PRIORITY_5;
-
     // TODO: it should be fb_io. but the original code use this kernel with yxfb and yxio
     //       (fb == fyxb flatten fyx, not yxfb flatten yxf).
     //       the order of the add operation cause some numeric changes. in order to avoid them right now we use
@@ -137,7 +131,6 @@ KernelsData FullyConnected_fb_io_block::GetKernelsData(const Params& params, con
                                                     optParams,
                                                     DataLayout::yxfb,
                                                     WeightsLayout::yxio,
-                                                    estimated_time,
                                                     static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);
@@ -145,5 +138,12 @@ KernelsData FullyConnected_fb_io_block::GetKernelsData(const Params& params, con
     }
 
     return res;
+}
+
+KernelsPriority FullyConnected_fb_io_block::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const fully_connected_params&>(params);
+
+    return p.inputs[0].GetDType() == Datatype::F16 && p.output.Batch().v >= 16 ? FORCE_PRIORITY_3
+                                                                               : FORCE_PRIORITY_5;
 }
 }  // namespace kernel_selector

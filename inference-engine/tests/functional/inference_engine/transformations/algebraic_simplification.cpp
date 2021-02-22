@@ -36,10 +36,10 @@ TEST(algebraic_simplification, add_negative_tests) {
     auto c = make_shared<op::Parameter>(type, shape);
     auto abs_a = make_shared<op::Abs>(a);
     auto iconst2 = ngraph::make_constant_from_string("2", type, shape);
-    auto add_a_0 = a + iconst2;
-    auto add_a_0_0 = add_a_0 + iconst2;
-    auto add_b_0 = b + abs_a;
-    auto add_b_0_0 = add_b_0 + abs_a;
+    auto add_a_0 = std::make_shared<ngraph::op::v1::Add>(a, iconst2);
+    auto add_a_0_0 = std::make_shared<ngraph::op::v1::Add>(add_a_0, iconst2);
+    auto add_b_0 = std::make_shared<ngraph::op::v1::Add>(b, abs_a);
+    auto add_b_0_0 = std::make_shared<ngraph::op::v1::Add>(add_b_0, abs_a);
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{a, b, add_a_0_0, c, add_b_0_0},
                                         ParameterVector{a, b, c});
@@ -63,10 +63,10 @@ TEST(algebraic_simplification, multiply_negative_tests) {
     auto c = make_shared<op::Parameter>(type, shape);
     auto abs_a = make_shared<op::Abs>(a);
     auto iconst2 = ngraph::make_constant_from_string("2", type, shape);
-    auto add_a_0 = a * iconst2;
-    auto add_a_0_0 = add_a_0 * iconst2;
-    auto add_b_0 = b * abs_a;
-    auto add_b_0_0 = add_b_0 * abs_a;
+    auto add_a_0 = make_shared<op::v1::Multiply>(a, iconst2);
+    auto add_a_0_0 = make_shared<op::v1::Multiply>(add_a_0, iconst2);
+    auto add_b_0 = make_shared<op::v1::Multiply>(b, abs_a);
+    auto add_b_0_0 = make_shared<op::v1::Multiply>(add_b_0, abs_a);
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{a, b, add_a_0_0, c, add_b_0_0},
                                         ParameterVector{a, b, c});
@@ -228,7 +228,7 @@ TEST(algebraic_simplification, log_no_exp) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto b = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto abs_a = make_shared<op::Abs>(a);
-    auto div = abs_a / b;
+    auto div = std::make_shared<op::v1::Divide>(abs_a, b);
     auto log_div = make_shared<op::Log>(div);
 
     auto neg_inner = make_shared<op::Negative>(log_div);
@@ -248,7 +248,7 @@ TEST(algebraic_simplification, log_no_divide) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto b = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto exp_a = make_shared<op::Exp>(a);
-    auto mul = exp_a * b;
+    auto mul = make_shared<op::v1::Multiply>(exp_a, b);
     auto log_mul = make_shared<op::Log>(mul);
 
     auto neg_inner = make_shared<op::Negative>(log_mul);

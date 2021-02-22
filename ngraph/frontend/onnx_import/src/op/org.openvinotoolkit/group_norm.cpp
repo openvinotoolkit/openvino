@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,15 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/org.openvinotoolkit/group_norm.hpp"
+#include "op/org.openvinotoolkit/group_norm.hpp"
+#include "default_opset.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/common.hpp"
-#include "onnx_import/utils/reshape.hpp"
+#include "utils/common.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -44,19 +45,6 @@ namespace ngraph
                         NGRAPH_CHECK(pshape.rank().is_static());
                         size_t rank_size = pshape.rank().get_length();
                         NGRAPH_CHECK(rank_size >= 3, "3-D and above tensors supported only");
-
-                        if (pshape.is_static())
-                        {
-                            const auto& shape = pshape.to_shape();
-                            std::vector<size_t> new_shape{
-                                shape[0], num_groups, shape[1] / num_groups};
-                            for (size_t i = 2; i < rank_size; i++)
-                            {
-                                new_shape.push_back(shape[i]);
-                            }
-                            return default_opset::Constant::create(
-                                element::i64, Shape{new_shape.size()}, new_shape);
-                        }
 
                         auto shape = std::make_shared<default_opset::ShapeOf>(data);
                         auto splits = builder::opset1::split(shape, rank_size);
@@ -92,23 +80,12 @@ namespace ngraph
                         static_cast<size_t>(node.get_attribute_value<int64_t>("num_groups"));
                     float eps = node.get_attribute_value<float>("eps", 1e-5);
 
-                    auto data_pshape = data.get_partial_shape();
-                    std::shared_ptr<ngraph::Node> data_shape_node;
-                    if (data_pshape.is_static())
-                    {
-                        auto shape = data_pshape.to_shape();
-                        data_shape_node = default_opset::Constant::create(
-                            element::u64, Shape{shape.size()}, shape);
-                    }
-                    else
-                    {
-                        data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
-                    }
+                    auto data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
                     auto data_reshaped = std::make_shared<default_opset::Reshape>(
                         data, detail::create_group_norm_shape(data, num_groups), true);
 
                     auto mvn =
-                        std::make_shared<default_opset::MVN>(data_reshaped, false, true, eps);
+                        std::make_shared<ngraph::opset5::MVN>(data_reshaped, false, true, eps);
                     std::shared_ptr<ngraph::Node> result =
                         std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 

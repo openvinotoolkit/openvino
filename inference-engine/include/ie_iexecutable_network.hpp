@@ -98,16 +98,22 @@ public:
      */
     virtual StatusCode Export(std::ostream& networkModel, ResponseDesc* resp) noexcept = 0;
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
+     * @deprecated Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo instead
      * @brief Get executable graph information from a device
      *
      * @param graphPtr network ptr to store executable graph information
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
+    // INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::ExecutableNetwork::GetExecGraphInfo instead")
     virtual StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept = 0;
+    IE_SUPPRESS_DEPRECATED_END
 
+    IE_SUPPRESS_DEPRECATED_START
     /**
+     * @deprecated Use InferRequest::QueryState instead
      * @brief Gets state control interface for given executable network.
      *
      * State control essential for recurrent networks
@@ -118,7 +124,9 @@ public:
      * @return Status code of the operation: InferenceEngine::OK (0) for success, OUT_OF_BOUNDS (-6) no memory state for
      * given index
      */
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     virtual StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Sets configuration for current executable network

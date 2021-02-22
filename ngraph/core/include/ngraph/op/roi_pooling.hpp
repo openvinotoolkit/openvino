@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,9 +54,9 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
             private:
-                Shape m_output_size;
+                Shape m_output_size{0, 0};
                 float m_spatial_scale;
-                std::string m_method;
+                std::string m_method = "max";
             };
 
         } // namespace v0

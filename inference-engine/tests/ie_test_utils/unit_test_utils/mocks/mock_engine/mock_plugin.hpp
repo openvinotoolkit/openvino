@@ -20,7 +20,7 @@ public:
     InferenceEngine::ExecutableNetwork
     LoadNetwork(const InferenceEngine::CNNNetwork &network,
                 const std::map<std::string, std::string> &config) override;
-    ExecutableNetworkInternal::Ptr
+    InferenceEngine::ExecutableNetworkInternal::Ptr
     LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
                        const std::map<std::string, std::string>& config) override;
 

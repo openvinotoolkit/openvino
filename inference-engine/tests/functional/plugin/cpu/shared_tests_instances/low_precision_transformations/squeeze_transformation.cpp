@@ -11,36 +11,36 @@ using namespace LayerTestsDefinitions;
 using namespace ngraph::pass::low_precision;
 
 namespace {
-    const std::vector<InferenceEngine::Precision> precisions = {
-        InferenceEngine::Precision::FP32,
+    const std::vector<ngraph::element::Type> precisions = {
+        ngraph::element::f32
     };
 
 
     const std::vector<LayerTransformation::Params> trasformationParamValues = {
-        LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8(),
-        LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8().setUpdatePrecisions(false),
-        LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8().setUpdatePrecisions(true),
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(false),
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8().setUpdatePrecisions(true),
     };
 
     const std::vector<LayerTestsDefinitions::SqueezeTransformationParam> params = {
         {
             { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
-            { 0, 3 },
+            { 3 },
             { 1, 3, 5, 1}
         },
         {
             { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
-            { 0, 1, 2 },
+            { 2, 3 },
             { 1, 1, 1, 1 }
         },
         {
             { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
-            { 0, 3 },
+            { 3 },
             { 1, 64, 32, 1 }
         },
         {
             { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } },
-            { 0.0, 2.0, 3.0 },
+            { 2.0, 3.0 },
             { 1, 32, 1, 1 }
         }
     };

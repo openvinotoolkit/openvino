@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,40 +22,6 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
-        {
-            /// \brief Elementwise less-than operation.
-            class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. "
-                "Use v1::Less instead of it.") NGRAPH_API Less
-                : public util::BinaryElementwiseComparison
-            {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-            public:
-                static constexpr NodeTypeInfo type_info{"Less", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs a less-than operation.
-                Less()
-                    : util::BinaryElementwiseComparison(AutoBroadcastSpec::NONE)
-                {
-                }
-                /// \brief Constructs a less-than operation.
-                ///
-                /// \param arg0 Node that produces the first input tensor.
-                /// \param arg1 Node that produces the second input tensor.
-                /// \param auto_broadcast Auto broadcast specification
-                Less(const Output<Node>& arg0,
-                     const Output<Node>& arg1,
-                     const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec());
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
-            };
-        } // namespace v0
-
         namespace v1
         {
             /// \brief Elementwise less-than operation.
@@ -84,9 +50,5 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
             };
         } // namespace v1
-
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::Less;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

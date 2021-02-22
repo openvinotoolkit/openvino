@@ -65,8 +65,7 @@ AverageUnpoolingKernelBase::DispatchData AverageUnpoolingKernelBase::SetDefault(
 }
 
 KernelsData AverageUnpoolingKernelBase::GetCommonKernelsData(const Params& params,
-                                                             const optional_params& options,
-                                                             float estimatedTime) const {
+                                                             const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }
@@ -83,8 +82,6 @@ KernelsData AverageUnpoolingKernelBase::GetCommonKernelsData(const Params& param
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
-
-    kd.estimatedTime = estimatedTime;
 
     return {kd};
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,10 @@ public:
             min(min),
             max(max),
             hasZeroPoint(hasZeroPoint) {}
+
+    static bool isSupported(const element::Type& precision) {
+        return (precision == element::u8) || (precision == element::i8);
+    }
 
     static float getMinValue(const element::Type precision, const size_t levels) {
         if (precision == element::i8) {
@@ -167,13 +171,15 @@ public:
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
                 bool supportAsymmetricQuantization = false,
                 std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
-                std::vector<element::Type> precisionsOnWeights = { element::i8 }) :
+                std::vector<element::Type> precisionsOnWeights = { element::i8 },
+                element::Type deqPrecision = element::f32) :
                 updatePrecisions(updatePrecisions),
                 quantizedTensorAlignmentOnActivations(quantizedTensorAlignmentOnActivations),
                 quantizedTensorAlignmentOnWeights(quantizedTensorAlignmentOnWeights),
                 supportAsymmetricQuantization(supportAsymmetricQuantization),
                 precisionsOnActivations(precisionsOnActivations),
-                precisionsOnWeights(precisionsOnWeights) {
+                precisionsOnWeights(precisionsOnWeights),
+                deqPrecision(deqPrecision) {
             if (precisionsOnActivations.size() == 0ul) {
                 THROW_TRANSFORMATION_EXCEPTION << "precisions on activations are not specisifed";
             }
@@ -219,6 +225,7 @@ public:
         bool supportAsymmetricQuantization;
         std::vector<element::Type> precisionsOnActivations;
         std::vector<element::Type> precisionsOnWeights;
+        element::Type deqPrecision;
     };
 
     class PrecisionDetails {
@@ -293,6 +300,7 @@ protected:
     bool supportAsymmetricQuantization;
     std::vector<element::Type> precisionsOnActivations;
     std::vector<element::Type> precisionsOnWeights;
+    element::Type deqPrecision;
 
     // absolute value, used to determine quantization interval asymmetry
     float quantizationIntervalAsymmetryThreshold;
@@ -305,16 +313,12 @@ protected:
     ILayerTransformationsManager* layerTransformationsManager;
 
 protected:
-    std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const;
-
     std::shared_ptr<ngraph::Node> moveDequantizationAfter(
         TransformationContext &context,
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision,
         const bool moveSubtract = true) const;
-
-    void fuseConvertIfPossible(const std::shared_ptr<ngraph::Node>& operation) const;
 
     void updateOutput(
         TransformationContext &context,
@@ -327,6 +331,9 @@ protected:
         std::string originalName) const;
 
     void addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const;
+
+    //TODO: replace with canBeTransformed when quantization by special dimension is supported for all transformations
+    bool canBeTransformedSpecialDimension(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
     template <typename Operation>
     void addSingleNodePattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context) const {

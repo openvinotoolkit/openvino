@@ -4,7 +4,7 @@
 
 #include "dsr_tests_common.hpp"
 
-#include <functional_test_utils/layer_test_utils.hpp>
+#include <shared_test_classes/base/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 
@@ -51,6 +51,8 @@ TEST_P(DSR_StridedSlice, CompareWithReference) {
 }
 
 std::vector<StridedSliceParams> testCases = {
+    { { { 2, 3, 4, 5, 6 }, { 2, 3, 4, 5, 3 } },
+      { 0, 1, 0, 0, 0 }, { 2, 3, 4, 5, -1 }, { 1, 1, 1, 1, 1 }, {1, 0, 1, 1, 1}, {1, 0, 1, 1, 1},  {},  {0, 0, 0, 0, 1},  {} },
     { { { 800, 4 }, { 1000, 4 } }, { 0, 0 }, { -1, 0 }, { 2, 1 }, { 1, 0 }, { 0, 1 },  {},  {},  {} },
     { { { 1, 12, 80 }, { 1, 12, 100 } }, { 0, 9, 0 }, { 0, 11, 0 }, { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 },  {},  {},  {} },
     { { { 1, 7, 80 }, { 1, 12, 100 } }, { 0, 1, 0 }, { 0, -1, 0 }, { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 },  {},  {},  {} },

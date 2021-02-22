@@ -19,7 +19,7 @@ TEST_F(NGraphReaderTests, ReadELUNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="activation" id="1" type="ELU" version="opset1">
+        <layer name="activation" id="1" type="Elu" version="opset1">
             <data alpha="1"/>
             <input>
                 <port id="1" precision="FP32">

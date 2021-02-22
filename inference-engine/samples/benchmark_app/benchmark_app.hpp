@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,11 +42,13 @@ static const char infer_num_threads_message[] = "Optional. Number of threads to 
                                                 "(including HETERO and MULTI cases).";
 
 /// @brief message for #streams for CPU inference
-static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU or/and GPU in throughput mode "
+static const char infer_num_streams_message[] = "Optional. Number of streams to use for inference on the CPU, GPU or MYRIAD devices "
                                                 "(for HETERO and MULTI device cases use format <dev1>:<nstreams1>,<dev2>:<nstreams2> or just <nstreams>). "
                                                 "Default value is determined automatically for a device.Please note that although the automatic selection "
                                                 "usually provides a reasonable performance, it still may be non - optimal for some cases, especially for "
-                                                "very small networks. See sample's README for more details.";
+                                                "very small networks. See sample's README for more details. "
+                                                "Also, using nstreams>1 is inherently throughput-oriented option, "
+                                                "while for the best-latency estimations the number of streams should be set to 1.";
 
 /// @brief message for enforcing of BF16 execution where it is possible
 static const char enforce_bf16_message[] = "Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.";
@@ -99,6 +101,9 @@ static const char dump_config_message[] = "Optional. Path to XML/YAML/JSON file 
 
 static const char shape_message[] = "Optional. Set shape for input. For example, \"input1[1,3,224,224],input2[1,4]\" or \"[1,3,224,224]\""
                                     " in case of one input size.";
+
+static const char layout_message[] = "Optional. Prompts how network layouts should be treated by application. "
+                                     "For example, \"input1[NCHW],input2[NC]\" or \"[NCHW]\" in case of one input size.";
 
 // @brief message for quantization bits
 static const char gna_qb_message[] = "Optional. Weight bits for quantization:  8 or 16 (default)";
@@ -187,6 +192,9 @@ DEFINE_string(dump_config, "", dump_config_message);
 /// @brief Define flag for input shape <br>
 DEFINE_string(shape, "", shape_message);
 
+/// @brief Define flag for layout shape <br>
+DEFINE_string(layout, "", layout_message);
+
 /// @brief Define flag for quantization bits (default 16)
 DEFINE_int32(qb, 16, gna_qb_message);
 
@@ -213,6 +221,7 @@ static void showUsage() {
     std::cout << "    -t                        " << execution_time_message << std::endl;
     std::cout << "    -progress                 " << progress_message << std::endl;
     std::cout << "    -shape                    " << shape_message << std::endl;
+    std::cout << "    -layout                   " << layout_message << std::endl;
     std::cout << std::endl << "  device-specific performance options:" << std::endl;
     std::cout << "    -nstreams \"<integer>\"     " << infer_num_streams_message << std::endl;
     std::cout << "    -nthreads \"<integer>\"     " << infer_num_threads_message << std::endl;

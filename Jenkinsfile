@@ -2,10 +2,10 @@
 
 properties([
     parameters([
-        booleanParam(defaultValue: true,
+        booleanParam(defaultValue: false,
                      description: 'Cancel the rest of parallel stages if one of them fails and return status immediately',
                      name: 'failFast'),
-        booleanParam(defaultValue: false,
+        booleanParam(defaultValue: true,
                      description: 'Whether to propagate commit status to GitHub',
                      name: 'propagateStatus'),
         string(defaultValue: '',

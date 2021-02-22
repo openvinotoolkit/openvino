@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2020 Intel Corporation
+﻿// Copyright (c) 2020-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,10 +24,22 @@ JitConstants CTCGreedyDecoderKernelBase::GetJitConstants(const ctc_greedy_decode
 
     jit.AddConstants({
         MakeJitConstant("ctc_merge_repeated_", params.merge_repeated),
-        MakeJitConstant("T_", inp.Batch().v),
-        MakeJitConstant("N_", inp.Feature().v),
+        MakeJitConstant("blank_index_", params.blank_index),
         MakeJitConstant("C_", inp.Y().v)
     });
+
+    if (params.outputs_num == 2) {
+        jit.AddConstants({
+            MakeJitConstant("SECOND_OUTPUT_EXIST", 1),
+            MakeJitConstant("N_", inp.Batch().v),
+            MakeJitConstant("T_", inp.Feature().v)
+        });
+    } else {
+        jit.AddConstants({
+            MakeJitConstant("T_", inp.Batch().v),
+            MakeJitConstant("N_", inp.Feature().v)
+        });
+    };
 
     return jit;
 }
@@ -42,8 +54,7 @@ CTCGreedyDecoderKernelBase::DispatchData CTCGreedyDecoderKernelBase::SetDefault(
 }
 
 KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& params,
-                                                             const optional_params& options,
-                                                             float estimated_time) const {
+                                                             const optional_params& options) const {
     assert(params.GetType() == KernelType::CTC_GREEDY_DECODER);
 
     if (!Validate(params, options))
@@ -72,7 +83,9 @@ KernelsData CTCGreedyDecoderKernelBase::GetCommonKernelsData(const Params& param
                      2,  // input and sequence indicatiors
                      GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = estimated_time;
+    if (orgParams.outputs_num == 2) {
+        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+    }
 
     return {kd};
 }

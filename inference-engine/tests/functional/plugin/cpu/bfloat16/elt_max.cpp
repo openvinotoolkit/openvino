@@ -122,7 +122,6 @@ protected:
         // performance counters
         expectedPrecisions["Convolution_0"] = "BF16";
         expectedPrecisions["Convolution_1"] = "BF16";
-        expectedPrecisions["Elt_max"] = "FP32";
     }
 };
 

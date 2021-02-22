@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -107,7 +107,7 @@ def protobuf2nx(graph: Graph, pb):
                 'out': src_port,
                 'in': dst_port,
                 'name': inp,
-                'fw_tensor_debug_info': [(inp, inp)],
+                'fw_tensor_debug_info': [(src_id, src_port, inp)],
                 'in_attrs': ['in', 'name'],
                 'out_attrs': ['out', 'name'],
                 'data_attrs': ['fw_tensor_debug_info']
@@ -121,7 +121,7 @@ def protobuf2nx(graph: Graph, pb):
                     'out': src_port,
                     'in': 0,
                     'name': out,
-                    'fw_tensor_debug_info': [(out, out)],
+                    'fw_tensor_debug_info': [(id, src_port, out)],
                     'in_attrs': ['in', 'name'],
                     'out_attrs': ['out', 'name'],
                     'data_attrs': ['fw_tensor_debug_info']

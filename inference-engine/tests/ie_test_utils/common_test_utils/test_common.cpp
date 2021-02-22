@@ -6,6 +6,10 @@
 
 #include <threading/ie_executor_manager.hpp>
 
+#include <algorithm>
+#include <cctype>
+#include <chrono>
+
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -62,6 +66,21 @@ TestsCommon::TestsCommon() {
         std::cout << "\nMEM_USAGE=" << memsize << "KB\n";
     }
     InferenceEngine::ExecutorManager::getInstance()->clear();
+}
+
+std::string TestsCommon::GetTimestamp() {
+    auto now = std::chrono::system_clock::now();
+    auto epoch = now.time_since_epoch();
+    auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch);
+    return std::to_string(ns.count());
+}
+
+std::string TestsCommon::GetTestName() const {
+    std::string test_name =
+        ::testing::UnitTest::GetInstance()->current_test_info()->name();
+    std::replace_if(test_name.begin(), test_name.end(),
+        [](char c) { return !std::isalnum(c); }, '_');
+    return test_name;
 }
 
 }  // namespace CommonTestUtils

@@ -16,6 +16,8 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{1, 10, 100}},
         {{4, 4, 16}},
         {{1, 1, 1, 3}},
+        {{2, 17, 5, 4}, {1, 17, 1, 1}},
+        {{2, 17, 5, 1}, {1, 17, 1, 4}},
         {{1, 2, 4}},
         {{1, 4, 4}},
         {{1, 4, 4, 1}},
@@ -40,10 +42,14 @@ std::vector<CommonTestUtils::OpType> opTypes = {
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
+        ngraph::helpers::EltwiseTypes::ADD,
         ngraph::helpers::EltwiseTypes::MULTIPLY,
         ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::ADD,
-        ngraph::helpers::EltwiseTypes::POWER
+        ngraph::helpers::EltwiseTypes::DIVIDE,
+        ngraph::helpers::EltwiseTypes::FLOOR_MOD,
+        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ngraph::helpers::EltwiseTypes::POWER,
+        ngraph::helpers::EltwiseTypes::MOD
 };
 
 std::map<std::string, std::string> additional_config = {};
@@ -61,4 +67,17 @@ const auto multiply_params = ::testing::Combine(
         ::testing::Values(additional_config));
 
 INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
+
+
+std::vector<std::vector<std::vector<size_t>>> inShapesSingleThread = {
+        {{1, 2, 3, 4}},
+        {{2, 2, 2, 2}},
+        {{2, 1, 2, 1, 2, 2}}
+};
+
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesSingleThread = {
+        ngraph::helpers::EltwiseTypes::ADD,
+        ngraph::helpers::EltwiseTypes::POWER,
+};
+
 }  // namespace

@@ -11,6 +11,9 @@
 
 #include "ie_api.h"
 
+/**
+ * @brief Inference Engine C++ API
+ */
 namespace InferenceEngine {
 
 /**

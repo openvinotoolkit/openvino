@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include <debug.h>  // to allow putting vector into exception string stream
 #include "details/ie_exception.hpp"
 #include <legacy/ie_layers_property.hpp>
 #include "ie_blob.h"

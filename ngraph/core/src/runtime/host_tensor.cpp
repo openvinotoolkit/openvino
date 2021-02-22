@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,8 @@
 #include <cstring>
 #include <memory>
 
-#include "host_tensor.hpp"
-#include "ngraph/chrome_trace.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/util.hpp"
 
 using namespace ngraph;
@@ -66,10 +65,12 @@ runtime::HostTensor::HostTensor(const std::string& name)
 {
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 runtime::HostTensor::HostTensor(const Output<Node>& value)
     : HostTensor(value.get_element_type(), value.get_partial_shape(), value.get_tensor().get_name())
 {
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 void runtime::HostTensor::allocate_buffer()
 {
@@ -102,11 +103,13 @@ void runtime::HostTensor::allocate_buffer()
     }
 }
 
+NGRAPH_SUPPRESS_DEPRECATED_START
 runtime::HostTensor::HostTensor(const std::shared_ptr<op::v0::Constant>& constant)
     : HostTensor(constant->output(0).get_tensor().get_name())
 {
     initialize(constant);
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
 
 void runtime::HostTensor::initialize(const std::shared_ptr<op::v0::Constant>& constant)
 {
@@ -140,7 +143,6 @@ const void* runtime::HostTensor::get_data_ptr() const
 
 void runtime::HostTensor::write(const void* source, size_t n)
 {
-    event::Duration d1("write", "HostTensor");
     void* target = get_data_ptr();
     if (n != m_buffer_size)
     {
@@ -158,7 +160,6 @@ void runtime::HostTensor::write(const void* source, size_t n)
 
 void runtime::HostTensor::read(void* target, size_t n) const
 {
-    event::Duration d1("read", "HostTensor");
     const void* source = get_data_ptr();
     if (n != m_buffer_size)
     {

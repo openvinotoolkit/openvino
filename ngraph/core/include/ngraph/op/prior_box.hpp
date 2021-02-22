@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,10 +41,10 @@ namespace ngraph
             std::vector<float> fixed_size;
             bool clip = false;
             bool flip = false;
-            float step = 1.0f;
+            float step = 0.0f;
             float offset = 0.0f;
             std::vector<float> variance;
-            bool scale_all_sizes = false;
+            bool scale_all_sizes = true;
         };
 
         namespace v0

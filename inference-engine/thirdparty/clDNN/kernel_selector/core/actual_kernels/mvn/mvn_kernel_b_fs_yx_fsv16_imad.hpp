@@ -27,6 +27,7 @@ public:
     virtual ~MVNKernel_b_fs_yx_fsv16_imad() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
@@ -50,7 +51,7 @@ protected:
         };
     }
 
-    KernelsData GetMultiStageKernelsData(const mvn_params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetMultiStageKernelsData(const mvn_params& params, const optional_params&) const;
     MultiDispatchData SetDefaultForMulti(const mvn_params& params) const;
 };
 }  // namespace kernel_selector

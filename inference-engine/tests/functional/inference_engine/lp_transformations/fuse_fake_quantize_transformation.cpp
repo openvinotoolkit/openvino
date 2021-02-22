@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include <transformations/init_node_info.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/fake_quantize.hpp>
+#include <low_precision/fake_quantize_decomposition.hpp>
 #include "lpt_ngraph_functions/common/add.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
@@ -74,6 +75,9 @@ public:
             testValues.actual.fakeQuantizeOnData);
 
         SimpleLowPrecisionTransformer transformer;
+        transformer.add<ngraph::pass::low_precision::FakeQuantizeDecompositionTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
+        transformer.transform(actualFunction);
+
         transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transformer.transform(actualFunction);
 
@@ -247,6 +251,50 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
                     element::f32,
                     { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
             }
+    },
+    // issue #40611 for FP32
+    {
+        ngraph::Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            { },
+            { },
+            ngraph::element::i32,
+            { {ngraph::element::f32}, {}, {} },
+            ngraph::element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            { },
+            { },
+            ngraph::element::i32,
+            { {ngraph::element::f32}, {}, {} },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // issue #40611 for FP16
+    {
+        ngraph::Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            { },
+            { },
+            ngraph::element::i32,
+            { {ngraph::element::f16}, {}, {} },
+            ngraph::element::f16,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            { },
+            { },
+            ngraph::element::i32,
+            { {ngraph::element::f16}, {}, {} },
+            element::f16,
+            element::f16,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
     },
 };
 

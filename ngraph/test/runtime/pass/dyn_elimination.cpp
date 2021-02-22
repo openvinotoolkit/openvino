@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,7 +49,8 @@ std::shared_ptr<op::Constant> make_range_replacement(const element::Type& et,
 
     NGRAPH_CHECK(start_vec.size() == 1 && step_vec.size() == 1);
 
-    runtime::reference::range<T>(start_vec.data(), step_vec.data(), shape, elements.data());
+    runtime::reference::range<T>(
+        start_vec.data(), step_vec.data(), shape_size(shape), elements.data());
 
     return make_shared<op::Constant>(et, shape, elements);
 }
