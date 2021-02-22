@@ -33,6 +33,9 @@ NumericType = Union[type, np.dtype]
 ScalarData = Union[int, float]
 NodeInput = Union[Node, NumericData]
 
+# Custom dtype u1 to distinguish uint8 and u1 data
+u1 =  np.dtype([('data', np.uint8, 1)])
+
 ngraph_to_numpy_types_map = [
     (NgraphType.boolean, np.bool),
     (NgraphType.f16, np.float16),
@@ -42,6 +45,7 @@ ngraph_to_numpy_types_map = [
     (NgraphType.i16, np.int16),
     (NgraphType.i32, np.int32),
     (NgraphType.i64, np.int64),
+    (NgraphType.u1, u1),
     (NgraphType.u8, np.uint8),
     (NgraphType.u16, np.uint16),
     (NgraphType.u32, np.uint32),
@@ -58,6 +62,7 @@ ngraph_to_numpy_types_str_map = [
     ("i16", np.int16),
     ("i32", np.int32),
     ("i64", np.int64),
+    ("u1", u1),
     ("u8", np.uint8),
     ("u16", np.uint16),
     ("u32", np.uint32),
