@@ -21,12 +21,16 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "../../utils/onnx_importer_visibility.hpp"
 
 namespace ONNX_NAMESPACE
 {
+    // forward declaration to avoid the necessity of include paths setting in components
+    // that don't directly depend on the ONNX library
     class GraphProto;
     class NodeProto;
     class ValueInfoProto;
+    class ModelProto;
 } // namespace ONNX_NAMESPACE
 
 namespace ngraph
@@ -52,6 +56,11 @@ namespace ngraph
     };
     namespace onnx_import
     {
+
+        ONNX_IMPORTER_API
+        int find_producing_node_idx(const ONNX_NAMESPACE::ModelProto& model,
+                                    const std::string& tensorName);
+
         /// \brief Defines an edge connected to an input of any node in the graph.
         ///        It consists of a node index in the processed ONNX model and the input name.
         ///        The index should point to a node in the topological sort of the underlying graph

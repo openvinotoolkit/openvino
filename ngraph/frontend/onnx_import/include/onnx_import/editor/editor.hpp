@@ -26,13 +26,6 @@
 #include "onnx_import/editor/detail/subgraph_extraction.hpp"
 #include "onnx_import/utils/onnx_importer_visibility.hpp"
 
-namespace ONNX_NAMESPACE
-{
-    // forward declaration to avoid the necessity of include paths setting in components
-    // that don't directly depend on the ONNX library
-    class ModelProto;
-} // namespace ONNX_NAMESPACE
-
 namespace ngraph
 {
     namespace onnx_import
@@ -122,6 +115,8 @@ namespace ngraph
             ///
             /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
+
+            int find_producing_node_idx(const std::string& tensorName) const;
 
         private:
             const std::string m_model_path;

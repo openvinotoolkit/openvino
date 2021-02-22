@@ -41,6 +41,7 @@ from _pyngraph import Dimension
 from _pyngraph import Function
 from _pyngraph import FrontEndManager
 from _pyngraph import FrontEnd
+from _pyngraph import FrontEndCapabilities
 from _pyngraph import InputModel
 from _pyngraph import Input
 from _pyngraph import Output

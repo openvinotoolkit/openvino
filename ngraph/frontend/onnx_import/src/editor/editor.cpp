@@ -369,3 +369,28 @@ std::string onnx_import::ONNXModelEditor::model_string() const
 {
     return m_pimpl->m_model_proto.SerializeAsString();
 }
+
+namespace {
+    const auto is_equal_to =
+            +[](const std::string& other) { return [&](const std::string& s) { return s == other; }; };
+}
+
+int onnx_import::ONNXModelEditor::find_producing_node_idx(const std::string& tensorName) const
+{
+
+    const auto& graph = m_pimpl->m_model_proto.graph();
+    for (int i = 0; i <= graph.node_size(); ++i)
+    {
+        const auto& outputs = graph.node(i).output();
+        const auto output_found =
+                std::any_of(std::begin(outputs), std::end(outputs), is_equal_to(tensorName));
+
+        if (output_found)
+        {
+            return i;
+        }
+    }
+
+    throw ngraph::ngraph_error{"Source node not found in the graph for tensor name: " +
+                               tensorName};
+}
