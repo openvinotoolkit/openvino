@@ -72,7 +72,7 @@
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
-#include <low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/group_convolution.hpp>
