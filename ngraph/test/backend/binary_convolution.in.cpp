@@ -36,12 +36,12 @@ static void BinaryConvolutionTest(const std::vector<T_IN>& inputs,
                                   const Shape outputs_shape,
                                   const Strides& strides,
                                   const CoordinateDiff& padding,
-                                  const Strides& dilations)
+                                  const Strides& dilations,
+                                  const float pad_value = 0.0f)
 {
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
-    float pad_value = 0;
 
     auto inputs_param = make_shared<op::Parameter>(element::from<T_IN>(), inputs_shape);
     auto filters_const = make_shared<op::Constant>(element::u1, filters_shape, &filters[0]);
@@ -104,7 +104,7 @@ static void ConvolutionTest(const std::vector<T_IN>& inputs,
 
 // clang-format off
 // --------------------- 2D convolution ------------------------------------------
-NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_1batch_1channel_no_padding)
+NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_1batch_1channel)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -131,6 +131,503 @@ NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_1batch_1channel_no_padding)
     const Shape outputs_shape{1, 1, 2, 2};
     const std::vector<float> outputs{1.0f, 1.0f,
                                      3.0f, -1.0f};
+
+    BinaryConvolutionTest(
+        inputs_bin_conv,
+        inputs_shape,
+        filters_bin_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding,
+        dilations);
+
+    ConvolutionTest(
+        inputs_conv,
+        inputs_shape,
+        filters_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding,
+        dilations);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_1batch_1channel_padding_pad_val_0)
+{
+    const Strides strides{1, 1};
+    const Strides dilations{1, 1};
+
+    const CoordinateDiff padding_conv{0, 0};
+    const Shape inputs_conv_shape{1, 1, 6, 6};
+    const std::vector<float> inputs_conv{-1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
+                                         -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f,
+                                         -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f,
+                                         -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f,
+                                         -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f,
+                                         -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+
+    const CoordinateDiff padding_bin_conv{1, 1};
+    const Shape inputs_bin_conv_shape{1, 1, 4, 4};
+    const std::vector<float> inputs_bin_conv{1.0f, 0.0f, 0.0f, 1.0f,
+                                             1.0f, 1.0f, 0.0f, 0.0f,
+                                             0.0f, 0.0f, 0.0f, 1.0f,
+                                             1.0f, 0.0f, 1.0f, 1.0f};
+
+    const Shape filters_shape{1, 1, 3, 3};
+    const std::vector<float> filters_conv{1.0f, -1.0f, 1.0f,
+                                          -1.0f, 1.0f, -1.0f,
+                                          1.0f, -1.0f, 1.0f};
+
+    const std::vector<uint8_t> filters_bin_conv{0xAA, 0x80}; // 10101010 10000000
+
+    const Shape outputs_shape{1, 1, 4, 4};
+    const std::vector<float> outputs{1.0f, -3.0f, -1.0f, 1.0f,
+                                     -3.0f, 1.0f, 1.0f, -5.0f,
+                                     -3.0f, 3.0f, -1.0f, 1.0f,
+                                     1.0f, -5.0f, 1.0f, -3.0f};
+
+    BinaryConvolutionTest(
+        inputs_bin_conv,
+        inputs_bin_conv_shape,
+        filters_bin_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding_bin_conv,
+        dilations);
+
+    ConvolutionTest(
+        inputs_conv,
+        inputs_conv_shape,
+        filters_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding_conv,
+        dilations);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_1batch_1channel_padding_pad_val_1)
+{
+    const Strides strides{1, 1};
+    const Strides dilations{1, 1};
+    const float pad_value = 1.0f;
+
+    const CoordinateDiff padding_conv{0, 0};
+    const Shape inputs_conv_shape{1, 1, 6, 6};
+    const std::vector<float> inputs_conv{1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                         1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f,
+                                         1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f,
+                                         1.0f, -1.0f, -1.0f, -1.0f, 1.0f, 1.0f,
+                                         1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f,
+                                         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
+    const CoordinateDiff padding_bin_conv{1, 1};
+    const Shape inputs_bin_conv_shape{1, 1, 4, 4};
+    const std::vector<float> inputs_bin_conv{1.0f, 0.0f, 0.0f, 1.0f,
+                                             1.0f, 1.0f, 0.0f, 0.0f,
+                                             0.0f, 0.0f, 0.0f, 1.0f,
+                                             1.0f, 0.0f, 1.0f, 1.0f};
+
+    const Shape filters_shape{1, 1, 3, 3};
+    const std::vector<float> filters_conv{1.0f, -1.0f, 1.0f,
+                                          -1.0f, 1.0f, -1.0f,
+                                          1.0f, -1.0f, 1.0f};
+
+    const std::vector<uint8_t> filters_bin_conv{0xAA, 0x80}; // 10101010 10000000
+
+    const Shape outputs_shape{1, 1, 4, 4};
+    const std::vector<float> outputs{3.0f, -1.0f, 1.0f, 3.0f,
+                                     -1.0f, 1.0f, 1.0f, -3.0f,
+                                     -1.0f, 3.0f, -1.0f, 3.0f,
+                                     3.0f, -3.0f, 3.0f, -1.0f,};
+
+    BinaryConvolutionTest(
+        inputs_bin_conv,
+        inputs_bin_conv_shape,
+        filters_bin_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding_bin_conv,
+        dilations,
+        pad_value);
+
+    ConvolutionTest(
+        inputs_conv,
+        inputs_conv_shape,
+        filters_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding_conv,
+        dilations);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_1batch_1channel_stride)
+{
+    const Strides strides{2, 2};
+    const CoordinateDiff padding{0, 0};
+    const Strides dilations{1, 1};
+
+    const Shape inputs_shape{1, 1, 5, 5};
+    const std::vector<float> inputs_conv{-1.0f, 1.0f, 1.0f, -1.0f, 1.0f,
+                                         1.0f, 1.0f, -1.0f, 1.0f, -1.0f,
+                                         -1.0f, -1.0f, 1.0f, -1.0f, 1.0f,
+                                         1.0f, 1.0f, -1.0f, 1.0f, -1.0f,
+                                         -1.0f, -1.0f, 1.0f, 1.0f, 1.0f};
+
+    const std::vector<float> inputs_bin_conv{0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+                                             1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+                                             0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+                                             1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+                                             0.0f, 0.0f, 1.0f, 1.0f, 1.0f};
+
+    const Shape filters_shape{1, 1, 3, 3};
+    const std::vector<float> filters_conv{-1.0f, -1.0f, 1.0f,
+                                          -1.0f, 1.0f, 1.0f,
+                                          1.0f, -1.0f, -1.0f};
+    const std::vector<uint8_t> filters_bin_conv{0x2E, 0x00};    // 00101110 00000000
+
+    const Shape outputs_shape{1, 1, 2, 2};
+    const std::vector<float> outputs{-1.0f, 3.0f,
+                                     1.0f, 1.0f};
+
+    BinaryConvolutionTest(
+        inputs_bin_conv,
+        inputs_shape,
+        filters_bin_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding,
+        dilations);
+
+    ConvolutionTest(
+        inputs_conv,
+        inputs_shape,
+        filters_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding,
+        dilations);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_1batch_1channel_dilation)
+{
+    const Strides strides{1, 1};
+    const CoordinateDiff padding{0, 0};
+    const Strides dilations{2, 2};
+
+    const Shape inputs_shape{1, 1, 7, 7};
+    const std::vector<float> inputs_conv{1.0f, 1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f,
+                                         -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f,
+                                         1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f,
+                                         -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, -1.0f,
+                                         -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f,
+                                         1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f,
+                                         1.0f, 1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f};
+
+    const std::vector<float> inputs_bin_conv{1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                                             0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                                             1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+                                             0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+                                             0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                                             1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                                             1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+
+    const Shape filters_shape{1, 1, 3, 3};
+    const std::vector<float> filters_conv{-1.0f, 1.0f, 1.0f,
+                                          -1.0f, 1.0f, -1.0f,
+                                          1.0f, 1.0f, -1.0f};
+    const std::vector<uint8_t> filters_bin_conv{0x6B, 0x00};    // 01101011 00000000
+
+    const Shape outputs_shape{1, 1, 3, 3};
+    const std::vector<float> outputs{-5.0f, -3.0f, -5.0f,
+                                     5.0f, 1.0f, 3.0f,
+                                     -1.0f, -1.0f, 3.0f};
+
+    BinaryConvolutionTest(
+        inputs_bin_conv,
+        inputs_shape,
+        filters_bin_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding,
+        dilations);
+
+    ConvolutionTest(
+        inputs_conv,
+        inputs_shape,
+        filters_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding,
+        dilations);
+}
+
+NGRAPH_TEST(${BACKEND_NAME},
+            bin_convolution_2D_1batch_1channel_strides_dilation_padding_pad_val_0)
+{
+    const Strides strides{2, 2};
+    const Strides dilations{2, 2};
+
+    const CoordinateDiff padding_conv{0, 0};
+    const Shape inputs_conv_shape{1, 1, 11, 11};
+    const std::vector<float> inputs_conv{
+            -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,-1.0f, -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, -1.0f};
+
+    const CoordinateDiff padding_bin_conv{2, 2};
+    const Shape inputs_bin_conv_shape{1, 1, 7, 7};
+    const std::vector<float> inputs_bin_conv{1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                                             0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                                             1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+                                             0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+                                             0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                                             1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                                             1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+
+    const Shape filters_shape{1, 1, 3, 3};
+    const std::vector<float> filters_conv{-1.0f, 1.0f, 1.0f,
+                                          -1.0f, 1.0f, -1.0f,
+                                          1.0f, 1.0f, -1.0f};
+    const std::vector<uint8_t> filters_bin_conv{0x6B, 0x00};    // 01101011 00000000
+
+    const Shape outputs_shape{1, 1, 4, 4};
+    const std::vector<float> outputs{1.0f, 1.0f, -1.0f, 1.0f,
+                                     1.0f, -5.0f, -5.0f, 5.0f,
+                                     3.0f, -1.0f, 3.0f, 3.0f,
+                                     -1.0f, -1.0f, 3.0f, -3.0f};
+
+    BinaryConvolutionTest(
+        inputs_bin_conv,
+        inputs_bin_conv_shape,
+        filters_bin_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding_bin_conv,
+        dilations);
+
+    ConvolutionTest(
+        inputs_conv,
+        inputs_conv_shape,
+        filters_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding_conv,
+        dilations);
+}
+
+NGRAPH_TEST(${BACKEND_NAME},
+            bin_convolution_2D_1batch_1channel_strides_dilation_padding_pad_val_1)
+{
+    const Strides strides{2, 2};
+    const Strides dilations{2, 2};
+    const float pad_value = 1.0f;
+
+    const CoordinateDiff padding_conv{0, 0};
+    const Shape inputs_conv_shape{1, 1, 11, 11};
+    const std::vector<float> inputs_conv{
+            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+            1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
+    const CoordinateDiff padding_bin_conv{2, 2};
+    const Shape inputs_bin_conv_shape{1, 1, 7, 7};
+    const std::vector<float> inputs_bin_conv{1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                                             0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                                             1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+                                             0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+                                             0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                                             1.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                                             1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+
+    const Shape filters_shape{1, 1, 3, 3};
+    const std::vector<float> filters_conv{-1.0f, 1.0f, 1.0f,
+                                          -1.0f, 1.0f, -1.0f,
+                                          1.0f, 1.0f, -1.0f};
+    const std::vector<uint8_t> filters_bin_conv{0x6B, 0x00};    // 01101011 00000000
+
+    const Shape outputs_shape{1, 1, 4, 4};
+    const std::vector<float> outputs{3.0f, 3.0f, 1.0f, -1.0f,
+                                     -1.0f, -5.0f, -5.0f, 3.0f,
+                                     1.0f, -1.0f, 3.0f, 1.0f,
+                                     -3.0f, 1.0f, 5.0f, -1.0f};
+
+    BinaryConvolutionTest(
+        inputs_bin_conv,
+        inputs_bin_conv_shape,
+        filters_bin_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding_bin_conv,
+        dilations,
+        pad_value);
+
+    ConvolutionTest(
+        inputs_conv,
+        inputs_conv_shape,
+        filters_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding_conv,
+        dilations);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_1batch_2channel)
+{
+    const Strides strides{1, 1};
+    const CoordinateDiff padding{0, 0};
+    const Strides dilations{1, 1};
+
+    const Shape inputs_shape{1, 2, 4, 4};
+    const std::vector<float> inputs_conv{
+                                        // channel 1
+                                        1.0f, -1.0f, -1.0f, 1.0f,
+                                        1.0f, 1.0f, -1.0f, -1.0f,
+                                        -1.0f, -1.0f, -1.0f, 1.0f,
+                                        1.0f, -1.0f, 1.0f, 1.0f,
+                                        // channel 2
+                                        -1.0f, 1.0f, 1.0f, -1.0f,
+                                        -1.0f, -1.0f, 1.0f, 1.0f,
+                                        1.0f, 1.0f, 1.0f, -1.0f,
+                                        -1.0f, 1.0f, -1.0f, -1.0f};
+    const std::vector<float> inputs_bin_conv{
+                                        // channel 1
+                                        1.0f, 0.0f, 0.0f, 1.0f,
+                                        1.0f, 1.0f, 0.0f, 0.0f,
+                                        0.0f, 0.0f, 0.0f, 1.0f,
+                                        1.0f, 0.0f, 1.0f, 1.0f,
+                                        // channel 2
+                                        0.0f, 1.0f, 1.0f, 0.0f,
+                                        0.0f, 0.0f, 1.0f, 1.0f,
+                                        1.0f, 1.0f, 1.0f, 0.0f,
+                                        0.0f, 1.0f, 0.0f, 0.0f};
+
+    const Shape filters_shape{1, 2, 3, 3};
+    const std::vector<float> filters_conv{
+                                         // channel 1
+                                         1.0f, -1.0f, 1.0f,
+                                         -1.0f, 1.0f, -1.0f,
+                                         1.0f, -1.0f, 1.0f,
+                                         // channel 2
+                                         -1.0f, 1.0f, -1.0f,
+                                         1.0f, -1.0f, 1.0f,
+                                         -1.0f, 1.0f, -1.0f};
+    //  10101010 10101010 10000000
+    const std::vector<uint8_t> filters_bin_conv{0xAA, 0xAA, 0x80};
+
+    const Shape outputs_shape{1, 1, 2, 2};
+    const std::vector<float> outputs{2.0f, 2.0f,
+                                     6.0f, -2.0f};
+
+    BinaryConvolutionTest(
+        inputs_bin_conv,
+        inputs_shape,
+        filters_bin_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding,
+        dilations);
+
+    ConvolutionTest(
+        inputs_conv,
+        inputs_shape,
+        filters_conv,
+        filters_shape,
+        outputs,
+        outputs_shape,
+        strides,
+        padding,
+        dilations);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, bin_convolution_2D_2batch_1channel)
+{
+    const Strides strides{1, 1};
+    const CoordinateDiff padding{0, 0};
+    const Strides dilations{1, 1};
+
+    const Shape inputs_shape{2, 1, 4, 4};
+    const std::vector<float> inputs_conv{
+                                        // batch 1
+                                        1.0f, -1.0f, -1.0f, 1.0f,
+                                        1.0f, 1.0f, -1.0f, -1.0f,
+                                        -1.0f, -1.0f, -1.0f, 1.0f,
+                                        1.0f, -1.0f, 1.0f, 1.0f,
+                                        // batch 2
+                                        -1.0f, -1.0f, -1.0f, -1.0f,
+                                        1.0f, 1.0f, 1.0f, -1.0f,
+                                        1.0f, 1.0f, -1.0f, 1.0f,
+                                        1.0f, -1.0f, 1.0f, -1.0f};
+    const std::vector<float> inputs_bin_conv{
+                                        // batch 1
+                                        1.0f, 0.0f, 0.0f, 1.0f,
+                                        1.0f, 1.0f, 0.0f, 0.0f,
+                                        0.0f, 0.0f, 0.0f, 1.0f,
+                                        1.0f, 0.0f, 1.0f, 1.0f,
+                                        // batch 2
+                                        0.0f, 0.0f, 0.0f, 0.0f,
+                                        1.0f, 1.0f, 1.0f, 0.0f,
+                                        1.0f, 1.0f, 0.0f, 1.0f,
+                                        1.0f, 0.0f, 1.0f, 0.0f};
+
+    const Shape filters_shape{1, 1, 3, 3};
+    const std::vector<float> filters_conv{1.0f, -1.0f, 1.0f,
+                                          -1.0f, 1.0f, -1.0f,
+                                          1.0f, -1.0f, 1.0f};
+    const std::vector<uint8_t> filters_bin_conv{0xAA, 0x80};    // 10101010 10000000
+
+    const Shape outputs_shape{2, 1, 2, 2};
+    const std::vector<float> outputs{
+                                    // batch 1
+                                    1.0f, 1.0f,
+                                    3.0f, -1.0f,
+                                    // batch 2
+                                    -3.0f, 3.0f,
+                                    5.0f, -7.0f};
 
     BinaryConvolutionTest(
         inputs_bin_conv,
