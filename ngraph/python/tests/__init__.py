@@ -172,8 +172,6 @@ xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the
 xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test data")
 xfail_issue_40686 = xfail_test(reason="NANs as results")
 xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
-xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
-                                      "with dynamic shape")
 xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
@@ -197,3 +195,4 @@ xfail_issue_48145 = xfail_test(reason="BertSquad-8 - AssertionError: Items are n
 xfail_issue_48190 = xfail_test(reason="RobertaBase-11 - AssertionError: Items are not equal: "
                                       "ACTUAL: dtype('float64') DESIRED: dtype('float32')")
 xfail_issue_49750 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v4::Interpolate")
+xfail_issue_49752 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::Pad")

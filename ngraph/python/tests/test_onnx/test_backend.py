@@ -34,7 +34,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_33633,
                    xfail_issue_33644,
                    xfail_issue_33651,
-                   xfail_issue_36535,
                    xfail_issue_38091,
                    xfail_issue_38699,
                    xfail_issue_38701,
@@ -80,7 +79,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_48098,
                    xfail_issue_48100,
                    xfail_issue_49207,
-                   xfail_issue_49750)
+                   xfail_issue_49750,
+                   xfail_issue_49752)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -135,7 +135,7 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_gru_defaults_cpu",
      "OnnxBackendNodeModelTest.test_gru_seq_length_cpu",
      "OnnxBackendNodeModelTest.test_gru_with_initial_bias_cpu"),
-    (xfail_issue_36535,
+    (xfail_issue_49752,
      "OnnxBackendNodeModelTest.test_constant_pad_cpu",
      "OnnxBackendNodeModelTest.test_edge_pad_cpu",
      "OnnxBackendNodeModelTest.test_reflect_pad_cpu"),
@@ -170,9 +170,6 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_nonmaxsuppression_two_classes_cpu",
      "OnnxBackendNodeModelTest.test_slice_default_axes_cpu",
      "OnnxBackendNodeModelTest.test_scatter_elements_with_negative_indices_cpu",
-     "OnnxBackendNodeModelTest.test_constant_pad_cpu",
-     "OnnxBackendNodeModelTest.test_edge_pad_cpu",
-     "OnnxBackendNodeModelTest.test_reflect_pad_cpu",
      "OnnxBackendNodeModelTest.test_top_k_cpu",
      "OnnxBackendNodeModelTest.test_top_k_negative_axis_cpu",
      "OnnxBackendNodeModelTest.test_top_k_smallest_cpu",
