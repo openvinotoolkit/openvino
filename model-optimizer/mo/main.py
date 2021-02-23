@@ -42,7 +42,7 @@ from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
 from mo.utils.utils import refer_to_faq_msg
-from mo.utils.version import get_version
+from mo.utils.version import get_version, get_simplified_mo_version, get_simplified_ie_version
 from mo.utils.versions_checker import check_requirements
 from mo.utils.find_ie_version import find_ie_version
 
@@ -277,20 +277,19 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
             if find_ie_version(silent=True):
                 path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
                                                                'offline_transformations.py')
-                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=100)
+                status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=10)
                 if status.returncode != 0 and not argv.silent:
                     print("[ WARNING ] offline_transformations return code {}".format(status.returncode))
         except Exception as e:
             message = str(dict({
                 "platform": platform.platform(),
-                "mo_version": get_version(),
-                "ie_version": "",  # TODO: add
-                "python_version": "",  # TODO: add
+                "mo_version": get_simplified_mo_version(),
+                "ie_version": get_simplified_ie_version(env=os.environ),
+                "python_version": sys.version,
                 "error_message": str(e),  # TODO: parse common error types
             }))
             t = tm.Telemetry()
             t.send_event('mo', 'offline_transformations_failed', message)
-            pass
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))
@@ -325,9 +324,9 @@ def driver(argv: argparse.Namespace):
 
 
 def main(cli_parser: argparse.ArgumentParser, framework: str):
-    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_version())
+    telemetry = tm.Telemetry(app_name='Model Optimizer', app_version=get_simplified_mo_version())
     telemetry.start_session()
-    telemetry.send_event('mo', 'version', get_version())
+    telemetry.send_event('mo', 'version', get_simplified_mo_version())
     try:
         # Initialize logger with 'ERROR' as default level to be able to form nice messages
         # before arg parser deliver log_level requested by user

@@ -36,18 +36,19 @@ class TestingVersion(unittest.TestCase):
     def test_release_version_extractor(self, mock_open, mock_isfile):
         mock_isfile.return_value = True
         mock_open.return_value.__enter__ = mock_open
-        self.assertEqual(extract_release_version(), ('2021', '1'))
+        self.assertEqual(extract_release_version(get_version()), ('2021', '1'))
 
     @patch('os.path.isfile')
     @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='custom_releases/2021/1_55e4d5673a8')
     def test_custom_release_version_extractor(self, mock_open, mock_isfile):
         mock_isfile.return_value = True
         mock_open.return_value.__enter__ = mock_open
-        self.assertEqual(extract_release_version(), ('2021', '1'))
+        self.assertEqual(extract_release_version(get_version()), ('2021', '1'))
 
     @patch('os.path.isfile')
     @mock.patch('builtins.open', new_callable=mock_open, create=True, read_data='custom_my_branch/fix_55e4d5673a8')
     def test_release_version_extractor_neg(self, mock_open, mock_isfile):
         mock_isfile.return_value = True
         mock_open.return_value.__enter__ = mock_open
-        self.assertEqual(extract_release_version(), (None, None))
+        self.assertEqual(extract_release_version(get_version()), (None, None))
+

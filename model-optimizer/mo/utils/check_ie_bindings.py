@@ -31,9 +31,16 @@ except ModuleNotFoundError:
     sys.path.insert(0, mo_root_path)
     execution_type = "install_prerequisites.{}".format("bat" if platform.platform() == "windows" else "sh")
 
-import mo.utils.version
+import mo.utils.version as v
 import telemetry.telemetry as tm
-from mo.utils.extract_release_version import extract_release_version
+
+
+def send_telemetry(mo_version: str, message: str, event_type: str):
+    t = tm.Telemetry(app_name='Model Optimizer', app_version=mo_version)
+    t.start_session()
+    t.send_event(execution_type, event_type, message)
+    t.end_session()
+    t.force_shutdown(1.0)
 
 
 def import_core_modules(silent: bool, path_to_module: str):
@@ -44,7 +51,7 @@ def import_core_modules(silent: bool, path_to_module: str):
         import openvino # pylint: disable=import-error
 
         ie_version = str(get_version())
-        mo_version = str(mo.utils.version.get_version()) # pylint: disable=no-member
+        mo_version = str(v.get_version()) # pylint: disable=no-member
 
         if not silent:
             print("\t- {}: \t{}".format("Inference Engine found in", os.path.dirname(openvino.__file__)))
@@ -57,32 +64,24 @@ def import_core_modules(silent: bool, path_to_module: str):
         #   Model Optimizer version:      custom_HEAD_4c8eae0ee2d403f8f5ae15b2c9ad19cfa5a9e1f9
         # So to match this versions we skip IE API version.
         if not re.match(r"^([0-9]+).([0-9]+).{}$".format(mo_version), ie_version):
-            extracted_mo_release_version = extract_release_version(mo_version)
-            extracted_ie_release_version = extract_release_version(ie_version)
-
+            extracted_mo_release_version = v.extract_release_version(mo_version)
             mo_is_custom = extracted_mo_release_version == (None, None)
-            ie_is_custom = extracted_ie_release_version == (None, None)
 
-            if not silent:
-                print("[ WARNING ] Model Optimizer and Inference Engine versions do no match.")
-                print("[ WARNING ] Consider building the Inference Engine Python API from sources or reinstall OpenVINO (TM) toolkit using \"pip install openvino{}\" {}".format(
-                    "", "(may be incompatible with the current Model Optimizer version)" if mo_is_custom else "=={}.{}".format(*extracted_mo_release_version), ""))
+            print("[ WARNING ] Model Optimizer and Inference Engine versions do no match.")
+            print("[ WARNING ] Consider building the Inference Engine Python API from sources or reinstall OpenVINO (TM) toolkit using", end=" ")
+            if mo_is_custom:
+                print("\"pip install openvino\" (may be incompatible with the current Model Optimizer version)")
+            else:
+                print("\"pip install openvino=={}.{}\"".format(*extracted_mo_release_version))
 
-                # Send telemetry message about warning
-                message = str(dict({
-                    "platform": platform.platform(),
-                    "mo_version": mo_version,
-                    "mo_is_custom": mo_is_custom,
-                    "ie_version": ie_version,
-                    "ie_is_custom": ie_is_custom
-                }))
-                print(message)
-                t = tm.Telemetry(app_name='Model Optimizer', app_version=mo_version)
-                t.start_session()
-                t.send_event(execution_type, 'ie_version_mismatch', message)
-                t.end_session()
-                t.force_shutdown(1.0)
-
+            # Send telemetry message about warning
+            simplified_mo_version = v.get_simplified_mo_version()
+            message = str(dict({
+                "platform": platform.platform(),
+                "mo_version": simplified_mo_version,
+                "ie_version": v.get_simplified_ie_version(version=ie_version),
+            }))
+            send_telemetry(simplified_mo_version, message, 'ie_version_mismatch')
 
         return True
     except Exception as e:
@@ -90,19 +89,18 @@ def import_core_modules(silent: bool, path_to_module: str):
         if "No module named 'openvino'" not in str(e) and not silent:
             print("[ WARNING ] Failed to import Inference Engine Python API in: {}".format(path_to_module))
             print("[ WARNING ] {}".format(e))
+
             # Send telemetry message about warning
-            mo_version = mo.utils.version.get_version()
+            simplified_mo_version = v.get_simplified_mo_version()
             message = str(dict({
                 "platform": platform.platform(),
-                "mo_version": mo_version,
-                "python_version": "", # TODO: add
+                "mo_version": simplified_mo_version,
+                "ie_version": v.get_simplified_ie_version(env=os.environ),
+                "python_version": sys.version,
                 "error_message": str(e),  # TODO: parse common error types
             }))
-            t = tm.Telemetry(app_name='Model Optimizer', app_version=mo_version)
-            t.start_session()
-            t.send_event(execution_type, 'ie_import_failed', message)
-            t.end_session()
-            t.force_shutdown(1.0)
+            send_telemetry(simplified_mo_version, message, 'ie_import_failed')
+
         return False
 
 
