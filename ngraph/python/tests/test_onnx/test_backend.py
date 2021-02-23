@@ -39,7 +39,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_38699,
                    xfail_issue_38701,
                    xfail_issue_38706,
-                   xfail_issue_38707,
                    xfail_issue_38708,
                    xfail_issue_38710,
                    xfail_issue_38712,
@@ -52,7 +51,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_38732,
                    xfail_issue_38734,
                    xfail_issue_38735,
-                   xfail_issue_38736,
                    xfail_issue_39656,
                    xfail_issue_39658,
                    xfail_issue_39659,
@@ -263,92 +261,6 @@ tests_expected_to_fail = [
      "OnnxBackendNodeModelTest.test_tfidfvectorizer_tf_onlybigrams_skip5_cpu"),
     (xfail_issue_38706,
      "OnnxBackendNodeModelTest.test_split_zero_size_splits_cpu"),
-    (xfail_issue_38736,
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_sum_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3_sum_weight_high_ignore_index_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_3d_log_prob_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_4d_log_prob_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1_mean_weight_negative_ignore_index_log_prob_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_none_weights_log_prob_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_none_weights_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_none_log_prob_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1_mean_weight_negative_ignore_index_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_4d_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_log_prob_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_log_prob_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3d4d5_none_no_weight_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_4d_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_3d_log_prob_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_4d_log_prob_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_log_prob_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_3d_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_none_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3_none_no_weight_negative_ignore_index_log_prob_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3d4d5_mean_weight_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3_sum_weight_high_ignore_index_log_prob_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_3d_log_prob_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_log_prob_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_3d_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_3d_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_expanded_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3_none_no_weight_negative_ignore_index_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3d4d5_mean_weight_log_prob_expanded_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2d3_sum_weight_high_ignore_index_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_with_weight_reduction_mean_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2d3d4d5_none_no_weight_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2d3d4d5_mean_weight_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2d3_none_no_weight_negative_ignore_index_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_with_weight_reduction_sum_ignore_index_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_with_weight_cpu",
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_with_weight_reduction_sum_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_reduction_sum_cpu",
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_reduction_mean_cpu",
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_no_weight_reduction_mean_ignore_index_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1d2_cpu",
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1_weight_cpu",
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1_mean_weight_negative_ignore_index_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1_ignore_index_cpu",
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NCd1_cpu",
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_input_shape_is_NC_cpu",
-     "OnnxBackendNodeModelTest.test_negative_log_likelihood_loss_iinput_shape_is_NCd1_weight_ignore_index_cpu"),  # noqa
-    (xfail_issue_38707,
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_none_weights_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_sum_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_none_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_4d_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_3d_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_sum_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_none_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_none_weights_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_4d_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_3d_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3d4d5_mean_weight_log_prob_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_4d_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3_none_no_weight_negative_ignore_index_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_weight_ignore_index_3d_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3d4d5_mean_weight_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_4d_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_no_weight_ignore_index_3d_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3_sum_weight_high_ignore_index_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3d4d5_none_no_weight_log_prob_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_3d_log_prob_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1_mean_weight_negative_ignore_index_log_prob_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3_none_no_weight_negative_ignore_index_log_prob_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_mean_3d_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3d4d5_none_no_weight_cpu",
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1d2d3_sum_weight_high_ignore_index_log_prob_cpu",  # noqa
-     "OnnxBackendNodeModelTest.test_softmax_cross_entropy_input_shape_is_NCd1_mean_weight_negative_ignore_index_cpu"),  # noqa
     (xfail_issue_38708,
      "OnnxBackendNodeModelTest.test_slice_default_steps_cpu",
      "OnnxBackendNodeModelTest.test_slice_negative_axes_cpu",
