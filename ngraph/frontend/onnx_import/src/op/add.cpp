@@ -14,9 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "op/add.hpp"
+#include <numeric>
+
 #include "default_opset.hpp"
 #include "ngraph/shape.hpp"
+#include "op/add.hpp"
 
 namespace ngraph
 {
@@ -37,10 +39,15 @@ namespace ngraph
                         {
                             // Unidirectional broadcast right node to left shape.
                             auto axis = node.get_attribute_value<std::int64_t>("axis");
+                            auto axes_num = static_cast<size_t>(
+                                rhs_node.get_partial_shape().rank().get_length());
+                            std::vector<int64_t> axes_vals(axes_num);
+                            std::iota(axes_vals.begin(), axes_vals.end(), axis);
                             rhs_node = std::make_shared<default_opset::Broadcast>(
                                 rhs_node,
                                 std::make_shared<default_opset::ShapeOf>(lhs_node),
-                                default_opset::Constant::create(element::i64, Shape{1}, {axis}));
+                                default_opset::Constant::create(
+                                    element::i64, Shape{axes_num}, axes_vals));
                         }
                         else
                         {
