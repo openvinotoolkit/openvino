@@ -211,12 +211,12 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
 
 bool AddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
     const FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(layer, 0ul);
-    if (dequantization1.multiplyHasZero()) {
+    if (dequantization1.multiplyHasZeroOrDenormal()) {
         return false;
     }
 
     const FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(layer, 1ul);
-    if (dequantization2.multiplyHasZero()) {
+    if (dequantization2.multiplyHasZeroOrDenormal()) {
         return false;
     }
 
