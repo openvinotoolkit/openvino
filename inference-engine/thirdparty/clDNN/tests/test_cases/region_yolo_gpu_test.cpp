@@ -127,7 +127,7 @@ namespace internal
         else
         {
             // Yolo layer (Yolo v3)
-            num_regions = mask_size;
+            num_regions = static_cast<uint32_t>(mask_size);
             end_index = width * height * (classes + 1);
         }
 
@@ -196,18 +196,7 @@ namespace internal
 template <typename T>
 static void runRegionTest(internal::region_yolo_test_params& params)
 {
-    engine_configuration config {
-        false,
-        false,
-        false,
-        std::string(),
-        std::string(),
-        true,
-        std::string(),
-        std::string("/home/sungeunk/work/openvino/build/cl_dump/")
-    };
-
-    engine eng(config);
+    engine eng;
     const tensor kInputTensor(params.tensor[0], params.tensor[1], params.tensor[2], params.tensor[3]);
     auto inputData = generate_random_1d<T>(params.tensor[0] * params.tensor[1] * params.tensor[2] * params.tensor[3], -1, 1);
 
@@ -218,7 +207,7 @@ static void runRegionTest(internal::region_yolo_test_params& params)
     topology.add(input_layout("InputData", inputPrim.get_layout()));
     topology.add(reorder("reorder_pre", "InputData", params.fmt, params.dataType));
     topology.add(region_yolo("region_yolo", "reorder_pre", params.coords, params.classes,
-            params.regionNum, params.mask.size(), params.softMax));
+            params.regionNum, static_cast<uint32_t>(params.mask.size()), params.softMax));
     topology.add(reorder("reorder_post", "region_yolo", format::bfyx, params.dataType));
 
     network network(eng, topology);
@@ -236,46 +225,46 @@ static void runRegionTest(internal::region_yolo_test_params& params)
 
     /// compare values
     for (size_t i = 0; i < inputData.size(); ++i) {
-        EXPECT_NEAR(refOutputData[i], outputData[i], 0.001);
+        EXPECT_NEAR(refOutputData[i], outputData[i], 0.01);
     }
 }
 
 TEST(region_yolo_gpu_fp32, bfyx) {
-    internal::region_yolo_test_params params{{ 1, 33, 2, 2 }, { 0, 1, 2 }, 4, 6, 3, data_types::f32, format::bfyx, false};
+    internal::region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f32, format::bfyx, false};
     runRegionTest<float>(params);
 }
 
 TEST(region_yolo_gpu_fp32, bfyx_softmax) {
-    internal::region_yolo_test_params params{{ 1, 125, 13, 13 }, { 0, 1, 2 }, 4, 20, 5, data_types::f32, format::bfyx, true};
+    internal::region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f32, format::bfyx, true};
     runRegionTest<float>(params);
 }
 
 TEST(region_yolo_gpu_fp32, byxf) {
-    internal::region_yolo_test_params params{{ 1, 255, 13, 13 }, { 6, 7, 8 }, 4, 80, 9, data_types::f32, format::byxf, false};
+    internal::region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f32, format::byxf, false};
     runRegionTest<float>(params);
 }
 
 TEST(region_yolo_gpu_fp32, byxf_softmax) {
-    internal::region_yolo_test_params params{{ 1, 33, 2, 2 }, { 0, 1, 2 }, 4, 6, 3, data_types::f32, format::byxf, true};
+    internal::region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f32, format::byxf, true};
     runRegionTest<float>(params);
 }
 
 TEST(region_yolo_gpu_fp16, bfyx) {
-    internal::region_yolo_test_params params{{ 1, 33, 2, 2 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::bfyx, false};
+    internal::region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::bfyx, false};
     runRegionTest<FLOAT16>(params);
 }
 
 TEST(region_yolo_gpu_fp16, bfyx_softmax) {
-    internal::region_yolo_test_params params{{ 1, 125, 13, 13 }, { 0, 1, 2 }, 4, 20, 5, data_types::f16, format::bfyx, true};
+    internal::region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::bfyx, true};
     runRegionTest<FLOAT16>(params);
 }
 
 TEST(region_yolo_gpu_fp16, byxf) {
-    internal::region_yolo_test_params params{{ 1, 255, 13, 13 }, { 6, 7, 8 }, 4, 80, 9, data_types::f16, format::byxf, false};
+    internal::region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::byxf, false};
     runRegionTest<FLOAT16>(params);
 }
 
 TEST(region_yolo_gpu_fp16, byxf_softmax) {
-    internal::region_yolo_test_params params{{ 1, 33, 2, 2 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::byxf, true};
+    internal::region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::byxf, true};
     runRegionTest<FLOAT16>(params);
 }

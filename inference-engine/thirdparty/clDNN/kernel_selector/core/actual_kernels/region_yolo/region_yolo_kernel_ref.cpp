@@ -59,8 +59,7 @@ RegionYoloKernelRef::DispatchData SetDefault(const region_yolo_params& params) {
         dispatchData.gws = {input.X().v * input.Y().v, region_num, input.Batch().v};
     } break;
     default:
-        dispatchData.gws = {input.Feature().v * input.Batch().v, input.X().v, input.Y().v};
-        break;
+        throw std::invalid_argument("Unsupported DataLayout");
     }
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 

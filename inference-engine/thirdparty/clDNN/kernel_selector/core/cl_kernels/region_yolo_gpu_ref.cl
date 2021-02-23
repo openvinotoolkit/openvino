@@ -14,31 +14,15 @@
 
 #include "include/include_all.cl"
 
-#if INPUT0_LAYOUT_BFYX
-#define IW INPUT0_SIZES[0]
-#define IH INPUT0_SIZES[1]
-#define IC INPUT0_SIZES[2]
-#define IB INPUT0_SIZES[3]
-#elif INPUT0_LAYOUT_BYXF
-#define IC INPUT0_SIZES[0]
-#define IW INPUT0_SIZES[1]
-#define IH INPUT0_SIZES[2]
-#define IB INPUT0_SIZES[3]
-#endif
-
 inline UNIT_TYPE FUNC(logistic_activate)(UNIT_TYPE x) {
     return 1. / (1. + exp(-x));
 }
 
-inline int FUNC(output_index)(int batch, int region_num, int xy, int feature_offset) {
-    int region_offset = region_num * (COORDS + CLASSES + 1);
-
+inline int FUNC(output_index)(int batch, int region_num, int x, int y, int xy, int feature_offset) {
 #if DO_SOFTMAX
-    return OUTPUT_GET_INDEX(batch, (feature_offset + region_offset) * INPUT0_SIZE_X * INPUT0_SIZE_Y + xy, 1, 1);
+    return OUTPUT_GET_INDEX(batch, feature_offset * INPUT0_SIZE_X * INPUT0_SIZE_Y + xy, 1, 1);
 #else
-    int x_index = xy % INPUT0_SIZE_X;
-    int y_index = (xy / INPUT0_SIZE_X) % (INPUT0_SIZE_Y);
-    return OUTPUT_GET_INDEX(batch, feature_offset + region_offset, y_index, x_index);
+    return OUTPUT_GET_INDEX(batch, feature_offset, y, x);
 #endif
 }
 
@@ -54,25 +38,25 @@ KERNEL (region_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* ou
     /// x,y
     int region_offset = region_num * (COORDS + CLASSES + 1);
     int in_i = INPUT0_GET_INDEX(batch, 0 + region_offset, y_index, x_index);
-    int out_i = FUNC_CALL(output_index)(batch, region_num, xy, 0);
+    int out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, 0 + region_offset);
     output[out_i] = FUNC_CALL(logistic_activate)(input[in_i]);
 
     in_i = INPUT0_GET_INDEX(batch, 1 + region_offset, y_index, x_index);
-    out_i = FUNC_CALL(output_index)(batch, region_num, xy, 1);
+    out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, 1 + region_offset);
     output[out_i] = FUNC_CALL(logistic_activate)(input[in_i]);
 
     /// width,height
     in_i = INPUT0_GET_INDEX(batch, 2 + region_offset, y_index, x_index);
-    out_i = FUNC_CALL(output_index)(batch, region_num, xy, 2);
+    out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, 2 + region_offset);
     output[out_i] = input[in_i];
 
     in_i = INPUT0_GET_INDEX(batch, 3 + region_offset, y_index, x_index);
-    out_i = FUNC_CALL(output_index)(batch, region_num, xy, 3);
+    out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, 3 + region_offset);
     output[out_i] = input[in_i];
 
     /// objectness score
     in_i = INPUT0_GET_INDEX(batch, COORDS + region_offset, y_index, x_index);
-    out_i = FUNC_CALL(output_index)(batch, region_num, xy, COORDS);
+    out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, COORDS + region_offset);
     output[out_i] = FUNC_CALL(logistic_activate)(input[in_i]);
 
     /// class score(confidence)
@@ -87,13 +71,13 @@ KERNEL (region_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* ou
     UNIT_TYPE expSum = 0;
     for (int j = 0; j < CLASSES; j++) {
         in_i = INPUT0_GET_INDEX(batch, COORDS + 1 + j + region_offset, y_index, x_index);
-        out_i = FUNC_CALL(output_index)(batch, region_num, xy, COORDS + 1 + j);
+        out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, COORDS + 1 + j + region_offset);
         output[out_i] = exp(input[in_i] - max_value);
         expSum += output[out_i];
     }
 
     for (int j = 0; j < CLASSES; j++) {
-        out_i = FUNC_CALL(output_index)(batch, region_num, xy, COORDS + 1 + j);
+        out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, COORDS + 1 + j + region_offset);
         output[out_i] /= expSum;
     }
 #else
