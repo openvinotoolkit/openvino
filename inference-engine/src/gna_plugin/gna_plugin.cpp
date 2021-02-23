@@ -44,6 +44,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
+#include <transformations/op_conversions/conv2d_decomposition.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
@@ -662,6 +663,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
+        manager.register_pass<ngraph::pass::Conv2dDecomposition>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
@@ -729,7 +731,7 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
-        passes->registerPass<FlattenTrivialConcatPass>();
+        //passes->registerPass<FlattenTrivialConcatPass>();
         passes->registerPass<InsertConcatAligningFilterPass>();
         passes->registerPass<ReorderConcatInputsPass>();
         if (policy.PermutePolicy != Policy::Permute::DISABLED) {
