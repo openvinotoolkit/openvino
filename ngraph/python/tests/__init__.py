@@ -197,3 +197,4 @@ xfail_issue_48190 = xfail_test(reason="RobertaBase-11 - AssertionError: Items ar
 xfail_issue_49750 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v4::Interpolate")
 xfail_issue_49752 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::Pad")
 xfail_issue_49753 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::StridedSlice")
+xfail_issue_49754 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::TopKIE")

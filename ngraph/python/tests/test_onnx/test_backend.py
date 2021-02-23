@@ -81,7 +81,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_49207,
                    xfail_issue_49750,
                    xfail_issue_49752,
-                   xfail_issue_49753)
+                   xfail_issue_49753,
+                   xfail_issue_49754)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -170,13 +171,14 @@ tests_expected_to_fail = [
     (xfail_issue_39662,
      "OnnxBackendNodeModelTest.test_nonmaxsuppression_two_classes_cpu",
      "OnnxBackendNodeModelTest.test_scatter_elements_with_negative_indices_cpu",
-     "OnnxBackendNodeModelTest.test_top_k_cpu",
-     "OnnxBackendNodeModelTest.test_top_k_negative_axis_cpu",
-     "OnnxBackendNodeModelTest.test_top_k_smallest_cpu",
      "OnnxBackendNodeModelTest.test_constantofshape_int_shape_zero_cpu",
      "OnnxBackendNodeModelTest.test_gather_negative_indices_cpu"),
     (xfail_issue_49753,
      "OnnxBackendNodeModelTest.test_slice_default_axes_cpu"),
+    (xfail_issue_49754,
+     "OnnxBackendNodeModelTest.test_top_k_cpu",
+     "OnnxBackendNodeModelTest.test_top_k_negative_axis_cpu",
+     "OnnxBackendNodeModelTest.test_top_k_smallest_cpu"),
     (xfail_issue_33633,
      "OnnxBackendNodeModelTest.test_maxpool_2d_dilations_cpu"),
     (xfail_issue_49207,
