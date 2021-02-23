@@ -29,7 +29,6 @@ set(ONNX_VERSION 1.8.1)
 set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
 set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
-set(ONNX_USE_PROTOBUF_SHARED_LIBS ON)
 
 FetchContent_Declare(
     ext_onnx
@@ -63,6 +62,7 @@ endmacro()
 FetchContent_GetProperties(ext_onnx)
 if(NOT ext_onnx_POPULATED)
     FetchContent_Populate(ext_onnx)
+    set(ONNX_USE_PROTOBUF_SHARED_LIBS {${BUILD_SHARED_LIBS})
     set(ONNX_NAMESPACE ${NGRAPH_ONNX_NAMESPACE})
     set(ONNX_USE_LITE_PROTO ${NGRAPH_USE_PROTOBUF_LITE} CACHE BOOL "Use protobuf lite for ONNX library")
     set(ONNX_ML ON CACHE BOOL "Use ONNX ML")

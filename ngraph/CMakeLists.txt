@@ -313,8 +313,20 @@ if(NOT DEFINED EXTERNAL_PROJECTS_ROOT)
     set(EXTERNAL_PROJECTS_ROOT ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
+add_subdirectory(core)
+
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
     set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
+    include(CMakePackageConfigHelpers)
+    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
+
+    if(BUILD_SHARED_LIBS)
+    install(EXPORT ngraphTargets
+        FILE ngraphTargets.cmake
+        NAMESPACE ngraph::
+        DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
+        COMPONENT ngraph)
+    endif()
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
@@ -346,20 +358,9 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     unset(BEFORE_ONNX_BUILD_SHARED_LIBS)
 endif()
 
-add_subdirectory(core)
 add_subdirectory(frontend)
 
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
-    include(CMakePackageConfigHelpers)
-    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
-
-    if(BUILD_SHARED_LIBS)
-    install(EXPORT ngraphTargets
-        FILE ngraphTargets.cmake
-        NAMESPACE ngraph::
-        DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
-        COMPONENT ngraph)
-    endif()
     configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/share/ngraphConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
         INSTALL_DESTINATION cmake)
