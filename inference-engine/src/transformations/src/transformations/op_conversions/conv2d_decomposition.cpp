@@ -16,6 +16,8 @@
 using namespace ngraph;
 using namespace op;
 
+//#define RESHAPE_NCHW_NHWC
+
 std::vector<std::shared_ptr<opset1::Constant>> Convert2DFilter2PointwiseFilterSet(std::shared_ptr<opset1::Constant> & filters)
 {
     std::vector <std::shared_ptr<opset1::Constant>> result;
@@ -67,8 +69,9 @@ std::shared_ptr<opset1::Constant> ReduceConv2DFilterHeightByChannelPermute(std::
                 for (size_t h = 0; h < filter_shape[2]; h++) {
                     for (size_t w = 0; w < filter_shape[3]; w++) {
                         // NCHW=>NC'1W
-                        flat_filters[n * C * H * W +
-                            (c * H * W) + w * H + h] = data[offset];
+                        //flat_filters[n * C * H * W +
+                        //    (c * H * W) + w * H + h] = data[offset];
+                        flat_filters[offset] = data[offset];
                         offset++;
                     }
                 }
@@ -116,6 +119,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         if (nullptr == conv || transformation_callback(conv)) {
             continue;
         }
+
         const Output<Node>& input = conv->input_value(0);
         const Output<Node>& filters = conv->input_value(1);
         auto output_shape = conv->get_output_shape(0);
@@ -130,7 +134,18 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             // we support only 2D conv batch 1
             continue;
         }
+        // we are looking for NHWC Transpose NCHW => conv => NCHW Transpose NHWC
+        auto leading_transpose = std::dynamic_pointer_cast<Transpose>(input.get_node_shared_ptr());
+        auto output_0 = node->get_output_target_inputs(0);
+        if (output_0.size() != 1)
+            continue;
+        // TODO: check if next is NHWC => NCHW
+        auto output_0_node = output_0.begin()->get_node()->shared_from_this();
 
+        auto trailing_transpose = std::dynamic_pointer_cast<Transpose>(output_0_node);
+        if (!trailing_transpose)
+            continue;
+        // TODO: check if next is NCHW => NHWC
         auto filter_values = std::dynamic_pointer_cast<ngraph::opset1::Constant>(filters.get_node_shared_ptr());
         if (!filter_values) {
             continue;
@@ -214,19 +229,18 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             biggest_padding = biggest_padding > padded_row_size ? biggest_padding : padded_row_size;
         }
 
-#ifdef RESHAPE_NCHW_NHWC
-        // NCHW => NHWC
-        auto nhwc_input = builder::opset1::reorder_axes(input, { 0ull,2ull,3ull,1ull });
-        ngraph::copy_runtime_info(conv, nhwc_input);
-        auto flat_input = builder::opset1::reshape(nhwc_input, Shape{ (size_t)1, shape_size(nhwc_input->get_shape()) });
-#else
-        auto flat_input = builder::opset1::reshape(input, Shape{ (size_t)1, shape_size(input.get_shape()) });
-#endif
+
+
+        auto flat_input = builder::opset1::reshape(leading_transpose->input_value(0), Shape{ (size_t)1, shape_size(leading_transpose->input_value(0).get_shape()) });
+        // we start injecting subgraph
+        ngraph::copy_runtime_info(leading_transpose, flat_input);
+        ngraph::replace_node(leading_transpose, flat_input);
+
         // zero padding
         // TODO: find biggest padding in whole network
         auto const_holding_padding = std::make_shared<opset1::Constant>(element::Type_t::f32, Shape{ 1, biggest_padding }, 0);
 
-        ngraph::copy_runtime_info(conv, { flat_input, const_holding_padding });
+        ngraph::copy_runtime_info(conv, const_holding_padding );
 
         // padding
         // padding
@@ -418,13 +432,13 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             ngraph::copy_runtime_info(conv, concatenated_sub_results);
             last_op = concatenated_sub_results;
         }
-#ifdef RESHAPE_NCHW_NHWC
-        auto nchw_conv2d_output = builder::opset1::reorder_axes(last_op, { 0ull,3ull,1ull,2ull });
-        ngraph::copy_runtime_info(conv, nchw_conv2d_output);
-        ngraph::replace_node(conv, nchw_conv2d_output);
-#else
-        ngraph::replace_node(conv, last_op);
-#endif
+
+        // we need to put friendly name, so the conv output can be used as network result
+        std::string last_op_name = trailing_transpose->get_friendly_name();
+
+        ngraph::replace_node(trailing_transpose, last_op);
+        last_op->set_friendly_name(last_op_name);
+
         is_graph_modfied = true;
     }
     return is_graph_modfied;
