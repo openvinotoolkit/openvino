@@ -232,7 +232,7 @@ def test_constant_get_data_bool():
 
 
 def test_parameter_u1():
-    node = ng.parameter([2, 2], name="data", dtype=ng.utils.types.u1)
+    node = ng.parameter([2, 2], name="data", dtype=ng.packed_u1)
     assert node.get_output_element_type(0) == Type.u1
 
 

@@ -49,7 +49,7 @@ def test_binary_convolution():
     expected_shape = [1, 1, 7, 7]
 
     parameter_input0 = ng.parameter(input0_shape, name="Input0", dtype=np.float32)
-    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=ng.utils.types.u1)
+    parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=ng.packed_u1)
 
     node = ng.binary_convolution(
         parameter_input0, parameter_input1, strides, pads_begin, pads_end, dilations, mode, pad_value,

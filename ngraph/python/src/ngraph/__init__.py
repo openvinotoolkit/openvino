@@ -178,6 +178,9 @@ from ngraph.opset6 import transpose
 from ngraph.opset6 import unsqueeze
 from ngraph.opset6 import variadic_split
 
+# Custom dtype packed_u1 to distinguish uint8 and u1 data,
+# stored in uint8 as 8x u1
+from ngraph.utils.types import packed_u1
 
 # Extend Node class to support binary operators
 Node.__add__ = add
