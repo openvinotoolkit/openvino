@@ -32,29 +32,7 @@ target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX
                                                        $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)
 target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 
-# onnx symbols should be available for onnx_importer and onnx_editor
-# onnx_common should be the only library that links with onnx
-# it guaranties that there is only one protobuf instance
-if(MSVC)
-        target_link_libraries(${TARGET_NAME} PRIVATE -WHOLEARCHIVE:$<TARGET_FILE:onnx>)
-        target_link_libraries(${TARGET_NAME} PRIVATE -WHOLEARCHIVE:$<TARGET_FILE:onnx_proto>)
-        target_link_libraries(${TARGET_NAME} PRIVATE -WHOLEARCHIVE:$<TARGET_FILE:${Protobuf_LIBRARIES}>)
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-        target_link_libraries(${TARGET_NAME} PRIVATE -Wl,-force_load,$<TARGET_FILE:onnx>)
-        target_link_libraries(${TARGET_NAME} PRIVATE -Wl,-force_load,$<TARGET_FILE:onnx_proto>)
-        target_link_libraries(${TARGET_NAME} PRIVATE -Wl,-force_load,$<TARGET_FILE:${Protobuf_LIBRARIES}>)
-else()
-        set(BEFORE_CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS})
-        string (REPLACE "-Wl,--exclude-libs,ALL" "" CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS}")
-
-        target_link_libraries(${TARGET_NAME} PRIVATE -Wl,--whole-archive
-                                                onnx
-                                                -Wl,--no-whole-archive)
-        set(CMAKE_SHARED_LINKER_FLAGS, ${BEFORE_CMAKE_SHARED_LINKER_FLAGS})
-endif()
-add_dependencies(${TARGET_NAME} onnx onnx_proto ${Protobuf_LIBRARIES})
-
-target_link_libraries(${TARGET_NAME} PRIVATE ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE ngraph onnx_proto ${Protobuf_LIBRARIES} onnx)
 
 target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE

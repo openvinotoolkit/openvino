@@ -29,6 +29,7 @@ set(ONNX_VERSION 1.8.1)
 set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
 set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
+set(ONNX_USE_PROTOBUF_SHARED_LIBS ON)
 
 FetchContent_Declare(
     ext_onnx
@@ -50,6 +51,13 @@ macro(onnx_set_target_properties)
     CXX_VISIBILITY_PRESET default
     C_VISIBILITY_PRESET default
     VISIBILITY_INLINES_HIDDEN OFF)
+
+    install(TARGETS onnx onnx_proto
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+
+    if (NGRAPH_EXPORT_TARGETS_ENABLE)
+        export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+    endif()
 endmacro()
 
 FetchContent_GetProperties(ext_onnx)

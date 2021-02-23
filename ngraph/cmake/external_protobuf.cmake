@@ -80,7 +80,7 @@ else()
         set(Protobuf_INSTALL_PREFIX ${EXTERNAL_PROJECTS_ROOT}/protobuf)
         set(Protobuf_PROTOC_EXECUTABLE ${Protobuf_INSTALL_PREFIX}/bin/protoc)
         set(Protobuf_INCLUDE_DIRS ${Protobuf_INSTALL_PREFIX}/include)
-        set(Protobuf_LIBRARY ${Protobuf_INSTALL_PREFIX}/lib/libprotobuf.a)
+        set(Protobuf_LIBRARY ${Protobuf_INSTALL_PREFIX}/lib/libprotobuf.dylib)
         # Don't manually set compiler on macos since it causes compile error on macos >= 10.14
         ExternalProject_Add(
             ext_protobuf
@@ -89,7 +89,7 @@ else()
             GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
             UPDATE_COMMAND ""
             PATCH_COMMAND ""
-            CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${EXTERNAL_PROJECTS_ROOT}/protobuf --disable-shared
+            CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${EXTERNAL_PROJECTS_ROOT}/protobuf
             BUILD_COMMAND ${MAKE_UTIL} "CXXFLAGS=-std=c++${CMAKE_CXX_STANDARD} -fPIC"
             TMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/tmp"
             STAMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/stamp"
@@ -158,12 +158,15 @@ else()
             set_target_properties(${_proto_libs} PROPERTIES
                                    COMPILE_FLAGS "-Wno-unused-variable")
             set_target_properties(${_proto_libs} PROPERTIES
-                                  CXX_VISIBILITY_PRESET default
-                                  C_VISIBILITY_PRESET default
-                                  VISIBILITY_INLINES_HIDDEN OFF)
+            CXX_VISIBILITY_PRESET default
+            C_VISIBILITY_PRESET default
+            VISIBILITY_INLINES_HIDDEN OFF)
         endif()
     endif()
 endif()
 
 # Now make sure we restore the original flags
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")
+
+install(TARGETS ${Protobuf_LIBRARIES}
+        LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)

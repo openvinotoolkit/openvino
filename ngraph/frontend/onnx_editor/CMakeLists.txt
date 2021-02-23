@@ -26,7 +26,7 @@ endif()
 
 # TODO Add handling ie_faster_build
 
-target_link_libraries(${TARGET_NAME} PRIVATE onnx_common PUBLIC ngraph)
+target_link_libraries(${TARGET_NAME} PRIVATE onnx_common onnx PUBLIC ngraph)
 
 set(ONNX_EDITOR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(ONNX_EDITOR_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
