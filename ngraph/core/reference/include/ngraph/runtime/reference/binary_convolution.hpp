@@ -80,11 +80,12 @@ namespace ngraph
                                  i_x += p.strides[2])
                             {
                                 auto input_channel = batch;
-                                auto filter_channel = filter;
-                                T_IN popcount = 0;
                                 size_t filter_channels_count = filter_shape[0];
+                                int filter_count = 0;
+                                T_IN sum = 0;
                                 while (filter_channels_count--)
                                 {
+                                    T_IN popcount = 0;
                                     for (int f_z = 0; f_z < filter_size_z; ++f_z)
                                     {
                                         for (int f_y = 0; f_y < filter_size_y; ++f_y)
@@ -99,10 +100,6 @@ namespace ngraph
                                                     !(in_range(rel_i_x, {0, input_size_x}) &&
                                                       in_range(rel_i_y, {0, input_size_y}) &&
                                                       in_range(rel_i_z, {0, input_size_z}));
-
-                                                int f_buf_idx =
-                                                    (f_z * filter_size_y * filter_size_x) +
-                                                    (f_y * filter_size_x) + f_x;
                                                 int i_buf_idx =
                                                     (rel_i_z * input_size_y * input_size_x) +
                                                     (rel_i_y * input_size_x) + rel_i_x;
@@ -112,9 +109,16 @@ namespace ngraph
                                                                   : static_cast<T_IN>(
                                                                         input_channel[i_buf_idx]);
 
-                                                T_F f_val = extract_bit(
-                                                    filter_channel[f_buf_idx / n_bits],
-                                                    (n_bits - 1) - (f_buf_idx % n_bits));
+                                                int f_buf_idx =
+                                                    (f_z * filter_size_y * filter_size_x) +
+                                                    (f_y * filter_size_x) + f_x;
+
+                                                int f_byte_idx =
+                                                    (f_buf_idx + filter_count) / n_bits;
+                                                int bit_idx = (n_bits - 1) -
+                                                              ((f_buf_idx + filter_count) % n_bits);
+                                                uint8_t f_val =
+                                                    extract_bit(filter[f_byte_idx], bit_idx);
 
                                                 if (xnor(in_val, static_cast<T_IN>(f_val)))
                                                 {
@@ -124,9 +128,10 @@ namespace ngraph
                                         }
                                     }
                                     input_channel += input_channel_size;
-                                    filter_channel += filter_channel_size;
+                                    filter_count += filter_channel_size;
+                                    sum += (2 * popcount - bit_count);
                                 }
-                                *out = (2 * popcount - bit_count);
+                                *out = sum;
                                 ++out;
                             }
                         }
