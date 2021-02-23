@@ -212,8 +212,8 @@ namespace ngraph
 
             onnx_import::InputEdge edge;
 
-            PlaceInputEdgeONNX (int _operationNodeIndex, const std::string& _targetTensorName) :
-                    edge(_operationNodeIndex, _targetTensorName)
+            PlaceInputEdgeONNX (const std::string& _sourceTensorName, int _operationNodeIndex) :
+                    edge(_operationNodeIndex, _sourceTensorName)
             {}
         };
 
@@ -223,8 +223,8 @@ namespace ngraph
 
             onnx_import::OutputEdge edge;
 
-            PlaceOutputEdgeONNX (const std::string& _sourceTensorName, int _operationNodeIndex) :
-                    edge(_operationNodeIndex, _sourceTensorName)
+            PlaceOutputEdgeONNX (int _operationNodeIndex, const std::string& _targetTensorName) :
+                    edge(_operationNodeIndex, _targetTensorName)
             {}
 
 
@@ -246,7 +246,7 @@ namespace ngraph
                 return std::vector<std::string>(1, tensorName);
             }
 
-            //virtual std::vector<Place::Ptr> Place::getConsumingPorts () const override;
+            virtual std::vector<Place::Ptr> getConsumingPorts () const override;
             virtual Place::Ptr getProducingPort () const override;
         };
 
@@ -261,8 +261,10 @@ namespace ngraph
 
             Place::Ptr getPlaceByTensorName (const std::string& tensorName) override
             {
-
-                editor.model();  // TODO: by using this `model` check if name really exists in the model
+                if(!editor.validate_tensor_name(tensorName)) {
+                    std::cerr << " [ ERROR ] Node with name " << tensorName << " is not valid for a given model\n";
+                    return nullptr;
+                }
                 return std::make_shared<PlaceTensorONNX>(tensorName, this);
             }
 
@@ -286,20 +288,27 @@ namespace ngraph
 
             void extractSubgraph (const std::vector<Place::Ptr>& inputs, const std::vector<Place::Ptr>& outputs)
             {
+                std::cerr << "\nTTTTTTTTTTTTT\n";
+                std::cerr << "inputs.size() = " << inputs.size() << "\n";
                 // Current implementation is limited by tensor places only, each input tensor should be consumed by a single op only
                 // TODO Extend to non tensor inputs/outputs and remove other limitations
                 std::vector<onnx_import::InputEdge> onnx_inputs;
                 onnx_inputs.reserve(inputs.size());
                 for(const auto& input: inputs)
                 {
+                    std::cerr << "[] = " << input.get() << "\n";
                     // TODO check if input is a tensor
                     auto inputPorts = input->getConsumingPorts();
+                    std::cerr << "{1}\n";
                     NGRAPH_CHECK(inputPorts.size() == 1);
+                    std::cerr << "{2}\n";
                     auto inputPort = inputPorts.front();
+                    std::cerr << "{3}\n";
                     auto onnxInputEdge = std::dynamic_pointer_cast<PlaceInputEdgeONNX>(inputPort);
                     NGRAPH_CHECK(onnxInputEdge);
                     onnx_inputs.push_back(onnxInputEdge->edge);
                 }
+                std::cerr << "{4}\n";
 
                 std::vector<onnx_import::OutputEdge> onnx_outputs;
                 onnx_outputs.reserve(outputs.size());
@@ -316,15 +325,20 @@ namespace ngraph
             }
         };
 
-        /*std::vector<Place::Ptr> PlaceTensorONNX::getConsumingPorts () const
+        std::vector<Place::Ptr> PlaceTensorONNX::getConsumingPorts () const
         {
             // ONNX specific code to find a node indices for all operations that consume a given tensor name
-
-        }*/
+            std::vector<Place::Ptr> result;
+            for(int i: model->editor.find_consumeing_node_idxs(tensorName))
+            {
+                result.push_back(std::make_shared<PlaceInputEdgeONNX>(tensorName, i));
+            }
+            return result;
+        }
 
         Place::Ptr PlaceTensorONNX::getProducingPort () const
         {
-            return std::make_shared<PlaceOutputEdgeONNX>(tensorName, model->editor.find_producing_node_idx(tensorName));
+            return std::make_shared<PlaceOutputEdgeONNX>(model->editor.find_producing_node_idx(tensorName), tensorName);
         }
 
         class FrontEndONNX : public FrontEnd

@@ -455,6 +455,34 @@ def extract_node_attrs(graph: Graph, extractor: callable):
     return graph
 
 
+def decodeNameWithPort (graph: Graph, node_name: str):
+    """
+    Decode name with optional port specification w/o traversing all the nodes in the graph
+    :param graph:
+    :param node_name:
+    :return: decoded place in the graph
+    """
+    # Check exact match with one of the names in the graph first
+    inputModel = graph.graph['input_model']
+    #TODO: search for any name, not only a tensor
+    node = inputModel.getPlaceByTensorName(node_name)
+    if node:
+        return node
+    regexpPost = r'(.*)(:(\d+))'
+    matchPost = re.search(regexpPost, node_name)
+    nodePost = inputModel.findTensor(matchPost.group(1)) if matchPost else None
+    regexpPre = r'((\d+):)(.*)'
+    matchPre = re.search(regexpPre, node_name)
+    nodePre = inputModel.findTensor(matchPre.group(3)) if matchPost else None
+    if nodePost and nodePre:
+        raise Error('Name collision for {}'.format(node_name))
+    if nodePost:
+        return node.getOutputPort(int(matchPost.group(3)))
+    if nodePre:
+        return node.getInputPort(int(matchPre.group(1)))
+    raise Error('There is no node with name {}'.format(node_name))
+
+
 def get_node_id_with_ports(graph: Graph, node_name: str, skip_if_no_port=True):
     """
     Extracts port and node ID out of user provided name
@@ -556,6 +584,26 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
         'phase_train' : False
     }
     """
+    _input_shapes = []
+    if 'frontend' in graph.graph:
+        # New version of FrontEnd is activated
+        print("I'm HERE")
+        inputModel = graph.graph['input_model']
+        if isinstance(input_user_shapes, list) or isinstance(input_user_shapes, dict):
+            for input_name in input_user_shapes:
+                node = decodeNameWithPort(graph, input_name)
+                if node is None:
+                    raise Error('Cannot find location {} in the graph'.format(input_name))
+                shape = None if isinstance(input_user_shapes, list) else input_user_shapes[input_name]
+            if input_name in input_user_data_types and input_user_data_types[input_name] is not None:
+                data_type = input_user_data_types[input_name]
+                _input_shapes.append({'node': node, 'shape': shape, 'data_type': data_type})
+            else:
+                _input_shapes.append({'node': node, 'shape': shape})
+        # TODO: Implement the remaining cases
+        return _input_shapes, dict()
+
+
     _input_shapes = defaultdict(list)
     _freeze_placeholder = dict()
     _freeze_new_placeholder = defaultdict(list)

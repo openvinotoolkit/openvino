@@ -48,7 +48,7 @@ def moc_pipeline(argv: argparse.Namespace):
     print(fe)
     inputModel = fe.load(argv.input_model)
     nGraphModel = fe.convert(inputModel)
-    network = ng.function_to_cnn(nGraphModel)
+    #network = ng.function_to_cnn(nGraphModel)
     #network = ie.read_network(model=argv.input_model)
 
     # Wrap nGraph network to Graph for smoothly pass through the legacy code in MO.
@@ -56,14 +56,20 @@ def moc_pipeline(argv: argparse.Namespace):
     # NX graph and this is not required. But Graph has several methods that can be implemented for nGraph
     # and probably they should be kept at least for transition period where some existing transformations
     # that manipulate Graph object really translate those modifications directly to nGraph representation.
-    graph = Graph(network=network, cmd_params=argv, name=argv.model_name, ir_version=get_ir_version(argv))
+    graph = Graph(frontend=fe, input_model=inputModel, cmd_params=argv, name=argv.model_name, ir_version=get_ir_version(argv))
 
     transforms = [
         UserDataRepack,
-        InputCut,
+        #InputCut,
         #OutputCut
     ]
 
     apply_replacements_list(graph, transforms)
-
+    user_shapes = graph.graph['user_shapes']
+    print(user_shapes)
+    if user_shapes:
+        inputModel.extractSubgraph([us['node'] for us in user_shapes], [])
+    nGraphModel = fe.convert(inputModel)
+    network = ng.function_to_cnn(nGraphModel)
+    graph.graph['network'] = network
     return graph

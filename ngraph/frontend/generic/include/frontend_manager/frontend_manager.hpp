@@ -39,7 +39,7 @@ namespace ngraph
             virtual Ptr getProducingPort () const;
             virtual Ptr getInputPort (int inputPortIndex) const;
             virtual Ptr getOutputPort (int outputPortIndex) const;
-            virtual std::vector<Ptr> getConsumingPorts () const;
+            virtual std::vector<Place::Ptr> getConsumingPorts () const;
         };
 
         class NGRAPH_API InputModel

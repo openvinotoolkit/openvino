@@ -116,7 +116,15 @@ namespace ngraph
             /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
 
+            // Finds an ONNX node index that writes to a given tensorName
             int find_producing_node_idx(const std::string& tensorName) const;
+
+            // Finds all ONNX nodes indices that consume a value of a given tensorName
+            std::vector<int> find_consumeing_node_idxs(const std::string& tensorName) const;
+
+            // Find out whether there is a tensor with a given name
+            bool validate_tensor_name(const std::string& tensorName) const;
+
 
         private:
             const std::string m_model_path;

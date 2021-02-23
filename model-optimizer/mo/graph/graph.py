@@ -746,7 +746,7 @@ class Graph(nx.MultiDiGraph):
         return prefix + str(self.unique_id_count)
 
     def check_empty_graph(self, description: str):
-        if len(self.nodes()) <= 1 and self.graph['network'] is None:
+        if len(self.nodes()) <= 1 and self.graph['frontend'] is None:
             raise Error(
                 "Graph contains {} node after executing {}. It considered as error because resulting IR will be "
                 "empty which is not usual".format(len(self.nodes()), description))
