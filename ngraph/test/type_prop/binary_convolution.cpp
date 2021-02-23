@@ -21,7 +21,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, binary_conv_v1_auto_padding_same)
+TEST(type_prop, bin_convolution_auto_padding_same)
 {
     const PartialShape data_batch_shape{1, 1, 5, 5};
     const PartialShape filters_shape{1, 1, 3, 3};
@@ -44,7 +44,7 @@ TEST(type_prop, binary_conv_v1_auto_padding_same)
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
-TEST(type_prop, binary_conv_v1_auto_padding_same_lower_spatial_dims_static)
+TEST(type_prop, bin_convolution_auto_padding_same_lower_spatial_dims_static)
 {
     const PartialShape data_batch_shape{Dimension::dynamic(), Dimension::dynamic(), 5, 5};
     const PartialShape filters_shape{Dimension::dynamic(), Dimension::dynamic(), 3, 3};
@@ -68,7 +68,7 @@ TEST(type_prop, binary_conv_v1_auto_padding_same_lower_spatial_dims_static)
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
-TEST(type_prop, binary_conv_v1_auto_padding_same_upper_spatial_dims_static)
+TEST(type_prop, bin_convolution_auto_padding_same_upper_spatial_dims_static)
 {
     const PartialShape data_batch_shape{Dimension::dynamic(), Dimension::dynamic(), 5, 5};
     const PartialShape filters_shape{Dimension::dynamic(), Dimension::dynamic(), 2, 2};
@@ -92,7 +92,7 @@ TEST(type_prop, binary_conv_v1_auto_padding_same_upper_spatial_dims_static)
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{1, 1}));
 }
 
-TEST(type_prop, binary_conv_v1_auto_padding_same_data_batch_spatial_dims_dynamic)
+TEST(type_prop, bin_convolution_auto_padding_same_data_batch_spatial_dims_dynamic)
 {
     const PartialShape data_batch_shape{1, 1, Dimension::dynamic(), 5};
     const PartialShape filters_shape{Dimension::dynamic(), 1, 3, 3};
@@ -116,7 +116,7 @@ TEST(type_prop, binary_conv_v1_auto_padding_same_data_batch_spatial_dims_dynamic
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{0, 1}));
 }
 
-TEST(type_prop, binary_conv_v1_dyn_data_batch)
+TEST(type_prop, bin_convolution_dyn_data_batch)
 {
     const auto mode = op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT;
     const float pad_value = 1.0f;
@@ -138,7 +138,7 @@ TEST(type_prop, binary_conv_v1_dyn_data_batch)
         PartialShape{Dimension::dynamic(), 1, Dimension::dynamic()}));
 }
 
-TEST(type_prop, binary_conv_v1_dyn_filters)
+TEST(type_prop, bin_convolution_dyn_filters)
 {
     const auto mode = op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT;
     const float pad_value = 1.0f;
@@ -160,7 +160,7 @@ TEST(type_prop, binary_conv_v1_dyn_filters)
         PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
 }
 
-TEST(type_prop, binary_conv_v1_dyn_data_batch_and_filters)
+TEST(type_prop, bin_convolution_dyn_data_batch_and_filters)
 {
     const auto mode = op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT;
     const float pad_value = 1.0f;
@@ -181,7 +181,7 @@ TEST(type_prop, binary_conv_v1_dyn_data_batch_and_filters)
     ASSERT_TRUE(bin_conv->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
-TEST(type_prop, binary_conv_v1_invalid_inputs_et)
+TEST(type_prop, bin_convolution_invalid_inputs_et)
 {
     const auto mode = op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT;
     const float pad_value = 1.0f;
@@ -214,7 +214,7 @@ TEST(type_prop, binary_conv_v1_invalid_inputs_et)
     // (#49517)
 }
 
-TEST(type_prop, binary_conv_v1_incompatible_input_channels)
+TEST(type_prop, bin_convolution_incompatible_input_channels)
 {
     const auto mode = op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT;
     const float pad_value = 1.0f;
@@ -247,7 +247,7 @@ TEST(type_prop, binary_conv_v1_incompatible_input_channels)
     }
 }
 
-TEST(type_prop, binary_conv_v1_invalid_input_ranks)
+TEST(type_prop, bin_convolution_invalid_input_ranks)
 {
     const auto mode = op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT;
     const float pad_value = 1.0f;
@@ -311,7 +311,7 @@ TEST(type_prop, binary_conv_v1_invalid_input_ranks)
     }
 }
 
-TEST(type_prop, binary_conv_v1_invalid_spatial_dims_parameters)
+TEST(type_prop, bin_convolution_invalid_spatial_dims_parameters)
 {
     Strides strides_1d{1};
     Strides strides_3d{1, 1, 1};
