@@ -2323,7 +2323,8 @@ inline v_uint16x8 v_mulhi(const v_uint16x8& a, uint16_t b) {
     return result;
 }
 
-CV_ALWAYS_INLINE v_int16x8 v_mulhrs(const v_int16x8& a, const v_int16x8& b) {
+CV_ALWAYS_INLINE v_int16x8 v_mulhrs(const v_int16x8& a, const v_int16x8& b)
+{
     // Multiply
     int32x4_t mul_lo = vmull_s16(vget_low_s16(a.val),
                                  vget_low_s16(b.val));
@@ -2339,15 +2340,16 @@ CV_ALWAYS_INLINE v_int16x8 v_mulhrs(const v_int16x8& a, const v_int16x8& b) {
     return v_int16x8(vcombine_s16(narrow_lo, narrow_hi));
 }
 
-CV_ALWAYS_INLINE v_int16x8 v_mulhrs(const v_int16x8& a, short b) {
+CV_ALWAYS_INLINE v_int16x8 v_mulhrs(const v_int16x8& a, const short b)
+{
     return v_mulhrs(a, v_setall_s16(b));
 }
 
 CV_ALWAYS_INLINE void v_gather_channel(v_uint8x16& vec, const uint8_t tmp[],
-                                       const short* index, int chanNum, int c,
-                                       int shift)
+                                       const short* index, const int chanNum,
+                                       const int c, const int shift)
 {
-    int32x4_t result;
+    int32x4_t result = {};
     result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 0)) + c)]), result, 0);
     result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 1)) + c)]), result, 1);
     result = vsetq_lane_s32(*reinterpret_cast<const int*>(&tmp[4 * (chanNum * (*(index + shift + 0) + 1) + c)]), result, 2);
@@ -2358,8 +2360,9 @@ CV_ALWAYS_INLINE void v_gather_channel(v_uint8x16& vec, const uint8_t tmp[],
 
 namespace {
 template<int chanNum>
-CV_ALWAYS_INLINE v_int16x8 v_gather_channel(const uchar src[], const short* index, int channel, int pos) {
-    int16x8_t result;
+CV_ALWAYS_INLINE void v_gather_channel(v_int16x8& vec, const uchar src[], const short* index, const int channel, const int pos)
+{
+    int16x8_t result = {};
     result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*index + pos) + channel]), result, 0);
     result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 1) + pos) + channel]), result, 1);
     result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 2) + pos) + channel]), result, 2);
@@ -2368,7 +2371,8 @@ CV_ALWAYS_INLINE v_int16x8 v_gather_channel(const uchar src[], const short* inde
     result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 5) + pos) + channel]), result, 5);
     result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 6) + pos) + channel]), result, 6);
     result = vsetq_lane_s16(*reinterpret_cast<const uchar*>(&src[chanNum * (*(index + 7) + pos) + channel]), result, 7);
-    return v_int16x8(result);
+
+    vec.val = result;
 }
 }  // namespace
 
@@ -2410,8 +2414,6 @@ CV_ALWAYS_INLINE v_uint8x16 v_shuffle(const v_uint8x16& a, const v_uint8x16& mas
 
     return v_uint8x16(ret);
 #else
-
-    // use this line if testing on aarch64
     uint8x8x2_t a_split = { vget_low_u8(tbl), vget_high_u8(tbl) };
 
     return v_uint8x16(vcombine_u8(
@@ -2421,9 +2423,9 @@ CV_ALWAYS_INLINE v_uint8x16 v_shuffle(const v_uint8x16& a, const v_uint8x16& mas
 #endif
 }
 
-CV_ALWAYS_INLINE v_uint8x16 v_slli_si128(v_uint8x16 a, const int imm)
+CV_ALWAYS_INLINE v_uint8x16 v_slli_si128(const v_uint8x16& a, const int imm)
 {
-    uint8x16_t ret;
+    uint8x16_t ret = {};
     if (imm <= 0) {
         ret = a.val;
     }
@@ -2435,9 +2437,9 @@ CV_ALWAYS_INLINE v_uint8x16 v_slli_si128(v_uint8x16 a, const int imm)
     return v_uint8x16(ret);
 }
 
-CV_ALWAYS_INLINE v_uint8x16 v_srli_si128(v_uint8x16 a, const int imm)
+CV_ALWAYS_INLINE v_uint8x16 v_srli_si128(const v_uint8x16& a, const int imm)
 {
-    uint8x16_t ret;
+    uint8x16_t ret = {};
     if (imm <= 0) {
         ret = a.val;
     }

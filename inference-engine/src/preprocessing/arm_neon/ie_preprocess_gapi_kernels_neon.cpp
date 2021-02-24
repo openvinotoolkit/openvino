@@ -128,25 +128,24 @@ void copyRow_32F(const float in[], float out[], int length) {
 }
 
 template<int chanNum>
-CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(
-                             std::array<std::array<uint8_t*, 4>, chanNum>& dst,
-                                                            const uint8_t* src0[],
-                                                            const uint8_t* src1[],
-                                                            const short    alpha[],
-                                                            const short    clone[],  // 4 clones of alpha
-                                                            const short    mapsx[],
-                                                            const short    beta[],
-                                                            uint8_t  tmp[],
-                                                            const Size& inSz,
-                                                            const Size& outSz,
-                                                            int      lpi) {
+CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum>& dst,
+                                              const uint8_t* src0[],
+                                              const uint8_t* src1[],
+                                              const short    alpha[],
+                                              const short    clone[],  // 4 clones of alpha
+                                              const short    mapsx[],
+                                              const short    beta[],
+                                                  uint8_t    tmp[],
+                                              const Size&    inSz,
+                                              const Size&    outSz,
+                                              const int      lpi) {
     constexpr int nlanes = static_cast<int>(v_int8::nlanes);
     constexpr int half_nlanes = nlanes / 2;
 
     if (4 == lpi) {
         // vertical pass
         int inLength = inSz.width * chanNum;
-        GAPI_DbgAssert(inLength >= half_nlanes);
+        GAPI_Assert(inLength >= half_nlanes);
 
         v_int16 b0 = vx_setall_s16(beta[0]);
         v_int16 b1 = vx_setall_s16(beta[1]);
@@ -205,7 +204,7 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(
         }
 
         // horizontal pass
-        GAPI_DbgAssert(outSz.width >= half_nlanes);
+        GAPI_Assert(outSz.width >= half_nlanes);
         v_uint8 val_0, val_1, val_2, val_3;
         constexpr int shift = static_cast<int>(half_nlanes / 4);
         int x = 0;
@@ -267,7 +266,7 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(
 
     } else {  // if any lpi
         int inLength = inSz.width * chanNum;
-        GAPI_DbgAssert(inLength >= half_nlanes);
+        GAPI_Assert(inLength >= half_nlanes);
 
         for (int l = 0; l < lpi; ++l) {
             short beta0 = beta[l];
@@ -290,15 +289,16 @@ CV_ALWAYS_INLINE void calcRowLinear_8UC_Impl_(
             }
 
             // horizontal pass
-            GAPI_DbgAssert(outSz.width >= half_nlanes);
+            GAPI_Assert(outSz.width >= half_nlanes);
             int x = 0;
+            v_int16 t0, t1;
             for (;;) {
                 for (; x <= outSz.width - half_nlanes && x >= 0; x += half_nlanes) {
                     v_int16 a0 = vx_load(&alpha[x]);
 
                     for (int c = 0; c < chanNum; ++c) {
-                        v_int16 t0 = v_gather_channel<chanNum>(tmp, &mapsx[x], c, 0);
-                        v_int16 t1 = v_gather_channel<chanNum>(tmp, &mapsx[x], c, 1);
+                        v_gather_channel<chanNum>(t0, tmp, &mapsx[x], c, 0);
+                        v_gather_channel<chanNum>(t1, tmp, &mapsx[x], c, 1);
                         v_int16 d = v_mulhrs(t0 - t1, a0) + t1;
                         v_pack_u_store(&dst[c][l][x], d);
                     }
@@ -322,12 +322,13 @@ void calcRowLinear_8U(C3, std::array<std::array<uint8_t*, 4>, 3>& dst,
                       const short    clone[],  // 4 clones of alpha
                       const short    mapsx[],
                       const short    beta[],
-                      uint8_t  tmp[],
-                      const Size& inSz,
-                      const Size& outSz,
-                      int      lpi) {
-    constexpr const int chanNum = 3;
-    calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
+                          uint8_t    tmp[],
+                      const Size&    inSz,
+                      const Size&    outSz,
+                        const int    lpi) {
+    constexpr int chanNum = 3;
+    calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx,
+                                     beta, tmp, inSz, outSz, lpi);
 }
 
 // Resize (bi-linear, 8UC4)
@@ -338,12 +339,13 @@ void calcRowLinear_8U(C4, std::array<std::array<uint8_t*, 4>, 4>& dst,
                       const short    clone[],  // 4 clones of alpha
                       const short    mapsx[],
                       const short    beta[],
-                      uint8_t  tmp[],
-                      const Size& inSz,
-                      const Size& outSz,
-                      int      lpi) {
-    constexpr const int chanNum = 4;
-    calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx, beta, tmp, inSz, outSz, lpi);
+                          uint8_t    tmp[],
+                      const Size&    inSz,
+                      const Size&    outSz,
+                      const int      lpi) {
+    constexpr int chanNum = 4;
+    calcRowLinear_8UC_Impl_<chanNum>(dst, src0, src1, alpha, clone, mapsx,
+                                     beta, tmp, inSz, outSz, lpi);
 }
 }  // namespace neon
 }  // namespace kernels
