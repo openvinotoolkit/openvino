@@ -64,7 +64,6 @@ xfail_issue_34310 = xfail_test(reason="RuntimeError: Error of validate layer: LS
                                       "type: LSTMSequence. Layer is not instance of RNNLayer class")
 xfail_issue_34314 = xfail_test(reason="RuntimeError: RNNCell operation has a form that is not "
                                "supported.RNNCell_<number> should be converted to RNNCellIE operation")
-xfail_issue_40957 = xfail_test(reason="RuntimeError: MKLDNNGraph::CreateGraph: No inputs for the topology")
 xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
                                       "IN and OUT channels number")
 xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -172,7 +171,10 @@ xfail_issue_47330 = xfail_test(reason="RuntimeError: Eltwise node with name `[na
 xfail_issue_47337 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v1::OneHot")
 xfail_issue_33593 = xfail_test(reason="Current implementation of MaxPool doesn't support indices output")
 xfail_issue_49113 = xfail_test(reason="NLL Loss error: While validating ONNX node '<Node(Slice):")
-
+xfail_issue_48098 = xfail_test(reason="ngraph.exceptions.UserInputError: ('Expected %s parameters, "
+                                      "received %s.', <value1>, <value2>)")
+xfail_issue_48100 = xfail_test(reason="RuntimeError: cpu_convert can't convert from: "
+                                      "FP64 precision to: FP32")
 
 # Model MSFT issues:
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
@@ -200,3 +202,7 @@ xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' lay
 xfail_issue_37973 = xfail_test(reason="TF Inception V2 - AssertionError: zoo models results mismatch")
 xfail_issue_47430 = xfail_test(reason="FCN ResNet models - AssertionError: zoo models results mismatch")
 xfail_issue_47495 = xfail_test(reason="BertSquad-10 from MSFT - AssertionError: zoo models results mismatch")
+xfail_issue_48145 = xfail_test(reason="BertSquad-8 - AssertionError: Items are not equal: ACTUAL: 4 "
+                                      "DESIRED: 3")
+xfail_issue_48190 = xfail_test(reason="RobertaBase-11 - AssertionError: Items are not equal: "
+                                      "ACTUAL: dtype('float64') DESIRED: dtype('float32')")
