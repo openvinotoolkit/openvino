@@ -158,7 +158,7 @@ void op::v1::Convolution::validate_and_infer_types()
             }
             if (!auto_padding_applied)
             {
-                set_output_type(0, data_batch_et, result_shape);
+                set_output_type(0, result_et, result_shape);
                 return;
             }
         }
