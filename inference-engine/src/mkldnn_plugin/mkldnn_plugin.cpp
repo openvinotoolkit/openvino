@@ -7,6 +7,7 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
+#include "mkldnn_extension_utils.h"
 
 #include <legacy/net_pass.h>
 #include <threading/ie_executor_manager.hpp>
@@ -318,22 +319,47 @@ InferenceEngine::ExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std::map<std::string, std::string> &config) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
 
+    static const std::vector<InferenceEngine::Precision> supportedInOutPrec = {
+        InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::I8,
+        InferenceEngine::Precision::U16,
+        InferenceEngine::Precision::I16,
+        InferenceEngine::Precision::I32,
+        InferenceEngine::Precision::U64,
+        InferenceEngine::Precision::I64,
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::BF16,
+        InferenceEngine::Precision::BOOL
+    };
+
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
-    for (const auto &ii : _networkInputs) {
-        auto input_precision = ii.second->getPrecision();
-        if (input_precision != InferenceEngine::Precision::FP32 &&
-            input_precision != InferenceEngine::Precision::I32 &&
-            input_precision != InferenceEngine::Precision::U16 &&
-            input_precision != InferenceEngine::Precision::I16 &&
-            input_precision != InferenceEngine::Precision::I8 &&
-            input_precision != InferenceEngine::Precision::U8 &&
-            input_precision != InferenceEngine::Precision::BF16 &&
-            input_precision != InferenceEngine::Precision::BOOL &&
-            input_precision != InferenceEngine::Precision::I64 &&
-            input_precision != InferenceEngine::Precision::U64) {
+    for (const auto &in : _networkInputs) {
+        auto input_precision = in.second->getPrecision();
+        if (std::find(supportedInOutPrec.begin(), supportedInOutPrec.end(), input_precision) == supportedInOutPrec.end()) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                                << "Input image format " << input_precision << " is not supported yet...";
+        }
+
+        if (!MKLDNNExtensionUtils::isDefaultTensor(in.second->getTensorDesc())) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "CPU plug-in doesn't support network input which are not dense or have non zero offsets. Input name: '" << in.first << "'";
+        }
+    }
+
+    // verification of supported output
+    InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
+    for (const auto &out : _networkOutputs) {
+        auto output_precision = out.second->getPrecision();
+        if (std::find(supportedInOutPrec.begin(), supportedInOutPrec.end(), output_precision) == supportedInOutPrec.end()) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "CPU plug-in doesn't support network output with " << output_precision << " precision";
+        }
+
+        if (!MKLDNNExtensionUtils::isDefaultTensor(out.second->getTensorDesc())) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "CPU plug-in doesn't support network output which are not dense or have non zero offsets. Output name: '" << out.first << "'";
         }
     }
 
