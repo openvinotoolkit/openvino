@@ -1,6 +1,18 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+/*
+// Copyright (c) 2019-2021 Intel Corporation
 //
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+*/
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -99,6 +111,35 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
             if (levels == 2 || levels > 256 || quantize_node.get_scale_shift_opt() || quantize_node.is_constant())
                 return;
 
+            size_t out_features = static_cast<size_t>(node->get_output_layout().size.feature[0]);
+
+            float* bias_values = nullptr;
+            bool can_merge_bias = false;
+
+            // Will try to merge bias into FQ
+            auto &merge_node = quantize_node.get_dependency(0);
+
+            if (merge_node.is_type<eltwise>()) {
+                auto& eltw_node = merge_node.as<eltwise>();
+
+                // Check that this is not input layout
+                if (!eltw_node.get_dependency(1).is_type<input_layout>()) {
+                    // Check a case with reshape node before bias constant data
+                    auto& dep = eltw_node.get_dependency(1).is_type<data>() ? eltw_node.get_dependency(1) :
+                                eltw_node.get_dependency(1).get_dependency(0);
+
+                    can_merge_bias = eltw_node.get_primitive()->mode == eltwise_mode::sum && eltw_node.get_dependencies().size() == 2 && dep.is_constant() &&
+                                     dep.get_output_layout().count() == out_features && eltw_node.get_dependency(0).is_type<convolution>();
+                    if (can_merge_bias) {
+                        auto &bias = dep.as<data>();
+                        auto &mem_bias = bias.get_attached_memory();
+                        auto data_bias_ptr = static_cast<float*>(mem_bias.lock());
+                        bias_values = data_bias_ptr;
+                        mem_bias.unlock();
+                    }
+                }
+            }
+
             auto &input_low = quantize_node.get_dependency(1).template as<data>();
             auto &input_high = quantize_node.get_dependency(2).template as<data>();
             auto &output_low = quantize_node.get_dependency(3).template as<data>();
@@ -134,22 +175,29 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
             bool need_post_scale = false;
             bool need_post_shift = false;
             bool need_pre_shift = false;
-            auto out_dt = quantize_node.get_output_layout().data_type;
-            bool need_clamp = levels != 256 || (out_dt != data_types::u8 && out_dt != data_types::i8);
+            auto out_is_int8 = quantize_node.get_output_layout().data_type == data_types::i8;
+            auto out_is_uint8 = quantize_node.get_output_layout().data_type == data_types::u8;
+            auto out_is_fp = !(out_is_int8 || out_is_uint8);
+            bool need_clamp = levels != 256 || out_is_fp;
+            bool need_min_clamp = need_clamp;
+            bool need_max_clamp = need_clamp;
             bool per_tensor_in_scale = true;
             bool per_tensor_in_shift = true;
             bool per_tensor_in_range = true;
             bool per_tensor_out_scale = true;
             bool per_tensor_out_shift = true;
+            bool per_tensor_out_range = true;
             float in_scale_val = 0.0f;
             float in_shift_val = 0.0f;
             float out_scale_val = 0.0f;
             float out_shift_val = 0.0f;
             float in_lo_val = 0.0f;
             float in_hi_val = 0.0f;
+            float out_lo_val = 0.0f;
+            float out_hi_val = 0.0f;
+
             switch (mem_output_high.get_layout().data_type) {
                 case data_types::f32: {
-                    // TODO [LOW PRECISION]: Output low/high values can be removed.
                     auto data_input_low = static_cast<float*>(mem_input_low.lock());
                     auto data_input_high = static_cast<float*>(mem_input_high.lock());
                     auto data_output_low = static_cast<float*>(mem_output_low.lock());
@@ -165,13 +213,17 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                                 for (int x = 0; x < scales_layout.size.spatial[0]; x++) {
                                     auto idx = cldnn::tensor(format::bfyx, {b, f, y, x}, 0);
                                     auto s_offset = scales_layout.get_linear_offset(idx);
+
                                     auto in_lo = data_input_low[get_offset_safe(mem_input_low.get_layout(), idx)];
                                     auto in_hi = data_input_high[get_offset_safe(mem_input_high.get_layout(), idx)];
-
                                     auto out_lo = data_output_low[get_offset_safe(mem_output_low.get_layout(), idx)];
                                     auto out_hi = data_output_high[get_offset_safe(mem_output_high.get_layout(), idx)];
+                                    auto in_shift_basic = (static_cast<float>(levels) - 1) / (in_hi - in_lo);
+
                                     data_input_scale[s_offset] = (static_cast<float>(levels) - 1) / (in_hi - in_lo);
-                                    data_input_shift[s_offset] = - in_lo * (static_cast<float>(levels) - 1) / (in_hi - in_lo);
+                                    data_input_shift[s_offset] = can_merge_bias ?
+                                                                 (bias_values[f] - in_lo) * in_shift_basic :
+                                                                 -in_lo * in_shift_basic;
                                     data_output_scale[s_offset] = (out_hi - out_lo) / (static_cast<float>(levels) - 1);
                                     data_output_shift[s_offset] = out_lo;
 
@@ -195,6 +247,8 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                     out_shift_val = data_output_shift[0];
                     in_lo_val = data_input_low[0];
                     in_hi_val = data_input_high[0];
+                    out_lo_val = data_output_low[0];
+                    out_hi_val = data_output_high[0];
 
                     for (size_t i = 0; i < scales_layout.count(); i++) {
                         if (in_scale_val != data_input_scale[i])
@@ -211,6 +265,9 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                         if (in_lo_val != data_input_low[i % mem_input_low.get_layout().count()] ||
                             in_hi_val != data_input_high[i % mem_input_high.get_layout().count()])
                             per_tensor_in_range = false;
+                        if (out_lo_val != data_output_low[i % mem_output_low.get_layout().count()] ||
+                            out_hi_val != data_output_high[i % mem_output_high.get_layout().count()])
+                            per_tensor_out_range = false;
                     }
                     break;
                 }
@@ -230,13 +287,17 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                                 for (int x = 0; x < scales_layout.size.spatial[0]; x++) {
                                     auto idx = cldnn::tensor(format::bfyx, {b, f, y, x}, 0);
                                     auto s_offset = scales_layout.get_linear_offset(idx);
+
                                     auto in_lo = half_to_float(data_input_low[get_offset_safe(mem_input_low.get_layout(), idx)]);
                                     auto in_hi = half_to_float(data_input_high[get_offset_safe(mem_input_high.get_layout(), idx)]);
-
                                     auto out_lo = half_to_float(data_output_low[get_offset_safe(mem_output_low.get_layout(), idx)]);
                                     auto out_hi = half_to_float(data_output_high[get_offset_safe(mem_output_high.get_layout(), idx)]);
+                                    auto in_shift_basic = (static_cast<float>(levels) - 1) / (in_hi - in_lo);
+
                                     data_input_scale[s_offset] = float_to_half((static_cast<float>(levels) - 1) / (in_hi - in_lo));
-                                    data_input_shift[s_offset] = float_to_half(- in_lo * (static_cast<float>(levels) - 1) / (in_hi - in_lo));
+                                    data_input_shift[s_offset] = can_merge_bias ?
+                                                                 float_to_half((bias_values[f] - in_lo) * in_shift_basic) :
+                                                                 float_to_half(-in_lo * in_shift_basic);
                                     data_output_scale[s_offset] = float_to_half((out_hi - out_lo) / (static_cast<float>(levels) - 1));
                                     data_output_shift[s_offset] = float_to_half(out_lo);
 
@@ -260,6 +321,9 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                     out_shift_val = half_to_float(data_output_shift[0]);
                     in_lo_val = half_to_float(data_input_low[0]);
                     in_hi_val = half_to_float(data_input_high[0]);
+                    out_lo_val = half_to_float(data_output_low[0]);
+                    out_hi_val = half_to_float(data_output_high[0]);
+
                     for (size_t i = 0; i < scales_layout.count(); i++) {
                         if (in_scale_val != half_to_float(data_input_scale[i]))
                             per_tensor_in_scale = false;
@@ -275,11 +339,45 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                         if (in_lo_val != half_to_float(data_input_low[i % mem_input_low.get_layout().count()]) ||
                             in_hi_val != half_to_float(data_input_high[i % mem_input_high.get_layout().count()]))
                             per_tensor_in_range = false;
+                        if (out_lo_val != half_to_float(data_output_low[i % mem_output_low.get_layout().count()]) ||
+                            out_hi_val != half_to_float(data_output_high[i % mem_output_high.get_layout().count()]))
+                            per_tensor_out_range = false;
                     }
                     break;
                 }
                 default:
                     throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
+            }
+
+            // Check that we can optimize clamp operation for int8 data using saturation clamp only
+            if (per_tensor_out_range && !out_is_fp && levels != 256) {
+                if ((out_is_int8 && out_lo_val == -128.f) || (out_is_uint8 && out_lo_val == 0.f))
+                    need_min_clamp = false;
+                if ((out_is_int8 && out_hi_val == 127.f) || (out_is_uint8 && out_hi_val == 255.f))
+                    need_max_clamp = false;
+            }
+
+            // Check that we can merge bias into FQ input shift and if yes then
+            // we remove bias from network graph
+            if (can_merge_bias) {
+                auto &eltw_node = merge_node.as<eltwise>();
+
+                // Find eltwise's constants: there maybe extra reshapes between eltwise and eltwise's constant data
+                auto &dep1 = eltw_node.get_dependency(1);
+                auto &dep2 = dep1.is_type<data>() ? dep1 : dep1.get_dependency(0);
+
+                // Remove bias constants from the graph
+                if (!dep1.is_type<data>()) {
+                    p.remove_all_connections(dep2);
+                    p.remove_if_dangling(dep2);
+                }
+
+                // Remove bias constants / extra reshapes from the graph
+                p.remove_all_connections(dep1);
+                p.remove_if_dangling(dep1);
+
+                // Remove bias from the graph (eltwise in a "sum" mode)
+                p.extract_and_remove(eltw_node);
             }
 
             if (has_negative_scales) {
@@ -350,11 +448,26 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
                 quantize_node.set_need_clamp();
             }
 
+            if (need_min_clamp) {
+                quantize_node.set_need_min_clamp();
+            }
+
+            if (need_max_clamp) {
+                quantize_node.set_need_max_clamp();
+            }
+
             if (per_tensor_in_range) {
                 quantize_node.set_per_tensor_input_range();
                 quantize_node.set_input_lo_val(in_lo_val);
                 quantize_node.set_input_hi_val(in_hi_val);
             }
+
+            if (per_tensor_out_range) {
+                quantize_node.set_per_tensor_output_range();
+                quantize_node.set_output_lo_val(out_lo_val);
+                quantize_node.set_output_hi_val(out_hi_val);
+            }
+
             if (per_tensor_out_scale) {
                 quantize_node.set_per_tensor_output_scale();
                 quantize_node.set_output_scale_val(out_scale_val);
