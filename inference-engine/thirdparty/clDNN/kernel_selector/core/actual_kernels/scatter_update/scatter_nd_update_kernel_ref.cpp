@@ -87,8 +87,7 @@ ScatterNDUpdateKernelRef::DispatchData ScatterNDUpdateKernelRef::SetDefault(cons
             throw std::invalid_argument("Unsupported data layout for scatter nd update primitive");
             break;
         }
-    }
-    else {
+    } else {
         auto indices_rank = params.indices_rank;
         const auto& indices = params.inputs[1];
         auto indices_dims = indices.LogicalDims();
@@ -114,7 +113,7 @@ static std::string GetOutputIndex(const scatter_nd_update_params& params) {
     std::string output_index_str;
 
     const auto& output = params.output;
-   
+
     output_index_str.append("const uint b_remain = dst_idx % ").append(std::to_string(output.Batch().pitch)).append(";");
     output_index_str.append("const uint f_remain = b_remain % ").append(std::to_string(output.Feature().pitch)).append(";");
     output_index_str.append("const uint z_remain = f_remain % ").append(std::to_string(output.Z().pitch)).append(";");
@@ -152,6 +151,18 @@ bool ScatterNDUpdateKernelRef::Validate(const Params& p, const optional_params& 
     }
 
     const scatter_nd_update_params& params = static_cast<const scatter_nd_update_params&>(p);
+    auto input_dims = params.inputs[0].LogicalDims();
+    auto indices_dims = params.inputs[1].LogicalDims();
+    std::reverse(indices_dims.begin(), indices_dims.end());
+
+    auto indices_rank = params.indices_rank;
+    if (indices_rank < 1) {
+        return false;
+    }
+
+    if (indices_dims[indices_rank - 1] > input_dims.size()) {
+        return false;
+    }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
