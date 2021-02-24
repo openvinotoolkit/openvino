@@ -32,7 +32,7 @@ nodes = {
 
     # nodes after replacement
     **const('minus_one', np.array(-1)),
-    **regular_op_with_empty_data('shapeof', {'op': 'ShapeOf'}),
+    **regular_op_with_empty_data('shapeof', {'op': 'ShapeOf', 'type': 'ShapeOf'}),
     **regular_op_with_empty_data('end_const', {'op': 'Add', 'type': 'Add'}),
     **regular_op_with_empty_data('equal', {'op': 'Equal', 'type': 'Equal'}),
     **regular_op_with_empty_data('select', {'op': 'Select', 'type': 'Select'}),
@@ -77,7 +77,7 @@ class SliceReplacerTest(unittest.TestCase):
             *connect_front('slice:0', 'output'),
         ], nodes_with_edges_only=True)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=False)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
     def test_slice_replacer(self):
@@ -107,5 +107,5 @@ class SliceReplacerTest(unittest.TestCase):
             *connect_front('slice:0', 'output'),
         ], nodes_with_edges_only=True)
 
-        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=False)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
