@@ -24,4 +24,4 @@ They are `decoder`, `encoder` and a combined `decoder(encoder(x))` models respec
 ./mo.py --input_model decoder_qt.onnx --input_shape [B,1024,Y]
 ```
 
-Where shape is determined by the audio file Mel-Spectrogram: B - batch dimension, X - dimension based on the input length, Y - determined by encoder output, usually `X / 2`.
+Where shape is determined by the audio file Mel-Spectrogram length: B - batch dimension, X - dimension based on the input length, Y - determined by encoder output, usually `X / 2`.
