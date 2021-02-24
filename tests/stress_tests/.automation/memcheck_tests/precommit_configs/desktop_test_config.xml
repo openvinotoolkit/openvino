@@ -4,9 +4,9 @@
         <value>GPU</value>
     </devices>
     <models>
-        <model name="vgg16" source="omz" />
-        <model name="mtcnn-r" source="omz" />
-        <model name="mobilenet-ssd" source="omz" />
-        <model name="ssd300" source="omz" />
+        <model name="vgg16" precision="FP32" source="omz" />
+        <model name="mtcnn-r" precision="FP32" source="omz" />
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+        <model name="ssd300" precision="FP32" source="omz" />
     </models>
 </attributes>
