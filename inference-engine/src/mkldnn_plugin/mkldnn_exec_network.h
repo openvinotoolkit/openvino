@@ -57,8 +57,16 @@ protected:
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
 
-
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
+
+private:
+    void insertConvertToBF16LayerAfterInput(InferenceEngine::CNNNetwork &network);
+
+    void addLayerToCNNNetworkAfterData(const InferenceEngine::DataPtr& parentOutData,
+                                       InferenceEngine::CNNLayer::Ptr  layer,
+                                       const std::string&              nextLayerName,
+                                       InferenceEngine::ICNNNetwork&   net,
+                                       const int                       childInsDataIndex = -1);
 };
 
 }  // namespace MKLDNNPlugin

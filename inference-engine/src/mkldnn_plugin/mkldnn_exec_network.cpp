@@ -67,19 +67,20 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
             OutputsDataMap outputs = _clonedNetwork.getOutputsInfo();
             CNNNetworkIterator iter(_clonedNetwork);
             while (iter != CNNNetworkIterator()) {
+                const auto& layer = *iter;
                 //  check, if memory output node needs to be transformed
                 if (current == Precision::FP32 &&
-                    (*iter)->type == "Memory" && (*iter)->outData.size() == 0 &&
-                    (*iter)->insData[0].lock()->getPrecision() == current) {
-                    (*iter)->insData[0].lock()->setPrecision(target);
+                    layer->type == "Memory" && layer->outData.size() == 0 &&
+                    layer->insData[0].lock()->getPrecision() == current) {
+                    layer->insData[0].lock()->setPrecision(target);
                 }
 
-                for (size_t o = 0; o < (*iter)->outData.size(); o++) {
-                    if (inputs.find((*iter)->outData[o]->getName()) == inputs.end()
-                        && outputs.find((*iter)->outData[o]->getName()) == outputs.end()
-                        && !CaselessEq<std::string>()((*iter)->type, "const")
-                        && (*iter)->outData[o]->getPrecision() == current) {
-                        (*iter)->outData[o]->setPrecision(target);
+                for (size_t o = 0; o < layer->outData.size(); o++) {
+                    if (inputs.find(layer->outData[o]->getName()) == inputs.end()
+                        && outputs.find(layer->outData[o]->getName()) == outputs.end()
+                        && !CaselessEq<std::string>()(layer->type, "const")
+                        && layer->outData[o]->getPrecision() == current) {
+                        layer->outData[o]->setPrecision(target);
                     }
                 }
                 iter++;
@@ -90,8 +91,10 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network,
             // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
             // Otherwise, only layers marked as BF16 in '_clonedNetwork' will be performed in bfloat16 mode.
             // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
-            if (cfg.enforceBF16 == true)
+            if (cfg.enforceBF16 == true) {
                 changePrecisionBF16(Precision::FP32, Precision::BF16);
+                insertConvertToBF16LayerAfterInput(_clonedNetwork);
+            }
         } else {
             changePrecisionBF16(Precision::BF16, Precision::FP32);
         }
@@ -397,6 +400,120 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::CNNNetwork &ne
     }, false);
 
     return check_result;
+}
+
+void MKLDNNExecNetwork::insertConvertToBF16LayerAfterInput(InferenceEngine::CNNNetwork &network) {
+    auto inputLayers = InferenceEngine::CNNNetGetAllInputLayers(network);
+    for (auto inputIter : inputLayers) {
+        if (inputIter->type == "Const") {
+            continue;
+        }
+        for (size_t o = 0; o < inputIter->outData.size(); o++) {
+            for (auto bfInitIter : getInputTo(inputIter->outData[o])) {
+                auto bfInitLayer = bfInitIter.second;
+                if (bfInitLayer->type == "ScaleShift") {
+                    // ScaleShift supports fast FP32->BF16
+                    break;
+                }
+                // insert convert
+                std::string layerName = "Convert_" + inputIter->name;
+                LayerParams cnnLayerParams{layerName, "Convert", Precision::FP32};
+                auto lay = std::make_shared<InferenceEngine::CNNLayer>(cnnLayerParams);
+                std::map<std::string, std::string> par = {{"name",      layerName},
+                                                          {"type",      "Convert"},
+                                                          {"precision", "FP32"}};
+                lay->params = par;
+                CNNLayerPtr convertLayer(lay);
+                addLayerToCNNNetworkAfterData(inputIter->outData[o], convertLayer, bfInitLayer->name,
+                                              network);
+                // compute input port id for bfInitLayer
+                for (size_t i = 0; i < bfInitLayer->insData.size(); i++) {
+                    if (bfInitLayer->insData[i].lock()->getName() == layerName) {
+                        // set conv input as bf
+                        bfInitLayer->insData[i].lock()->setPrecision(Precision::BF16);
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+}
+
+void MKLDNNExecNetwork::addLayerToCNNNetworkAfterData(const DataPtr&     parentOutData,
+                                                      CNNLayer::Ptr      layer,
+                                                      const std::string& nextLayerName,
+                                                      ICNNNetwork&       net,
+                                                      const int          childInsDataIndex) {
+    CNNNetworkImpl* netImpl = dynamic_cast<CNNNetworkImpl*>(&net);
+
+    if (netImpl == nullptr) {
+        THROW_IE_EXCEPTION << "unexpected network type";
+    }
+
+    CNNLayerPtr nextLayer;
+    if (!nextLayerName.empty()) {
+        netImpl->getLayerByName(nextLayerName.c_str(), nextLayer, nullptr);
+    }
+
+    if (layer && (nextLayerName.empty() || (parentOutData == nullptr) || (childInsDataIndex != -1) ||
+                  (getInputTo(parentOutData).find(nextLayerName) != getInputTo(parentOutData).end()))) {
+        auto getTensorDesc = [](CNNLayerPtr& nextLayer) {
+            const DataPtr insData = nextLayer->insData[0].lock();
+            return insData->getTensorDesc();
+        };
+
+        const TensorDesc& parentTensorDesc = parentOutData != nullptr ? parentOutData->getTensorDesc() : getTensorDesc(nextLayer);
+        DataPtr newEdgeAfterLayer(new Data(layer->name, parentTensorDesc));
+        newEdgeAfterLayer->setName(layer->name);
+        getCreatorLayer(newEdgeAfterLayer) = layer;
+        getInputTo(newEdgeAfterLayer).clear();
+
+
+        if (netImpl == nullptr) {
+            THROW_IE_EXCEPTION << "unexpected network type";
+        }
+        netImpl->addData(layer->name.c_str(), newEdgeAfterLayer);
+        IE_SUPPRESS_DEPRECATED_START
+        netImpl->addLayer(layer);
+        IE_SUPPRESS_DEPRECATED_END
+
+        if (parentOutData != nullptr) {
+            getInputTo(parentOutData)[layer->name] = layer;
+            layer->insData.push_back(parentOutData);
+        }
+        layer->outData.push_back(newEdgeAfterLayer);
+
+        if (!nextLayerName.empty()) {
+            getInputTo(newEdgeAfterLayer)[nextLayerName] = nextLayer;
+
+            if (parentOutData != nullptr) {
+                getInputTo(parentOutData).erase(nextLayerName);
+
+                if (childInsDataIndex == -1) {
+                    for (size_t i = 0; i < nextLayer->insData.size(); i++) {
+                        if (nextLayer->insData[i].lock() == parentOutData) {
+                            nextLayer->insData[i] = newEdgeAfterLayer;
+                        }
+                    }
+                } else {
+                    nextLayer->insData[childInsDataIndex] = newEdgeAfterLayer;
+                }
+            } else {
+                nextLayer->insData.push_back(newEdgeAfterLayer);
+            }
+        } else {
+            CNNLayerPtr parent = getCreatorLayer(parentOutData).lock();
+            if (parent == nullptr) {
+                THROW_IE_EXCEPTION << "parent data is absent";
+            }
+            netImpl->removeOutput(parent->name);
+            netImpl->addData(layer->name.c_str(), newEdgeAfterLayer);
+            netImpl->addOutput(layer->name);
+        }
+    } else {
+        THROW_IE_EXCEPTION << "Invalid argument";
+    }
 }
 
 IE_SUPPRESS_DEPRECATED_START
