@@ -43,4 +43,4 @@ def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, a
     assert returncode == 0, f"Command exited with non-zero status {returncode}:\n {output}"
     assert (len(out_csv) == 1), f'Multiple or none "{out}.pid*.csv" files'
 
-    test_info["csv_model_path"] = glob.glob(f"{out}.pid*.csv")[0]
+    test_info["csv_model_path"] = out_csv[0]
