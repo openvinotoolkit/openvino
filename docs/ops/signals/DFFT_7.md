@@ -1,4 +1,4 @@
-## DFFT <a name="DFFT"></a> {#openvino_docs_ops_image_DFFT_7}
+## DFFT <a name="DFFT"></a> {#openvino_docs_ops_signals_DFFT_7}
 
 **Versioned name**: *DFFT-7*
 
