@@ -114,10 +114,12 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
                 mvn->get_reduction_axes(),
                 mvn->get_normalize_variance(),
                 mvn->get_eps()),
-        type);
+        deqPrecision);
     NetworkHelper::copyInfo(mvn, newMVN);
 
-    auto newMultiply = std::make_shared<DequantizationMultiply>(newMVN, newScalesConst);
+    auto newMultiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+        DequantizationMultiply(newMVN, newScalesConst),
+        mvn->get_output_element_type(0));
     ngraph::copy_runtime_info({ mvn, newMultiply }, newMultiply);
 
     replace_node(mvn, newMultiply);
