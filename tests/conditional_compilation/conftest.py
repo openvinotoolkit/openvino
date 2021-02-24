@@ -66,7 +66,8 @@ def pytest_generate_tests(metafunc):
     params = []
     ids = []
 
-    with open(metafunc.config.getoption('test_conf'), "r") as file:
+    test_config = metafunc.config.getoption('test_conf')
+    with open(test_config, "r") as file:
         test_cases = yaml.safe_load(file)
 
     for test in test_cases:
@@ -79,12 +80,14 @@ def pytest_generate_tests(metafunc):
         params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
         ids = ids + [test_id]
     metafunc.parametrize("test_id, model", params, ids=ids)
+    setattr(metafunc.config, "test_conf", test_config)
     setattr(metafunc.config, "orig_cases", test_cases)
 
 
 @pytest.fixture(scope="function")
 def test_info(request, pytestconfig):
     setattr(request.node._request, "test_info", {"orig_instance": pytestconfig.orig_cases,
+                                                 "test_conf": '',
                                                  "csv_model_path": {}
                                                  })
     if not hasattr(pytestconfig, "session_info"):
@@ -96,7 +99,7 @@ def test_info(request, pytestconfig):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def update_test_conf_info(pytestconfig, metafunc):
+def update_test_conf_info(pytestconfig):
     yield
     csv_model_path = pytestconfig.getoption('csv_model_path')
     if csv_model_path:
@@ -104,7 +107,7 @@ def update_test_conf_info(pytestconfig, metafunc):
         for record in pytestconfig.session_info:
             rec_i = upd_cases.index(record["orig_instance"])
             upd_cases[rec_i]["csv_model_path"] = record["csv_model_path"]
-        with open(metafunc.config.getoption('test_conf'), "w") as config:
+        with open(pytestconfig.getoption('test_conf'), "w") as config:
             yaml.safe_dump(upd_cases, config)
 
 
