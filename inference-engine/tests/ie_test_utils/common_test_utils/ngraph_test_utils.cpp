@@ -517,6 +517,32 @@ struct Equal<SpecialBodyPorts> {
     }
 };
 
+template <>
+struct Equal<uint8_t*> {
+    static constexpr uint8_t BITS_IN_BYTE_COUNT = 8;
+
+    static inline uint8_t extract_bit(uint8_t val, uint8_t bit) {
+        return (val >> bit) & 0x01;
+    }
+
+    static bool equal_value(const uint8_t* lhs, const uint8_t* rhs,
+                            size_t lhs_bit_size, size_t rhs_bit_size) {
+        if (lhs_bit_size != rhs_bit_size) return false;
+
+        for (size_t bit_idx = 0; bit_idx < lhs_bit_size; bit_idx++) {
+            const uint8_t byte_idx = bit_idx / BITS_IN_BYTE_COUNT;
+            const uint8_t bit_in_byte_idx = 7 - (bit_idx % BITS_IN_BYTE_COUNT);
+
+            if (extract_bit(lhs[byte_idx], bit_in_byte_idx) !=
+                extract_bit(rhs[byte_idx], bit_in_byte_idx)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+};
+
 using Constant = ngraph::opset1::Constant;
 template <>
 struct Equal<std::shared_ptr<Constant>> {
@@ -529,6 +555,14 @@ struct Equal<std::shared_ptr<Constant>> {
         }
 
         switch (lhs_t) {
+        case ngraph::element::Type_t::u1: {
+            const auto lhs_v = static_cast<const uint8_t*>(lhs->get_data_ptr());
+            const auto rhs_v = static_cast<const uint8_t*>(rhs->get_data_ptr());
+            const auto lhs_bit_size = shape_size(lhs->get_shape());
+            const auto rhs_bit_size = shape_size(rhs->get_shape());
+            return Equal<uint8_t*>::equal_value(lhs_v, rhs_v, lhs_bit_size,
+                                                rhs_bit_size);
+        }
         case ngraph::element::Type_t::bf16: {
             auto lhs_v = lhs->cast_vector<ngraph::bfloat16>();
             auto rhs_v = rhs->cast_vector<ngraph::bfloat16>();
