@@ -639,6 +639,7 @@ extensions/ops/box_nms.py
 extensions/ops/bucketize.py
 extensions/ops/Cast.py
 extensions/ops/constant_fill.py
+extensions/ops/ConvertLike.py
 extensions/ops/copyop.py
 extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py

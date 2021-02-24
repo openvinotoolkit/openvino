@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 
 from extensions.front.tf.pad_tf_to_pad import PadTFToPad
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, float_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, const
 
@@ -27,7 +27,7 @@ nodes_attributes = {
     'placeholder': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'tfpad': {'type': None, 'kind': 'op', 'op': 'TFPad', 'mode': 'constant', 'name': 'tfpad_name'},
     **const('paddings', int64_array([1, 2, 3, 4, 5, 6]).reshape([3, 2])),
-    **const('fill', int64_array(5.75)),
+    **const('fill', float_array(5.75)),
     'result': {'type': 'Result', 'value': None, 'kind': 'op', 'op': 'Result'},
 
     # new Pad layer and sub-graph
@@ -40,6 +40,7 @@ nodes_attributes = {
     **const('squeeze_1_axis', int64_array([0])),
     'squeeze_2': {'type': 'Squeeze', 'kind': 'op', 'op': 'Squeeze'},
     **const('squeeze_2_axis', int64_array([0])),
+    'convert_like': {'type': 'ConvertLike', 'kind': 'op', 'op': 'ConvertLike'},
 
     **const('pad_fill', np.array(0.0)),
 }
@@ -86,7 +87,9 @@ class PadTFToPadTest(unittest.TestCase):
                             {}, nodes_with_edges_only=True)
         graph.get_op_nodes(op='TFPad')[0].add_input_port(2)
 
-        graph_ref = build_graph(nodes_attributes, common_edges + [('pad_fill', 'pad', {'in': 3, 'out': 0})],
+        graph_ref = build_graph(nodes_attributes, common_edges + [('pad_fill', 'convert_like', {'in': 0, 'out': 0}),
+                                                                  ('placeholder', 'convert_like', {'in': 1, 'out': 0}),
+                                                                  ('convert_like', 'pad', {'in': 3, 'out': 0})],
                                 {}, nodes_with_edges_only=True)
         self._run_test(graph, graph_ref)
 
