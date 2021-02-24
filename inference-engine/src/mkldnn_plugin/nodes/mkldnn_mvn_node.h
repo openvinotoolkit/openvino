@@ -13,6 +13,8 @@
 
 namespace MKLDNNPlugin {
 
+#define MAX_MVN_INPUTS 3
+
 struct jit_mvn_config_params {
     bool planar_layout;
     bool across_channels;
@@ -21,11 +23,12 @@ struct jit_mvn_config_params {
     InferenceEngine::Precision dst_prc;
     int src_data_size;
     int dst_data_size;
+    int inputs_number;  // fused eltwise input with same layout and precision
     int C, D, H, W;
 };
 
 struct jit_mvn_call_args {
-    const void *src;
+    const void *src[MAX_MVN_INPUTS];
     void *dst;
     float *sum;
     float *mean;
@@ -54,6 +57,8 @@ struct jit_uni_mvn_mean_variance_kernel {
     jit_mvn_config_params jcp_;
 };
 
+class MKLDNNMVNNode;
+
 struct jit_uni_mvn_kernel {
     void (*ker_)(const jit_mvn_call_args *);
 
@@ -62,13 +67,13 @@ struct jit_uni_mvn_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_mvn_kernel(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : ker_(nullptr), jcp_(jcp), attr_(attr) {}
+    explicit jit_uni_mvn_kernel(jit_mvn_config_params jcp, MKLDNNMVNNode& node) : ker_(nullptr), jcp_(jcp), MVNNode(node) {}
     virtual ~jit_uni_mvn_kernel() {}
 
     virtual void create_ker() = 0;
 
     jit_mvn_config_params jcp_;
-    const mkldnn_primitive_attr &attr_;
+    MKLDNNMVNNode& MVNNode;
 };
 
 class MKLDNNMVNNode : public MKLDNNNode {
@@ -78,6 +83,8 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+    void selectOptimalPrimitiveDescriptor() override;
+    void initOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     bool created() const override;
     void execute(mkldnn::stream strm) override;
@@ -88,16 +95,21 @@ public:
 
     static bool checkAxesSuitability(const std::shared_ptr<const ngraph::Node>&);
 
-private:
-    void mvn_pln(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+    void setHasAxesInput(bool hasAxes);
 
-    void mvn_blk(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+    bool isDepthWiseNode(const MKLDNNNodePtr& node) const;
+
+private:
+    void mvn_pln(const std::vector<const uint8_t *>& src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
+
+    void mvn_blk(const std::vector<const uint8_t *>& src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
 
     void mvn_ref(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
 
-    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
-
     std::tuple<size_t, size_t, size_t, size_t, size_t> get5dShapes(const InferenceEngine::SizeVector& dims);
+
+    std::vector<ptrdiff_t> start_offset_in = {};
+    ptrdiff_t start_offset_out = 0;
 
     bool across_channels = false;
     bool normalize_variance = true;
@@ -109,12 +121,10 @@ private:
     };
     epsType epsMode_;
 
+    bool hasAxesInput = false;
+
     InferenceEngine::Precision input_prec, output_prec;
     size_t src_data_size, dst_data_size;
-
-    mkldnn::primitive_attr attr;
-
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 
     std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
     std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;

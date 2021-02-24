@@ -212,4 +212,39 @@ const auto fusingSumEluFQ = fusingSpecificParams{std::make_shared<postNodesMgr>(
             auto newShape = ngraph::Shape(inpNode->get_shape().size(), 1);
             return ngraph::builder::makeFakeQuantize(inpNode, localPrc, 256, newShape);
         }, "FakeQuantize(PerTensor)"}}), {"Add", "Elu", "FakeQuantize"}};
+const auto fusingMultiply = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                 auto shape = inpNode->get_shape();
+                 auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, shape, {}, true);
+                 return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+            }, "Multiply(PerElement)"}}), {"Multiply"} };
+const auto fusingAdd = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                auto shape = inpNode->get_shape();
+                auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, shape, {}, true);
+                return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
+            }, "Add(PerElement)"}}), {"Add"} };
+const auto fusingMulAdd = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                 auto shape = inpNode->get_shape();
+                 auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, shape, {}, true);
+                 return std::make_shared<ngraph::opset1::Multiply>(inpNode, constNode);
+            }, "Multiply(PerElement)"},
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                auto shape = inpNode->get_shape();
+                auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, shape, {}, true);
+                return std::make_shared<ngraph::opset1::Add>(inpNode, constNode);
+            }, "Add(PerElement)"}}), {"Add"} };
+const auto fusingMaximum = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                auto shape = inpNode->get_shape();
+                auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, shape, {}, true);
+                return std::make_shared<ngraph::opset1::Maximum>(inpNode, constNode);
+            }, "Maximum(PerElement)"}}), {"Maximum"} };
+const auto fusingMinimum = fusingSpecificParams{ std::make_shared<postNodesMgr>(std::vector<postNodeBuilder>{
+            {[](std::shared_ptr<ngraph::Node> inpNode, const ngraph::element::Type& ngPrc, ngraph::ParameterVector& params) {
+                auto shape = inpNode->get_shape();
+                auto constNode = ngraph::builder::makeConstant<float>(ngraph::element::f32, shape, {}, true);
+                return std::make_shared<ngraph::opset1::Minimum>(inpNode, constNode);
+            }, "Minimum(PerElement)"}}), {"Minimum"} };
 } // namespace CPUTestUtils

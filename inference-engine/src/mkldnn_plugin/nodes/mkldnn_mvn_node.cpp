@@ -5,8 +5,8 @@
 #include "mkldnn_mvn_node.h"
 
 #include "mkldnn_quantize_node.h"
-#include <legacy/ie_layers.h>
 #include "mkldnn_eltwise_node.h"
+#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
@@ -24,6 +24,9 @@
 #include <cpu/x64/jit_uni_depthwise_injector.hpp>
 #include <cpu/x64/jit_uni_quantization_injector.hpp>
 #include <cpu/x64/jit_uni_eltwise_injector.hpp>
+#include <mkldnn_selective_build.h>
+#include "emitters/jit_eltwise_emitters.hpp"
+#include "emitters/jit_mkldnn_emitters.hpp"
 
 #include <ngraph/opsets/opset6.hpp>
 
@@ -36,6 +39,25 @@ using namespace mkldnn::impl::utils;
 using namespace Xbyak;
 
 #define GET_OFF(field) offsetof(jit_mvn_call_args, field)
+
+namespace {
+
+struct EltwiseEmitterContext {
+    std::shared_ptr<jit_emitter> emitter;
+    jit_generator *host;
+    cpu_isa_t host_isa;
+    const MKLDNNNode *node;
+    InferenceEngine::Precision exec_prc;
+};
+
+template<typename T>
+struct EltwiseEmitter {
+    void operator()(EltwiseEmitterContext & ctx) {
+        ctx.emitter = std::make_shared<T>(ctx.host, ctx.host_isa, ctx.node, ctx.exec_prc);
+    }
+};
+
+}   // namespace
 
 // some utility functions
 static inline bool isFloatCompatible(Precision prc) {
@@ -63,7 +85,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
         load_emitter.reset(new jit_load_emitter(this, isa, nullptr));
 
         this->preamble();
-        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        mov(reg_src, ptr[reg_params + GET_OFF(src[0])]);
         if (jcp_.normalize_variance) {
             mov(reg_mean, ptr[reg_params + GET_OFF(mean)]);
             mov(reg_variance, ptr[reg_params + GET_OFF(variance)]);
@@ -125,7 +147,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
             for (int i = 0; i < repeats; i++) {
                 int offset_sse42 = i * sse42_step;
                 if (i > 0) {
-                    mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+                    mov(reg_src, ptr[reg_params + GET_OFF(src[0])]);
                     mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
                     add(reg_src, offset_sse42 * jcp_.src_data_size);
@@ -362,7 +384,7 @@ template <cpu_isa_t isa>
 struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_mvn_kernel_f32)
 
-    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, const mkldnn_primitive_attr &attr) : jit_uni_mvn_kernel(jcp, attr), jit_generator() {}
+    explicit jit_uni_mvn_kernel_f32(jit_mvn_config_params jcp, MKLDNNMVNNode& node) : jit_uni_mvn_kernel(jcp, node), jit_generator() {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -370,18 +392,22 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
     }
 
     void generate() override {
-        const auto &p = attr_.post_ops_;
-        for (int i = 0; i < p.len(); i++) {
-            auto &post_op = p.entry_[i];
-            if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
-                        this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta, post_op.eltwise.scale));
-            } else if (post_op.is_depthwise()) {
+        Precision exec_prc = Precision::FP32;
+        for (int i = 0; i < MVNNode.getFusedWith().size(); i++) {
+            if (MVNNode.isDepthWiseNode(MVNNode.getFusedWith()[i])) {
+                auto* depthwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(MVNNode.getFusedWith()[i].get());
+                depthwiseNode->appendPostOps(post_ops);
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(
-                        this, post_op.depthwise.alg));
-            } else if (post_op.is_quantization()) {
+                    this,
+                    post_ops.get()->entry_[post_ops.len() - 1].depthwise.alg));
+            } else if (MVNNode.getFusedWith()[i].get()->getType() == Eltwise) {
+                post_op_emitters.push_back(create_eltwise_emitter(*MVNNode.getFusedWith()[i].get(), exec_prc));
+            } else if (MVNNode.getFusedWith()[i].get()->getType() == Quantize) {
+                auto quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(MVNNode.getFusedWith()[i].get());
+                quantizeNode->appendPostOps(post_ops);
+
                 quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
-                        this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
+                        this, post_ops.get()->entry_[post_ops.len() - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
 
@@ -390,7 +416,9 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
 
         this->preamble();
 
-        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        for (int i = 0; i < jcp_.inputs_number; i++) {
+            mov(get_src_reg(i), ptr[reg_params + GET_OFF(src[0]) + i * sizeof(size_t)]);
+        }
         mov(reg_mean, ptr[reg_params + GET_OFF(mean)]);
         if (jcp_.normalize_variance)
             mov(reg_variance_inv, ptr[reg_params + GET_OFF(variance)]);
@@ -431,11 +459,15 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
                 int offset_sse42 = i * 4;
                 if (i > 0) {
                     // reset modified input
-                    mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+                    for (int i = 0; i < jcp_.inputs_number; i++) {
+                        mov(get_src_reg(i), ptr[reg_params + GET_OFF(src[0]) + i * sizeof(size_t)]);
+                    }
                     mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
                     mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-                    add(reg_src, offset_sse42 * jcp_.src_data_size);
+                    for (int i = 0; i < jcp_.inputs_number; i++) {
+                        add(get_src_reg(i), offset_sse42 * jcp_.src_data_size);
+                    }
                     add(reg_dst, offset_sse42 * jcp_.dst_data_size);
                     add(reg_oc_off, offset_sse42 * sizeof(float));
 
@@ -483,8 +515,9 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator 
         if (!mayiuse(avx512_core_bf16) && mayiuse(avx512_core) && store_emitter != nullptr && store_emitter->get_emu_vcvtneps2bf16() != nullptr)
             store_emitter->get_emu_vcvtneps2bf16()->emit_data();
 
-        for (auto& inj : eltwise_injectors)
-            inj->prepare_table();
+        for (int i = 0; i < post_op_emitters.size(); i++) {
+            post_op_emitters[i]->emit_data();
+        }
     }
 
 private:
@@ -511,6 +544,9 @@ private:
     Xbyak::Reg64 reg_load_table = r15;
     Xbyak::Reg64 reg_load_store_mask = rcx;
 
+    Xbyak::Reg64 reg_post_src0 = rsi;
+    Xbyak::Reg64 reg_post_src1 = rbp;
+
     Vmm vmm_val = Vmm(0);
     Vmm vmm_mean = Vmm(1);
     Vmm vmm_variance_inv = Vmm(2);
@@ -522,25 +558,52 @@ private:
     std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
     std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
-    std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
-    std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
+    mkldnn::post_ops post_ops;
+    std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
+    std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors = {};
+    std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors = {};
 
     std::vector<size_t> store_pool_gpr_idxs;
     std::vector<size_t> store_pool_vec_idxs;
     std::vector<size_t> load_pool_gpr_idxs;
 
+    Reg64 get_src_reg(int idx) {
+        switch (idx) {
+            case 0: return reg_src; break;
+            case 1: return reg_post_src0; break;
+            case 2: return reg_post_src1; break;
+            default: THROW_IE_EXCEPTION << "MVN layer have unsupported number of input";
+        }
+    }
+
+    Vmm get_src_vmm(int idx) {
+        switch (idx) {
+            case 0: return vmm_val; break;
+            case 1: return Vmm(15); break;
+            case 2: return Vmm(14); break;
+            default: THROW_IE_EXCEPTION << "MVN layer have unsupported number of input";
+        }
+    }
+
+    Vmm get_aux_vmm(int idx) {
+        if (idx + 8 >= 13)
+            THROW_IE_EXCEPTION << "MVN layer need unsupported number of aux vmm";
+        return Vmm(idx + 8);
+    }
+
     inline void worker_mvn(bool is_tail) {
         int elt_num = is_tail ? tail_num : step;
-        load_emitter->emit_code({static_cast<size_t>(reg_src.getIdx())}, {static_cast<size_t>(vmm_val.getIdx())},
-            std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, elt_num),
-            {}, {load_pool_gpr_idxs});
+        for (int i = 0; i < jcp_.inputs_number; i++) {
+            load_emitter->emit_code({static_cast<size_t>(get_src_reg(i).getIdx())}, {static_cast<size_t>(get_src_vmm(i).getIdx())},
+                std::make_shared<load_emitter_context>(jcp_.src_prc, Precision::FP32, elt_num),
+                {}, {load_pool_gpr_idxs});
+        }
 
         uni_vsubps(vmm_val, vmm_val, vmm_mean);
         if (jcp_.normalize_variance)
             uni_vmulps(vmm_val, vmm_val, vmm_variance_inv);
 
-        apply_post_ops(jcp_.dst_prc, jcp_.planar_layout);
+        apply_post_ops(jcp_.planar_layout);
 
         store_emitter->emit_code({static_cast<size_t>(vmm_val.getIdx())}, {static_cast<size_t>(reg_dst.getIdx())},
             std::make_shared<store_emitter_context>(Precision::FP32, jcp_.dst_prc, elt_num),
@@ -558,7 +621,9 @@ private:
 
             worker_mvn(is_tail);
 
-            add(reg_src, reg_src_stride);
+            for (int i = 0; i < jcp_.inputs_number; i++) {
+                add(get_src_reg(i), reg_src_stride);
+            }
             add(reg_dst, reg_dst_stride);
             sub(reg_work_amount, 1);
 
@@ -567,40 +632,120 @@ private:
         L(mvn_loop_end_label);
     }
 
-    void apply_post_ops(InferenceEngine::Precision dst_prc, bool is_broadcast) {
-        const auto &p = attr_.post_ops_;
-        int eltwise_inj_idx = 0;
-        int depthwise_inj_idx = 0;
-        int quantization_inj_idx = 0;
-        for (int i = 0; i < p.len(); i++) {
-            auto& post_op = p.entry_[i];
-            if (post_op.is_eltwise()) {
-                eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
-                eltwise_inj_idx++;
-            } else if (post_op.is_depthwise()) {
-                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data));
-                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data));
+    inline void apply_post_ops(bool is_broadcast) {
+        int src_idx = 0;
+        int eltwise_post_op_idx = 0;
+        int depthwise_post_op_idx = 0;
+        int quantization_post_op_idx = 0;
+        int injector_idx = 0;
+        for (int i = 0; i < MVNNode.getFusedWith().size(); i++) {
+            if (MVNNode.isDepthWiseNode(MVNNode.getFusedWith()[i])) {
+                mov(reg_d_weights, reinterpret_cast<size_t>(post_ops.get()->entry_[injector_idx].depthwise.weights_data));
+                mov(reg_d_bias, reinterpret_cast<size_t>(post_ops.get()->entry_[injector_idx].depthwise.biases_data));
                 add(reg_d_weights, reg_oc_off);
                 add(reg_d_bias, reg_oc_off);
-                depthwise_injectors[depthwise_inj_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1, reg_d_weights, reg_d_bias, is_broadcast);
-                depthwise_inj_idx++;
-            } else if (post_op.is_quantization()) {
-                bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                bool do_rounding = do_dequantization || isFloatCompatible(dst_prc) || i != p.len() - 1;
+                // weight and bias is padded. scalar as vector.
+                depthwise_injectors[depthwise_post_op_idx]->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1,
+                    reg_d_weights, reg_d_bias, is_broadcast);
+                depthwise_post_op_idx++;
+                injector_idx++;
+            } else if (MVNNode.getFusedWith()[i].get()->getType() == Eltwise) {
+                std::vector<size_t> in_idxs;
+                std::vector<size_t> aux_idxs;
+                in_idxs.push_back(vmm_val.getIdx());
+                for (int j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++)
+                    in_idxs.push_back(get_src_vmm(++src_idx).getIdx());
+                for (int j = 0; j < post_op_emitters[eltwise_post_op_idx]->aux_vecs_count(); j++)
+                    aux_idxs.push_back(get_aux_vmm(j).getIdx());
+
+                std::vector<size_t> out_idxs;
+                out_idxs.push_back(vmm_val.getIdx());
+
+                post_op_emitters[eltwise_post_op_idx]->emit_code(in_idxs, out_idxs, aux_idxs);
+
+                eltwise_post_op_idx++;
+            } else {
+                auto quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(MVNNode.getFusedWith()[i].get());
+
+                bool do_dequantization = quantizeNode->getOpType() == QuantizeOpType::FakeQuantization;
+                bool do_rounding = do_dequantization || isFloatCompatible(jcp_.dst_prc) || i != MVNNode.getFusedWith().size() - 1;
                 int s_idx = vmm_val.getIdx();
 
-                quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
-                quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0, 0, is_broadcast);
+                quantization_injectors[quantization_post_op_idx]->init_crop_ptrs(reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->compute_crop(s_idx, s_idx + 1, 0, 0, is_broadcast);
 
-                quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
-                quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding, 0, is_broadcast);
+                quantization_injectors[quantization_post_op_idx]->init_input_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding,
+                                                                                            0, is_broadcast);
 
-                quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
-                quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0, 0, is_broadcast);
+                quantization_injectors[quantization_post_op_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0, 0, is_broadcast);
 
-                quantization_inj_idx++;
+                quantization_post_op_idx++;
+                injector_idx++;
             }
         }
+    }
+
+    std::shared_ptr<jit_emitter> create_eltwise_emitter(MKLDNNNode& node, Precision exec_prec) {
+        const auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
+
+        EltwiseEmitterContext ctx = {
+            nullptr,
+            this,
+            isa,
+            &node,
+            exec_prec
+        };
+
+        OV_SWITCH(MKLDNNPlugin, EltwiseEmitter, ctx, eltwiseNode.getOpType(),
+        OV_CASE(Relu, jit_mkldnn_aux_emitter),
+        OV_CASE(Gelu, jit_mkldnn_aux_emitter),
+        OV_CASE(Elu, jit_mkldnn_aux_emitter),
+        OV_CASE(Tanh, jit_mkldnn_aux_emitter),
+        OV_CASE(Logistic, jit_mkldnn_aux_emitter),
+        OV_CASE(Square, jit_mkldnn_aux_emitter),
+        OV_CASE(Abs, jit_mkldnn_aux_emitter),
+        OV_CASE(Sqrt, jit_mkldnn_aux_emitter),
+        OV_CASE(Linear, jit_mkldnn_aux_emitter),
+        OV_CASE(BoundedRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(SoftRelu, jit_mkldnn_aux_emitter),
+        OV_CASE(Relu6, jit_mkldnn_aux_emitter),
+        OV_CASE(Exp, jit_mkldnn_aux_emitter),
+        OV_CASE(Clamp, jit_mkldnn_aux_emitter),
+        OV_CASE(Swish, jit_mkldnn_aux_emitter),
+        OV_CASE(Hswish, jit_mkldnn_aux_emitter),
+        OV_CASE(Mish, jit_mkldnn_aux_emitter),
+        OV_CASE(Hsigmoid, jit_mkldnn_aux_emitter),
+        OV_CASE(Round, jit_mkldnn_aux_emitter),
+        OV_CASE(Add, jit_add_emitter),
+        OV_CASE(MulAdd, jit_mul_add_emitter),
+        OV_CASE(Subtract, jit_subtract_emitter),
+        OV_CASE(Multiply, jit_multiply_emitter),
+        OV_CASE(Divide, jit_divide_emitter),
+        OV_CASE(FloorMod, jit_floor_mod_emitter),
+        OV_CASE(Mod, jit_mod_emitter),
+        OV_CASE(Maximum, jit_maximum_emitter),
+        OV_CASE(Minimum, jit_minimum_emitter),
+        OV_CASE(SquaredDifference, jit_squared_difference_emitter),
+        OV_CASE(PowerDynamic, jit_power_dynamic_emitter),
+        OV_CASE(Equal, jit_equal_emitter),
+        OV_CASE(NotEqual, jit_not_equal_emitter),
+        OV_CASE(Greater, jit_greater_emitter),
+        OV_CASE(GreaterEqual, jit_greater_equal_emitter),
+        OV_CASE(Less, jit_less_emitter),
+        OV_CASE(LessEqual, jit_less_equal_emitter),
+        OV_CASE(LogicalAnd, jit_logical_and_emitter),
+        OV_CASE(LogicalOr, jit_logical_or_emitter),
+        OV_CASE(LogicalXor, jit_logical_xor_emitter),
+        OV_CASE(LogicalNot, jit_logical_not_emitter),
+        OV_CASE(PowerStatic, jit_power_static_emitter),
+        OV_CASE(Prelu, jit_prelu_emitter));
+
+        if (!ctx.emitter)
+            THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise emitter";
+
+        return ctx.emitter;
     }
 };
 //////////////////////////////////////////////////////////////////////////////////
@@ -618,9 +763,6 @@ void MKLDNNMVNNode::getSupportedDescriptors() {
     if (cnnLayer == nullptr)
         IE_THROW() << errPrefix << "does not have CNN layer.";
 
-    if (getParentEdges().size() > 2)
-        IE_THROW() << errPrefix << "has incorrect number of input edges.";
-
     if (getChildEdges().empty())
         IE_THROW() << errPrefix << "has incorrect number of output edges.";
 
@@ -629,7 +771,7 @@ void MKLDNNMVNNode::getSupportedDescriptors() {
         IE_THROW() << errPrefix << "doesn't support input with size of dimensions: " << numOfDims;
 
     across_channels = false;
-    if (getParentEdges().size() == 1) {
+    if (!hasAxesInput) {
         across_channels = cnnLayer->GetParamAsBool("across_channels");
     } else {
         if (numOfDims == getParentEdgeAt(1)->getDims().size() + 1 || numOfDims == 1)
@@ -649,16 +791,40 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    setPostOps(attr, true);
+    std::vector<Precision> supportedPrecisions = {
+            Precision::FP32,
+            Precision::U8,
+            Precision::I8,
+            Precision::U16,
+            Precision::I16,
+            Precision::BF16,
+            Precision::I32
+    };
+    auto filterPrecision = [&](Precision& prc) {
+        if (!mayiuse(cpu::x64::sse41)) {
+            return Precision(Precision::FP32);
+        } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
+            if (prc == Precision::U32 || prc == Precision::I64 || prc == Precision::U64) {
+                return Precision(Precision::I32);
+            } else {
+                THROW_IE_EXCEPTION << "MVN node with name `" << getName() << "` doesn't support " << prc << " precision.";
+            }
+        } else {
+            return prc;
+        }
+    };
 
     Precision inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
+    inputPrecision = filterPrecision(inputPrecision);
     if (getParentEdgeAt(0)->getDims().ndims() < 3 || getParentEdgeAt(0)->getDims().ndims() > 5
         || across_channels != 0 || normalize_variance != 1) {
         if (!isFloatCompatible(inputPrecision)) {
             inputPrecision = Precision::FP32;
         }
     }
+
     Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
+    outputPrecision = filterPrecision(outputPrecision);
     if (!mayiuse(avx512_core)) {
         if (outputPrecision == Precision::BF16)
             outputPrecision = Precision::FP32;
@@ -671,11 +837,6 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    // ref with float planar and no fusion
-    if (!mayiuse(cpu::x64::sse41)) {
-        inputPrecision = outputPrecision = Precision::FP32;
-    }
-
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision);
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision);
 
@@ -684,71 +845,195 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     src_data_size = MKLDNNExtensionUtils::sizeOfDataType(inputDataType);
     dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(outputDataType);
 
-    bool canBeInplace = (src_data_size == dst_data_size) &&
-                        (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&
-                        !getParentEdgeAt(0)->getParent()->isConstant();
-
-    const size_t inputsNum = getCnnLayer()->insData.size();
-    InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = false;
-    config.inConfs.resize(inputsNum);
-    config.outConfs.resize(1);
-    config.inConfs[0].constant = false;
-    config.outConfs[0].constant = false;
-    config.inConfs[0].inPlace = -1;
-    config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
-    if (inputsNum == 2) {
-        const auto& dims = getCnnLayer()->insData[1].lock()->getTensorDesc().getDims();
-        config.inConfs[1].desc = TensorDesc(Precision::I32,
-            dims,
-            TensorDesc::getLayoutByDims(dims));
-        config.inConfs[1].constant = true;
+    size_t expectedInputsNum = hasAxesInput ? 2 : 1;
+    for (auto& postOp : fusedWith) {
+        auto* eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode*>(postOp.get());
+        if (eltwiseNode != nullptr && !isDepthWiseNode(postOp)) {
+            expectedInputsNum += eltwiseNode->getOpInputsNum() - 1;
+        }
     }
+    int maxMVNAllInput = hasAxesInput ? MAX_MVN_INPUTS + 1 : MAX_MVN_INPUTS;
+    if (getParentEdges().size() > maxMVNAllInput)
+        THROW_IE_EXCEPTION << "MVN node with name `" << getName() << "` doesn't support more than " << maxMVNAllInput
+                           << " inputs (actual = " << getParentEdges().size() << ")";
 
-    auto pushDesc = [&](memory::format_tag format, impl_desc_type impl_type) {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, format);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), outputDataType, format);
-        supportedPrimitiveDescriptors.push_back({config, impl_type, format});
+    if (expectedInputsNum != getParentEdges().size())
+        THROW_IE_EXCEPTION << "MVN node with name `" << getName() << "` has invalid input number of inputs: expected = " << expectedInputsNum
+                           << " (actual = " << getParentEdges().size() << ")";
+
+    bool canBeInplace = (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&
+                        !getParentEdgeAt(0)->getParent()->isConstant() &&
+                        !getParentEdgeAt(0)->getChild()->isConstant() &&
+                        (inputPrecision == outputPrecision);
+
+    enum LayoutType {
+        Planar,
+        ChannelsFirst,
+        Blocked
     };
 
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_common)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    auto initDesc = [&] (LayoutType lt) -> PrimitiveDescInfo {
+        auto createMemoryDesc = [lt](MKLDNNEdgePtr edge, Precision prc, size_t offset) -> TensorDesc {
+            if (lt == ChannelsFirst) {
+                auto dims = edge->getDims().ToSizeVector();
+                auto ndims = dims.size();
+                std::vector<size_t> order(ndims);
+                std::iota(order.begin(), order.end(), 0);
+                if (ndims > 1) {
+                    order.erase(order.begin() + 1);
+                    order.push_back(1);
+                }
+
+                std::vector<size_t> blocks(ndims);
+                for (size_t i = 0; i < order.size(); i++) {
+                    blocks[i] = dims[order[i]];
+                }
+
+                return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
+            } else if (lt == Blocked && edge->getDims()[1] != 1) {
+                size_t blockSize = mayiuse(cpu::x64::avx512_common) ? 16 : 8;
+
+                std::vector<size_t> blocks = edge->getDims().ToSizeVector();
+                std::vector<size_t> order(blocks.size());
+                std::iota(order.begin(), order.end(), 0);
+
+                blocks[1] = div_up(blocks[1], blockSize);
+                blocks.push_back(blockSize);
+                order.push_back(1);
+
+                return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
+            } else {
+                std::vector<size_t> blocks = edge->getDims().ToSizeVector();
+                std::vector<size_t> order(blocks.size());
+                std::iota(order.begin(), order.end(), 0);
+
+                return TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset});
+            }
+        };
+
+        size_t offset = std::numeric_limits<size_t>::max();
+        InferenceEngine::LayerConfig config;
+        config.dynBatchSupport = getChildEdgeAt(0)->getDims().ndims() > 1 && getChildEdgeAt(0)->getDims() == getParentEdgeAt(0)->getDims();
+
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            InferenceEngine::DataConfig dataConfig;
+            dataConfig.inPlace = (!i && canBeInplace) ? 0 : -1;
+            dataConfig.constant = false;
+
+            if (hasAxesInput && i == 1) {
+                dataConfig.constant = true;
+                const auto& dims = getCnnLayer()->insData[1].lock()->getTensorDesc().getDims();
+                dataConfig.desc = TensorDesc(Precision::I32, dims, TensorDesc::getLayoutByDims(dims));
+            } else {
+                dataConfig.constant = false;
+                dataConfig.desc = createMemoryDesc(getParentEdgeAt(i), inputPrecision, offset);
+            }
+
+            config.inConfs.push_back(dataConfig);
+        }
+
+        InferenceEngine::DataConfig dataConfig;
+        dataConfig.inPlace = -1;
+        dataConfig.constant = false;
+
+        dataConfig.desc = createMemoryDesc(getChildEdgeAt(0), outputPrecision, offset);
+
+        config.outConfs.push_back(dataConfig);
+
+        impl_desc_type impl_type;
+        if (mayiuse(cpu::x64::avx512_common)) {
+            impl_type = impl_desc_type::jit_avx512;
+        } else if (mayiuse(cpu::x64::avx2)) {
+            impl_type = impl_desc_type::jit_avx2;
+        } else if (mayiuse(cpu::x64::sse41)) {
+            impl_type = impl_desc_type::jit_sse42;
+        } else {
+            impl_type = impl_desc_type::ref;
+        }
+
+        return {config, impl_type};
+    };
 
     if (mayiuse(cpu::x64::sse41)) {
-        // nspc
-        if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-            pushDesc(memory::format_tag::nhwc, impl_type);
-        } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-            pushDesc(memory::format_tag::ndhwc, impl_type);
+        auto ndim = getParentEdgeAt(0)->getDims().ndims();
+        // nspc and blk
+        if (ndim == 4 || ndim == 5) {
+            supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
+            supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
         }
-        // blk
-        if (impl_desc_type::jit_avx512 == impl_type) {
-            if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-                pushDesc(memory::format_tag::nChw16c, impl_type);
-            } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-                pushDesc(memory::format_tag::nCdhw16c, impl_type);
+    }
+    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
+}
+
+void MKLDNNMVNNode::selectOptimalPrimitiveDescriptor() {
+    for (auto& type : getPrimitivesPriority()) {
+        int selectedPrimitive = -1;
+        int equalsFormatCount = -1;
+        for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
+            impl_desc_type supportedType = getSupportedPrimitiveDescriptors()[i].getImplementationType();
+            if (type == supportedType) {
+                int equalsLocalFormatCount = 0;
+                if (getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size() > getParentEdges().size())
+                    continue;
+                for (size_t j = 0; j < getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size(); j++) {
+                    auto parentEdge = getParentEdgeAt(j);
+                    auto parentPtr = parentEdge->getParent();
+                    // We don't take into account constant edges since reorders on them will be executed on load network stage
+                    if (j > 0 && parentPtr->isConstant()) {
+                        equalsLocalFormatCount++;
+                        continue;
+                    }
+
+                    auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
+
+                    if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
+                        int inNum = parentEdge->getInputNum();
+                        if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
+                            inNum = 0;
+                        }
+                        if (MKLDNNExtensionUtils::initTensorsAreEqual(
+                                getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[j].desc,
+                                parent_spd->getConfig().outConfs[inNum].desc)) {
+                            equalsLocalFormatCount++;
+                        }
+                    }
+                }
+                if (equalsLocalFormatCount > equalsFormatCount) {
+                    equalsFormatCount = equalsLocalFormatCount;
+                    selectedPrimitive = static_cast<int>(i);
+                }
             }
-        } else if (impl_desc_type::jit_avx2 ==  impl_type || impl_desc_type::jit_sse42 == impl_type) {
-            if (getParentEdgeAt(0)->getDims().ndims() == 4) {
-                pushDesc(memory::format_tag::nChw8c, impl_type);
-            } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
-                pushDesc(memory::format_tag::nCdhw8c, impl_type);
-            }
+        }
+        if (selectedPrimitive >= 0) {
+            selectPrimitiveDescriptorByIndex(selectedPrimitive);
+            return;
         }
     }
 
-    // planar
-    if (canBeInplace)
-        config.inConfs[0].inPlace = 0;
-    pushDesc(MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims()), impl_type);
+    if (getSupportedPrimitiveDescriptors().empty())
+        THROW_IE_EXCEPTION << "Supported primitive descriptors list is empty for node: " << getName();
+    // fallback. If there are no primitives from priority list just select a first
+    selectPrimitiveDescriptorByIndex(0);
+}
+
+void MKLDNNMVNNode::initOptimalPrimitiveDescriptor() {
+    auto selected_pd = getSelectedPrimitiveDescriptor();
+    if (selected_pd == nullptr)
+        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto config = selected_pd->getConfig();
+    if (!isInitConfig(config)) {
+        for (size_t i = 0; i < config.inConfs.size(); i++) {
+            config.inConfs[i].desc = getConfiguredInputDesc(config, i);
+        }
+
+        for (size_t i = 0; i < config.outConfs.size(); i++) {
+            config.outConfs[i].desc = getConfiguredOutputDesc(config, i);
+        }
+
+        initDescriptor(config);
+    } else {
+        initDescriptor(config);
+    }
 }
 
 std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(const SizeVector& dims) {
@@ -765,17 +1050,29 @@ std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(co
 }
 
 void MKLDNNMVNNode::createPrimitive() {
+    size_t inputNum = getParentEdges().size();
+    for (size_t i = 0; i < inputNum; ++i) {
+        auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+            THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' didn't allocate input memory.";
+    }
     auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
     if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+        IE_THROW() << "MVN layer with name '" << getCnnLayer()->name << "' didn't allocate destination memory.";
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
+        IE_THROW() << "MVN layer with name '" << getCnnLayer()->name << "' didn't set preferable primitive descriptor.";
+
+    start_offset_in.resize(inputNum);
+    for (size_t i = 0; i < inputNum; i++) {
+        start_offset_in[i] = getParentEdgeAt(i)->getMemory().GetDescriptor().data.offset0 *
+                           MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(getParentEdgeAt(i)->getMemory().GetDescriptor().data.data_type));
+    }
+    start_offset_out = getChildEdgeAt(0)->getMemory().GetDescriptor().data.offset0 *
+                     MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type));
 
     auto selectedPD = getSelectedPrimitiveDescriptor();
     auto jcp = jit_mvn_config_params();
+    jcp.inputs_number = hasAxesInput ? inputNum - 1 : inputNum;
     jcp.src_prc = selectedPD->getConfig().inConfs[0].desc.getPrecision();
     jcp.dst_prc = selectedPD->getConfig().outConfs[0].desc.getPrecision();
     jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(jcp.src_prc));
@@ -788,7 +1085,7 @@ void MKLDNNMVNNode::createPrimitive() {
     std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = get5dShapes(in_dims);
 
     if (mayiuse(cpu::x64::avx512_common)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp, *attr.get()));
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx512_common>(jcp, *this));
 
         jcp.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
@@ -797,7 +1094,7 @@ void MKLDNNMVNNode::createPrimitive() {
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
         }
     } else if (mayiuse(cpu::x64::avx2)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp, *attr.get()));
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::avx2>(jcp, *this));
 
         jcp.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
@@ -806,7 +1103,7 @@ void MKLDNNMVNNode::createPrimitive() {
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
         }
     } else if (mayiuse(cpu::x64::sse41)) {
-        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp, *attr.get()));
+        mvn_kernel.reset(new jit_uni_mvn_kernel_f32<cpu::x64::sse41>(jcp, *this));
 
         jcp.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
@@ -826,31 +1123,18 @@ void MKLDNNMVNNode::createPrimitive() {
         mvn_variance_kernel->create_ker();
 }
 
-void MKLDNNMVNNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
-    mkldnn::post_ops ops;
-    for (auto &node : fusedWith) {
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
-        if (quantizeNode) {
-            quantizeNode->appendPostOps(ops);
-            continue;
-        }
-
-        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-        if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops);
-            continue;
-        }
-        IE_THROW() << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
-    }
-    attr.set_post_ops(ops);
-}
-
 void MKLDNNMVNNode::execute(mkldnn::stream strm) {
-    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-
-    uint8_t *dst_data = reinterpret_cast<uint8_t*>(dstMemPtr->GetPtr());
-    uint8_t *src_data = reinterpret_cast<uint8_t*>(srcMemPtr->GetPtr());
+    size_t inputNum = getParentEdges().size();
+    int dataInputNum = hasAxesInput ? inputNum - 1 : inputNum;
+    std::vector<const uint8_t *> src_data(dataInputNum);
+    for (int i = 0; i < dataInputNum; i++) {
+        int edgeInx = i;
+        if (hasAxesInput && i != 0) {
+            edgeInx++;
+        }
+        src_data[i] = reinterpret_cast<const uint8_t*>(getParentEdgeAt(edgeInx)->getMemory().GetData()) + start_offset_in[edgeInx];
+    }
+    uint8_t *dst_data = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetData()) + start_offset_out;
 
     auto dim = getParentEdgeAt(0)->getDesc().getDims();
     if (mayiuse(cpu::x64::sse41)) {
@@ -864,11 +1148,12 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
             mvn_blk(src_data, dst_data, dim);
         }
     } else {
-        mvn_ref(src_data, dst_data, dim);
+        mvn_ref(src_data[0], dst_data, dim);
     }
 }
 
-void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const SizeVector& dims) {
+void MKLDNNMVNNode::mvn_pln(const std::vector<const uint8_t *>& src_data, uint8_t* dst_data, const SizeVector& dims) {
+    size_t input_num = src_data.size();
     size_t blk_size = 1;  // blk size in vmm
     if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
@@ -899,7 +1184,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                 float mean_internal = 0.0f;
                 size_t cc = cb + c * C2;
                 auto arg = jit_mvn_call_args();
-                arg.src = src_data + cc * src_data_size;
+                arg.src[0] = src_data[0] + cc * src_data_size;
                 arg.sum = static_cast<float*>(&mean_internal);
                 arg.src_stride = src_stride_size;
                 arg.work_amount = static_cast<size_t>(C2 / blk_size); // for vector part
@@ -917,7 +1202,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                     float variance_internal = 0.0f;
                     size_t cc = cb + c * C2;
                     auto arg = jit_mvn_call_args();
-                    arg.src = src_data + cc * src_data_size;
+                    arg.src[0] = src_data[0] + cc * src_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = static_cast<float*>(&variance_internal);
                     arg.src_stride = src_stride_size;
@@ -935,7 +1220,8 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
                     auto arg = jit_mvn_call_args();
-                    arg.src = src_data + cc * src_data_size;
+                    for (int i = 0; i < input_num; ++i)
+                        arg.src[i] = src_data[i] + cc * src_data_size;
                     arg.dst = dst_data + cc * dst_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = static_cast<float*>(&variance);
@@ -950,7 +1236,8 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
                     auto arg = jit_mvn_call_args();
-                    arg.src = src_data + cc * src_data_size;
+                    for (int i = 0; i < input_num; ++i)
+                        arg.src[i] = src_data[i] + cc * src_data_size;
                     arg.dst = dst_data + cc * dst_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.src_stride = src_stride_size;
@@ -968,7 +1255,8 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                 size_t cc = cb + c * C2;
                 // the same arg for three kernels
                 auto arg = jit_mvn_call_args();
-                arg.src = src_data + cc * src_data_size;
+                for (int i = 0; i < input_num; ++i)
+                    arg.src[i] = src_data[i] + cc * src_data_size;
                 arg.dst = dst_data + cc * dst_data_size;
                 arg.sum = static_cast<float*>(&mean);
                 arg.src_stride = src_stride_size;
@@ -1101,7 +1389,8 @@ void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const Si
     }
 }
 
-void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const SizeVector& dims) {
+void MKLDNNMVNNode::mvn_blk(const std::vector<const uint8_t *>& src_data, uint8_t* dst_data, const SizeVector& dims) {
+    size_t input_num = src_data.size();
     size_t blk_size = 1;  // channel blk for memory layout
     if (mayiuse(cpu::x64::avx512_common)) {
         blk_size = 16;
@@ -1158,7 +1447,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                     mean_buffer_ptr[i] = 0.f;
 
                 auto arg = jit_mvn_call_args();
-                arg.src = src_data + src_offset * src_data_size;
+                arg.src[0] = src_data[0] + src_offset * src_data_size;
                 arg.sum = mean_buffer_ptr;
                 arg.src_stride = src_stride_size;
                 arg.work_amount = static_cast<size_t>(W);
@@ -1185,7 +1474,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                         variance_buffer_ptr[i] = 0.f;
 
                     auto arg = jit_mvn_call_args();
-                    arg.src = src_data + src_offset * src_data_size;
+                    arg.src[0] = src_data[0] + src_offset * src_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = variance_buffer_ptr;
                     arg.src_stride = src_stride_size;
@@ -1209,7 +1498,8 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                     size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
                                                 : b_offset + cb * C2 + d * C1 + h * C0;
                     auto arg = jit_mvn_call_args();
-                    arg.src = src_data + src_offset * src_data_size;
+                    for (int i = 0; i < input_num; ++i)
+                        arg.src[i] = src_data[i] + src_offset * src_data_size;
                     arg.dst = dst_data + src_offset * dst_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = static_cast<float*>(&variance);
@@ -1225,7 +1515,8 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                     size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
                                                 : b_offset + cb * C2 + d * C1 + h * C0;
                     auto arg = jit_mvn_call_args();
-                    arg.src = src_data + src_offset * src_data_size;
+                    for (int i = 0; i < input_num; ++i)
+                        arg.src[i] = src_data[i] + src_offset * src_data_size;
                     arg.dst = dst_data + src_offset * dst_data_size;
                     arg.mean = static_cast<float*>(&mean);
                     arg.src_stride = src_stride_size;
@@ -1249,7 +1540,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                     auto mean_buffer_ptr = &mean_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
                     auto arg = jit_mvn_call_args();
-                    arg.src = src_data + src_offset * src_data_size;
+                    arg.src[0] = src_data[0] + src_offset * src_data_size;
                     arg.sum = mean_buffer_ptr;
                     arg.src_stride = src_stride_size;
                     arg.work_amount = static_cast<size_t>(W);
@@ -1277,7 +1568,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                         auto variance_buffer_ptr = &variance_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
                         auto arg = jit_mvn_call_args();
-                        arg.src = src_data + src_offset * src_data_size;
+                        arg.src[0] = src_data[0] + src_offset * src_data_size;
                         arg.mean = mean_buffer_ptr;
                         arg.variance = variance_buffer_ptr;
                         arg.src_stride = src_stride_size;
@@ -1305,7 +1596,8 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                         auto variance_buffer_ptr = &variance_buffer[blk_size * cb];
 
                         auto arg = jit_mvn_call_args();
-                        arg.src = src_data + src_offset * src_data_size;
+                        for (int i = 0; i < input_num; ++i)
+                            arg.src[i] = src_data[i] + src_offset * src_data_size;
                         arg.dst = dst_data + src_offset * dst_data_size;
                         arg.mean = mean_buffer_ptr;
                         arg.variance = variance_buffer_ptr;
@@ -1325,7 +1617,8 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                         auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
 
                         auto arg = jit_mvn_call_args();
-                        arg.src = src_data + src_offset * src_data_size;
+                        for (int i = 0; i < input_num; ++i)
+                            arg.src[i] = src_data[i] + src_offset * src_data_size;
                         arg.dst = dst_data + src_offset * dst_data_size;
                         arg.mean = mean_buffer_ptr;
                         arg.src_stride = src_stride_size;
@@ -1375,6 +1668,16 @@ bool MKLDNNMVNNode::checkAxesSuitability(const std::shared_ptr<const ngraph::Nod
     return false;
 }
 
+bool MKLDNNMVNNode::isDepthWiseNode(const MKLDNNNodePtr& node) const {
+    InferenceEngine::details::CaselessEq<std::string> comparator;
+    auto layerType = node->getCnnLayer().get()->type;
+    return node->getType() == Eltwise && (comparator(layerType, "scaleshift") || comparator(layerType, "prelu"));
+}
+
+void MKLDNNMVNNode::setHasAxesInput(bool hasAxes) {
+    hasAxesInput = hasAxes;
+}
+
 bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
     auto isOneOf = [&](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
         for (auto a : algs) {
@@ -1388,21 +1691,41 @@ bool MKLDNNMVNNode::canFuse(const MKLDNNNodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41))
         return false;
 
+    size_t addedInputEdgesNum = (node->getType() == Quantize || isDepthWiseNode(node)) ? 0 : node->getParentEdges().size() - 1;
+    int maxMVNAllInput = hasAxesInput ? MAX_MVN_INPUTS + 1 : MAX_MVN_INPUTS;
+    if (getParentEdges().size() + addedInputEdgesNum > maxMVNAllInput)
+        return false;
+
     std::string errPrefix = "MVN node with name '" + getName() + "' ";
     if (node->getType() == Quantize) {
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
         if (quantizeNode == nullptr)
             THROW_IE_EXCEPTION << errPrefix << "cannot get quantize node to fuse with.";
+
         return !quantizeNode->isBinarization();
     } else if (node->getType() == Eltwise) {
+        if (isDepthWiseNode(node)) {
+            return true;
+        }
         auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
         if (eltwiseNode == nullptr)
             THROW_IE_EXCEPTION << errPrefix << "cannot get eltwise node to fuse with.";
-        return isOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp, Tanh, Swish,
-                                                  Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt}) ||
-                      (eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
-                      (eltwiseNode->getOpType() == Prelu);
+
+        for (int i = 1; i < eltwiseNode->getCnnLayer()->insData.size(); i++) {
+            if (eltwiseNode->getCnnLayer()->insData[0].lock()->getPrecision() != eltwiseNode->getCnnLayer()->insData[i].lock()->getPrecision()) {
+                return false;
+            }
+        }
+
+        if (eltwiseNode->getParentEdgesAtPort(0)[0]->getParent().get() != this) {
+            // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for 0-th port.
+            if (isOneOf(eltwiseNode->getOpType(), {Subtract, Divide, FloorMod, Mod, PowerDynamic, Greater, GreaterEqual, Less, LessEqual})) {
+                return false;
+            }
+        }
+        return true;
     }
+
     return false;
 }
 

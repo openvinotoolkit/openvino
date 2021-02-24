@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <cstddef>
-#include <cassert>
 #include <ngraph/op/util/attr_types.hpp>
 #include <ngraph/shape.hpp>
 
@@ -31,19 +30,6 @@ namespace ngraph
                     out[i] =
                         arg[i] < T(0) ? T(arg[i] * slope[cnt++ % shape_size(slope_shape)]) : arg[i];
                 }
-                // assert(arg_shape.size() > 2);
-                // size_t batch_size = arg_shape[0] * arg_shape[1];
-                // size_t sptial_size = shape_size(arg_shape) / batch_size;
-                // for (int n = 0; n < batch_size; ++n)
-                // {
-                //     T slope_n = shape_size(slope_shape) == 1 ? slope[0] : slope[n % shape_size(slope_shape)];
-                //     for (int sp = 0; sp < sptial_size; ++sp)
-                //     {
-                //         size_t inx = n * sptial_size + sp;
-                //         out[inx] =
-                //             arg[inx] < T(0) ? T(arg[inx] * slope_n) : arg[inx];
-                //     }
-                // }
             }
         }
     }

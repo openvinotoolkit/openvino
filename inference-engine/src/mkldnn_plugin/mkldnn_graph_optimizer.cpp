@@ -1399,7 +1399,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
             if (mvnLayer == nullptr)
                 IE_THROW() << "Cannot get MVN layer " << node->getName();
 
-            return node->getChildEdges().size() == 1;
+            return node->getChildEdges().size() == 1 && mvnLayer->across_channels == 0 && mvnLayer->normalize == 1;
         } else {
             return false;
         }
@@ -1424,6 +1424,11 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
     auto parent = graphNodes.begin();
     while (parent != graphNodes.end()) {
         auto parentNode = *parent;
+        auto mvnNode = dynamic_cast<MKLDNNMVNNode*>(parentNode.get());
+        if (parentNode->getType() == MVN && parentNode->fusedWith.empty() && parentNode->getParentEdges().size() == 2) {
+            mvnNode->setHasAxesInput(true);
+        }
+
         if (!isSutableParentNode(parentNode)) {
             parent++;
             continue;
@@ -1437,7 +1442,7 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
 
         parentNode->fuseWith(childNode);
 
-        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
+        if (childNode->getType() == Quantize) {
             auto parentEdges = childNode->parentEdges;
             for (auto &parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
@@ -1446,9 +1451,81 @@ void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
 
                 removeEdge(graph, p_edge);
             }
-        }
 
-        graph.DropNode(childNode);
+            graph.DropNode(childNode);
+        } else if (mvnNode->isDepthWiseNode(childNode)) {
+            auto parentEdges = childNode->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getType() == MVN)
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+
+            graph.DropNode(childNode);
+        } else if (childNode->getType() == Eltwise) {
+            auto childs = childNode->childEdges;
+            auto parents = childNode->parentEdges;
+
+            for (size_t i = 0; i < parents.size(); i++) {
+                auto p_edge = parents[i].lock();
+                if (!p_edge) continue;
+                auto parent = p_edge->getParent();
+                if (!parent) continue;
+
+                if (parent == parentNode) {
+                    for (size_t j = 0; j < childs.size(); j++) {
+                        if (!childs[j].lock())
+                            continue;
+                        auto child = childs[j].lock()->getChild();
+                        if (!child)
+                            continue;
+
+                        MKLDNNEdgePtr &remEdge = p_edge;
+                        int inNum = 0;
+                        if (remEdge) {
+                            inNum = remEdge->getInputNum();
+                            remEdge->drop();
+                            removeEdge(graph, remEdge);
+                        }
+                        remEdge = childs[j].lock();
+                        int outNum = 0;
+                        if (remEdge) {
+                            outNum = remEdge->getOutputNum();
+                            remEdge->drop();
+                            removeEdge(graph, remEdge);
+                        }
+                        MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, child, inNum, outNum));
+                        auto &graphEdges = graph.GetEdges();
+                        graphEdges.push_back(newEdge);
+                        parent->addEdge(newEdge);
+
+                        parent->outDims[inNum] = child->inDims[outNum];
+                    }
+                } else {
+                    MKLDNNEdgePtr &remEdge = p_edge;
+                    int inNum = 0;
+                    if (remEdge) {
+                        inNum = remEdge->getInputNum();
+                        remEdge->drop();
+                        removeEdge(graph, remEdge);
+                    }
+
+                    auto parentMVN = parentNode;
+                    MKLDNNEdgePtr newEdge(new MKLDNNEdge(parent, parentMVN, inNum, parentMVN->getParentEdges().size()));
+                    auto &graphEdges = graph.GetEdges();
+                    graphEdges.push_back(newEdge);
+                    parent->addEdge(newEdge);
+
+                    parentMVN->inDims.push_back(parent->outDims[0]);
+                }
+            }
+
+            graph.DropNode(childNode);
+        } else {
+            graph.DropNode(childNode);
+        }
     }
 }
 
