@@ -381,8 +381,11 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
 
                         dump_file << "*/\n";
                     }
-
+                    // auto start = std::chrono::high_resolution_clock::now();
                     program.createKernels(&kernels);
+                    // auto stop = std::chrono::high_resolution_clock::now();
+                    // auto time = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+                    // std::cout << "Group "<< i << ": " << time.count() << " µs" << std::endl;
                     if (is_cache_enabled()) {
                         // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
                         // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
@@ -395,11 +398,13 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
                     program.build(_context.device(), program_source.options.c_str());
                     program.createKernels(&kernels);
                 }
-
+                // int numKernels = 0;
                 for (auto& k : kernels) {
+                    // numKernels++;
                     auto kernel_name = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
                     kmap.emplace(kernel_name, kernels_cache::kernel_type(k, _context.get_device_info().supports_usm));
                 }
+                // std::cout << "Number of Kernels: " << numKernels << std::endl;
             } catch (const cl::BuildError& err) {
                 if (dump_sources && dump_file.good())
                     dump_file << "\n/* Build Log:\n";
@@ -450,7 +455,7 @@ void kernels_cache::build_all() {
         sorted_program_code = get_program_source(_kernels_code);
         _one_time_kernels.clear();
     }
-
+    auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::future<void>> builds;
     std::cout << "sorted_program_code.size()" << sorted_program_code.size() << std::endl;
     for (auto& program : sorted_program_code) {
@@ -471,6 +476,10 @@ void kernels_cache::build_all() {
         }));
     }
     std::for_each(builds.begin(), builds.end(), [&] (std::future<void>& f){ f.wait();});
+    auto end = std::chrono::high_resolution_clock::now();
+    auto total = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "[Build kernels]" << std::endl;
+    std::cout << "Total time:   "  << total.count() << " ms" << std::endl;
 
     std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
     _kernels_code.clear();
