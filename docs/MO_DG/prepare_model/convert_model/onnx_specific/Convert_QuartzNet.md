@@ -4,7 +4,7 @@
 
 ## Download the Pre-Trained QuartzNet Model
 
-To download pre-trained model please refer to [NeMo Developer Guide](https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/main/).
+To download pre-trained model please refer to [NeMo Speech Models Catalog](https://ngc.nvidia.com/catalog/models/nvidia:nemospeechmodels).
 Here are the instructions that can be used to obtain QuartzNet in ONNX* format.
 ```python
 import nemo
@@ -12,7 +12,7 @@ import nemo.collections.asr as nemo_asr
 
 quartznet = nemo_asr.models.ASRConvCTCModel.from_pretrained(model_info='QuartzNet15x5-En')
 # Export QuartzNet model to ONNX* format
-quartznet.exporrt('qn.onnx')
+quartznet.export('qn.onnx')
 ```
 This code will produce 3 ONNX* model files: `encoder_qt.onnx`, `decoder_qt.onnx`, `qn.onnx`.
 They are `decoder`, `encoder` and a combined `decoder(encoder(x))` models respectively.
@@ -24,4 +24,4 @@ They are `decoder`, `encoder` and a combined `decoder(encoder(x))` models respec
 ./mo.py --input_model decoder_qt.onnx --input_shape [B,1024,Y]
 ```
 
-Where shape is determined by the length of input.
+Where shape is determined by the audio file Mel-Spectrogram: B - batch dimension, X - dimension based on the input length, Y - determined by encoder output, usually `X / 2`.
