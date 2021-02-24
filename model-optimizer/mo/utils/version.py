@@ -80,4 +80,4 @@ def get_simplified_ie_version(env=dict(), version=None):
     m = re.match(r"^([0-9]+).([0-9]+).(.*)", version)
     if m and len(m.groups()) == 3:
         return simplify_version(m.group(3))
-    return "undefined"
+    return "custom"
