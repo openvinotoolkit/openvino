@@ -48,12 +48,14 @@ class InternalError(BasicError):
 
 def classify_error_type(e):
     patterns = [
-        r"No module named \'(.*)\'",
-        r"cannot import name \'(.*)\'",
+        # Example: No module named 'openvino.offline_transformations.offline_transformations_api'
+        r"No module named \'\S+\'",
+        # Example: cannot import name 'IECore' from 'openvino.inference_engine' (unknown location)
+        r"cannot import name \'\S+\'",
     ]
     error_message = str(e)
     for pattern in patterns:
         m = re.search(pattern, error_message)
         if m:
             return m.group(0)
-    return None
+    return "undefined"

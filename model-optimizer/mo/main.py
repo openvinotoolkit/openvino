@@ -159,7 +159,6 @@ def prepare_ir(argv: argparse.Namespace):
             # If the IE was not found, it will not print the MO version, so we have to print it manually
             print("{}: \t{}".format("Model Optimizer version", get_version()))
     except Exception as e:
-        # TODO: send exception message
         pass
 
     ret_code = check_requirements(framework=argv.framework)
@@ -271,9 +270,9 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
         output_dir = argv.output_dir if argv.output_dir != '.' else os.getcwd()
         orig_model_name = os.path.normpath(os.path.join(output_dir, argv.model_name))
 
+        return_code = "not executed"
         # This try-except is additional reinsurance that the IE
         # dependency search does not break the MO pipeline
-        return_code = 0
         try:
             if find_ie_version(silent=True):
                 path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
@@ -283,7 +282,6 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
                 if return_code != 0 and not argv.silent:
                     print("[ WARNING ] offline_transformations return code {}".format(return_code))
         except Exception as e:
-            # TODO: send telemetry message
             pass
 
         message = str(dict({
@@ -293,9 +291,8 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
             "python_version": sys.version,
             "return_code": return_code
         }))
-        print(message)
         t = tm.Telemetry()
-        t.send_event('mo', 'offline_transformations_failed', message)
+        t.send_event('mo', 'offline_transformations_status', message)
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))

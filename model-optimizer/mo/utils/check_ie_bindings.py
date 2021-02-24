@@ -101,7 +101,6 @@ def import_core_modules(silent: bool, path_to_module: str):
                 "python_version": sys.version,
                 "error_type": classify_error_type(e),
             }))
-            print(message)
             send_telemetry(simplified_mo_version, message, 'ie_import_failed')
 
         return False
