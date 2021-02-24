@@ -71,37 +71,35 @@ ScatterNDUpdateKernelRef::DispatchData ScatterNDUpdateKernelRef::SetDefault(cons
     if (!is_second) {
         const auto& scope = params.output;
 
-    switch (params.inputs[0].GetLayout()) {
-    case DataLayout::bfyx:
-            dispatchData.gws = { scope.X().v, scope.Y().v, scope.Feature().v * scope.Batch().v };
-        break;
+        switch (params.inputs[0].GetLayout()) {
+        case DataLayout::bfyx:
+                dispatchData.gws = { scope.X().v, scope.Y().v, scope.Feature().v * scope.Batch().v };
+            break;
 
-    case DataLayout::bfzyx:
-            dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v, scope.Feature().v * scope.Batch().v };
-        break;
+        case DataLayout::bfzyx:
+                dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v, scope.Feature().v * scope.Batch().v };
+            break;
 
-    case DataLayout::bfwzyx:
-            dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v };
-        break;
-    default:
-        assert(0);
-        break;
-    }
+        case DataLayout::bfwzyx:
+                dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v };
+            break;
+        default:
+            throw std::invalid_argument("Unsupported data layout for scatter nd update primitive");
+            break;
+        }
     }
     else {
         auto indices_rank = params.indices_rank;
         const auto& indices = params.inputs[1];
         auto indices_dims = indices.LogicalDims();
 
-        if (indices_dims.size() > 1)
-        {
+        if (indices_dims.size() > 1) {
             std::reverse(indices_dims.begin(), indices_dims.end());
         }
 
         dispatchData.indicesLastDim = indices_dims[indices_rank - 1];
         size_t indices_set_size = 1;
-        for (int i = 0; i < (indices_rank - 1); i++)
-        {
+        for (int i = 0; i < (indices_rank - 1); i++) {
             indices_set_size *= indices_dims[i];
         }
         dispatchData.gws = {1, 1, indices_set_size};
@@ -117,23 +115,17 @@ static std::string GetOutputIndex(const scatter_nd_update_params& params) {
 
     const auto& output = params.output;
    
-    const size_t B_LEN = output.Feature().v * output.Z().v * output.W().v * output.Y().v * output.X().v;
-    const size_t F_LEN = output.Z().v * output.W().v * output.Y().v * output.X().v;
-    const size_t Z_LEN = output.W().v * output.Y().v * output.X().v;
-    const size_t W_LEN = output.Y().v * output.X().v;
-    const size_t Y_LEN = output.X().v;
+    output_index_str.append("const uint b_remain = dst_idx % ").append(std::to_string(output.Batch().pitch)).append(";");
+    output_index_str.append("const uint f_remain = b_remain % ").append(std::to_string(output.Feature().pitch)).append(";");
+    output_index_str.append("const uint z_remain = f_remain % ").append(std::to_string(output.Z().pitch)).append(";");
+    output_index_str.append("const uint w_remain = z_remain % ").append(std::to_string(output.W().pitch)).append(";");
+    output_index_str.append("const uint y_remain = w_remain % ").append(std::to_string(output.Y().pitch)).append(";");
 
-    output_index_str.append("const uint b_remain = dst_idx % ").append(std::to_string(B_LEN)).append(";");
-    output_index_str.append("const uint f_remain = b_remain % ").append(std::to_string(F_LEN)).append(";");
-    output_index_str.append("const uint z_remain = f_remain % ").append(std::to_string(Z_LEN)).append(";");
-    output_index_str.append("const uint w_remain = z_remain % ").append(std::to_string(W_LEN)).append(";");
-    output_index_str.append("const uint y_remain = w_remain % ").append(std::to_string(Y_LEN)).append(";");
-
-    output_index_str.append("const uint b = dst_idx / ").append(std::to_string(B_LEN)).append(";");
-    output_index_str.append("const uint f = b_remain / ").append(std::to_string(F_LEN)).append(";");
-    output_index_str.append("const uint z = f_remain / ").append(std::to_string(Z_LEN)).append(";");
-    output_index_str.append("const uint w = z_remain / ").append(std::to_string(W_LEN)).append(";");
-    output_index_str.append("const uint y = w_remain / ").append(std::to_string(Y_LEN)).append(";");
+    output_index_str.append("const uint b = dst_idx / ").append(std::to_string(output.Batch().pitch)).append(";");
+    output_index_str.append("const uint f = b_remain / ").append(std::to_string(output.Feature().pitch)).append(";");
+    output_index_str.append("const uint z = f_remain / ").append(std::to_string(output.Z().pitch)).append(";");
+    output_index_str.append("const uint w = z_remain / ").append(std::to_string(output.W().pitch)).append(";");
+    output_index_str.append("const uint y = w_remain / ").append(std::to_string(output.Y().pitch)).append(";");
     output_index_str.append("const uint x = y_remain;");
 
     return output_index_str;
@@ -174,27 +166,22 @@ static std::string GetInputBlockND(const scatter_nd_update_params& params)
     const auto& input = params.inputs[0];
     auto input_dims = input.LogicalDims();
     std::reverse(input_dims.begin(), input_dims.end());
-    while (!input_dims.empty() && input_dims.back() == 1)
-    {
+    while (!input_dims.empty() && input_dims.back() == 1) {
         input_dims.pop_back();
     }
     const int rank = (int)input_dims.size();
     std::vector<size_t> block_nd(rank + 1);
     block_nd[rank] = 1;
-    for (int idx = (rank - 1); idx >= 0; idx--)
-    {
+    for (int idx = (rank - 1); idx >= 0; idx--) {
         block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
     }
 
     std::stringstream s;
-    for (int i = 0; i < (rank + 1); i++)
-    {
-        if (i < rank)
-        {
+    for (int i = 0; i < (rank + 1); i++) {
+        if (i < rank) {
             s << block_nd[i] << ",";
         }
-        else
-        {
+        else {
             s << block_nd[i];
         }
     }

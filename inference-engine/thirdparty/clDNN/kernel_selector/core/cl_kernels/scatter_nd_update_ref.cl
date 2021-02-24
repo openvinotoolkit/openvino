@@ -80,26 +80,24 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
     const uint indices_offset = indices_idx * k;
     uint dst_offset = 0;
 
-    for (uint i = 0; i < k; i++)
-    {
+    for (uint i = 0; i < k; i++) {
         INPUT1_TYPE idxValue = indices[indices_offset + i];
         dst_offset += idxValue * blockND[i + 1];
     }
 
     uint update_offset = indices_idx * size_to_update;
 
-    for (int i = 0; i < size_to_update; i++)
-    {
+    for (int i = 0; i < size_to_update; i++) {
         uint dst_idx = dst_offset + i;
         uint up_idx = update_offset + i;
         INPUT2_TYPE val = updates[up_idx];
 
     #if HAS_FUSED_OPS
-            OUTPUT_INDEX_SECOND_KERNEL;
+        OUTPUT_INDEX_SECOND_KERNEL;
         FUSED_OPS_SECOND_KERNEL;
-            output[dst_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
+        output[dst_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
     #else
-            output[dst_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
+        output[dst_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
     }
 #endif
