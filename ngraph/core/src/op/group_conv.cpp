@@ -73,13 +73,12 @@ bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visito
 void op::v1::GroupConvolution::validate_and_infer_types()
 {
     NGRAPH_OP_SCOPE(v1_GroupConvolution_validate_and_infer_types);
-    PartialShape data_batch_shape = get_input_partial_shape(0);
-    PartialShape filters_shape = get_input_partial_shape(1);
+    PartialShape data_batch_pshape = get_input_partial_shape(0);
+    PartialShape filters_pshape = get_input_partial_shape(1);
     element::Type data_batch_et = get_input_element_type(0);
     element::Type filters_et = get_input_element_type(1);
 
     element::Type result_et;
-
     NODE_VALIDATION_CHECK(
         this,
         element::Type::merge(result_et, data_batch_et, filters_et),
@@ -89,90 +88,140 @@ void op::v1::GroupConvolution::validate_and_infer_types()
         filters_et,
         ").");
 
+    NODE_VALIDATION_CHECK(
+        this, result_et.is_real(), "Element type of inputs must be float point. Got: ", result_et);
+
+    NODE_VALIDATION_CHECK(
+        this,
+        (data_batch_pshape.rank().compatible(5) && filters_pshape.rank().compatible(6)) ||
+            (data_batch_pshape.rank().compatible(4) && filters_pshape.rank().compatible(5)) ||
+            (data_batch_pshape.rank().compatible(3) && filters_pshape.rank().compatible(4)),
+        "Shapes for data batch and filters do not match. (data batch shape: ",
+        data_batch_pshape,
+        ", filters shape: ",
+        filters_pshape,
+        ").");
+
     PartialShape result_shape{PartialShape::dynamic()};
-
-    if (data_batch_shape.rank().is_static())
+    if (data_batch_pshape.rank().is_static() || filters_pshape.rank().is_static())
     {
+        const bool is_data_batch_ps_static = data_batch_pshape.rank().is_static();
+        const auto output_ps_rank = is_data_batch_ps_static
+                                        ? data_batch_pshape.rank().get_length()
+                                        : filters_pshape.rank().get_length() - 1;
+        const auto num_spatial_dims = output_ps_rank - 2;
+
+        if (m_strides.size() == 0)
+        {
+            m_strides = Strides(num_spatial_dims, 1);
+        }
+
+        if (m_dilations.size() == 0)
+        {
+            m_dilations = Strides(num_spatial_dims, 1);
+        }
+
+        if (m_pads_begin.size() == 0 || m_auto_pad == PadType::VALID)
+        {
+            m_pads_begin = CoordinateDiff(num_spatial_dims, 0);
+        }
+
+        if (m_pads_end.size() == 0 || m_auto_pad == PadType::VALID)
+        {
+            m_pads_end = CoordinateDiff(num_spatial_dims, 0);
+        }
+
+        NODE_VALIDATION_CHECK(this,
+                              m_strides.size() == num_spatial_dims,
+                              "Strides should be defined for all and only spatial features.");
+
+        NODE_VALIDATION_CHECK(this,
+                              m_dilations.size() == num_spatial_dims,
+                              "Dilations should be defined for all and only spatial features.");
+
+        NODE_VALIDATION_CHECK(this,
+                              m_pads_begin.size() == num_spatial_dims &&
+                                  m_pads_end.size() == num_spatial_dims,
+                              "Pads should be defined for all and only spatial features.");
+
+        // TODO: result_shape = PartialShape::dynamic(output_ps_rank);
+        result_shape = std::vector<Dimension>(output_ps_rank, Dimension::dynamic());
+        if (data_batch_pshape.rank().is_static())
+        {
+            result_shape[0] = data_batch_pshape[0]; // batch size
+        }
+        if (filters_pshape.rank().is_static() && filters_pshape.rank().get_length() > 2)
+        {
+            result_shape[1] = filters_pshape[0] * filters_pshape[1];
+        }
+        if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
+        {
+            bool auto_padding_applied = false;
+            if (filters_pshape.rank().is_static() && filters_pshape.rank().get_length() > 2)
+            {
+                m_pads_begin.clear();
+                m_pads_end.clear();
+
+                const PartialShape filter_spatial_shape = [filters_pshape]() {
+                    vector<Dimension> filter_dims{filters_pshape};
+                    filter_dims.erase(filter_dims.begin(),
+                                      filter_dims.begin() + 3); // Remove {G,O,I}
+                    return PartialShape{filter_dims};
+                }();
+
+                if (filter_spatial_shape.is_static())
+                {
+                    auto_padding_applied = try_apply_auto_padding(data_batch_pshape,
+                                                                  filter_spatial_shape.to_shape(),
+                                                                  m_strides,
+                                                                  m_dilations,
+                                                                  m_auto_pad,
+                                                                  m_pads_end,
+                                                                  m_pads_begin);
+                }
+            }
+            if (!auto_padding_applied)
+            {
+                set_output_type(0, result_et, result_shape);
+                return;
+            }
+        }
+
+        // we need to adjust channels input dim to reuse helpers for regular convolution
+        PartialShape data_batch_ps = [&]() {
+            auto shape = PartialShape{data_batch_pshape};
+            auto groups = filters_pshape.rank().is_static() ? filters_pshape[0] : Dimension();
+            if (data_batch_pshape.rank().is_static() && data_batch_pshape.rank().get_length() > 2 &&
+                data_batch_pshape[1].is_static() && groups.is_static())
+            {
+                shape[1] = Dimension(data_batch_pshape[1].get_length() / groups.get_length());
+            }
+            return shape;
+        }();
+
+        // we need to adjust filters shape to reuse helpers for regular convolution
+        PartialShape filters_ps = [&]() {
+            auto shape = PartialShape{filters_pshape};
+            if (shape.rank().is_static() && shape.rank().get_length() > 2)
+            {
+                shape[1] = shape[0] * shape[1];
+                vector<Dimension> dim_vec{shape};
+                dim_vec.erase(dim_vec.begin());
+                shape = PartialShape{dim_vec};
+            }
+            return shape;
+        }();
+
         result_shape =
-            std::vector<Dimension>(data_batch_shape.rank().get_length(), Dimension::dynamic());
-        result_shape[0] = data_batch_shape[0];
+            infer_convolution_forward(this,
+                                      data_batch_ps,
+                                      Strides(m_strides.size(), 1), // dummy data dilations
+                                      m_pads_begin,
+                                      m_pads_end,
+                                      filters_ps,
+                                      m_strides,
+                                      m_dilations);
     }
-
-    Dimension groups(1);
-    // we need to adjust filters_shape to reuse helpers for normal convolution
-    if (filters_shape.rank().is_static() && filters_shape.rank().get_length() > 2)
-    {
-        groups = filters_shape[0];
-        filters_shape[1] *= groups;
-        auto dim_vec = static_cast<std::vector<Dimension>>(filters_shape);
-        dim_vec.erase(dim_vec.begin());
-        filters_shape = PartialShape(dim_vec);
-        if (data_batch_shape.rank().is_static())
-        {
-            result_shape[1] = filters_shape[0];
-        }
-    }
-
-    if (data_batch_shape.rank().is_static() && data_batch_shape.rank().get_length() > 2 &&
-        data_batch_shape[1].is_static() && groups.is_static())
-    {
-        data_batch_shape[1] = Dimension(data_batch_shape[1].get_length() / groups.get_length());
-    }
-
-    if (m_strides.size() == 0)
-    {
-        m_strides = conv_default_strides(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_dilations.size() == 0)
-    {
-        m_dilations = conv_default_strides(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_pads_begin.size() == 0 || m_auto_pad == PadType::VALID)
-    {
-        m_pads_begin = conv_default_padding(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_pads_end.size() == 0 || m_auto_pad == PadType::VALID)
-    {
-        m_pads_end = conv_default_padding(this, data_batch_shape, filters_shape);
-    }
-
-    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
-    {
-        bool auto_padding_applied = false;
-        if (filters_shape.is_static())
-        {
-            m_pads_begin.clear();
-            m_pads_end.clear();
-            auto filters_static_shape = filters_shape.to_shape();
-            filters_static_shape.erase(filters_static_shape.begin(),
-                                       filters_static_shape.begin() + 2); // Remove {O,I}
-            auto_padding_applied = try_apply_auto_padding(data_batch_shape,
-                                                          filters_static_shape,
-                                                          m_strides,
-                                                          m_dilations,
-                                                          m_auto_pad,
-                                                          m_pads_end,
-                                                          m_pads_begin);
-        }
-        if (!auto_padding_applied)
-        {
-            set_output_type(0, result_et, result_shape);
-            return;
-        }
-    }
-
-    result_shape = infer_convolution_forward(this,
-                                             data_batch_shape,
-                                             Strides(m_strides.size(), 1), // dummy data dilations
-                                             m_pads_begin,
-                                             m_pads_end,
-                                             filters_shape,
-                                             m_strides,
-                                             m_dilations);
-
     set_output_type(0, result_et, result_shape);
 }
 
