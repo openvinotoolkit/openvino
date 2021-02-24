@@ -12,6 +12,7 @@ namespace runtime {
  */
 class FP {
     std::shared_ptr<backend::AMIntelDNN> dnn;
+
  public:
     FP(std::shared_ptr<backend::AMIntelDNN> dnn) : dnn(dnn) {
     }
@@ -24,6 +25,7 @@ class FP {
     static void ApplyDiagonalTransform(intel_dnn_component_t *component);
     static void ApplyRecurrentTransform(intel_dnn_component_t *component, uint32_t row, void *ptr_feedbacks);
     static void ApplyConvolutional1DTransform(intel_dnn_component_t *component);
+    static void ApplyConvolutional2DTransform(intel_dnn_component_t* component);
     static void ApplyPiecewiseLinearTransform(intel_dnn_component_t *component,
                                               intel_dnn_number_type_t number_type,
                                               uint32_t listsize);
