@@ -50,6 +50,7 @@ private:
             {ngraph::opset5::Maximum::type_info,          sliceBinaryEltwise},
 
             {ngraph::opset5::Relu::type_info,             sliceUnaryEltwise},
+            {ngraph::opset5::Clamp::type_info,            sliceUnaryEltwise},
         };
         return slicers;
     }
