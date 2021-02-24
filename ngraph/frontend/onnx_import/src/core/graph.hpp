@@ -35,7 +35,13 @@ namespace ngraph
         class Graph
         {
         public:
+            Graph(const Graph&) = delete;
+            Graph& operator = (const Graph&) = delete;
+            Graph(Graph&&) = default;
+            Graph& operator = (Graph&&) = default;
             Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model);
+            virtual ~Graph() = default;
+
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
@@ -47,6 +53,11 @@ namespace ngraph
             OutputVector make_ng_nodes(const Node& onnx_node) const;
             const GraphCache& get_graph_cache() const;
             const OpsetImports& get_opset_imports() const;
+
+            friend std::ostream& operator<<(std::ostream& outs, const Graph& graph)
+            {
+                return (outs << "<Graph: " << graph.get_name() << ">");
+            }
 
         protected:
             Graph(const ONNX_NAMESPACE::GraphProto& proto,
@@ -99,12 +110,6 @@ namespace ngraph
         private:
             std::vector<Output<ngraph::Node>> m_outputs_from_parent;
         };
-
-        inline std::ostream& operator<<(std::ostream& outs, const Graph& graph)
-        {
-            return (outs << "<Graph: " << graph.get_name() << ">");
-        }
-
     } // namespace onnx_import
 
 } // namespace ngraph

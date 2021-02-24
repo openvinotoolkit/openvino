@@ -41,6 +41,13 @@ namespace ngraph
         class GraphCache
         {
         public:
+            GraphCache() = default;
+            GraphCache(const GraphCache&) = default;
+            GraphCache& operator = (const GraphCache&) = default;
+            GraphCache(GraphCache&&) = default;
+            GraphCache& operator = (GraphCache&&) = default;
+            virtual ~GraphCache() = default;
+
             /// \brief      Add node to the cache or override the existing one.
             ///
             /// \note       GraphCache takes ownership of the node.
