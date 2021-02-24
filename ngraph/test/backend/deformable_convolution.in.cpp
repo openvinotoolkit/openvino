@@ -66,8 +66,9 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
                                                            deformable_group);
     auto f =
         make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
-
+    
     auto test_case = test::TestCase<TestEngine>(f);
+    
     test_case.add_input<float>(inputs);
     test_case.add_input<float>(offsets);
     test_case.add_input<float>(filter);
@@ -93,11 +94,46 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_offsets_zero_2D_1batch_1chan
                                     3.0f, 2.0f, 1.0f};
 
     const Shape offsets_shape{1, 18, 2, 2};
-    const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
+    const std::vector<float> offsets{1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f,
+                                     1.0f, 0.0f,
+                                     0.0f, 2.0f};
 
     const Shape outputs_shape{1, 1, 2, 2};
-    const std::vector<float> outputs{56.0f, 65.0f,
-                                     38.0f, 24.0f};
+    const std::vector<float> outputs{24.0f, 65.0f,
+                                     38.0f, 2.0f};
 
     DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
