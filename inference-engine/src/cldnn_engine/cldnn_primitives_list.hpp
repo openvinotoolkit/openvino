@@ -203,6 +203,7 @@ REGISTER_FACTORY(v5, Round);
 
 // ------------------------------ Supported v6 ops ------------------------------ //
 REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
+REGISTER_FACTORY(v6, MVN);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
