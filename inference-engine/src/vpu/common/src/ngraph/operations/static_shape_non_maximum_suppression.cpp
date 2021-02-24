@@ -63,6 +63,10 @@ void StaticShapeNonMaxSuppression::validate_and_infer_types() {
     set_output_type(2, m_output_type, Shape{2});
 }
 
+void StaticShapeNonMaxSuppression::set_output_type(const ngraph::element::Type& output_type) {
+    m_output_type = output_type;
+}
+
 }  // namespace op
 }  // namespace vpu
 } // namespace ngraph

@@ -20,9 +20,15 @@ MergeSubsequentDSROperations::MergeSubsequentDSROperations() {
         if (!predecessor) {
             return false;
         }
-
-        dsr->input(0).replace_source_output(predecessor->input_value(0));
-        return false;
+        // this will create a new DSR with correct inputs
+        auto newDsr = dsr->copy_with_new_inputs({predecessor->input_value(0), dsr->input_value(1)});
+        // replace DSR2 with new so DSR2 will lose all consumers so it will die after pass execution
+        replace_node(dsr, newDsr);
+        // reconnect all DSR1 consumers even with DSR2 which will be destructed so this is no more an issue
+        for (auto &consumer : predecessor->get_output_target_inputs(0)) {
+            consumer.replace_source_output(newDsr);
+        }
+        return true;
     };
 
     const auto& label = std::make_shared<ngraph::pattern::op::Label>(

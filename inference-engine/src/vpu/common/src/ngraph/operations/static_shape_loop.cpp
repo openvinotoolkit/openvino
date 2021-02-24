@@ -7,7 +7,7 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-NGRAPH_RTTI_DEFINITION(ngraph::vpu::op::StaticShapeLoop, "StaticShapeLoop", 0);
+constexpr NodeTypeInfo StaticShapeLoop::type_info;
 
 StaticShapeLoop::StaticShapeLoop(const Loop& loop) : Loop(loop) {}
 

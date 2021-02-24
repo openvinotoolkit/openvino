@@ -4,8 +4,9 @@
 
 #include <vpu/ngraph/operations/static_shape_topk.hpp>
 #include <ngraph/validation_util.hpp>
+namespace ngraph { namespace vpu { namespace op {
 
-NGRAPH_RTTI_DEFINITION(ngraph::vpu::op::StaticShapeTopK, "StaticShapeTopK", 0);
+constexpr NodeTypeInfo StaticShapeTopK::type_info;
 
 ngraph::vpu::op::StaticShapeTopK::StaticShapeTopK(
         const Output<Node>& data,
@@ -47,3 +48,6 @@ void ngraph::vpu::op::StaticShapeTopK::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), outputShape);
     set_output_type(1, m_index_element_type, outputShape);
 }
+}  // namespace op
+}  // namespace vpu
+}  // namespace ngraph
