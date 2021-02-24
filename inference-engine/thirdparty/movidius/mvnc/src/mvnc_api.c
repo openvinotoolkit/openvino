@@ -2719,9 +2719,9 @@ static ncStatus_t setDevicePowerConfig(struct _devicePrivate_t *d,
     return NC_OK;
 }
 
-static ncStatus_t disableAsyncDMA(struct _devicePrivate_t *d,
-                               ncDeviceOption_t option,
-                               const void *data, unsigned int dataLength){
+static ncStatus_t enableAsyncDMA(struct _devicePrivate_t *d,
+                                 ncDeviceOption_t option,
+                                 const void *data, unsigned int dataLength){
     XLinkError_t rc = X_LINK_SUCCESS;
     deviceCommand_t config;
 
@@ -2788,7 +2788,7 @@ ncStatus_t ncDeviceSetOption(struct ncDeviceHandle_t *deviceHandle,
         }
         case NC_RW_ENABLE_ASYNC_DMA:
         {
-            rc = disableAsyncDMA(d, option, data, dataLength);
+            rc = enableAsyncDMA(d, option, data, dataLength);
             break;
         }
         default:
