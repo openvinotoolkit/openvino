@@ -561,3 +561,94 @@ TEST(TransformationTests, DifferentPrecisionVersusAttributes) {
         EXPECT_THAT(res.message, HasSubstr("i16"));
     }
 }
+
+namespace {
+const auto createU1ConstantFunc = [](const Shape& s, const uint8_t* data) {
+    using namespace ngraph::opset5;
+    auto c = std::make_shared<Constant>(element::u1, s, data);
+
+    return std::make_shared<ngraph::Function>(ngraph::NodeVector{c},
+                                              ngraph::ParameterVector{});
+};
+}
+
+TEST(TransformationTests, ConstantComparison_ElementTypeU1_Positive_1stbit) {
+    const Shape shape{1};
+    const uint8_t data[1] = {0x80};  // 1000'0000
+
+    const auto& f1 =
+        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
+    const auto& f2 =
+        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
+
+    const auto fc = FunctionsComparator::with_default().enable(
+        FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
+TEST(TransformationTests, ConstantComparison_ElementTypeU1_Positive_9thbit) {
+    const Shape shape{9};
+    const uint8_t data[2] = {0x00, 0x80};  // 0000'0000 1000'0000
+
+    const auto& f1 =
+        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
+    const auto& f2 =
+        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data));
+
+    const auto fc = FunctionsComparator::with_default().enable(
+        FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
+TEST(TransformationTests, ConstantComparison_ElementTypeU1_Positive_garbage) {
+    // unused mem (after 9th bit) in bit stream should not be compared
+    const Shape shape{9};
+    const uint8_t data1[2] = {0xAA, 0x8F};  // 1010'1010 1000'1111
+    const uint8_t data2[2] = {0xAA, 0xF0};  // 1010'1010 1111'0000
+
+    const auto& f1 =
+        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data1));
+    const auto& f2 =
+        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data2));
+
+    const auto fc = FunctionsComparator::with_default().enable(
+        FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_TRUE(res.valid) << res.message;
+}
+
+TEST(TransformationTests, ConstantComparison_ElementTypeU1_Negative) {
+    const Shape shape{1};
+    const uint8_t data1[1] = {0x80};  // 1000 0000
+    const uint8_t data2[1] = {0x01};  // 0000 0001
+
+    const auto& f1 =
+        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data1));
+    const auto& f2 =
+        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data2));
+
+    const auto fc = FunctionsComparator::with_default().enable(
+        FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("Different Constant values detected"));
+}
+
+TEST(TransformationTests, ConstantComparison_ElementTypeU1_Negative_9thbit) {
+    const Shape shape{9};
+    const uint8_t data1[2] = {0x00, 0x80};  // 0000 0000 1000 0000
+    const uint8_t data2[2] = {0x00, 0x00};  // 0000 0000 0000 0000
+
+    const auto& f1 =
+        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data1));
+    const auto& f2 =
+        createU1ConstantFunc(shape, static_cast<const uint8_t*>(data2));
+
+    const auto fc = FunctionsComparator::with_default().enable(
+        FunctionsComparator::CONST_VALUES);
+    const auto res = fc.compare(f1, f2);
+    EXPECT_FALSE(res.valid);
+    EXPECT_THAT(res.message, HasSubstr("Different Constant values detected"));
+}
