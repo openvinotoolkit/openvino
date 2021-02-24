@@ -13,6 +13,8 @@ python3 -m pytest --artifacts ./compiled --test_conf=<path to test config> \
 """
 
 import sys
+import re
+import os
 from inspect import getsourcefile
 from pathlib import Path
 
@@ -85,8 +87,17 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(scope="function")
 def test_info(request, pytestconfig):
-    setattr(request.node._request, "test_info", {"orig_instance": pytestconfig.orig_cases,
-                                                 "csv_model_path": {}
+
+    def _get_xml_name(path):
+        return os.path.basename(os.path.normpath(path))
+
+    test_case_model_path = {}
+    for case in pytestconfig.orig_cases:
+        case_search = re.search(r'\[(.*?)\]', str(request.node))
+        if _get_xml_name(case["model"]["path"]) in _get_xml_name(case_search.group(0)):
+            test_case_model_path = case
+    setattr(request.node._request, "test_info", {"orig_instance": test_case_model_path,
+                                                 "csv_path": {}
                                                  })
     if not hasattr(pytestconfig, "session_info"):
         setattr(pytestconfig, "session_info", [])
@@ -99,14 +110,12 @@ def test_info(request, pytestconfig):
 @pytest.fixture(scope="session", autouse=True)
 def update_test_conf_info(request, pytestconfig):
     yield
-    csv_model_path = pytestconfig.getoption('csv_model_path')
-    if csv_model_path:
-        upd_cases = pytestconfig.orig_cases.copy()
-        for record in pytestconfig.session_info:
-            rec_i = upd_cases.index(record["orig_instance"])
-            upd_cases[rec_i]["csv_model_path"] = record["csv_model_path"]
-        with open(request.config.getoption("test_conf"), "w") as config:
-            yaml.safe_dump(upd_cases, config)
+    upd_cases = pytestconfig.orig_cases.copy()
+    for record in pytestconfig.session_info:
+        rec_i = upd_cases.index(record["orig_instance"])
+        upd_cases[rec_i]["model"]["csv_path"] = record["csv_path"]
+    with open(request.config.getoption("test_conf"), "w") as config:
+        yaml.safe_dump(upd_cases, config)
 
 
 @pytest.fixture(scope="session")
