@@ -378,14 +378,21 @@ struct ThrowNow final {
 #else
 #define IE_LOCATION ""
 #endif  // NDEBUG
+
+#define IE_THROW_0()                                                                                \
+    InferenceEngine::details::ThrowNow<InferenceEngine::GeneralError> {} <<= std::stringstream {}   \
+    << IE_LOCATION << ' '
+
+#define IE_THROW_1(ExceptionType)                                                                                           \
+    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType> {} <<= std::stringstream {}                          \
+    << IE_LOCATION << ' ' << InferenceEngine::details::ExceptionTraits<InferenceEngine::ExceptionType>::string() << ' '
 /// @endcond
 
 /**
  * @def IE_THROW
- * @brief A macro used to throw specefied exception with a description
+ * @brief A macro used to throw specfied exception with a description
  */
-#define IE_THROW(ExceptionType)     \
-    InferenceEngine::details::ThrowNow<InferenceEngine::ExceptionType>{} <<= std::stringstream{} << IE_LOCATION
+#define IE_THROW(...) OV_PP_OVERLOAD(IE_THROW, __VA_ARGS__)
 
 /**
  * @def THROW_IE_EXCEPTION
