@@ -209,3 +209,28 @@ InferenceEngine::Precision MKLDNNExtensionUtils::getMaxPrecision(std::vector<Inf
 
     return InferenceEngine::Precision::UNSPECIFIED;
 }
+
+bool MKLDNNExtensionUtils::isDenseTensor(const InferenceEngine::TensorDesc &desc) {
+    if (desc.getLayout() == InferenceEngine::Layout::SCALAR)
+        return true;
+
+    auto blkDesc = desc.getBlockingDesc();
+    auto blkDims = blkDesc.getBlockDims();
+    auto strides = blkDesc.getStrides();
+
+    if (blkDims.size() != desc.getDims().size() || strides[blkDims.size() - 1] != 1)
+        return false;
+
+    for (int i = static_cast<int>(blkDims.size()) - 2; i >=0; i--) {
+        if (strides[i] != strides[i + 1] * blkDims[i + 1])
+            return false;
+    }
+
+    return true;
+}
+
+bool MKLDNNExtensionUtils::isDefaultTensor(const InferenceEngine::TensorDesc &desc) {
+    auto blkDesc = desc.getBlockingDesc();
+    return isDenseTensor(desc) && blkDesc.getOffsetPadding() == 0 &&
+           std::all_of(blkDesc.getOffsetPaddingToData().begin(), blkDesc.getOffsetPaddingToData().end(), [](size_t i){ return i == 0; });
+}
