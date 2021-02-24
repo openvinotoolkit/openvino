@@ -20,16 +20,16 @@ from typing import Iterable, List, Union
 import numpy as np
 
 
-def int64_array(l: Iterable):
-    return np.array(l, dtype=np.int64)
+def int64_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.int64)
 
 
-def float_array(l: list):
-    return np.array(l, dtype=np.float64)
+def float_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.float64)
 
 
-def float32_array(l: list):
-    return np.array(l, dtype=np.float32)
+def float32_array(value: Union[Iterable[Union[float, int]], float, int]) -> np.ndarray:
+    return np.array(value, dtype=np.float32)
 
 
 def mark_input_bins(node, names=('weights', 'biases'), start_port: int = 1):
