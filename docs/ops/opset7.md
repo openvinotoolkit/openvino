@@ -52,7 +52,7 @@ declared in `namespace opset7`.
 * [Exp](activation/Exp_1.md)
 * [ExtractImagePatches](movement/ExtractImagePatches_3.md)
 * [FakeQuantize](quantization/FakeQuantize_1.md)
-* [IFFT](image/IFFT_7.md)
+* [DIFFT](signals/DIFFT_7.md)
 * [Floor](arithmetic/Floor_1.md)
 * [FloorMod](arithmetic/FloorMod_1.md)
 * [Gather](movement/Gather_1.md)
