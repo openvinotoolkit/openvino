@@ -75,7 +75,9 @@ void op::v3::NonZero::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, m_output_type, PartialShape{input_shape.rank(), Dimension::dynamic()});
+        const Dimension dim =
+            input_shape.is_static() ? shape_size(input_shape.get_shape()) : Dimension::dynamic();
+        set_output_type(0, m_output_type, PartialShape{input_shape.rank(), dim});
     }
 
     set_input_is_relevant_to_shape(0);
