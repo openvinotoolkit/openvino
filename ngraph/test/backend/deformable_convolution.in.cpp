@@ -66,9 +66,9 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
                                                            deformable_group);
     auto f =
         make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
-    
+
     auto test_case = test::TestCase<TestEngine>(f);
-    
+
     test_case.add_input<float>(inputs);
     test_case.add_input<float>(offsets);
     test_case.add_input<float>(filter);

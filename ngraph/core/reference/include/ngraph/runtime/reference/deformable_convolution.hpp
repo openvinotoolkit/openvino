@@ -53,6 +53,7 @@ namespace ngraph
                 const Shape filter_channel_shape(++filter_shape.begin(), filter_shape.end());
                 const size_t filter_channel_size = shape_size(filter_channel_shape);
                 int f_c = 0;
+                int off = 0;
                 const Shape offset_spatial_dims_shape(++offset_shape.begin(), offset_shape.end());
                 const int spatial_size = shape_size(offset_spatial_dims_shape);
                 for (int i_z = -p.pads_begin[0];
@@ -70,10 +71,10 @@ namespace ngraph
                             auto input_channel = batch;
                             auto filter_channel = filter;
                             T sum = 0;
-                            int off = 0;
                             size_t filter_channels_count = filter_shape[0];
                             while (filter_channels_count--)
                             {
+                                off = 0;
                                 for (int f_z = 0; f_z < filter_size_z; ++f_z)
                                 {
                                     for (int f_y = 0; f_y < filter_size_y; ++f_y)
@@ -93,24 +94,28 @@ namespace ngraph
                                             int f_buf_idx = (f_z * filter_size_y * filter_size_x) +
                                                             (f_y * filter_size_x) + f_x;
 
-                                            int i_buf_idx =
-                                                (rel_i_z * input_size_y * input_size_x) +
-                                                (rel_i_y * input_size_x) + rel_i_x;
-
                                             int y_offset =
                                                 offset[(f_buf_idx + off++) * spatial_size + f_c];
                                             int x_offset =
                                                 offset[(f_buf_idx + off) * spatial_size + f_c];
 
+                                            if (x_offset + rel_i_x >= input_size_x ||
+                                                y_offset + rel_i_y >= input_size_y)
+                                                continue;
+
+                                            int i_buf_idx =
+                                                (rel_i_z * input_size_y * input_size_x) +
+                                                ((rel_i_y + y_offset) * input_size_x) + rel_i_x +
+                                                x_offset;
                                             sum += static_cast<T>(input_channel[i_buf_idx]) *
                                                    static_cast<T>(filter_channel[f_buf_idx]);
                                         }
                                     }
                                 }
-                                f_c++;
                                 input_channel += input_channel_size;
                                 filter_channel += filter_channel_size;
                             }
+                            f_c++;
                             *out = sum;
                             ++out;
                         }
@@ -165,7 +170,6 @@ namespace ngraph
                 // here we are converting all param types to int's to avoid arithmetic issues
                 // (e.g signed + unsigned) in indexes calculation later
                 ConvolutionParams params{strides, dilation, pads_begin, pads_end};
-
                 // here we are extending spatial dimensions to 3D, because we are going to use 3D
                 // convolution implementation to convolve also in 1D & 2D case
                 Shape input_shape{in_shape};
