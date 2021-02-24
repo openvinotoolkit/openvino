@@ -37,8 +37,6 @@ bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
 
-    set_num_iteratrions_if_no_slice_inputs(); // TODO can be move to validate_and_infer_types
-
     return true;
 }
 
@@ -173,6 +171,8 @@ void op::v0::TensorIterator::validate_and_infer_types()
     revalidate_and_infer_types_for_body_ops();
 
     // Output
+    set_num_iteratrions_if_no_slice_inputs();
+
     index_it = 0;
     for (const auto& output_description : m_output_descriptions)
     {
@@ -207,8 +207,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
                     out_shape = Shape(1);
                 }
 
-                /// when reading from IR set_num_iteratrions_if_no_slice_inputs have to be
-                /// called before this check
                 if (m_num_iterations != -1)
                 {
                     // for simple RNN case where stride is the same as part_size

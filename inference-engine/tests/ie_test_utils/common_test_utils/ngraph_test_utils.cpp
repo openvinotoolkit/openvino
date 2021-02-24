@@ -612,7 +612,7 @@ public:
         : m_attr_ref(ref), m_cmp_result{ref.read_result()}, m_check_flags(check_flags) {}
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
-        verify_else(name, adapter);
+        verify_others(name, adapter);
     }
 
 #define ON_ADAPTER(TYPE)                                                                      \
@@ -725,7 +725,7 @@ private:
         }
     }
 
-    void verify_else(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
+    void verify_others(const std::string& name, ngraph::ValueAccessor<void>& adapter) {
         if (auto inputs =
                 ngraph::as_type<ngraph::AttributeAdapter<SubGraphOpInputDescription>>(&adapter)) {
             verify(name, inputs->get());
@@ -752,7 +752,7 @@ private:
     Result m_cmp_result;
     Comparator::CmpValues m_check_flags;
     std::set<AttrName> m_visited_attributes;
-    static const bool m_fast_exit{true};
+    static constexpr bool m_fast_exit{true};
 };
 class CompareNodesAttributes {
 public:
