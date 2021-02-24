@@ -33,6 +33,7 @@ except ModuleNotFoundError:
 
 import mo.utils.version as v
 import telemetry.telemetry as tm
+from mo.utils.error import classify_error_type
 
 
 def send_telemetry(mo_version: str, message: str, event_type: str):
@@ -50,13 +51,15 @@ def import_core_modules(silent: bool, path_to_module: str):
 
         import openvino # pylint: disable=import-error
 
+        if silent:
+            return True
+
         ie_version = str(get_version())
         mo_version = str(v.get_version()) # pylint: disable=no-member
 
-        if not silent:
-            print("\t- {}: \t{}".format("Inference Engine found in", os.path.dirname(openvino.__file__)))
-            print("{}: \t{}".format("Inference Engine version", ie_version))
-            print("{}: \t    {}".format("Model Optimizer version", mo_version))
+        print("\t- {}: \t{}".format("Inference Engine found in", os.path.dirname(openvino.__file__)))
+        print("{}: \t{}".format("Inference Engine version", ie_version))
+        print("{}: \t    {}".format("Model Optimizer version", mo_version))
 
         # MO and IE version have a small difference in the beginning of version because
         # IE version also includes API version. For example:
@@ -74,14 +77,13 @@ def import_core_modules(silent: bool, path_to_module: str):
             else:
                 print("\"pip install openvino=={}.{}\"".format(*extracted_mo_release_version))
 
-            # Send telemetry message about warning
-            simplified_mo_version = v.get_simplified_mo_version()
-            message = str(dict({
-                "platform": platform.platform(),
-                "mo_version": simplified_mo_version,
-                "ie_version": v.get_simplified_ie_version(version=ie_version),
-            }))
-            send_telemetry(simplified_mo_version, message, 'ie_version_mismatch')
+        simplified_mo_version = v.get_simplified_mo_version()
+        message = str(dict({
+            "platform": platform.platform(),
+            "mo_version": simplified_mo_version,
+            "ie_version": v.get_simplified_ie_version(version=ie_version),
+        }))
+        send_telemetry(simplified_mo_version, message, 'ie_version_check')
 
         return True
     except Exception as e:
@@ -97,8 +99,9 @@ def import_core_modules(silent: bool, path_to_module: str):
                 "mo_version": simplified_mo_version,
                 "ie_version": v.get_simplified_ie_version(env=os.environ),
                 "python_version": sys.version,
-                "error_message": str(e),  # TODO: parse common error types
+                "error_type": classify_error_type(e),
             }))
+            print(message)
             send_telemetry(simplified_mo_version, message, 'ie_import_failed')
 
         return False

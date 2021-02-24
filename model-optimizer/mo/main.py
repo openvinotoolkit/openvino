@@ -36,7 +36,7 @@ from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
-from mo.utils.error import Error, FrameworkError
+from mo.utils.error import Error, FrameworkError, classify_error_type
 from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
@@ -273,23 +273,29 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
 
         # This try-except is additional reinsurance that the IE
         # dependency search does not break the MO pipeline
+        return_code = 0
         try:
             if find_ie_version(silent=True):
                 path_to_offline_transformations = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'back',
                                                                'offline_transformations.py')
                 status = subprocess.run([sys.executable, path_to_offline_transformations, orig_model_name], env=os.environ, timeout=10)
-                if status.returncode != 0 and not argv.silent:
-                    print("[ WARNING ] offline_transformations return code {}".format(status.returncode))
+                return_code = status.returncode
+                if return_code != 0 and not argv.silent:
+                    print("[ WARNING ] offline_transformations return code {}".format(return_code))
         except Exception as e:
-            message = str(dict({
-                "platform": platform.platform(),
-                "mo_version": get_simplified_mo_version(),
-                "ie_version": get_simplified_ie_version(env=os.environ),
-                "python_version": sys.version,
-                "error_message": str(e),  # TODO: parse common error types
-            }))
-            t = tm.Telemetry()
-            t.send_event('mo', 'offline_transformations_failed', message)
+            # TODO: send telemetry message
+            pass
+
+        message = str(dict({
+            "platform": platform.platform(),
+            "mo_version": get_simplified_mo_version(),
+            "ie_version": get_simplified_ie_version(env=os.environ),
+            "python_version": sys.version,
+            "return_code": return_code
+        }))
+        print(message)
+        t = tm.Telemetry()
+        t.send_event('mo', 'offline_transformations_failed', message)
 
         print('[ SUCCESS ] Generated IR version {} model.'.format(get_ir_version(argv)))
         print('[ SUCCESS ] XML file: {}.xml'.format(orig_model_name))

@@ -73,7 +73,7 @@ def get_simplified_mo_version():
 
 def get_simplified_ie_version(env=dict(), version=None):
     if version is None:
-        version = subprocess.check_output([sys.executable, "ie_version.py"], timeout=2, env=env).strip().decode()
+        version = subprocess.check_output([sys.executable, os.path.join(os.path.dirname(__file__), "ie_version.py")], timeout=2, env=env).strip().decode()
     m = re.match(r"^([0-9]+).([0-9]+).(.*)", version)
     if m and len(m.groups()) == 3:
         return simplify_version(m.group(3))
