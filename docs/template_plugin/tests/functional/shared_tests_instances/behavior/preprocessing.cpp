@@ -19,7 +19,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
-INSTANTIATE_TEST_CASE_P(PreprocessingPrecisionConvertTestsViaSetInput, PreprocessingPrecisionConvertTest,
+INSTANTIATE_TEST_CASE_P(smoke_PreprocessingPrecisionConvertTestsViaSetInput, PreprocessingPrecisionConvertTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(4),   // Number of input tensor channels
@@ -28,7 +28,7 @@ INSTANTIATE_TEST_CASE_P(PreprocessingPrecisionConvertTestsViaSetInput, Preproces
                                 ::testing::ValuesIn(configs)),
                         PreprocessingPrecisionConvertTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(PreprocessingPrecisionConvertTestsViaGetBlob, PreprocessingPrecisionConvertTest,
+INSTANTIATE_TEST_CASE_P(smoke_PreprocessingPrecisionConvertTestsViaGetBlob, PreprocessingPrecisionConvertTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(4),       // Number of input tensor channels (blob_copy only supports 4d and 5d tensors)
