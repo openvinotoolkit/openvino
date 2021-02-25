@@ -126,7 +126,7 @@ declared in `namespace opset7`.
 * [RNNSequence](sequence/RNNSequence_5.md)
 * [ROIAlign](detection/ROIAlign_3.md)
 * [ROIPooling](detection/ROIPooling_1.md)
-* [Roll](movement/Roll_1.md)
+* [Roll](movement/Roll_7.md)
 * [Round](arithmetic/Round_5.md)
 * [ScatterElementsUpdate](movement/ScatterElementsUpdate_3.md)
 * [ScatterNDUpdate](movement/ScatterNDUpdate_3.md)
