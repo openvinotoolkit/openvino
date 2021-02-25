@@ -22,18 +22,41 @@ namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
 
+using MKLDNNPlugin::TensorDescCreatorTypes;
+
 class GatherImpl: public ExtLayerBase {
 public:
+    static bool isSupportedOperation(const ngraph::Node& op, std::string& errorMessage) noexcept {
+        try {
+            auto gatherOp = ngraph::as_type<const ngraph::op::v1::Gather>(&op);
+            if (!gatherOp) {
+                errorMessage = "Only opset1 Gather operation is supported";
+                return false;
+            }
+
+            auto axesOp = gatherOp->get_input_node_shared_ptr(GATHER_AXIS);
+            if (!ngraph::as_type_ptr<const ngraph::op::Constant>(axesOp)) {
+                errorMessage = "Only Constant operation on 'axis' input is supported";
+                return false;
+            }
+        } catch (...) {
+            return false;
+        }
+
+        return true;
+    }
+
     explicit GatherImpl(const std::shared_ptr<ngraph::Node>& op) {
         try {
             errorPrefix_ = std::string("Layer Gather with name '") + op->get_friendly_name() + "' ";
 
-            auto gatherOp = ngraph::as_type_ptr<ngraph::op::v1::Gather>(op);
-            if (!gatherOp)
-                IE_THROW() << "CPU Gather node doesn't support ngraph operation "
-                    << gatherOp->get_type_name() << " with name " << gatherOp->get_friendly_name();
+            std::string errorMessage;
+            if (!isSupportedOperation(*op, errorMessage)) {
+                IE_THROW(NotImplemented) << errorMessage;
+            }
 
-            if (gatherOp->get_input_size() != 3 || gatherOp->get_output_size() == 0)
+            auto gatherOp = ngraph::as_type_ptr<ngraph::op::v1::Gather>(op);
+            if (gatherOp->get_input_size() != 3 || gatherOp->get_output_size() != 1)
                 IE_THROW() << errorPrefix_ << "has incorrect number of input/output edges!";
 
             Precision inIdxPrecision = details::convertPrecision(gatherOp->get_input_element_type(GATHER_INDEXES));
@@ -44,16 +67,12 @@ public:
             if (dictionary_dims.size() == 0)
                 IE_THROW() << errorPrefix_ << "has incorrect input parameters dimension!";
 
-            auto axesOp = gatherOp->get_input_node_shared_ptr(GATHER_AXIS);
-            if (!ngraph::as_type_ptr<ngraph::op::Constant>(axesOp))
-                IE_THROW() << errorPrefix_ << "supports only Constant op on 'axis' input.";
-
             axis = static_cast<int>(gatherOp->get_axis());
             if (axis < 0)
                 axis += dictionary_dims.size();
             // Dictionary must be at least rank axis + 1
-            IE_ASSERT(-static_cast<int>(dictionary_dims.size()) <= axis && axis < static_cast<int>(dictionary_dims.size()))
-                << errorPrefix_ << "has incorrect input parameters dimensions and axis number!";
+            if (!(-static_cast<int>(dictionary_dims.size()) <= axis && axis < static_cast<int>(dictionary_dims.size())))
+                IE_THROW() << errorPrefix_ << "has incorrect input parameters dimensions and axis number!";
 
             //  Find number of dictionaries, index range and data length
             for (int i = 0; i < axis; i++)
@@ -65,24 +84,12 @@ public:
             if (dataLength == 0)
                 IE_THROW() << errorPrefix_ << "had incorrect input parameters dimension!";
 
-            LayerConfig config;
-            DataConfig dataConfigIdx, dataConfigDct, dataConfigAxis;
             Precision dataPrecision = details::convertPrecision(gatherOp->get_input_element_type(GATHER_DICTIONARY));
-            dataConfigDct.desc = TensorDesc(dataPrecision, dictionary_dims, TensorDesc::getLayoutByDims(dictionary_dims));
-            config.inConfs.push_back(dataConfigDct);
-            const SizeVector& indexes_dims = gatherOp->get_input_shape(GATHER_INDEXES);
-            dataConfigIdx.desc = TensorDesc(inIdxPrecision, indexes_dims, TensorDesc::getLayoutByDims(indexes_dims));
-            config.inConfs.push_back(dataConfigIdx);
-            const SizeVector& axis_dims = gatherOp->get_input_shape(GATHER_AXIS);
-            dataConfigAxis.desc = TensorDesc(Precision::I32, axis_dims, TensorDesc::getLayoutByDims(axis_dims));
-            config.inConfs.push_back(dataConfigAxis);
 
-            DataConfig dataConfigOut;
-            const SizeVector& out_dims = gatherOp->get_output_shape(0);
-            dataConfigOut.desc = TensorDesc(dataPrecision, out_dims, TensorDesc::getLayoutByDims(out_dims));
-            config.outConfs.push_back(dataConfigOut);
-            config.dynBatchSupport = false;
-            confs.push_back(config);
+            addConfig(op, {{TensorDescCreatorTypes::ncsp, dataPrecision},
+                           {TensorDescCreatorTypes::ncsp, inIdxPrecision},
+                           {TensorDescCreatorTypes::ncsp, Precision::I32}},
+                          {{TensorDescCreatorTypes::ncsp, dataPrecision}});
         } catch (InferenceEngine::Exception &ex) {
             errorMsg = ex.what();
             throw;
@@ -158,9 +165,9 @@ private:
     size_t numDictionaries = 1;
     size_t indexRange = 0;
     size_t dataLength = 1;
-    const size_t GATHER_DICTIONARY = 0;
-    const size_t GATHER_INDEXES = 1;
-    const size_t GATHER_AXIS = 2;
+    static const size_t GATHER_DICTIONARY = 0;
+    static const size_t GATHER_INDEXES = 1;
+    static const size_t GATHER_AXIS = 2;
 
     std::string errorPrefix_;
 };
