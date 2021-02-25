@@ -142,3 +142,25 @@ def mvn(
     }
 
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
+
+
+@nameable_op
+def gelu(
+        data: Node,
+        approximation_mode: str,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs Gelu activation function.
+
+    @param data: The node with data tensor.
+    @param approximation_mode: defines which approximation to use ('tanh' or 'erf')
+    @param name: Optional output node name.
+    @return The new node performing a Gelu activation with the input tensor.
+    """
+    inputs = as_nodes(data)
+
+    attributes = {
+        "approximation_mode": approximation_mode
+    }
+
+    return _get_node_factory_opset6().create("Gelu", inputs, attributes)

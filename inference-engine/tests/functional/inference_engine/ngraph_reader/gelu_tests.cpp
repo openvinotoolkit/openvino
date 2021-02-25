@@ -136,3 +136,176 @@ TEST_F(NGraphReaderTests, ReadGeluNetwork) {
 
     compareIRs(model_v10, model_v7, 0);
 }
+
+
+TEST_F(NGraphReaderTests, ReadGelu6TanhNetwork) {
+    std::string model = R"V0G0N(
+<net name="saved_model" version="10">
+	<layers>
+		<layer id="0" name="input_a" type="Parameter" version="opset1">
+			<data shape="1,3,4" element_type="f32"/>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="gelu" type="Gelu" version="opset6">
+            <data approximation_mode="tanh"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="gelu/sink_port_0" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+	</edges>
+</net>
+)V0G0N";
+    std::string modelV7 = R"V0G0N(
+<net name="saved_model" version="7">
+	<layers>
+		<layer id="0" name="input_a" type="Input" version="opset1">
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="gelu" type="Gelu" version="opset6">
+            <data approximation_mode="tanh"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+	</edges>
+</net>
+)V0G0N";
+    compareIRs(model, modelV7, 0, [](Blob::Ptr& weights) {
+    });
+}
+
+TEST_F(NGraphReaderTests, ReadGelu6ErfNetwork) {
+    std::string model = R"V0G0N(
+<net name="saved_model" version="10">
+	<layers>
+		<layer id="0" name="input_a" type="Parameter" version="opset1">
+			<data shape="1,3,4" element_type="f32"/>
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="gelu" type="Gelu" version="opset6">
+            <data approximation_mode="erf"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="gelu/sink_port_0" type="Result" version="opset1">
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+		<edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+	</edges>
+</net>
+)V0G0N";
+    std::string modelV7 = R"V0G0N(
+<net name="saved_model" version="7">
+	<layers>
+		<layer id="0" name="input_a" type="Input" version="opset1">
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="gelu" type="Gelu" version="opset6">
+            <data approximation_mode="erf"/>
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</input>
+			<output>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+	</edges>
+</net>
+)V0G0N";
+    compareIRs(model, modelV7, 0, [](Blob::Ptr& weights) {
+    });
+}

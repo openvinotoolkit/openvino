@@ -18,6 +18,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <ngraph/op/gelu.hpp>
 
 namespace ngraph
 {
@@ -26,11 +27,20 @@ namespace ngraph
         namespace reference
         {
             template <typename T>
-            void gelu(const T* arg, T* out, size_t count)
+            void gelu(const T* arg, T* out, op::GeluApproximationMode mode, size_t count)
             {
-                for (size_t i = 0; i < count; i++)
+                if (mode == op::GeluApproximationMode::ERF)
                 {
-                    out[i] = 0.5 * arg[i] * (1 + erf(arg[i] / std::sqrt(2)));
+                    for (size_t i = 0; i < count; i++) {
+                        out[i] = 0.5 * arg[i] * (1 + erf(arg[i] / std::sqrt(2.0)));
+                    }
+                }
+                else if (mode == op::GeluApproximationMode::TAHN)
+                {
+                    for (size_t i = 0; i < count; i++) {
+                        auto& x = arg[i];
+                        out[i] = 0.5 * x * (1 + tanh(std::sqrt(2.0 / M_PI) * (x + pow(0.044715, 3))));
+                    }
                 }
             }
         }
