@@ -190,7 +190,7 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
     std::shared_ptr<ngraph::Node> input2;
     if (constInputIndex == 1) {
         input2 = std::make_shared<ngraph::opset1::Constant>(
-            dequantizationAfter.empty() ? precision : element::f32,
+            precision2,
             inputShape,
             constValues);
     } else {

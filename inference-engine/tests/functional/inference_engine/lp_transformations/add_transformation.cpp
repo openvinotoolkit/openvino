@@ -563,7 +563,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
 
     // constant input: Add -> Subtract
     {
-    ngraph::element::f32,
+        ngraph::element::f32,
         ngraph::Shape{ 1, 2, 2, 2 },
         false,
         1,
@@ -713,7 +713,7 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         {
             ngraph::element::u8,
             { {ngraph::element::f32}, {}, {}},
-            ngraph::element::u8,
+            ngraph::element::f32,
             { },
             { {},  {}, {10.f} },
             {3.5f},
@@ -773,14 +773,66 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
         {
             ngraph::element::u8,
             { {ngraph::element::f32}, {}, {}},
-            ngraph::element::u8,
+            ngraph::element::f32,
             { },
             { {},  {}, { 5.f } },
             { -3.f },
             "Subtract"
         },
         ""
-    }
+    },
+
+    // Actual:
+    //
+    // Parameter
+    //  |i8
+    //  |
+    // Convert Constant
+    //  \f16   /f16
+    //   \    /
+    //  Multiply   Constant
+    //     \f16    / f16
+    //      \     /
+    //        Add
+    //        f16
+    //
+    // Transformed:
+    //
+    // Parameter
+    //  |i8
+    //  |
+    // Convert Constant
+    //  \f16   /f16
+    //   \    /
+    //  Subtract   Constant
+    //     \f16    / f16
+    //      \     /
+    //      Multiply
+    //        f16
+    {
+        ngraph::element::f32,
+        ngraph::Shape{ 1, 2, 2, 2 },
+        false,
+        1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i8,
+            { {ngraph::element::f16},  {}, DequantizationOperations::Multiply(std::vector<float>({5.f})).setConstantPrecision(element::f16)},
+            ngraph::element::i8,
+            { {},  {}, {} },
+            { 10.f, 5.f, 2.f, 4.f, 3.f, 12.f, 8.f, 14.f }
+        },
+        {
+            ngraph::element::i8,
+            { {ngraph::element::f16},  { }, { }},
+            ngraph::element::f16,
+            { {},  {}, {} },
+            { {},  {}, DequantizationOperations::Multiply(std::vector<float>({5.f})).setConstantPrecision(element::f16)},
+            { -2.f, -1.f, -0.4f, -0.8f, -0.6f, -2.4f, -1.6f, -2.8f },
+            "Subtract"
+        },
+        ""
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(
