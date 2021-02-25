@@ -83,23 +83,23 @@ def updateModels() {
     """
 }
 
-def buildDockerImage() {
+def buildDockerImage(String docker_image_tag="openvino-onnx-ci-image", String protobuf_lite="OFF") {
     updateModels()
     sh """
-        docker build --tag=${DOCKER_IMAGE_TAG}  --file=.ci/openvino-onnx/Dockerfile \
+        docker build --tag=${docker_image_tag} --build-arg PROTOBUF_LITE=${protobuf_lite} \
+        --file=.ci/openvino-onnx/Dockerfile \
         --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
         --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
     """
 }
 
-def runTests() {
+def runTests(String docker_image_tag="openvino-onnx-ci-image") {
     sh """
         docker run --name ${DOCKER_CONTAINER_NAME} \
         --volume ${HOME}/ONNX_CI/data/model_zoo:/root/.onnx/model_zoo \
-        ${DOCKER_IMAGE_TAG}
+        ${docker_image_tag}
     """
 }
-
 
 pipeline {
     agent {
@@ -114,45 +114,101 @@ pipeline {
         timeout(activity: true, time: 60, unit: 'MINUTES')
     }
     stages {
-        stage("Clone repository") {
-            steps{
-                stopPreviousRunningBuilds()
-                dir("${WORKDIR}") {
-                    checkout scm
+        stage('Parallel CI') {
+            parallel {
+                stage("protobuf-lite OFF") {
+                    stages {
+                        stage("Clone repository") {
+                            steps{
+                                stopPreviousRunningBuilds()
+                                dir("${WORKDIR}") {
+                                    checkout scm
+                                }
+                                gitSubmoduleUpdate(PROJECT_NAME)
+                            }
+                        }
+                        stage("Prepare Docker environment") {
+                            steps{
+                              dir("${WORKDIR}") {
+                                    buildDockerImage()
+                                }
+                            }
+                        }
+                        stage("Run tests") {
+                            options {
+                                  timeout(time: 60, unit: 'MINUTES')
+                              }
+                            steps{
+                                runTests()
+                            }
+                        }
+                    }
+                        post {
+                            failure {
+                                script {
+                                    gitPrInfo = getGitPrInfo(PROJECT_NAME)
+                                    notifyByEmail(gitPrInfo)
+                                }
+                            }
+                            cleanup {
+                                dir("${WORKDIR}") {
+                                    deleteDir()
+                                    sh """
+                                        docker image prune -f
+                                        docker rm -f ${DOCKER_CONTAINER_NAME}
+                                    """
+                                }
+                            }
+                        }
                 }
-                gitSubmoduleUpdate(PROJECT_NAME)
-            }
-        }
-        stage("Prepare Docker environment") {
-            steps{
-              dir("${WORKDIR}") {
-                    buildDockerImage()
+                stage("protobuf-lite ON") {
+                    agent {
+                        label "OpenVino"
+                    }
+                    stages {
+                        stage("Clone repository") {
+                            steps{
+                                stopPreviousRunningBuilds()
+                                dir("${WORKDIR}") {
+                                    checkout scm
+                                }
+                                gitSubmoduleUpdate(PROJECT_NAME)
+                            }
+                        }
+                        stage("Prepare Docker environment") {
+                            steps{
+                              dir("${WORKDIR}") {
+                                    buildDockerImage("${DOCKER_IMAGE_TAG}-protobuf-lite", "ON")
+                                }
+                            }
+                        }
+                        stage("Run tests") {
+                            options {
+                                  timeout(time: 60, unit: 'MINUTES')
+                              }
+                            steps{
+                                runTests("${DOCKER_IMAGE_TAG}-protobuf-lite")
+                            }
+                        }
+                    }
+                        post {
+                            failure {
+                                script {
+                                    gitPrInfo = getGitPrInfo(PROJECT_NAME)
+                                    notifyByEmail(gitPrInfo)
+                                }
+                            }
+                            cleanup {
+                                dir("${WORKDIR}") {
+                                    deleteDir()
+                                    sh """
+                                        docker image prune -f
+                                        docker rm -f ${DOCKER_CONTAINER_NAME}
+                                    """
+                                }
+                            }
+                        }
                 }
-            }
-        }
-        stage("Run tests") {
-            options {
-                  timeout(time: 60, unit: 'MINUTES')
-              }
-            steps{
-                runTests()
-            }
-        }
-    }
-    post {
-        failure {
-            script {
-                gitPrInfo = getGitPrInfo(PROJECT_NAME)
-                notifyByEmail(gitPrInfo)
-            }
-        }
-        cleanup {
-            dir("${WORKDIR}") {
-                deleteDir()
-                sh """
-                    docker image prune -f
-                    docker rm -f ${DOCKER_CONTAINER_NAME}
-                """
             }
         }
     }
