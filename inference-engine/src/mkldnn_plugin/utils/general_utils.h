@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cassert>
+#include <inference_engine.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -37,6 +38,22 @@ constexpr bool everyone_is(T val, P item, Args... item_others) {
 
 constexpr inline bool implication(bool cause, bool cond) {
     return !cause || !!cond;
+}
+
+inline std::string getExceptionDescWithoutStatus(const InferenceEngine::details::InferenceEngineException& ex) {
+    std::string desc = ex.what();
+    if (ex.getStatus() != 0) {
+        size_t pos = desc.find("]");
+        if (pos != std::string::npos) {
+            if (desc.size() == pos + 1) {
+                desc.erase(0, pos + 1);
+            } else {
+                desc.erase(0, pos + 2);
+            }
+        }
+    }
+
+    return desc;
 }
 
 

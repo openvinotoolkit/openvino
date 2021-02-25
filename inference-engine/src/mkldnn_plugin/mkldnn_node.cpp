@@ -51,6 +51,7 @@
 #include "utils/rt_info/memory_formats_attribute.hpp"
 
 #include <ie_ngraph_utils.hpp>
+#include "utils/general_utils.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -1266,14 +1267,17 @@ InferenceEngine::Precision MKLDNNNode::getRuntimePrecision() const {
 MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng,
                                              const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
     MKLDNNNode *newNode = nullptr;
-
+    std::string errorMessage;
     try {
         std::unique_ptr<MKLDNNNode> ol(createNodeIfRegistered(MKLDNNPlugin, Generic, op, eng, w_cache));
         if (ol != nullptr && ol->created(extMgr))
             newNode = ol.release();
     } catch (const InferenceEngine::Exception& ex) {
-        if (ex.getStatus() != NOT_IMPLEMENTED)
+        if (ex.getStatus() != NOT_IMPLEMENTED) {
             throw;
+        } else {
+            errorMessage += getExceptionDescWithoutStatus(ex);
+        }
     }
 
     if (newNode == nullptr) {
@@ -1282,19 +1286,25 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            if (ex.getStatus() != NOT_IMPLEMENTED)
+            if (ex.getStatus() != NOT_IMPLEMENTED) {
                 throw;
+            } else {
+                errorMessage += getExceptionDescWithoutStatus(ex);
+            }
         }
     }
 
     if (newNode == nullptr) {
         try {
-            std::unique_ptr<MKLDNNNode> ol(new MKLDNNReferenceNode(op, eng, w_cache));
+            std::unique_ptr<MKLDNNNode> ol(new MKLDNNReferenceNode(op, eng, w_cache, errorMessage));
             if (ol != nullptr && ol->created(extMgr))
                 newNode = ol.release();
         } catch (const InferenceEngine::Exception& ex) {
-            if (ex.getStatus() != NOT_IMPLEMENTED)
+            if (ex.getStatus() != NOT_IMPLEMENTED) {
                 throw;
+            } else {
+                errorMessage += getExceptionDescWithoutStatus(ex);
+            }
         }
     }
 
@@ -1306,8 +1316,13 @@ MKLDNNNode* MKLDNNNode::NodesFactory::create(const std::shared_ptr<ngraph::Node>
 //        ti->setExtManager(extMgr);
 //    //  WA-end
 
-    if (!newNode)
-        IE_THROW() << "Unsupported primitive of type: " << op->get_type_name() << " name: " << op->get_friendly_name();
+    if (!newNode) {
+        std::string errorDetails;
+        if (!errorMessage.empty()) {
+            errorDetails = "\nDetails: \n" + errorMessage;
+        }
+        IE_THROW() << "Unsupported operation of type: " << op->get_type_name() << " name: " << op->get_friendly_name() << errorDetails;
+    }
 
     return newNode;
 }

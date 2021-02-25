@@ -77,7 +77,7 @@ bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
             extFactory = extMgr->CreateExtensionFactory(ngraphOp);
 
             if (!extFactory)
-                IE_THROW(NotImplemented) << "Descriptor for generic primitive doesn't exist";
+                IE_THROW(NotImplemented);
 
             std::vector<InferenceEngine::ILayerImpl::Ptr> impls_no_exec;
             InferenceEngine::ResponseDesc resp;
