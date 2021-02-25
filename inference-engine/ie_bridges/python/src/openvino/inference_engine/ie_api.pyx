@@ -1,3 +1,5 @@
+#distutils: language=c++
+#cython: embedsignature=True
 """
  Copyright (C) 2018-2021 Intel Corporation
 
@@ -13,10 +15,6 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-
-#distutils: language=c++
-#cython: embedsignature=True
 from cython.operator cimport dereference as deref
 from libcpp.string cimport string
 from libcpp.vector cimport vector
