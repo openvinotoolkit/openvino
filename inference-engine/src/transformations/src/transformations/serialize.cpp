@@ -540,13 +540,14 @@ bool resolve_dynamic_shapes(const ngraph::Function& f) {
             if (shape.is_static() || shape.rank().is_dynamic()) {
                 return shape;
             }
-            auto out_shape = PartialShape::dynamic(shape.rank());
-            for (int64_t i = 0; i < shape.rank().get_length(); ++i) {
-                const auto & in_dim = shape[i];
-                auto upper_bound = in_dim.get_max_length();
-                NGRAPH_CHECK(upper_bound != -1, "Dynamic dimension cannot be resolved in ", op);
-                out_shape[i] = (in_dim.is_dynamic() ? Dimension(upper_bound) : in_dim);
-            }
+            std::vector<Dimension> out_shape;
+            std::transform(std::begin(shape), std::end(shape),
+                           std::back_inserter(out_shape),
+                           [](const Dimension& d) -> Dimension {
+                               return d.get_max_length();
+                           });
+            NGRAPH_CHECK(PartialShape(out_shape).is_static(),
+                         "Dynamic dimension cannot be resolved in ", op);
             return out_shape;
         };
 
