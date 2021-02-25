@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,6 +156,20 @@ const std::vector<FuseConvertTransformationTestValues> testValues = {
                 {1.f},
                 {0.45f}
             }
+        }
+    },
+    // Convert with unexpected precision
+    {
+        ngraph::Shape{ 1, 4, 16, 16 },
+        false,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            {{ ngraph::element::i32 }, {}, {3.f}}
+        },
+        {
+            ngraph::element::f32,
+            {{ ngraph::element::i32 }, {}, {3.f}}
         }
     },
 };
