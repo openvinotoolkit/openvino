@@ -50,10 +50,13 @@ std::shared_ptr<opset1::Subtract> replaceToSubtract(const std::shared_ptr<Node>&
     auto constant = fold<opset1::Negative>(add->get_input_node_shared_ptr(constBranchIndex));
     auto constOutput = constant->output(0);
 
-    const auto subtract = std::make_shared<DequantizationSubtract>(
-        add->get_input_node_shared_ptr(dataBranchIndex),
-        constOutput,
+    const auto subtract = std::make_shared<op::TypeRelaxed<DequantizationSubtract>>(
+        std::vector<element::Type>{element::f32, element::f32},
+        std::vector<element::Type>{ op->get_output_element_type(0) },
+        ngraph::op::TemporaryReplaceOutputType(add->get_input_node_shared_ptr(dataBranchIndex), element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(constOutput, element::f32).get(),
         add->get_autob());
+
     NetworkHelper::copyInfo(add, subtract);
 
     replace_node(add, subtract);

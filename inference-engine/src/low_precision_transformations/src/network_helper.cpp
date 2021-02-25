@@ -189,20 +189,46 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
         return addAfterMultiply;
 
     const auto x = multiply->get_input_node_shared_ptr(multiplyInputBranch);
-
     auto a = multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0);
-    if (a->output(0).get_element_type() != element::f32) {
-        a = fold<opset1::Convert>(a, element::f32);
-    }
-
     auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
-    if (b->output(0).get_element_type() != element::f32) {
-        b = fold<opset1::Convert>(b, element::f32);
-    }
+    std::shared_ptr<Node> bDivA;
 
-    std::shared_ptr<Node> bDivA = fold<opset1::Divide>(b, a);
+    if (shape_size(b->get_output_shape(0)) == 1 ||
+        shape_size(a->get_output_shape(0)) == 1 ||
+        shape_size(b->get_output_shape(0)) == shape_size(a->get_output_shape(0))) {
+        // safely division to avoid NaN
+        const std::vector<float> bValues = as_type_ptr<opset1::Constant>(b)->cast_vector<float>();
+        const std::vector<float> aValues = as_type_ptr<opset1::Constant>(a)->cast_vector<float>();
+        const bool aBroadcasted = bValues.size() > aValues.size();
+        const bool bBroadcasted = bValues.size() < aValues.size();
+        std::vector<float> bDivAValues(aBroadcasted ? bValues.size() : aValues.size());
+
+        for (size_t i = 0; i < bDivAValues.size(); ++i) {
+            const auto bi = bValues[bBroadcasted ? 0 : i];
+            const auto ai = aValues[aBroadcasted ? 0 : i];
+            if (bi != 0.f || ai != 0.f) {
+                bDivAValues[i] = bi / ai;
+            } else {
+                bDivAValues[i] = 0.f;
+            }
+        }
+
+        // TODO: issue #49868
+        auto aPrecision = a->get_output_element_type(0);
+        bDivA = std::make_shared<opset1::Constant>(
+                aPrecision,
+                aBroadcasted ? b->get_output_shape(0) : a->get_output_shape(0),
+                bDivAValues);
+    } else {
+        b = fold<opset1::Convert>(b, element::f32);
+        a = fold<opset1::Convert>(a, element::f32);
+        bDivA = fold<opset1::Divide>(b, a);
+        // TODO: issue #49868
+        bDivA = fold<opset1::Convert>(bDivA, a->get_output_element_type(0));
+    }
 
     std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
+
     inputs[0] = x;
     inputs[1] = bDivA;
 
