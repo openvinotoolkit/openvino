@@ -25,22 +25,33 @@ void QuantizationCallback<int16_t, int32_t>::runFakeQuantize() const {
     }
 
     uint32_t num_saturate = 0;
-
-    auto multiplier = 1.0f;
+    auto input_low = 0.0f;
+    auto input_high = 0.0f;
+    auto output_low = 0.0f;
+    auto output_high = 0.0f;
+    auto levels = 1;
     if (fq_num_stats > 0) {
-        auto inputScale = (fq_levels - 1) / (*fq_ptr_input_high - *fq_ptr_input_low);
-        auto outputScale = (fq_levels - 1) / (*fq_ptr_output_high - *fq_ptr_output_low);
-        multiplier = inputScale / outputScale;
+        input_low = *fq_ptr_input_low;
+        input_high = *fq_ptr_input_high;
+        output_low = *fq_ptr_output_low;
+        output_high = *fq_ptr_output_high;
+        levels = fq_levels;
     }
 
     for (uint32_t row = 0; row < num_rows; row++) {
         for (uint32_t col = 0; col < num_columns; col++) {
             float rounding_value = (ptr_float_weights[row * num_columns + col] > 0) ? 0.5f : -0.5f;
             float value = ptr_float_weights[row * num_columns + col];
-            value = value * multiplier;
             if (fq_num_stats > 0) {
-                value = std::max(*fq_ptr_input_low, value);
-                value = std::min(*fq_ptr_input_high, value);
+                auto x = value;
+                if (x <= std::min(input_low, input_high)) {
+                    value = output_low;
+                } else if (x > std::max(input_low, input_high)) {
+                    value = output_high;
+                } else {
+                    value = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
+                        (levels - 1) * (output_high - output_low) + output_low;
+                }
             }
 
             value = value * *ptr_weight_scale_factor + rounding_value;
@@ -219,13 +230,23 @@ template<>
 void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const {
     uint32_t num_saturate = 0;
 
+    auto input_low = 0.0f;
+    auto input_high = 0.0f;
+    auto output_low = 0.0f;
+    auto output_high = 0.0f;
+    auto levels = 1;
     float valueAcc = 0.0;
     for (uint32_t i = 0; i < num_rows; i++) {
         uint32_t channel_multiplier = 1;
         if (fq_num_stats > 0) {
             auto idx = fq_num_stats == 1 ? 0 : i;
-            channel_multiplier = ((fq_ptr_input_high[idx] - fq_ptr_input_low[idx]) *
-                *ptr_weight_scale_factor) / (fq_levels - 1);
+            input_low = fq_ptr_input_low[idx];
+            input_high = fq_ptr_input_high[idx];
+            output_low = fq_ptr_output_low[idx];
+            output_high = fq_ptr_output_high[idx];
+            levels = fq_levels;
+
+            channel_multiplier = ((input_high - input_low) * *ptr_weight_scale_factor) / (levels - 1);
         } else {
             float scaled_row_max = 0;
             for (uint32_t col = 0; col < num_columns; col++) {
@@ -250,8 +271,15 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             float value = ptr_float_weights[offset];
             if (!quantizedWeights) {
                 if (fq_num_stats > 0) {
-                    value = std::max(fq_ptr_input_low[fq_num_stats == 1? 0: i], value);
-                    value = std::min(fq_ptr_input_high[fq_num_stats == 1 ? 0 : i], value);
+                    auto x = value;
+                    if (x <= std::min(input_low, input_high)) {
+                        value = output_low;
+                    } else if (x > std::max(input_low, input_high)) {
+                        value = output_high;
+                    } else {
+                        value = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
+                            (levels - 1) * (output_high - output_low) + output_low;
+                    }
                 }
 
                 value = value * (*ptr_weight_scale_factor / ptr_int_biases[i].multiplier) + rounding_value;

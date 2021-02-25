@@ -24,7 +24,6 @@
 #include <debug.h>
 #include <gna/gna_config.hpp>
 #include "gna_plugin_config.hpp"
-#include <legacy/ie_util_internal.hpp>
 #include "gna_plugin.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "layers/gna_layer_type.hpp"
@@ -416,14 +415,14 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork & networ
                     << "unsupported, per-channel quantization for input layer : " << input.second->name();
             }
 
-            float scaleInput = 1.0f;
-            if (fqLayer.getLevels() <= 255) {
-                scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
-            } else {
-                // use standard FQ scale factor calculation formula
-                // scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
-                auto maxAbsVal = std::max(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
-                scaleInput = MAX_VAL_2B_FEAT / maxAbsVal;
+            auto fp32eq = [](float p1, float p2) -> bool {
+                return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+            };
+            float scaleInput = (fqLayer.getLevels() - 1) / (inputRange.second[0] - inputRange.first[0]);
+            auto minAbsVal = std::min(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
+            auto maxAbsVal = std::max(std::abs(inputRange.second[0]), std::abs(inputRange.first[0]));
+            if (fp32eq(minAbsVal, 0.0f) && !fp32eq(maxAbsVal, 0.0f)) {
+                scaleInput = (fqLayer.getLevels() - 1) / (2 * maxAbsVal);
             }
 
             if (!config.inputScaleFactors.empty()) {
@@ -689,6 +688,68 @@ void GNAPlugin::ConvertModelLayoutFromNCHWToNHWC(const std::vector<CNNLayerPtr> 
     }
 }
 
+#ifdef PLOT
+void GNAPlugin::AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
+    InferenceEngine::ordered_properties& printed_properties,
+    InferenceEngine::ordered_properties& node_properties) {
+    // printing quantized params
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    if (!quantized) {
+        return;
+    }
+    if (LayerInfo(layer).isWeightable() || LayerInfo(layer).isEltwise()) {
+        printed_properties.emplace_back(
+            "weights scale factor", std::to_string(quantized->_weights_quant.GetScale()));
+        if (quantized->_weights_quant.IsStatsSet()) {
+            for (auto& min : quantized->_weights_quant.GetMinValues()) {
+                printed_properties.emplace_back(
+                    "weights min val", std::to_string(min));
+            }
+            for (auto& max : quantized->_weights_quant.GetMaxValues()) {
+                printed_properties.emplace_back(
+                    "weights max val", std::to_string(max));
+            }
+        }
+
+        if (quantized->_bias_quant.IsStatsSet()) {
+            for (auto& min : quantized->_bias_quant.GetMinValues()) {
+                printed_properties.emplace_back(
+                    "bias min val", std::to_string(min));
+            }
+            for (auto& max : quantized->_bias_quant.GetMaxValues()) {
+                printed_properties.emplace_back(
+                    "bias max val", std::to_string(max));
+            }
+        }
+    }
+    printed_properties.emplace_back(
+        "src scale factor", std::to_string(quantized->_src_quant.GetScale()));
+    if (quantized->_src_quant.IsStatsSet()) {
+        for (auto& min : quantized->_src_quant.GetMinValues()) {
+            printed_properties.emplace_back(
+                "src min val", std::to_string(min));
+        }
+        for (auto& max : quantized->_src_quant.GetMaxValues()) {
+            printed_properties.emplace_back(
+                "src max val", std::to_string(max));
+        }
+    }
+
+    printed_properties.emplace_back(
+        "dst scale factor", std::to_string(quantized->_dst_quant.GetScale()));
+    if (quantized->_dst_quant.IsStatsSet()) {
+        for (auto& min : quantized->_dst_quant.GetMinValues()) {
+            printed_properties.emplace_back(
+                "dst min val", std::to_string(min));
+        }
+        for (auto& max : quantized->_dst_quant.GetMaxValues()) {
+            printed_properties.emplace_back(
+                "dst max val", std::to_string(max));
+        }
+    }
+}
+#endif
+
 void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
@@ -826,65 +887,11 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
 
 #ifdef PLOT
     std::ofstream file("gna_passes.dot");
-    saveGraphToDot(newNet, file, [](const CNNLayerPtr layer,
-                                           ordered_properties &printed_properties,
-                                           ordered_properties &node_properties) {
-        // printing quantized params
-        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-        if (!quantized) {
-            return;
-        }
-        if (LayerInfo(layer).isWeightable() || LayerInfo(layer).isEltwise()) {
-            printed_properties.emplace_back(
-                "weights scale factor", std::to_string(quantized->_weights_quant.GetScale()));
-            if (quantized->_weights_quant.IsStatsSet()) {
-                for (auto& min : quantized->_weights_quant.GetMinValues()) {
-                    printed_properties.emplace_back(
-                        "weights min val", std::to_string(min));
-                }
-                for (auto& max : quantized->_weights_quant.GetMaxValues()) {
-                    printed_properties.emplace_back(
-                        "weights max val", std::to_string(max));
-                }
-            }
-
-            if (quantized->_bias_quant.IsStatsSet()) {
-                for (auto& min : quantized->_bias_quant.GetMinValues()) {
-                    printed_properties.emplace_back(
-                        "bias min val", std::to_string(min));
-                }
-                for (auto& max : quantized->_bias_quant.GetMaxValues()) {
-                    printed_properties.emplace_back(
-                        "bias max val", std::to_string(max));
-                }
-            }
-        }
-        printed_properties.emplace_back(
-            "src scale factor", std::to_string(quantized->_src_quant.GetScale()));
-        if (quantized->_src_quant.IsStatsSet()) {
-            for (auto &min : quantized->_src_quant.GetMinValues()) {
-                printed_properties.emplace_back(
-                    "src min val", std::to_string(min));
-            }
-            for (auto& max : quantized->_src_quant.GetMaxValues()) {
-                printed_properties.emplace_back(
-                    "src max val", std::to_string(max));
-            }
-        }
-
-        printed_properties.emplace_back(
-            "dst scale factor", std::to_string(quantized->_dst_quant.GetScale()));
-        if (quantized->_dst_quant.IsStatsSet()) {
-            for (auto& min : quantized->_dst_quant.GetMinValues()) {
-                printed_properties.emplace_back(
-                    "dst min val", std::to_string(min));
-            }
-            for (auto& max : quantized->_dst_quant.GetMaxValues()) {
-                printed_properties.emplace_back(
-                    "dst max val", std::to_string(max));
-            }
-        }
-    });
+    saveGraphToDot(newNet, file, [this](const CNNLayerPtr layer,
+        ordered_properties& printed_properties,
+        ordered_properties& node_properties) {
+            AddDebugProperties(layer, printed_properties, node_properties);
+        });
 #endif
 
     auto sortedNet = CNNNetSortTopologicallyEx(newNet, make_fuzed_order);

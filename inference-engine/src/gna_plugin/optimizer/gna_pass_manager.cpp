@@ -1884,38 +1884,9 @@ void FuseFQIntoWeightsPass::run() {
             quantized->_weights_quant.SetLevels(levels);
 
             // lets find out minimum scale factor among channels
-            if (quantized->_weights_quant.GetMinValues().empty()) {
+            if (!quantized->_weights_quant.IsStatsSet()) {
                 THROW_GNA_LAYER_EXCEPTION(fqLayer) << " per channel/tensor weigths scales are missed";
             }
-            auto getScale = [&quantized](size_t i) {
-                auto maxAbsVal = std::max(std::abs(quantized->_weights_quant.GetMaxValues()[i]),
-                    std::abs(quantized->_weights_quant.GetMinValues()[i]));
-                if (quantized->_weights_quant.GetLevels() <= 255) {
-                    return (quantized->_weights_quant.GetLevels() - 1) /
-                      (quantized->_weights_quant.GetMaxValues()[i] - quantized->_weights_quant.GetMinValues()[i]);
-                } else {
-                    //TODO: use standard FQ scale factor calculation formula
-                    //auto levels = (quantized->_weights_quant.GetLevels() - 1) /
-                    //  (quantized->_weights_quant.GetMaxValues()[i] - quantized->_weights_quant.GetMinValues()[i]);
-                    auto levels = MAX_VAL_2B_WEIGHT;
-                    return levels / maxAbsVal;
-                }
-            };
-
-            float min_channel_scale = getScale(0);
-            for (uint32_t i = 1; i < quantized->_weights_quant.GetMinValues().size(); i++) {
-                min_channel_scale = std::min(min_channel_scale, getScale(i));
-            }
-
-            auto multiplier = 1.0f;
-            if (quantized->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
-                // GNA supports additional multiplier for only 8bit weights.
-                // The multipler is used to extend dynamic range.
-                multiplier = MAX_OUT_MULTIPLIER;
-            }
-
-            // Common weights scale calculation
-            quantized->_weights_quant.SetScale(min_channel_scale * multiplier);
             continue;
         }
 
@@ -2001,7 +1972,10 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         // Find all output layers connected to FQ
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer.get(), -1, donotSkip);
         if (nextLayers.empty()) {
-            quantParams->_dst_quant = srcQuantParams->_src_quant;
+            quantParams->_src_quant.CopyStats(srcQuantParams->_dst_quant);
+            if (LayerInfo(layer).isNonFunctional()) {
+                quantParams->_dst_quant.CopyStats(srcQuantParams->_dst_quant);
+            }
             return;
         }
 
@@ -2016,7 +1990,7 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
         } else if (quantParams->_src_quant.IsStatsSet()) {
             return;
         } else {
-            quantParams->_src_quant = srcQuantParams->_dst_quant;
+            quantParams->_src_quant.CopyStats(srcQuantParams->_dst_quant);
         }
 
         if (!LayerInfo(layer).isWeightable() && !LayerInfo(layer).isEltwise() &&
@@ -2029,9 +2003,11 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
                 }
             }
 
-            if (!doNotSetDstStats) {
-                quantParams->_dst_quant = quantParams->_src_quant;
+            if (doNotSetDstStats) {
+                return;
             }
+
+            quantParams->_dst_quant.CopyStats(quantParams->_src_quant);
 
             for (auto& l : nextLayers) {
                 if (LayerInfo(l).isFakeQuantize()) {
@@ -2136,7 +2112,9 @@ int PassManager::run(int index) {
                                         ordered_properties &printed_properties,
                                         ordered_properties &node_properties) {});
 #endif
+#ifdef ENABLE_V7_SERIALIZE
         network.serialize(name + ".xml", name + ".bin");
+#endif
     };
 #else
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};

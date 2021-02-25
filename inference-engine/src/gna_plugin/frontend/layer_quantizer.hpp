@@ -185,22 +185,35 @@ inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::
         fp32_blob->getTensorDesc().getDims(), fp32_blob->getTensorDesc().getLayout() });
     prec_blob->allocate();
 
-    auto multiplier = 1.0f;
+    auto input_low = 0.0f;
+    auto input_high = 0.0f;
+    auto output_low = 0.0f;
+    auto output_high = 0.0f;
+    auto levels = 1;
     if (fqParams.paramsSet) {
-        auto scaleInput = (fqParams.levelsNum - 1) / (fqParams.inputMaxValue - fqParams.inputMinValue);
-        auto scaleOutput = (fqParams.levelsNum - 1) / (fqParams.outputMaxValue - fqParams.outputMinValue);
-        multiplier = scaleInput / scaleOutput;
+        input_low = fqParams.inputMinValue;
+        input_high = fqParams.inputMaxValue;
+        output_low = fqParams.outputMinValue;
+        output_high = fqParams.outputMaxValue;
+        levels = fqParams.levelsNum;
     }
 
     int i = 0;
     for (auto& precValue : *prec_blob) {
-        auto f32Value = fp32_blob->buffer().template as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()[i++] * multiplier;
+        auto f32Value = fp32_blob->buffer().template as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()[i++];
         if (fqParams.paramsSet) {
-            f32Value = std::max(fqParams.inputMinValue, f32Value);
-            f32Value = std::min(fqParams.inputMaxValue, f32Value);
+            auto x = f32Value;
+            if (x <= std::min(input_low, input_high)) {
+                f32Value = output_low;
+            } else if (x > std::max(input_low, input_high)) {
+                f32Value = output_high;
+            } else {
+                f32Value = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
+                    (levels - 1) * (output_high - output_low) + output_low;
+            }
         }
 
-        f32Value *= scale_factor;
+        f32Value = f32Value * scale_factor;
         if (f32Value > std::numeric_limits<T>::max()) {
             precValue = std::numeric_limits<T>::max();
         } else if (f32Value < std::numeric_limits<T>::min()) {

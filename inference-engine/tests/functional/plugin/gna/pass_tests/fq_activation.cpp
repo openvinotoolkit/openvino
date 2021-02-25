@@ -119,7 +119,6 @@ const std::vector<std::pair<float, float>> inputMinMax = {
 };
 
 const std::vector<size_t> levels = {
-    255,
     65535,
 };
 

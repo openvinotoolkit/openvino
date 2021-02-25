@@ -740,6 +740,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         auto orientation = kDnnInterleavedOrientation;
 
         auto activation_type = DnnActivation::fromType(kActPow);
+        activation_type.fqParams.set = false;
+        activation_type.srcFQParams.set = false;
         activation_type.args.pow.exponent = power.power;
         activation_type.args.pow.scale = power.scale;
         activation_type.args.pow.offset = power.offset;
@@ -1768,9 +1770,15 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         activation_type.fqParams.inputPerChannel = false;
         activation_type.fqParams.input_low = &(quantized->_dst_quant.GetMinValues(true).front());
         activation_type.fqParams.input_high = &(quantized->_dst_quant.GetMaxValues(true).front());
-        //activation_type.fqParams.outputPerChannel = false;
-        //activation_type.fqParams.output_low = &(quantized->_dst_quant.GetMinValues(false).front());
-        //activation_type.fqParams.output_high = &(quantized->_dst_quant.GetMaxValues(false).front());
+    }
+
+    activation_type.srcFQParams.set = false;
+    if (quantized != nullptr && quantized->_src_quant.IsStatsSet()) {
+        activation_type.srcFQParams.set = true;
+        activation_type.srcFQParams.levels = quantized->_src_quant.GetLevels();
+        activation_type.srcFQParams.inputPerChannel = false;
+        activation_type.srcFQParams.input_low = &(quantized->_src_quant.GetMinValues(true).front());
+        activation_type.srcFQParams.input_high = &(quantized->_src_quant.GetMaxValues(true).front());
     }
 
     if (it->second == kActRelu) {
