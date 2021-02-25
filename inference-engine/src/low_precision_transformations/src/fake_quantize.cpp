@@ -4,6 +4,7 @@
 
 #include "low_precision/fake_quantize.hpp"
 
+#include <cmath>
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
 
@@ -72,6 +73,17 @@ static std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>
 }  // namespace fq
 
 bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& eltwise) {
+    const auto eltwiseInputShape = eltwise->get_input_shape(0);
+    const auto eltwiseOutputShape = eltwise->get_output_shape(0);
+    if (eltwiseInputShape.size() != eltwiseOutputShape.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < eltwiseOutputShape.size(); ++i) {
+        if (eltwiseInputShape[i] != eltwiseOutputShape[i]) {
+            return false;
+        }
+    }
+
     std::shared_ptr<opset1::Constant> constant = fq::getConstant(eltwise);
     if (constant == nullptr) {
         return false;
@@ -79,12 +91,11 @@ bool FakeQuantizeTransformation::checkElementwise(const std::shared_ptr<Node>& e
 
     Shape shape = constant->get_output_shape(0);
     if ((!shape.empty()) && (shape_size(shape) != 1ul)) {
-        const Shape eltwiseShape = eltwise->get_output_shape(0);
-        if ((eltwiseShape.size() - shape.size()) > 1) {
+        if ((eltwiseOutputShape.size() - shape.size()) > 1) {
             return false;
         }
 
-        if ((eltwiseShape.size() - shape.size()) == 1ul) {
+        if ((eltwiseOutputShape.size() - shape.size()) == 1ul) {
             shape.insert(shape.begin(), 1ul);
         }
 
@@ -118,6 +129,11 @@ std::shared_ptr<opset1::FakeQuantize> FakeQuantizeTransformation::fuseElementwis
             if (val < 0) {
                 return nullptr;
             }
+        }
+
+        // avoid division by zero
+        if (std::any_of(valueVec.cbegin(), valueVec.cend(), [](const float value) { return (value == 0.f) || (std::abs(value) < 1.e-32); })) {
+            return nullptr;
         }
 
         inputLowConst_f32 = fq::updateShape(fold<opset1::Divide>(inputLowConst_f32, value), fakeQuantize->get_output_shape(0));
