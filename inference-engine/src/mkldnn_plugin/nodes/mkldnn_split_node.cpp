@@ -334,9 +334,16 @@ void MKLDNNSplitNode::initOptimalPrimitiveDescriptor() {
 }
 
 void MKLDNNSplitNode::selectOptimalPrimitiveDescriptor() {
-    if (implPriorities.size() > 0 && implPriorities[0] == impl_desc_type::ref) {
-        selectPrimitiveDescriptorByIndex(0);
-        return;
+    if (!implPriorities.empty() && implPriorities[0] == impl_desc_type::ref) {
+        auto plain = PartialBlkDesc::makePlain(getParentEdgeAt(0)->getDims().ToSizeVector());
+        for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); ++i) {
+            auto& pd = supportedPrimitiveDescriptors[i];
+            if (PartialBlkDesc::extractFrom(pd.getConfig().inConfs[0].desc) == plain &&
+                impl_desc_type::ref == pd.getImplementationType()) {
+                    selectPrimitiveDescriptorByIndex(static_cast<int>(i));
+                return;
+            }
+        }
     }
 
     //check the descriptors and select the ones that have the same data format as the input
@@ -476,6 +483,7 @@ void MKLDNNSplitNode::prepareOptimizedParams() {
         optimizedParams.srcDataOffsets[i] = optimizedParams.srcDataOffsets[i - 1] + optimizedParams.dataSize[i - 1];
     }
 }
+
 void MKLDNNSplitNode::optimizedNspc2Ncsp(size_t MB) {
     auto parentEdge = getParentEdgeAt(0);
     const int ndims = parentEdge->getDims().ndims();
