@@ -470,10 +470,10 @@ def decodeNameWithPort (graph: Graph, node_name: str):
         return node
     regexpPost = r'(.*)(:(\d+))'
     matchPost = re.search(regexpPost, node_name)
-    nodePost = inputModel.findTensor(matchPost.group(1)) if matchPost else None
+    nodePost = inputModel.getPlaceByTensorName(matchPost.group(1)) if matchPost else None
     regexpPre = r'((\d+):)(.*)'
     matchPre = re.search(regexpPre, node_name)
-    nodePre = inputModel.findTensor(matchPre.group(3)) if matchPost else None
+    nodePre = inputModel.getPlaceByTensorName(matchPre.group(3)) if matchPost else None
     if nodePost and nodePre:
         raise Error('Name collision for {}'.format(node_name))
     if nodePost:

@@ -33,8 +33,8 @@ namespace ngraph
             // from the FW perspective
             virtual std::vector<std::string> getNames () const;
             // -1 means port 0 is selected if it is exists and exception otherwise
-            virtual Ptr getConsumingOperation (int outputPortIndex = -1) const;
-            virtual Ptr getConsumingTensor (int outputPortIndex = -1) const;
+            virtual std::vector<Ptr> getConsumingOperations (int outputPortIndex = -1) const;
+            virtual Ptr getTargetTensor (int outputPortIndex = -1) const;
             virtual Ptr getProducingOperation (int inputPortIndex = -1) const;
             virtual Ptr getProducingPort () const;
             virtual Ptr getInputPort (int inputPortIndex) const;
@@ -83,8 +83,7 @@ namespace ngraph
 
             // Standard specializations: "N", "C", "H", "W", "D", "L"
             // Issues: name collisions; too bulky to select simple layouts "NCHW"
-            virtual void setSourceTensorDimSpecialization (Place::Ptr place, unsigned int dimIndex, const std::string& specialization);
-            virtual void setTargetTensorDimSpecialization (Place::Ptr place, unsigned int dimIndex, const std::string& specialization);
+            virtual void setTensorDimSpecialization (Place::Ptr place, unsigned int dimIndex, const std::string& specialization);
 
             // Traversing
             // TODO
@@ -98,15 +97,33 @@ namespace ngraph
         public:
             typedef std::shared_ptr<FrontEnd> Ptr;
 
-            // TODO: rename to loadFromPath
-            virtual InputModel::Ptr load (const std::string& path) const = 0;
-            virtual InputModel::Ptr loadFromPaths (const std::vector<std::string>& paths) const;
-            virtual InputModel::Ptr loadFromMemory (const void* model);
-            virtual InputModel::Ptr loadFromMemoryFragments (const std::vector<const void*> modelParts);
-            virtual std::shared_ptr<ngraph::Function> convert (InputModel::Ptr model) const = 0;
+            virtual InputModel::Ptr loadFromFile (const std::string& path) const;
+            virtual InputModel::Ptr loadFromFiles (const std::vector<std::string>& paths) const;
+            virtual InputModel::Ptr loadFromMemory (const void* model) const;
+            virtual InputModel::Ptr loadFromMemoryFragments (const std::vector<const void*>& modelParts) const;
+            virtual InputModel::Ptr loadFromStream (std::istream& path) const;
+            virtual InputModel::Ptr loadFromStreams (const std::vector<std::istream*>& paths) const;
 
-            // Convert only those parts of the model that
+            // Extra ctors may be provided by FW-specialized data structure for graph representaion
+
+            // Completely convert and normalize entire function, throws if it is not possible
+            virtual std::shared_ptr<ngraph::Function> convert (InputModel::Ptr model) const;
+
+            // Convert only those parts of the model that can be converted, leaving others as-is
+            // Converted parts are not normalized by additional transformations; normalize function
+            // should be called to finalize the conversion process.
             virtual std::shared_ptr<ngraph::Function> convertPartially (InputModel::Ptr model) const;
+
+            // Convert operations 1:1 representing each FW operation as a single nGraph node with all attributes
+            // represented in FW-independent way
+            virtual std::shared_ptr<ngraph::Function> convertDecodingOnly (InputModel::Ptr model) const;
+
+            // Convert operations 1:1 with deconding only basic attributes that are required for node
+            // identificatoin (like name of nodes and tensors), leaving other attributes undecoded and keeping
+            // original FW descriptor for the node
+            virtual std::shared_ptr<ngraph::Function> convertNoDecoding (InputModel::Ptr model) const;
+
+            // Runs normalization passes on function that was loaded with partial conversion
             virtual void normalize (std::shared_ptr<ngraph::Function> function) const;
         };
 

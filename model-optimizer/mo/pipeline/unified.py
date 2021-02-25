@@ -46,8 +46,8 @@ def moc_pipeline(argv: argparse.Namespace):
     print('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))
     fe = fem.loadByFramework('onnx')
     print(fe)
-    inputModel = fe.load(argv.input_model)
-    nGraphModel = fe.convert(inputModel)
+    inputModel = fe.loadFromFile(argv.input_model)
+    #nGraphModel = fe.convert(inputModel)
     #network = ng.function_to_cnn(nGraphModel)
     #network = ie.read_network(model=argv.input_model)
 
@@ -69,6 +69,8 @@ def moc_pipeline(argv: argparse.Namespace):
     print(user_shapes)
     if user_shapes:
         inputModel.extractSubgraph([us['node'] for us in user_shapes], [])
+#        for shape in user_shapes:
+#            inputModel.setPartialShape(shape['node'], ng.PartialShape([ng.Dimension(5,5), ng.Dimension(3), ng.Dimension(-1), ng.Dimension(-1)]))
     nGraphModel = fe.convert(inputModel)
     network = ng.function_to_cnn(nGraphModel)
     graph.graph['network'] = network

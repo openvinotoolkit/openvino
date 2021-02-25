@@ -153,32 +153,24 @@ namespace ngraph
             FRONT_END_NOT_IMPLEMENTED(setTensorPartialValue);
         }
 
-        void InputModel::setSourceTensorDimSpecialization (Place::Ptr place, unsigned int dimIndex, const std::string& specialization)
+        void InputModel::setTensorDimSpecialization (Place::Ptr place, unsigned int dimIndex, const std::string& specialization)
         {
-            FRONT_END_NOT_IMPLEMENTED(setSourceTensorDimSpecialization);
+            FRONT_END_NOT_IMPLEMENTED(setTensorDimSpecialization);
         }
 
-        void InputModel::setTargetTensorDimSpecialization (Place::Ptr place, unsigned int dimIndex, const std::string& specialization)
-        {
-            FRONT_END_NOT_IMPLEMENTED(setTargetTensorDimSpecialization);
-        }
-
-        // All associated names that uniquely identify this place in the graph
-        // from the FW perspective
         std::vector<std::string> Place::getNames () const
         {
             FRONT_END_NOT_IMPLEMENTED(getNames);
         }
 
-        // -1 means port 0 is selected if it is exists and exception otherwise
-        Place::Ptr Place::getConsumingOperation (int outputPortIndex) const
+        std::vector<Place::Ptr> Place::getConsumingOperations (int outputPortIndex) const
         {
-            FRONT_END_NOT_IMPLEMENTED(getConsumingOperation);
+            FRONT_END_NOT_IMPLEMENTED(getConsumingOperations);
         }
 
-        Place::Ptr Place::getConsumingTensor (int outputPortIndex) const
+        Place::Ptr Place::getTargetTensor (int outputPortIndex) const
         {
-            FRONT_END_NOT_IMPLEMENTED(getConsumingTensor);
+            FRONT_END_NOT_IMPLEMENTED(getTargetTensor);
         }
 
         Place::Ptr Place::getProducingOperation (int inputPortIndex) const
@@ -349,35 +341,65 @@ namespace ngraph
             {
             }
 
-            virtual InputModel::Ptr load (const std::string& path) const
+            virtual InputModel::Ptr loadFromFile (const std::string& path) const override
             {
                 return std::make_shared<InputModelONNX>(path);
             }
 
-            virtual std::shared_ptr<ngraph::Function> convert (InputModel::Ptr model) const
+            virtual std::shared_ptr<ngraph::Function> convert (InputModel::Ptr model) const override
             {
                 return import_onnx_model(std::dynamic_pointer_cast<InputModelONNX>(model)->editor);
             }
         };
 
-        InputModel::Ptr FrontEnd::loadFromPaths (const std::vector<std::string>& paths) const
+        InputModel::Ptr FrontEnd::loadFromFile (const std::string& paths) const
         {
-            FRONT_END_NOT_IMPLEMENTED(loadFromPaths);
+            FRONT_END_NOT_IMPLEMENTED(loadFromFile);
         }
 
-        InputModel::Ptr FrontEnd::loadFromMemory (const void* model)
+        InputModel::Ptr FrontEnd::loadFromFiles (const std::vector<std::string>& paths) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(loadFromFiles);
+        }
+
+        InputModel::Ptr FrontEnd::loadFromMemory (const void* model) const
         {
             FRONT_END_NOT_IMPLEMENTED(loadFromMemory);
         }
 
-        InputModel::Ptr FrontEnd::loadFromMemoryFragments (const std::vector<const void*> modelParts)
+        InputModel::Ptr FrontEnd::loadFromMemoryFragments (const std::vector<const void*>& modelParts) const
         {
             FRONT_END_NOT_IMPLEMENTED(loadFromMemoryFragments);
+        }
+
+        InputModel::Ptr FrontEnd::loadFromStream (std::istream& path) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(loadFromStream);
+        }
+
+        InputModel::Ptr FrontEnd::loadFromStreams (const std::vector<std::istream*>& paths) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(loadFromStreams);
+        }
+
+        std::shared_ptr<ngraph::Function> FrontEnd::convert (InputModel::Ptr model) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(convert);
         }
 
         std::shared_ptr<ngraph::Function> FrontEnd::convertPartially (InputModel::Ptr model) const
         {
             FRONT_END_NOT_IMPLEMENTED(convertPartially);
+        }
+
+        std::shared_ptr<ngraph::Function> FrontEnd::convertDecodingOnly (InputModel::Ptr model) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(convertDecodingOnly);
+        }
+
+        std::shared_ptr<ngraph::Function> FrontEnd::convertNoDecoding (InputModel::Ptr model) const
+        {
+            FRONT_END_NOT_IMPLEMENTED(convertNoDecoding);
         }
 
         void FrontEnd::normalize (std::shared_ptr<ngraph::Function> function) const

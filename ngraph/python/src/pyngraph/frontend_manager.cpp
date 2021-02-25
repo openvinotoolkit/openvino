@@ -40,7 +40,7 @@ void regclass_pyngraph_FrontEnd(py::module m)
     py::class_<ngraph::frontend::FrontEnd, std::shared_ptr<ngraph::frontend::FrontEnd>> fem(m, "FrontEnd", py::dynamic_attr());
     fem.doc() = "ngraph.impl.FrontEnd wraps ngraph::frontend::FrontEnd";
 
-    fem.def("load", &ngraph::frontend::FrontEnd::load);
+    fem.def("loadFromFile", &ngraph::frontend::FrontEnd::loadFromFile);
     fem.def("convert", &ngraph::frontend::FrontEnd::convert);
 }
 
@@ -59,6 +59,7 @@ void regclass_pyngraph_InputModel(py::module m)
     im.doc() = "ngraph.impl.InputModel wraps ngraph::frontend::InputModel";
     im.def("extractSubgraph", &ngraph::frontend::InputModel::extractSubgraph);
     im.def("getPlaceByTensorName", &ngraph::frontend::InputModel::getPlaceByTensorName);
+    im.def("setPartialShape", &ngraph::frontend::InputModel::setPartialShape);
 }
 
 void regclass_pyngraph_FEC(py::module m)
