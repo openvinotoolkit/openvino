@@ -52,7 +52,7 @@ namespace ngraph
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
             private:
-                void set_num_iteratrions_if_no_slice_inputs();
+                void try_to_set_num_iterations_if_no_slice_inputs();
 
                 int64_t m_num_iterations = -1;
             };

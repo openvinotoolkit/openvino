@@ -168,7 +168,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
     revalidate_and_infer_types_for_body_ops();
 
     // Output
-    set_num_iteratrions_if_no_slice_inputs();
+    try_to_set_num_iterations_if_no_slice_inputs();
 
     index_it = 0;
     for (const auto& output_description : m_output_descriptions)
@@ -247,7 +247,7 @@ namespace
     }
 } // namespace
 
-void op::v0::TensorIterator::set_num_iteratrions_if_no_slice_inputs()
+void op::v0::TensorIterator::try_to_set_num_iterations_if_no_slice_inputs()
 {
     if (m_num_iterations != -1 || has_slice_input_desc(get_input_descriptions()))
     {
