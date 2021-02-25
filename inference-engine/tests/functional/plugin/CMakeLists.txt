@@ -20,3 +20,7 @@ if (ENABLE_MYRIAD)
     add_subdirectory(myriad)
 endif()
 
+if (ENABLE_CONFORMANCE_TESTS)
+    add_subdirectory(conformance)
+endif()
+

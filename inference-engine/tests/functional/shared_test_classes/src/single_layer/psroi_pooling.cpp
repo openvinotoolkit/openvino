@@ -42,7 +42,7 @@ static int randInt(int low, int high) {
     return dis(gen);
 }
 
-static void fillROITensor(float* buffer, int numROIs, int batchSize,
+    void PSROIPoolingLayerTest::fillROITensor(float* buffer, int numROIs, int batchSize,
                           int height, int width, int groupSize,
                           float spatialScale, int spatialBinsX, int spatialBinsY, const std::string& mode) {
     int minRoiWidth = groupSize;

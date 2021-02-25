@@ -77,6 +77,8 @@ ie_dependent_option (ENABLE_BEH_TESTS "tests oriented to check inference engine 
 
 ie_dependent_option (ENABLE_FUNCTIONAL_TESTS "functional tests" ON "ENABLE_TESTS" OFF)
 
+ie_dependent_option (ENABLE_CONFORMANCE_TESTS "conformance tests" ON "ENABLE_TESTS" OFF)
+
 ie_dependent_option (ENABLE_SAMPLES "console samples are part of inference engine package" ON "NOT MINGW" OFF)
 
 ie_dependent_option (ENABLE_SPEECH_DEMO "enable speech demo integration" ON "NOT APPLE;NOT ANDROID;X86 OR X86_64" OFF)

@@ -17,6 +17,7 @@
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
+
 #endif  // _WIN32
 
 namespace CommonTestUtils {
@@ -113,6 +114,27 @@ inline bool directoryExists(const std::string &path) {
     }
 
     return false;
+}
+
+inline void directoryFileListRecursive(const std::string& name, std::vector<std::string>& file_list) {
+    DIR *directory;
+    struct dirent *entire;
+    directory = opendir(name.c_str());
+    if (directory) {
+        while ((entire = readdir(directory)) != nullptr) {
+            if (std::string(entire->d_name) == ".." || std::string(entire->d_name) == ".") {
+                continue;
+            }
+            std::string path = name + CommonTestUtils::FileSeparator + entire->d_name;
+            if (directoryExists(path)) {
+                directoryFileListRecursive(path, file_list);
+            }
+            if (fileExists(path)) {
+                file_list.push_back(path);
+            }
+        }
+        closedir(directory);
+    }
 }
 
 }  // namespace CommonTestUtils

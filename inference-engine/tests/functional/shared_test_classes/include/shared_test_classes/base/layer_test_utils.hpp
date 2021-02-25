@@ -31,6 +31,8 @@
 
 namespace LayerTestsUtils {
 
+extern bool extendReport;
+
 // filename length limitation due to Windows constraints (max 256 characters)
 constexpr std::size_t maxFileNameLength = 140;
 
@@ -95,6 +97,8 @@ protected:
     void updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status);
 
     std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
+
+    std::map<std::string, PassRate> getOPsStatsFromReport(const std::string& reportFileName);
 
     std::string getDeviceName() const { return deviceName; }
 
@@ -187,7 +191,7 @@ protected:
 
     virtual void ConfigureNetwork();
 
-    void LoadNetwork();
+    virtual void LoadNetwork();
 
     virtual void Infer();
 

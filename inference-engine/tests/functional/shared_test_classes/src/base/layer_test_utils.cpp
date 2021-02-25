@@ -16,6 +16,9 @@
 
 namespace LayerTestsUtils {
 
+bool isReported = false;
+bool extendReport = true;
+
 Summary *Summary::p_instance = nullptr;
 SummaryDestroyer Summary::destroyer;
 
@@ -65,7 +68,34 @@ void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status)
     }
 }
 
+std::map<std::string, PassRate> Summary::getOPsStatsFromReport(const std::string& reportFileName) {
+    pugi::xml_document doc;
+
+    std::ifstream file;
+    file.open(reportFileName);
+
+    pugi::xml_node root;
+    doc.load_file(reportFileName.c_str());
+    root = doc.child("report");
+
+    pugi::xml_node resultsNode = root.child("results");
+    pugi::xml_node currentDeviceNode = resultsNode.child(deviceName.c_str());
+    std::map<std::string, PassRate> oldOpsStat;
+    for (auto &child : currentDeviceNode.children()) {
+        std::string entry = child.name();
+        auto a = std::stoi(child.attribute("passed").value());
+        auto b = std::stoi(child.attribute("failed").value());
+        auto c = std::stoi(child.attribute("skipped").value());
+        PassRate obj(a, b, c);
+        oldOpsStat.insert({entry, obj});
+    }
+    return oldOpsStat;
+}
+
 void TestEnvironment::TearDown() {
+    if (isReported) {
+        return;
+    }
     std::vector<ngraph::OpSet> opsets;
     opsets.push_back(ngraph::get_opset1());
     opsets.push_back(ngraph::get_opset2());
@@ -122,17 +152,47 @@ void TestEnvironment::TearDown() {
 
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(s.deviceName.c_str());
+    std::unordered_set<std::string> opsListFromStatistic;
     for (const auto &it : stats) {
         std::string name = std::string(it.first.name) + "-" + std::to_string(it.first.version);
+        opsListFromStatistic.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("passed").set_value(it.second.passed);
         entry.append_attribute("failed").set_value(it.second.failed);
         entry.append_attribute("skipped").set_value(it.second.skipped);
         entry.append_attribute("passrate").set_value(it.second.getPassrate());
     }
+
+    if (extendReport && file) {
+        auto opStataFromReport = s.getOPsStatsFromReport(reportFileName);
+        for (auto& item : opStataFromReport) {
+            pugi::xml_node entry;
+            if (opsListFromStatistic.find(item.first) == opsListFromStatistic.end()) {
+                entry = currentDeviceNode.append_child(item.first.c_str());
+                entry.append_attribute("passed").set_value(item.second.passed);
+                entry.append_attribute("failed").set_value(item.second.failed);
+                entry.append_attribute("skipped").set_value(item.second.skipped);
+                entry.append_attribute("passrate").set_value(item.second.getPassrate());
+            } else {
+                entry = currentDeviceNode.child(item.first.c_str());
+                auto a = std::stoi(entry.attribute("passed").value()) + item.second.passed;
+                auto b = std::stoi(entry.attribute("failed").value()) + item.second.failed;
+                auto c = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
+                PassRate obj(a, b, c);
+
+                entry.attribute("passed").set_value(obj.passed);
+                entry.attribute("failed").set_value(obj.failed);
+                entry.attribute("skipped").set_value(obj.skipped);
+                entry.attribute("passrate").set_value(obj.getPassrate());
+            }
+        }
+    }
+
     bool result = doc.save_file(reportFileName.c_str());
     if (!result) {
         std::cout << "Failed to write report to " << reportFileName << "!" << std::endl;
+    } else {
+        isReported = true;
     }
 }
 
@@ -206,8 +266,7 @@ void LayerTestsCommon::Serialize() {
     manager.register_pass<ngraph::pass::Serialize>(out_xml_path, out_bin_path);
     manager.run_passes(function);
 
-    InferenceEngine::Core ie;
-    auto result = ie.ReadNetwork(out_xml_path, out_bin_path);
+    auto result = getCore()->ReadNetwork(out_xml_path, out_bin_path);
 
     bool success;
     std::string message;
