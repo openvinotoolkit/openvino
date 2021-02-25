@@ -7,7 +7,7 @@
 **Short description**: Calculates Gaussian error linear.
 
 **Detailed description**: `Gelu(x) = x * Φ(x)`, where `Φ(x)` is the Cumulative Distribution Function for Gaussian Distribution.
-[Paper](https://arxiv.org/abs/1606.08415).
+The Gelu operation is introduced in the [paper](https://arxiv.org/abs/1606.08415).
 
 **Attributes**
 
