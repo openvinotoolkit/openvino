@@ -29,6 +29,8 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+
 #include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
@@ -355,6 +357,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
+                manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
                 manager.register_pass<::ngraph::pass::ConstantFolding>();
                 // OneHotToLegacy changes output precision
                 manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
