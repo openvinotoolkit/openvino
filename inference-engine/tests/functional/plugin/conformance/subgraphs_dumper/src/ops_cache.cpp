@@ -16,17 +16,17 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
                                const std::string &source_model) {
     const bool op_found = [&] {
         for (auto &&it : m_ops_cache) {
-            // TODO: Extend for subgraphs comparison if num_neighbors_to_cache != 0
+            // TODO: Extend for subgraphs comparison
             if (manager.match_any(it.first, op)) {
-                it.second += 1;
+                it.second.found_in_models.push_back(source_model);
                 return true;
             }
         }
         return false;
     }();
     if (!op_found) {
-        // TODO: Extend for subgraphs caching if num_neighbors_to_cache != 0
-        m_ops_cache.emplace_back(SubgraphsDumper::cloners_map[op->get_type_info()](op), 0);
+        // TODO: Extend for subgraphs caching
+        m_ops_cache.emplace_back(SubgraphsDumper::cloners_map[op->get_type_info()](op), OPInfo(source_model));
     }
 }
 
@@ -71,7 +71,10 @@ void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
                 results.push_back(std::make_shared<ngraph::op::Result>(out));
             }
             auto function = std::make_shared<ngraph::Function>(results, params);
+
             bool output_shape_is_dynamic = false;
+            // TODO: Check 'o.get_partial_shape().is_static()' failed at
+            //  inference-engine/src/transformations/src/transformations/serialize.cpp:680:
             for (size_t i = 0; i < function->get_output_size(); ++i) {
                 if (function->get_output_partial_shape(i).is_dynamic()) {
                     std::cerr << "Can't serialize function related to op: " << std::endl << op.first << std::endl <<
@@ -80,15 +83,14 @@ void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
                     break;
                 }
             }
-//            if (output_shape_is_dynamic) {
-//                continue;
-//            }
+            if (output_shape_is_dynamic) {
+                continue;
+            }
             function->validate_nodes_and_infer_types();
             // TODO: How to define element type for multi-output ops
             auto op_el_type = op.first->get_output_element_type(0).get_type_name();
-            auto current_op_folder =
-                    serialization_dir + CommonTestUtils::FileSeparator + op.first->get_type_info().name +
-                    CommonTestUtils::FileSeparator + op_el_type;
+            auto current_op_folder = serialization_dir + CommonTestUtils::FileSeparator +
+                                     op.first->get_type_info().name + CommonTestUtils::FileSeparator + op_el_type;
             std::cout << current_op_folder << std::endl;
             if (!CommonTestUtils::directoryExists(current_op_folder)) {
                 CommonTestUtils::createDirectoryRecursive(current_op_folder);
@@ -99,12 +101,22 @@ void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
             // TODO: Possible names collision
             auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + (op_name + std::string(".xml"));
             auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + (op_name + std::string(".bin"));
+            auto mapping = current_op_folder + CommonTestUtils::FileSeparator + (op_name + std::string(".csv"));
             auto cnn_net = InferenceEngine::CNNNetwork(function);
             // TODO: Visitor API is not supported in v0::TensorIterator TensorIterator_623065
             //  (Parameter_623062[0]:f16{1,16,512}, Constant_623063[0]:f16{1,256}, Constant_623064[0]:f16{1,256}) ->
             //  (f16{1,16,256})
             // TODO: Runtime Info doesn't serialized
             cnn_net.serialize(xml_path, bin_path);
+
+            std::string delimiter = ",";
+            std::ofstream out(mapping);
+            out << "Source model" << delimiter << "Found in models\n";
+            out << op.second.source_model << delimiter;
+            for (const auto &m : op.second.found_in_models) {
+                out << m << ";";
+            }
+            out.close();
         } catch (std::exception &e) {
             std::cerr << "Failed to serialize function related to op" << op.first << std::endl
                       << "Exception occurred: " << e.what() << std::endl;

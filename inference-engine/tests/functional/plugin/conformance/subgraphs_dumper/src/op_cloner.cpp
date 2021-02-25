@@ -7,8 +7,8 @@
 #include "common_test_utils/data_utils.hpp"
 
 namespace SubgraphsDumper {
-template<>
-const std::shared_ptr<ngraph::Node> clone_with_new_inputs<ngraph::Node>(const std::shared_ptr<ngraph::Node> &node) {
+namespace {
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::Node> &node) {
     ngraph::OutputVector op_inputs;
     for (const auto &input : node->inputs()) {
         if (ngraph::op::is_constant(input.get_source_output().get_node_shared_ptr())) {
@@ -27,8 +27,11 @@ std::shared_ptr<ngraph::op::Constant>
 copy_constant_with_randomization(const std::shared_ptr<ngraph::op::Constant> &const_node) {
     std::vector<dType> data = const_node->cast_vector<dType>();
     dType min = *std::min_element(data.begin(), data.end());
-    dType max = *std::min_element(data.begin(), data.end());
-    CommonTestUtils::fill_data_random<dType>(data.data(), data.size(), max, min, 1, 1);
+    dType max = *std::max_element(data.begin(), data.end());
+    // Apply randomization only if constant stores several non-equal values
+    if (ngraph::shape_size(const_node->get_shape()) != 1 || max - min > std::numeric_limits<dType>::epsilon()) {
+        CommonTestUtils::fill_vector<dType>(data, min, max);
+    }
     return std::make_shared<ngraph::op::Constant>(const_node->get_element_type(), const_node->get_shape(), data);
 }
 
@@ -99,30 +102,54 @@ std::shared_ptr<ngraph::Node> clone_weightable_node(const std::shared_ptr<ngraph
     auto op_clone = node->clone_with_new_inputs(op_inputs);
     return op_clone;
 }
-
-template<>
-const std::shared_ptr<ngraph::Node>
-clone_with_new_inputs<ngraph::opset6::Convolution>(const std::shared_ptr<ngraph::opset6::Convolution> &node) {
+// Clone nodes requiring weights randomization
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Convolution> &node) {
     return clone_weightable_node(node, {1});
 }
 
-template<>
-const std::shared_ptr<ngraph::Node>
-clone_with_new_inputs<ngraph::opset6::GroupConvolution>(const std::shared_ptr<ngraph::opset6::GroupConvolution> &node) {
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::GroupConvolution> &node) {
     return clone_weightable_node(node, {1});
 }
 
-template<>
-const std::shared_ptr<ngraph::Node>
-clone_with_new_inputs<ngraph::opset6::ConvolutionBackpropData>(
-        const std::shared_ptr<ngraph::opset6::ConvolutionBackpropData> &node) {
-    return clone_weightable_node(node, {1});
-}
-template<>
-const std::shared_ptr<ngraph::Node>
-clone_with_new_inputs<ngraph::opset6::GroupConvolutionBackpropData>(
-        const std::shared_ptr<ngraph::opset6::GroupConvolutionBackpropData> &node) {
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::ConvolutionBackpropData> &node) {
     return clone_weightable_node(node, {1});
 }
 
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::GroupConvolutionBackpropData> &node) {
+    return clone_weightable_node(node, {1});
+}
+
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v0::MatMul> &node) {
+    return clone_weightable_node(node, {1});
+}
+
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Add> &node) {
+    return clone_weightable_node(node, {1});
+}
+
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Multiply> &node) {
+    return clone_weightable_node(node, {1});
+}
+
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Subtract> &node) {
+    return clone_weightable_node(node, {1});
+}
+
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Power> &node) {
+    return clone_weightable_node(node, {1});
+}
+
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::ReduceMax> &node) {
+    return clone_weightable_node(node, {1});
+}
+
+const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::ReduceMin> &node) {
+    return clone_weightable_node(node, {1});
+}
+}  // namespace
+
+template<typename opType>
+const std::shared_ptr<ngraph::Node> clone_node(const std::shared_ptr<ngraph::Node> &node) {
+    return clone(ngraph::as_type_ptr<opType>(node));
+}
 }  // namespace SubgraphsDumper

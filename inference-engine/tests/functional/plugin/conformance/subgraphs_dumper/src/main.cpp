@@ -9,7 +9,6 @@
 #include "common_test_utils/file_utils.hpp"
 
 #include "ops_cache.hpp"
-#include "matchers/matchers_manager.hpp"
 #include "gflag_config.hpp"
 
 // TODO: Poor exceptions handling
@@ -22,8 +21,6 @@ int main(int argc, char *argv[]) {
             showUsage();
             return 0;
         }
-// TODO: c++17 code
-//    auto searcher = SubgraphsDumper::FolderIterator(FLAGS_input_folders, ".*.xml");
         auto ie = InferenceEngine::Core();
 
         auto cache = SubgraphsDumper::OPCache::make_cache();
@@ -41,8 +38,6 @@ int main(int argc, char *argv[]) {
         std::vector<std::string> input_folder_content;
         CommonTestUtils::directoryFileListRecursive(FLAGS_input_folders, input_folder_content);
 
-// TODO: c++17 code
-//    for (const auto &f : searcher.get_folder_content()) {
         for (const auto &file : input_folder_content) {
             if (CommonTestUtils::fileExists(file) && std::regex_match(file, std::regex(R"(.*\.xml)"))) {
                 std::cout << "Processing model: " << file << std::endl;

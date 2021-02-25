@@ -4,91 +4,59 @@
 
 #include "matchers/single_op.hpp"
 #include "ngraph/ops.hpp"
+#include <cstdlib>
 
 using namespace SubgraphsDumper;
+
+template<typename dType>
+bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
+                            const std::shared_ptr<ngraph::op::Constant> &ref) {
+    size_t elements_count = ngraph::shape_size(op->get_shape());
+    if (elements_count != ngraph::shape_size(ref->get_shape())) {
+        return false;
+    }
+    const auto &op_data = op->cast_vector<dType>();
+    const auto &ref_data = ref->cast_vector<dType>();
+    for (size_t i = 0; i < elements_count; ++i) {
+        // std:abs doesn't implemented for unsigned types, compare explicitly to keep code universal for all dTypes
+        dType diff = op_data[i] - ref_data[i] > 0 ? op_data[i] - ref_data[i] : ref_data[i] - op_data[i];
+        if (diff > std::numeric_limits<dType>::epsilon()) {
+            return false;
+        }
+    }
+    return true;
+}
 
 // TODO: Move to some utils?
 bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
                             const std::shared_ptr<ngraph::op::Constant> &ref) {
     switch (op->get_element_type()) {
         case ngraph::element::Type_t::boolean:
-            if (op->cast_vector<bool>() != ref->cast_vector<bool>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<bool>(op, ref);
         case ngraph::element::Type_t::bf16:
-            if (op->cast_vector<ngraph::bfloat16>() != ref->cast_vector<ngraph::bfloat16>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<ngraph::bfloat16>(op, ref);
         case ngraph::element::Type_t::f16:
-            if (op->cast_vector<ngraph::float16>() != ref->cast_vector<ngraph::float16>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<ngraph::float16>(op, ref);
         case ngraph::element::Type_t::f32:
-            if (op->cast_vector<float>() != ref->cast_vector<float>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<float>(op, ref);
         case ngraph::element::Type_t::f64:
-            if (op->cast_vector<double>() != ref->cast_vector<double>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<double>(op, ref);
         case ngraph::element::Type_t::i8:
-            if (op->cast_vector<int8_t>() != ref->cast_vector<int8_t>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<int8_t>(op, ref);
         case ngraph::element::Type_t::i16:
-            if (op->cast_vector<int16_t>() != ref->cast_vector<int16_t>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<int16_t>(op, ref);
         case ngraph::element::Type_t::i32:
-            if (op->cast_vector<int32_t>() != ref->cast_vector<int32_t>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<int32_t>(op, ref);
         case ngraph::element::Type_t::i64:
-            if (op->cast_vector<int64_t>() != ref->cast_vector<int64_t>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<int64_t>(op, ref);
         case ngraph::element::Type_t::u8:
-            if (op->cast_vector<uint8_t>() != ref->cast_vector<uint8_t>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<uint8_t>(op, ref);
         case ngraph::element::Type_t::u16:
-            if (op->cast_vector<uint16_t>() != ref->cast_vector<uint16_t>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<uint16_t>(op, ref);
         case ngraph::element::Type_t::u32:
-            if (op->cast_vector<uint32_t>() != ref->cast_vector<uint32_t>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<uint32_t>(op, ref);
         case ngraph::element::Type_t::u64:
-            if (op->cast_vector<uint64_t>() != ref->cast_vector<uint64_t>()) {
-                return false;
-            } else {
-                return true;
-            }
+            return compare_constants_data<uint64_t>(op, ref);
         default:
             throw std::runtime_error("unsupported type");
     }
@@ -176,16 +144,16 @@ SingleOpMatcher::SingleOpMatcher() {
             std::make_shared<MatcherConfig<ngraph::opset6::FakeQuantize>>(std::vector<std::string>{},
                                                                           std::vector<size_t>{0, 1, 2, 3, 4}),
             std::make_shared<MatcherConfig<
-                    ngraph::opset6::Convolution,
-                    ngraph::opset6::ConvolutionBackpropData,
-                    ngraph::opset6::GroupConvolution,
-                    ngraph::opset6::GroupConvolutionBackpropData,
-                    ngraph::opset6::MatMul,
-                    ngraph::opset6::Add,
-                    ngraph::opset6::Multiply,
-                    ngraph::opset6::Subtract,
-                    ngraph::opset6::Power,
-                    ngraph::opset6::ReduceMax,
-                    ngraph::opset6::ReduceMin>>(std::vector<std::string>{}, std::vector<size_t>{0, 1}),
+                    ngraph::op::v1::Convolution,
+                    ngraph::op::v1::ConvolutionBackpropData,
+                    ngraph::op::v1::GroupConvolution,
+                    ngraph::op::v1::GroupConvolutionBackpropData,
+                    ngraph::op::v0::MatMul,
+                    ngraph::op::v1::Add,
+                    ngraph::op::v1::Multiply,
+                    ngraph::op::v1::Subtract,
+                    ngraph::op::v1::Power,
+                    ngraph::op::v1::ReduceMax,
+                    ngraph::op::v1::ReduceMin>>(std::vector<std::string>{}, std::vector<size_t>{0, 1}),
     };
 }
