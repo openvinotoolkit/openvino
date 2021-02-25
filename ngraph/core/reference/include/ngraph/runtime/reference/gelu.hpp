@@ -35,7 +35,7 @@ namespace ngraph
                         out[i] = 0.5 * arg[i] * (1 + erf(arg[i] / std::sqrt(2.0)));
                     }
                 }
-                else if (mode == op::GeluApproximationMode::TAHN)
+                else if (mode == op::GeluApproximationMode::TANH)
                 {
                     for (size_t i = 0; i < count; i++) {
                         auto& x = arg[i];

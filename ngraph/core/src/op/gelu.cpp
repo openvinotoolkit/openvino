@@ -79,7 +79,7 @@ namespace ngraph
     {
         static auto enum_names =
                 EnumNames<op::GeluApproximationMode>("op::GeluApproximationMode",
-                                                     {{"TANH", op::GeluApproximationMode::TAHN},
+                                                     {{"TANH", op::GeluApproximationMode::TANH},
                                                       {"ERF", op::GeluApproximationMode::ERF}});
         return enum_names;
     }

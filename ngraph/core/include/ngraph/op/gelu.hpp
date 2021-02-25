@@ -54,7 +54,7 @@ namespace ngraph
         /// \brief Specifies the approximation to calculate Gelu
         enum class GeluApproximationMode
         {
-            TAHN,
+            TANH,
             ERF
         };
         NGRAPH_API std::ostream& operator<<(std::ostream& s, const GeluApproximationMode& type);
@@ -89,7 +89,7 @@ namespace ngraph
                 GeluApproximationMode get_approximation_mode();
 
             private:
-                GeluApproximationMode m_approximation_mode = GeluApproximationMode::TAHN;
+                GeluApproximationMode m_approximation_mode = GeluApproximationMode::ERF;
            };
         }
     }
