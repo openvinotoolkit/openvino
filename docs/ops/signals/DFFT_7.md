@@ -34,6 +34,20 @@ import math
 import numpy as np
 
 
+def compute_strides(arr):
+    strides = np.zeros(len(arr) + 1).astype(np.int64)
+    stride = 1
+    for i in range(0, len(arr)):
+        strides[i] = stride
+        stride *= arr[i]
+
+    strides[-1] = stride
+    return strides
+
+
+def is_power_of_two(x):
+    return (x != 0) and ((x & (x - 1)) == 0)
+
 class DFFT:
     def __init__(self, data, axes, signal_size=None):
         assert len(set(axes)) != len(axes), "DFFT doesn't support non-unique axes. Got: {0}".format(axes)
@@ -81,7 +95,25 @@ class DFFT:
 
     def __call__(self):
         corrected_data = self._get_corrected_data()
-        pass
+        # axes_and_lengths = sorted([(a, self.output_shape[a]) for a in self.axes], key=lambda p: p[0], reverse=True)
+
+        reversed_input_shape = self.input_shape[::-1]
+        reversed_output_shape = self.output_shape[::-1]
+
+        input_strides = compute_strides(reversed_input_shape)
+        output_strides = compute_strides(reversed_output_shape)
+
+        result = np.zeros(list(self.output_shape))
+
+        buffer_size = 0
+        for axis in self.axes:
+            current_length = self.output_shape[axis]
+            size = 2 * current_length if is_power_of_two(x) else current_length
+            buffer_size = max(buffer_size, size)
+
+        buffer = np.zeros((buffer_size, 2))
+
+        return result
 ```
 
 **Example**:
