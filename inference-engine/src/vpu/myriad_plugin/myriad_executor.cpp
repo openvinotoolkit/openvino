@@ -211,7 +211,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
     if (status != NC_OK) {
         _log->warning("Failed to set option for async DMA");
         ncDeviceClose(&device._deviceHandle, _mvnc->watchdogHndl());
-            return status;
+        return status;
     }
 
     /* TODO: what should we do if we do not know maximum available graphs? What if we got number <= 0? */
