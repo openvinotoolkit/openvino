@@ -13,10 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include <numeric>
 
-#include "ngraph/op/non_zero.hpp"
 #include <ngraph/validation_util.hpp>
 #include "itt.hpp"
+#include "ngraph/op/non_zero.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/non_zero.hpp"
@@ -75,8 +76,8 @@ void op::v3::NonZero::validate_and_infer_types()
     }
     else
     {
-        const Dimension dim =
-            input_shape.is_static() ? shape_size(input_shape.get_shape()) : Dimension::dynamic();
+        const Dimension dim = std::accumulate(
+            begin(input_shape), end(input_shape), Dimension(), std::multiplies<Dimension>());
         set_output_type(0, m_output_type, PartialShape{input_shape.rank(), dim});
     }
 
