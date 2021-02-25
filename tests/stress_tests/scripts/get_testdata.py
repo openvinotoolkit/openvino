@@ -164,6 +164,7 @@ def main():
             log.warning("Please specify precision for the model "
                         "{model_name} from the list: {model_info}".format(model_name=model_name,
                                                                           model_info=model_info['precisions']))
+            continue
         model_rec.attrib.update(info_to_add)
         model_rec.attrib["path"] = str(
             Path(model_rec.attrib["subdirectory"]) / precision / (model_rec.attrib["name"] + ".xml"))
