@@ -4,18 +4,15 @@
 
 #include "mkldnn_mvn_node.h"
 
-#include "mkldnn_quantize_node.h"
-#include <legacy/ie_layers.h>
-#include "mkldnn_eltwise_node.h"
-#include <mkldnn.hpp>
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <mkldnn_types.h>
+
+#include "mkldnn_quantize_node.h"
+#include "mkldnn_eltwise_node.h"
 #include <mkldnn_extension_utils.h>
 #include "utils/bfloat16.hpp"
-#include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
-#include <algorithm>
 #include "emitters/jit_load_store_emitters.hpp"
 #include "emitters/jit_bf16_emitters.hpp"
 
@@ -606,43 +603,49 @@ private:
 //////////////////////////////////////////////////////////////////////////////////
 
 MKLDNNMVNNode::MKLDNNMVNNode(const std::shared_ptr<ngraph::Node>& op, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(op, eng, cache), epsMode_(insideSqrt) {}
-
-void MKLDNNMVNNode::getSupportedDescriptors() {
-    if (!descs.empty())
-        return;
-
+        : MKLDNNNode(op, eng, cache) {
     std::string errPrefix = "MVN node with name '" + getName() + "' ";
 
-    auto cnnLayer = getCnnLayer();
-    if (cnnLayer == nullptr)
-        IE_THROW() << errPrefix << "does not have CNN layer.";
-
-    if (getParentEdges().size() > 2)
-        IE_THROW() << errPrefix << "has incorrect number of input edges.";
-
-    if (getChildEdges().empty())
+    if (op->get_output_size() != 1)
         IE_THROW() << errPrefix << "has incorrect number of output edges.";
 
-    const auto& numOfDims = getParentEdgeAt(0)->getDims().ndims();
-    if (numOfDims < 1 || numOfDims > 5)
-        IE_THROW() << errPrefix << "doesn't support input with size of dimensions: " << numOfDims;
+    const auto& inDataShapeSize = op->input_value(0).get_shape().size();
+    if (inDataShapeSize < 1 || inDataShapeSize > 5)
+        IE_THROW(NotImplemented) << errPrefix << "doesn't support input with size of dimensions: " << inDataShapeSize;
 
-    across_channels = false;
-    if (getParentEdges().size() == 1) {
-        across_channels = cnnLayer->GetParamAsBool("across_channels");
+    if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v6::MVN>(op)) {
+        if (mvnOp->get_input_size() != 2)
+            IE_THROW() << errPrefix << "has incorrect number of input edges.";
+
+        normalizeVariance_ = mvnOp->get_normalize_variance();
+        epsValue_ = mvnOp->get_eps();
+        auto epsMode = mvnOp->get_eps_mode();
+        if (epsMode == ngraph::op::MVNEpsMode::INSIDE_SQRT) {
+            epsMode_ = INSIDE_SQRT;
+        } else if (epsMode == ngraph::op::MVNEpsMode::OUTSIDE_SQRT) {
+            epsMode_ = INSIDE_SQRT;
+        } else {
+            IE_THROW(NotImplemented) << errPrefix << "does not support epsilon mode: " << epsMode;
+        }
+
+        acrossChannels_ = false;
+        if (inDataShapeSize == mvnOp->input_value(1).get_shape()[0] + 1 || inDataShapeSize == 1)
+            acrossChannels_ = true;
+    } else if (auto mvnOp = ngraph::as_type_ptr<ngraph::op::v0::MVN>(op)) {
+        if (mvnOp->get_input_size() != 1)
+            IE_THROW() << errPrefix << "has incorrect number of input edges.";
+
+        normalizeVariance_ = mvnOp->get_normalize_variance();
+        epsValue_ = mvnOp->get_eps();
+        epsMode_ = INSIDE_SQRT;
+        acrossChannels_ = mvnOp->get_across_channels();
     } else {
-        if (numOfDims == getParentEdgeAt(1)->getDims().size() + 1 || numOfDims == 1)
-            across_channels = true;
+        IE_THROW(NotImplemented)
+                << "CPU MVN node doesn't support ngraph operation '" << op->get_type_name() << "' with name '" << op->get_friendly_name() << "'";
     }
-    normalize_variance = cnnLayer->GetParamAsBool("normalize_variance", true);
-    eps = cnnLayer->GetParamAsFloat("eps");
-    auto epsMode = cnnLayer->GetParamAsString("eps_mode", "");
-    if (details::CaselessEq<std::string>()(epsMode, "inside_sqrt")) {
-        epsMode_ = insideSqrt;
-    } else if (details::CaselessEq<std::string>()(epsMode, "outside_sqrt")) {
-        epsMode_ = outsideSqrt;
-    }
+}
+
+void MKLDNNMVNNode::getSupportedDescriptors() {
 }
 
 void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
@@ -651,24 +654,21 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
 
     setPostOps(attr, true);
 
-    Precision inputPrecision = getCnnLayer()->insData[0].lock()->getPrecision();
+    Precision inputPrecision = getOriginalInputPrecisions()[0];
     if (getParentEdgeAt(0)->getDims().ndims() < 3 || getParentEdgeAt(0)->getDims().ndims() > 5
-        || across_channels != 0 || normalize_variance != 1) {
+            || acrossChannels_ || !normalizeVariance_) {
         if (!isFloatCompatible(inputPrecision)) {
             inputPrecision = Precision::FP32;
         }
     }
-    Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
+    Precision outputPrecision = getOriginalOutputPrecisions()[0];
     if (!mayiuse(avx512_core)) {
         if (outputPrecision == Precision::BF16)
             outputPrecision = Precision::FP32;
     }
 
     if (!fusedWith.empty()) {
-        auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
-        if (lastFusedLayer) {
-            outputPrecision = lastFusedLayer->outData[0]->getPrecision();
-        }
+        outputPrecision = fusedWith[fusedWith.size() - 1]->getOriginalOutputPrecisions()[0];
     }
 
     // ref with float planar and no fusion
@@ -688,7 +688,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
                         (getParentEdgeAt(0)->getParent()->getChildEdges().size() == 1) &&
                         !getParentEdgeAt(0)->getParent()->isConstant();
 
-    const size_t inputsNum = getCnnLayer()->insData.size();
+    const size_t inputsNum = getParentEdges().size();
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = false;
     config.inConfs.resize(inputsNum);
@@ -698,7 +698,7 @@ void MKLDNNMVNNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace = -1;
     config.outConfs[0].inPlace = canBeInplace ? 0 : -1;
     if (inputsNum == 2) {
-        const auto& dims = getCnnLayer()->insData[1].lock()->getTensorDesc().getDims();
+        const auto dims = getParentEdgeAt(1)->getDims().ToSizeVector();
         config.inConfs[1].desc = TensorDesc(Precision::I32,
             dims,
             TensorDesc::getLayoutByDims(dims));
@@ -759,7 +759,7 @@ std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(co
         case 3 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], 1); break; }
         case 4 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], dims[3]); break; }
         case 5 : { shapes = std::make_tuple(dims[0], dims[1], dims[2], dims[3], dims[4]); break; }
-        default : { IE_THROW() << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support planar layout with rank: " << dims.size(); }
+        default : { IE_THROW() << "MVN layer with name '" << getName() << "' doesn't support planar layout with rank: " << dims.size(); }
     }
     return shapes;
 }
@@ -781,8 +781,8 @@ void MKLDNNMVNNode::createPrimitive() {
     jcp.src_data_size = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(jcp.src_prc));
     jcp.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(jcp.dst_prc));
     jcp.planar_layout = MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims()) == selectedPD->getConfig().inConfs[0].desc.getLayout();
-    jcp.normalize_variance = normalize_variance;
-    jcp.across_channels = across_channels;
+    jcp.normalize_variance = normalizeVariance_;
+    jcp.across_channels = acrossChannels_;
     SizeVector in_dims = getParentEdgeAt(0)->getDims().ToSizeVector();
     int N = 0;
     std::tie(N, jcp.C, jcp.D, jcp.H, jcp.W) = get5dShapes(in_dims);
@@ -792,7 +792,7 @@ void MKLDNNMVNNode::createPrimitive() {
 
         jcp.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
-        if (normalize_variance) {
+        if (normalizeVariance_) {
             jcp.normalize_variance = true;
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_common>(jcp));
         }
@@ -801,7 +801,7 @@ void MKLDNNMVNNode::createPrimitive() {
 
         jcp.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
-        if (normalize_variance) {
+        if (normalizeVariance_) {
             jcp.normalize_variance = true;
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>(jcp));
         }
@@ -810,7 +810,7 @@ void MKLDNNMVNNode::createPrimitive() {
 
         jcp.normalize_variance = false;
         mvn_mean_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
-        if (normalize_variance) {
+        if (normalizeVariance_) {
             jcp.normalize_variance = true;
             mvn_variance_kernel.reset(new jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>(jcp));
         }
@@ -854,8 +854,8 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
 
     auto dim = getParentEdgeAt(0)->getDesc().getDims();
     if (mayiuse(cpu::x64::sse41)) {
-        if (!mvn_mean_kernel || (normalize_variance && !mvn_variance_kernel) || !mvn_kernel) {
-            IE_THROW() << "MVN layer with name '" << getCnnLayer()->name << "' doesn't create kernel to execute on sse41 above platform.";
+        if (!mvn_mean_kernel || (normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
+            IE_THROW() << "MVN layer with name '" << getName() << "' doesn't create kernel to execute on sse41 above platform.";
         }
         Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
         if (layout == C || layout == NC || layout == CHW || layout == NCHW || layout == NCDHW) {
@@ -890,7 +890,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
 
     for (size_t b = 0lu; b < N; b++) {
         size_t cb = b * C3;
-        if (across_channels) {
+        if (acrossChannels_) {
             // Calculate mean value for one instance in batch
             // Parallel sum for each channel
             float C3inv = 1.f / static_cast<float>(C3);
@@ -911,7 +911,7 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
 
             // calculate variance value for one instance in batch
             // parallel sum for each channel
-            if (normalize_variance) {
+            if (normalizeVariance_) {
                 float variance_temp = 0.0f;
                 variance_temp = parallel_sum(C, variance_temp, [&](size_t c)->float {
                     float variance_internal = 0.0f;
@@ -927,10 +927,10 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
                 });
 
                 float variance = 1.f;
-                if (epsMode_ == insideSqrt)
-                    variance /= sqrtf(variance_temp * C3inv + eps);
-                else if (epsMode_ == outsideSqrt)
-                    variance /= sqrtf(variance_temp * C3inv) + eps;
+                if (epsMode_ == INSIDE_SQRT)
+                    variance /= sqrtf(variance_temp * C3inv + epsValue_);
+                else if (epsMode_ == OUTSIDE_SQRT)
+                    variance /= sqrtf(variance_temp * C3inv) + epsValue_;
                 // mvn for one instance in batch
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
@@ -979,17 +979,17 @@ void MKLDNNMVNNode::mvn_pln(const uint8_t* src_data, uint8_t* dst_data, const Si
 
                 mean *= C2inv;
 
-                if (normalize_variance) {
+                if (normalizeVariance_) {
                     // variance for this channel
                     float variance = 0.f;
                     arg.mean = static_cast<float*>(&mean);
                     arg.variance = static_cast<float*>(&variance);
                     (*mvn_variance_kernel)(&arg);
 
-                    if (epsMode_ == insideSqrt)
-                        variance = 1.f / sqrtf(variance * C2inv + eps);
-                    else if (epsMode_ == outsideSqrt)
-                        variance = 1.f / (sqrtf(variance * C2inv) + eps);
+                    if (epsMode_ == INSIDE_SQRT)
+                        variance = 1.f / sqrtf(variance * C2inv + epsValue_);
+                    else if (epsMode_ == OUTSIDE_SQRT)
+                        variance = 1.f / (sqrtf(variance * C2inv) + epsValue_);
 
                     // mvn for this channel
                     (*mvn_kernel)(&arg);
@@ -1015,7 +1015,7 @@ void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const Si
 
     for (size_t b = 0lu; b < N; b++) {
         size_t cb = b * C3;
-        if (across_channels) {
+        if (acrossChannels_) {
             // Parallel sum for each channel for mean
             float C3inv = 1.f / static_cast<float>(C3);
             float mean_temp = 0.0f;
@@ -1031,7 +1031,7 @@ void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const Si
 
             float mean = mean_temp * C3inv;
 
-            if (normalize_variance) {
+            if (normalizeVariance_) {
                 // parallel sum for each channel for variance
                 float variance_temp = 0.0f;
                 variance_temp = parallel_sum(C, variance_temp, [&](size_t c)->float {
@@ -1044,10 +1044,10 @@ void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const Si
                 });
 
                 float variance = 1.f;
-                if (epsMode_ == insideSqrt)
-                    variance = 1.f / sqrtf(variance_temp * C3inv + eps);
-                else if (epsMode_ == outsideSqrt)
-                    variance = 1.f / (sqrtf(variance_temp * C3inv) + eps);
+                if (epsMode_ == INSIDE_SQRT)
+                    variance = 1.f / sqrtf(variance_temp * C3inv + epsValue_);
+                else if (epsMode_ == OUTSIDE_SQRT)
+                    variance = 1.f / (sqrtf(variance_temp * C3inv) + epsValue_);
 
                 parallel_for(C, [&](int c) {
                     size_t cc = cb + c * C2;
@@ -1074,17 +1074,17 @@ void MKLDNNMVNNode::mvn_ref(const uint8_t* src_data, uint8_t* dst_data, const Si
                 }
                 mean *= C2inv;
 
-                if (normalize_variance) {
+                if (normalizeVariance_) {
                     // variance for this channel
                     float variance = 0.f;
                     for (size_t sp = 0lu; sp < C2; sp++) {
                         variance += (src_data_ptr[cc + sp] - mean) * (src_data_ptr[cc + sp] - mean);
                     }
 
-                    if (epsMode_ == insideSqrt)
-                        variance = 1.f / sqrtf(variance * C2inv + eps);
-                    else if (epsMode_ == outsideSqrt)
-                        variance = 1.f / (sqrtf(variance * C2inv) + eps);
+                    if (epsMode_ == INSIDE_SQRT)
+                        variance = 1.f / sqrtf(variance * C2inv + epsValue_);
+                    else if (epsMode_ == OUTSIDE_SQRT)
+                        variance = 1.f / (sqrtf(variance * C2inv) + epsValue_);
 
                     // mvn for this channel
                     for (size_t sp = 0lu; sp < C2; sp++) {
@@ -1126,7 +1126,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
     size_t C5 = C * D * H * W;
 
     size_t threads_num = parallel_get_num_threads();
-    size_t aux_buffer_size = across_channels ? blk_size : rnd_up(C, blk_size);
+    size_t aux_buffer_size = acrossChannels_ ? blk_size : rnd_up(C, blk_size);
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
     std::vector<float> variance_buffer(aux_buffer_size * threads_num);
 
@@ -1135,7 +1135,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
 
     for (size_t b = 0lu; b < N; b++) {
         size_t b_offset = is_nhwc ? b * C5 : b * C3;
-        if (across_channels) {
+        if (acrossChannels_) {
             // mean for this instance in batch
             float C5inv = 1.f / static_cast<float>(C5);
             float mean_temp = 0.0f;
@@ -1172,7 +1172,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
             });
             float mean = mean_temp * C5inv;
 
-            if (normalize_variance) {
+            if (normalizeVariance_) {
                 // variance: sum((x-mean)*(x-mean)) for one instance in batch
                 float variance_temp = 0.0f;
                 variance_temp = parallel_sum3d(CB, D, H, variance_temp, [&](size_t cb, size_t d, size_t h)->float {
@@ -1200,10 +1200,10 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                 });
 
                 float variance = 1.f;
-                if (epsMode_ == insideSqrt)
-                    variance /= sqrtf(variance_temp * C5inv + eps);
-                else if (epsMode_ == outsideSqrt)
-                    variance /= sqrtf(variance_temp * C5inv) + eps;
+                if (epsMode_ == INSIDE_SQRT)
+                    variance /= sqrtf(variance_temp * C5inv + epsValue_);
+                else if (epsMode_ == OUTSIDE_SQRT)
+                    variance /= sqrtf(variance_temp * C5inv) + epsValue_;
                 // mvn for one instance in batch
                 parallel_for3d(CB, D, H, [&](size_t cb, size_t d, size_t h) {
                     size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
@@ -1265,7 +1265,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
             for (size_t c = 0; c < C; c++)
                 mean_buffer[c] *= size_inv;
 
-            if (normalize_variance) {
+            if (normalizeVariance_) {
                 for (int i = 0; i < variance_buffer.size(); i++)
                     variance_buffer[i] = 0.f;
 
@@ -1291,10 +1291,10 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                         variance_buffer[c] += variance_buffer[c + aux_buffer_size * i];
                 }
                 for (size_t c = 0; c < C; c++) {
-                    if (epsMode_ == insideSqrt)
-                        variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + eps);
-                    else if (epsMode_ == outsideSqrt)
-                        variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + eps);
+                    if (epsMode_ == INSIDE_SQRT)
+                        variance_buffer[c] = 1.f / sqrtf(variance_buffer[c] * size_inv + epsValue_);
+                    else if (epsMode_ == OUTSIDE_SQRT)
+                        variance_buffer[c] = 1.f / (sqrtf(variance_buffer[c] * size_inv) + epsValue_);
                 }
 
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
@@ -1317,7 +1317,7 @@ void MKLDNNMVNNode::mvn_blk(const uint8_t* src_data, uint8_t* dst_data, const Si
                     }
                 });
             } else {
-                // normalize_variance == false
+                // normalizeVariance_ == false
                 parallel_for2d(D, H, [&](size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_offset = is_nhwc ? b_offset + d * C1 + h * C0 + cb * blk_size
