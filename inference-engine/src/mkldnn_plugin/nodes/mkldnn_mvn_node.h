@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <mkldnn_node.h>
 #include <string>
 #include <memory>
@@ -87,6 +86,14 @@ public:
 
     static bool checkAxesSuitability(const std::shared_ptr<const ngraph::Node>&);
 
+    inline bool getAcrossChannels() const {
+        return acrossChannels_;
+    };
+
+    inline bool getNormalizeVariance() const {
+        return normalizeVariance_;
+    };
+
 private:
     void mvn_pln(const uint8_t *src_data, uint8_t *dst_data, const InferenceEngine::SizeVector &dims);
 
@@ -98,15 +105,15 @@ private:
 
     std::tuple<size_t, size_t, size_t, size_t, size_t> get5dShapes(const InferenceEngine::SizeVector& dims);
 
-    bool across_channels = false;
-    bool normalize_variance = true;
-    float eps = 1e-9f;
+    bool acrossChannels_ = false;
+    bool normalizeVariance_ = true;
+    float epsValue_ = 1e-9f;
     // Defines way to add epsilon: inside sqrt or outside.
-    enum epsType {
-        insideSqrt,
-        outsideSqrt
+    enum MVNEpsMode {
+        INSIDE_SQRT,
+        OUTSIDE_SQRT
     };
-    epsType epsMode_;
+    MVNEpsMode epsMode_;
 
     InferenceEngine::Precision input_prec, output_prec;
     size_t src_data_size, dst_data_size;
