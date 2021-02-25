@@ -10,7 +10,8 @@ namespace ngraph { namespace vpu { namespace op {
 
 class StaticShapeLoop : public ngraph::opset6::Loop {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    static constexpr NodeTypeInfo type_info{"StaticShapeLoop", 0};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     explicit StaticShapeLoop(const Loop& loop);
     void validate_and_infer_types() override;
