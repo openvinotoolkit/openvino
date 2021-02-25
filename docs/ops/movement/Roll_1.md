@@ -6,7 +6,7 @@
 
 **Short description**: *Roll* operation shifts elements of a tensor along specified axis.
 
-**Detailed description**: *Roll* produces a tensor with the same shape as the first input tensor and with elements shifted along dimensions specified in *axis* tensor. The shift size is specified in *shift* input tensor. If the value of *shift* is positive, elements are shifted positively (towards larger indices). Otherwise elements are shifted negatively (towards smaller indices). Elements that are shifted beyond the last position are added in the same order starting from the first position.
+**Detailed description**: *Roll* produces a tensor with the same shape as the first input tensor and with elements shifted along dimensions specified in *axis* tensor. The shift size is specified in *shift* input tensor. If the value of *shift* is positive, elements are shifted positively (towards larger indices). Otherwise elements are shifted negatively (towards smaller indices). Elements that are shifted beyond the last position will be added in the same order starting from the first position.
 
 **Attributes**
 
