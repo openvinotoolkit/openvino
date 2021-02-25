@@ -51,12 +51,9 @@ namespace ngraph
                 std::shared_ptr<Function> get_function() override;
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
-                void set_num_iterations(int64_t num_iterations)
-                {
-                    m_num_iterations = num_iterations;
-                }
-
             private:
+                void try_to_set_num_iterations_if_no_slice_inputs();
+
                 int64_t m_num_iterations = -1;
             };
         }
