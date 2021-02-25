@@ -14,7 +14,8 @@
 # limitations under the License.
 # ******************************************************************************
 
+add_subdirectory(pp)
 add_subdirectory(itt)
 add_subdirectory(conditional_compilation)
 
-openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::itt openvino::conditional_compilation)
+openvino_developer_export_targets(COMPONENT openvino_common TARGETS openvino::pp openvino::itt openvino::conditional_compilation)
