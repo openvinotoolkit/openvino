@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <tuple>
 #include <ie_parallel.hpp>
+#include <ngraph/type/float16.hpp>
 
 using namespace InferenceEngine;
 
@@ -36,6 +37,11 @@ struct PrecisionInfo {
 template <>
 struct PrecisionInfo<Precision::BF16> {
     using value_type = MKLDNNPlugin::bfloat16_t;
+};
+
+template <>
+struct PrecisionInfo<Precision::FP16> {
+    using value_type = ngraph::float16;
 };
 
 struct ConvertContext {
@@ -103,7 +109,13 @@ void cpu_convert(const void *srcPtr, void *dstPtr, Precision srcPrc, Precision d
     MKLDNN_CVT(BF16, I64), MKLDNN_CVT(BF16, FP32), MKLDNN_CVT(BF16, BOOL),
     MKLDNN_CVT(BOOL, U8),  MKLDNN_CVT(BOOL, I8),   MKLDNN_CVT(BOOL, U16),
     MKLDNN_CVT(BOOL, I16), MKLDNN_CVT(BOOL, I32),  MKLDNN_CVT(BOOL, U64),
-    MKLDNN_CVT(BOOL, I64), MKLDNN_CVT(BOOL, FP32), MKLDNN_CVT(BOOL, BF16));
+    MKLDNN_CVT(BOOL, I64), MKLDNN_CVT(BOOL, FP32), MKLDNN_CVT(BOOL, BF16),
+    MKLDNN_CVT(U8, FP16),  MKLDNN_CVT(I8, FP16),   MKLDNN_CVT(U16, FP16),
+    MKLDNN_CVT(I16, FP16), MKLDNN_CVT(I32, FP16),  MKLDNN_CVT(U64, FP16),
+    MKLDNN_CVT(I64, FP16), MKLDNN_CVT(FP32, FP16), MKLDNN_CVT(BOOL, FP16),
+    MKLDNN_CVT(FP16, U8),  MKLDNN_CVT(FP16, I8),   MKLDNN_CVT(FP16, U16),
+    MKLDNN_CVT(FP16, I16), MKLDNN_CVT(FP16, I32),  MKLDNN_CVT(FP16, U64),
+    MKLDNN_CVT(FP16, I64), MKLDNN_CVT(FP16, FP32), MKLDNN_CVT(FP16, BOOL));
 
     if (!ctx.converted)
         THROW_IE_EXCEPTION << "cpu_convert can't convert from: " << srcPrc << " precision to: " << dstPrc;
