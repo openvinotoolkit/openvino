@@ -124,9 +124,8 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
 //    FuseFullyConnectedAndSimpleOperation(graph);
 //    graph.RemoveDroppedNodes();
 
-// TODO [NM]: transformation should be implemented w/o using of CNNLayer
-//    FuseMVNAndSimpleOperation(graph);
-//    graph.RemoveDroppedNodes();
+    FuseMVNAndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
 
     FuseInterpolateAndSimpleOperation(graph);
     graph.RemoveDroppedNodes();
@@ -1310,73 +1309,66 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
 }
 
 void MKLDNNGraphOptimizer::FuseMVNAndSimpleOperation(MKLDNNGraph &graph) {
-//    auto& graphNodes = graph.GetNodes();
-//
-//    auto isSutableParentNode = [](MKLDNNNodePtr node) {
-//        bool isSutableMVN = (node->getType() == MVN) && (node->inDims[0].ndims() == 4 || node->inDims[0].ndims() == 5);
-//
-//        if (isSutableMVN) {
-//            auto *mvnLayer = dynamic_cast<MVNLayer *>(node->getCnnLayer().get());
-//            if (mvnLayer == nullptr)
-//                IE_THROW() << "Cannot get MVN layer " << node->getName();
-//
-//            return node->getChildEdges().size() == 1 && mvnLayer->across_channels == 0 && mvnLayer->normalize == 1;
-//        } else {
-//            return false;
-//        }
-//    };
-//
-//    auto isSutableChildNode = [](MKLDNNNodePtr node) {
-//        if (!node->getCnnLayer())
-//            return false;
-//
-//        if (node->getType() == Quantize) {
-//            auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
-//            if (quantizeNode == nullptr)
-//                IE_THROW() << "Cannot get quantize layer " << node->getName();
-//            return !quantizeNode->isBinarization();
-//        } else if (node->getType() == Eltwise) {
-//            auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-//            if (eltwiseNode == nullptr)
-//                IE_THROW() << "Cannot get eltwise node " << node->getName();
-//
-//            return ((eltwiseNode->getOpType() == MulAdd) ||
-//                    (eltwiseNode->getOpType() == Prelu) ||
-//                     eltwiseNode->getOpType() == Relu);
-//        }
-//
-//        return false;
-//    };
-//
-//    auto parent = graphNodes.begin();
-//    while (parent != graphNodes.end()) {
-//        auto parentNode = *parent;
-//        if (!isSutableParentNode(parentNode)) {
-//            parent++;
-//            continue;
-//        }
-//
-//        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-//        if (!isSutableChildNode(childNode)) {
-//            parent++;
-//            continue;
-//        }
-//
-//        parentNode->fuseWith(childNode);
-//
-//        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
-//            auto parentEdges = childNode->parentEdges;
-//            for (auto &parentEdge : parentEdges) {
-//                auto p_edge = parentEdge.lock();
-//                if (p_edge->getParent()->getType() == MVN)
-//                    continue;
-//
-//                removeEdge(graph, p_edge);
-//            }
-//        }
-//
-//        graph.DropNode(childNode);
-//    }
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableParentNode = [](MKLDNNNodePtr node) {
+        bool isSutableMVN = (node->getType() == MVN) && (node->inDims[0].ndims() == 4 || node->inDims[0].ndims() == 5);
+
+        if (isSutableMVN) {
+            auto mvnNode = std::dynamic_pointer_cast<MKLDNNMVNNode>(node);
+            if (mvnNode == nullptr)
+                IE_THROW() << "CPU node with name '" << node->getName() << "' is not a MVN node.";
+
+            return mvnNode->getChildEdges().size() == 1 && !mvnNode->getAcrossChannels() && mvnNode->getNormalizeVariance();
+        } else {
+            return false;
+        }
+    };
+
+    auto isSutableChildNode = [](MKLDNNNodePtr node) {
+        if (node->getType() == Quantize) {
+            auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
+            if (quantizeNode == nullptr)
+                IE_THROW() << "CPU node with name '" << node->getName() << "' is not a Quantize node.";
+            return !quantizeNode->isBinarization();
+        } else if (node->getType() == Eltwise) {
+            return ((node->getAlgorithm() == EltwiseMulAdd) ||
+                    (node->getAlgorithm() == EltwisePrelu) ||
+                    (node->getAlgorithm() == EltwiseRelu));
+        }
+
+        return false;
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSutableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        if (!isSutableChildNode(childNode)) {
+            parent++;
+            continue;
+        }
+
+        parentNode->fuseWith(childNode);
+
+        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
+            auto parentEdges = childNode->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getType() == MVN)
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+        }
+
+        graph.DropNode(childNode);
+    }
 }
 
 void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph) {
