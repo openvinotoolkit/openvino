@@ -12,7 +12,6 @@ namespace {
 
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
     InferenceEngine::Precision::U16,
-    InferenceEngine::Precision::FP16,
     InferenceEngine::Precision::FP32
 };
 
@@ -20,7 +19,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     {}
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviourPreprocessingTestsViaSetInput, PreprocessingPrecisionConvertTest,
+INSTANTIATE_TEST_CASE_P(BehaviourPreprocessingTestsViaSetInput, PreprocessingPrecisionConvertTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(1, 2, 3, 4, 5),   // Number of input tensor channels
@@ -29,7 +28,7 @@ INSTANTIATE_TEST_CASE_P(smoke_BehaviourPreprocessingTestsViaSetInput, Preprocess
                                 ::testing::ValuesIn(configs)),
                         PreprocessingPrecisionConvertTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_BehaviourPreprocessingTestsViaGetBlob, PreprocessingPrecisionConvertTest,
+INSTANTIATE_TEST_CASE_P(BehaviourPreprocessingTestsViaGetBlob, PreprocessingPrecisionConvertTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::Values(4, 5),       // Number of input tensor channels (blob_copy only supports 4d and 5d tensors)
