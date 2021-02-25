@@ -6,6 +6,8 @@
 
 #include <ie_iextension.h>
 #include "nodes/list.hpp"
+#include "common/tensor_desc_creator.h"
+#include "ngraph/descriptor/tensor.hpp"
 #include <ie_ngraph_utils.hpp>
 
 #include <string>
@@ -54,6 +56,71 @@ public:
     }
 
 protected:
+    class DataConfigurator {
+    public:
+        DataConfigurator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType, Precision prc = Precision::UNSPECIFIED, bool constant = false, int inplace = -1) :
+                tensorDescCreator(getTensorDescCreator(tensorDescType)), prc(prc), constant(constant), inplace(inplace) {}
+
+        DataConfigurator(const MKLDNNPlugin::TensorDescCreator::CreatorConstPtr& tensorDescCreator, Precision prc = Precision::UNSPECIFIED,
+                bool constant = false, int inplace = -1) : tensorDescCreator(tensorDescCreator), prc(prc), constant(constant), inplace(inplace) {}
+
+        const MKLDNNPlugin::TensorDescCreator::CreatorConstPtr tensorDescCreator;
+        const bool constant = false;
+        const int inplace = -1;
+        const Precision prc = Precision::UNSPECIFIED; // By default ngraph node precision is used
+    private:
+        static MKLDNNPlugin::TensorDescCreator::CreatorConstPtr getTensorDescCreator(MKLDNNPlugin::TensorDescCreatorTypes tensorDescType) {
+            auto& creators = MKLDNNPlugin::TensorDescCreator::getCommonCreators();
+            if (creators.find(tensorDescType) == creators.end()) {
+                IE_THROW() << "Cannot find tensor descriptor creator";
+            }
+            return creators.at(tensorDescType);
+        }
+    };
+
+    void addConfig(const std::shared_ptr<ngraph::Node>& op,
+                   const std::vector<DataConfigurator>& inDataConfigurators,
+                   const std::vector<DataConfigurator>& outDataConfigurators,
+                   bool dynBatchSupport = false) {
+        LayerConfig config;
+
+        if (inDataConfigurators.size() != op->get_input_size())
+            IE_THROW() << "Cannot add config for operation " << op->get_friendly_name() << ". Incorrect number of inputs: " <<
+                                  "expected: " << op->get_input_size() << ", provided: " << inDataConfigurators.size();
+        if (outDataConfigurators.size() != op->get_output_size())
+            IE_THROW() << "Cannot add config for operation " << op->get_friendly_name() << ". Incorrect number of outputs: " <<
+                               "expected: " << op->get_output_size() << ", provided: " << outDataConfigurators.size();
+
+        auto fill_port = [] (const DataConfigurator& dataConfigurator, const ngraph::descriptor::Tensor& tensor, std::vector<DataConfig>& port) -> bool {
+            // In order to simplify particular node initialization logic we just don't add config in case target shape is not supported by tensorDescCreator.
+            // This should be suitable for major of scenarios since almost all nodes add `ncsp` tensorDescCreator which supports any shape rank.
+            if (tensor.get_shape().size() < dataConfigurator.tensorDescCreator->getMinimalRank())
+                return false;
+
+            auto precision = dataConfigurator.prc != Precision::UNSPECIFIED ? dataConfigurator.prc : details::convertPrecision(tensor.get_element_type());
+
+            DataConfig dataConfig;
+            dataConfig.inPlace = dataConfigurator.inplace;
+            dataConfig.constant = dataConfigurator.constant;
+            dataConfig.desc = dataConfigurator.tensorDescCreator->createDesc(precision, tensor.get_shape());
+
+            port.push_back(dataConfig);
+
+            return true;
+        };
+
+        for (size_t i = 0; i < inDataConfigurators.size(); i++)
+            if (!fill_port(inDataConfigurators[i], op->get_input_tensor(i), config.inConfs))
+                return;
+
+        for (size_t i = 0; i < outDataConfigurators.size(); i++)
+            if (!fill_port(outDataConfigurators[i], op->get_output_tensor(i), config.outConfs))
+                return;
+
+        config.dynBatchSupport = dynBatchSupport;
+        confs.push_back(config);
+    }
+
     std::string errorMsg;
     std::vector<LayerConfig> confs;
 };
@@ -68,7 +135,8 @@ public:
         try {
             impls.push_back(ILayerImpl::Ptr(new IMPL(ngraphOp)));
         } catch (const InferenceEngine::Exception& ex) {
-            return ex.getStatus();
+            strncpy(resp->msg, ex.what(), sizeof(resp->msg) - 1);
+            return ex.getStatus() != OK ? ex.getStatus() : GENERAL_ERROR;
         }
         return OK;
     }
