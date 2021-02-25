@@ -223,6 +223,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional2DComponentPrivate(intel
     OvGnaTensor filterTensor,
     OvGnaTensor biasTensor,
     std::array<uint32_t, 2> convStride,
+    std::array<uint32_t, 2> zeroPadding,
     float weight_scale_factor,
     float output_scale_factor,
     void*& ptr_inputs,
@@ -241,6 +242,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitConvolutional2DComponentPrivate(intel
     comp.ptr_inputs = ptr_inputs;
     comp.ptr_outputs = ptr_outputs;
     comp.op.conv2D.convStride = convStride;
+    comp.op.conv2D.zeroPadding = zeroPadding;
     comp.op.conv2D.weight_scale_factor = weight_scale_factor;
     comp.output_scale_factor = output_scale_factor;
     comp.input_scale_factor = output_scale_factor / weight_scale_factor;
@@ -1055,6 +1057,9 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     const auto convolution_stride_0 = component[i].op.conv2D.convStride[0];
                     const auto convolution_stride_1 = component[i].op.conv2D.convStride[1];
 
+                    const auto zero_padding_0 = component[i].op.conv2D.zeroPadding[0];
+                    const auto zero_padding_1 = component[i].op.conv2D.zeroPadding[1];
+
                     out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> "
                         << output_scale_factor << "\n";
                     out_file << std::setprecision(12) << std::scientific << "<weight_scale_factor> "
@@ -1062,6 +1067,9 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     PrintTensors(out_file, component[i].tensors);
                     out_file << "<convolution_stride_0> " << std::dec << convolution_stride_0 << "\n";
                     out_file << "<convolution_stride_1> " << std::dec << convolution_stride_1 << "\n";
+
+                    out_file << "<zero_padding_0> " << std::dec << zero_padding_0 << "\n";
+                    out_file << "<zero_padding_1> " << std::dec << zero_padding_1 << "\n";
                     out_file << "\n";
 #else
                     fprintf(stderr, "Unsupported GNA Library version (!= 2) in WriteDnnText's kDnnConvolutional2dOp case!\n");
@@ -1541,6 +1549,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         nullptr,
                         create_shape1D_parameter(
                                 comp.op.conv1D.num_feature_maps * comp.op.conv1D.num_feature_map_columns),
+                        nullptr,
                         nullptr);
 
                 AdvanceCnnOperationIfAllApplied(component, i, gnaOperation);
@@ -1598,7 +1607,9 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                     nullptr,
                     create_shape2D_parameter(
                         comp.op.conv2D.convStride[0], comp.op.conv2D.convStride[1]),
-                    nullptr);
+                    nullptr,
+                    create_shape2D_parameter(
+                        comp.op.conv2D.zeroPadding[0], comp.op.conv2D.zeroPadding[1]));
 
                 AdvanceCnnOperationIfAllApplied(component, i, gnaOperation);
 #else
@@ -1687,6 +1698,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                         || (component[i - 1].operation == kDnnDiagonalOp)
                         || (component[i - 1].operation == kDnnRecurrentOp)
                         || (component[i - 1].operation == kDnnConvolutional1dOp)
+                        || (component[i - 1].operation == kDnnConvolutional2dOp)
                         || ((component[i - 1].operation == kDnnMaxPoolOp) &&
                         (component[i - 2].operation == kDnnConvolutional1dOp))) {
                         if (gnaOperation->Operands[PwlOpIdx] == nullptr) {
@@ -1701,6 +1713,18 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                             if (outputTensor.Shape.Dimensions[0] * outputTensor.Shape.Dimensions[1] * outputTensor.Shape.Dimensions[2] !=
                                 comp.num_columns_out * comp.num_rows_out) {
                                 THROW_GNA_EXCEPTION << "PWL after CNN output size mismatch";
+                            }
+                        }
+                        if (component[i - 1].operation == kDnnConvolutional2dOp) {
+                            if (outputTensor.Shape.NumberOfDimensions != 4) {
+                                THROW_GNA_EXCEPTION << "CNN2D output NumberOfDimensions != 4";
+                            }
+                            if (outputTensor.Shape.Dimensions[0] *
+                                outputTensor.Shape.Dimensions[1] *
+                                outputTensor.Shape.Dimensions[2] *
+                                outputTensor.Shape.Dimensions[3] !=
+                                comp.num_columns_out * comp.num_rows_out) {
+                                THROW_GNA_EXCEPTION << "PWL after CNN2D output size mismatch";
                             }
                         }
                     }

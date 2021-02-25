@@ -133,7 +133,7 @@ namespace nonzero
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_nonzero_out, _, a));                                   \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_nonzero_out, _, a));                                   \
         rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);                  \
     }                                                                                              \
     break
