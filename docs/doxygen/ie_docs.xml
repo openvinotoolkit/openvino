@@ -144,6 +144,7 @@ limitations under the License.
                 <tab type="user" title="GatherElements-6" url="@ref openvino_docs_ops_movement_GatherElements_6"/>
                 <tab type="user" title="GatherND-5" url="@ref openvino_docs_ops_movement_GatherND_5"/>
                 <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>
+                <tab type="user" title="Gelu-6" url="@ref openvino_docs_ops_activation_GELU_6"/>
                 <tab type="user" title="GreaterEqual-1" url="@ref openvino_docs_ops_comparison_GreaterEqual_1"/>
                 <tab type="user" title="Greater-1" url="@ref openvino_docs_ops_comparison_Greater_1"/>
                 <tab type="user" title="GroupConvolutionBackpropData-1" url="@ref openvino_docs_ops_convolution_GroupConvolutionBackpropData_1"/>

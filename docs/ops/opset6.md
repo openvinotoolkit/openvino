@@ -58,7 +58,7 @@ declared in `namespace opset6`.
 * [GatherElements](movement/GatherElements_6.md)
 * [GatherND_5](movement/GatherND_5.md)
 * [GatherTree](movement/GatherTree_1.md)
-* [Gelu](activation/GELU_2.md)
+* [Gelu](activation/GELU_6.md)
 * [Greater](comparison/Greater_1.md)
 * [GreaterEqual](comparison/GreaterEqual_1.md)
 * [GRN](normalization/GRN_1.md)
