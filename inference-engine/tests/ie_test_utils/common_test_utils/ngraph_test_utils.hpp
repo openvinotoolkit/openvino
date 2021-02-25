@@ -71,7 +71,7 @@ private:
 
 ///
 /// \deprecated
-/// \brief compare_functions is obsolete function use FunctionComparator instead.
+/// \brief compare_functions is obsolete function use FunctionsComparator instead.
 ///
 inline std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,

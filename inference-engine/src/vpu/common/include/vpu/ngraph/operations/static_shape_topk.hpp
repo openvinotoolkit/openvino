@@ -15,7 +15,8 @@ namespace ngraph { namespace vpu { namespace op {
 
 class StaticShapeTopK : public ngraph::op::v3::TopK {
 public:
-    NGRAPH_RTTI_DECLARATION;
+    static constexpr NodeTypeInfo type_info{"StaticShapeTopK", 0};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     StaticShapeTopK(const Output<Node>& data,
                     const Output<Node>& k,
