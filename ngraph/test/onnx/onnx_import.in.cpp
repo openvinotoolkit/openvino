@@ -3949,3 +3949,23 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_not_const_training_mode)
         FAIL() << "Expected ngraph_error exception was not thrown";
     }
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_multiple_slices_last_layer)
+{
+    std::vector<float> data(1 * 30 * 320 * 320);
+    std::fill(data.begin(), data.end(), 1);
+
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/multiple_slices_last_layer.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> o1(1 * 320 * 320 * 21);
+    std::fill(o1.begin(), o1.end(), 1);
+
+    std::vector<float> o2(1 * 320 * 320 * 9);
+    std::fill(o2.begin(), o2.end(), 1);
+
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{1, 320, 320, 21}, o1);
+    test_case.add_expected_output<float>(Shape{1, 320, 320, 9}, o2);
+    test_case.run();
+}
