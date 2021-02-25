@@ -39,7 +39,7 @@ namespace ngraph
                 {
                     for (size_t i = 0; i < count; i++) {
                         auto& x = arg[i];
-                        out[i] = 0.5 * x * (1 + tanh(std::sqrt(2.0 / M_PI) * (x + pow(0.044715, 3))));
+                        out[i] = 0.5 * x * (1 + tanh(std::sqrt(2.0 / M_PI) * (x + 0.044715 * pow(x, 3))));
                     }
                 }
             }
