@@ -78,11 +78,11 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     jit.AddConstant(MakeJitConstant("OUT_IDX", "OUTPUT_GET_INDEX(" + output_order + ")"));
 
     if (!params.fused_ops.empty()) {
-        if (out_idx.size() == 4)
+        if (out_idx.size() == 4) {
             std::swap(out_idx[2], out_idx[3]);
-        else if (out_idx.size() == 5)
+        } else if (out_idx.size() == 5) {
             std::swap(out_idx[2], out_idx[4]);
-        else if (out_idx.size() == 6) {
+        } else if (out_idx.size() == 6) {
             std::swap(out_idx[2], out_idx[5]);
             std::swap(out_idx[3], out_idx[4]);
         }
