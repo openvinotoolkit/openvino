@@ -36,12 +36,24 @@ import numpy as np
 
 class DFFT:
     def __init__(self, data, axes, signal_size=None):
+        assert len(set(axes)) != len(axes), "DFFT doesn't support non-unique axes. Got: {0}".format(axes)
+
         self.data = data
         self.axes = axes
         self.input_shape = np.array(data.shape, dtype=np.int64)
+        self.fft_rank = len(axes)
+
+        assert self.input_rank >= self.fft_rank + 1, \
+            "Input rank must be greater than number of axes. "
+            "Got: input rank = {0}, number of axes = {1}".format(self.input_rank, self.fft_rank)
+
+        assert (self.input_rank - 1) not in axes, "Axis for DFFT must not be the last axis. Got axes: {}".format(axes)
+
+        assert self.input_shape[-1] == 2, \
+            "The last dimension of input data must be equal to 2. Got input shape: {}".format(self.input_shape)
+
         self.signal_size = signal_size if signal_size is not None else [self.input_shape[a] for a in axes]
         self.input_rank = len(self.input_shape)
-        self.fft_rank = len(axes)
 
     def _shape_infer(self):
         output_shape = self.input_shape.copy()
