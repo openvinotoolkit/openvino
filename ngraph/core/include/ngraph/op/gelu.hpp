@@ -63,7 +63,8 @@ namespace ngraph
         {
             /// \brief Gaussian Error Linear Unit
             /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) ) for "approximation" = "erf"
-            /// f(x) = 0.5 * x * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]) for "approximation" = "tanh"
+            /// f(x) = 0.5 * x * (1 + tanh([sqrt(2 / pi)] * [x + 0.044715^3]) for "approximation" =
+            /// "tanh"
             class NGRAPH_API Gelu : public util::UnaryElementwiseArithmetic
             {
             public:
@@ -90,22 +91,21 @@ namespace ngraph
 
             private:
                 GeluApproximationMode m_approximation_mode = GeluApproximationMode::ERF;
-           };
+            };
         }
     }
     template <>
     class NGRAPH_API AttributeAdapter<op::GeluApproximationMode>
-            : public EnumAttributeAdapterBase<op::GeluApproximationMode>
+        : public EnumAttributeAdapterBase<op::GeluApproximationMode>
     {
     public:
         AttributeAdapter(op::GeluApproximationMode& value)
-                : EnumAttributeAdapterBase<op::GeluApproximationMode>(value)
+            : EnumAttributeAdapterBase<op::GeluApproximationMode>(value)
         {
         }
 
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::GeluApproximationMode>", 0};
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::GeluApproximationMode>",
+                                                    0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-
 }
-

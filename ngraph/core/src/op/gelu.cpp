@@ -19,8 +19,8 @@
 
 #include "ngraph/op/gelu.hpp"
 
-#include "ngraph/runtime/reference/gelu.hpp"
 #include <ngraph/validation_util.hpp>
+#include "ngraph/runtime/reference/gelu.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -77,10 +77,9 @@ namespace ngraph
     template <>
     NGRAPH_API EnumNames<op::GeluApproximationMode>& EnumNames<op::GeluApproximationMode>::get()
     {
-        static auto enum_names =
-                EnumNames<op::GeluApproximationMode>("op::GeluApproximationMode",
-                                                     {{"TANH", op::GeluApproximationMode::TANH},
-                                                      {"ERF", op::GeluApproximationMode::ERF}});
+        static auto enum_names = EnumNames<op::GeluApproximationMode>(
+            "op::GeluApproximationMode",
+            {{"TANH", op::GeluApproximationMode::TANH}, {"ERF", op::GeluApproximationMode::ERF}});
         return enum_names;
     }
 
@@ -95,7 +94,8 @@ namespace ngraph
 NGRAPH_RTTI_DEFINITION(op::v6::Gelu, "Gelu", 6);
 
 op::v6::Gelu::Gelu(const Output<Node>& data, GeluApproximationMode mode)
-        : UnaryElementwiseArithmetic({data}), m_approximation_mode(mode)
+    : UnaryElementwiseArithmetic({data})
+    , m_approximation_mode(mode)
 {
     constructor_validate_and_infer_types();
 }
@@ -139,7 +139,9 @@ op::GeluApproximationMode op::v6::Gelu::get_approximation_mode()
 namespace gelu
 {
     template <element::Type_t ET>
-    inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, op::GeluApproximationMode mode,
+    inline bool evaluate(const HostTensorPtr& arg0,
+                         const HostTensorPtr& out,
+                         op::GeluApproximationMode mode,
                          const size_t count)
     {
         using T = typename element_type_traits<ET>::value_type;
@@ -147,7 +149,9 @@ namespace gelu
         return true;
     }
 
-    bool evaluate_gelu(const HostTensorPtr& arg0, const HostTensorPtr& out, op::GeluApproximationMode mode,
+    bool evaluate_gelu(const HostTensorPtr& arg0,
+                       const HostTensorPtr& out,
+                       op::GeluApproximationMode mode,
                        const size_t count)
     {
         bool rc = true;
@@ -157,7 +161,7 @@ namespace gelu
         {
             NGRAPH_TYPE_CASE(evaluate_gelu, f16, arg0, out, mode, count);
             NGRAPH_TYPE_CASE(evaluate_gelu, f32, arg0, out, mode, count);
-            default: rc = false; break;
+        default: rc = false; break;
         }
         return rc;
     }
@@ -166,5 +170,6 @@ namespace gelu
 bool op::v6::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     NGRAPH_OP_SCOPE(v6_Gelu_evaluate);
-    return gelu::evaluate_gelu(inputs[0], outputs[0], m_approximation_mode, shape_size(get_output_shape(0)));
+    return gelu::evaluate_gelu(
+        inputs[0], outputs[0], m_approximation_mode, shape_size(get_output_shape(0)));
 }

@@ -31,15 +31,18 @@ namespace ngraph
             {
                 if (mode == op::GeluApproximationMode::ERF)
                 {
-                    for (size_t i = 0; i < count; i++) {
+                    for (size_t i = 0; i < count; i++)
+                    {
                         out[i] = 0.5 * arg[i] * (1 + erf(arg[i] / std::sqrt(2.0)));
                     }
                 }
                 else if (mode == op::GeluApproximationMode::TANH)
                 {
-                    for (size_t i = 0; i < count; i++) {
+                    for (size_t i = 0; i < count; i++)
+                    {
                         auto& x = arg[i];
-                        out[i] = 0.5 * x * (1 + tanh(std::sqrt(2.0 / M_PI) * (x + 0.044715 * pow(x, 3))));
+                        out[i] = 0.5 * x *
+                                 (1 + tanh(std::sqrt(2.0 / M_PI) * (x + 0.044715 * pow(x, 3))));
                     }
                 }
             }
