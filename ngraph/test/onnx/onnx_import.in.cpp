@@ -3555,7 +3555,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D_reshape)
     InferenceEngine::ICNNNetwork::InputShapes shapes = {};
     InferenceEngine::SizeVector shape = {1, 1, 4000};
     shapes[net.getInputsInfo().begin()->first] = shape;
-    net.reshape(shapes);
+    EXPECT_NO_THROW(net.reshape(shapes));
     ASSERT_EQ(shape, net.getOutputsInfo().begin()->second->getDims());
 }
 
