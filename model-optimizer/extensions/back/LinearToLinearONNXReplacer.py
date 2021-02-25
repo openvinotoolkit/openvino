@@ -23,7 +23,7 @@ class LinearToLinearONNXReplacer(BackReplacementPattern):
     """
     If we don't use this transformation, then we have a performance drop, because CPU and GPU have no optimized
     version of the 'linear' mode of the operation Interpolate.
-    TODO: delete this conditional statement, when CPU and GPU will have optimized version of the 'linear' mode.
+    TODO: delete this transformation, when CPU and GPU will have optimized version of the 'linear' mode.
     """
     enabled = True
 
