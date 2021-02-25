@@ -173,11 +173,11 @@ bool TuneParamsSelector::VerifyTuneParams(const fully_connected_params& params, 
     return true;
 }
 
-}
+}  // namespace
 
 FullyConnected_bf_tiled::tune_params
 FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params, int idx) const {
-    if (idx >= 0 && idx < (int)auto_tune_params.size()
+    if (idx >= 0 && idx < static_cast<int>(auto_tune_params.size())
         && TuneParamsSelector::VerifyTuneParams(params, auto_tune_params[idx]))
         return auto_tune_params[idx];
 
@@ -274,7 +274,7 @@ KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params
     size_t output_b = fc_params.output.Batch().v;
     if (fc_params.output.GetLayout() == DataLayout::bfyx)
         output_b *= fc_params.output.Feature().v;
-    
+
     float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     if (output_b > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)
         estimated_time = FORCE_PRIORITY_3;
@@ -313,8 +313,7 @@ JitConstants FullyConnected_bf_tiled::GetJitConstants(const fully_connected_para
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", params.inputs[0].Feature().pitch));
         jit.AddConstant(MakeJitConstant("TILE_OUT_B_PITCH", params.output.Feature().pitch));
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
-    }
-    else {
+    } else {
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_NUM", params.output.Feature().v));
         jit.AddConstant(MakeJitConstant("TILE_OUT_F_PITCH", params.output.Feature().pitch));
         jit.AddConstant(MakeJitConstant("TILE_IN_B_PITCH", params.inputs[0].Batch().pitch));
@@ -350,7 +349,7 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                                                                 const int autoTuneIndex) const {
     auto& fc_params = static_cast<const fully_connected_params&>(params);
 
-    if (autoTuneIndex >= 0 && autoTuneIndex < (int)auto_tune_params.size()
+    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(auto_tune_params.size())
         && !TuneParamsSelector::VerifyTuneParams(fc_params, auto_tune_params[autoTuneIndex]))
         return {};
 
@@ -368,13 +367,12 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
                                 weights_layout,
                                 tparams.exec_options,
                                 autoTuneIndex);
-
 }
 
 KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const {
     KernelsData res = {};
     for (size_t idx = 0; idx < auto_tune_params.size(); ++idx) {
-        KernelsData kds = GetTunedKernelsDataByIndex(params, options, (int)idx);
+        KernelsData kds = GetTunedKernelsDataByIndex(params, options, static_cast<int>(idx));
 
         if (!kds.empty()) {
             res.emplace_back(kds[0]);

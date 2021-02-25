@@ -26,7 +26,8 @@ namespace cldnn {
 /// @addtogroup cpp_primitives Primitives
 /// @{
 
-/// @brief The ExtractImagePatches operation collects patches from the input tensor, as if applying a convolution. All extracted patches are stacked in the depth dimension of the output.
+/// @brief The ExtractImagePatches operation collects patches from the input tensor, as if applying a convolution.
+/// All extracted patches are stacked in the depth dimension of the output.
 /// @details The ExtractImagePatches operation is similar to the TensorFlow*
 /// operation ExtractImagePatches.
 /// This op extracts patches of shape `sizes` which are `strides` apart in the

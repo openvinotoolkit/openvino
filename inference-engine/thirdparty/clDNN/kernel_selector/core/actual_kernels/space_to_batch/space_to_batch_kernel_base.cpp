@@ -66,7 +66,7 @@ JitConstants SpaceToBatchKernelBase::GetJitConstants(const space_to_batch_params
         if (args.w != 0) {
             jit.AddConstant(MakeJitConstant(name + "_W", args.w));
             jit.AddConstant(MakeJitConstant(name + "_Z", args.z));
-        } else if(args.z != 0) {
+        } else if (args.z != 0) {
             jit.AddConstant(MakeJitConstant(name + "_W", default_value));
             jit.AddConstant(MakeJitConstant(name + "_Z", args.z));
         } else {

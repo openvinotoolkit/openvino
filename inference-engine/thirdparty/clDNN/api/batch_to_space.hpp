@@ -27,9 +27,11 @@ namespace cldnn {
 /// @{
 
 /// @brief The BatchToSpace operation reshapes the "batch" dimension 0 into N - 1, N ∈ {4,5,6} dimensions of shape block_shape + [batch]
-/// and interleaves these blocks back into the grid defined by the spatial dimensions [1, ..., N - 1], N ∈ {4,5,6} to obtain a result with the same rank as data input.
+/// and interleaves these blocks back into the grid defined by the spatial dimensions [1, ..., N - 1], N ∈ {4,5,6}
+/// to obtain a result with the same rank as data input.
 /// The spatial dimensions of this intermediate result are then optionally cropped according to crops_begin and crops_end to produce the output.
-/// @details The BatchToSpace operation is similar to the TensorFlow* operation BatchToSpaceND (https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/batch-to-space-n-d)
+/// @details The BatchToSpace operation is similar to the TensorFlow* operation
+/// BatchToSpaceND (https://www.tensorflow.org/api_docs/cc/class/tensorflow/ops/batch-to-space-n-d)
 /// There are 4 inputs of this operation:
 /// 1) data - input N-D tensor [batch, D_1, D_2 ... D_{N-1}], N ∈ {4,5,6}. Required.
 /// 2) block_shape - input 1-D tensor with shape [N], N ∈ {4,5,6}. Consists of block_sizes each of which specifies the size of the value block to be moved.
@@ -51,7 +53,8 @@ namespace cldnn {
 /// x''' = reshape(x'', [batch / (B_1 * ... * B_{N - 1}), D_1 * B_1, D_2 * B_2, ... , D_{N - 1} * B_{N - 1}])
 ///
 /// Crop the start and end of dimensions according to crops_begin, crops_end to produce the output of shape.
-/// y = [batch / (B_1 * ... * B_{N - 1}), crop(D_1 * B_1, crops_begin[1], crops_end[1]), ... , crop(D_{N - 1} * B_{N - 1}, crops_begin[N - 1], crops_end[N - 1])]
+/// y = [batch / (B_1 * ... * B_{N - 1}), crop(D_1 * B_1, crops_begin[1], crops_end[1]), ... ,
+///      crop(D_{N - 1} * B_{N - 1}, crops_begin[N - 1], crops_end[N - 1])]
 
 struct batch_to_space : public primitive_base<batch_to_space> {
     CLDNN_DECLARE_PRIMITIVE(batch_to_space)

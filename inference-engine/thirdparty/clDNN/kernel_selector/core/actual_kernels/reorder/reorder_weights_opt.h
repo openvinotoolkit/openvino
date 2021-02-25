@@ -29,7 +29,7 @@ public:
     DispatchData SetDefault(const reorder_weights_params& arg) const override;
 
 protected:
-    virtual bool Validate(const Params& params, const optional_params& options) const override;
-    virtual JitConstants GetJitConstants(const reorder_weights_params& params) const override;
+    bool Validate(const Params& params, const optional_params& options) const override;
+    JitConstants GetJitConstants(const reorder_weights_params& params) const override;
 };
 }  // namespace kernel_selector
