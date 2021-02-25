@@ -21,7 +21,7 @@
 
 #pragma once
 #include <openvino/function_name.hpp>
-#include <openvino/macro_overload.hpp>
+#include <openvino/pp.hpp>
 #include <string>
 #include <utility>
 
@@ -224,14 +224,11 @@ namespace openvino
  * @param domainName [in] Known at compile time name of module or library (the domain name).
  * @param domainDisplayName [in] Domain name used as the ITT counter name and displayed in Intel VTune. Parameter is optional.
  */
-#define OV_ITT_DOMAIN(...) OV_ITT_MACRO_OVERLOAD(OV_ITT_DOMAIN, __VA_ARGS__)
+#define OV_ITT_DOMAIN(...) OV_PP_OVERLOAD(OV_ITT_DOMAIN, __VA_ARGS__)
 
 /**
  * @cond
  */
-
-#define OV_ITT_CONCAT2(X, Y) X ## Y
-#define OV_ITT_CONCAT(X, Y) OV_ITT_CONCAT2(X, Y)
 
 #define OV_ITT_DOMAIN_1(domainName)                                                                 \
 inline openvino::itt::domain_t domainName() noexcept                                                \
@@ -259,19 +256,19 @@ inline openvino::itt::domain_t domainName() noexcept                            
  * @param domainName [in] Known at compile time name of module or library (the domain name).
  * @param handleOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
  */
-#define OV_ITT_SCOPED_TASK(...) OV_ITT_MACRO_OVERLOAD(OV_ITT_SCOPED_TASK, __VA_ARGS__)
+#define OV_ITT_SCOPED_TASK(...) OV_PP_OVERLOAD(OV_ITT_SCOPED_TASK, __VA_ARGS__)
 
 /**
  * @cond
  */
 
 #define OV_ITT_SCOPED_TASK_1(domain)                                                                \
-        openvino::itt::ScopedTask<domain> OV_ITT_CONCAT(ittScopedTask, __LINE__)                    \
-                    (openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>(ITT_FUNCTION_NAME));
+        openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)                        \
+                    (openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(ITT_FUNCTION_NAME));
 
 #define OV_ITT_SCOPED_TASK_2(domain, taskOrTaskName)                                                \
-        openvino::itt::ScopedTask<domain> OV_ITT_CONCAT(ittScopedTask, __LINE__)                    \
-                    (openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>(taskOrTaskName));
+        openvino::itt::ScopedTask<domain> OV_PP_CAT(ittScopedTask, __LINE__)                        \
+                    (openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(taskOrTaskName));
 
 /**
  * @endcond
@@ -288,7 +285,7 @@ inline openvino::itt::domain_t domainName() noexcept                            
  * @param prefix [in] The task chain name prefix. The task name starts with this prefix. Parameter is optional.
  * @param taskName [in] The annotation name for section of code. Parameter is optional.
  */
-#define OV_ITT_TASK_CHAIN(...) OV_ITT_MACRO_OVERLOAD(OV_ITT_TASK_CHAIN, __VA_ARGS__)
+#define OV_ITT_TASK_CHAIN(...) OV_PP_OVERLOAD(OV_ITT_TASK_CHAIN, __VA_ARGS__)
 
 /**
  * @cond
@@ -296,19 +293,19 @@ inline openvino::itt::domain_t domainName() noexcept                            
 
 #define OV_ITT_TASK_CHAIN_2(chainId, domain)                                                        \
         openvino::itt::TaskChain<domain> chainId                                                    \
-            (openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>                            \
+            (openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>                                \
                 (std::string(ITT_FUNCTION_NAME) + "_1"),                                            \
             ITT_FUNCTION_NAME);
 
 #define OV_ITT_TASK_CHAIN_3(chainId, domain, prefix)                                                \
         openvino::itt::TaskChain<domain> chainId                                                    \
-            (openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>                            \
+            (openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>                                \
                 (std::string(prefix) + "_1"),                                                       \
             prefix);
 
 #define OV_ITT_TASK_CHAIN_4(chainId, domain, prefix, taskName)                                      \
         openvino::itt::TaskChain<domain> chainId                                                    \
-            (openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>                            \
+            (openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>                                \
                 (std::string(prefix) + "_" + taskName),                                             \
             prefix);
 
@@ -324,17 +321,17 @@ inline openvino::itt::domain_t domainName() noexcept                            
  * @param chainId [in] The tasks chain identifier.
  * @param taskOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
  */
-#define OV_ITT_TASK_NEXT(...) OV_ITT_MACRO_OVERLOAD(OV_ITT_TASK_NEXT, __VA_ARGS__)
+#define OV_ITT_TASK_NEXT(...) OV_PP_OVERLOAD(OV_ITT_TASK_NEXT, __VA_ARGS__)
 
 /**
  * @cond
  */
 
 #define OV_ITT_TASK_NEXT_1(chainId)                                                                 \
-        chainId.next(openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>(chainId.taskName()));
+        chainId.next(openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(chainId.taskName()));
 
 #define OV_ITT_TASK_NEXT_2(chainId, taskOrTaskName)                                                 \
-        chainId.next(openvino::itt::handle<struct OV_ITT_CONCAT(Task, __LINE__)>(chainId.taskNameOrHandle(taskOrTaskName)));
+        chainId.next(openvino::itt::handle<struct OV_PP_CAT(Task, __LINE__)>(chainId.taskNameOrHandle(taskOrTaskName)));
 
 /**
  * @endcond

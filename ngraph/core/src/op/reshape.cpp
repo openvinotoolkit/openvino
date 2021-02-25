@@ -282,7 +282,7 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
 #define COMPUTE_OUT_SHAPE_CASE(a, ...)                                                             \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(compute_reshape_out_shape, _, a));                              \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(compute_reshape_out_shape, _, a));                              \
         reshapeop::compute_output_shape<element::Type_t::a>(__VA_ARGS__);                          \
     }                                                                                              \
     break;

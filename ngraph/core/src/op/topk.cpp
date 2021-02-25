@@ -67,7 +67,7 @@ namespace topk
 #define EXECUTE_EVALUATE_TOPK(a, ...)                                                              \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(exec_topk_eval, _, a));                                         \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(exec_topk_eval, _, a));                                         \
         rc = evaluate_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);                          \
     }                                                                                              \
     break
@@ -189,7 +189,7 @@ namespace topk
 #define CASE_GET_K(a, ...)                                                                         \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(topk_get_k, _, a));                                             \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(topk_get_k, _, a));                                             \
         k = get_k_from_hosttensor<element::Type_t::a>(__VA_ARGS__);                                \
     }                                                                                              \
     break

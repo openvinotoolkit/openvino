@@ -40,7 +40,7 @@ public:
 
 #ifdef SELECTIVE_BUILD
     #define registerNodeIfRequired(Module, Name, key, Impl)       \
-        OV_CC_EXPAND(OV_CC_CAT(registerImpl, OV_CC_SCOPE_IS_ENABLED(OV_CC_CAT3(Module, _, Name)))<Impl>(key))
+        OV_PP_EXPAND(OV_PP_CAT(registerImpl, OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(Module, _, Name)))<Impl>(key))
     #define createNodeIfRegistered(Module, key, ...) createImpl(key, __VA_ARGS__)
 
     template<typename Impl>
@@ -64,8 +64,8 @@ public:
     }
 
 #elif defined(SELECTIVE_BUILD_ANALYZER)
-    #define registerNodeIfRequired(Module, Name, key, Impl) registerImpl<OV_CC_CAT(FACTORY_, Module), Impl>(key, OV_CC_TOSTRING(Name))
-    #define createNodeIfRegistered(Module, key, ...) createImpl<OV_CC_CAT(FACTORY_, Module)>(key, __VA_ARGS__)
+    #define registerNodeIfRequired(Module, Name, key, Impl) registerImpl<OV_PP_CAT(FACTORY_, Module), Impl>(key, OV_PP_TOSTRING(Name))
+    #define createNodeIfRegistered(Module, key, ...) createImpl<OV_PP_CAT(FACTORY_, Module)>(key, __VA_ARGS__)
 
     template<openvino::itt::domain_t(*domain)(), typename Impl>
     void registerImpl(const Key & key, const char *typeName) {

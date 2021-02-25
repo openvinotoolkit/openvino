@@ -172,7 +172,7 @@ protected:
 #define REG_FACTORY_FOR(__prim, __type) \
     void __prim ## __type(MKLDNNExtensions * extInstance) { \
         using namespace MKLDNNPlugin; \
-        extInstance->layersFactory.registerNodeIfRequired(MKLDNNPlugin, __type, OV_CC_TOSTRING(__type), ImplFactory<__prim>); \
+        extInstance->layersFactory.registerNodeIfRequired(MKLDNNPlugin, __type, OV_PP_TOSTRING(__type), ImplFactory<__prim>); \
     }
 
 }  // namespace Cpu
