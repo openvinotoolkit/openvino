@@ -65,7 +65,8 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
-ScatterNDUpdateKernelRef::DispatchData ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, const optional_params&, bool is_second) const {
+ScatterNDUpdateKernelRef::DispatchData
+ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, const optional_params&, bool is_second) const {
     DispatchData dispatchData;
 
     if (!is_second) {
@@ -102,6 +103,7 @@ ScatterNDUpdateKernelRef::DispatchData ScatterNDUpdateKernelRef::SetDefault(cons
         for (size_t i = 0; i < (indices_rank - 1); i++) {
             indices_set_size *= indices_dims[i];
         }
+
         dispatchData.gws = {1, 1, indices_set_size};
     }
 
@@ -173,15 +175,14 @@ bool ScatterNDUpdateKernelRef::Validate(const Params& p, const optional_params& 
     return true;
 }
 
-static std::string GetInputBlockND(const scatter_nd_update_params& params)
-{
+static std::string GetInputBlockND(const scatter_nd_update_params& params) {
     const auto& input = params.inputs[0];
     auto input_dims = input.LogicalDims();
     std::reverse(input_dims.begin(), input_dims.end());
     while (!input_dims.empty() && input_dims.back() == 1) {
         input_dims.pop_back();
     }
-    const int rank = (int)input_dims.size();
+    const int rank = static_cast<int>(input_dims.size());
     std::vector<size_t> block_nd(rank + 1);
     block_nd[rank] = 1;
     for (int idx = (rank - 1); idx >= 0; idx--) {
@@ -192,8 +193,7 @@ static std::string GetInputBlockND(const scatter_nd_update_params& params)
     for (int i = 0; i < (rank + 1); i++) {
         if (i < rank) {
             s << block_nd[i] << ",";
-        }
-        else {
+        } else {
             s << block_nd[i];
         }
     }
@@ -216,7 +216,7 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
         auto dispatchData = SetDefault(newParams, options, (i == 1));
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
 
-        if (i == 1){
+        if (i == 1) {
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", dispatchData.indicesLastDim));
             cldnn_jit.AddConstant(MakeJitConstant("INPUT_BLOCK_ND", GetInputBlockND(newParams)));
