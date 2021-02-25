@@ -50,6 +50,7 @@
 #include "util/engine/test_engines.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
+#include <cpp/ie_cnn_network.h>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -3544,6 +3545,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D)
                                           -1.4401896,
                                           -0.44018966});
     test_case.run_with_tolerance_as_fp();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D_reshape)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax13_2D.prototxt"));
+    InferenceEngine::CNNNetwork net(function);
+    InferenceEngine::ICNNNetwork::InputShapes shapes = {};
+    InferenceEngine::SizeVector shape = {1, 1, 4000};
+    shapes[net.getInputsInfo().begin()->first] = shape;
+    EXPECT_NO_THROW(net.reshape(shapes));
+    ASSERT_EQ(shape, net.getOutputsInfo().begin()->second->getDims());
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_hard_sigmoid)
