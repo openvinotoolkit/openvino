@@ -1,13 +1,13 @@
 defusedxml>=0.5.0
-scipy==1.2.1
+scipy==1.5.4
 jstyleson==0.0.2
-numpy==1.16.3
+numpy==1.16.6
 addict==2.2.1
 pandas==0.24.2
 hyperopt==0.1.2
 networkx==2.2
 tqdm==4.31.1
-py-cpuinfo==4.0.0
+py-cpuinfo!=5.0,!=6.0
 PyYAML
 pillow>=8.1.0
 scikit-image
@@ -24,4 +24,3 @@ fast-ctc-decode
 rawpy
 nltk
 opencv-python
-openvino==2021.3.0
