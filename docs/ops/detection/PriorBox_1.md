@@ -31,7 +31,7 @@
     * false or 0 - each *aspect_ratio* is flipped
     * true or 1  - each *aspect_ratio* is not flipped
   * **Type**: boolean
-  * **Default value**: false or 0
+  * **Default value**: false
   * **Required**: *no*
 
 * *clip*
@@ -41,7 +41,7 @@
     * false or 0 - clipping is not performed
     * true or 1 - each value in the output tensor is clipped to [0,1] interval.
   * **Type**: boolean
-  * **Default value**: false or 0
+  * **Default value**: false
   * **Required**: *no*
 
 * *step*
