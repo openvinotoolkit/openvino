@@ -61,7 +61,7 @@ static NDims calc_in_dims(const reduce_params& params) {
 }
 
 static bool is_xy_opt_supported(const ReduceMode& mode) {
-    switch(mode) {
+    switch (mode) {
         case ReduceMode::MAX:
         case ReduceMode::MIN:
         case ReduceMode::MEAN:
@@ -145,8 +145,7 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
         jit.AddConstant(MakeJitConstant("IS_REDUCE_XY", 1));
         jit.AddConstant(MakeJitConstant("BLOCK_Y_NUM", num_block_y));
         jit.AddConstant(MakeJitConstant("BLOCK_Y_SIZE", CeilDiv(input_dims[2].v, num_block_y)));
-    }
-    else {
+    } else {
         jit.AddConstant(MakeJitConstant("IS_REDUCE_XY", 0));
     }
 
@@ -201,7 +200,8 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
                                                    IndexType::TENSOR_COORD,
                                                    Tensor::DataChannelName::X};
 
-            jit.AddConstant(MakeJitConstant("FUSED_OPS_VECTOR", "{FUSED_OPS_VECTOR_1;final_result.lo=FUSED_OPS_RESULT_VECTOR_1;} {FUSED_OPS_VECTOR_2;final_result.hi=FUSED_OPS_RESULT_VECTOR_2;}"));
+            jit.AddConstant(MakeJitConstant("FUSED_OPS_VECTOR", "{FUSED_OPS_VECTOR_1;final_result.lo=FUSED_OPS_RESULT_VECTOR_1;}"
+                                                                "{FUSED_OPS_VECTOR_2;final_result.hi=FUSED_OPS_RESULT_VECTOR_2;}"));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT_VECTOR", "final_result"));
             jit.Merge(MakeFusedOpsJitConstants(params, {conf_scalar, conf_vector_1, conf_vector_2}));
         } else {

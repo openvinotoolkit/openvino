@@ -212,6 +212,8 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
                 bDivAValues[i] = 0.f;
             }
         }
+
+        // TODO: issue #49868
         auto aPrecision = a->get_output_element_type(0);
         bDivA = std::make_shared<opset1::Constant>(
                 aPrecision,
@@ -221,6 +223,8 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
         b = fold<opset1::Convert>(b, element::f32);
         a = fold<opset1::Convert>(a, element::f32);
         bDivA = fold<opset1::Divide>(b, a);
+        // TODO: issue #49868
+        bDivA = fold<opset1::Convert>(bDivA, a->get_output_element_type(0));
     }
 
     std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
@@ -296,6 +300,48 @@ std::shared_ptr<Node> NetworkHelper::getConstantInput(std::shared_ptr<Node> node
         constant1 = as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr());
     }
     return constant1;
+}
+
+int NetworkHelper::getConstantInputIndex(std::shared_ptr<Node> node) {
+    if (as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(1)) != nullptr) {
+        return 1;
+    }
+
+    if (as_type_ptr<opset1::Constant>(node->get_input_node_shared_ptr(0)) != nullptr) {
+        return 0;
+    }
+
+    return -1;
+}
+
+std::vector<size_t> NetworkHelper::updateReshapeValues(
+    const Shape& elementwiseConstantShape,
+    const Shape& elementwiseShape,
+    const std::vector<size_t>& reshapeValues) {
+    Shape updatedReshapeValues = reshapeValues;
+    for (size_t elementwiseIndex = 0, reshapeIndex = 0; elementwiseIndex < elementwiseConstantShape.size(); ++elementwiseIndex) {
+        if (elementwiseConstantShape[elementwiseIndex] != elementwiseShape[elementwiseIndex]) {
+            size_t reducedValue = 1ul;
+            for (; reshapeIndex < reshapeValues.size(); ++reshapeIndex) {
+                reducedValue *= reshapeValues[reshapeIndex];
+                updatedReshapeValues[reshapeIndex] = 1ul;
+                if (reducedValue == elementwiseShape[elementwiseIndex]) {
+                    reshapeIndex++;
+                    break;
+                }
+            }
+        } else {
+            size_t reducedValue = 1ul;
+            for (; reshapeIndex < reshapeValues.size(); ++reshapeIndex) {
+                reducedValue *= reshapeValues[reshapeIndex];
+                if (reducedValue == elementwiseConstantShape[elementwiseIndex]) {
+                    reshapeIndex++;
+                    break;
+                }
+            }
+        }
+    }
+    return updatedReshapeValues;
 }
 
 std::shared_ptr<ngraph::opset1::Multiply> NetworkHelper::optimizeMultipliesAfter(std::shared_ptr<Node> node) {
