@@ -24,20 +24,17 @@ from mo.utils.unittest.graph import build_graph, regular_op, result
 nodes = {
     **regular_op('Op1', {'type': 'Op1', 'kind': 'op', 'op': 'Op1'}),
     **result('result'),
-    'Op1_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 0, 'Op1_tensor')]}
+    'Op1_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 0, 'Op1_tensor')]},
+    'Op1_data_same_name': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 0, 'Op1')]}
 }
 
 
 class ResultRenameTest(unittest.TestCase):
     def test_case1(self):
         graph = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result')])
-        graph_ref = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result')])
-        res_node = Node(graph_ref, 'result')
-        res_node['name'] = 'Op1_tensor'
-
         ResultRename().find_and_replace_pattern(graph)
-        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
-        self.assertTrue(flag, resp)
+        res_node = Node(graph, 'result')
+        self.assertTrue(res_node['name'] == 'Op1_tensor')
 
     def test_case2(self):
         graph = build_graph(nodes, [])
@@ -46,3 +43,9 @@ class ResultRenameTest(unittest.TestCase):
         ResultRename().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+    def test_case3(self):
+        graph = build_graph(nodes, [('Op1', 'Op1_data_same_name'), ('Op1_data_same_name', 'result')])
+        ResultRename().find_and_replace_pattern(graph)
+        res_node = Node(graph, 'result')
+        self.assertTrue(res_node['name'] == 'Op1/sink_port_0')
