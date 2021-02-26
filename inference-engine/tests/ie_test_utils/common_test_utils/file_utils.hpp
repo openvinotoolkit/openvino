@@ -117,12 +117,21 @@ inline bool directoryExists(const std::string &path) {
 }
 
 inline void directoryFileListRecursive(const std::string& name, std::vector<std::string>& file_list) {
-    DIR *directory;
+    struct CloseDir {
+        void operator()(DIR* d) const noexcept {
+            if (d) {
+                closedir(d);
+            }
+        }
+    };
+    using Dir = std::unique_ptr<DIR, CloseDir>;
+    Dir directory(opendir(name.c_str()));
     struct dirent *entire;
-    directory = opendir(name.c_str());
     if (directory) {
-        while ((entire = readdir(directory)) != nullptr) {
-            if (std::string(entire->d_name) == ".." || std::string(entire->d_name) == ".") {
+        const std::string current_dir{"."};
+        const std::string parent_dir{".."};
+        while ((entire = readdir(directory.get())) != nullptr) {
+            if (std::string(entire->d_name) == parent_dir || std::string(entire->d_name) == current_dir) {
                 continue;
             }
             std::string path = name + CommonTestUtils::FileSeparator + entire->d_name;
@@ -133,7 +142,6 @@ inline void directoryFileListRecursive(const std::string& name, std::vector<std:
                 file_list.push_back(path);
             }
         }
-        closedir(directory);
     }
 }
 

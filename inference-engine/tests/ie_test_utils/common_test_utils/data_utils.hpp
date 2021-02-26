@@ -51,10 +51,10 @@ inline std::vector<float> generate_float_numbers(std::size_t vec_len, float min,
  * with initial seed equal to variable seed with default of 0
  */
 template<typename T>
-inline std::vector<T> fill_vector(std::vector<T> &res, T min, T max, int seed = 0) {
-    std::mt19937 gen(seed);
+inline std::vector<T>  fill_vector(std::vector<T> &res, double min, double max, int seed = 0) {
+    std::mt19937 gen(static_cast<T>(seed));
 
-    std::uniform_real_distribution<T> dist(min, max);
+    std::uniform_real_distribution<double> dist(min, max);
     for (std::size_t i = 0; i < res.size(); i++)
         res[i] = static_cast<T>(dist(gen));
 

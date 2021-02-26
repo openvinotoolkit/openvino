@@ -19,11 +19,11 @@ DEFINE_string(output_folders, "output", output_folders_message);
 * @brief This function shows a help message
 */
 static void showUsage() {
-    std::cout << std::endl;
-    std::cout << "Subgraph Dumper [OPTION]" << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << std::endl;
-    std::cout << "    -h                         "  << help_message << std::endl;
-    std::cout << "    --input_folders \"<path>\" "  << input_folders_message << std::endl;
-    std::cout << "    --output_folders \"<path>\" " << output_folders_message << std::endl;
+    std::cout << "\n";
+    std::cout << "Subgraph Dumper [OPTION]\n";
+    std::cout << "Options:\n";
+    std::cout << "\n";
+    std::cout << "    -h                         "  << help_message << "\n";
+    std::cout << "    --input_folders \"<path>\" "  << input_folders_message << "\n";
+    std::cout << "    --output_folders \"<path>\" " << output_folders_message << "\n";
 }

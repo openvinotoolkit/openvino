@@ -8,8 +8,6 @@
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/ops.hpp>
-#include "ngraph_functions/builders.hpp"
-#include "ngraph_functions/subgraph_builders.hpp"
 
 #include <algorithm>
 #include <functional>

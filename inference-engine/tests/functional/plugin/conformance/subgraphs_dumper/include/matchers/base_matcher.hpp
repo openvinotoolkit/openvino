@@ -26,23 +26,22 @@ public:
 template<typename ...OPTypes>
 struct MatcherConfig : public iMatcherConfig {
 public:
-    MatcherConfig() {
-        if (sizeof...(OPTypes) == 0) {
-            is_fallback_config = true;
-        }
-    }
-    MatcherConfig(const std::vector<std::string> &_ignored_attributes,
-                  const std::vector<size_t> &_ignored_ports) : ignored_attributes(_ignored_attributes),
-                                                               ignored_ports(_ignored_ports) {
+    MatcherConfig() : iMatcherConfig() {
         if (sizeof...(OPTypes) == 0) {
             is_fallback_config = true;
         }
     }
 
-    // Empty vectors stands for any of possible values
-    std::vector<std::string> ignored_attributes = {};
-    std::vector<size_t> ignored_ports = {};
-    bool is_fallback_config = false;
+    MatcherConfig(const std::vector<std::string> &_ignored_attributes,
+                  const std::vector<size_t> &_ignored_ports) : iMatcherConfig() {
+        ignored_attributes = _ignored_attributes;
+        ignored_ports = _ignored_ports;
+
+        if (sizeof...(OPTypes) == 0) {
+            is_fallback_config = true;
+        }
+    }
+
 
     bool op_in_config(const std::shared_ptr<ngraph::Node> &node) override {
         std::initializer_list<bool> vals{(ngraph::is_type<OPTypes>(node))...};

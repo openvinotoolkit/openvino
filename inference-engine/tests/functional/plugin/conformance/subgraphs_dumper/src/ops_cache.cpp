@@ -49,7 +49,7 @@ void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
     for (const auto &op : m_ops_cache) {
         try {
             auto rt_info = op.first->get_rt_info();
-            std::cout << "Serializing function wrapping op " << op.first->get_type_name() << std::endl;
+            std::cout << "Serializing function wrapping op " << op.first << std::endl;
             if (rt_info.find("source_model") != rt_info.end()) {
                 auto val = rt_info["source_model"];
                 auto source_model = std::dynamic_pointer_cast<ngraph::VariantWrapper<std::string>>(val);

@@ -29,7 +29,7 @@ copy_constant_with_randomization(const std::shared_ptr<ngraph::op::Constant> &co
     dType min = *std::min_element(data.begin(), data.end());
     dType max = *std::max_element(data.begin(), data.end());
     // Apply randomization only if constant stores several non-equal values
-    if (ngraph::shape_size(const_node->get_shape()) != 1 || max - min > std::numeric_limits<dType>::epsilon()) {
+    if (ngraph::shape_size(const_node->get_shape()) != 1 && max - min > std::numeric_limits<dType>::epsilon()) {
         CommonTestUtils::fill_vector<dType>(data, min, max);
     }
     return std::make_shared<ngraph::op::Constant>(const_node->get_element_type(), const_node->get_shape(), data);
@@ -95,8 +95,8 @@ std::shared_ptr<ngraph::Node> clone_weightable_node(const std::shared_ptr<ngraph
                 op_inputs.push_back(input->clone_with_new_inputs({}));
             }
         } else {
-            op_inputs.push_back(std::make_shared<ngraph::op::Parameter>(input->get_element_type(),
-                                                                        input->get_shape()));
+            op_inputs.push_back(std::make_shared<ngraph::op::Parameter>(node->get_input_tensor(i).get_element_type(),
+                                                                        node->get_input_tensor(i).get_shape()));
         }
     }
     auto op_clone = node->clone_with_new_inputs(op_inputs);
@@ -136,14 +136,6 @@ const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::
 }
 
 const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::Power> &node) {
-    return clone_weightable_node(node, {1});
-}
-
-const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::ReduceMax> &node) {
-    return clone_weightable_node(node, {1});
-}
-
-const std::shared_ptr<ngraph::Node> clone(const std::shared_ptr<ngraph::op::v1::ReduceMin> &node) {
     return clone_weightable_node(node, {1});
 }
 }  // namespace
