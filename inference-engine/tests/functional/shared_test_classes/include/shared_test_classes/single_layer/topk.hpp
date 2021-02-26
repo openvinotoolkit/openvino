@@ -28,6 +28,7 @@ class TopKLayerTest : public testing::WithParamInterface<TopKParams>,
                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<TopKParams> obj);
+    void Validate() override;
 
 protected:
     void SetUp() override;
