@@ -119,7 +119,7 @@ class Loop(TensorIterator):
             loop_port_idx = record['external_port_id']
             if loop_port_idx != -1:  # the id = -1 for execution condition output which is not connected anywhere
                 output_value = body_node.in_port(0).data.get_value()
-                output_shape = body_node.in_port(0).data.get_shape()
+                output_shape = body_node.in_port(0).data.get_shape().copy()
                 concat_axis = record['axis']
                 if concat_axis is not None:
                     assert output_shape[concat_axis] == 1, 'Dimension for concatenation is not equal to 1 for scan ' \
