@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,14 +15,12 @@
 """
 import logging as log
 from collections import deque
-
-from typing import Set
+from typing import Set, List
 
 from extensions.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose, \
     mark_as_correct_data_layout, mark_output_as_in_correct_layout, mark_input_as_in_correct_layout
 from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
 from extensions.middle.pass_separator import PostMiddleStart
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.graph.port import Port
@@ -63,7 +61,9 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
                     result.append(dest_port.node)
         return result
 
-    def bfs(self, start_nodes: list, visited: set, condition: callable = None, forward: bool = True):
+    @staticmethod
+    def bfs(start_nodes: List, visited: Set, condition: callable = None, forward: bool = True,
+            include_both_direction=False) -> List[Node]:
         """
         The function performs BFS starting from selected nodes in forward or backward direction adding nodes by an
         optional condition
@@ -72,6 +72,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         :param condition: function getting a Node as input and returning whether the node should be included into the
         result or not. If the value is None then the node is added unconditionally.
         :param forward: boolean flag specifying the traverse direction
+        :param include_both_direction: if True return both in and out nodes, forward param is ignored in that case
         :return: the list of Nodes visited
         """
         assert visited is not None, 'The "visited" set must be defined'
@@ -84,9 +85,15 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
             result.append(cur_node)
             visited.add(cur_node)
             if forward:
-                next_nodes = self.get_output_nodes(cur_node)
+                next_nodes = MarkSubGraphsWithCorrectLayout.get_output_nodes(cur_node)
             else:
-                next_nodes = self.get_input_nodes(cur_node)
+                next_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
+
+            if include_both_direction:
+                next_nodes = MarkSubGraphsWithCorrectLayout.get_output_nodes(cur_node)
+                next_input_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
+                d.extend([node for node in next_input_nodes if node not in visited])
+
             for next_node in next_nodes:
                 if next_node not in visited and (condition is None or condition(next_node)):
                     d.append(next_node)
