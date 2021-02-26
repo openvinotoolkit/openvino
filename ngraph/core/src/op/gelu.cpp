@@ -94,7 +94,7 @@ namespace ngraph
 NGRAPH_RTTI_DEFINITION(op::v6::Gelu, "Gelu", 6);
 
 op::v6::Gelu::Gelu(const Output<Node>& data, GeluApproximationMode mode)
-    : UnaryElementwiseArithmetic({data})
+    : UnaryElementwiseArithmetic(data)
     , m_approximation_mode(mode)
 {
     constructor_validate_and_infer_types();
