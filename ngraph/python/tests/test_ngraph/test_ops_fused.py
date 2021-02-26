@@ -230,7 +230,7 @@ def test_gelu_operator_with_parameters():
     data_shape = [2, 2]
     parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
 
-    model = ng.gelu(parameter_data)
+    model = ng.gelu(parameter_data, "erf")
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
@@ -243,7 +243,7 @@ def test_gelu_operator_with_array():
 
     data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
 
-    model = ng.gelu(data_value)
+    model = ng.gelu(data_value, "erf")
     computation = runtime.computation(model)
 
     result = computation()

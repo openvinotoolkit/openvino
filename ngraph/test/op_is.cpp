@@ -311,7 +311,7 @@ namespace
     void op_is_Gelu()
     {
         op::Gelu node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
+        EXPECT_TRUE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
