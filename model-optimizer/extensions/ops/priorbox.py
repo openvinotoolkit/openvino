@@ -68,8 +68,10 @@ class PriorBoxOp(Op):
 
     def backend_attrs(self):
         return [
-            ('flip', lambda node: bool_to_str(node, 'flip')),
-            ('clip', lambda node: bool_to_str(node, 'clip')),
+            ('flip', lambda node: int(bool_to_str(node, 'flip'))),# We need to convert this attribute value to int
+            # to keep forward compatibility with IE 2021.2
+            ('clip', lambda node: int(bool_to_str(node, 'clip'))),# We need to convert this attribute value to int
+            # to keep forward compatibility with IE 2021.2
             'step',
             'offset',
             ('scale_all_sizes', lambda node: bool_to_str(node, 'scale_all_sizes')),
