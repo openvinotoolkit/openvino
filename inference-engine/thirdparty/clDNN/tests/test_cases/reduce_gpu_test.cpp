@@ -75,7 +75,7 @@ struct reduce_accumulator {
         return acc;
     };
 
-    AccT accumulate(AccT& acc, AccT& input_val, cldnn::reduce_mode reduce_mode) {
+    AccT accumulate(AccT& acc, AccT& input_val, cldnn::reduce_mode reduce_mode, bool sum_only) {
         if (reduce_mode == cldnn::reduce_mode::sum || reduce_mode ==  cldnn::reduce_mode::mean ||
             reduce_mode == cldnn::reduce_mode::log_sum)
             acc += input_val;
@@ -89,14 +89,26 @@ struct reduce_accumulator {
             acc = acc && input_val;
         else if (reduce_mode == cldnn::reduce_mode::logical_or)
             acc = acc || input_val;
-        else if (reduce_mode == cldnn::reduce_mode::sum_square)
-            acc += input_val * input_val;
+        else if (reduce_mode == cldnn::reduce_mode::sum_square) {
+            if (sum_only)
+                acc += input_val;
+            else
+                acc += input_val * input_val;
+        }
         else if (reduce_mode == cldnn::reduce_mode::l1)
             acc += abs(input_val);
-        else if (reduce_mode == cldnn::reduce_mode::l2)
-            acc += input_val * input_val;
-        else if (reduce_mode == cldnn::reduce_mode::log_sum_exp)
-            acc += exp(input_val);
+        else if (reduce_mode == cldnn::reduce_mode::l2) {
+            if (sum_only)
+                acc += input_val;
+            else
+                acc += input_val * input_val;
+        }
+        else if (reduce_mode == cldnn::reduce_mode::log_sum_exp) {
+            if (sum_only)
+                acc += input_val;
+            else
+                acc += exp(input_val);
+        }
 
         return acc;
     };
@@ -287,10 +299,10 @@ VVVVVVF<OutputT> reference_reduce(VVVVVVF<InputT>& input,
 
                                 temp_output[bi % out_dims[0]][fi % out_dims[1]]
                                            [wi % out_dims[2]][zi % out_dims[3]]
-                                           [yi % out_dims[4]][xi % out_dims[5]] = reduce.accumulate(acc, input_val, reduce_mode);
+                                           [yi % out_dims[4]][xi % out_dims[5]] = reduce.accumulate(acc, input_val, reduce_mode, &axis != &reduce_axis.front());
                             }
                         }
-        if (&axis == &reduce_axis.back() || reduce_mode != cldnn::reduce_mode::mean)
+        if (&axis == &reduce_axis.back())
             if (reduce_mode == cldnn::reduce_mode::mean || reduce_mode == cldnn::reduce_mode::l2 ||
                 reduce_mode == cldnn::reduce_mode::log_sum || reduce_mode == cldnn::reduce_mode::log_sum_exp) {
                 for (size_t bi = 0; bi < temp_output.size(); ++bi)
@@ -647,7 +659,13 @@ INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                             TestParamType_general_reduce_gpu(16, 16, 1, 1, 15, 8, format::b_fs_yx_fsv16, reduce_mode::log_sum, {reduce::along_b}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
                             TestParamType_general_reduce_gpu(17, 34, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::l2, {reduce::along_f}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
                             TestParamType_general_reduce_gpu(16, 16, 1, 1, 12, 8, format::b_fs_yx_fsv16, reduce_mode::sum_square, {reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
-                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 12, 11, format::b_fs_yx_fsv16, reduce_mode::log_sum, {reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32)
+                            TestParamType_general_reduce_gpu(17, 34, 1, 1, 12, 11, format::b_fs_yx_fsv16, reduce_mode::log_sum, {reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+
+                            TestParamType_general_reduce_gpu(1, 2, 1, 1, 12, 12, format::b_fs_yx_fsv16, reduce_mode::sum_square, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(1, 2, 1, 1, 12, 12, format::b_fs_yx_fsv16, reduce_mode::sum_square, {reduce::along_f, reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(1, 2, 1, 1, 12, 12, format::b_fs_yx_fsv16, reduce_mode::l2, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(1, 2, 1, 1, 12, 12, format::b_fs_yx_fsv16, reduce_mode::log_sum, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32),
+                            TestParamType_general_reduce_gpu(1, 2, 1, 1, 12, 12, format::b_fs_yx_fsv16, reduce_mode::log_sum_exp, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f32, false, data_types::f32)
                         ),
                         general_reduce_gpu::PrintToStringParamName);
 
