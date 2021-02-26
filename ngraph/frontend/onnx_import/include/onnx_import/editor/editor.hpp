@@ -16,13 +16,18 @@
 
 #pragma once
 
+#include <algorithm> // std::min, std::set_difference
 #include <istream>
+#include <iterator> // std::inserter
 #include <map>
 #include <memory>
+#include <set>
+#include <vector>
 
 #include "ngraph/op/constant.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "onnx_import/core/operator_set.hpp"
 #include "onnx_import/editor/detail/subgraph_extraction.hpp"
 #include "onnx_import/utils/onnx_importer_visibility.hpp"
 
@@ -122,11 +127,19 @@ namespace ngraph
             /// \param out_file_path A path to the file where the modified model should be dumped.
             void serialize(const std::string& out_file_path) const;
 
+            void replace_nodes(std::vector<std::set<int>> node_indexes, Operator node_generator);
         private:
             const std::string m_model_path;
 
             struct Impl;
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
+
+            int m_custom_op_ID = 0;
+
+            void replace_nodes(std::set<int> node_indexes, onnx_import::Operator node_generator, std::string new_op_name);
+            
+            /// \brief Removes all nodes from a container whose index is in nodes_to_remove
+            void remove_nodes(const std::set<int>& nodes_to_remove);
         };
     } // namespace onnx_import
 } // namespace ngraph

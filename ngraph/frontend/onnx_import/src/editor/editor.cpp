@@ -14,7 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
+// DEBUG CODE
+#include <iostream>
+// /DEBUG CODE
+
 #include <fstream>
+#include <string>
 #include <onnx/onnx_pb.h>
 #include <onnx/shape_inference/implementation.h>
 
@@ -22,6 +27,7 @@
 #include "onnx_import/editor/editor.hpp"
 #include "utils/common.hpp"
 #include "utils/parser.hpp"
+#include "onnx_import/onnx_utils.hpp"
 
 using namespace ngraph;
 
@@ -368,4 +374,73 @@ void onnx_import::ONNXModelEditor::set_input_values(
 
         modify_initializer(*onnx_initializer, name, values, onnx_input);
     }
+}
+
+void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(std::vector<std::set<int>> node_indexes, Operator node_generator)
+{
+    std::string new_op_name = "custom_op_" + std::to_string(m_custom_op_ID++);
+    for(auto node_set: node_indexes)
+    {
+        replace_nodes(node_set, node_generator, new_op_name);
+    }
+    onnx_import::register_operator(new_op_name, 1, "org.openvinotoolkit.editor", node_generator);
+}
+
+void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes
+    (std::set<int> node_indexes
+    , onnx_import::Operator node_generator
+    , std::string new_op_name
+    )
+{
+    std::set<std::string> inputs;
+    std::set<std::string> outputs;
+
+    auto nodes = model().graph().node();
+
+    for(auto node_index: node_indexes)
+    {
+        inputs.insert(nodes[node_index].input().begin(), nodes[node_index].input().end());
+        outputs.insert(nodes[node_index].output().begin(), nodes[node_index].output().end());
+    }
+
+    auto insert_position = *node_indexes.begin();
+
+    std::set<std::string> target_inputs;
+    std::set<std::string> target_outputs;
+
+    std::set_difference(inputs.begin(), inputs.end(), outputs.begin(), outputs.end(),
+                    std::inserter(target_inputs, target_inputs.end()));
+    std::set_difference(outputs.begin(), outputs.end(), inputs.begin(), inputs.end(),
+                    std::inserter(target_outputs, target_outputs.end()));
+    
+    auto new_node = model().mutable_graph()->mutable_node(insert_position);
+    new_node->Clear();
+    new_node->set_op_type(new_op_name);
+    for(auto input:target_inputs)
+    {
+        new_node->add_input(input);
+    }
+    for(auto output:target_outputs)
+    {
+        new_node->add_output(output);
+    }
+
+    node_indexes.erase(insert_position);
+    remove_nodes(node_indexes);
+    // DEBUG CODE
+    serialize("/home/tsocha/dev/openvino/build/"+new_op_name+".onnx");
+    // /DEBUG CODE
+}
+
+void onnx_import::ONNXModelEditor::ONNXModelEditor::remove_nodes(const std::set<int>& nodes_to_remove)
+{
+    auto nodes = model().mutable_graph()->mutable_node();
+    
+    int idx = 0;
+    const auto discard_node = [&idx, &nodes_to_remove](const ngraph_onnx::NodeProto&) {
+        return nodes_to_remove.count(idx++) != 0;
+    };
+
+    const auto new_end = std::remove_if(nodes->begin(), nodes->end(), discard_node);
+    nodes->erase(new_end, nodes->end());
 }
