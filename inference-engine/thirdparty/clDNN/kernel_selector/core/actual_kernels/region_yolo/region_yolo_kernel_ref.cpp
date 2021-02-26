@@ -52,7 +52,8 @@ bool RegionYoloKernelRef::Validate(const Params& p, const optional_params& o) co
     }
 
     const region_yolo_params& params = static_cast<const region_yolo_params&>(p);
-    const size_t expected_feature_size = params.do_softmax ? params.inputs[0].X().v * params.inputs[0].Y().v * params.inputs[0].Feature().v : params.inputs[0].Feature().v;
+    const size_t expected_feature_size =
+            params.do_softmax ? params.inputs[0].X().v * params.inputs[0].Y().v * params.inputs[0].Feature().v : params.inputs[0].Feature().v;
 
     if (expected_feature_size != params.output.Feature().v) {
         return false;
@@ -66,8 +67,7 @@ RegionYoloKernelRef::DispatchData SetDefault(const region_yolo_params& params) {
 
     const auto& input = params.inputs[0];
 
-    switch (input.GetLayout())
-    {
+    switch (input.GetLayout()) {
     case DataLayout::bfyx:
     case DataLayout::byxf: {
         uint32_t region_num = params.do_softmax ? params.num : params.mask_size;
