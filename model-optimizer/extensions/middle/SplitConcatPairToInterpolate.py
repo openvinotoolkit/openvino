@@ -1,5 +1,5 @@
 """
- Copyright (c) 2020 Intel Corporation
+ Copyright (c) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -53,7 +53,16 @@ def get_concat_after_split(split: Node) -> Optional[Node]:
 
     dest = split.out_port(0).get_destinations()[0].node
     # The transformation is applicable, only if next node is Concat.
-    return dest if dest.soft_get('type') == 'Concat' else None
+    if dest.soft_get('type') != 'Concat':
+        return
+
+    # The transformation is applicable, only if Split is a unique producer for Concat.
+    dest_inputs = [p.get_connection().get_source().node for _, p in split.in_ports().items()]
+    names_of_concat_inputs = set([n.name for n in dest_inputs])
+    if len(names_of_concat_inputs) != 1:
+        return
+
+    return dest
 
 
 def get_interpolate_pattern(split: Node) -> dict:
