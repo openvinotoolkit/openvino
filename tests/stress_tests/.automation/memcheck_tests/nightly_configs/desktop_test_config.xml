@@ -4,44 +4,44 @@
         <value>GPU</value>
     </devices>
     <models>
-        <model name="mobilenet-v2-1.4-224" source="omz" />
-        <model name="brain-tumor-segmentation-0001" source="omz" />
-        <model name="faster_rcnn_inception_resnet_v2_atrous_coco" source="omz" />
-        <model name="yolo-v2-tf" source="omz" />
-        <model name="se-inception" source="omz" />
-        <model name="efficientnet-b0" source="omz" />
-        <model name="mobilenet-v1-1.0-224-tf" source="omz" />
-        <model name="mask_rcnn_resnet101_atrous_coco" source="omz" />
-        <model name="ssd_mobilenet_v1_coco" source="omz" />
-        <model name="se-resnet-152" source="omz" />
-        <model name="octave-resnext-50-0.25" source="omz" />
-        <model name="googlenet-v3" source="omz" />
-        <model name="ssd_mobilenet_v2_coco" source="omz" />
-        <model name="alexnet" source="omz" />
-        <model name="googlenet-v4-tf" source="omz" />
-        <model name="ssd300" source="omz" />
-        <model name="vgg19" source="omz" />
-        <model name="ctdet_coco_dlav0_384" source="omz" />
-        <model name="googlenet-v1" source="omz" />
-        <model name="yolo-v3-tf" source="omz" />
-        <model name="mtcnn-o" source="omz" />
-        <model name="yolo-v1-tiny-tf" source="omz" />
-        <model name="googlenet-v1-tf" source="omz" />
-        <model name="yolo-v2-tiny-tf" source="omz" />
-        <model name="ssd512" source="omz" />
-        <model name="densenet-169" source="omz" />
-        <model name="brain-tumor-segmentation-0002" source="omz" />
-        <model name="Sphereface" source="omz" />
-        <model name="googlenet-v2" source="omz" />
-        <model name="ctdet_coco_dlav0_512" source="omz" />
-        <model name="ctpn" source="omz" />
-        <model name="i3d-rgb-tf" source="omz" />
-        <model name="mobilenet-v2" source="omz" />
-        <model name="mobilenet-ssd" source="omz" />
-        <model name="se-resnext-50" source="omz" />
-        <model name="caffenet" source="omz" />
-        <model name="mtcnn-r" source="omz" />
-        <model name="se-resnet-50" source="omz" />
-        <model name="densenet-121" source="omz" />
+        <model name="mobilenet-v2-1.4-224" precision="FP32" source="omz" />
+        <model name="brain-tumor-segmentation-0001" precision="FP32" source="omz" />
+        <model name="faster_rcnn_inception_resnet_v2_atrous_coco" precision="FP32" source="omz" />
+        <model name="yolo-v2-tf" precision="FP32" source="omz" />
+        <model name="se-inception" precision="FP32" source="omz" />
+        <model name="efficientnet-b0" precision="FP32" source="omz" />
+        <model name="mobilenet-v1-1.0-224-tf" precision="FP32" source="omz" />
+        <model name="mask_rcnn_resnet101_atrous_coco" precision="FP32" source="omz" />
+        <model name="ssd_mobilenet_v1_coco" precision="FP32" source="omz" />
+        <model name="se-resnet-152" precision="FP32" source="omz" />
+        <model name="octave-resnext-50-0.25" precision="FP32" source="omz" />
+        <model name="googlenet-v3" precision="FP32" source="omz" />
+        <model name="ssd_mobilenet_v2_coco" precision="FP32" source="omz" />
+        <model name="alexnet" precision="FP32" source="omz" />
+        <model name="googlenet-v4-tf" precision="FP32" source="omz" />
+        <model name="ssd300" precision="FP32" source="omz" />
+        <model name="vgg19" precision="FP32" source="omz" />
+        <model name="ctdet_coco_dlav0_384" precision="FP32" source="omz" />
+        <model name="googlenet-v1" precision="FP32" source="omz" />
+        <model name="yolo-v3-tf" precision="FP32" source="omz" />
+        <model name="mtcnn-o" precision="FP32" source="omz" />
+        <model name="yolo-v1-tiny-tf" precision="FP32" source="omz" />
+        <model name="googlenet-v1-tf" precision="FP32" source="omz" />
+        <model name="yolo-v2-tiny-tf" precision="FP32" source="omz" />
+        <model name="ssd512" precision="FP32" source="omz" />
+        <model name="densenet-169" precision="FP32" source="omz" />
+        <model name="brain-tumor-segmentation-0002" precision="FP32" source="omz" />
+        <model name="Sphereface" precision="FP32" source="omz" />
+        <model name="googlenet-v2" precision="FP32" source="omz" />
+        <model name="ctdet_coco_dlav0_512" precision="FP32" source="omz" />
+        <model name="ctpn" precision="FP32" source="omz" />
+        <model name="i3d-rgb-tf" precision="FP32" source="omz" />
+        <model name="mobilenet-v2" precision="FP32" source="omz" />
+        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+        <model name="se-resnext-50" precision="FP32" source="omz" />
+        <model name="caffenet" precision="FP32" source="omz" />
+        <model name="mtcnn-r" precision="FP32" source="omz" />
+        <model name="se-resnet-50" precision="FP32" source="omz" />
+        <model name="densenet-121" precision="FP32" source="omz" />
     </models>
 </attributes>

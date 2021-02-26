@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision/disable_convert_constant_folding_on_const_path.hpp"
+#include "transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp"
 
 #include <memory>
 #include <queue>

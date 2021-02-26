@@ -443,6 +443,8 @@ protected:
     cldnn::data_types output_dt;
     bool force_output_dt;
 
+    static std::vector<std::tuple<cldnn::reduce_mode,double, double, double>> perf_data;
+
     ReduceTestBase() {
         this->batch_num = testing::get<0>(GetParam());
         this->input_f = testing::get<1>(GetParam());
@@ -541,7 +543,11 @@ public:
                                     std::cout << "Reference value at batch: " << bi << " output_f: " << fi
                                               << " y: " << yi << " x: " << xi << " = " << val_ref << " Val = " << val
                                               << std::endl;
+                                
                                 EXPECT_TRUE(equal);
+
+                                if (!equal)
+                                    break;    
                             }
                         }
     }
@@ -556,8 +562,7 @@ TEST_P(general_reduce_gpu_i8_f32, base) { execute(); }
 class general_reduce_gpu_f32_f32 : public ReduceTestBase<data_types::f32, data_types::f32> {};
 TEST_P(general_reduce_gpu_f32_f32, base) { execute(); }
 
-
- INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
+INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                         general_reduce_gpu_i8_i8,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(2, 12, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::logical_or, {reduce::along_y, reduce::along_x}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, true, data_types::i8),
@@ -1611,3 +1616,173 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
         EXPECT_TRUE(are_equal(ref_data[i], output_ptr[i]));
     }
 }
+
+template <data_types InputT, data_types OutputT>
+class ReduceXYWithBigTensorTestBase : public ::testing::TestWithParam<TestParamType_general_reduce_gpu> {
+protected:
+    cldnn::engine engine = get_test_engine();
+    int batch_num, input_f, input_w, input_z, input_y, input_x;
+    cldnn::format input_format = format::any;
+    cldnn::reduce_mode reduce_mode;
+    std::vector<uint16_t> reduce_axis;
+    std::string kernel_name;
+    bool keep_dims;
+    cldnn::data_types input_dt;
+    cldnn::data_types output_dt;
+    bool force_output_dt;
+
+    static std::vector<std::tuple<cldnn::reduce_mode,double, double, double>> perf_data;
+
+    ReduceXYWithBigTensorTestBase() {
+        this->batch_num = testing::get<0>(GetParam());
+        this->input_f = testing::get<1>(GetParam());
+        this->input_w = testing::get<2>(GetParam());
+        this->input_z = testing::get<3>(GetParam());
+        this->input_y = testing::get<4>(GetParam());
+        this->input_x = testing::get<5>(GetParam());
+        this->input_format = testing::get<6>(GetParam());
+        this->reduce_mode = testing::get<7>(GetParam()); // not used
+        this->reduce_axis = testing::get<8>(GetParam());
+        this->kernel_name = testing::get<9>(GetParam());
+        this->keep_dims = testing::get<10>(GetParam());
+        this->input_dt = testing::get<11>(GetParam());
+        this->force_output_dt = testing::get<12>(GetParam());
+        this->output_dt = testing::get<13>(GetParam());
+    }
+
+public:
+    void execute() {
+
+        int input_dim = static_cast<int>(input_format.dimension());
+        cldnn::format layout_format = input_format;
+
+        if (input_dim == 4)
+            layout_format = format::bfyx;
+        else if (input_dim == 5)
+            layout_format = format::bfzyx;
+        else
+            layout_format = format::bfwzyx;
+
+        using input_t = typename input_data_type<InputT>::type;
+        using output_t = typename output_data_type<OutputT>::type;
+
+        auto input_size = tensor(batch(batch_num), feature(input_f), spatial(input_x, input_y, input_z, input_w));
+        auto input_data = generate_random_6d<input_t>(batch_num, input_f, input_x, input_y, input_z, input_w, 1, 5, 9);
+        auto input_lay = layout(input_dt, layout_format, input_size);
+        auto input_mem = memory::allocate(engine, input_lay);
+
+        {
+            auto input_ptr = input_mem.pointer<input_t>();
+            for (int fi = 0; fi < input_f; fi++)
+                for (int wi = 0; wi < input_w; wi++)
+                    for (int zi = 0; zi < input_z; zi++)
+                        for (int yi = 0; yi < input_y; yi++)
+                            for (int xi = 0; xi < input_x; xi++) {
+                                for (int bi = 0; bi < batch_num; bi++) {
+                                    tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
+                                    size_t offset = input_lay.get_linear_offset(coords);
+                                    input_ptr[offset] = input_data[bi][fi][xi][yi][zi][wi];
+                                }
+                            }
+        }
+
+        std::vector<cldnn::reduce_mode> modes {
+            cldnn::reduce_mode::max,
+            cldnn::reduce_mode::min,
+            cldnn::reduce_mode::mean,
+            // reduce_mode::prod,
+            cldnn::reduce_mode::sum,
+            cldnn::reduce_mode::logical_and,
+            cldnn::reduce_mode::logical_or,
+            // reduce_mode::sum_square,
+            cldnn::reduce_mode::l1,
+            // reduce_mode::l2,
+            // reduce_mode::log_sum,
+            cldnn::reduce_mode::log_sum_exp
+        };
+
+        for (auto& target_mode : modes)
+        {
+            auto reference_result = reference_reduce(input_data, target_mode, reduce_axis, batch_num,
+                                                    input_f, input_w, input_z, input_y,
+                                                    input_x, input_dim, keep_dims);
+
+            topology topology;
+            auto red = reduce("reduce", "input", target_mode, reduce_axis, keep_dims);
+            if (force_output_dt) {
+                red.output_data_type = output_dt;
+            }
+            topology.add(input_layout("input", input_mem.get_layout()));
+            topology.add(red);
+            build_options options;
+            options.set_option(build_option::optimize_data(true));
+            implementation_desc reduce_impl = {input_format, kernel_name};
+            options.set_option(build_option::force_implementations({{"reduce", reduce_impl}}));
+            network network(engine, topology, options);
+            network.set_input_data("input", input_mem);
+
+            network.execute();
+
+            auto out_mem = network.get_output("reduce").get_memory();
+            auto out_ptr = out_mem.pointer<output_t>();
+            auto out_lay = out_mem.get_layout();
+
+            ASSERT_EQ(out_lay.size.sizes()[0], reference_result.size());                 // b
+            ASSERT_EQ(out_lay.size.sizes()[1], reference_result[0].size());              // f
+            ASSERT_EQ(out_lay.size.spatial[3], reference_result[0][0].size());           // w
+            ASSERT_EQ(out_lay.size.spatial[2], reference_result[0][0][0].size());        // z
+            ASSERT_EQ(out_lay.size.spatial[1], reference_result[0][0][0][0].size());     // y
+            ASSERT_EQ(out_lay.size.spatial[0], reference_result[0][0][0][0][0].size());  // x
+
+            bool need_adjust_threshold = (typeid(output_t) == typeid(output_data_type<data_types::i8>::type));
+            for (size_t bi = 0; bi < reference_result.size(); bi++)
+                for (size_t fi = 0; fi < reference_result[0].size(); fi++)
+                    for (size_t wi = 0; wi < reference_result[0][0].size(); wi++)
+                        for (size_t zi = 0; zi < reference_result[0][0][0].size(); zi++)
+                            for (size_t yi = 0; yi < reference_result[0][0][0][0].size(); yi++) {
+                                for (size_t xi = 0; xi < reference_result[0][0][0][0][0].size(); xi++) {
+                                    tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, zi, wi));
+                                    size_t offset = out_lay.get_linear_offset(coords);
+                                    auto val = out_ptr[offset];
+                                    auto val_ref = static_cast<output_t>(reference_result[bi][fi][wi][zi][yi][xi]);
+                                    bool equal = need_adjust_threshold ?
+                                        are_equal(val_ref, val, 1e-1f, 1.0f, 10.0f) : are_equal(val_ref, val, 1e-1f);
+
+                                    if (!equal)
+                                        std::cout << "Reduce mode: " << (int)target_mode << ", "
+                                                << "Reference value at batch: " << bi << " output_f: " << fi
+                                                << " y: " << yi << " x: " << xi << " = " << val_ref << " Val = " << val
+                                                << std::endl;
+
+                                    EXPECT_TRUE(equal);
+
+                                    if (!equal)
+                                        break;
+                                }
+                            }
+        }
+    }
+};
+
+
+class general_reduce_gpu_xy_f32 : public ReduceXYWithBigTensorTestBase<data_types::f32, data_types::f32> {};
+TEST_P(general_reduce_gpu_xy_f32, base) { execute(); }
+
+class general_reduce_gpu_xy_i8 : public ReduceXYWithBigTensorTestBase<data_types::i8, data_types::i8> {};
+TEST_P(general_reduce_gpu_xy_i8, base) { execute(); }
+
+INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_xy_f32,
+                        general_reduce_gpu_xy_f32,
+                        ::testing::Values(
+                            TestParamType_general_reduce_gpu(1, 32, 1, 1,  18,  18, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, true, data_types::f32),
+                            TestParamType_general_reduce_gpu(1, 32, 1, 1, 256, 256, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f32, true, data_types::f32)
+                        ),
+                        general_reduce_gpu::PrintToStringParamName);
+
+INSTANTIATE_TEST_CASE_P(reduce_gpu_b_fs_yx_fsv16_xy_i8,
+                        general_reduce_gpu_xy_i8,
+                        ::testing::Values(
+                            TestParamType_general_reduce_gpu(1, 32, 1, 1,  18,  18, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, true, data_types::i8),
+                            TestParamType_general_reduce_gpu(1, 32, 1, 1, 256, 256, format::b_fs_yx_fsv16, reduce_mode::max, {reduce::along_x, reduce::along_y}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::i8, true, data_types::i8)
+                        ),
+                        general_reduce_gpu::PrintToStringParamName);
