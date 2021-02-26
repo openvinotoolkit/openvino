@@ -88,8 +88,7 @@ ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, con
             throw std::invalid_argument("Unsupported data layout for scatter nd update primitive");
             break;
         }
-    }
-    else {
+    } else {
         auto indices_rank = params.indices_rank;
         const auto& indices = params.inputs[1];
         auto indices_dims = indices.LogicalDims();
@@ -116,19 +115,51 @@ static std::string GetOutputIndex(const scatter_nd_update_params& params) {
     std::string output_index_str;
 
     const auto& output = params.output;
-   
-    output_index_str.append("const uint b_remain = dst_idx % ").append(std::to_string(output.Batch().pitch)).append(";");
-    output_index_str.append("const uint f_remain = b_remain % ").append(std::to_string(output.Feature().pitch)).append(";");
-    output_index_str.append("const uint z_remain = f_remain % ").append(std::to_string(output.Z().pitch)).append(";");
-    output_index_str.append("const uint w_remain = z_remain % ").append(std::to_string(output.W().pitch)).append(";");
-    output_index_str.append("const uint y_remain = w_remain % ").append(std::to_string(output.Y().pitch)).append(";");
 
-    output_index_str.append("const uint b = dst_idx / ").append(std::to_string(output.Batch().pitch)).append(";");
-    output_index_str.append("const uint f = b_remain / ").append(std::to_string(output.Feature().pitch)).append(";");
-    output_index_str.append("const uint z = f_remain / ").append(std::to_string(output.Z().pitch)).append(";");
-    output_index_str.append("const uint w = z_remain / ").append(std::to_string(output.W().pitch)).append(";");
-    output_index_str.append("const uint y = w_remain / ").append(std::to_string(output.Y().pitch)).append(";");
-    output_index_str.append("const uint x = y_remain;");
+    const auto& output_dim_size = output.GetDims().size();
+
+    if (output_dim_size == 4) {
+        output_index_str.append("const uint b_remain = dst_idx % ").append(std::to_string(output.Batch().pitch)).append(";");
+        output_index_str.append("const uint f_remain = b_remain % ").append(std::to_string(output.Feature().pitch)).append(";");
+        output_index_str.append("const uint y_remain = f_remain % ").append(std::to_string(output.Y().pitch)).append(";");
+
+        output_index_str.append("const uint b = dst_idx / ").append(std::to_string(output.Batch().pitch)).append(";");
+        output_index_str.append("const uint f = b_remain / ").append(std::to_string(output.Feature().pitch)).append(";");
+        output_index_str.append("const uint y = f_remain / ").append(std::to_string(output.Y().pitch)).append(";");
+        output_index_str.append("const uint x = y_remain;");
+
+        output_index_str.append("const uint w = 0;");
+        output_index_str.append("const uint z = 0;");
+    } else if (output_dim_size == 5) {
+        output_index_str.append("const uint b_remain = dst_idx % ").append(std::to_string(output.Batch().pitch)).append(";");
+        output_index_str.append("const uint f_remain = b_remain % ").append(std::to_string(output.Feature().pitch)).append(";");
+        output_index_str.append("const uint z_remain = f_remain % ").append(std::to_string(output.Z().pitch)).append(";");
+        output_index_str.append("const uint y_remain = z_remain % ").append(std::to_string(output.Y().pitch)).append(";");
+
+        output_index_str.append("const uint b = dst_idx / ").append(std::to_string(output.Batch().pitch)).append(";");
+        output_index_str.append("const uint f = b_remain / ").append(std::to_string(output.Feature().pitch)).append(";");
+        output_index_str.append("const uint z = f_remain / ").append(std::to_string(output.Z().pitch)).append(";");
+        output_index_str.append("const uint y = z_remain / ").append(std::to_string(output.Y().pitch)).append(";");
+        output_index_str.append("const uint x = y_remain;");
+
+        output_index_str.append("const uint w = 0;");
+    } else if (output_dim_size == 6) {
+        output_index_str.append("const uint b_remain = dst_idx % ").append(std::to_string(output.Batch().pitch)).append(";");
+        output_index_str.append("const uint f_remain = b_remain % ").append(std::to_string(output.Feature().pitch)).append(";");
+        output_index_str.append("const uint w_remain = f_remain % ").append(std::to_string(output.W().pitch)).append(";");
+        output_index_str.append("const uint z_remain = w_remain % ").append(std::to_string(output.Z().pitch)).append(";");
+        output_index_str.append("const uint y_remain = z_remain % ").append(std::to_string(output.Y().pitch)).append(";");
+
+        output_index_str.append("const uint b = dst_idx / ").append(std::to_string(output.Batch().pitch)).append(";");
+        output_index_str.append("const uint f = b_remain / ").append(std::to_string(output.Feature().pitch)).append(";");
+        output_index_str.append("const uint w = f_remain / ").append(std::to_string(output.W().pitch)).append(";");
+        output_index_str.append("const uint z = w_remain / ").append(std::to_string(output.Z().pitch)).append(";");
+        output_index_str.append("const uint y = z_remain / ").append(std::to_string(output.Y().pitch)).append(";");
+        output_index_str.append("const uint x = y_remain;");
+    }
+
+
+
 
     return output_index_str;
 }
