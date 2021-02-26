@@ -31,7 +31,7 @@ constexpr NodeTypeInfo op::SquaredDifference::type_info;
 
 op::SquaredDifference::SquaredDifference()
     : FusedOp()
-    , m_autobroadcast()
+    , m_autobroadcast(AutoBroadcastType::NUMPY)
 {
 }
 
