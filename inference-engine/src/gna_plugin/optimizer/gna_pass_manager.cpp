@@ -202,6 +202,16 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
 
         auto prevLayer = PrevFunctionalLayer(l, 0);
 
+        // No need to instert identity activation
+        // when activation was already there before pooling
+        // in case of CNN -> Activation -> Pooling order
+        if (LayerInfo(prevLayer).isPooling()) {
+            auto prevPrevLayer = PrevFunctionalLayer(prevLayer, 0);
+            if (LayerInfo(prevPrevLayer).isActivation()) {
+                return prevLayers;
+            }
+        }
+
         if (!LayerInfo(prevLayer).has32BOutput())
             return prevLayers;
 
@@ -306,6 +316,13 @@ void ForbidActivationFusingPass::run() {
     }
 }
 
+namespace {
+    template<class T>
+    bool is2D(T&& vec) {
+        return vec.size() >= 2 && vec[0] > 1 && vec[1] > 1;
+    }
+} // namespace
+
 void ReorderMaxPoolPass::run() {
     // detecting following pattern
     // conv->relu->maxpooling
@@ -313,6 +330,10 @@ void ReorderMaxPoolPass::run() {
     for (auto & l : *pLayers) {
         auto pool = LayerInfo(l);
         if (!pool.isMaxPooling()) continue;
+
+        // don't reorder if pooling is 2D for CNN2D
+        auto pooling = dynamic_cast<PoolingLayer*>(l.get() );
+        if (pooling == nullptr || (is2D(pooling->_kernel) || is2D(pooling->_stride))) continue;
 
         // checking prev layer type
         auto activation = LayerInfo(CNNNetPrevLayer(l));

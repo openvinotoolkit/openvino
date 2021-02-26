@@ -67,6 +67,14 @@ void ConvolutionReluSequenceTest::SetUp() {
                     ngPrc, single.kernelSize, single.strides, single.padBegin, single.padEnd,
                     dilation, ngraph::op::PadType::EXPLICIT, single.numOutChannels, addBiases, filter_weights, biases));
         lastOutputs = std::make_shared<ngraph::opset1::Relu>(conv);
+        if (single.poolingWindow.size() == 2 &&
+                (single.poolingWindow[0] != 1 ||
+                 single.poolingWindow[1] != 1)) {
+            lastOutputs = std::make_shared<ngraph::opset3::MaxPool>(lastOutputs, single.poolingStride,
+                ngraph::Shape{ 0, 0 },
+                ngraph::Shape{ 0, 0 },
+                single.poolingWindow);
+        }
         inputChannels = single.numOutChannels;
     }
 

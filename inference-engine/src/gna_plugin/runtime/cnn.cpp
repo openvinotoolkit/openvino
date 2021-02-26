@@ -45,36 +45,38 @@ void CNNFilter32(intel_dnn_component_t *component) {
     }
 }
 
-void CNNMaxPool(intel_dnn_component_t *component, intel_dnn_number_type_t number_type) {
+void CNNMaxPool(intel_dnn_component_t *component, intel_dnn_number_type_t number_type, const bool sumPoolingOverRide) {
+    const uint32_t num_inputs = component->op.maxpool.inCHW[0] * component->op.maxpool.inCHW[1] * component->op.maxpool.inCHW[2];
+    const uint32_t in_c = component->op.maxpool.inCHW[0];
+    // TODO: issue 50379 find out why looks like CNN1D pooling uses stride == window only
+    const uint32_t num_pool_size = component->op.maxpool.poolingWindowXY[0];
+    const uint32_t num_pool_step = component->op.maxpool.poolingWindowXY[0];
+    const uint32_t num_rows_in = num_inputs / in_c;
+
     if (number_type == kDnnInt) {
         int32_t *ptr_inputs = reinterpret_cast<int32_t *>(component->ptr_inputs);
         int32_t *ptr_outputs = reinterpret_cast<int32_t *>(component->ptr_outputs);
-        uint32_t num_inputs = component->num_columns_in;
-        uint32_t num_columns = component->op.maxpool.num_inputs_stride;
-        uint32_t num_pool_size = component->op.maxpool.num_inputs;
-        uint32_t num_pool_step = component->op.maxpool.num_inputs_step;
-        uint32_t num_rows_in = num_inputs / component->op.maxpool.num_inputs_stride;
 
-        for (uint32_t i = 0; i < num_columns; i++) {
+        for (uint32_t i = 0; i < in_c; i++) {
             int32_t m = 0;
-            if (component->op.maxpool.do_sum_not_max) {
+            if (sumPoolingOverRide) {
                 uint32_t num_saturate = 0;
                 for (uint32_t j = 0; j < num_rows_in; j += num_pool_step) {
                     int64_t sum = 0;
                     uint32_t num_end = (j + num_pool_size > num_rows_in) ? num_rows_in : j + num_pool_size;
                     for (uint32_t k = j; k < num_end; k++) {
-                        sum += ptr_inputs[k * num_columns + i];
+                        sum += ptr_inputs[k * in_c + i];
                     }
                     constexpr int32_t sum_max_threshold = std::numeric_limits<int32_t>::max();
                     constexpr int32_t sum_min_threshold = std::numeric_limits<int32_t>::min();
                     if (sum > sum_max_threshold) {
-                        ptr_outputs[m * num_columns + i] = sum_max_threshold;
+                        ptr_outputs[m * in_c + i] = sum_max_threshold;
                         num_saturate++;
                     } else if (sum < sum_min_threshold) {
-                        ptr_outputs[m * num_columns + i] = sum_min_threshold;
+                        ptr_outputs[m * in_c + i] = sum_min_threshold;
                         num_saturate++;
                     } else {
-                        ptr_outputs[m * num_columns + i] = static_cast<int32_t>(sum);
+                        ptr_outputs[m * in_c + i] = static_cast<int32_t>(sum);
                     }
                     m++;
                 }
@@ -86,9 +88,9 @@ void CNNMaxPool(intel_dnn_component_t *component, intel_dnn_number_type_t number
                     int32_t max = INT32_MIN;
                     uint32_t num_end = (j + num_pool_size > num_rows_in) ? num_rows_in : j + num_pool_size;
                     for (uint32_t k = j; k < num_end; k++) {
-                        if (ptr_inputs[k * num_columns + i] > max) max = ptr_inputs[k * num_columns + i];
+                        if (ptr_inputs[k * in_c + i] > max) max = ptr_inputs[k * in_c + i];
                     }
-                    ptr_outputs[m * num_columns + i] = max;
+                    ptr_outputs[m * in_c + i] = max;
                     m++;
                 }
             }
@@ -96,22 +98,17 @@ void CNNMaxPool(intel_dnn_component_t *component, intel_dnn_number_type_t number
     } else {
         float *ptr_inputs = reinterpret_cast<float *>(component->ptr_inputs);
         float *ptr_outputs = reinterpret_cast<float *>(component->ptr_outputs);
-        uint32_t num_inputs = component->num_columns_in;
-        uint32_t num_columns = component->op.maxpool.num_inputs_stride;
-        uint32_t num_pool_size = component->op.maxpool.num_inputs;
-        uint32_t num_pool_step = component->op.maxpool.num_inputs_step;
-        uint32_t num_rows_in = num_inputs / component->op.maxpool.num_inputs_stride;
 
-        for (uint32_t i = 0; i < num_columns; i++) {
+        for (uint32_t i = 0; i < in_c; i++) {
             int32_t m = 0;
-            if (component->op.maxpool.do_sum_not_max) {
+            if (sumPoolingOverRide) {
                 for (uint32_t j = 0; j < num_rows_in; j += num_pool_step) {
                     float sum = 0.0;
                     uint32_t num_end = (j + num_pool_size > num_rows_in) ? num_rows_in : j + num_pool_size;
                     for (uint32_t k = j; k < num_end; k++) {
-                        sum += ptr_inputs[k * num_columns + i];
+                        sum += ptr_inputs[k * in_c + i];
                     }
-                    ptr_outputs[m * num_columns + i] = sum;
+                    ptr_outputs[m * in_c + i] = sum;
                     m++;
                 }
             } else {
@@ -119,9 +116,9 @@ void CNNMaxPool(intel_dnn_component_t *component, intel_dnn_number_type_t number
                     float max = -1e20f;
                     uint32_t num_end = (j + num_pool_size > num_rows_in) ? num_rows_in : j + num_pool_size;
                     for (uint32_t k = j; k < num_end; k++) {
-                        if (ptr_inputs[k * num_columns + i] > max) max = ptr_inputs[k * num_columns + i];
+                        if (ptr_inputs[k * in_c + i] > max) max = ptr_inputs[k * in_c + i];
                     }
-                    ptr_outputs[m * num_columns + i] = max;
+                    ptr_outputs[m * in_c + i] = max;
                     m++;
                 }
             }

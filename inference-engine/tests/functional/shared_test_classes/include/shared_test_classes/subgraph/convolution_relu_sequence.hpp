@@ -22,6 +22,8 @@ typedef struct {
     std::vector<ptrdiff_t> padBegin;
     std::vector<ptrdiff_t> padEnd;
     size_t numOutChannels;
+    InferenceEngine::SizeVector poolingWindow;
+    InferenceEngine::SizeVector poolingStride;
 } convReluSpecificParams;
 
 typedef struct {
