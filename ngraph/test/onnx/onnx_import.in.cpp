@@ -3818,7 +3818,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v6_broadcast_axes_1_2)
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
     test_case.add_expected_output<float>(
-        shape, {280.f, 280.f, 210.f, 210.f, 168.f, 168.f, 140.f, 140.f, 120.f, 120.f, 105.f, 105.f});
+        shape,
+        {280.f, 280.f, 210.f, 210.f, 168.f, 168.f, 140.f, 140.f, 120.f, 120.f, 105.f, 105.f});
     test_case.run();
 }
 
