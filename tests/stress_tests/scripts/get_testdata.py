@@ -157,6 +157,7 @@ def main():
             out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
         except subprocess.CalledProcessError as exc:
             log.warning(exc.output)
+            continue
 
         model_info = json.loads(out)[0]
 
