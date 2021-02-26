@@ -50,17 +50,18 @@ typedef std::tuple<
 class MultiplyTransformation : public LayerTransformation, public testing::WithParamInterface<MultiplyTransformationParams> {
 public:
     void SetUp() override {
+        const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::Shape shape = std::get<1>(GetParam());
+        //const bool broadcast = std::get<2>(GetParam());
         const MultiplyTransformationTestValues testParams = std::get<3>(GetParam());
 
-        actualFunction = MultiplyFunction::get(shape, testParams.actual);
-
+        actualFunction = MultiplyFunction::get(precision, shape, testParams.actual);
         SimpleLowPrecisionTransformer transform;
         transform.add<low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(
             low_precision::LayerTransformation::Params(testParams.transformationParams));
         transform.transform(actualFunction);
 
-        referenceFunction = MultiplyFunction::get(shape, testParams.expected);
+        referenceFunction = MultiplyFunction::get(precision, shape, testParams.expected);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
@@ -88,7 +89,7 @@ TEST_P(MultiplyTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    //ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<ngraph::Shape> shapes = {
@@ -101,40 +102,40 @@ const std::vector<bool> broadcastValues = {
 };
 
 const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
-    // U8
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 3.f }, { 7.f }}
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 3.f }, { 7.f }}
-            },
-            false
-        }
-    },
+//    // U8
+//    {
+//        LayerTransformation::createParamsU8I8(),
+//        {
+//            {
+//                { 1, 3, 8, 16 },
+//                {},
+//                ngraph::element::u8,
+//                {ngraph::element::f32, { 2.f }, { 10.f }}
+//            },
+//            {
+//                { 1, 3, 8, 16 },
+//                {},
+//                ngraph::element::u8,
+//                {ngraph::element::f32, { 3.f }, { 7.f }}
+//            },
+//            false
+//        },
+//        {
+//            {
+//                { 1, 3, 8, 16 },
+//                {},
+//                ngraph::element::u8,
+//                {ngraph::element::f32, { 2.f }, { 10.f }}
+//            },
+//            {
+//                { 1, 3, 8, 16 },
+//                {},
+//                ngraph::element::u8,
+//                {ngraph::element::f32, { 3.f }, { 7.f }}
+//            },
+//            false
+//        }
+//    },
 
     {
         LayerTransformation::createParamsU8I8(),

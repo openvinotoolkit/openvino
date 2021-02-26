@@ -96,7 +96,7 @@ extensions/front/caffe/input_ext.py
 extensions/front/caffe/interp_ext.py
 extensions/front/caffe/lrn_ext.py
 extensions/front/caffe/mvn_ext.py
-extensions/front/caffe/MVNNormalizer.py
+extensions/front/caffe/MVNCaffeToMVN.py
 extensions/front/caffe/normalize_ext.py
 extensions/front/caffe/permute_ext.py
 extensions/front/caffe/pooling_ext.py
@@ -294,6 +294,7 @@ extensions/front/onnx/mask_rcnn.json
 extensions/front/onnx/mask_rcnn_conversion.py
 extensions/front/onnx/matmul_ext.py
 extensions/front/onnx/mean_variance_normalization_ext.py
+extensions/front/onnx/MvnOnnxToMvn.py
 extensions/front/onnx/non_max_suppression_ext.py
 extensions/front/onnx/non_zero_ext.py
 extensions/front/onnx/normalize_ext.py
@@ -638,6 +639,7 @@ extensions/ops/box_nms.py
 extensions/ops/bucketize.py
 extensions/ops/Cast.py
 extensions/ops/constant_fill.py
+extensions/ops/ConvertLike.py
 extensions/ops/copyop.py
 extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py
@@ -769,6 +771,7 @@ mo/__init__.py
 mo/back/__init__.py
 mo/back/ie_ir_ver_2/__init__.py
 mo/back/ie_ir_ver_2/emitter.py
+mo/back/offline_transformations.py
 mo/back/replacement.py
 mo/front/__init__.py
 mo/front/caffe/__init__.py
@@ -964,11 +967,14 @@ mo/pipeline/common.py
 mo/pipeline/unified.py
 mo/utils/__init__.py
 mo/utils/broadcasting.py
+mo/utils/check_ie_bindings.py
 mo/utils/class_registration.py
 mo/utils/cli_parser.py
 mo/utils/custom_replacement_config.py
 mo/utils/dsu.py
 mo/utils/error.py
+mo/utils/extract_release_version.py
+mo/utils/find_ie_version.py
 mo/utils/find_inputs.py
 mo/utils/get_ov_update_message.py
 mo/utils/graph.py

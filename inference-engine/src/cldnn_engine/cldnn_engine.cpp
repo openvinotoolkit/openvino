@@ -29,6 +29,7 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
@@ -64,7 +65,9 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
-#include <low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <low_precision/pull_reshape_through_dequantization.hpp>
+#include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
 #include <low_precision/strided_slice.hpp>
@@ -322,10 +325,15 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         if (enableInt8) {
             OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
             using namespace ngraph::pass::low_precision;
-            ngraph::pass::Manager conversion_manager;
-            // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-            conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
-            conversion_manager.run_passes(nGraphFunc);
+
+            ngraph::pass::Manager manager;
+            auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
+            const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
+            lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
+            lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
+            lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+            manager.run_passes(nGraphFunc);
+
             auto params = LayerTransformation::Params(true,                                                        // updatePrecisions
                                                       LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
                                                       LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
