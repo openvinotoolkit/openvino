@@ -586,7 +586,7 @@ protected:
 
     bool isUninitTensorDesc(const InferenceEngine::TensorDesc& desc) const;
     bool isInitConfig(const InferenceEngine::LayerConfig& config) const;
-    virtual void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority);
+    void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     virtual bool canBeInPlace() const;
 
     virtual const std::vector<impl_desc_type>& getPrimitivesPriority();
