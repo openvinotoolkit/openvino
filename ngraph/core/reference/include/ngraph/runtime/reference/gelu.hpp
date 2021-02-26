@@ -43,8 +43,7 @@ namespace ngraph
                     for (size_t i = 0; i < count; i++)
                     {
                         auto& x = arg[i];
-                        out[i] = 0.5 * x *
-                                (1.0 + sqpi * (x + 0.044715 * std::pow(x, 3)));
+                        out[i] = 0.5 * x * (1.0 + sqpi * (x + 0.044715 * std::pow(x, 3)));
                     }
                 }
             }
