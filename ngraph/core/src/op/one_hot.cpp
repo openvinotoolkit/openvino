@@ -163,7 +163,7 @@ namespace one_hot
         }
         return rc;
     }
-}
+} // namespace one_hot
 
 bool op::v1::OneHot::evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) const
