@@ -43,8 +43,7 @@ namespace cldnn {
 namespace gpu {
 
 namespace {
-int driver_dev_id()
-{
+int driver_dev_id() {
     const std::vector<int> unused_ids = {
         0x4905, 0x4906, 0x4907, 0x4908
     };
@@ -61,9 +60,9 @@ int driver_dev_id()
         devinfo_data.cbSize = sizeof(devinfo_data);
 
         for (DWORD dev_idx = 0; SetupDiEnumDeviceInfo(device_info_set, dev_idx, &devinfo_data); dev_idx++) {
-            const size_t buf_size = 512;
-            char buf[buf_size];
-            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, buf_size, NULL)) {
+            const size_t kBufSize = 512;
+            char buf[kBufSize];
+            if (!SetupDiGetDeviceInstanceIdA(device_info_set, &devinfo_data, buf, kBufSize, NULL)) {
                 continue;
             }
 
@@ -84,16 +83,13 @@ int driver_dev_id()
     {
         std::string dev_base{ "/sys/devices/pci0000:00/0000:00:02.0/" };
         std::ifstream ifs(dev_base + "vendor");
-        if (ifs.good())
-        {
+        if (ifs.good()) {
             int ven_id;
             ifs >> std::hex >> ven_id;
             ifs.close();
-            if (ven_id == 0x8086)
-            {
+            if (ven_id == 0x8086) {
                 ifs.open(dev_base + "device");
-                if (ifs.good())
-                {
+                if (ifs.good()) {
                     int res = 0;
                     ifs >> std::hex >> res;
                     result.push_back(res);
@@ -165,7 +161,7 @@ bool is_local_block_io_supported(const cl::Device& device) {
             "    dst[lid] = read.s0 + 1;"
             "}";
         cl::Program program(ctx, kernel_code);
-        if (program.build({ device }, "-Dcl_intel_subgroup_local_block_io") != CL_SUCCESS)
+        if (program.build(device, "-Dcl_intel_subgroup_local_block_io") != CL_SUCCESS)
             return false;
         cl::Buffer buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * 8);
         cl::Kernel kernel(program, "is_local_block_io_supported");

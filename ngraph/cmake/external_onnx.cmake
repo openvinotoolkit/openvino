@@ -20,21 +20,15 @@ include(FetchContent)
 # ONNX.proto definition version
 #------------------------------------------------------------------------------
 
-set(ONNX_VERSION 1.7.0)
+set(ONNX_VERSION 1.8.1)
 
 #------------------------------------------------------------------------------
 # Download and install libonnx ...
 #------------------------------------------------------------------------------
 
-# Since this file is going to be modifying CMAKE_CXX_FLAGS we need to preserve
-# it so we won't overwrite the caller's CMAKE_CXX_FLAGS
-set(PUSH_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-
 set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
 set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
-
-set(CMAKE_CXX_FLAGS ${CMAKE_ORIGINAL_CXX_FLAGS})
 
 FetchContent_Declare(
     ext_onnx
@@ -48,14 +42,10 @@ macro(onnx_set_target_properties)
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         target_compile_options(onnx PRIVATE /WX-)
-    else()
-        target_compile_options(onnx PRIVATE -Wno-unused-parameter)
+    elseif(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+        target_compile_options(onnx PRIVATE -Wno-unused-variable -Wno-unused-parameter)
+        target_compile_options(onnx_proto PRIVATE -Wno-unused-variable)
     endif()
-
-    set_target_properties(onnx onnx_proto PROPERTIES
-                          CXX_VISIBILITY_PRESET default
-                          C_VISIBILITY_PRESET default
-                          VISIBILITY_INLINES_HIDDEN OFF)
 endmacro()
 
 FetchContent_GetProperties(ext_onnx)
@@ -76,6 +66,3 @@ endif()
 
 set(ONNX_INCLUDE_DIR ${ext_onnx_SOURCE_DIR})
 set(ONNX_PROTO_INCLUDE_DIR ${ext_onnx_BINARY_DIR})
-
-# Now make sure we restore the original CMAKE_CXX_FLAGS for the caller
-set(CMAKE_CXX_FLAGS ${PUSH_CMAKE_CXX_FLAGS})

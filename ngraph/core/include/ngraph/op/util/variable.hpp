@@ -44,4 +44,19 @@ namespace ngraph
     private:
         VariableInfo m_info;
     };
+
+    template <>
+    class NGRAPH_API AttributeAdapter<std::shared_ptr<Variable>>
+        : public DirectValueAccessor<std::shared_ptr<Variable>>
+    {
+    public:
+        explicit AttributeAdapter(std::shared_ptr<Variable>& value)
+            : DirectValueAccessor<std::shared_ptr<Variable>>(value)
+        {
+        }
+
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<std::shared_ptr<Variable>>",
+                                                    0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
 }

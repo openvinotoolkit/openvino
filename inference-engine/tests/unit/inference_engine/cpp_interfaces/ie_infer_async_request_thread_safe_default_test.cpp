@@ -21,18 +21,6 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-class TestAsyncInferRequestThreadSafeDefault : public AsyncInferRequestThreadSafeDefault {
-public:
-    TestAsyncInferRequestThreadSafeDefault(const InferRequestInternal::Ptr& request,
-                                           const ITaskExecutor::Ptr&        taskExecutor,
-                                           const ITaskExecutor::Ptr&        callbackExecutor)
-            : AsyncInferRequestThreadSafeDefault(request, taskExecutor, callbackExecutor) {}
-
-    void setRequestBusy() {
-        AsyncInferRequestThreadSafeDefault::setIsRequestBusy(true);
-    }
-};
-
 struct DeferedExecutor : public ITaskExecutor {
     using Ptr = std::shared_ptr<DeferedExecutor>;
     DeferedExecutor() = default;
@@ -61,7 +49,7 @@ struct DeferedExecutor : public ITaskExecutor {
 
 class InferRequestThreadSafeDefaultTests : public ::testing::Test {
 protected:
-    shared_ptr<TestAsyncInferRequestThreadSafeDefault> testRequest;
+    shared_ptr<AsyncInferRequestThreadSafeDefault> testRequest;
     ResponseDesc dsc;
 
     shared_ptr<MockInferRequestInternal> mockInferRequestInternal;
@@ -76,7 +64,7 @@ protected:
         OutputsDataMap outputsInfo;
         mockTaskExecutor = make_shared<MockTaskExecutor>();
         mockInferRequestInternal = make_shared<MockInferRequestInternal>(inputsInfo, outputsInfo);
-        testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, mockTaskExecutor, mockTaskExecutor);
+        testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, mockTaskExecutor, mockTaskExecutor);
     }
 
     bool _doesThrowExceptionWithMessage(std::function<void()> func, string refError) {
@@ -93,7 +81,7 @@ protected:
 // StartAsync
 TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnStartAsync) {
     auto taskExecutor = std::make_shared<DeferedExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
     ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() { testRequest->StartAsync(); }, REQUEST_BUSY_str));
@@ -101,19 +89,21 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnStartAsync) {
 }
 
 TEST_F(InferRequestThreadSafeDefaultTests, canResetBusyStatusIfStartAsyncFails) {
-    MockAsyncInferRequestDefault mockAsync(mockInferRequestInternal, mockTaskExecutor, mockTaskExecutor);
-    EXPECT_CALL(mockAsync, StartAsync_ThreadUnsafe()).Times(2)
+    auto taskExecutor = std::make_shared<DeferedExecutor>();
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    EXPECT_CALL(*mockInferRequestInternal, checkBlobs()).Times(2)
             .WillOnce(Throw(InferenceEngineException(__FILE__, __LINE__) << "compare"))
             .WillOnce(Return());
 
-    ASSERT_TRUE(_doesThrowExceptionWithMessage([&]() { mockAsync.StartAsync(); }, "compare"));
-    ASSERT_NO_THROW(mockAsync.StartAsync());
+    ASSERT_TRUE(_doesThrowExceptionWithMessage([&]() { testRequest->StartAsync(); }, "compare"));
+    ASSERT_NO_THROW(testRequest->StartAsync());
+    taskExecutor->executeAll();
 }
 
 // GetUserData
 TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnGetUserData) {
     auto taskExecutor = std::make_shared<DeferedExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
     ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() { testRequest->GetUserData(nullptr); }, REQUEST_BUSY_str));
@@ -123,7 +113,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnGetUserData) {
 // SetUserData
 TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnSetUserData) {
     auto taskExecutor = std::make_shared<DeferedExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
     ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() { testRequest->SetUserData(nullptr); }, REQUEST_BUSY_str));
@@ -132,7 +122,6 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnSetUserData) {
 
 // Wait
 TEST_F(InferRequestThreadSafeDefaultTests, returnInferNotStartedOnWait) {
-    testRequest->setRequestBusy();
     int64_t ms = 0;
     StatusCode actual = testRequest->Wait(ms);
     ASSERT_EQ(INFER_NOT_STARTED, actual);
@@ -141,7 +130,7 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnInferNotStartedOnWait) {
 // Infer
 TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnInfer) {
     auto taskExecutor = std::make_shared<DeferedExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
     ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() { testRequest->Infer(); }, REQUEST_BUSY_str));
@@ -149,24 +138,24 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnInfer) {
 }
 
 TEST_F(InferRequestThreadSafeDefaultTests, canResetBusyStatusIfInferFails) {
-    auto taskExecutor = std::make_shared<CPUStreamsExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    auto taskExecutor = std::make_shared<DeferedExecutor>();
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(2)
             .WillOnce(Throw(InferenceEngineException(__FILE__, __LINE__) << "compare"))
             .WillOnce(Return());
     ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() { testRequest->Infer(); }, "compare"));
     ASSERT_NO_THROW(testRequest->Infer());
+    taskExecutor->executeAll();
 }
 
 // GetPerformanceCounts
 TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnGetPerformanceCounts) {
     auto taskExecutor = std::make_shared<DeferedExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
     ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() {
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> info;
-        testRequest->GetPerformanceCounts(info);
+        auto info = testRequest->GetPerformanceCounts();
     }, REQUEST_BUSY_str));
     taskExecutor->executeAll();
 }
@@ -174,12 +163,11 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnGetPerformanceCoun
 // GetBlob
 TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnGetBlob) {
     auto taskExecutor = std::make_shared<DeferedExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
     ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() {
-        Blob::Ptr data;
-        testRequest->GetBlob(nullptr, data);
+        auto data = testRequest->GetBlob({});
     }, REQUEST_BUSY_str));
     taskExecutor->executeAll();
 }
@@ -187,17 +175,17 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnGetBlob) {
 // SetBlob
 TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnSetBlob) {
     auto taskExecutor = std::make_shared<DeferedExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
-    ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() { testRequest->SetBlob(nullptr, nullptr); }, REQUEST_BUSY_str));
+    ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() { testRequest->SetBlob({}, {}); }, REQUEST_BUSY_str));
     taskExecutor->executeAll();
 }
 
 // SetCompletionCallback
 TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnSetCompletionCallback) {
     auto taskExecutor = std::make_shared<DeferedExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     EXPECT_CALL(*mockInferRequestInternal, InferImpl()).Times(1).WillOnce(Return());
     ASSERT_NO_THROW(testRequest->StartAsync());
     ASSERT_TRUE(_doesThrowExceptionWithMessage([this]() { testRequest->SetCompletionCallback(nullptr); },
@@ -207,11 +195,10 @@ TEST_F(InferRequestThreadSafeDefaultTests, returnRequestBusyOnSetCompletionCallb
 
 TEST_F(InferRequestThreadSafeDefaultTests, callbackTakesOKIfAsyncRequestWasOK) {
     auto taskExecutor = std::make_shared<CPUStreamsExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
 
     IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferRequestBase<TestAsyncInferRequestThreadSafeDefault>(
-            testRequest), [](IInferRequest *p) { p->Release(); });
+    asyncRequest.reset(new InferRequestBase(testRequest), [](IInferRequest *p) { p->Release(); });
     testRequest->SetPointerToPublicInterface(asyncRequest);
 
     testRequest->SetCompletionCallback([](InferenceEngine::IInferRequest::Ptr request, StatusCode status) {
@@ -225,10 +212,9 @@ TEST_F(InferRequestThreadSafeDefaultTests, callbackTakesOKIfAsyncRequestWasOK) {
 
 TEST_F(InferRequestThreadSafeDefaultTests, callbackIsCalledIfAsyncRequestFailed) {
     auto taskExecutor = std::make_shared<CPUStreamsExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferRequestBase<TestAsyncInferRequestThreadSafeDefault>(
-            testRequest), [](IInferRequest *p) { p->Release(); });
+    asyncRequest.reset(new InferRequestBase(testRequest), [](IInferRequest *p) { p->Release(); });
     testRequest->SetPointerToPublicInterface(asyncRequest);
 
     bool wasCalled = false;
@@ -248,10 +234,9 @@ TEST_F(InferRequestThreadSafeDefaultTests, callbackIsCalledIfAsyncRequestFailed)
 
 TEST_F(InferRequestThreadSafeDefaultTests, canCatchExceptionIfAsyncRequestFailedAndNoCallback) {
     auto taskExecutor = std::make_shared<CPUStreamsExecutor>();
-    testRequest = make_shared<TestAsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
+    testRequest = make_shared<AsyncInferRequestThreadSafeDefault>(mockInferRequestInternal, taskExecutor, taskExecutor);
     IInferRequest::Ptr asyncRequest;
-    asyncRequest.reset(new InferRequestBase<TestAsyncInferRequestThreadSafeDefault>(
-            testRequest), [](IInferRequest *p) { p->Release(); });
+    asyncRequest.reset(new InferRequestBase(testRequest), [](IInferRequest *p) { p->Release(); });
     testRequest->SetPointerToPublicInterface(asyncRequest);
 
     EXPECT_CALL(*mockInferRequestInternal.get(), InferImpl()).WillOnce(Throw(std::exception()));

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,10 @@ struct DnnActivation {
             float offset;
         } pow;
         struct {
+            float low;
+            float high;
+        } clamp;
+        struct {
             int32_t levels;
             // if input is per-channel quantization - input pointers contains per-channel ranges
             int8_t  inputPerChannel;
@@ -71,25 +75,7 @@ struct DnnActivation {
 
 static_assert(std::is_trivial<DnnActivation>::value, "DnnActivation is not trival type");
 
-static const char *intel_dnn_activation_name[kActNumType] = {
-        "kActNone",
-        "kActSigmoid",
-        "kActTanh",
-        "kActRelu",
-        "kActLeakyRelu",
-        "kActIdentity",
-        "kActKaldiLstmClipping",
-        "kActExp",
-        "kActLog",
-        "kActSign",
-        "kActAbs",
-        "kActNegLog",
-        "kActNegHalfLog",
-        "kActCustom",
-        "kActSoftSign",
-        "kActPow",
-        "kActFakeQuantize"
-};
+extern const char *intel_dnn_activation_name[kActNumType];
 
 typedef enum DnnSoftmaxType {
     kSoftmaxNone,
@@ -99,12 +85,7 @@ typedef enum DnnSoftmaxType {
     kSoftmaxNumType
 } intel_dnn_softmax_type_t;
 
-static const char *intel_dnn_softmax_name[kSoftmaxNumType] = {
-        "kSoftmaxNone",
-        "kSoftmaxKaldiSumGroup",
-        "kSoftmaxKaldiApplyLog",
-        "kSoftmaxGoogle"
-};
+extern const char *intel_dnn_softmax_name[kSoftmaxNumType];
 
 typedef enum {
     kDnnUnknownOrientation = 100,
@@ -128,19 +109,7 @@ typedef enum {
     kDnnNumOp
 } intel_dnn_operation_t;
 
-static const char* intel_dnn_operation_name[kDnnNumOp] = {
-        "kDnnNullOp",
-        "kDnnAffineOp",
-        "kDnnDiagonalOp",
-        "kDnnConvolutional1dOp",
-        "kDnnConvolutional2dOp",
-        "kDnnPiecewiselinearOp",
-        "kDnnMaxPoolOp",
-        "kDnnRecurrentOp",
-        "kDnnInterleaveOp",
-        "kDnnDeinterleaveOp",
-        "kDnnCopyOp"
-};
+extern const char* intel_dnn_operation_name[kDnnNumOp];
 
 typedef enum {
     kDnnMacroOpNone,
@@ -149,11 +118,7 @@ typedef enum {
     kDnnNumMacroOp
 } intel_dnn_macro_operation_t;
 
-static const char *intel_dnn_macro_operation_name[kDnnNumMacroOp] = {
-        "kDnnMacroOpNone",
-        "kDnnMacroOpLstm",
-        "kDnnMacroOpBiLstm"
-};
+extern const char *intel_dnn_macro_operation_name[kDnnNumMacroOp];
 
 typedef enum {
     kDnnFloat,
@@ -161,10 +126,7 @@ typedef enum {
     kDnnNumNumberType
 } intel_dnn_number_type_t;
 
-static const char *intel_dnn_number_type_name[kDnnNumNumberType] = {
-        "kDnnFloat",
-        "kDnnInt"
-};
+extern const char *intel_dnn_number_type_name[kDnnNumNumberType];
 
 typedef struct {
     uint32_t num_bytes_per_weight;
@@ -190,6 +152,7 @@ typedef struct {
 
 typedef struct {
     std::array<uint32_t, 2> convStride;
+    std::array<uint32_t, 2> zeroPadding;
     float weight_scale_factor;
     void* ptr_filters;     // filters stored one after the other
     void* ptr_biases;

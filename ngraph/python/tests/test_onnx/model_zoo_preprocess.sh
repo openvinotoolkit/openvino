@@ -2,7 +2,7 @@
 set -e
 
 # provide ONNX Model Zoo commit hash ID to update:
-ONNX_SHA=7d9ae32726d872fe9143b7aede149508bdf0b30f
+ONNX_SHA=d58213534f2a4d1c4b19ba62b3bb5f544353256e
 
 MODELS_DIR="$HOME/.onnx/model_zoo"
 ENABLE_MSFT=false
@@ -62,7 +62,7 @@ function pull_and_postprocess_onnx_model_zoo() {
     find "$ONNX_MODELS_DIR" -name "*.onnx" | while read filename; do rm "$filename"; done;
 
     printf "Extracting tar.gz archives into %s\n" "$ONNX_MODELS_DIR"
-    find "$ONNX_MODELS_DIR" -name '*.tar.gz' -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && rm -rf $BASEDIR && mkdir -p $BASEDIR' \; -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && tar --warning=no-unknown-keyword -xzf "{}" -C $BASEDIR' \;
+    find "$ONNX_MODELS_DIR" -name '*.tar.gz' -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && rm -rf $BASEDIR && mkdir -p $BASEDIR' \; -execdir sh -c 'BASEDIR=$(basename "{}" .tar.gz) && tar --warning=no-unknown-keyword -xvzf "{}" -C $BASEDIR' \;
 
     echo "Postprocessing of ONNX Model Zoo models:"
 

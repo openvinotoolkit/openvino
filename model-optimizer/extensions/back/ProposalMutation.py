@@ -60,9 +60,9 @@ class ProposalMutation(BackReplacementPattern):
                                                           {'name': 'cropped_im_info',
                                                            'begin_mask': int64_array([1, 1]),
                                                            'end_mask': int64_array([1, 1]),
-                                                           'new_axis_mask': int64_array([0]),
-                                                           'shrink_axis_mask': int64_array([0]),
-                                                           'ellipsis_mask': int64_array([0]),
+                                                           'new_axis_mask': int64_array([0, 0]),
+                                                           'shrink_axis_mask': int64_array([0, 0]),
+                                                           'ellipsis_mask': int64_array([0, 0]),
                                                            'override_output_shape': True,
                                                            })
 

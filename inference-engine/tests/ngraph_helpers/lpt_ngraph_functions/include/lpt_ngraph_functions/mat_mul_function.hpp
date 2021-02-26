@@ -37,6 +37,7 @@ public:
         const FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
+        const element::Type netPrecision,
         const ngraph::Shape& inputShape1,
         const ngraph::element::Type precisionBeforeDequantization1,
         const DequantizationOperations& dequantization1,
@@ -76,10 +77,10 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const FakeQuantizeOnData& fqOnData,
+        const FakeQuantizeOnDataWithConstant& fqOnData,
         const ngraph::Shape& weightsConstShape,
         const std::vector<float>& weightsConstValues,
-        const FakeQuantizeOnWeights& fqOnWeights);
+        const FakeQuantizeOnDataWithConstant& fqOnWeights);
 };
 
 }  // namespace subgraph

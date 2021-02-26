@@ -68,7 +68,6 @@ void FP::ApplyDiagonalTransform(intel_dnn_component_t *component) {
     auto transform = &component->op.affine;
     int m = component->num_rows_out;
     int n = component->num_columns_in;
-    int ldb = component->num_columns_in;
     int ldc = component->num_columns_out;
 
     auto A = reinterpret_cast<float *>(transform->ptr_weights);
@@ -113,6 +112,14 @@ void FP::ApplyConvolutional1DTransform(intel_dnn_component_t *component) {
         THROW_GNA_EXCEPTION << "Bad data width: " << component->num_bytes_per_input;
     }
     CNNFilter32(component);
+}
+
+void FP::ApplyConvolutional2DTransform(intel_dnn_component_t* component) {
+#if GNA_LIB_VER == 2
+    CNN2DFilter32(component);
+#else
+    THROW_GNA_EXCEPTION << "Wrong GNA Library: GNA_LIB_VER != 2";
+#endif
 }
 
 void FP::ApplyPiecewiseLinearTransform(intel_dnn_component_t *component,

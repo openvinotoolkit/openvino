@@ -13,16 +13,6 @@
 #include "ie_preprocess.hpp"
 #include "base/behavior_test_utils.hpp"
 
-namespace {
-void setInputNetworkPrecision(InferenceEngine::CNNNetwork &network, InferenceEngine::InputsDataMap &inputs_info,
-                              InferenceEngine::Precision input_precision) {
-    inputs_info = network.getInputsInfo();
-    ASSERT_EQ(1u, inputs_info.size());
-    inputs_info.begin()->second->setPrecision(input_precision);
-}
-
-}
-
 namespace BehaviorTestsDefinitions {
 
 using  PreprocessingPrecisionConvertParams = std::tuple<

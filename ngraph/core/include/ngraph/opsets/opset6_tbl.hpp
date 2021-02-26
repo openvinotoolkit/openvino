@@ -144,8 +144,6 @@ NGRAPH_OP(ScatterElementsUpdate, ngraph::op::v3)
 NGRAPH_OP(ScatterUpdate, ngraph::op::v3)
 NGRAPH_OP(ShuffleChannels, ngraph::op::v0)
 NGRAPH_OP(ShapeOf, ngraph::op::v3)
-NGRAPH_OP(Assign, ngraph::op::v3)
-NGRAPH_OP(ReadValue, ngraph::op::v3)
 NGRAPH_OP(TopK, ngraph::op::v3)
 
 // New operations added in opset4
@@ -175,7 +173,11 @@ NGRAPH_OP(Round, ngraph::op::v5)
 // New operations added in opset6
 NGRAPH_OP(CTCGreedyDecoderSeqLen, ngraph::op::v6)
 NGRAPH_OP(ExperimentalDetectronDetectionOutput, ngraph::op::v6)
+NGRAPH_OP(ExperimentalDetectronGenerateProposalsSingleImage, ngraph::op::v6)
 NGRAPH_OP(ExperimentalDetectronPriorGridGenerator, ngraph::op::v6)
 NGRAPH_OP(ExperimentalDetectronROIFeatureExtractor, ngraph::op::v6)
+NGRAPH_OP(ExperimentalDetectronTopKROIs, ngraph::op::v6)
 NGRAPH_OP(GatherElements, ngraph::op::v6)
 NGRAPH_OP(MVN, ngraph::op::v6)
+NGRAPH_OP(Assign, ngraph::op::v6)    // new version
+NGRAPH_OP(ReadValue, ngraph::op::v6) // new version

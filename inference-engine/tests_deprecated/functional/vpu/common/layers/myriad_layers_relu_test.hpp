@@ -14,8 +14,6 @@ const std::string relu_param = "negative_slope";
 class myriadLayersTestsReLUMergeWithBias_smoke : public myriadLayersTests_nightly {
 public:
     void RunTest(const std::string& model, size_t num_weights, size_t num_bias) {
-        StatusCode st;
-
         TBlob<uint8_t>::Ptr weights(GenWeights(num_weights + num_bias));
 
         ASSERT_NO_THROW(readNetwork(model, weights));
@@ -28,23 +26,17 @@ public:
         _outputsInfo = network.getOutputsInfo();
         _outputsInfo["relu"]->setPrecision(Precision::FP16);
 
-        ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
+        ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network,
                 { {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
-                  {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} },
-                                                          &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-        ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
+                  {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} }));
 
-        ASSERT_NO_THROW(st = _exeNetwork->CreateInferRequest(_inferRequest, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
-        ASSERT_NO_THROW(st = _inferRequest->Infer(&_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(_inferRequest = _exeNetwork.CreateInferRequest());
+        
+        ASSERT_NO_THROW(_inferRequest.Infer());
+        
         std::map<std::string, InferenceEngineProfileInfo> perfMap;
-        ASSERT_NO_THROW(st = _inferRequest->GetPerformanceCounts(perfMap, &_resp));
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-
+        ASSERT_NO_THROW(perfMap = _inferRequest.GetPerformanceCounts());
+        
         {
             auto reluAndBiasLayerIt = perfMap.find("relu+Bias");
             ASSERT_TRUE(reluAndBiasLayerIt != perfMap.end());

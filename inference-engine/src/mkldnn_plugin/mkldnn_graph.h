@@ -19,7 +19,7 @@
 #include <atomic>
 
 namespace MKLDNNPlugin {
-
+class MKLDNNInferRequest;
 class MKLDNNGraph {
 public:
     typedef std::shared_ptr<MKLDNNGraph> Ptr;
@@ -30,7 +30,7 @@ public:
         Ready = 1,
     };
 
-    MKLDNNGraph(): status(NotReady), eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0)), cancelation_requested(false) {}
+    MKLDNNGraph(mkldnn::engine eng = mkldnn::engine(mkldnn::engine::kind::cpu, 0)) : status(NotReady), eng(eng) {}
 
     Status GetStatus() {
         return status;
@@ -38,10 +38,6 @@ public:
 
     bool IsReady() {
         return (GetStatus() == Ready);
-    }
-
-    void Cancel() {
-        cancelation_requested.store(true);
     }
 
     void setConfig(const Config &cfg);
@@ -63,7 +59,7 @@ public:
     void PushInputData(const std::string& name, const InferenceEngine::Blob::Ptr &in);
     void PullOutputData(InferenceEngine::BlobMap &out);
 
-    void Infer(int batch = -1);
+    void Infer(MKLDNNInferRequest* request = nullptr, int batch = -1);
 
     std::vector<MKLDNNNodePtr>& GetNodes() {
         return graphNodes;
@@ -119,6 +115,41 @@ public:
     MKLDNNNodePtr InsertReorder(MKLDNNEdgePtr edge, std::string layerName, const InferenceEngine::TensorDesc& inDesc,
             const InferenceEngine::TensorDesc& outDesc, bool isOptimized = false, InferenceEngine::Blob::Ptr scales = nullptr);
 
+    /**
+     * @brief Insert MKLDNNNode at the edge-specified location.
+     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
+     * supported primitive descriptors selection, etc.), which can be useful after the InitEdges() completes. The second is just inserting the
+     * node without initialization.
+     * @param edge
+     * pointer to the edge in the graph where the node will be inserted
+     * @param node
+     * pointer to the inserted node
+     * @param initNode
+     * parameter that determines whether the node needs to be initialized
+     * @return true in case of success, false otherwise.
+     */
+    bool InsertNode(MKLDNNEdgePtr edge, MKLDNNNodePtr node, bool initNode = false);
+
+    /**
+     * @brief Insert MKLDNNNode between two specified nodes.
+     * This procedure creates two edges that link the parent and child nodes to the inserted one and adds all created objects to the graph.
+     * This method supports two regimes. First, the node is inserted without initialization (i.e. supported descriptors initialization,
+     * supported primitive descriptors selection, etc.), which can be useful after the InitEdges() completes. The second is just inserting the
+     * node without initialization.
+     * @param parent
+     * pointer to the parent node
+     * @param child
+     * pointer to the child node
+     * @param parentPort
+     * port number of the parent node to which the inserted node should be connected
+     * @param childPort
+     * port number of the child node to which the inserted node should be connected
+     * @param initNode
+     * parameter that determines whether the node needs to be initialized
+     * @return true in case of success, false otherwise.
+     */
+    bool InsertNode(MKLDNNNodePtr parent, MKLDNNNodePtr child, MKLDNNNodePtr node, int parentPort, int childPort, bool initNode = false);
+
     InferenceEngine::CNNNetwork dump() const;
 
     template<typename NET>
@@ -129,14 +160,6 @@ public:
     void SortTopologically();
 
 protected:
-    bool IsCancellationRequested() const {
-        return cancelation_requested.load();
-    }
-
-    void ResetCancellationRequest() {
-        cancelation_requested.store(false);
-    }
-
     void VisitNode(MKLDNNNodePtr node, std::vector<MKLDNNNodePtr>& sortedNodes);
 
     void ForgetGraphData() {
@@ -170,7 +193,7 @@ protected:
 
     mkldnn::engine eng;
 
-    void Replicate(const InferenceEngine::ICNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
+    void Replicate(const InferenceEngine::CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr);
     void Replicate(const InferenceEngine::TensorIterator::Body &subgraph, const MKLDNNExtensionManager::Ptr& extMgr);
     void InitGraph();
     void InitNodes();
@@ -198,8 +221,6 @@ private:
         InferenceEngine::CNNLayerPtr cnnLayer;
         size_t outIdx;
     };
-
-    std::atomic<bool> cancelation_requested;
 };
 
 }  // namespace MKLDNNPlugin

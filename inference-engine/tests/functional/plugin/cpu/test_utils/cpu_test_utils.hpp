@@ -13,17 +13,28 @@
 
 namespace CPUTestUtils {
     typedef enum {
-        nchw,
-        nChw8c,
-        nChw16c,
-        nhwc,
-        ncdhw,
-        nCdhw8c,
-        nCdhw16c,
-        ndhwc,
-        nc,
-        x,
-        undef
+        undef,
+        a,
+        ab,
+        abcd,
+        acdb,
+        aBcd8b,
+        aBcd16b,
+        abcde,
+        acdeb,
+        aBcde8b,
+        aBcde16b,
+
+        x = a,
+        nc = ab,
+        nchw = abcd,
+        nChw8c = aBcd8b,
+        nChw16c = aBcd16b,
+        nhwc = acdb,
+        ncdhw = abcde,
+        nCdhw8c = aBcde8b,
+        nCdhw16c = aBcde16b,
+        ndhwc = acdeb
     } cpu_memory_format_t;
 
     using CPUSpecificParams =  std::tuple<
@@ -103,4 +114,5 @@ const auto conv_avx512_2D_1x1 = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_av
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector);
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams);
+void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount);
 } // namespace CPUTestUtils

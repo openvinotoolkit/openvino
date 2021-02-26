@@ -88,6 +88,12 @@ namespace InferenceEngine {
 #define NETWORK_NOT_LOADED_str std::string("[NETWORK_NOT_LOADED] ")
 
 /**
+ * @def NETWORK_NOT_READ_str
+ * @brief Defines the `network not read` message
+ */
+#define NETWORK_NOT_READ_str std::string("[NETWORK_NOT_READ] ")
+
+/**
  * @def NOT_FOUND_str
  * @brief Defines the `not found` message
  */
@@ -134,6 +140,12 @@ namespace InferenceEngine {
  * @brief Defines the `not allocated` message
  */
 #define NOT_ALLOCATED_str std::string("[NOT_ALLOCATED] ")
+
+/**
+ * @def INFER_CANCELLED_str
+ * @brief Defines the `infer cancelled` message
+ */
+#define INFER_CANCELLED_str std::string("[INFER_CANCELLED] ")
 
 /**
  * @}

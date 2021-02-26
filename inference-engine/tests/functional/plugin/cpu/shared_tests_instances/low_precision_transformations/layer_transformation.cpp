@@ -10,7 +10,6 @@
 #include <string>
 
 #include <ie_core.hpp>
-#include "generic_ie.hpp"
 
 #include <legacy/net_pass.h>
 #include <legacy/graph_transformer.h>
@@ -54,10 +53,10 @@ ngraph::pass::low_precision::LowPrecisionTransformations LayerTransformation::ge
     //    "ScaleShift"));
 }
 
-std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Function> function) {
-    auto net1 = InferenceEngine::CNNNetwork(function);
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(net1);
-    if (clonedNetwork->getFunction()) {
+InferenceEngine::CNNNetwork convert(std::shared_ptr<ngraph::Function> function) {
+    InferenceEngine::CNNNetwork net1(function);
+    InferenceEngine::CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(net1);
+    if (clonedNetwork.getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
             // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
             if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
@@ -78,9 +77,7 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
                 std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
                 std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
         };
-        auto nGraphFunc = clonedNetwork->getFunction();
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+        auto nGraphFunc = clonedNetwork.getFunction();
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::Manager manager;
@@ -102,8 +99,8 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
 std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::pass::low_precision::LowPrecisionTransformations& transformations) {
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function);
-    auto nGraphFunc = clonedNetwork->getFunction();
+    InferenceEngine::CNNNetwork clonedNetwork = convert(function);
+    auto nGraphFunc = clonedNetwork.getFunction();
 
     ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
     transformer.transform(nGraphFunc);
@@ -147,7 +144,7 @@ std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(
     NGRAPH_SUPPRESS_DEPRECATED_END
     manager.run_passes(nGraphFunc);
 
-    return clonedNetwork->getFunction();
+    return clonedNetwork.getFunction();
 }
 
 InferenceEngine::Precision LayerTransformation::getDeviceInternalPrecision(const InferenceEngine::Precision precision) {

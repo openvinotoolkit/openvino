@@ -74,18 +74,13 @@ void op::v1::OneHot::validate_and_infer_types()
                           off_value_shape.is_dynamic() || is_scalar(off_value_shape.to_shape()),
                           "off_value input must be scalar.");
 
-    const auto& depth = input_value(1).get_node_shared_ptr();
     PartialShape result_shape{PartialShape::dynamic()};
-
-    if (indices_shape.is_static() && indices_shape.rank().is_static() && op::is_constant(depth))
+    const auto& depth = input_value(1).get_node_shared_ptr();
+    const auto& depth_constant = get_constant_from_source(input_value(1));
+    if (indices_shape.rank().is_static() && depth_constant)
     {
+        std::vector<Dimension> out_dims{indices_shape};
         const auto indices_rank = indices_shape.rank().get_length();
-
-        std::vector<Dimension> out_dims(indices_rank);
-        for (auto i = 0; i < indices_rank; i++)
-        {
-            out_dims[i] = indices_shape[i];
-        }
         m_axis =
             ngraph::normalize_axis(this, m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
 
@@ -103,9 +98,7 @@ void op::v1::OneHot::validate_and_infer_types()
                               depth->get_shape(),
                               " elements).");
 
-        const auto depth_constant = as_type_ptr<op::Constant>(depth);
         int64_t depth_val = depth_constant->cast_vector<int64_t>()[0];
-
         NODE_VALIDATION_CHECK(this,
                               depth_val > 0,
                               "The value of 'depth' must be a positive number.",
@@ -143,7 +136,6 @@ namespace detail
                   const int64_t axis)
     {
         const auto& indices = input_values[0];
-        const auto& depth = input_values[1];
         const auto& on_value = input_values[2];
         const auto& off_value = input_values[3];
 
@@ -162,7 +154,7 @@ namespace detail
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_one_hot_out, _, a));                                   \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_one_hot_out, _, a));                                   \
         using IT = typename element_type_traits<element::Type_t::a>::value_type;                   \
         using OT = typename element_type_traits<out_t>::value_type;                                \
         rc = evaluate<IT, OT>(__VA_ARGS__);                                                        \

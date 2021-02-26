@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -125,8 +125,13 @@ def restore_correct_ports(graph: Graph):
         if 'out' in d:
             node = Node(graph, u)
             num_of_in_nodes = len(node.in_nodes())
-            # we need to check operation type, if it is const op, we don't renumber out ports
-            decremented_number = d['out'] - num_of_in_nodes if node.type != 'Const' else d['out']
+            decremented_number = d['out'] - num_of_in_nodes
+            # Initially Const operation in IR has output port with number 1. But later the behaviour was changed
+            # so the output port become 0. This change was made to be consistent with the IR serializer in the IE which
+            # generates Const with output port 0. For the backward compatibility reason we need to decrement the Const
+            # output port number but for current version this number shouldn't be changed during reading the IR.
+            if node.type == 'Const' and d['out'] == 0:
+                decremented_number = d['out']
             out_port_id = decremented_number if not is_control_flow else 'control_flow_' + str(decremented_number)
             from_node_attrs['_out_ports'].update({out_port_id: {'control_flow': is_control_flow}})
             d['out'] = decremented_number
@@ -140,6 +145,10 @@ def propagate_const_values(op: Node):
     """
     assert op.soft_get('type') == 'Const', 'Wrong operation type, {} instead of Const!' \
                                            ''.format(op.soft_get('type'))
+    assert 0 in op.in_nodes(), 'Can\'t propagate restored value to Const operation with name: {}, check input ports' \
+                               ''.format(op.soft_get('name'))
+    assert 0 in op.out_nodes(), 'Can\'t propagate restored value to Const operation with name: {}, check output ports' \
+                                ''.format(op.soft_get('name'))
 
     in_data_node = op.in_node()
     out_data_node = op.out_node()
@@ -272,6 +281,35 @@ postprocessing_op_nodes = {
 }
 
 
+def restore_tensor_names(op: Node):
+    for out_port in op.ports:
+        # op.ports is our internal attribute, dictionary, where keys are numbers of output ports
+        # and values are tuples with shape and tensor name:
+        # {out_port_idx_1: (out_port_idx_1_shape, out_port_idx_1_tensor_name),
+        #  out_port_idx_2: (out_port_idx_2_shape, out_port_idx_2_tensor_name)}
+        out_tensor_names = op.ports[out_port][1]
+
+        # handle Constant operations with old style output port numbering
+        if op.soft_get('type') == 'Const':
+            assert len(op.ports) == 1, 'Something wrong with Constant node: {}, wrong number ' \
+                                       'of output ports: {}!'.format(op.soft_get('name'), len(op.ports))
+            out_port = 0
+
+        out_port = out_port - len(op.in_nodes())
+
+        if out_tensor_names is not None:
+            # handle tensor names with commas and add them to dictionary as separate items
+            if out_tensor_names.find(',') >= 0:
+                str_to_replace = '<comma_in_tensor_name>'
+                out_tensor_names = (out_tensor_names.replace('\\,', str_to_replace)).split(',')
+                op.out_node(out_port)['fw_tensor_debug_info'] = []
+                for out_tensor_name in out_tensor_names:
+                    out_tensor_name = out_tensor_name.replace(str_to_replace, ',')
+                    op.out_node(out_port)['fw_tensor_debug_info'].append((out_tensor_name, out_port, out_tensor_name))
+            else:
+                op.out_node(out_port)['fw_tensor_debug_info'] = [(out_tensor_names, out_port, out_tensor_names)]
+
+
 def copy_graph_with_ops(graph: Graph) -> Graph:
     """
     Function to copy graph and apply extenders to appropriate nodes
@@ -333,6 +371,9 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
 
     # Nodes postprocessing stage in new graph
     for op in new_graph.get_op_nodes():
+        restore_tensor_names(op)
+
+        # operations postprocessing with some special types
         if op.soft_get('type') in postprocessing_op_nodes:
             postprocessing_op_nodes[op.type](op)
 

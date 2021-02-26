@@ -21,8 +21,6 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <ngraph/pass/manager.hpp>
 
-#include "generic_ie.hpp"
-
 #include "myriad_plugin.h"
 
 using namespace InferenceEngine;
@@ -94,7 +92,7 @@ QueryNetworkResult Engine::QueryNetwork(
 
     if (auto function = network.getFunction()) {
         auto clonedNetwork = cloneNetwork(network);
-        auto convertedNetwork = vpu::FrontEnd::convertNetwork(*clonedNetwork);
+        auto convertedNetwork = vpu::FrontEnd::convertNetwork(clonedNetwork);
 
         res = getQueryNetwork(convertedNetwork, function, GetName(), supportedLayers);
     } else {
@@ -148,6 +146,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
     const auto executableNetwork =
             std::make_shared<ExecutableNetwork>(
                 model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    executableNetwork->SetPointerToPlugin(shared_from_this());
 
     return make_executable_network(executableNetwork);
 }
@@ -216,5 +215,5 @@ InferenceEngine::Parameter Engine::GetMetric(const std::string& name,
             return Parameter();
         }
     }
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    THROW_IE_EXCEPTION_WITH_STATUS(NOT_IMPLEMENTED);
 }

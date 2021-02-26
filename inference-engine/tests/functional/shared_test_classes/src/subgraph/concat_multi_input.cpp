@@ -76,7 +76,7 @@ void ConcatMultiInput::GenerateConstOnlyModel() {
         std::vector<float> res;
 
         std::uniform_real_distribution<float> dist(min, max);
-        for (int i = 0; i < vec_len; i++)
+        for (std::size_t i = 0; i < vec_len; i++)
             res.emplace_back(static_cast<float>(dist(gen)));
 
         return res;

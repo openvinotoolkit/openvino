@@ -46,13 +46,7 @@ endif()
 function(set_temp_directory temp_variable source_tree_dir)
     if (DEFINED ENV{DL_SDK_TEMP} AND NOT $ENV{DL_SDK_TEMP} STREQUAL "")
         message(STATUS "DL_SDK_TEMP environment is set : $ENV{DL_SDK_TEMP}")
-
-        if (WIN32)
-            string(REPLACE "\\" "\\\\" temp $ENV{DL_SDK_TEMP})
-        else()
-            set(temp $ENV{DL_SDK_TEMP})
-        endif()
-
+        file(TO_CMAKE_PATH $ENV{DL_SDK_TEMP} temp)
         if (ENABLE_ALTERNATIVE_TEMP)
             set(ALTERNATIVE_PATH ${source_tree_dir}/temp)
         endif()
@@ -227,6 +221,21 @@ include(add_ie_target)
 if(ENABLE_FUZZING)
     enable_fuzzing()
 endif()
+
+# macro to mark target as conditionally compiled
+
+function(ie_mark_target_as_cc TARGET_NAME)
+    if(NOT (SELECTIVE_BUILD STREQUAL "ON"))
+        return()
+    endif()
+
+    if(NOT TARGET ${TARGET_NAME})
+        message(FATAL_ERROR "${TARGET_NAME} does not represent target")
+    endif()
+
+    get_target_property(sources ${TARGET_NAME} SOURCES)
+    set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
+endfunction()
 
 # Code style utils
 

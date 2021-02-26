@@ -38,9 +38,7 @@ std::string PoolingLayerTest::getTestCaseName(testing::TestParamInfo<poolLayerTe
     result << "S" << CommonTestUtils::vec2str(stride) << "_";
     result << "PB" << CommonTestUtils::vec2str(padBegin) << "_";
     result << "PE" << CommonTestUtils::vec2str(padEnd) << "_";
-    if (padType == ngraph::op::PadType::EXPLICIT) {
-        result << "Rounding=" << roundingType << "_";
-    }
+    result << "Rounding=" << roundingType << "_";
     result << "AutoPad=" << padType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";

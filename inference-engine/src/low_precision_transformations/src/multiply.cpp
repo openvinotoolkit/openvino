@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         return false;
     }
 
-    multiply = separateInStandaloneBranch(multiply);
+    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, 0));
+    NetworkHelper::normalizeDequantization(NetworkHelper::getDequantization(multiply, 1));
+
+    multiply = NetworkHelper::separateInStandaloneBranch(multiply);
     auto newMultiply = multiply;
 
     auto fold_fake_quantizes = [](std::shared_ptr<Node>& multiply, const size_t index) {
@@ -49,8 +52,12 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     const int fullPathIndex = getNotEmpty(multiply);
     if (fullPathIndex == -1) {
         const auto multiplyBranch = getMultiplyConstBranch(multiply);
+        if (multiplyBranch.first != -1) {
+            NetworkHelper::foldDequantization(multiply, multiplyBranch.first == 0 ? 1 : 0);
+        }
 
         if (multiplyBranch.first == -1 || multiplyBranch.second == -1) {
+            // constant folding on dequantization ops (for example: Convert on Subtract)
             NetworkHelper::foldDequantization(multiply, 0);
             NetworkHelper::foldDequantization(multiply, 1);
             return false;
@@ -63,9 +70,13 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
         newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 },
-            std::vector<ngraph::element::Type>{element::f32},
+            std::vector<ngraph::element::Type>{ multiply->get_output_element_type(0) },
             ngraph::op::TemporaryReplaceOutputType(multiplyParentParent, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(fold<opset1::Multiply>(multiplyParentConst, constParent), element::f32).get());
+            ngraph::op::TemporaryReplaceOutputType(
+                fold<opset1::Multiply>(
+                    fold<opset1::Convert>(multiplyParentConst, element::f32),
+                    fold<opset1::Convert>(constParent, element::f32)),
+                element::f32).get());
 
         NetworkHelper::copyInfo(multiplyParent, newMultiply);
         NetworkHelper::copyInfo(multiply, newMultiply);
@@ -87,6 +98,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             return false;
         }
 
+        dequantizationEmptyPath = NetworkHelper::foldDequantization(multiply, emptyPathIndex);
         std::shared_ptr<Node> subtractValuesEmptyPath;
         std::shared_ptr<Node> multiplyValuesEmptyPath;
         std::tie(subtractValuesEmptyPath, multiplyValuesEmptyPath) = NetworkHelper::createEmptyValues(dequantizationEmptyPath);
@@ -96,6 +108,7 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             return false;
         }
 
+        dequantizationFullPath = NetworkHelper::foldDequantization(multiply, fullPathIndex);
         std::shared_ptr<Node> subtractValuesFullPath;
         std::shared_ptr<Node> multiplyValuesFullPath;
         std::tie(subtractValuesFullPath, multiplyValuesFullPath) = NetworkHelper::createEmptyValues(dequantizationFullPath);
@@ -114,7 +127,12 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
                 dequantizationFullPath.subtract,
             newMultiplyValuesFullPath);
 
-        newMultiply = multiply->clone_with_new_inputs(inputs);
+        newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+                std::vector<element::Type>{element::f32, element::f32},
+                std::vector<element::Type>{ multiply->get_output_element_type(0) },
+                ngraph::op::TemporaryReplaceOutputType(inputs[0], element::f32).get(),
+                ngraph::op::TemporaryReplaceOutputType(inputs[1], element::f32).get());
+        NetworkHelper::copyInfo(multiply, newMultiply);
     }
 
     replace_node(multiply, newMultiply);

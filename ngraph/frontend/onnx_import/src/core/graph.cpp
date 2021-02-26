@@ -20,6 +20,7 @@
 #include <sstream>
 
 #include "core/graph.hpp"
+#include "core/null_node.hpp"
 #include "exceptions.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
@@ -222,7 +223,11 @@ namespace ngraph
             OutputVector results;
             for (const auto& output : m_graph_proto->output())
             {
-                results.emplace_back(get_ng_node_from_cache(output.name()));
+                const auto& ng_output = get_ng_node_from_cache(output.name());
+                if (!ngraph::op::is_null(ng_output)) // ignore optional outputs
+                {
+                    results.emplace_back(ng_output);
+                }
             }
             return results;
         }
@@ -273,6 +278,12 @@ namespace ngraph
                 }
 
                 ng_node_vector[i].get_node()->set_friendly_name(onnx_node.output(i));
+
+                // null node does not have tensor
+                if (!ngraph::op::is_null(ng_node_vector[i]))
+                {
+                    ng_node_vector[i].get_tensor().set_names({onnx_node.output(i)});
+                }
             }
         }
 

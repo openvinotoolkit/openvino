@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import numpy as np
 
 from extensions.ops.elementwise import Add, Mul
 from mo.front.common.layout import get_features_dim
-from mo.front.extractor import split_node_in_port
+from mo.front.extractor import split_node_in_port, get_node_id_with_ports
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
@@ -68,13 +68,7 @@ class AddMeanScaleValues(MiddleReplacementPattern):
                 # should keep the link to the input layer. Parameter node in framework
                 # should map to parameter node in IR.
                 # For this reason 'fw_tensor_debug_info' should be kept in data node.
-                has_debug_info = 'fw_tensor_debug_info' in input_node.out_node(0)
-                if has_debug_info:
-                    fw_name = input_node.out_node(0)['fw_tensor_debug_info']
-                dst.get_connection().set_source(preprocessing.out_port(0))
-                if has_debug_info:
-                    input_node.out_node(0)['fw_tensor_debug_info'] = fw_name
-                    del preprocessing.out_node(0)['fw_tensor_debug_info']
+                dst.get_connection().set_source(preprocessing.out_port(0), "source")
 
         input_node.out_port(0).connect(preprocessing.in_port(0))
 
@@ -91,28 +85,27 @@ class AddMeanScaleValues(MiddleReplacementPattern):
         input_nodes = graph.get_op_nodes(op='Parameter')
 
         if not isinstance(values, dict):
+            # The case when input names to apply mean/scales weren't specified
             if len(values) != len(input_nodes):
                 raise Error('Numbers of inputs and mean/scale values do not match. ' + refer_to_faq_msg(61))
 
             data = np.copy(values)
             values = {}
             for idx, node in enumerate(input_nodes):
-                assert node.has_valid('name')
                 values.update(
                     {
-                        node['name']: {
+                        node.soft_get('name', node.id): {
                             'mean': data[idx][0],
                             'scale': data[idx][1]
                         }
                     }
                 )
 
-        for node_name in values:
-            node_mean_scale_values = values[node_name]
-            node_name, port = split_node_in_port(node_name)
+        for node_name, node_mean_scale_values in values.items():
             node_id = None
             try:
-                node_id = graph.get_node_id_by_name(node_name)
+                node_id, direction, port = get_node_id_with_ports(graph, node_name, skip_if_no_port=False)
+                assert direction != 'out', 'Only input port can be specified for mean/scale application'
             except Error as e:
                 log.warning('node_name {} is not found in graph'.format(node_name))
             if Node(graph, node_id) not in input_nodes:
@@ -127,7 +120,7 @@ class AddMeanScaleValues(MiddleReplacementPattern):
                         log.debug('Can not get the port number from the node {}'.format(placeholder.id))
                         log.debug('Port will be defined as None')
                         port = None
-                    if placeholder.has('initial_node_name') and placeholder.initial_node_name == node_name and (
+                    if placeholder.has('initial_node_name') and placeholder.initial_node_name == node_id and (
                             port is None or placeholder_port == port):
                         new_node_id = placeholder.id
                         break

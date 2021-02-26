@@ -1,5 +1,5 @@
 from openvino.inference_engine import IECore, IENetwork
-from openvino.offline_transformations import ApplyMOCTransformations
+from openvino.offline_transformations import ApplyMOCTransformations, ApplyLowLatencyTransformation
 
 import ngraph as ng
 from ngraph.impl.op import Parameter
@@ -10,8 +10,7 @@ from conftest import model_path
 
 test_net_xml, test_net_bin = model_path()
 
-
-def test_offline_api():
+def get_test_cnnnetwork():
     element_type = Type.f32
     param = Parameter(element_type, Shape([1, 3, 22, 22]))
     relu = ng.relu(param)
@@ -20,9 +19,22 @@ def test_offline_api():
 
     cnnNetwork = IENetwork(caps)
     assert cnnNetwork != None
+    return cnnNetwork
 
-    ApplyMOCTransformations(cnnNetwork, False)
 
-    func2 = ng.function_from_cnn(cnnNetwork)
-    assert func2 != None
-    assert len(func2.get_ops()) == 3
+def test_moc_transformations():
+    net = get_test_cnnnetwork()
+    ApplyMOCTransformations(net, False)
+
+    f = ng.function_from_cnn(net)
+    assert f != None
+    assert len(f.get_ops()) == 3
+
+
+def test_low_latency_transformations():
+    net = get_test_cnnnetwork()
+    ApplyLowLatencyTransformation(net)
+
+    f = ng.function_from_cnn(net)
+    assert f != None
+    assert len(f.get_ops()) == 3

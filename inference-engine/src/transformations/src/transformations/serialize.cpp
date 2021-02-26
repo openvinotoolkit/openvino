@@ -77,6 +77,42 @@ std::string get_special_opset_for_op(const ngraph::Node::type_info_t& type_info)
     return "";
 }
 
+namespace rt_info {
+const std::vector<std::string> list_of_names {
+    "PrimitivesPriority",
+    "alt_width",
+};
+
+class XmlSerializer {
+public:
+    explicit XmlSerializer(pugi::xml_node &xml_node)
+        : m_xml_node(xml_node) {
+    }
+
+    void serialize(const ngraph::Node::RTMap& rt_info) {
+        for (const auto& rt_info_name : list_of_names) {
+            const auto &found_rt_info = rt_info.find(rt_info_name);
+            if (found_rt_info != rt_info.end()) {
+                xml_node_append_attribute<std::string>(rt_info_name, found_rt_info->second);
+            }
+        }
+    }
+
+private:
+    template<typename VariantType>
+    void xml_node_append_attribute(const std::string& name,
+                                   const std::shared_ptr<ngraph::Variant>& variant) {
+        if ( auto v = std::dynamic_pointer_cast<ngraph::VariantImpl<VariantType>>(variant) ) {
+            const auto& value = v->get();
+            m_xml_node.append_attribute(name.c_str()).set_value(value.c_str());
+        }
+    }
+
+    pugi::xml_node& m_xml_node;
+};
+
+} // namespace rt_info
+
 class XmlSerializer : public ngraph::AttributeVisitor {
     pugi::xml_node& m_xml_node;
     std::ostream& m_bin_data;
@@ -117,8 +153,6 @@ public:
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
-        (void)name;
-
         if (m_xml_node.parent().child("body")) {
             // parameters and results from body are required for port_map attributes serialization
             std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
@@ -167,7 +201,7 @@ public:
                 }
             } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
                         <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter)) {
-                pugi::xml_node port_map = m_xml_node.parent().find_child([](pugi::xml_node node) {return strcmp(node.name(), "port_map") == 0;});
+                pugi::xml_node port_map = m_xml_node.parent().child("port_map");
                 if (!port_map) {
                     port_map = m_xml_node.parent().insert_child_before("port_map", m_xml_node.parent().first_child());
                 }
@@ -193,23 +227,35 @@ public:
                         }
                     }
                 }
-            }
-        }
-    }
+            } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
+                pugi::xml_node port_map = m_xml_node.parent().child("port_map");
+                NGRAPH_CHECK(port_map, "port_map section not found, purpose attribute cannot be added.");
 
-    void on_adapter(const std::string& name,
-                    ngraph::ValueAccessor<void*>& adapter) override {
-        if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
-            using AlignedBufferAdapter =
-                ngraph::AttributeAdapter<std::shared_ptr<runtime::AlignedBuffer>>;
-            if (auto a = ngraph::as_type<AlignedBufferAdapter>(&adapter)) {
-                const int64_t size = a->size();
+                if (a->get().current_iteration_input_idx != -1) {
+                    pugi::xml_node iter_input = port_map.append_child("input");
+                    iter_input.append_attribute("external_port_id").set_value("-1");
+                    iter_input.append_attribute("internal_layer_id").set_value(parameter_mapping[a->get().current_iteration_input_idx].c_str());
+                    iter_input.append_attribute("purpose").set_value("current_iteration");
+                }
+
+                if (a->get().body_condition_output_idx != -1) {
+                    pugi::xml_node exec_output = port_map.append_child("output");
+                    exec_output.append_attribute("external_port_id").set_value("-1");
+                    exec_output.append_attribute("internal_layer_id").set_value(result_mapping[a->get().body_condition_output_idx].c_str());
+                    exec_output.append_attribute("purpose").set_value("execution_condition");
+                }
+            }
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
+                m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
+        } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::runtime::AlignedBuffer>>>(&adapter)) {
+            if (name == "value" &&  translate_type_name(m_node_type_name) == "Const") {
+                const int64_t size = a->get()->size();
                 const int64_t offset = m_bin_data.tellp();
 
                 m_xml_node.append_attribute("offset").set_value(offset);
                 m_xml_node.append_attribute("size").set_value(size);
 
-                auto data = static_cast<const char*>(a->get_ptr());
+                auto data = static_cast<const char*>(a->get()->get_ptr());
                 m_bin_data.write(data, size);
             }
         }
@@ -221,16 +267,8 @@ public:
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<std::string>& adapter) override {
-        if ((m_node_type_name == "GenericIE") &&
-            (name == "__generic_ie_type__")) {
-            // __generic_ie_type__  in GenericIE should not be serialized as a
-            // <data> since it's purpose is to hold name of the layer type
-            // it is a WA to not introduce dependency on plugin_api library
-            m_node_type_name = adapter.get();
-        } else {
-            m_xml_node.append_attribute(name.c_str())
-                .set_value(adapter.get().c_str());
-        }
+        m_xml_node.append_attribute(name.c_str())
+            .set_value(adapter.get().c_str());
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<int64_t>& adapter) override {
@@ -239,6 +277,12 @@ public:
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<double>& adapter) override {
         m_xml_node.append_attribute(name.c_str()).set_value(adapter.get());
+    }
+    void on_adapter(
+        const std::string& name,
+        ngraph::ValueAccessor<std::vector<int>>& adapter) override {
+        m_xml_node.append_attribute(name.c_str())
+            .set_value(create_atribute_list(adapter).c_str());
     }
     void on_adapter(
         const std::string& name,
@@ -273,8 +317,8 @@ public:
             // is removed.
             pugi::xml_node xml_body = m_xml_node.parent().append_child(name.c_str());
             ngfunction_2_irv10(xml_body, m_bin_data, *adapter.get(), m_custom_opsets);
-            xml_body.first_child().remove_attribute("name");
-            xml_body.first_child().remove_attribute("version");
+            xml_body.remove_attribute("name");
+            xml_body.remove_attribute("version");
         } else if (name == "net") {
             ngfunction_2_irv10(m_xml_node, m_bin_data, *adapter.get(), m_custom_opsets);
         } else {
@@ -348,9 +392,9 @@ const std::vector<Edge> create_edge_mapping(
 std::string get_opset_name(
     const ngraph::Node* n,
     const std::map<std::string, ngraph::OpSet>& custom_opsets) {
-    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 5>{
+    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 6>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
-        ngraph::get_opset4(), ngraph::get_opset5()};
+        ngraph::get_opset4(), ngraph::get_opset5(), ngraph::get_opset6()};
 
     auto special_opset = get_special_opset_for_op(n->get_type_info());
     if (!special_opset.empty()) {
@@ -413,6 +457,17 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
     }
 }
 
+std::string escape_delim(const std::string& name, const char delim = ',') {
+    std::string result_name = name;
+    const std::string escaped_delim = std::string("\\") + delim;
+    size_t index = result_name.find(delim, 0);
+    while (index != std::string::npos) {
+        result_name.replace(index, 1, escaped_delim);
+        index = result_name.find(delim, index + 2);
+    }
+    return result_name;
+}
+
 std::string generate_unique_name(
     const std::unordered_set<std::string>& unique_names, std::string base_name,
     int suffix) {
@@ -447,10 +502,20 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
+bool has_dynamic_output(std::shared_ptr<Node> n) {
+    for (size_t i = 0; i < n->get_output_size(); i++) {
+        if (n->get_output_partial_shape(i).is_dynamic()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool resolve_dynamic_shapes(const ngraph::Function& f) {
     const auto & f_ops = f.get_ordered_ops();
     if (std::all_of(f_ops.begin(), f_ops.end(),
-            [](std::shared_ptr<Node> results) { return !results->is_dynamic(); })) {
+            [](std::shared_ptr<Node> results) {
+                return !results->is_dynamic() && !has_dynamic_output(results); })) {
         return false;
     }
 
@@ -551,6 +616,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
             XmlSerializer visitor(data, bin_file, node_type_name, custom_opsets);
             NGRAPH_CHECK(node->visit_attributes(visitor),
                          "Visitor API is not supported in ", node);
+            rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
         }
         layer_type_attribute.set_value(
             translate_type_name(node_type_name).c_str());
@@ -587,7 +653,7 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 }
             }
 
-            if (node_type_name == "TensorIterator") {
+            if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
                 layer.prepend_move(input);
             }
         }
@@ -602,13 +668,22 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
                     .set_value(get_output_precision_name(o).c_str());
+                std::string names;
+                for (const auto& name : o.get_tensor().get_names()) {
+                    if (!names.empty())
+                        names += ", ";
+                    names += escape_delim(name);
+                }
+                if (!names.empty()) {
+                    port.append_attribute("names").set_value(names.c_str());
+                }
                 for (auto d : o.get_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)
                         .set_value(std::to_string(d).c_str());
                 }
             }
-            if (node_type_name == "TensorIterator") {
+            if (node_type_name == "TensorIterator" || node_type_name == "Loop") {
                 layer.insert_move_after(output, layer.first_child());
             }
         }
@@ -641,30 +716,40 @@ void ngfunction_2_irv10(pugi::xml_node& netXml,
 // serialize.cpp
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
-    // prepare data
-    pugi::xml_document xml_doc;
-    std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
-    NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
-    switch (m_version) {
-    case Version::IR_V10:
-        {
-            std::string name = "net";
-            pugi::xml_node net_node = xml_doc.append_child(name.c_str());
-            XmlSerializer visitor(net_node, bin_file, name, m_custom_opsets);
-            visitor.on_attribute(name, f);
-        }
-        break;
-    default:
-        NGRAPH_UNREACHABLE("Unsupported version");
-        break;
-    }
 
-    // create xml file
-    std::ofstream xml_file(m_xmlPath, std::ios::out);
-    NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
-    xml_doc.save(xml_file);
-    xml_file.flush();
-    bin_file.flush();
+    auto serializeFunc = [&] (std::ostream & xml_file, std::ostream & bin_file) {
+        switch (m_version) {
+        case Version::IR_V10:
+            {
+                std::string name = "net";
+                pugi::xml_document xml_doc;
+                pugi::xml_node net_node = xml_doc.append_child(name.c_str());
+                XmlSerializer visitor(net_node, bin_file, name, m_custom_opsets);
+                visitor.on_attribute(name, f);
+
+                xml_doc.save(xml_file);
+                xml_file.flush();
+                bin_file.flush();
+            }
+            break;
+        default:
+            NGRAPH_UNREACHABLE("Unsupported version");
+            break;
+        }
+    };
+
+    if (m_xmlFile && m_binFile) {
+        serializeFunc(*m_xmlFile, *m_binFile);
+    } else {
+        std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
+        NGRAPH_CHECK(bin_file, "Can't open bin file: \"" + m_binPath + "\"");
+
+        // create xml file
+        std::ofstream xml_file(m_xmlPath, std::ios::out);
+        NGRAPH_CHECK(xml_file, "Can't open xml file: \"" + m_xmlPath + "\"");
+
+        serializeFunc(xml_file, bin_file);
+    }
 
     // Return false because we didn't change nGraph Function
     return false;
@@ -697,11 +782,26 @@ std::string provide_bin_path(const std::string &xmlPath, const std::string &binP
 
 } // namespace
 
+pass::Serialize::Serialize(std::ostream& xmlFile,
+                           std::ostream& binFile,
+                           pass::Serialize::Version version,
+                           std::map<std::string, OpSet> custom_opsets)
+    : m_xmlFile{&xmlFile}
+    , m_binFile{&binFile}
+    , m_xmlPath{}
+    , m_binPath{}
+    , m_version{version}
+    , m_custom_opsets{custom_opsets}
+{
+}
+
 pass::Serialize::Serialize(const std::string& xmlPath,
                            const std::string& binPath,
                            pass::Serialize::Version version,
                            std::map<std::string, OpSet> custom_opsets)
-    : m_xmlPath{valid_xml_path(xmlPath)}
+    : m_xmlFile{nullptr}
+    , m_binFile{nullptr}
+    , m_xmlPath{valid_xml_path(xmlPath)}
     , m_binPath{provide_bin_path(xmlPath, binPath)}
     , m_version{version}
     , m_custom_opsets{custom_opsets}
