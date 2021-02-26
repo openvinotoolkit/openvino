@@ -17,6 +17,7 @@
 #include <cmath>
 #include "itt.hpp"
 
+#include <ngraph/validation_util.hpp>
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/divide.hpp"
@@ -26,7 +27,6 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/op/subtract.hpp"
-#include <ngraph/validation_util.hpp>
 #include "ngraph/runtime/reference/gelu.hpp"
 
 using namespace std;
