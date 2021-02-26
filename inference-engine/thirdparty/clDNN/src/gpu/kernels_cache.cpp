@@ -107,7 +107,7 @@ static void saveBinaryToFile(std::string path, const std::vector<unsigned char> 
 #endif
     std::ofstream out_file(filename, std::ios::out | std::ios::binary);
     if (out_file.is_open()) {
-        out_file.write((char*)&buffer[0], buffer.size());
+        out_file.write(reinterpret_cast<const char*>(&buffer[0]), buffer.size());
     }
 }
 
@@ -288,7 +288,7 @@ kernels_cache::kernel_id kernels_cache::set_kernel_source(
     const auto kernel_num = _kernels.size() + _kernels_code.size();
     kernels_cache::kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
 
-    auto res = _kernels_code.emplace( kernel_string, id, dump_custom_program, one_time_kernel );
+    auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program, one_time_kernel);
 
     assert(_kernels.find(id) == _kernels.end());
     if (res.second) {

@@ -272,11 +272,13 @@ void HelperGna2OperationInitConvolution(Gna2Operation * operation,
     Gna2Tensor * filters, Gna2Tensor * biases,
     Gna2Tensor * activation,
     Gna2Shape * convolutionStride,
-    Gna2BiasMode * biasMode) {
+    Gna2BiasMode * biasMode,
+    Gna2Shape* zeroPadding) {
     HelperGna2OperationInitElementWiseAffine(operation, userAllocator, userFree, inputs, outputs, filters, biases, activation);
     operation->Type = Gna2OperationTypeConvolution;
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, ConvStrideParamIdx, convolutionStride);
     HelperGna2OperationSetParameter(operation, userAllocator, userFree, BiasModeCnnParamIdx, biasMode);
+    HelperGna2OperationSetParameter(operation, userAllocator, userFree, ZeroPaddingParamIdx, zeroPadding);
 }
 
 void HelperGna2OperationInitCopy(Gna2Operation * operation,
