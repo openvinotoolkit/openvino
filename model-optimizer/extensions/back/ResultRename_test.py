@@ -25,7 +25,6 @@ nodes = {
     **regular_op('Op1', {'type': 'Op1', 'kind': 'op', 'op': 'Op1'}),
     **result('result'),
     'Op1_data': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 0, 'Op1_tensor')]},
-    'Op1_data_same_name': {'kind': 'data', 'fw_tensor_debug_info': [('Op1', 0, 'Op1')]}
 }
 
 
@@ -45,7 +44,9 @@ class ResultRenameTest(unittest.TestCase):
         self.assertTrue(flag, resp)
 
     def test_case3(self):
-        graph = build_graph(nodes, [('Op1', 'Op1_data_same_name'), ('Op1_data_same_name', 'result')])
+        graph = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result')])
+        res_node_graph = Node(graph, 'Op1')
+        res_node_graph['name'] = 'Op1_tensor'
         ResultRename().find_and_replace_pattern(graph)
         res_node = Node(graph, 'result')
-        self.assertTrue(res_node['name'] == 'Op1/sink_port_0')
+        self.assertTrue(res_node['name'] == 'Op1_tensor/sink_port_0')
