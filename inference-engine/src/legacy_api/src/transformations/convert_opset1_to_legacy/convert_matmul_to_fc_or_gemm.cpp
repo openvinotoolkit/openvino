@@ -39,7 +39,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto shape_b = input_b.get_shape();
         auto output_shape = matmul->get_shape();
 
-        if (shape_a.size() == 1 || shape_b.size() == 1) {
+        if (shape_b.size() == 1) {
             return false;
         }
 
