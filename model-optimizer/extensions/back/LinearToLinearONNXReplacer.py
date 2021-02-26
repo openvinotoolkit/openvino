@@ -33,7 +33,9 @@ class LinearToLinearONNXReplacer(BackReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         for interpolate_node in graph.get_op_nodes(type='Interpolate', version='opset4', mode='linear'):
             input_shape = interpolate_node.in_port(0).data.get_shape()
-            assert input_shape is not None
+            interpolate_name = interpolate_node.safe_get('name', interpolate_node.id)
+            assert input_shape is not None, \
+                'Shape of interpolated data for node {} must not be None'.format(interpolate_name)
             input_rank = len(input_shape)
             if input_rank == 4:
                 interpolate_node['mode'] = 'linear_onnx'
