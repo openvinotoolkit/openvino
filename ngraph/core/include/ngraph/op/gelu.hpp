@@ -77,7 +77,8 @@ namespace ngraph
                 ///
                 /// \param data Input tensor
                 /// \param mode Approximation mode
-                Gelu(const Output<Node>& data, GeluApproximationMode mode = GeluApproximationMode::ERF);
+                Gelu(const Output<Node>& data,
+                     GeluApproximationMode mode = GeluApproximationMode::ERF);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
