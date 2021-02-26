@@ -50,6 +50,7 @@
 #include "util/engine/test_engines.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
+#include <cpp/ie_cnn_network.h>
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -3546,6 +3547,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D)
     test_case.run_with_tolerance_as_fp();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D_reshape)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax13_2D.prototxt"));
+    InferenceEngine::CNNNetwork net(function);
+    InferenceEngine::ICNNNetwork::InputShapes shapes = {};
+    InferenceEngine::SizeVector shape = {1, 1, 4000};
+    shapes[net.getInputsInfo().begin()->first] = shape;
+    EXPECT_NO_THROW(net.reshape(shapes));
+    ASSERT_EQ(shape, net.getOutputsInfo().begin()->second->getDims());
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_hard_sigmoid)
 {
     auto function = onnx_import::import_onnx_model(
@@ -3948,4 +3961,24 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_not_const_training_mode)
     {
         FAIL() << "Expected ngraph_error exception was not thrown";
     }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_multiple_slices_last_layer)
+{
+    std::vector<float> data(1 * 30 * 320 * 320);
+    std::fill(data.begin(), data.end(), 1);
+
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/multiple_slices_last_layer.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+    std::vector<float> o1(1 * 320 * 320 * 21);
+    std::fill(o1.begin(), o1.end(), 1);
+
+    std::vector<float> o2(1 * 320 * 320 * 9);
+    std::fill(o2.begin(), o2.end(), 1);
+
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(Shape{1, 320, 320, 21}, o1);
+    test_case.add_expected_output<float>(Shape{1, 320, 320, 9}, o2);
+    test_case.run();
 }
