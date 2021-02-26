@@ -237,7 +237,7 @@ namespace ngraph
         void set_output_size(size_t output_size);
 
         void invalidate_values();
-        void revalidate_and_infer_types()
+        virtual void revalidate_and_infer_types()
         {
             invalidate_values();
             validate_and_infer_types();
