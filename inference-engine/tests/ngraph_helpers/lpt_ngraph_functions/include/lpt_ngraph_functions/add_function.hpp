@@ -88,7 +88,8 @@ public:
         const int constInput,
         const std::vector<float>& constValues,
         const std::string& additionalLayer,
-        const std::string& operationType);
+        const std::string& operationType,
+        const ngraph::element::Type operationPrecision);
 };
 
 }  // namespace subgraph

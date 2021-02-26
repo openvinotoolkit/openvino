@@ -46,6 +46,7 @@ public:
         ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
         std::vector<float> constValues;
         std::string operationType;
+        ngraph::element::Type operationPrecision;
 
         Expected() = default;
 
@@ -55,10 +56,12 @@ public:
                  ngraph::builder::subgraph::DequantizationOperations dequantization2,
                  ngraph::builder::subgraph::DequantizationOperations dequantizationAfter,
                  std::vector<float> constValues,
-                 std::string operationType = "Add"): precision1(precision1), dequantization1(std::move(dequantization1)),
+                 std::string operationType = "Add",
+                 ngraph::element::Type operationPrecision = ngraph::element::undefined): precision1(precision1), dequantization1(std::move(dequantization1)),
                                          precision2(precision2), dequantization2(std::move(dequantization2)),
                                          dequantizationAfter(std::move(dequantizationAfter)), constValues(std::move(constValues)),
-                                         operationType(std::move(operationType)) {}
+                                         operationType(std::move(operationType)),
+                                         operationPrecision(operationPrecision) {}
     };
 
     ngraph::element::Type precision;
@@ -127,7 +130,8 @@ public:
             testValues.constInput == -1 ? -1 : 1,
             testValues.expected.constValues,
             testValues.additionalLayer,
-            testValues.expected.operationType);
+            testValues.expected.operationType,
+            testValues.expected.operationPrecision);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AddTransformationParams> obj) {
@@ -827,9 +831,10 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {ngraph::element::f16},  { }, { }},
             ngraph::element::f16,
             { {},  {}, {} },
-            { {},  {}, DequantizationOperations::Multiply(std::vector<float>({5.f})).setConstantPrecision(element::f16)},
+            { {}, {}, { {5.f}, ngraph::element::f16, {}, false, 1, ngraph::element::f16 } },
             { -2.f, -1.f, -0.4f, -0.8f, -0.6f, -2.4f, -1.6f, -2.8f },
-            "Subtract"
+            "Subtract",
+            ngraph::element::f16
         },
         ""
     },
