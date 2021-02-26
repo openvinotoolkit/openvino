@@ -22,9 +22,7 @@
 #include "ngraph/op/gelu.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/validation_util.hpp"
-#include "runtime/backend.hpp"
 #include "util/test_tools.hpp"
-#include "util/type_prop.hpp"
 
 using namespace std;
 using namespace ngraph;

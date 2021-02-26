@@ -1108,8 +1108,8 @@ namespace
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::gelu<T>(inputs[0]->get_data_ptr<T>(),
                                     outputs[0]->get_data_ptr<T>(),
-                                    op::GeluApproximationMode::ERF,
-                                    shape_size(inputs[0]->get_shape()));
+                                    shape_size(inputs[0]->get_shape()),
+                                    op::GeluApproximationMode::ERF);
         return true;
     }
 
@@ -1121,8 +1121,8 @@ namespace
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::gelu<T>(inputs[0]->get_data_ptr<T>(),
                                     outputs[0]->get_data_ptr<T>(),
-                                    op->get_approximation_mode(),
-                                    shape_size(inputs[0]->get_shape()));
+                                    shape_size(inputs[0]->get_shape()),
+                                    op->get_approximation_mode());
         return true;
     }
 
