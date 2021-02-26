@@ -75,7 +75,7 @@ struct reduce_accumulator {
         return acc;
     };
 
-    AccT accumulate(AccT& acc, AccT& input_val, cldnn::reduce_mode reduce_mode, bool force_sum) {
+    AccT accumulate(AccT& acc, AccT& input_val, cldnn::reduce_mode reduce_mode, bool sum_only) {
         if (reduce_mode == cldnn::reduce_mode::sum || reduce_mode ==  cldnn::reduce_mode::mean ||
             reduce_mode == cldnn::reduce_mode::log_sum)
             acc += input_val;
@@ -89,25 +89,22 @@ struct reduce_accumulator {
             acc = acc && input_val;
         else if (reduce_mode == cldnn::reduce_mode::logical_or)
             acc = acc || input_val;
-        else if (reduce_mode == cldnn::reduce_mode::sum_square)
-        {
-            if (force_sum)
+        else if (reduce_mode == cldnn::reduce_mode::sum_square) {
+            if (sum_only)
                 acc += input_val;
             else
                 acc += input_val * input_val;
         }
         else if (reduce_mode == cldnn::reduce_mode::l1)
             acc += abs(input_val);
-        else if (reduce_mode == cldnn::reduce_mode::l2)
-        {
-            if (force_sum)
+        else if (reduce_mode == cldnn::reduce_mode::l2) {
+            if (sum_only)
                 acc += input_val;
             else
                 acc += input_val * input_val;
         }
-        else if (reduce_mode == cldnn::reduce_mode::log_sum_exp)
-        {
-            if (force_sum)
+        else if (reduce_mode == cldnn::reduce_mode::log_sum_exp) {
+            if (sum_only)
                 acc += input_val;
             else
                 acc += exp(input_val);
