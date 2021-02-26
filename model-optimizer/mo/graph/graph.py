@@ -781,7 +781,7 @@ class Graph(nx.MultiDiGraph):
                                                                                                node.out_ports().keys())))
 
     def dump_graph_for_graphviz(self, node_attrs: list = ['kind', 'op', 'shape', 'correct_data_layout', 'nchw_layout',
-                                                          'internal_layer_id'],
+                                                          'internal_layer_id', 'correct_data_type', 'in_shape_subgraph'],
                                 edge_attrs: list = ['in', 'out'], nodes_to_dump: list = None,
                                 save_to_svg=False, highlight_nodes: list = None):
 

@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 import logging as log
 from collections import deque
 from re import match, compile
+from typing import Set, List
 
 import networkx as nx
 
@@ -54,7 +55,7 @@ def backward_bfs_for_operation(start_node: Node, op_names: list):
 
 def bfs_search(graph: Graph, start_nodes: list = list()):
     """
-    Performs breadth-first search over a graph and returns a list of nodes in the BFS order.
+    Performs breadth-fhirst search over a graph and returns a list of nodes in the BFS order.
     :param graph: networkx graph to traverse.
     :param start_nodes: list of start nodes of the graph. If the list is empty then start from all nodes that do not
     have input nodes.
@@ -75,6 +76,53 @@ def bfs_search(graph: Graph, start_nodes: list = list()):
                 d.append(dst_node)
                 visited.add(dst_node)
     return result
+
+
+def get_next_in_nodes(node: Node, include_in_port_0=True) -> Set[Node]:
+    in_nodes = set()
+    for in_port in node.in_ports().values():
+        if in_port.get_source() is not None:
+            if include_in_port_0 or not in_port.idx == 0:  # need to skip optional not connected inputs
+                in_nodes.add(in_port.get_source().node)
+    return in_nodes
+
+
+def get_next_out_nodes(node: Node) -> Set[Node]:
+    out_nodes = set()
+    for out_port in node.out_ports().values():
+        dst_nodes = [dst.node for dst in out_port.get_destinations()]  # todo: probably buggy place
+        out_nodes.update(dst_nodes)
+    return out_nodes
+
+
+def bfs_search_apply_on_shapeof_subgraph_nodes(initial_nodes: List[Node], visited: set = None,
+                                               action: callable = None) -> Set[Node]:
+    # action will be taken not on all visited nodes only on those that are inside ShapeOf subgraph
+    if visited is None:
+        visited = set(initial_nodes)
+    end_point_nodes = set()
+
+    deque_of_nodes = deque()
+    for node in initial_nodes:
+        deque_of_nodes.extend(get_next_out_nodes(node))
+
+    while len(deque_of_nodes):
+        node = deque_of_nodes.popleft()
+        if node in visited:
+            continue
+        if any([out_port.data.get_value() is None for out_port in node.out_ports().values()]):
+            end_point_nodes.add(node)
+            visited.add(node)
+            continue
+
+        next_in_nodes = get_next_in_nodes(node)
+        next_out_nodes = get_next_out_nodes(node)
+        deque_of_nodes.extend(next_out_nodes)
+        deque_of_nodes.extend(next_in_nodes)
+        visited.add(node)
+        if action is not None:
+            action(node)
+    return visited
 
 
 def nodes_matching_name_pattern(graph: Graph, pattern: str):
@@ -117,7 +165,7 @@ def is_connected_component(graph: Graph, node_names: list):
     return set(node_names).issubset(visited)
 
 
-def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None,
+def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable = None,
                             include_control_flow=True):
     """
     Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. Input nodes for the sub-graph nodes are also
@@ -148,7 +196,7 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
 
         for src_node_name, _, attrs in graph.in_edges(cur_node_id, data=True):
             # add input nodes for the non-start_nodes
-            if cur_node_id not in start_nodes and src_node_name not in visited and\
+            if cur_node_id not in start_nodes and src_node_name not in visited and \
                     (include_control_flow or not attrs.get('control_flow_edge', False)):
                 if detect_extra_start_node is not None and detect_extra_start_node(Node(graph, cur_node_id)):
                     extra_start_nodes.append(cur_node_id)
@@ -183,7 +231,8 @@ def sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, de
         return sub_graph_nodes, extra_start_nodes
 
 
-def invert_sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list, detect_extra_start_node: callable=None):
+def invert_sub_graph_between_nodes(graph: Graph, start_nodes: list, end_nodes: list,
+                                   detect_extra_start_node: callable = None):
     """
     Finds nodes of the sub-graph between 'start_nodes' and 'end_nodes'. But doing it from start_nodes stepping
     backward by in edges.
@@ -277,7 +326,7 @@ def node_outcoming_neighbourhood(graph: Graph, node_name: str, depth: int):
     return node_neighbourhood(node_name, depth, lambda node_name: [v for u, v in graph.out_edges([node_name])])
 
 
-def scope_output_nodes(graph: Graph, scope: str, scope_delimiter: str='/'):
+def scope_output_nodes(graph: Graph, scope: str, scope_delimiter: str = '/'):
     """
     The function returns nodes producing output of the sub-graph defined by scope (name prefix). The node is considered
     output of the scope if it is in this scope and it's output is outside of the scope.
@@ -297,4 +346,3 @@ def scope_output_nodes(graph: Graph, scope: str, scope_delimiter: str='/'):
                     result.add(node_id)
                     break
     return [Node(graph, node_id) for node_id in result]
-

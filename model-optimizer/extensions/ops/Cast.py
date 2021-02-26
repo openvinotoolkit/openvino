@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ import logging as log
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Node, Graph
-from mo.middle.passes.convert_data_type import np_data_type_to_precision, convert_blob, np_data_type_to_destination_type
+from mo.middle.passes.convert_data_type import convert_blob, np_data_type_to_destination_type
 from mo.ops.op import Op
 from mo.utils.utils import refer_to_faq_msg
 
