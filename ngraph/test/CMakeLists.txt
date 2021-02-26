@@ -64,6 +64,7 @@ set(SRC
     graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
+    int4.cpp
     intervals.cpp
     main.cpp
     matcher_pass.cpp
