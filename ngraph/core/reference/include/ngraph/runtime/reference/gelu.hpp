@@ -38,12 +38,13 @@ namespace ngraph
                 }
                 else if (mode == op::GeluApproximationMode::TANH)
                 {
-                    auto pi = atan(1.0) * 4.0;
+                    const auto pi = atan(1.0) * 4.0;
+                    const auto sqpi = std::tanh(std::sqrt(2.0 / pi));
                     for (size_t i = 0; i < count; i++)
                     {
                         auto& x = arg[i];
-                        out[i] =
-                            0.5 * x * (1 + tanh(std::sqrt(2.0 / pi) * (x + 0.044715 * pow(x, 3))));
+                        out[i] = 0.5 * x *
+                                (1.0 + sqpi * (x + 0.044715 * std::pow(x, 3)));
                     }
                 }
             }
