@@ -220,8 +220,7 @@ TEST_F(NGraphReaderTests, ReadGelu6TanhNetwork) {
 	</edges>
 </net>
 )V0G0N";
-    compareIRs(model, modelV7, 0, [](Blob::Ptr& weights) {
-    });
+    compareIRs(model, modelV7);
 }
 
 TEST_F(NGraphReaderTests, ReadGelu6ErfNetwork) {
@@ -306,6 +305,5 @@ TEST_F(NGraphReaderTests, ReadGelu6ErfNetwork) {
 	</edges>
 </net>
 )V0G0N";
-    compareIRs(model, modelV7, 0, [](Blob::Ptr& weights) {
-    });
+    compareIRs(model, modelV7);
 }

@@ -26,7 +26,7 @@ ngraph::pass::Gelu6Downgrade::Gelu6Downgrade() {
             return false;
         }
 
-        auto new_gelu_node = std::make_shared<ngraph::opset2::Gelu>();
+        auto new_gelu_node = std::make_shared<ngraph::opset2::Gelu>(gelu_node->input_value(0));
         new_gelu_node->set_friendly_name(gelu_node->get_friendly_name());
         ngraph::copy_runtime_info(gelu_node, new_gelu_node);
         ngraph::replace_node(gelu_node, new_gelu_node);
