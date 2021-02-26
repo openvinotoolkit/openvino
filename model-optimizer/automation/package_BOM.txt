@@ -124,7 +124,6 @@ extensions/front/caffe/softmax_ext.py
 extensions/front/caffe/spatial_transformer_ext.py
 extensions/front/caffe/split_to_identity.py
 extensions/front/caffe/tanh.py
-extensions/front/ChangeCastOutputType.py
 extensions/front/ChangePlaceholderTypes.py
 extensions/front/create_tensor_nodes.py
 extensions/front/disable_weights_quantize_value_propagation.py
@@ -538,6 +537,7 @@ extensions/middle/AttributedTileNormalizer.py
 extensions/middle/BiasAddBroadcasting.py
 extensions/middle/BinarizeWeightsM1P1.py
 extensions/middle/BlockLSTMtoLSTMSequence.py
+extensions/middle/ChangeCastOutputType.py
 extensions/middle/CheckForCycle.py
 extensions/middle/ConcatOptimization.py
 extensions/middle/ConstSwitchResolver.py
@@ -571,6 +571,7 @@ extensions/middle/L2NormFusing.py
 extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
+extensions/middle/MarkShapeOfSubgraphDataType.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
 extensions/middle/MoveConstToLoopBody.py
 extensions/middle/MulFakeQuantizeFuse.py

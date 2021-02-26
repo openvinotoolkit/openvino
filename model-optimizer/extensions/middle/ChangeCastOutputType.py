@@ -32,8 +32,8 @@ class ChangeCastOutputType(MiddleReplacementPattern):
     force_shape_inference = True
 
     def run_after(self):
-        from extensions.middle.MarkShapeOfSubgraphDataType import MarkShapeOfNodes
-        return [MarkShapeOfNodes]
+        from extensions.middle.MarkShapeOfSubgraphDataType import MarkShapeOfSubgraphDataType
+        return [MarkShapeOfSubgraphDataType]
 
     def run_before(self):
         from extensions.back.pass_separator import BackStart
