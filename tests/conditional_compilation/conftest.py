@@ -13,8 +13,6 @@ python3 -m pytest --artifacts ./compiled --test_conf=<path to test config> \
 """
 
 import sys
-import re
-import os
 from inspect import getsourcefile
 from pathlib import Path
 
@@ -87,18 +85,8 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(scope="function")
 def test_info(request, pytestconfig):
-
-    def _get_xml_name(path):
-        return os.path.basename(os.path.normpath(path))
-
-    test_case_model_path = {}
-    for case in pytestconfig.orig_cases:
-        case_search = re.search(r'\[(.*?)\]', str(request.node))
-        if _get_xml_name(case["model"]["path"]) in _get_xml_name(case_search.group(0)):
-            test_case_model_path = case
-    setattr(request.node._request, "test_info", {"orig_instance": test_case_model_path,
-                                                 "csv_path": {}
-                                                 })
+    setattr(request.node._request, "test_info", {"out_file": {},
+                                                 "test_id": {}})
     if not hasattr(pytestconfig, "session_info"):
         setattr(pytestconfig, "session_info", [])
 
@@ -108,14 +96,10 @@ def test_info(request, pytestconfig):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def update_test_conf_info(request, pytestconfig):
+def update_test_conf_info(pytestconfig):
     yield
-    upd_cases = pytestconfig.orig_cases.copy()
-    for record in pytestconfig.session_info:
-        rec_i = upd_cases.index(record["orig_instance"])
-        upd_cases[rec_i]["model"]["csv_path"] = record["csv_path"]
-    with open(request.config.getoption("test_conf"), "w") as config:
-        yaml.safe_dump(upd_cases, config)
+    with open(Path(__file__).parent / "csv_results.yml", "w") as config:
+        yaml.safe_dump(pytestconfig.session_info, config)
 
 
 @pytest.fixture(scope="session")
