@@ -42,8 +42,8 @@ namespace ngraph
                     for (size_t i = 0; i < count; i++)
                     {
                         auto& x = arg[i];
-                        out[i] = 0.5 * x *
-                                 (1 + tanh(std::sqrt(2.0 / pi) * (x + 0.044715 * pow(x, 3))));
+                        out[i] =
+                            0.5 * x * (1 + tanh(std::sqrt(2.0 / pi) * (x + 0.044715 * pow(x, 3))));
                     }
                 }
             }
