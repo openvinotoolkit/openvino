@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from typing import List
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import get_shape_from_slice
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -34,7 +34,7 @@ A number of transformations take place on the front phase to convert framework s
 class AttributedSlice(Op):
     """
     AttributedSlice is used in old versions of ONNX models (opset version < 10).
-    The operation is replaced with the OpenVINO Slice operation on the front phase.
+    Is replaced with internal Slice on the front phase.
     """
     op = 'AttributedSlice'
     enabled = False
@@ -53,7 +53,7 @@ class CaffeSlice(Op):
     """
     Slice in Caffe is equivalent to Split operation in OpenVINO.
     https://caffe.berkeleyvision.org/tutorial/layers/slice.html
-    The operation is replaced with the OpenVINO Split operation on the front phase.
+    Is replaced with Split from opset on the front phase.
     """
     op = 'CaffeSlice'
     enabled = False
@@ -71,11 +71,10 @@ class CaffeSlice(Op):
 
 class TFSlice(Op):
     """
-    Slice operation in Tensorflow is different from Slice in ONNX, Caffe and MXNet. It has begin and size inputs while
-    ONNX Slice and internal MO Slice has start, end, step and axis parameters specified as inputs.
+    TFSlice differs from Slice in ONNX, Caffe and MXNet.
+    TFSlice has 'begin' and 'size' inputs while Slice has 'start', 'end', 'step', and 'axis' inputs.
     https://www.tensorflow.org/api_docs/python/tf/slice
-    The operation is replaced with the internal Slice on the front phase.
-    If size[i] == -1 is replaced to int32_max value for the end.
+    Is replaced with internal Slice op on the front phase.
     """
     op = 'TFSlice'
     enabled = False
@@ -94,7 +93,7 @@ class MXSlice(Op):
     """
     Slice operation in MXNet is different from ONNX, Caffe, Tensorflow. It has begin, end & step attributes
     https://mxnet.apache.org/versions/1.6/api/python/docs/api/symbol/op/index.html#mxnet.symbol.op.slice
-    The operation is replaced with the OpenVINO StridedSlice operation on the front phase.
+    Is replaced with the StridedSlice from opset on the front phase.
     """
     op = 'MXSlice'
     enabled = False
@@ -112,9 +111,9 @@ class MXSlice(Op):
 
 class Slice(Op):
     """
-    Semantic of MO internal Slice operation is identical to Slice in ONNX opset >= 10.
-    It has starts, ends, steps and axes inputs.
-    The operation is internal (not present in the OpenVINO opset) and is replaced to StridedSlice.
+    Semantic of Slice is identical to Slice in ONNX opset >= 10.
+    It has 'starts', 'ends', 'steps', and 'axes' inputs.
+    SliceConverter replaces it with StridedSlice from opset.
     """
     op = 'Slice'
     enabled = False
@@ -157,20 +156,9 @@ class Slice(Op):
             # Ranged for output value for specified axis
             slice_idx[axes[i]] = slice(starts[i], ends[i], steps[i])
         if input_value is None:
-            output_shape = get_shape_after_slice(input_shape, slice_idx)
+            output_shape = get_shape_from_slice(input_shape, slice_idx)
             if np.any(output_shape <= 0):
                 raise Error('Output shape: {} of node "{}" contains non-positive values'.format(output_shape, node.name))
             node.out_port(0).data.set_shape(output_shape)
         else:
             node.out_port(0).data.set_value(input_value[tuple(slice_idx)])
-
-
-def get_shape_after_slice(input_shape: np.ndarray, slice_idx: List[slice]) -> np.ndarray:
-    """
-    Calculate shape of a tensor after slicing without actually creating the resulting tensor.
-    Is introduced to prevent potentially large memory consumption.
-    """
-    output_shape = np.zeros(len(input_shape), dtype=np.int32)
-    for i, s in enumerate(slice_idx):
-        output_shape[i] = len(range(*s.indices(input_shape[i])))
-    return output_shape
