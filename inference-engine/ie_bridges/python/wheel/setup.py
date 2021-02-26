@@ -27,16 +27,17 @@ from setuptools.command.build_ext import build_ext
 from setuptools.command.build_clib import build_clib
 from decouple import config
 
-WHEEL_LIBS_INSTALL_DIR = "openvino.libs"
+WHEEL_LIBS_INSTALL_DIR = os.path.join('openvino', 'libs')
+WHEEL_LIBS_PACKAGE = 'openvino.libs'
 PYTHON_VERSION = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
 # The following variables can be defined in environment or .env file
-CMAKE_BUILD_DIR = os.path.normpath(config('CMAKE_BUILD_DIR', "."))
-CORE_LIBS_DIR = os.path.normpath(config('CORE_LIBS_DIR', ''))
-PLUGINS_LIBS_DIR = os.path.normpath(config('PLUGINS_LIBS_DIR', ''))
-NGRAPH_LIBS_DIR = os.path.normpath(config('NGRAPH_LIBS_DIR', ''))
-TBB_LIBS_DIR = os.path.normpath(config('TBB_LIBS_DIR', ''))
-PY_PACKAGES_DIR = os.path.normpath(config('PY_PACKAGES_DIR', ''))
+CMAKE_BUILD_DIR = config('CMAKE_BUILD_DIR', ".")
+CORE_LIBS_DIR = config('CORE_LIBS_DIR', '')
+PLUGINS_LIBS_DIR = config('PLUGINS_LIBS_DIR', '')
+NGRAPH_LIBS_DIR = config('NGRAPH_LIBS_DIR', '')
+TBB_LIBS_DIR = config('TBB_LIBS_DIR', '')
+PY_PACKAGES_DIR = config('PY_PACKAGES_DIR', '')
 LIBS_RPATH = "$ORIGIN" if sys.platform == "linux" else "@loader_path"
 
 LIB_INSTALL_CFG = {
@@ -50,26 +51,31 @@ LIB_INSTALL_CFG = {
         'name': 'hetero',
         'prefix': 'libs.plugins',
         'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
     },
     "gpu_plugin": {
-        'name': 'cldnn',
+        'name': 'gpu',
         'prefix': 'libs.plugins',
         'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
     },
     "cpu_plugin": {
-        'name': 'mkldnn',
+        'name': 'cpu',
         'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR
+        'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
     },
     "multi_plugin": {
         'name': 'multi',
         'prefix': 'libs.plugins',
-        'install_dir': PLUGINS_LIBS_DIR
+        'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
     },
     "myriad_plugin": {
         'name': 'myriad',
         'prefix': 'libs.plugins',
         'install_dir': PLUGINS_LIBS_DIR,
+        'rpath': LIBS_RPATH,
     },
     "ngraph_libs": {
         'name': 'ngraph',
@@ -128,6 +134,7 @@ class PrepareLibs(build_clib):
     def run(self):
         self.configure(LIB_INSTALL_CFG)
         self.configure(PY_INSTALL_CFG)
+        self.generate_package(get_dir_list(LIB_INSTALL_CFG))
 
     def configure(self, install_cfg):
         """Collect prebuilt libraries. Install them to the temp directories, set rpath."""
@@ -146,6 +153,28 @@ class PrepareLibs(build_clib):
                 lib_pattern = "*.so" if sys.platform == "linux" else "*.dylib"
                 for path in Path(install_dir).glob(lib_pattern):
                     set_rpath(comp_data['rpath'], path)
+
+    def generate_package(self, src_dirs):
+        """
+        Collect package data files from preinstalled dirs and
+        put all runtime libraries to the subpackage
+        """
+        # additional blacklist filter, just to fix cmake install issues
+        blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.dylib']
+        package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
+        for src_dir in src_dirs:
+            local_base_dir = Path(src_dir)
+            for file_path in local_base_dir.rglob('*'):
+                file_name = os.path.basename(file_path)
+                if file_path.is_file() and not any(file_name.endswith(ext) for ext in blacklist):
+                    dst_file = os.path.join(package_dir, os.path.relpath(file_path, local_base_dir))
+                    os.makedirs(os.path.dirname(dst_file), exist_ok=True)
+                    copyfile(file_path, dst_file)
+
+        if Path(package_dir).exists():
+            self.announce(f"Adding {WHEEL_LIBS_PACKAGE} package", level=3)
+            packages.append(WHEEL_LIBS_PACKAGE)
+            package_data.update({WHEEL_LIBS_PACKAGE: ['*']})
 
 
 class CopyExt(build_ext):
@@ -201,32 +230,7 @@ def set_rpath(rpath, executable):
             sys.exit(f"Could not set rpath: {rpath} for {executable}")
     else:
         sys.exit(f"Could not found {rpath_tool} on the system, "
-              f"please make sure that this tool is installed")
-
-
-def find_data_files(src_dirs):
-    """Collect package data files from src_dirs"""
-    # The install directory for data_files should be a relative path.
-    # It is interpreted relative to the installation prefix
-    # (Python’s sys.prefix for system installations; site.USER_BASE for user installations).
-    if sys.platform == "win32":
-        install_subdir = f"Lib/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
-    else:
-        install_subdir = f"lib/{PYTHON_VERSION}/site-packages/{WHEEL_LIBS_INSTALL_DIR}"
-    # additional blacklist filter, just to fix cmake install issues
-    data_blacklist = ['.lib', '.pdb', '_debug.dll', '_debug.dylib']
-    data_files = []
-    for src_dir in src_dirs:
-        local_base_dir = Path(src_dir)
-        for file_path in local_base_dir.rglob('*'):
-            file_name = os.path.basename(file_path)
-            dir_name = os.path.dirname(file_path)
-            if file_path.is_file() and not any(file_name.endswith(ext) for ext in data_blacklist):
-                data_files.append([
-                    os.path.join(install_subdir, os.path.relpath(dir_name, local_base_dir)),
-                    [str(file_path)]
-                ])
-    return data_files
+                 f"please make sure that this tool is installed")
 
 
 def find_prebuilt_extensions(search_dirs):
@@ -302,6 +306,9 @@ package_license = config('WHEEL_LICENSE', '')
 if os.path.exists(package_license):
     copyfile(package_license, "LICENSE")
 
+packages = find_packages(','.join(get_dir_list(PY_INSTALL_CFG)))
+package_data = {}
+
 setup(
     version=config('WHEEL_VERSION', '0.0.0'),
     author_email=config('WHEEL_AUTHOR_EMAIL', 'openvino_pushbot@intel.com'),
@@ -312,6 +319,8 @@ setup(
     install_requires=get_dependencies(config('WHEEL_REQUIREMENTS', "requirements.txt")),
     long_description=get_description(config('WHEEL_OVERVIEW', 'pypi_overview.md')),
     long_description_content_type="text/markdown",
+    download_url=config('WHEEL_DOWNLOAD_URL', 'https://github.com/openvinotoolkit/openvino/tags'),
+    url=config('WHEEL_URL', 'https://docs.openvinotoolkit.org/latest/index.html'),
     cmdclass={
         "build": CustomBuild,
         "install": CustomInstall,
@@ -319,8 +328,8 @@ setup(
         "build_ext": CopyExt,
     },
     ext_modules=find_prebuilt_extensions(get_dir_list(PY_INSTALL_CFG)),
-    packages=find_packages(','.join(get_dir_list(PY_INSTALL_CFG))),
+    packages=packages,
     package_dir={'': get_package_dir(PY_INSTALL_CFG)},
-    data_files=find_data_files(get_dir_list(LIB_INSTALL_CFG)),
+    package_data=package_data,
     zip_safe=False,
 )
