@@ -18,7 +18,7 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
-#include <framework.pb.h>
+#include "framework.pb.h"
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset6.hpp>
@@ -29,7 +29,7 @@ using namespace google;
 using namespace paddle::framework;
 
 inline void MY_ASSERT(bool ex, const std::string& msg = "Unspecified error.") {
-    if (!ex) throw std::runtime_error(msg + std::endl);
+    if (!ex) throw std::runtime_error(msg);
 }
 
 std::map<paddle::framework::proto::VarType_Type, ngraph::element::Type> TYPE_MAP{
@@ -145,10 +145,21 @@ bool get_bool(proto::OpDesc op, std::string name, bool def = false) {
     }
 }
 
-typedef std::shared_ptr<ngraph::Node>(*CreatorFunction)(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+typedef std::shared_ptr<ngraph::Node>(*CreatorFunction)(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
     const proto::OpDesc& op, const proto::BlockDesc& block);
 
-std::shared_ptr<ngraph::Node> conv2d_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+template <typename T>
+void print (const T& a)
+{
+    std::cerr << "[";
+    for(const auto& e: a)
+    {
+        std::cerr << e << ", ";
+    }
+    std::cerr << "]\n";
+}
+
+std::shared_ptr<ngraph::Node> conv2d_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
     const proto::OpDesc& op, const proto::BlockDesc& block) {
     std::cout << "Running conv2d creator" << std::endl;
     MY_ASSERT(inputs["Input"].size() == 1 && inputs["Filter"].size() == 1, "More then one input for conv2d");
@@ -160,6 +171,9 @@ std::shared_ptr<ngraph::Node> conv2d_creator(const std::map<std::string, std::ve
     auto paddings = get_ints(op, "paddings");
     auto dilations = get_ints(op, "dilations");
     std::cout << "Creating convolution node" << std::endl;
+    print(strides);
+    print(paddings);
+    print(dilations);
     return std::make_shared<ngraph::opset6::Convolution>(data,
         filter,
         ngraph::Strides(strides.begin(), strides.end()),
@@ -169,7 +183,7 @@ std::shared_ptr<ngraph::Node> conv2d_creator(const std::map<std::string, std::ve
 }
 
 
-std::shared_ptr<ngraph::Node> batch_norm_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+std::shared_ptr<ngraph::Node> batch_norm_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
     const proto::OpDesc& op, const proto::BlockDesc& block) {
     MY_ASSERT(inputs["X"].size() == 1 &&
         inputs["Scale"].size() == 1 &&
@@ -186,14 +200,14 @@ std::shared_ptr<ngraph::Node> batch_norm_creator(const std::map<std::string, std
 }
 
 
-std::shared_ptr<ngraph::Node> relu_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+std::shared_ptr<ngraph::Node> relu_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
     const proto::OpDesc& op, const proto::BlockDesc& block) {
     MY_ASSERT(inputs["X"].size() == 1, "More then one input for relu");
     auto data = inputs["X"][0];
     return std::make_shared<ngraph::opset6::Relu>(data);
 }
 
-std::shared_ptr<ngraph::Node> pool2d_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+std::shared_ptr<ngraph::Node> pool2d_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
     const proto::OpDesc& op, const proto::BlockDesc& block) {
     MY_ASSERT(inputs["X"].size() == 1, "More then one input for pool2d");
     auto data = inputs["X"][0];
@@ -220,7 +234,7 @@ std::shared_ptr<ngraph::Node> pool2d_creator(const std::map<std::string, std::ve
     }
 }
 
-std::shared_ptr<ngraph::Node> elementwise_add_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+std::shared_ptr<ngraph::Node> elementwise_add_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
     const proto::OpDesc& op, const proto::BlockDesc& block) {
     MY_ASSERT(inputs["X"].size() == 1 && inputs["Y"].size() == 1, "More then one input for elementwise_add");
     auto x = inputs["X"][0];
@@ -229,7 +243,7 @@ std::shared_ptr<ngraph::Node> elementwise_add_creator(const std::map<std::string
     return std::make_shared<ngraph::opset6::Add>(x, y);
 }
 
-std::shared_ptr<ngraph::Node> mul_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+std::shared_ptr<ngraph::Node> mul_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
     const proto::OpDesc& op, const proto::BlockDesc& block) {
     MY_ASSERT(inputs["X"].size() == 1 && inputs["Y"].size() == 1, "More then one input for mul");
     auto x = inputs["X"][0];
@@ -258,7 +272,7 @@ std::shared_ptr<ngraph::Node> mul_creator(const std::map<std::string, std::vecto
     return std::make_shared<ngraph::opset6::MatMul>(x, y);
 }
 
-std::shared_ptr<ngraph::Node> scale_creator(const std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
+std::shared_ptr<ngraph::Node> scale_creator(std::map<std::string, std::vector<std::shared_ptr<ngraph::Node>>>& inputs,
     const proto::OpDesc& op, const proto::BlockDesc& block) {
     MY_ASSERT(inputs["X"].size() == 1, "More then one input for scale");
     auto data = inputs["X"][0];
@@ -266,12 +280,12 @@ std::shared_ptr<ngraph::Node> scale_creator(const std::map<std::string, std::vec
     return std::make_shared<ngraph::opset6::Multiply>(data, scale);
 }
 
-std::shared_ptr<ngraph::Node> make_ng_node(const std::map<std::string, google::protobuf::RepeatedPtrField<std::string>>& inputs,
-    const std::map<std::string, std::shared_ptr<ngraph::Node>>& nodes,
+std::shared_ptr<ngraph::Node> make_ng_node(std::map<std::string, google::protobuf::RepeatedPtrField<std::string>>& inputs,
+    std::map<std::string, std::shared_ptr<ngraph::Node>>& nodes,
     const paddle::framework::proto::OpDesc& op,
     const paddle::framework::proto::BlockDesc& block) {
     std::cout << "Making node: " << op.type() << std::endl;
-    std::map<std::string, CreatorFunction> CREATORS_MAP{
+    std::map<std::string, CreatorFunction> CREATORS_MAP = {
         {"conv2d", conv2d_creator},
         {"batch_norm", batch_norm_creator},
         {"relu", relu_creator},
@@ -342,10 +356,13 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string& model_dir) {
             vars_dict[var.name()] = var.type();
         }
         for (int i = 0; i < block.ops_size(); i++) {
+            std::cerr << "Observing index i = " << i << "\n";
             const auto& op = block.ops()[i];
+            std::cerr << "Observing " << op.type() << "\n";
             std::map<std::string, google::protobuf::RepeatedPtrField<std::string>> outputs_dict;
             for (const auto& output : op.outputs()) {
                 outputs_dict[output.parameter()] = output.arguments();
+                std::cerr << output.parameter() << "\n";
             }
             std::map<std::string, google::protobuf::RepeatedPtrField<std::string>> inputs_dict;
             for (const auto& input : op.inputs()) {
@@ -381,7 +398,9 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string& model_dir) {
             }
             else {
                 auto node = make_ng_node(inputs_dict, nodes_dict, op, block);
-                node->set_friendly_name(outputs_dict["Out"][0]);
+                std::cerr << "Node created: " << node << "\n";
+                node->set_friendly_name(op.outputs()[0].parameter());
+                std::cerr << "Named with " << node->get_friendly_name() << "\n";
                 for (const auto& item : outputs_dict) {
                     MY_ASSERT(item.second.size() <= 1);
                     if (item.second.size() == 1) {
@@ -396,7 +415,7 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string& model_dir) {
 
 int main(int argc, char* argv[]) {
     try {
-        std::string model_path = "/home/mvafin/.paddlehub/modules/resnet_v2_50_imagenet/model";
+        std::string model_path = "/home/slyalin/.paddlehub/modules/resnet_v2_50_imagenet/model";
         auto func = convert_model(model_path);
         CNNNetwork net(func);
         //net.reshape({ {"@HUB_resnet_v2_50_imagenet@image"}, {1, 3, 224, 224} });
