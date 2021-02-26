@@ -14,12 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <numeric>
-
+#include "op/add.hpp"
 #include "default_opset.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/shape.hpp"
-#include "op/add.hpp"
 
 namespace ngraph
 {
