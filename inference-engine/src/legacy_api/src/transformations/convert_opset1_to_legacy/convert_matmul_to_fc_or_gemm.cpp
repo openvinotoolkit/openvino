@@ -196,6 +196,7 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             fc_input_a = std::make_shared<op::v0::Unsqueeze>(fc_input_a,
             op::Constant::create(element::i64, Shape{1}, {0}));
             shape_a = fc_input_a.get_shape();
+            new_ops.push_back(fc_input_a.get_node_shared_ptr());
         }
         if (shape_b.size() == 1) {
             // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
@@ -204,6 +205,7 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             fc_input_b = std::make_shared<op::v0::Unsqueeze>(fc_input_b,
             op::Constant::create(element::i64, Shape{1}, {1}));
             shape_b = fc_input_b.get_shape();
+            new_ops.push_back(fc_input_b.get_node_shared_ptr());
         }
 
         // WA for IE that Gemm must have inputs with the same length.
