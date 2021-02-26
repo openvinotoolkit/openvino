@@ -73,7 +73,6 @@ struct IENetwork {
     void convertToOldRepresentation();
 
     std::string getOVNameForTensor(const std::string& orig_name);
-    std::string getOVNameForOperation(const std::string& orig_name);
 };
 
 
