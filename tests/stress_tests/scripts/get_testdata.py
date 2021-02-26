@@ -153,7 +153,11 @@ def main():
         cmd = '"{executable}" "{info_dumper_path}" --name {model_name}'.format(executable=sys.executable,
                                                                                info_dumper_path=info_dumper_path,
                                                                                model_name=model_name)
-        out = subprocess.check_output(cmd, shell=True, universal_newlines=True)
+        try:
+            out = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True, universal_newlines=True)
+        except subprocess.CalledProcessError as exc:
+            log.warning(exc.output)
+
         model_info = json.loads(out)[0]
 
         # update model record from test config with Open Model Zoo info

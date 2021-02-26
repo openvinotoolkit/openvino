@@ -14,10 +14,5 @@
         <model name="mtcnn-r" precision="FP16" source="omz" />
         <model name="mobilenet-ssd" precision="FP16" source="omz" />
         <model name="ssd300" precision="FP16" source="omz" />
-        <!--Models with INT8 precision-->
-        <model name="vgg16" precision="INT8" source="omz" />
-        <model name="mtcnn-r" precision="INT8" source="omz" />
-        <model name="mobilenet-ssd" precision="INT8" source="omz" />
-        <model name="ssd300" precision="INT8" source="omz" />
     </models>
 </attributes>
