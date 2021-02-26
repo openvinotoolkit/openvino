@@ -66,8 +66,7 @@ def pytest_generate_tests(metafunc):
     params = []
     ids = []
 
-    test_config = metafunc.config.getoption('test_conf')
-    with open(test_config, "r") as file:
+    with open(metafunc.config.getoption('test_conf'), "r") as file:
         test_cases = yaml.safe_load(file)
 
     for test in test_cases:
@@ -80,7 +79,6 @@ def pytest_generate_tests(metafunc):
         params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
         ids = ids + [test_id]
     metafunc.parametrize("test_id, model", params, ids=ids)
-    setattr(metafunc.config, "orig_cases", test_cases)
 
 
 @pytest.fixture(scope="function")
