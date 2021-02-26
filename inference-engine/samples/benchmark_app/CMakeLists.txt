@@ -5,9 +5,23 @@
 file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
+find_package(HddlUnite QUIET)
+if(HddlUnite_FOUND)
+    # test kmb_plugin directory
+    if(EXISTS ${KMBPLUGIN_HOME}/include/)
+        set(HDDL2_PARAMS_DIR ${KMBPLUGIN_HOME}/include/)
+        add_definitions(-DUSE_REMOTE_MEM)
+        set(HDDL2_DEP "HddlUnite::HddlUnite")
+    else()
+        message(WARNING "kmb_plugin/include could not find. Preallocating memory in remote device feature is disabled.")
+        remove_definitions(-DUSE_REMOTE_MEM)
+    endif()
+endif()
+
 ie_add_sample(NAME benchmark_app
               SOURCES ${SRC}
               HEADERS ${HDR}
-              DEPENDENCIES format_reader
-              OPENCV_DEPENDENCIES imgcodecs)
+              DEPENDENCIES format_reader ${HDDL2_DEP}
+              OPENCV_DEPENDENCIES imgcodecs
+              INCLUDE_DIRECTORIES ${HDDL2_PARAMS_DIR})
 

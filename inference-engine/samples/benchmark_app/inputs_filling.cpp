@@ -12,6 +12,7 @@
 #include <samples/slog.hpp>
 
 #include "inputs_filling.hpp"
+#include "../../src/plugin_api/blob_factory.hpp"
 
 using namespace InferenceEngine;
 
@@ -188,10 +189,19 @@ void fillBlobImInfo(Blob::Ptr& inputBlob,
     }
 }
 
+#ifdef USE_REMOTE_MEM
+void fillBlobs(RemoteContextHelper& remoteContextHelper,
+               const std::vector<std::string>& inputFiles,
+               const size_t& batchSize,
+               benchmark_app::InputsInfo& app_inputs_info,
+               std::vector<InferReqWrap::Ptr> requests,
+               bool preallocImage) {
+#else
 void fillBlobs(const std::vector<std::string>& inputFiles,
                const size_t& batchSize,
                benchmark_app::InputsInfo& app_inputs_info,
                std::vector<InferReqWrap::Ptr> requests) {
+#endif
     std::vector<std::pair<size_t, size_t>> input_image_sizes;
     for (auto& item : app_inputs_info) {
         if (item.second.isImage()) {
@@ -270,6 +280,11 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                 if (!imageFiles.empty()) {
                     // Fill with Images
                     fillBlobImage(inputBlob, imageFiles, batchSize, app_info, requestId, imageInputId++, imageInputCount);
+#ifdef USE_REMOTE_MEM
+                    if (preallocImage) {
+                        remoteContextHelper.PreallocRemoteMem(requests.at(requestId), item.first, inputBlob);
+                    }
+#endif
                     continue;
                 }
             } else {
@@ -333,6 +348,11 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
             } else {
                 THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
             }
+#ifdef USE_REMOTE_MEM
+            if (preallocImage) {
+                remoteContextHelper.PreallocRemoteMem(requests.at(requestId), item.first, inputBlob);
+            }
+#endif
         }
     }
 }
