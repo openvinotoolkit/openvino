@@ -17,6 +17,7 @@
 #include <numeric>
 
 #include "default_opset.hpp"
+#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/shape.hpp"
 #include "op/add.hpp"
 
@@ -38,19 +39,13 @@ namespace ngraph
                         if (node.has_attribute("axis"))
                         {
                             // Unidirectional broadcast right node to left shape.
-                            const auto rhs_rank = rhs_node.get_partial_shape().rank();
-                            NGRAPH_CHECK(rhs_rank.is_static(),
-                                         "Add operator second tensor's rank has to be static.");
-                            const auto axis = node.get_attribute_value<std::int64_t>("axis");
-                            const auto axes_num = static_cast<size_t>(rhs_rank.get_length());
-                            std::vector<int64_t> axes_vals(axes_num);
-                            std::iota(axes_vals.begin(), axes_vals.end(), axis);
-
+                            auto axis = node.get_attribute_value<std::int64_t>("axis");
+                            auto axes_mapping = builder::opset1::get_axes_mapping_output(
+                                lhs_node.get_partial_shape(), rhs_node.get_partial_shape(), axis);
                             rhs_node = std::make_shared<default_opset::Broadcast>(
                                 rhs_node,
                                 std::make_shared<default_opset::ShapeOf>(lhs_node),
-                                default_opset::Constant::create(
-                                    element::i64, Shape{axes_num}, axes_vals));
+                                axes_mapping);
                         }
                         else
                         {

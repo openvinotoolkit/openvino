@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "default_opset.hpp"
+#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/multiply.hpp"
@@ -43,10 +44,12 @@ namespace ngraph
                         {
                             // Unidirectional broadcast right node to left shape.
                             auto axis = node.get_attribute_value<std::int64_t>("axis");
+                            auto axes_mapping = builder::opset1::get_axes_mapping_output(
+                                lhs_node.get_partial_shape(), rhs_node.get_partial_shape(), axis);
                             rhs_node = std::make_shared<default_opset::Broadcast>(
                                 rhs_node,
                                 std::make_shared<default_opset::ShapeOf>(lhs_node),
-                                default_opset::Constant::create(element::i64, Shape{1}, {axis}));
+                                axes_mapping);
                         }
                         else
                         {
