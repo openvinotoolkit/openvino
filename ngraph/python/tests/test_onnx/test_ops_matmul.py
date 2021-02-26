@@ -130,9 +130,9 @@ def test_op_matmul_3d():
 @pytest.mark.parametrize(
     "data, kwargs, description",
     [
-        pytest.param(([1, 2], [1, 3], [1, 4]), {}, "vectors", marks=xfail_issue_35917),
+        pytest.param(([1, 2], [1, 3], [1, 4]), {}, "vectors"),
         pytest.param(([1, 2], [1, 3], 1), {}, "vectors and scalar", marks=xfail_issue_35917),
-        pytest.param(([1, 2], [1, 3], [1]), {}, "vectors and identity vector", marks=xfail_issue_35917),
+        pytest.param(([1, 2], [1, 3], [1]), {}, "vectors and identity vector"),
         pytest.param(([1, 2], [1, 3], [1, 4]), {"alpha": 7, "beta": 9},
                      "vectors with alpha and beta", marks=xfail_issue_35918),
         pytest.param(([1, 2, 3, 4], [1, 3, 5, 7], [1, 4]), {"alpha": 7, "beta": 9},
