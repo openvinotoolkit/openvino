@@ -30,6 +30,7 @@ extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
 extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
+extensions/back/LinearToLinearONNXReplacer.py
 extensions/back/LRNToNorm.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
