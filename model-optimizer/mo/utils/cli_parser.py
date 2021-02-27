@@ -31,6 +31,8 @@ from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 
+from ngraph import FrontEndManager
+
 
 class DeprecatedStoreTrue(argparse.Action):
     def __init__(self, nargs=0, **kw):
@@ -635,10 +637,14 @@ def get_all_cli_parser():
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
 
+    # TODO: Move FE API load to a single place (except this place there is another one when it is loaded).
+    fem = FrontEndManager()
+    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + fem.availableFrontEnds()))
+
     parser.add_argument('--framework',
                         help='Name of the framework used to train the input model.',
                         type=str,
-                        choices=['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'])
+                        choices=frameworks)
 
     get_common_cli_parser(parser=parser)
 

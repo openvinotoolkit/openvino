@@ -43,6 +43,8 @@ from mo.utils.utils import refer_to_faq_msg
 from mo.utils.version import get_version
 from mo.utils.versions_checker import check_requirements
 
+from ngraph import FrontEndManager
+
 
 def replace_ext(name: str, old: str, new: str):
     base, ext = os.path.splitext(name)
@@ -97,9 +99,18 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 def prepare_ir(argv: argparse.Namespace):
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
 
+    new_front_ends = []
+    if not argv.use_legacy_frontend:
+        fem = FrontEndManager()
+        new_front_ends = fem.availableFrontEnds()
+        argv.feManager = fem
+
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
-        raise Error('Framework {} is not a valid target. Please use --framework with one from the list: caffe, tf, '
-                    'mxnet, kaldi, onnx. ' + refer_to_faq_msg(15), argv.framework)
+        frameworks = ['tf', 'caffe', 'mxnet', 'kaldi', 'onnx']
+        frameworks = list(set(frameworks + new_front_ends))
+        if argv.framework not in frameworks:
+            raise Error('Framework {} is not a valid target. Please use --framework with one from the list: {}. ' +
+                        refer_to_faq_msg(15), argv.framework, frameworks)
 
     if is_tf and not argv.input_model and not argv.saved_model_dir and not argv.input_meta_graph:
         raise Error('Path to input model or saved model dir is required: use --input_model, --saved_model_dir or '
@@ -231,12 +242,12 @@ def prepare_ir(argv: argparse.Namespace):
         t.send_event('mo', 'framework', 'kaldi')
         from mo.front.kaldi.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
-    elif is_onnx and argv.use_legacy_frontend:
+    elif is_onnx and ('onnx' not in new_front_ends or argv.use_legacy_frontend):
         t.send_event('mo', 'framework', 'onnx')
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
 
-    if not(is_onnx and not argv.use_legacy_frontend):
+    if argv.framework not in new_front_ends or argv.use_legacy_frontend:
         graph = unified_pipeline(argv)
     else:
         graph = moc_pipeline(argv)
