@@ -9,21 +9,14 @@
 #include <string>
 #include <vector>
 #include <utility>
-
-#include <inference_engine.hpp>
-#include <vpu/vpu_plugin_config.hpp>
-#include <cldnn/cldnn_config.hpp>
-#include <gna/gna_config.hpp>
-#include <samples/common.hpp>
-#include <samples/slog.hpp>
-#include <samples/args_helper.hpp>
+#include <fstream>
 
 #include "framework.pb.h"
 
+#include "pdpd.hpp"
+
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset6.hpp>
-
-using namespace InferenceEngine;
 
 using namespace google;
 using namespace paddle::framework;
@@ -413,6 +406,16 @@ std::shared_ptr<ngraph::Function> convert_model(const std::string& model_dir) {
     return std::make_shared<ngraph::Function>(result_nodes, parameter_nodes);
 }
 
+std::shared_ptr<ngraph::Function> ngraph::frontend::FrontEndPDPD::convert (InputModel::Ptr model) const
+{
+    std::string path = std::dynamic_pointer_cast<ngraph::frontend::InputModelPDPD>(model)->path;
+    std::cerr << "[ INFO ] PFrontEndPDPD::convert invoked\n";
+    auto f = convert_model(path);
+    std::cerr << "[ INFO ] Resulting nGraph function contains " << f->get_ops().size() << "\n";
+    return f;
+}
+
+#if 0
 int main(int argc, char* argv[]) {
     try {
         std::string model_path = "/home/slyalin/.paddlehub/modules/resnet_v2_50_imagenet/model";
@@ -429,3 +432,4 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+#endif

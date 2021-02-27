@@ -18,6 +18,7 @@
 #include "onnx_import/onnx.hpp"
 #include "onnx_import/editor/editor.hpp"
 #include "frontend_manager/frontend_manager.hpp"
+#include "pdpd/pdpd.hpp"
 
 
 namespace ngraph
@@ -409,18 +410,22 @@ namespace ngraph
 
         FrontEnd::Ptr FrontEndManager::loadByFramework (const std::string& framework, FrontEndCapabilities fec)
         {
-            NGRAPH_CHECK(framework == "onnx");
-            return std::make_shared<FrontEndONNX>();
+            if (framework == "onnx")
+                return std::make_shared<FrontEndONNX>();
+            else if (framework == "pdpd")
+                return std::make_shared<FrontEndPDPD>();
+            else
+                throw "Framework " + framework + " is unknown for FrontEnd manager; cannot load it.";
         }
 
         FrontEnd::Ptr FrontEndManager::loadByModel (const std::string& path, FrontEndCapabilities fec)
         {
-            return loadByFramework("onnx");
+            FRONT_END_NOT_IMPLEMENTED(loadByModel);
         }
 
         std::vector<std::string> FrontEndManager::availableFrontEnds () const
         {
-            return {"onnx"};
+            return {"onnx", "pdpd"};
         }
     } // namespace frontend
 

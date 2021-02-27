@@ -43,6 +43,7 @@ def moc_pipeline(argv: argparse.Namespace):
     log.info('New MOC pipeline')
     fem = argv.feManager if 'feManager' in argv else FrontEndManager()
     log.info('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))
+    log.info('Initializing new FE for framework {}'.format(argv.framework))
     fe = fem.loadByFramework(argv.framework)
     print(fe)
     inputModel = fe.loadFromFile(argv.input_model)

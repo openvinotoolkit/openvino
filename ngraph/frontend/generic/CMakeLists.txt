@@ -14,9 +14,12 @@
 # limitations under the License.
 # ******************************************************************************
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc)
+file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h)
 file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+
+find_package(Protobuf REQUIRED IMPORTED)
+include_directories(${Protobuf_INCLUDE_DIRS})
 
 set(FRONTEND_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
@@ -41,7 +44,7 @@ endif()
 
 # TODO: Add other frontends to the list of dependencies temporary; in the produce version they should be discovered
 # TODO: in runtime.
-target_link_libraries(frontend_manager PRIVATE onnx_importer PUBLIC ngraph)
+target_link_libraries(frontend_manager PRIVATE onnx_importer ${Protobuf_LIBRARIES} PUBLIC ngraph)
 
 set(FRONTEND_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/generic")
 target_include_directories(frontend_manager SYSTEM PUBLIC $<BUILD_INTERFACE:${FRONTEND_IMPORT_INCLUDE_DIR}>

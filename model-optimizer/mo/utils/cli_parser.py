@@ -106,8 +106,8 @@ def readable_file(path: str):
     :param path: path to check
     :return: path if the file is readable
     """
-    if not os.path.isfile(path):
-        raise Error('The "{}" is not existing file'.format(path))
+    if not os.path.exists(path):
+        raise Error('The "{}" doesn\'t exist'.format(path))
     elif not os.access(path, os.R_OK):
         raise Error('The "{}" is not readable'.format(path))
     else:

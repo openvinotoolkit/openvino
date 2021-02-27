@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#pragma once
+
 #include <memory>
 #include <string>
 #include "ngraph/function.hpp"
