@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from extensions.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
@@ -42,7 +44,5 @@ class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
                                                                        include_both_directions=True)
         for node in nodes_in_shapeof_subgraph:
             node['in_shape_subgraph'] = True
-            for out_port in node.out_ports().values():
-                if not out_port.disconnected():
-                    node.out_node(out_port.idx)['correct_data_type'] = True
-                    node.out_node(out_port.idx)['in_shape_subgraph'] = True
+            if node.op == 'Const' and node.value.dtype == np.float64:
+                node.out_port(0).data.set_value(np.float32(node.out_port(0).data.get_value()))

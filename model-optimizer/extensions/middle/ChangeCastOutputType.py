@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ class ChangeCastOutputType(MiddleReplacementPattern):
     force_shape_inference = True
 
     def run_after(self):
-        from extensions.middle.MarkShapeOfSubgraphDataType import MarkShapeOfSubgraphDataType
+        from extensions.middle.MarkAndChangeDataTypeInShapeOfSubgraphs import MarkShapeOfSubgraphDataType
         return [MarkShapeOfSubgraphDataType]
 
     def run_before(self):

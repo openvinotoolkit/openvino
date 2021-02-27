@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 import numpy as np
 
 from extensions.ops.reverse_sequence import ReverseSequence
+from mo.front.common.partial_infer.utils import float32_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, rename_node
 from mo.middle.replacement import MiddleReplacementPattern
@@ -61,7 +62,7 @@ class ReverseToReverseSequence(MiddleReplacementPattern):
         reverse_name = reverse.soft_get('name',  reverse.id)
         rename_node(reverse, reverse_name + '/to_delete')
         # 2. Create new ReverseSequence node and reconnect all inputs/outputs to it
-        reverse_sequence = create_op_node_with_second_input(graph, ReverseSequence, seq_lengths,
+        reverse_sequence = create_op_node_with_second_input(graph, ReverseSequence, float32_array(seq_lengths),
                                                             {'name':  reverse_name, 'seq_axis': seq_axis,
                                                              'batch_axis': batch_axis})
         rename_node(reverse_sequence, reverse_name)
