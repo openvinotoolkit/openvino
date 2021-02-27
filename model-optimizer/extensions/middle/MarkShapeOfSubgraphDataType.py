@@ -13,12 +13,10 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from collections import deque
-from typing import Set, List
 
-from mo.graph.graph import Graph, Node
-from mo.middle.replacement import MiddleReplacementPattern
 from extensions.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
+from mo.graph.graph import Graph
+from mo.middle.replacement import MiddleReplacementPattern
 
 
 class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
@@ -29,20 +27,19 @@ class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
         return [PostMiddleStart]
 
     def run_before(self):
-        from extensions.middle.MarkSubgraphsWithCorrectLayout import MarkSubGraphsWithCorrectLayout
         return [MarkSubGraphsWithCorrectLayout]
 
     def find_and_replace_pattern(self, graph: Graph):
-        shapeof_nodes = set(graph.get_op_nodes(op='ShapeOf'))
+        condition = lambda node: any([out_port.data.get_value() is not None for out_port in node.out_ports().values()])
 
         start_nodes = []
+        shapeof_nodes = set(graph.get_op_nodes(op='ShapeOf'))
         for node in shapeof_nodes:
-            start_nodes.extend(MarkSubGraphsWithCorrectLayout.get_output_nodes(node))
+            start_nodes.extend([n for n in MarkSubGraphsWithCorrectLayout.get_output_nodes(node) if condition(n)])
 
-        condition = lambda node: any([out_port.data.get_value() is not None for out_port in node.out_ports().values()])
         nodes_in_shapeof_subgraph = MarkSubGraphsWithCorrectLayout.bfs(start_nodes, shapeof_nodes,
                                                                        condition=condition,
-                                                                       include_both_direction=True)
+                                                                       include_both_directions=True)
         for node in nodes_in_shapeof_subgraph:
             node['in_shape_subgraph'] = True
             for out_port in node.out_ports().values():

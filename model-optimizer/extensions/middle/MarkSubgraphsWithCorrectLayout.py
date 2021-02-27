@@ -63,7 +63,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
 
     @staticmethod
     def bfs(start_nodes: List, visited: Set, condition: callable = None, forward: bool = True,
-            include_both_direction=False) -> List[Node]:
+            include_both_directions=False) -> List[Node]:
         """
         The function performs BFS starting from selected nodes in forward or backward direction adding nodes by an
         optional condition
@@ -72,11 +72,11 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         :param condition: function getting a Node as input and returning whether the node should be included into the
         result or not. If the value is None then the node is added unconditionally.
         :param forward: boolean flag specifying the traverse direction
-        :param include_both_direction: if True return both in and out nodes, forward param is ignored in that case
+        :param include_both_directions: if True return both in and out nodes, forward param is ignored in that case
         :return: the list of Nodes visited
         """
         assert visited is not None, 'The "visited" set must be defined'
-        assert start_nodes is not None and len(start_nodes) != 0, 'The list of start nodes must be specified'
+        assert start_nodes is not None, 'The list of start nodes must be specified'
 
         result = list()
         d = deque(start_nodes)
@@ -89,7 +89,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
             else:
                 next_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
 
-            if include_both_direction:
+            if include_both_directions:
                 next_nodes = MarkSubGraphsWithCorrectLayout.get_output_nodes(cur_node)
                 next_input_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
                 d.extend([node for node in next_input_nodes if node not in visited])
