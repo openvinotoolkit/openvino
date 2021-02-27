@@ -23,9 +23,13 @@ from extensions.front.user_data_repack import UserDataRepack
 from extensions.front.input_cut import InputCut
 from extensions.front.output_cut import OutputCut
 from mo.utils.class_registration import apply_replacements_list
+from ngraph import FrontEndManager
+from ngraph import function_to_cnn
+import logging as log
 
 
 def unified_pipeline(argv: argparse.Namespace):
+    log.info('Legacy unified pipeline')
     graph = Graph(cmd_params=argv, name=argv.model_name, ir_version=get_ir_version(argv))
     class_registration.apply_replacements(graph, [
         class_registration.ClassType.LOADER,
@@ -36,20 +40,13 @@ def unified_pipeline(argv: argparse.Namespace):
     return graph
 
 def moc_pipeline(argv: argparse.Namespace):
-    from openvino.inference_engine import IECore
-    from openvino.inference_engine import IENetwork
-    import ngraph as ng
-    print('ngrph.dir = ' + str(dir(ng)))
-    from ngraph import FrontEndManager
-    ie = IECore()
-    fem = FrontEndManager()
-    print('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))
-    fe = fem.loadByFramework('onnx')
+    log.info('New MOC pipeline')
+    fem = argv.feManager if 'feManager' in argv else FrontEndManager()
+    log.info('fem.availableFrontEnds: ' + str(fem.availableFrontEnds()))
+    fe = fem.loadByFramework(argv.framework)
     print(fe)
     inputModel = fe.loadFromFile(argv.input_model)
-    #nGraphModel = fe.convert(inputModel)
-    #network = ng.function_to_cnn(nGraphModel)
-    #network = ie.read_network(model=argv.input_model)
+
 
     # Wrap nGraph network to Graph for smoothly pass through the legacy code in MO.
     # This trick doesn't mean that we will hold Graph forever as a wrapper, it is derived from
@@ -72,6 +69,6 @@ def moc_pipeline(argv: argparse.Namespace):
 #        for shape in user_shapes:
 #            inputModel.setPartialShape(shape['node'], ng.PartialShape([ng.Dimension(5,5), ng.Dimension(3), ng.Dimension(-1), ng.Dimension(-1)]))
     nGraphModel = fe.convert(inputModel)
-    network = ng.function_to_cnn(nGraphModel)
+    network = function_to_cnn(nGraphModel)
     graph.graph['network'] = network
     return graph

@@ -420,7 +420,7 @@ namespace ngraph
 
         std::vector<std::string> FrontEndManager::availableFrontEnds () const
         {
-            return std::vector<std::string>(1, "onnx");
+            return {"onnx"};
         }
     } // namespace frontend
 
