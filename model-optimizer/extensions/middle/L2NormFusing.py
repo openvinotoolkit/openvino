@@ -19,6 +19,7 @@ import logging as log
 import numpy as np
 
 from extensions.ops.normalize_l2 import NormalizeL2Op
+from mo.front.common.layout import get_features_dim
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, rename_node
@@ -26,6 +27,10 @@ from mo.middle.replacement import MiddleReplacementPattern
 
 
 class L2NormToNorm(MiddleReplacementPattern):
+    """
+        Transformation fuses sub-graph performing l2 normalization into the NormalizeL2 operation. The transformation is
+        allowed only for cases when normalization is performed over just C dimension or "C + all spatial dimensions".
+    """
     enabled = True
     force_clean_up = True
 
@@ -93,11 +98,21 @@ class L2NormToNorm(MiddleReplacementPattern):
         axes = int64_array(axes)
         if axes.shape == ():
             axes = int64_array([axes])
+        axes = int64_array([axis if axis >= 0 else axis + input_rank for axis in axes])
         axes.sort()
 
-        if not np.array_equal(axes, int64_array(np.arange(start=1, stop=input_rank))):
-            log.debug('IE doesn\'t support l2 normalization with reduction along axes {}, skip fusing transformation.'
-                      ''.format(axes))
+        transformation_applicable = False
+        # check for case C + all spatial dims. Works for 2D (NC), 3D (NCH) and 4D (NCHW and NHWC)
+        if len(axes) + 1 == input_rank and np.array_equal(axes, int64_array(np.arange(start=1, stop=input_rank))):
+            transformation_applicable = True
+
+        # check for pure C channel normalization
+        if len(axes) == 1 and ((input_rank == 4 and get_features_dim(graph.graph['layout'], input_rank) == axes[0]) or
+                               (input_rank != 4 and axes[0] == 1)):
+            transformation_applicable = True
+
+        if not transformation_applicable:
+            log.debug('IE doesn\'t support l2 normalization with reduction along axes {}'.format(axes))
             return
 
         # rename l2_normalize node since it will be no longer output after the transformation
