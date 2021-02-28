@@ -399,14 +399,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposals_single_image)
 {
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #1\n";
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/"
                              "generate_proposals_single_image.prototxt"));
 
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #2\n";
     auto test_case = test::TestCase<TestEngine>(function);
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #3\n";
     // im_info
     test_case.add_input<float>({1.0f, 1.0f, 1.0f});
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #4\n";
     // anchors
     test_case.add_input<float>({
         5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -415,6 +419,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
     });
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #5\n";
     // deltas
     test_case.add_input<float>(
         {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -431,6 +436,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
 
          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
          1.0f, 1.0f, 1.0f});
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #6\n";
     // scores
     test_case.add_input<float>(
         {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -447,11 +453,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
 
          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
-
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #7\n";
     test_case.add_expected_output<float>(
         Shape{6, 4}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #8\n";
     test_case.add_expected_output<float>(Shape{6}, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #9\n";
 
     test_case.run();
 }
