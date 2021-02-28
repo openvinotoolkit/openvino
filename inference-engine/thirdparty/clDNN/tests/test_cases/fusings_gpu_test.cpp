@@ -6047,6 +6047,21 @@ struct permute_params {
 #define CASE_PERMUTE_U8_3D_2 {2, 16, 4, 4, 3}, {4, 2, 4, 3, 16}, {3, 0, 2, 4, 1}, tensor{0}, data_types::u8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_PERMUTE_U8_3D_3 {1, 32, 4, 2, 1}, {1, 2, 32, 1, 4}, {4, 3, 1, 0, 2}, tensor{0}, data_types::u8, format::bfzyx, data_types::f32, format::bfzyx
 
+// permute_tile_8x8_4x4
+#define CASE_PERMUTE_TILE_8x8_4x4_4D_0 {1, 8, 8, 2}, {1, 2, 8, 8}, {0, 3, 1, 2}, tensor{0}, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_PERMUTE_TILE_8x8_4x4_4D_1 {1, 5, 8, 2}, {1, 2, 5, 8}, {0, 3, 1, 2}, tensor{0}, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_PERMUTE_TILE_8x8_4x4_4D_2 {1, 8, 5, 2}, {1, 2, 8, 5}, {0, 3, 1, 2}, tensor{0}, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_PERMUTE_TILE_8x8_4x4_4D_3 {1, 5, 5, 2}, {1, 2, 5, 5}, {0, 3, 1, 2}, tensor{0}, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_PERMUTE_TILE_8x8_4x4_5D_0 {1, 8, 8, 2, 2}, {1, 2, 8, 8, 2}, {0, 4, 1, 2, 3}, tensor{0}, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_PERMUTE_TILE_8x8_4x4_5D_1 {1, 5, 8, 2, 2}, {1, 2, 5, 8, 2}, {0, 4, 1, 2, 3}, tensor{0}, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_PERMUTE_TILE_8x8_4x4_5D_2 {1, 8, 5, 2, 2}, {1, 2, 8, 5, 2}, {0, 4, 1, 2, 3}, tensor{0}, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_PERMUTE_TILE_8x8_4x4_5D_3 {1, 5, 5, 2, 2}, {1, 2, 5, 5, 2}, {0, 4, 1, 2, 3}, tensor{0}, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_PERMUTE_TILE_8x8_4x4_6D_0 {1, 8, 8, 2, 2, 2}, {1, 2, 8, 8, 2, 2}, {0, 5, 1, 2, 3, 4}, tensor{0}, data_types::f32, format::bfwzyx, data_types::f32, format::bfwzyx
+#define CASE_PERMUTE_TILE_8x8_4x4_6D_1 {1, 5, 8, 2, 2, 2}, {1, 2, 5, 8, 2, 2}, {0, 5, 1, 2, 3, 4}, tensor{0}, data_types::f32, format::bfwzyx, data_types::f32, format::bfwzyx
+#define CASE_PERMUTE_TILE_8x8_4x4_6D_2 {1, 8, 5, 2, 2, 2}, {1, 2, 8, 5, 2, 2}, {0, 5, 1, 2, 3, 4}, tensor{0}, data_types::f32, format::bfwzyx, data_types::f32, format::bfwzyx
+#define CASE_PERMUTE_TILE_8x8_4x4_6D_3 {1, 5, 5, 2, 2, 2}, {1, 2, 5, 5, 2, 2}, {0, 5, 1, 2, 3, 4}, tensor{0}, data_types::f32, format::bfwzyx, data_types::f32, format::bfwzyx
+
+
 class PermuteFusingTest : public ::BaseFusingTest<permute_params> {
 public:
 
@@ -6138,6 +6153,20 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_activation_scale_eltwise,
                             permute_params{CASE_PERMUTE_U8_3D_1, 2, 5},
                             permute_params{CASE_PERMUTE_U8_3D_2, 2, 5},
                             permute_params{CASE_PERMUTE_U8_3D_3, 2, 5},
+
+                            // Fusing tests for permute_tile_8x8_4x4
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_4D_0, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_4D_1, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_4D_2, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_4D_3, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_5D_0, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_5D_1, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_5D_2, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_5D_3, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_0, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_1, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_2, 2, 5},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_3, 2, 5},
                         }), );
 
 class permute_quant_u8: public PermuteFusingTest {};
@@ -6317,6 +6346,20 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv,
                             permute_params{CASE_PERMUTE_U8_3D_1, 2, 7},
                             permute_params{CASE_PERMUTE_U8_3D_2, 2, 7},
                             permute_params{CASE_PERMUTE_U8_3D_3, 2, 7},
+
+                            // Fusing tests for permute_tile_8x8_4x4
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_4D_0, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_4D_1, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_4D_2, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_4D_3, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_5D_0, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_5D_1, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_5D_2, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_5D_3, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_0, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_1, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_2, 2, 7},
+                            permute_params{CASE_PERMUTE_TILE_8x8_4x4_6D_3, 2, 7},
                         }), );
 
 class NormalizeFusingTest : public ::BaseFusingTest<normalize_test_params> {
