@@ -45,6 +45,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include <transformations/op_conversions/conv2d_decomposition.hpp>
+#include <transformations/op_conversions/convert_padded2valid_conv.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/init_node_info.hpp>
@@ -55,7 +56,6 @@
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/relu_fake_quantize_fusion.hpp>
 #include <transformations/common_optimizations/add_fake_quantize_fusion.hpp>
-#include <transformations/op_conversions/convert_padded2valid_conv.hpp>
 
 #include "transformations/remove_extra_reshapes.hpp"
 #include "transformations/insert_transpose_after_convolution_or_pooling.hpp"
@@ -668,8 +668,8 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
-        manager.register_pass<ngraph::pass::ConvertPadded2ValidConv>();
         manager.register_pass<ngraph::pass::Conv2dDecomposition>();
+        manager.register_pass<ngraph::pass::ConvertPadded2ValidConv>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<InsertTransposeBeforeMatmul>();
         manager.register_pass<SwapInputMatMul>();

@@ -423,7 +423,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         input_channel_count /= conv_count;
 
         for (size_t conv_index = 0; conv_index < conv_count; conv_index++) {
-            std::shared_ptr<ngraph::Node> reduced_input_plane = splitted_planes[conv_index].get_node_shared_ptr();
+            Output<Node> reduced_input_plane = splitted_planes[conv_index];
             // lets change filter height to 1
             if (filter_height > 1) {
                 //                padded row - NHWC order
@@ -503,7 +503,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                 }
                 // decomposed nhwc convolution
                 auto nhwc_conv_1d = [](std::shared_ptr<ngraph::Node> source_conv2d,
-                    std::shared_ptr<ngraph::Node> input,
+                    Output<Node> input,
                     std::shared_ptr<ngraph::Node> filters,
                     std::shared_ptr<ngraph::Node> add_bias_op,
                     size_t stride_x,
@@ -532,6 +532,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                 result_chunks.push_back(nhwc_y_output);
                 last_op = nhwc_y_output;
             }
+            // Vertical dimemsion greater than 1
             if (result_chunks.size() > 1) {
                 // concat in H dim
                 // in NHWC index of H is 1
