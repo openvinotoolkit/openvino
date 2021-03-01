@@ -51,7 +51,7 @@ macro(onnx_set_target_properties)
     CXX_VISIBILITY_PRESET default
     C_VISIBILITY_PRESET default
     VISIBILITY_INLINES_HIDDEN OFF)
-    target_compile_definitions(onnx PUBLIC ONNX_BUILD_MAIN_LIB)
+    target_compile_definitions(onnx PUBLIC ONNX_BUILD_SHARED_LIBS)
 
     install(TARGETS onnx onnx_proto
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
