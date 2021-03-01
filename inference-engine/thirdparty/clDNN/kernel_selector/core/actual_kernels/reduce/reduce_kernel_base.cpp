@@ -213,11 +213,15 @@ Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) const
 Datatype ReduceKernelBase::GetFinalAccumulatorType(const reduce_params& params) const {
     const auto& reduce_mode = params.reduceMode;
 
-    if (reduce_mode == ReduceMode::MEAN || reduce_mode  == ReduceMode::LOG_SUM_EXP ||
-        reduce_mode == ReduceMode::LOG_SUM || reduce_mode == ReduceMode::L2 || reduce_mode == ReduceMode::L1) {
-            return Datatype::F32;
-    } else
+    if (reduce_mode == ReduceMode::MEAN ||
+        reduce_mode == ReduceMode::LOG_SUM_EXP ||
+        reduce_mode == ReduceMode::LOG_SUM ||
+        reduce_mode == ReduceMode::L2 ||
+        reduce_mode == ReduceMode::L1) {
+        return Datatype::F32;
+    } else {
         return GetAccumulatorType(params);
+    }
 }
 
 Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) const {
