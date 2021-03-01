@@ -1,4 +1,4 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository 
+# Intel® Distribution of OpenVINO™ Toolkit Developer Package 
 
 > **LEGAL NOTICE**: Your use of this software and any required dependent software (the
 “Software Package”) is subject to the terms and conditions of the [software license agreements](https://software.intel.com/en-us/license/eula-for-intel-software-development-products) for the Software Package, which may also include notices, disclaimers, or
@@ -50,7 +50,7 @@ Run the command below: <br>
    pip install openvino-dev
    ```
 
-### Step 3. Verify that the Runtime package is installed
+### Step 3. Verify that the package is installed
 
 Run the command below:
 ```sh
@@ -63,9 +63,5 @@ Now you are ready to develop and run your application.
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
-- [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html).
-- [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
-- For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
-- For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 
 
