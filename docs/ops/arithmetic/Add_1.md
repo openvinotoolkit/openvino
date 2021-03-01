@@ -9,7 +9,7 @@
 **Detailed description**
 Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attribute is not `none`. Broadcasting is performed according to `auto_broadcast` value.
 
-After broadcasting *Add* performs addition operation for the input tensors *a* and *b* using formula below:
+After broadcasting *Add* performs addition operation for the input tensors *a* and *b* using the formula below:
 
 \f[
 o_{i} = a_{i} + b_{i}
@@ -20,7 +20,9 @@ o_{i} = a_{i} + b_{i}
 * *auto_broadcast*
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
-  * **Range of values**: refer to rule #1 in broadcast rules [broadcast_rules](../broadcast_rules.md).
+  * **Range of values**:
+    * *none* - no auto-broadcasting is allowed, all input shapes must match,
+    * *numpy* - numpy broadcasting rules, description is available in [broadcast_rules](../broadcast_rules.md).
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
