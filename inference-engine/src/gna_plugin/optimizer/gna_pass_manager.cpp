@@ -856,15 +856,15 @@ void InsertCopyLayerPass::run() {
                             // Memory -> Concat case
                             // If concat is connected to input - we delay copy, for other cases we treat it normally
                             bool concat_has_input = false;
-                            for (auto input_to_concat : current_layer->insData)
-                            {
+                            for (auto input_to_concat : current_layer->insData) {
                                 auto input_layer_to_concat = getCreatorLayer(input_to_concat.lock()).lock();
                                 concat_has_input |= LayerInfo(input_layer_to_concat).isMemory();
                             }
-                            if (concat_has_input)
+                            if (concat_has_input) {
                                 delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
-                            else
+                            } else {
                                 copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
+                            }
                         } else if ((LayerInfo(l).isSplit() || LayerInfo(l).isCrop()) && LayerInfo(current_layer).isConcat()) {
                             // Split|Crop|Memory -> Concat case
                             // concat may be connected to previous layer with multiple connections
