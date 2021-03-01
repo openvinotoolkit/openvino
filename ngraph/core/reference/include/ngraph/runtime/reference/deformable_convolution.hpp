@@ -28,7 +28,7 @@ namespace ngraph
             namespace
             {
                 template <typename T>
-                void convolve_3D_channels(const ConvolutionParams& p,
+                void deformable_convolve_3D_channels(const ConvolutionParams& p,
                                           const T* batch,
                                           const Shape& batch_shape,
                                           const T* offset,
@@ -223,7 +223,7 @@ namespace ngraph
                         auto filter = f;
                         for (size_t f_idx = 0; f_idx < filters_count; ++f_idx)
                         {
-                            convolve_3D_channels(params,
+                            deformable_convolve_3D_channels(params,
                                                  batch,
                                                  batch_shape,
                                                  offsets,
