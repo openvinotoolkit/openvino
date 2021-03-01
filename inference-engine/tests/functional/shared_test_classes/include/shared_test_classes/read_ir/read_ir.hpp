@@ -14,7 +14,6 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, std::string>> &obj);
 
 protected:
-    void LoadNetwork() override;
     void SetUp() override;
     void Infer() override;
 

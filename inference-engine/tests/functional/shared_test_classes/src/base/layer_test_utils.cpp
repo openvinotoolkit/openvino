@@ -53,7 +53,6 @@ void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status)
                 break;
             case PassRate::SKIPPED:
                 passrate.skipped++;
-                passrate.crashed--;
                 break;
             case PassRate::CRASHED:
                 passrate.crashed++;
@@ -77,7 +76,7 @@ void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status)
     }
 }
 
-std::map<std::string, PassRate> Summary::getOPsStatsFromReport() {
+std::map<std::string, PassRate> Summary::getOpStatisticFromReport() {
     pugi::xml_document doc;
 
     std::ifstream file;
@@ -102,7 +101,7 @@ std::map<std::string, PassRate> Summary::getOPsStatsFromReport() {
     return oldOpsStat;
 }
 
-void TestEnvironment::report() {
+void TestEnvironment::saveReport() {
     if (isReported) {
         return;
     }
@@ -162,10 +161,10 @@ void TestEnvironment::report() {
 
     pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
-    std::unordered_set<std::string> opsListFromStatistic;
+    std::unordered_set<std::string> opList;
     for (const auto &it : stats) {
         std::string name = std::string(it.first.name) + "-" + std::to_string(it.first.version);
-        opsListFromStatistic.insert(name);
+        opList.insert(name);
         pugi::xml_node entry = currentDeviceNode.append_child(name.c_str());
         entry.append_attribute("passed").set_value(it.second.passed);
         entry.append_attribute("failed").set_value(it.second.failed);
@@ -175,10 +174,10 @@ void TestEnvironment::report() {
     }
 
     if (extendReport && file) {
-        auto opStataFromReport = summary.getOPsStatsFromReport();
+        auto opStataFromReport = summary.getOpStatisticFromReport();
         for (auto& item : opStataFromReport) {
             pugi::xml_node entry;
-            if (opsListFromStatistic.find(item.first) == opsListFromStatistic.end()) {
+            if (opList.find(item.first) == opList.end()) {
                 entry = currentDeviceNode.append_child(item.first.c_str());
                 entry.append_attribute("passed").set_value(item.second.passed);
                 entry.append_attribute("failed").set_value(item.second.failed);
@@ -211,7 +210,7 @@ void TestEnvironment::report() {
 }
 
 void TestEnvironment::TearDown() {
-    report();
+    saveReport();
 }
 
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
@@ -250,21 +249,21 @@ void LayerTestsCommon::Run() {
     };
 
     auto crashHandler = [](int errCode) {
-        TestEnvironment::report();
+        TestEnvironment::saveReport();
         std::cout << "Unexpected application crash!" << std::endl;
         std::abort();
     };
     signal(SIGSEGV, crashHandler);
 
+    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+        reportStatus(PassRate::Statuses::SKIPPED);
+        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+    } else {
+        reportStatus(PassRate::Statuses::CRASHED);
+    }
+
     try {
         LoadNetwork();
-
-        reportStatus(PassRate::Statuses::CRASHED);
-        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-            reportStatus(PassRate::Statuses::SKIPPED);
-            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-        }
-
         Infer();
         Validate();
         reportStatus(PassRate::Statuses::PASSED);

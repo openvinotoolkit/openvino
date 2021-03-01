@@ -101,7 +101,7 @@ protected:
 
     std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
 
-    std::map<std::string, PassRate> getOPsStatsFromReport();
+    std::map<std::string, PassRate> getOpStatisticFromReport();
 
     std::string getDeviceName() const { return deviceName; }
 
@@ -120,7 +120,7 @@ public:
 class TestEnvironment : public ::testing::Environment {
 public:
     void TearDown() override;
-    static void report();
+    static void saveReport();
 };
 
 using TargetDevice = std::string;

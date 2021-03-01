@@ -25,14 +25,8 @@ std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<std::tuple<
 
 void ReadIRTest::SetUp() {
     std::tie(pathToModel, targetDevice) = this->GetParam();
-}
-
-void ReadIRTest::LoadNetwork() {
     cnnNetwork = getCore()->ReadNetwork(pathToModel);
     function = cnnNetwork.getFunction();
-    CoreConfiguration(this);
-    ConfigureNetwork();
-    executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
 
 InferenceEngine::Blob::Ptr ReadIRTest::generateROIblob(const InferenceEngine::InputInfo &info, const std::shared_ptr<ngraph::Node> node) const {
