@@ -1,36 +1,17 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#https://docs.openvinotoolkit.org/latest/openvino_docs_install_guides_installing_openvino_pip.html}
+# Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#openvino_docs_install_guides_installing_openvino_pip}
 
-> **LEGAL NOTICE**: Your use of this software and any required dependent software (the
-“Software Package”) is subject to the terms and conditions of the [software license agreements](https://software.intel.com/en-us/license/eula-for-intel-software-development-products) for the Software Package, which may also include notices, disclaimers, or
-license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.
+This guide provides installation steps for the Intel® distribution of OpenVINO™ toolkit distributed through the PyPI repository.
 
-## Introduction
+## System Requirements
 
-OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applications and solutions that solve a variety of tasks including emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, and many others. Based on latest generations of artificial neural networks, including Convolutional Neural Networks (CNNs), recurrent and attention-based networks, the toolkit extends computer vision and non-vision workloads across Intel® hardware, maximizing performance. It accelerates applications with high-performance, AI and deep learning inference deployed from edge to cloud.
-
-The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
-- Enables CNN-based deep learning inference on the edge
-- Supports heterogeneous execution across Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-- Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
-
-**Included with the Installation and installed by default:**
-
-| Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
-|-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Inference Engine](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_inference_engine_intro.html)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
-
-## Supported Operating Systems
-
-* [Python* distribution](https://www.python.org/) 3.6, 3.7, 3.8
+* [Python* distribution](https://www.python.org/) 3.6 or 3.7
 * Operating Systems:
-  - Ubuntu* 18.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
-  - Ubuntu* 20.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
-  - macOS* 10.15.x version
+  - Ubuntu* 18.04 long-term support (LTS), 64-bit
+  - macOS* 10.15.x versions
   - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
   - Windows Server* 2016 or higher
-> NOTE: This package can be installed on many versions of Linux, but only the specific versions above are fully validated.
 
-## Install the runtime packages using the PyPI repository
+## Install the Runtime Package Using the PyPI Repository
 
 ### Step 1. Set up and update pip to the highest version
 
@@ -41,17 +22,51 @@ python3 -m pip install --upgrade pip
 
 ### Step 2. Install the Intel® distribution of OpenVINO™ toolkit
 
-Run the command below: <br>
-
+Run the command below:
    ```sh
    pip install openvino
    ```
 
-### Step 3. Verify that the Runtime package is installed
+### Step 3. Add PATH to environment variables
+
+Run a command for your operating system:
+- Ubuntu 18.04 and macOS:
+```sh
+export LD_LIBRARY_PATH=<library_dir>:${LD_LIBRARY_PATH}
+```
+- Windows* 10:
+```sh
+set PATH=<library_dir>;%PATH%
+```
+To find `library_dir`:   
+**Ubuntu, macOS**:
+- Standard user:
+```sh
+echo $(python3 -m site --user-base)/lib
+```
+- Root or sudo user:
+```sh
+/usr/local/lib
+```
+- Virtual environments or custom Python installations (from sources or tarball):
+```sh
+echo $(which python3)/../../lib
+```
+**Windows**:
+- Standard Python:
+```sh
+python -c "import os, sys; print((os.path.dirname(sys.executable))+'\Library\\bin')"
+```
+- Virtual environments or custom Python installations (from sources or tarball):
+```sh
+python -c "import os, sys; print((os.path.dirname(sys.executable))+'\..\Library\\bin')"
+```
+
+### Step 4. Verify that the package is installed
 
 Run the command below:
 ```sh
-python3 -c "from openvino.inference_engine import IECore"
+python3 -c "import openvino"
 ```
    
 Now you are ready to develop and run your application.
@@ -60,6 +75,7 @@ Now you are ready to develop and run your application.
 
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit).
 - [OpenVINO™ toolkit online documentation](https://docs.openvinotoolkit.org).
+- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
 - [Intel® Distribution of OpenVINO™ toolkit PIP home page](https://pypi.org/project/openvino/)
