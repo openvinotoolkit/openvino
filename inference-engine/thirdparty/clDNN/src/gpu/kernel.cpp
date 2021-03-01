@@ -272,7 +272,6 @@ void kernel::cleanup(uint32_t queue_id) {
 event_impl::ptr kernel::run(uint32_t queue_id,
                             const kernel_selector::cl_kernel_data& kernel_data,
                             const std::vector<event_impl::ptr>& dependencies) const {
-
     if (_cl_kernels.find(queue_id) == _cl_kernels.end() || _cl_kernels.at(queue_id).get() == NULL) {
         throw std::runtime_error("[clDNN] Kernel for layer " + kernel_data.layerID + " is not found for stream " + std::to_string(queue_id));
     }

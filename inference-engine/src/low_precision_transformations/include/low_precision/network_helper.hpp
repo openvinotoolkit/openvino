@@ -78,6 +78,13 @@ public:
 
     static std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
 
+    static int getConstantInputIndex(std::shared_ptr<Node> node);
+
+    static std::vector<size_t> updateReshapeValues(
+        const Shape& elementwiseConstantShape,
+        const Shape& elementwiseShape,
+        const std::vector<size_t>& reshapeValues);
+
     // Optimizes the series of multiplies after a given output port
     static std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 

@@ -72,8 +72,8 @@ public:
      * This method need to be called to find out OpenVINO output names for using them later
      * when calling InferenceEngine::InferRequest::GetBlob or InferenceEngine::InferRequest::SetBlob
      *
-     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor or
-     * InferenceEngine::ICNNNetwork::getOVNameForOperation methods to map framework names to OpenVINO names
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor
+     * method to map framework names to OpenVINO names
      *
      * @param out Reference to the OutputsDataMap object
      */
@@ -87,8 +87,8 @@ public:
      * This method need to be called to find out OpenVINO input names for using them later
      * when calling InferenceEngine::InferRequest::SetBlob
      *
-     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor or
-     * InferenceEngine::ICNNNetwork::getOVNameForOperation methods to map framework names to OpenVINO names
+     * If you want to use framework names, you can use InferenceEngine::ICNNNetwork::getOVNameForTensor
+     * method to map framework names to OpenVINO names
      *
      * @param inputs Reference to InputsDataMap object.
      */
@@ -194,22 +194,6 @@ public:
      * @return Status code of the operation
      */
     virtual StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
-        (void) ov_name;
-        (void) orig_name;
-        (void) resp;
-        return NOT_IMPLEMENTED;
-    }
-
-    /**
-     * @brief Methods maps framework operation name to OpenVINO name
-     *
-     * @param ov_name OpenVINO name
-     * @param orig_name Framework operation name
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     *
-     * @return Status code of the operation
-     */
-    virtual StatusCode getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
         (void) ov_name;
         (void) orig_name;
         (void) resp;
