@@ -980,6 +980,7 @@ mo/utils/find_inputs.py
 mo/utils/get_ov_update_message.py
 mo/utils/graph.py
 mo/utils/guess_framework.py
+mo/utils/ie_version.py
 mo/utils/import_extensions.py
 mo/utils/ir_engine/__init__.py
 mo/utils/ir_engine/compare_graphs.py
