@@ -81,7 +81,7 @@ def import_core_modules(silent: bool, path_to_module: str):
 
         simplified_mo_version = v.get_simplified_mo_version()
         message = str(dict({
-            "platform": platform.system(),
+            "platform": platform.platform(),
             "mo_version": simplified_mo_version,
             "ie_version": v.get_simplified_ie_version(version=ie_version),
             "versions_mismatch": versions_mismatch,
@@ -98,7 +98,7 @@ def import_core_modules(silent: bool, path_to_module: str):
             # Send telemetry message about warning
             simplified_mo_version = v.get_simplified_mo_version()
             message = str(dict({
-                "platform": platform.system(),
+                "platform": platform.platform(),
                 "mo_version": simplified_mo_version,
                 "ie_version": v.get_simplified_ie_version(env=os.environ),
                 "python_version": sys.version,
