@@ -85,12 +85,6 @@ namespace ngraph
                                             int rel_i_y = i_y + (f_y * p.dilation[1]);
                                             int rel_i_x = i_x + (f_x * p.dilation[2]);
 
-                                            bool padding = !(in_range(rel_i_x, {0, input_size_x}) &&
-                                                             in_range(rel_i_y, {0, input_size_y}) &&
-                                                             in_range(rel_i_z, {0, input_size_z}));
-                                            if (padding)
-                                                continue;
-
                                             int f_buf_idx = (f_z * filter_size_y * filter_size_x) +
                                                             (f_y * filter_size_x) + f_x;
 
@@ -101,6 +95,9 @@ namespace ngraph
 
                                             if (x_offset + rel_i_x >= input_size_x ||
                                                 y_offset + rel_i_y >= input_size_y)
+                                                continue;
+                                            if (x_offset + rel_i_x < 0 ||
+                                                y_offset + rel_i_y < 0)
                                                 continue;
 
                                             int i_buf_idx =
