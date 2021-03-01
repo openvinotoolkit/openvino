@@ -32,6 +32,19 @@ from mo.ops.strided_slice import StridedSlice
 
 
 def get_concat_after_split(split: Node) -> Optional[Node]:
+    """
+    This function gets consumers of the 'split' node, checks that the following conditions are fulfilled:
+    1) 'split' node has only one consumer;
+    2) for any output port of 'split', number of corresponding input ports of the consumer is the same;
+    3) for any output port 'i' of the 'split', corresponding input ports of the consumer are
+       [i * m, ..., i * m + (m - 1)], where 'm' is the same for all 'i';
+    4) the consumer operation is 'Concat';
+    5) 'split' is a unique producer for this 'Concat';
+    and, if all these conditions are fulfilled, returns the above mentioned 'Concat' node. Otherwise, if some of these
+    conditions is false, this functions returns None.
+    :param split: Split node
+    :return: Concat node, if all conditions are fulfilled, or None otherwise
+    """
     # If number of output nodes of 'split' is not equal to 1, then the transformation is not applicable.
     split_outputs = [d.node for _, p in split.out_ports().items() for d in p.get_connection().get_destinations()]
     names_of_split_outputs = set([n.name for n in split_outputs])
