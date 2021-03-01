@@ -211,6 +211,34 @@ namespace
             tensor_type->set_elem_type(initializer.data_type());
         }
     }
+
+    void shift_node_indexes(std::vector<std::set<int>>& node_indexes)
+    {
+        for(int i = node_indexes.size() - 1; i >= 1; --i)
+        {
+            std::vector<int> shifts(node_indexes[i].size());
+            for(int j = 0; j < i; ++j)
+            {
+                int dim = 0;
+                for(auto index: node_indexes[i])
+                {
+                    auto shift = std::count_if(std::next(node_indexes[j].begin(), 1),
+                                               node_indexes[j].end(),
+                                               [&index](int val){return val < index;});
+                    shifts[dim++] += shift;
+                }
+            }
+
+            for(int j = 0; j < shifts.size(); ++j)
+            {
+                auto index_it = std::next(node_indexes[i].begin(), j);
+                int new_value = *index_it - shifts[j];
+
+                node_indexes[i].erase(index_it);
+                node_indexes[i].insert(new_value);
+            }
+        }
+    }
 } // namespace
 
 /// \brief A helper class used to hold the ModelProto object as its field
@@ -379,6 +407,9 @@ void onnx_import::ONNXModelEditor::set_input_values(
 void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(std::vector<std::set<int>> node_indexes, Operator node_generator)
 {
     std::string new_op_name = "custom_op_" + std::to_string(m_custom_op_ID++);
+
+    shift_node_indexes(node_indexes);
+
     for(auto node_set: node_indexes)
     {
         replace_nodes(node_set, node_generator, new_op_name);
