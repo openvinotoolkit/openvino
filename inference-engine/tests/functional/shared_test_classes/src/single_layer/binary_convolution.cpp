@@ -45,6 +45,8 @@ std::string BinaryConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<b
 InferenceEngine::Blob::Ptr BinaryConvolutionLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::Blob::Ptr blobPtr;
     const std::string name = info.name();
+    // there is no input generation for filters since CPU implementation uses Constant
+    // TODO: enable filters input generation as Parameter when supported (Issue 50148)
     if (name == "a_data_batch") {
         blobPtr = FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 1, 0, 1, 7235346);
     }
@@ -67,6 +69,7 @@ void BinaryConvolutionLayerTest::SetUp() {
     std::tie(kernelSize, strides, padsBegin, padsEnd, dilations, numOutChannels, padType, padValue) = binConvParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {{"a_data_batch", inputShape}});
+    // TODO: refactor build BinaryConvolution op to accept filters input as Parameter
     auto binConv = ngraph::builder::makeBinaryConvolution(params[0], kernelSize, strides, padsBegin, padsEnd, dilations, padType, numOutChannels,
                                                           padValue);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(binConv)};
