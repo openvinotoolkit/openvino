@@ -25,7 +25,7 @@ namespace ngraph
     {
         namespace reference
         {
-            namespace
+            namespace details
             {
                 inline uint8_t extract_bit(uint8_t val, uint8_t bit)
                 {
@@ -212,7 +212,7 @@ namespace ngraph
                     auto filter = f;
                     for (size_t f_idx = 0; f_idx < filters_count; ++f_idx)
                     {
-                        binary_convolve_3D_channels(
+                        details::binary_convolve_3D_channels(
                             params, batch, batch_shape, filter, filter_shape, out, pad_value);
                         filter += filter_size;
                     }
