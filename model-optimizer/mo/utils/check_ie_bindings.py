@@ -29,7 +29,7 @@ try:
 except ModuleNotFoundError:
     mo_root_path = os.path.normpath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
     sys.path.insert(0, mo_root_path)
-    execution_type = "install_prerequisites.{}".format("bat" if platform.platform() == "windows" else "sh")
+    execution_type = "install_prerequisites.{}".format("bat" if platform.system() == "Windows" else "sh")
 
 import mo.utils.version as v
 import telemetry.telemetry as tm
@@ -81,7 +81,7 @@ def import_core_modules(silent: bool, path_to_module: str):
 
         simplified_mo_version = v.get_simplified_mo_version()
         message = str(dict({
-            "platform": platform.platform(),
+            "platform": platform.system(),
             "mo_version": simplified_mo_version,
             "ie_version": v.get_simplified_ie_version(version=ie_version),
             "versions_mismatch": versions_mismatch,
@@ -98,7 +98,7 @@ def import_core_modules(silent: bool, path_to_module: str):
             # Send telemetry message about warning
             simplified_mo_version = v.get_simplified_mo_version()
             message = str(dict({
-                "platform": platform.platform(),
+                "platform": platform.system(),
                 "mo_version": simplified_mo_version,
                 "ie_version": v.get_simplified_ie_version(env=os.environ),
                 "python_version": sys.version,

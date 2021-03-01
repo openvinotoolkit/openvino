@@ -285,7 +285,7 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
             pass
 
         message = str(dict({
-            "platform": platform.platform(),
+            "platform": platform.system(),
             "mo_version": get_simplified_mo_version(),
             "ie_version": get_simplified_ie_version(env=os.environ),
             "python_version": sys.version,
