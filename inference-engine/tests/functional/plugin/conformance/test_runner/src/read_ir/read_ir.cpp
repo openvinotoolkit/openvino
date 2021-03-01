@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/path_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+
 #include "read_ir/read_ir.hpp"
 
 namespace ConformanceTests {
@@ -15,7 +16,7 @@ namespace {
 INSTANTIATE_TEST_CASE_P(conformance,
                         ReadIRTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(FuncTestUtils::getXmlPathsFromFolderRecursive(IRFolderPaths)),
+                                ::testing::ValuesIn(CommonTestUtils::getFileListByPatternRecursive(IRFolderPaths,  std::regex(R"(.*\.xml)"))),
                                 ::testing::Values(targetDevice)),
                         ReadIRTest::getTestCaseName);
 } // namespace

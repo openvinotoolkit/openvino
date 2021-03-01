@@ -4,11 +4,21 @@
 
 #include "gtest/gtest.h"
 
-#include "functional_test_utils/path_utils.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 
 #include "gflag_config.hpp"
 #include "conformance.hpp"
+
+static std::vector<std::string> splitStringByDelimiter(std::string str, const std::string& delimiter = ",") {
+    size_t delimiterPos;
+    std::vector<std::string> irPaths;
+    while ((delimiterPos = str.find(delimiter)) != std::string::npos) {
+        irPaths.push_back(str.substr(0, delimiterPos));
+        str = str.substr(delimiterPos + 1);
+    }
+    irPaths.push_back(str);
+    return irPaths;
+}
 
 int main(int argc, char* argv[]) {
     FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
@@ -39,11 +49,9 @@ int main(int argc, char* argv[]) {
     }
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ConformanceTests::targetDevice = FLAGS_device.c_str();
-    ConformanceTests::IRFolderPaths = FuncTestUtils::splitString(FLAGS_input_folders);
+    ConformanceTests::IRFolderPaths = splitStringByDelimiter(FLAGS_input_folders);
 
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::TestEnvironment);
-    std::vector<std::string> xmls = FuncTestUtils::getXmlPathsFromFolderRecursive(ConformanceTests::IRFolderPaths);
-
     return RUN_ALL_TESTS();;
 }
