@@ -209,3 +209,19 @@ InferenceEngine::Precision MKLDNNExtensionUtils::getMaxPrecision(std::vector<Inf
 
     return InferenceEngine::Precision::UNSPECIFIED;
 }
+
+bool MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(const InferenceEngine::SizeVector &firstInputDims,
+                                                                InferenceEngine::SizeVector secondInputDims) {
+    if (secondInputDims.size() > firstInputDims.size())
+        return false;
+    if (std::accumulate(secondInputDims.begin(), secondInputDims.end(), 1, std::multiplies<size_t>()) == 1)
+        return true;
+    for (size_t i = 0; i < (firstInputDims.size() - secondInputDims.size()); i++) {
+        secondInputDims.insert(secondInputDims.begin(), 1);
+    }
+    for (size_t i = 0; i < secondInputDims.size(); i++) {
+        if ((i == 1 && secondInputDims[i] != firstInputDims[1]) || (i != 1 && secondInputDims[i] != 1))
+            return false;
+    }
+    return true;
+}

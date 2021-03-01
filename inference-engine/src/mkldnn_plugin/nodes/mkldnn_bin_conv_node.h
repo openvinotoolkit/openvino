@@ -86,7 +86,7 @@ public:
         return false;
     }
     void setPostOps(mkldnn::primitive_attr &attr);
-    bool canFuse(const MKLDNNNodePtr& node) const;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
 
 private:
     bool withSum = false;

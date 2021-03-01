@@ -75,7 +75,7 @@ enum Type {
     TensorIterator,
     Convert,
     MVN,
-    Normalize,
+    NormalizeL2,
     ScatterUpdate,
     ScatterElementsUpdate,
     ScatterNDUpdate,
@@ -238,8 +238,8 @@ static std::string NameFromType(Type type) {
             return "TensorIterator";
         case Convert:
             return "Convert";
-        case Normalize:
-            return "Normalize";
+        case NormalizeL2:
+            return "NormalizeL2";
         case ScatterUpdate:
             return "ScatterUpdate";
         case ScatterElementsUpdate:
@@ -618,6 +618,10 @@ public:
 
     Algorithm getAlgorithm() const {
         return algorithm;
+    }
+
+    virtual bool canFuse(const MKLDNNNodePtr& node) const {
+        return false;
     }
 
 protected:
