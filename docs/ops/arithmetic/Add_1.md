@@ -34,7 +34,7 @@ o_{i} = a_{i} + b_{i}
 
 **Outputs**
 
-* **1**: The result of element-wise addition operation. A tensor of type T, if `auto_broadcast` is `numpy` shape and rank are determined by multidirectional broadcasting, otherwise they are the same as the inputs. When both inputs are of rank = 0 result is a scalar.
+* **1**: The result of element-wise addition operation. A tensor of type T with shape equal to broadcasted shape of the two inputs. When both inputs are of rank = 0 result is a scalar.
 
 **Types**
 
