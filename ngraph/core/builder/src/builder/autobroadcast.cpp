@@ -437,6 +437,22 @@ namespace ngraph
                 return op::Constant::create(element::i64, Shape{mapping.size()}, mapping);
             }
 
+            Output<Node> get_axes_mapping_output(const PartialShape& output_shape,
+                                                 const PartialShape& input_shape,
+                                                 std::size_t start_match_axis)
+            {
+                NGRAPH_CHECK((input_shape.rank().is_static() && output_shape.rank().is_static()),
+                             "Tensor's rank has to be static.");
+                NGRAPH_CHECK((input_shape.rank().get_length() + start_match_axis <=
+                              output_shape.rank().get_length()),
+                             "Unable to figure out axes mapping.");
+
+                vector<int64_t> mapping(input_shape.rank().get_length());
+                iota(begin(mapping), end(mapping), start_match_axis);
+
+                return op::Constant::create(element::i64, Shape{mapping.size()}, mapping);
+            }
+
             Output<Node> get_axes_mapping_output(const Shape& output_shape,
                                                  const AxisSet& broadcast_axes)
             {

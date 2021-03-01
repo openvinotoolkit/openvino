@@ -16,6 +16,7 @@
 
 #include "op/add.hpp"
 #include "default_opset.hpp"
+#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/shape.hpp"
 
 namespace ngraph
@@ -30,17 +31,19 @@ namespace ngraph
                 {
                     const Output<ngraph::Node> lhs_node = node.get_ng_inputs().at(0);
                     Output<ngraph::Node> rhs_node = node.get_ng_inputs().at(1);
-                    bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
+                    const bool broadcast = node.get_attribute_value<std::int64_t>("broadcast", 0);
                     if (broadcast)
                     {
                         if (node.has_attribute("axis"))
                         {
                             // Unidirectional broadcast right node to left shape.
-                            auto axis = node.get_attribute_value<std::int64_t>("axis");
+                            const auto axis = node.get_attribute_value<std::int64_t>("axis");
+                            const auto axes_mapping = builder::opset1::get_axes_mapping_output(
+                                lhs_node.get_partial_shape(), rhs_node.get_partial_shape(), axis);
                             rhs_node = std::make_shared<default_opset::Broadcast>(
                                 rhs_node,
                                 std::make_shared<default_opset::ShapeOf>(lhs_node),
-                                default_opset::Constant::create(element::i64, Shape{1}, {axis}));
+                                axes_mapping);
                         }
                         else
                         {
