@@ -153,13 +153,12 @@ public:
 
     void input_descriptions_on_adapter(ngraph::ValueAccessor<void>& adapter) {
         const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
-                                <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter);
+                            <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter);
 
         std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
         std::vector<std::string> result_mapping = map_type_from_body(m_xml_node.parent(), "Result");
 
         NGRAPH_CHECK(!parameter_mapping.empty(), "No parameters found in body Function.");
-
 
         pugi::xml_node port_map = m_xml_node.parent().child("port_map");
         if (!m_xml_node.parent().child("port_map")) {
@@ -197,7 +196,6 @@ public:
         std::vector<std::string> parameter_mapping = map_type_from_body(m_xml_node.parent(), "Parameter");
 
         NGRAPH_CHECK(!result_mapping.empty(), "No results found in body Function.");
-
 
         pugi::xml_node port_map = m_xml_node.parent().child("port_map");
         if (!port_map) {
@@ -245,11 +243,13 @@ public:
 
     void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override {
         if (m_xml_node.parent().child("body")) {
-            if (name == "input_descriptions")
+            if (ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+                                <ngraph::op::util::SubGraphOp::InputDescription>>>>(&adapter))
                 input_descriptions_on_adapter(adapter);
-            else if (name == "output_descriptions")
+            else if (ngraph::as_type<ngraph::AttributeAdapter<std::vector<std::shared_ptr
+                                <ngraph::op::util::SubGraphOp::OutputDescription>>>>(&adapter))
                 output_descriptions_on_adapter(adapter);
-            else if (name == "special_body_ports")
+            else if (ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter))
                 special_body_ports_on_adapter(adapter);
         } else if (const auto& a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(&adapter)) {
                 m_xml_node.append_attribute(name.c_str()).set_value(a->get()->get_info().variable_id.c_str());
