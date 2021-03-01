@@ -93,8 +93,11 @@ fi
 
 if [ "$os" == "auto" ] ; then
     os=$( . /etc/os-release ; echo "${ID}${VERSION_ID}" )
+    if [[ "$os" =~ "rhel8".* ]] ; then
+      os="rhel8"
+    fi
     case $os in
-        centos7|rhel8.2|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
+        centos7|rhel8|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
         *) echo "Unsupported OS: ${os:-detection failed}" >&2 ; exit 1 ;;
     esac
 fi
@@ -195,7 +198,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         vainfo
     )
 
-elif [ "$os" == "rhel8.2" ] ; then
+elif [ "$os" == "rhel8" ] ; then
 
     pkgs_opencv_req=(gtk3)
     pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
@@ -210,6 +213,7 @@ elif [ "$os" == "rhel8.2" ] ; then
         gstreamer1-plugins-ugly-free
     )
     pkgs_dlstreamer=()
+    extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
 
 elif [ "$os" == "centos7" ] ; then
 
@@ -373,7 +377,7 @@ if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] ; then
 
     apt-get update && apt-get install --no-install-recommends $iopt ${pkgs[@]}
 
-elif [ "$os" == "centos7" ] || [ "$os" == "rhel8.2" ] ; then
+elif [ "$os" == "centos7" ] || [ "$os" == "rhel8" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"
