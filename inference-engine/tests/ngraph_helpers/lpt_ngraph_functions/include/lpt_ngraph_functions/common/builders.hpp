@@ -16,6 +16,8 @@
 #include "lpt_ngraph_functions/common/add.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+#include "lpt_ngraph_functions/common/reshape.hpp"
+#include "lpt_ngraph_functions/common/transpose.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -63,6 +65,12 @@ std::shared_ptr<Node> makeElementwise(const std::shared_ptr<ngraph::Node> data, 
 std::shared_ptr<Node> makeDequantization(
     const Output<Node>& data,
     const DequantizationOperations& dequantizationOperations);
+
+std::shared_ptr<Node> makeMultiply(const Output<Node>& data, const DequantizationOperations::Multiply& multiply);
+
+std::shared_ptr<Node> makeReshape(const Output<Node>& data, const Reshape& reshape);
+
+std::shared_ptr<Node> makeTranspose(const Output<Node>& data, const Transpose& reshape);
 
 std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const Output<Node>& input,
