@@ -20,9 +20,7 @@ o_{i} = a_{i} + b_{i}
 * *auto_broadcast*
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
-  * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes must match
-    * *numpy* - numpy broadcasting rules, description is available in [Broadcast_1](../movement/Broadcast_1.md).
+  * **Range of values**: refer to rule #1 in broadcast rules [broadcast_rules](../broadcast_rules.md).
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
