@@ -30,7 +30,7 @@ class ResultRename(BackReplacementPattern):
             if node.in_ports():
                 prev_node_out_port = node.in_port(0).get_connection().get_source()
                 tensor_names = prev_node_out_port.get_tensor_names()
-                if tensor_names and node['name']==tensor_names[0]:
+                if tensor_names and node['name'] == tensor_names[0]:
                     return
                 if tensor_names and not graph.get_op_nodes(name=tensor_names[0]):
                     result_name = tensor_names[0]
