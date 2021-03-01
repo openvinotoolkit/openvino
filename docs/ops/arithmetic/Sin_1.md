@@ -11,7 +11,7 @@
 a_{i} = sin(a_{i})
 \f]
 
-The best description of the sine operation can be found on [Wikipedia](https://en.wikipedia.org/wiki/Sine)
+a - value representing angle in radians.
 
 **Attributes**:
 
