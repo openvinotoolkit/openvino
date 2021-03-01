@@ -7,6 +7,7 @@
 #include <vpu/utils/logger.hpp>
 #include <vpu/compile_env.hpp>
 #include <vpu/graph_transformer_internal.hpp>
+#include <vpu/configuration/options/log_level.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -43,7 +44,12 @@ void graphTransformerFunctionalTests::CreateModel() {
 
 void graphTransformerFunctionalTests::PrepareGraphCompilation() {
     SetSeed(DEFAULT_SEED_VALUE);
-    _compilationConfig = CompilationConfig();
+
+    _configuration.registerOption<LogLevelOption>();
+IE_SUPPRESS_DEPRECATED_START
+    _configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+IE_SUPPRESS_DEPRECATED_END
+
     _inputsInfo.clear();
     _outputsInfo.clear();
     _inputMap.clear();

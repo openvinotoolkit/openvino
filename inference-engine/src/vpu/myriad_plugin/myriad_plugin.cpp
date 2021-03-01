@@ -18,8 +18,8 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
 #include <vpu/ngraph/query_network.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <ngraph/pass/manager.hpp>
+
+#include <vpu/configuration/options/log_level.hpp>
 
 #include "myriad_plugin.h"
 
@@ -48,6 +48,12 @@ void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     for (const auto& entry : config) {
         _config[entry.first] = entry.second;
     }
+
+#ifndef NDEBUG
+    if (const auto envVar = std::getenv("IE_VPU_LOG_LEVEL")) {
+        _parsedConfig.set(LogLevelOption::key(), envVar);
+    }
+#endif
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
@@ -83,7 +89,7 @@ QueryNetworkResult Engine::QueryNetwork(
 
     const auto log = std::make_shared<Logger>(
             "GraphCompiler",
-            parsedConfigCopy.logLevel(),
+            _parsedConfig.get<LogLevelOption>(),
             defaultOutput(parsedConfigCopy.compilerLogFilePath()));
 
     const auto supportedLayers = getSupportedLayers(
@@ -130,12 +136,17 @@ IE_SUPPRESS_DEPRECATED_START
         { KEY_VPU_MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
 
-        { KEY_LOG_LEVEL, CONFIG_VALUE(LOG_NONE) },
         { KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(NO) },
         { KEY_PERF_COUNT, CONFIG_VALUE(NO) },
         { KEY_CONFIG_FILE, "" },
         { KEY_DEVICE_ID, "" },
     };
+IE_SUPPRESS_DEPRECATED_END
+
+    _parsedConfig.registerOption<LogLevelOption>();
+
+IE_SUPPRESS_DEPRECATED_START
+    _parsedConfig.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
 IE_SUPPRESS_DEPRECATED_END
 }
 

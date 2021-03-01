@@ -24,7 +24,7 @@ TEST_F(VPU_AddVpuScaleTest, CanAddVpuScaleToNetwork) {
     InitCompileEnv();
 
     auto& env = CompileEnv::get();
-    PluginConfiguration config{};
+    auto config = createConfiguration();
     config.compileConfig().irWithVpuScalesDir = "/";
     env.updateConfig(config);
 
@@ -69,7 +69,7 @@ TEST_F(VPU_AddVpuScaleTest, CanAddVpuScaleToNetwork) {
 TEST_F(VPU_AddVpuScaleTest, VpuScaleFromIrChangesWeights) {
     InitCompileEnv();
     const auto& env = CompileEnv::get();
-    PluginConfiguration config{};
+    auto config = createConfiguration();
     config.compileConfig().irWithVpuScalesDir = "/";
     env.updateConfig(config);
 

@@ -6,6 +6,8 @@
 
 #include <vpu/utils/io.hpp>
 
+#include <vpu/configuration/options/log_level.hpp>
+
 #include <atomic>
 #include <iomanip>
 
@@ -287,6 +289,8 @@ void GraphTransformerTest::SetUp() {
     frontEnd = std::make_shared<FrontEnd>(stageBuilder, &_mockCore);
     backEnd = std::make_shared<BackEnd>();
     passManager = std::make_shared<PassManager>(stageBuilder, backEnd);
+
+    config = createConfiguration();
 }
 
 void GraphTransformerTest::TearDown() {
@@ -340,6 +344,17 @@ Model GraphTransformerTest::CreateModel() {
 
 TestModel GraphTransformerTest::CreateTestModel() {
     return TestModel(CreateModel());
+}
+
+PluginConfiguration createConfiguration() {
+    PluginConfiguration configuration;
+    configuration.registerOption<LogLevelOption>();
+
+IE_SUPPRESS_DEPRECATED_START
+    configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+IE_SUPPRESS_DEPRECATED_END
+
+    return configuration;
 }
 
 } // namespace vpu

@@ -176,6 +176,8 @@ void CheckStageTestInds(const StageRange& stageRange, std::initializer_list<int>
     }
 }
 
+PluginConfiguration createConfiguration();
+
 class GraphTransformerTest : public TestsCommon {
 public:
     ncDevicePlatform_t platform = ncDevicePlatform_t::NC_MYRIAD_X;

@@ -14,6 +14,7 @@
 #include <vpu/utils/runtime_graph.hpp>
 #include <legacy/net_pass.h>
 #include <vpu/compile_env.hpp>
+#include <vpu/configuration/options/log_level.hpp>
 
 using namespace InferenceEngine;
 
@@ -31,12 +32,14 @@ ExecutableNetwork::ExecutableNetwork(
             _core(core) {
     VPU_PROFILE(ExecutableNetwork);
 
+    const auto& logLevel = _config.get<LogLevelOption>();
+
     _log = std::make_shared<Logger>(
         "MyriadPlugin",
-        _config.logLevel(),
+        logLevel,
         defaultOutput(_config.pluginLogFilePath()));
 
-    _executor = std::make_shared<MyriadExecutor>(_config.forceReset(), std::move(mvnc), _config.logLevel(), _log);
+    _executor = std::make_shared<MyriadExecutor>(_config.forceReset(), std::move(mvnc), logLevel, _log);
     _device = _executor->openDevice(devicePool, _config);
 
     const auto& revision = _device->revision();
@@ -62,7 +65,7 @@ ExecutableNetwork::ExecutableNetwork(
 
     const auto compilerLog = std::make_shared<Logger>(
         "GraphCompiler",
-        _config.logLevel(),
+        _config.get<LogLevelOption>(),
         defaultOutput(_config.compilerLogFilePath()));
 
     if (_device == nullptr)

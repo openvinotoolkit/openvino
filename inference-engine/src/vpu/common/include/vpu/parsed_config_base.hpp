@@ -25,10 +25,6 @@ VPU_DECLARE_ENUM(ConfigMode,
 
 class ParsedConfigBase {
 public:
-    LogLevel logLevel() const {
-        return _logLevel;
-    }
-
     bool exclusiveAsyncRequests() const {
         return _exclusiveAsyncRequests;
     }
@@ -128,7 +124,6 @@ protected:
     Logger::Ptr _log;
 
 private:
-    LogLevel _logLevel = LogLevel::None;
     bool _exclusiveAsyncRequests = false;
 };
 

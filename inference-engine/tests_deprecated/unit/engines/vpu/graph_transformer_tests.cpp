@@ -8,6 +8,7 @@
 #include <iomanip>
 
 #include <vpu/utils/io.hpp>
+#include <vpu/configuration/options/log_level.hpp>
 
 namespace vpu {
 
@@ -158,6 +159,17 @@ void TestModel::setStageBatchInfo(
     }
 }
 
+PluginConfiguration createConfiguration() {
+    PluginConfiguration configuration;
+    configuration.registerOption<LogLevelOption>();
+
+IE_SUPPRESS_DEPRECATED_START
+    configuration.registerDeprecatedOption<LogLevelOption>(VPU_CONFIG_KEY(LOG_LEVEL));
+IE_SUPPRESS_DEPRECATED_END
+
+    return configuration;
+}
+
 void GraphTransformerTest::SetUp() {
     ASSERT_NO_FATAL_FAILURE(TestsCommon::SetUp());
 
@@ -170,6 +182,8 @@ void GraphTransformerTest::SetUp() {
     frontEnd = std::make_shared<FrontEnd>(stageBuilder, &_mockCore);
     backEnd = std::make_shared<BackEnd>();
     passManager = std::make_shared<PassManager>(stageBuilder, backEnd);
+
+    config = createConfiguration();
 }
 
 void GraphTransformerTest::TearDown() {
