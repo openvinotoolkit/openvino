@@ -21,7 +21,7 @@ static const auto workitems_per_classes = 16;
 
 inline static size_t GetItemClassCount(const DataTensor& input, SoftmaxDim dim) {
     size_t item_class_count = 0;
-    
+
     switch (dim) {
         case SoftmaxDim::X:
             item_class_count = input.X().v;

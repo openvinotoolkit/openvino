@@ -79,7 +79,6 @@ static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
         default : throw std::runtime_error("Unsupported combination\n");
     }
     return res;
-
 }
 
 static inline std::string GetTiledOutputOrder(size_t size) {
@@ -128,7 +127,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     jit.AddConstant(MakeJitConstant("OUTPUT_TILED_ORDER", GetTiledOutputOrder(params.output.GetDims().size())));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("N_VECTORS_IN_TILE", tile_size / vector_width));
-    jit.AddConstant(MakeJitConstant("LWS",total_lws));
+    jit.AddConstant(MakeJitConstant("LWS", total_lws));
     jit.AddConstant(MakeJitConstant("NFEATURE_TILES", CEIL_DIV(params.inputs[0].Feature().v, tile_size)));
 
     std::string normal_tile_cond = "true";
@@ -184,17 +183,13 @@ static std::vector<size_t> GetBestLwsFromGws(const permute_params& params, const
     for (size_t i = 0; i < dims.size(); ++i) {
         size_t dim = dims[i];
         size_t max_divider = static_cast<size_t>(std::sqrt(gws[dim]) + 1);
-        for (size_t divider = 1; divider <= max_divider; ++divider)
-        {
-            if (gws[dim] % divider == 0)
-            {
+        for (size_t divider = 1; divider <= max_divider; ++divider) {
+            if (gws[dim] % divider == 0) {
                 const size_t lws0 = gws[dim] / divider;
-                if (lws0 <= max_num_work_items)
-                {
+                if (lws0 <= max_num_work_items) {
                     lws[dim] = std::max(lws[dim], lws0);
                 }
-                if (divider <= max_num_work_items)
-                {
+                if (divider <= max_num_work_items) {
                     lws[dim] = std::max(lws[dim], divider);
                 }
             }
