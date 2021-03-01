@@ -1447,10 +1447,6 @@ cdef class IENetwork:
         name = bytes(orig_name, 'utf-8')
         return self.impl.getOVNameForTensor(name).decode('utf-8')
 
-    def get_ov_name_for_operation(self, orig_name: str):
-        name = bytes(orig_name, 'utf-8')
-        return self.impl.getOVNameForOperation(name).decode('utf-8')
-
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""
 

@@ -264,10 +264,6 @@ std::string InferenceEnginePython::IENetwork::getOVNameForTensor(const std::stri
     return actual->getOVNameForTensor(orig_name);
 }
 
-std::string InferenceEnginePython::IENetwork::getOVNameForOperation(const std::string& orig_name) {
-    return actual->getOVNameForOperation(orig_name);
-}
-
 void
 InferenceEnginePython::IENetwork::addOutput(const std::string &out_layer, size_t port_id) {
     actual->addOutput(out_layer, port_id);

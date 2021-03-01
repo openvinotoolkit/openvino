@@ -304,4 +304,3 @@ def test_tensor_names():
     assert net.get_ov_name_for_tensor("relu_t") == "activation"
     assert net.get_ov_name_for_tensor("identity_t") == "activation"
     assert net.get_ov_name_for_tensor("input") == "in1"
-    assert net.get_ov_name_for_operation("output") == "activation"
