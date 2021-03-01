@@ -48,6 +48,7 @@ def compute_strides(arr):
 def is_power_of_two(x):
     return (x != 0) and ((x & (x - 1)) == 0)
 
+
 class DFFT:
     def __init__(self, data, axes, signal_size=None):
         assert len(set(axes)) != len(axes), "DFFT doesn't support non-unique axes. Got: {0}".format(axes)
@@ -79,6 +80,7 @@ class DFFT:
         self.output_shape = output_shape.copy()
 
     def _get_corrected_data(self):
+        self._shape_infer()
         pads_begin = np.zeros(self.input_rank).astype(np.int64)
         pads_end = np.zeros(self.input_rank).astype(np.int64)
 
@@ -89,29 +91,33 @@ class DFFT:
         pads = list(zip(pads_begin, pads_end))
         padded_data = np.pad(self.data, pads, 'constant')
         slices = tuple([slice(0, d, 1) for d in self.output_shape])
-        corrected_data = padded_data[slices]
+        corrected_data = np.squeeze(np.view(padded_data[slices], dtype=np.complex64), axis=-1)
 
         return corrected_data.copy()
 
     def __call__(self):
         corrected_data = self._get_corrected_data()
-        # axes_and_lengths = sorted([(a, self.output_shape[a]) for a in self.axes], key=lambda p: p[0], reverse=True)
+        axes_and_lengths = sorted([(a, self.output_shape[a]) for a in self.axes], key=lambda p: p[0], reverse=True)
+        fft_lengths = np.array([p[1] for p in axes_and_lengths[::-1]], dtype=np.int64)
+        fft_strides = compute_strides(fft_lengths)
+        fft_size = fft_strides[self.fft_rank]
 
-        reversed_input_shape = self.input_shape[::-1]
-        reversed_output_shape = self.output_shape[::-1]
+        result = np.zeros(list(self.output_shape)).astype(np.complex64)
 
-        input_strides = compute_strides(reversed_input_shape)
-        output_strides = compute_strides(reversed_output_shape)
+        if fft_size <= 0:
+            return result
 
-        result = np.zeros(list(self.output_shape))
+        data = np.zeros(fft_size).astype(np.complex64)
+
+        reversed_shape = self.output_shape[::-1]
+        strides = compute_strides(reversed_output_shape)
 
         buffer_size = 0
         for axis in self.axes:
             current_length = self.output_shape[axis]
             size = 2 * current_length if is_power_of_two(x) else current_length
             buffer_size = max(buffer_size, size)
-
-        buffer = np.zeros((buffer_size, 2))
+        buffer = np.zeros(buffer_size).astype(np.complex64)
 
         return result
 ```
