@@ -93,8 +93,11 @@ fi
 
 if [ "$os" == "auto" ] ; then
     os=$( . /etc/os-release ; echo "${ID}${VERSION_ID}" )
+    if [[ "$os" =~ "rhel8".* ]] ; then
+      os="rhel8"
+    fi
     case $os in
-        centos7|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
+        centos7|rhel8|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
         *) echo "Unsupported OS: ${os:-detection failed}" >&2 ; exit 1 ;;
     esac
 fi
@@ -139,7 +142,7 @@ if [ "$os" == "ubuntu18.04" ] ; then
         libfaac0
         libfluidsynth1
         libgl-dev
-        libglib2.0
+        libglib2.0-dev
         libgstreamer1.0-0
         libnettle6
         libtag-extras1
@@ -183,7 +186,7 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         libfaac0
         libfluidsynth2
         libgl-dev
-        libglib2.0-0
+        libglib2.0-dev
         libgstreamer-plugins-base1.0-dev
         libgstreamer1.0-0
         libgstrtspserver-1.0-dev
@@ -194,6 +197,23 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         python3-gst-1.0
         vainfo
     )
+
+elif [ "$os" == "rhel8" ] ; then
+
+    pkgs_opencv_req=(gtk3)
+    pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl)
+    pkgs_myriad=()
+    pkgs_installer=()
+    pkgs_pot=()
+    pkgs_opencv_opt=(
+        gstreamer1
+        gstreamer1-plugins-bad-free
+        gstreamer1-plugins-good
+        gstreamer1-plugins-ugly-free
+    )
+    pkgs_dlstreamer=()
+    extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
 
 elif [ "$os" == "centos7" ] ; then
 
@@ -270,6 +290,9 @@ elif [ "$os" == "centos7" ] ; then
         wavpack
         xz-libs
         zlib
+        python36-gi
+        python36-gobject
+        python36-gobject-devel
     )
 
     if [ -n "$extra" ] ; then
@@ -354,7 +377,7 @@ if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] ; then
 
     apt-get update && apt-get install --no-install-recommends $iopt ${pkgs[@]}
 
-elif [ "$os" == "centos7" ] ; then
+elif [ "$os" == "centos7" ] || [ "$os" == "rhel8" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"

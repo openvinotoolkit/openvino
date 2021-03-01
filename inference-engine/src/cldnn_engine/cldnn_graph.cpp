@@ -25,8 +25,8 @@
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
 #include <ie_ngraph_utils.hpp>
-#include "generic_ie.hpp"
 #include <ngraph/variant.hpp>
+#include <ngraph/ngraph.hpp>
 #include "cldnn_itt.h"
 
 using namespace InferenceEngine;
@@ -464,7 +464,6 @@ InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::ve
         create_ngraph_node(pi);
     }
 
-    ngraph::op::GenericIE::DisableReshape reshape(nodes);
     auto function = std::make_shared<ngraph::Function>(results, params, "runtime_gpu_graph");
     InferenceEngine::CNNNetwork net(function);
     return net;
@@ -591,8 +590,9 @@ void CLDNNGraph::UpdateImplementationsMap() {
     }
 }
 
-void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &result) const {
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> CLDNNGraph::GetPerformanceCounts() const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNGraph::GetPerformanceCounts");
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> result;
     bool combinePrimByIRLayers = false;
     unsigned i = 0;
     auto allIds = GetNetwork()->get_all_primitive_org_ids();
@@ -738,6 +738,7 @@ void CLDNNGraph::GetPerformanceCounts(std::map<std::string, InferenceEngine::Inf
         if (std::find(allIds.begin(), allIds.end(), primId) == allIds.end()) {
             getFromProfiling(primId);
         }
+    return result;
 }
 
 std::shared_ptr<cldnn::network> CLDNNGraph::GetNetwork(size_t idx) const {

@@ -156,8 +156,7 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             subgraph.quantizationLayers[0]->get_output_element_type(0),
             subgraph.quantizationLayers[0]->get_output_shape(0),
             updatePrecisions ? dataPrecision.precision : subgraph.quantizationLayers[0]->get_output_element_type(0),
-            dataPrecision.min,
-            dataPrecision.max);
+            deqPrecision);
 
         for (size_t index = 0; index < subgraph.quantizationLayers.size(); index++) {
             std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeLayer = as_type_ptr<ngraph::opset1::FakeQuantize>(
@@ -267,6 +266,7 @@ void ConcatTransformation::addDequantizationLayers(
 
                 if (subgraph.layers.find(child.get_friendly_name()) == subgraph.layers.end()) {
                     if (layerDequantizations.size() == 0ul) {
+                        // fill layerDequantizations collection
                         getLayerDequantizationCallback(layer, layer->get_friendly_name(), layerDequantizations);
                     }
 
@@ -276,6 +276,7 @@ void ConcatTransformation::addDequantizationLayers(
                         std::vector<std::shared_ptr<ngraph::Node>> subtractNodes;
                         std::vector<std::shared_ptr<ngraph::Node>> multiplyNodes;
 
+                        // forming nodes for concatenation
                         if (layerDequantizations.size() > 1ul) {
                             auto broadcastElementWiseConst = [](
                                 // FakeQuantize constant shape must be broadcastable to the shape on data.
@@ -311,13 +312,9 @@ void ConcatTransformation::addDequantizationLayers(
                                     convertNodes.push_back(dequantization.convert);
                                 }
 
-                                const ngraph::element::Type precision = dequantization.data.get_element_type();
-                                ngraph::Shape targetShape = dequantization.data.get_shape();
-
-                                targetShape[0] = 1ul;
-                                for (size_t i = 2; i < targetShape.size(); ++i) {
-                                    targetShape[i] = 1ul;
-                                }
+                                const ngraph::element::Type precision = deqPrecision; //dequantization.data.get_element_type();
+                                ngraph::Shape targetShape(dequantization.data.get_shape().size(), 1ul);
+                                targetShape[1] = dequantization.data.get_shape()[1];
 
                                 if (!allDequantizationShiftAreZero) {
                                     subtractNodes.push_back(dequantization.subtract == nullptr ?
@@ -377,11 +374,13 @@ void ConcatTransformation::addDequantizationLayers(
 
                         if (!multiplyNodes.empty()) {
                             const size_t sourceOutputIdx = NetworkHelper::getChildInputIndex(source, destination);
-                            std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<DequantizationMultiply>(
-                                destination->get_input_source_output(sourceOutputIdx),
-                                NetworkHelper::toScalarIfPossible(multiplyNodes.size() == 1ul ?
-                                    multiplyNodes[0] :
-                                    ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(multiplyNodes, 1)));
+                            std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<op::TypeRelaxed<DequantizationMultiply>>(
+                                DequantizationMultiply(
+                                    destination->get_input_source_output(sourceOutputIdx),
+                                    NetworkHelper::toScalarIfPossible(multiplyNodes.size() == 1ul ?
+                                        multiplyNodes[0] :
+                                        ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(multiplyNodes, 1))),
+                                    layerDequantizations[0].multiply->get_output_element_type(0));
                             insert_new_node_between(source, destination, multiply);
                             ngraph::copy_runtime_info({ layer, multiply }, multiply);
                             source = multiply;

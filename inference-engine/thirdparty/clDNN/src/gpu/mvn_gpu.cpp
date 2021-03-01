@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,6 +42,9 @@ public:
                                                                   : kernel_selector::mvn_mode::WITHIN_CHANNELS;
         mvn_params.mvnNormalizeVariance = arg.get_primitive()->normalize_variance;
         mvn_params.epsilon = arg.get_primitive()->epsilon;
+
+        mvn_params.mvnEpsMode = arg.get_primitive()->eps_inside_sqrt ? kernel_selector::mvn_eps_mode::INSIDE_SQRT
+                                                                     : kernel_selector::mvn_eps_mode::OUTSIDE_SQRT;
 
         auto& kernel_selector = kernel_selector::mvn_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(mvn_params, mvn_optional_params);

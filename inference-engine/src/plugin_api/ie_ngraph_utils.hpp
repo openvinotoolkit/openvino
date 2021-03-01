@@ -71,7 +71,7 @@ inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
         return ::ngraph::element::Type(::ngraph::element::Type_t::i32);
     } else if (precision == "i64" || precision == "I64") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::i64);
-    } else if (precision == "u1" || precision == "U1") {
+    } else if (precision == "u1" || precision == "U1" || precision == "BIN" || precision == "bin") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::u1);
     } else if (precision == "u8" || precision == "U8") {
         return ::ngraph::element::Type(::ngraph::element::Type_t::u8);

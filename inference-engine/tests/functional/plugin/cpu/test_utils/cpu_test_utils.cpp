@@ -228,6 +228,27 @@ auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
     return paramsVector;
 }
 
+void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount) {
+    InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
+    auto function = execGraphInfo.getFunction();
+    ASSERT_NE(nullptr, function);
+    size_t actualNodeCount = 0;
+    for (const auto &node : function->get_ops()) {
+        const auto & rtInfo = node->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            IE_ASSERT(rtInfo.end() != it);
+            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+            IE_ASSERT(nullptr != value);
+            return value->get();
+        };
+        if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
+            actualNodeCount++;
+        }
+    }
+
+    ASSERT_EQ(expectedCount, actualNodeCount) << "Unexpected count of the node type '" << nodeType << "' ";
+}
 std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
     std::vector<CPUSpecificParams> resCPUParams;
     const int selectedTypeIndex = 3;
@@ -238,6 +259,8 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificPar
         if (selectedTypeStr.find("jit") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
             continue;
         if (selectedTypeStr.find("sse42") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
+            continue;
+        if (selectedTypeStr.find("avx") != std::string::npos && !InferenceEngine::with_cpu_x86_avx())
             continue;
         if (selectedTypeStr.find("avx2") != std::string::npos && !InferenceEngine::with_cpu_x86_avx2())
             continue;

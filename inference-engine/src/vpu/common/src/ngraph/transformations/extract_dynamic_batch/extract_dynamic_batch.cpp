@@ -50,6 +50,7 @@ private:
             {ngraph::opset5::Maximum::type_info,          sliceBinaryEltwise},
 
             {ngraph::opset5::Relu::type_info,             sliceUnaryEltwise},
+            {ngraph::opset5::Clamp::type_info,            sliceUnaryEltwise},
         };
         return slicers;
     }
@@ -342,6 +343,7 @@ std::shared_ptr<ngraph::opset5::Loop> makeLoop(ngraph::Node* root, ngraph::Node*
     results.emplace_back(std::make_shared<ngraph::opset5::Result>(iterationCondition));
     auto body = std::make_shared<ngraph::Function>(results, parameters, "body");
     loop->set_function(body);
+    loop->set_special_body_ports({-1, static_cast<std::int64_t>(results.size()) - 1});
     for (const auto& entry : slicedInputs) {
         loop->set_sliced_input(entry.first, entry.second, 0, 1, 1, -1, 0);
     }
@@ -358,7 +360,6 @@ std::shared_ptr<ngraph::opset5::Loop> makeLoop(ngraph::Node* root, ngraph::Node*
         loop->get_concatenated_slices(entry, 0, 1, 1, -1, 0);
     }
 
-    loop->set_special_body_ports({-1, static_cast<std::int64_t>(results.size()) - 1});
     loop->validate_and_infer_types();
     return loop;
 }
