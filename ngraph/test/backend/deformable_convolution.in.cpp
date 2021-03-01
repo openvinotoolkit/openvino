@@ -76,10 +76,10 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
     test_case.run();
 }
 // clang-format off
-NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_offsets_zero_2D_1batch_1channel)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_offsets_2D_1batch_1channel_padding1)
 {
     const Strides strides{1, 1};
-    const CoordinateDiff padding{0, 0};
+    const CoordinateDiff padding{1, 1};
     const Strides dilations{1, 1};
 
     const Shape inputs_shape{1, 1, 4, 4};
@@ -93,47 +93,258 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_offsets_zero_2D_1batch_1chan
                                     0.0f, 1.0f, 0.0f,
                                     3.0f, 2.0f, 1.0f};
 
-    const Shape offsets_shape{1, 18, 2, 2};
-    const std::vector<float> offsets{1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f,
-                                     1.0f, 0.0f,
-                                     0.0f, 2.0f};
+    const Shape offsets_shape{1, 18, 4, 4};
+        const std::vector<float> offsets{1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f};
 
-    const Shape outputs_shape{1, 1, 2, 2};
-    const std::vector<float> outputs{24.0f, 65.0f,
-                                     38.0f, 2.0f};
+    const Shape outputs_shape{1, 1, 4, 4};
+    const std::vector<float> outputs{56.0f, 39.0f, 44.0f, 18.0f,
+                                     38.0f, 56.0f, 65.0f, 0.0f,
+                                     19.0f, 38.0f, 20.0f, 20.0f,
+                                     6.0f, 19.0f, 33.0f, 0.0f};
+
+    DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
+                              filter_shape, outputs, outputs_shape,strides, padding, dilations);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_offsets_2D_1batch_1channel_padding2)
+{
+    const Strides strides{1, 1};
+    const CoordinateDiff padding{2, 2};
+    const Strides dilations{1, 1};
+
+    const Shape inputs_shape{1, 1, 4, 4};
+    const std::vector<float> inputs{1.0f, 3.0f, 7.0f, 7.0f,
+                                    7.0f, 6.0f, 3.0f, 1.0f,
+                                    4.0f, 4.0f, 2.0f, 8.0f,
+                                    1.0f, 1.0f, 1.0f, 2.0f};
+
+    const Shape filter_shape{1, 1, 3, 3};
+    const std::vector<float> filter{1.0f, 2.0f, 3.0f,
+                                    0.0f, 1.0f, 0.0f,
+                                    3.0f, 2.0f, 1.0f};
+
+    const Shape offsets_shape{1, 18, 6, 6};
+        const std::vector<float> offsets{1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 1.0f, 0.0f,1.0f, 0.0f,
+                                     1.0f, 0.0f, 0.0f, 2.0f,1.0f, 0.0f};
+
+    const Shape outputs_shape{1, 1, 6, 6};
+    const std::vector<float> outputs{21.0f, 5.0f, 32.0f, 30.0f, 3.0f, 21.0f,
+                                     30.0f, 21.0f, 39.0f, 7.0f, 31.0f, 3.0f,
+                                     39.0f, 30.0f, 24.0f, 65.0f, 7.0f, 31.0f,
+                                     21.0f, 39.0f, 38.0f, 2.0f, 8.0f, 7.0f,
+                                     5.0f, 21.0f, 9.0f, 33.0f, 2.0f, 8.0f,
+                                     0.0f, 5.0f, 6.0f, 0.0f, 0.0f, 2.0f};
 
     DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
                               filter_shape, outputs, outputs_shape,strides, padding, dilations);
