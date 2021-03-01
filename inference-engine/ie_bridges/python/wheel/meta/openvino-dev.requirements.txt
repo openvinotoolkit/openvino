@@ -7,6 +7,7 @@ pandas==0.24.2
 hyperopt==0.1.2
 networkx==2.2
 tqdm==4.31.1
+texttable==1.6.3
 py-cpuinfo!=5.0,!=6.0
 PyYAML>=5.4.2
 pillow>=8.1.0
