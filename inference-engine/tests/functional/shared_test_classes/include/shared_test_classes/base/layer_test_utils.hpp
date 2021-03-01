@@ -55,25 +55,28 @@ struct PassRate {
     enum Statuses {
         PASSED,
         FAILED,
-        SKIPPED
+        SKIPPED,
+        CRASHED
     };
     unsigned long passed = 0;
     unsigned long failed = 0;
     unsigned long skipped = 0;
+    unsigned long crashed = 0;
 
     PassRate() = default;
 
-    PassRate(unsigned long p, unsigned long f, unsigned long s) {
+    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c) {
         passed = p;
         failed = f;
         skipped = s;
+        crashed = c;
     }
 
     float getPassrate() const {
-        if (passed + failed == 0) {
+        if (passed + failed + crashed == 0) {
             return 0.f;
         } else {
-            return passed * 100.f / (passed + failed + skipped);
+            return passed * 100.f / (passed + failed + skipped + crashed);
         }
     }
 };
@@ -98,7 +101,7 @@ protected:
 
     std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
 
-    std::map<std::string, PassRate> getOPsStatsFromReport(const std::string& reportFileName);
+    std::map<std::string, PassRate> getOPsStatsFromReport();
 
     std::string getDeviceName() const { return deviceName; }
 
@@ -117,9 +120,7 @@ public:
 class TestEnvironment : public ::testing::Environment {
 public:
     void TearDown() override;
-
-private:
-    std::string reportFileName = "report.xml";
+    static void report();
 };
 
 using TargetDevice = std::string;

@@ -44,38 +44,47 @@ void Summary::updateOPsStats(ngraph::NodeTypeInfo op, PassRate::Statuses status)
         auto &passrate = it->second;
         switch (status) {
             case PassRate::PASSED:
-                passrate.passed += 1;
+                passrate.passed++;
+                passrate.crashed--;
                 break;
             case PassRate::FAILED:
-                passrate.failed += 1;
+                passrate.failed++;
+                passrate.crashed--;
                 break;
             case PassRate::SKIPPED:
-                passrate.skipped += 1;
+                passrate.skipped++;
+                passrate.crashed--;
+                break;
+            case PassRate::CRASHED:
+                passrate.crashed++;
                 break;
         }
     } else {
         switch (status) {
             case PassRate::PASSED:
-                opsStats[op] = PassRate(1, 0, 0);
+                opsStats[op] = PassRate(1, 0, 0, 0);
                 break;
             case PassRate::FAILED:
-                opsStats[op] = PassRate(0, 1, 0);
+                opsStats[op] = PassRate(0, 1, 0, 0);
                 break;
             case PassRate::SKIPPED:
-                opsStats[op] = PassRate(0, 0, 1);
+                opsStats[op] = PassRate(0, 0, 1, 0);
+                break;
+            case PassRate::CRASHED:
+                opsStats[op] = PassRate(0, 0, 0, 1);
                 break;
         }
     }
 }
 
-std::map<std::string, PassRate> Summary::getOPsStatsFromReport(const std::string& reportFileName) {
+std::map<std::string, PassRate> Summary::getOPsStatsFromReport() {
     pugi::xml_document doc;
 
     std::ifstream file;
-    file.open(reportFileName);
+    file.open(CommonTestUtils::REPORT_FILENAME);
 
     pugi::xml_node root;
-    doc.load_file(reportFileName.c_str());
+    doc.load_file(CommonTestUtils::REPORT_FILENAME);
     root = doc.child("report");
 
     pugi::xml_node resultsNode = root.child("results");
@@ -83,16 +92,17 @@ std::map<std::string, PassRate> Summary::getOPsStatsFromReport(const std::string
     std::map<std::string, PassRate> oldOpsStat;
     for (auto &child : currentDeviceNode.children()) {
         std::string entry = child.name();
-        auto a = std::stoi(child.attribute("passed").value());
-        auto b = std::stoi(child.attribute("failed").value());
-        auto c = std::stoi(child.attribute("skipped").value());
-        PassRate obj(a, b, c);
+        auto p = std::stoi(child.attribute("passed").value());
+        auto f = std::stoi(child.attribute("failed").value());
+        auto s = std::stoi(child.attribute("skipped").value());
+        auto c = std::stoi(child.attribute("crashed").value());
+        PassRate obj(p, f, s, c);
         oldOpsStat.insert({entry, obj});
     }
     return oldOpsStat;
 }
 
-void TestEnvironment::TearDown() {
+void TestEnvironment::report() {
     if (isReported) {
         return;
     }
@@ -109,13 +119,13 @@ void TestEnvironment::TearDown() {
         opsInfo.insert(type_info_set.begin(), type_info_set.end());
     }
 
-    auto &s = Summary::getInstance();
-    auto stats = s.getOPsStats();
+    auto &summary = Summary::getInstance();
+    auto stats = summary.getOPsStats();
 
     pugi::xml_document doc;
 
     std::ifstream file;
-    file.open(reportFileName);
+    file.open(CommonTestUtils::REPORT_FILENAME);
 
     time_t rawtime;
     struct tm *timeinfo;
@@ -129,14 +139,14 @@ void TestEnvironment::TearDown() {
 
     pugi::xml_node root;
     if (file) {
-        doc.load_file(reportFileName.c_str());
+        doc.load_file(CommonTestUtils::REPORT_FILENAME);
         root = doc.child("report");
         //Ugly but shorter than to write predicate for find_atrribute() to update existing one
         root.remove_attribute("timestamp");
         root.append_attribute("timestamp").set_value(timeNow);
 
         root.remove_child("ops_list");
-        root.child("results").remove_child(s.deviceName.c_str());
+        root.child("results").remove_child(summary.deviceName.c_str());
     } else {
         root = doc.append_child("report");
         root.append_attribute("timestamp").set_value(timeNow);
@@ -151,7 +161,7 @@ void TestEnvironment::TearDown() {
     }
 
     pugi::xml_node resultsNode = root.child("results");
-    pugi::xml_node currentDeviceNode = resultsNode.append_child(s.deviceName.c_str());
+    pugi::xml_node currentDeviceNode = resultsNode.append_child(summary.deviceName.c_str());
     std::unordered_set<std::string> opsListFromStatistic;
     for (const auto &it : stats) {
         std::string name = std::string(it.first.name) + "-" + std::to_string(it.first.version);
@@ -160,11 +170,12 @@ void TestEnvironment::TearDown() {
         entry.append_attribute("passed").set_value(it.second.passed);
         entry.append_attribute("failed").set_value(it.second.failed);
         entry.append_attribute("skipped").set_value(it.second.skipped);
+        entry.append_attribute("crashed").set_value(it.second.crashed);
         entry.append_attribute("passrate").set_value(it.second.getPassrate());
     }
 
     if (extendReport && file) {
-        auto opStataFromReport = s.getOPsStatsFromReport(reportFileName);
+        auto opStataFromReport = summary.getOPsStatsFromReport();
         for (auto& item : opStataFromReport) {
             pugi::xml_node entry;
             if (opsListFromStatistic.find(item.first) == opsListFromStatistic.end()) {
@@ -172,28 +183,35 @@ void TestEnvironment::TearDown() {
                 entry.append_attribute("passed").set_value(item.second.passed);
                 entry.append_attribute("failed").set_value(item.second.failed);
                 entry.append_attribute("skipped").set_value(item.second.skipped);
+                entry.append_attribute("crashed").set_value(item.second.crashed);
                 entry.append_attribute("passrate").set_value(item.second.getPassrate());
             } else {
                 entry = currentDeviceNode.child(item.first.c_str());
-                auto a = std::stoi(entry.attribute("passed").value()) + item.second.passed;
-                auto b = std::stoi(entry.attribute("failed").value()) + item.second.failed;
-                auto c = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
-                PassRate obj(a, b, c);
+                auto p = std::stoi(entry.attribute("passed").value()) + item.second.passed;
+                auto f = std::stoi(entry.attribute("failed").value()) + item.second.failed;
+                auto s = std::stoi(entry.attribute("skipped").value()) + item.second.skipped;
+                auto c = std::stoi(entry.attribute("crashed").value()) + item.second.crashed;
+                PassRate obj(p, f, s, c);
 
                 entry.attribute("passed").set_value(obj.passed);
                 entry.attribute("failed").set_value(obj.failed);
                 entry.attribute("skipped").set_value(obj.skipped);
+                entry.attribute("crashed").set_value(obj.crashed);
                 entry.attribute("passrate").set_value(obj.getPassrate());
             }
         }
     }
 
-    bool result = doc.save_file(reportFileName.c_str());
+    bool result = doc.save_file(CommonTestUtils::REPORT_FILENAME);
     if (!result) {
-        std::cout << "Failed to write report to " << reportFileName << "!" << std::endl;
+        std::cout << "Failed to write report to " << CommonTestUtils::REPORT_FILENAME << "!" << std::endl;
     } else {
         isReported = true;
     }
+}
+
+void TestEnvironment::TearDown() {
+    report();
 }
 
 LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
@@ -231,13 +249,22 @@ void LayerTestsCommon::Run() {
         }
     };
 
-    if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
-        reportStatus(PassRate::Statuses::SKIPPED);
-        GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
-    }
+    auto crashHandler = [](int errCode) {
+        TestEnvironment::report();
+        std::cout << "Unexpected application crash!" << std::endl;
+        std::abort();
+    };
+    signal(SIGSEGV, crashHandler);
 
     try {
         LoadNetwork();
+
+        reportStatus(PassRate::Statuses::CRASHED);
+        if (FuncTestUtils::SkipTestsConfig::currentTestIsDisabled()) {
+            reportStatus(PassRate::Statuses::SKIPPED);
+            GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
+        }
+
         Infer();
         Validate();
         reportStatus(PassRate::Statuses::PASSED);
