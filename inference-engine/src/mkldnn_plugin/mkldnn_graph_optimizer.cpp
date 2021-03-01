@@ -146,9 +146,9 @@ void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
     // FuseInterpolateAndSimpleOperation(graph);
     // graph.RemoveDroppedNodes();
 
-    // OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseNormalizeAndSimpleOperation");
-    // FuseNormalizeAndSimpleOperation(graph);
-    // graph.RemoveDroppedNodes();
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseNormalizeL2AndSimpleOperation");
+    FuseNormalizeL2AndSimpleOperation(graph);
+    graph.RemoveDroppedNodes();
 
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "FuseEltwiseAndSimple");
     FuseEltwiseAndSimple(graph);
@@ -1463,70 +1463,46 @@ void MKLDNNGraphOptimizer::FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph)
     }
 }
 
-void MKLDNNGraphOptimizer::FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph) {
-//    auto& graphNodes = graph.GetNodes();
-//
-//    auto isSutableParentNode = [](MKLDNNNodePtr node) {
-//        bool isSutableNormalize = node->getType() == Normalize;
-//
-//        if (isSutableNormalize) {
-//            return node->getChildEdges().size() == 1;
-//        } else {
-//            return false;
-//        }
-//    };
-//
-//    auto isSutableChildNode = [&](MKLDNNNodePtr node) {
-//        if (!node->getCnnLayer())
-//            return false;
-//
-//        if (node->getType() == Quantize) {
-//            auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
-//            if (quantizeNode == nullptr)
-//                IE_THROW() << "Cannot get quantize layer " << node->getName();
-//            return !quantizeNode->isBinarization();
-//        } else if (node->getType() == Eltwise) {
-//            auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
-//            if (eltwiseNode == nullptr)
-//                IE_THROW() << "Cannot get Eltwise node " << node->getName();
-//            return IsOneOf(eltwiseNode->getOpType(), {Relu, Gelu, Elu, Logistic, BoundedRelu, Clamp, Tanh, Swish,
-//                                                      Hswish, Mish, Hsigmoid, Round, Linear, Abs, Square, Sqrt}) ||
-//                    ((eltwiseNode->getOpType() == MulAdd && eltwiseNode->getCnnLayer()->blobs.size() == 2) ||
-//                     (eltwiseNode->getOpType() == Prelu));
-//        }
-//
-//        return false;
-//    };
-//
-//    auto parent = graphNodes.begin();
-//    while (parent != graphNodes.end()) {
-//        auto parentNode = *parent;
-//        if (!isSutableParentNode(parentNode)) {
-//            parent++;
-//            continue;
-//        }
-//
-//        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-//        if (!isSutableChildNode(childNode)) {
-//            parent++;
-//            continue;
-//        }
-//
-//        parentNode->fuseWith(childNode);
-//
-//        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
-//            auto parentEdges = childNode->parentEdges;
-//            for (auto &parentEdge : parentEdges) {
-//                auto p_edge = parentEdge.lock();
-//                if (p_edge->getParent()->getType() == Normalize)
-//                    continue;
-//
-//                removeEdge(graph, p_edge);
-//            }
-//        }
-//
-//        graph.DropNode(childNode);
-//    }
+void MKLDNNGraphOptimizer::FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSutableParentNode = [](MKLDNNNodePtr node) {
+        if (node->getType() == NormalizeL2) {
+            return node->getChildEdges().size() == 1;
+        } else {
+            return false;
+        }
+    };
+
+    auto parent = graphNodes.begin();
+    while (parent != graphNodes.end()) {
+        auto parentNode = *parent;
+        if (!isSutableParentNode(parentNode)) {
+            parent++;
+            continue;
+        }
+
+        auto childNode = parentNode->getChildEdgeAt(0)->getChild();
+        if (!parentNode->canFuse(childNode)) {
+            parent++;
+            continue;
+        }
+
+        parentNode->fuseWith(childNode);
+
+        if (childNode->getType() == Quantize || childNode->getType() == Eltwise) {
+            auto parentEdges = childNode->parentEdges;
+            for (auto &parentEdge : parentEdges) {
+                auto p_edge = parentEdge.lock();
+                if (p_edge->getParent()->getType() == NormalizeL2)
+                    continue;
+
+                removeEdge(graph, p_edge);
+            }
+        }
+
+        graph.DropNode(childNode);
+    }
 }
 
 void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {

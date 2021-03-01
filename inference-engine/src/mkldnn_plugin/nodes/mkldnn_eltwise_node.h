@@ -73,7 +73,7 @@ public:
 
     bool isWithBroadcast();
 
-    bool canFuse(const MKLDNNNodePtr& node) const;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
 
     size_t getOpInputsNum() const;
     mkldnn::algorithm getMKLDNNAlgorithm() const { return mkldnnAlgorithm; }
@@ -121,6 +121,8 @@ private:
     void offset_in_calc(std::vector<size_t>& offset, std::vector<size_t>& dims_in, std::vector<size_t>& dims_out);
 
     static std::map<const ngraph::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ngraph::Node>&, MKLDNNEltwiseNode& node)>> initializers;
+
+    void fillScalesAndShifts();
 };
 
 }  // namespace MKLDNNPlugin

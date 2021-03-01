@@ -23,6 +23,7 @@
 #include "utils/general_utils.h"
 
 #include "ngraph/ngraph.hpp"
+#include <ngraph/opsets/opset1.hpp>
 
 #include <string>
 #include <vector>
@@ -30,6 +31,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <functional>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -962,6 +964,17 @@ MKLDNNEltwiseNode::MKLDNNEltwiseNode(const std::shared_ptr<ngraph::Node>& op, co
         MKLDNNNode(op, eng, cache) {
     if (initializers.find(op->get_type_info()) != initializers.end()) {
         initializers[op->get_type_info()](op, *this);
+
+        std::shared_ptr<const ngraph::opset1::Constant> secondIn;
+        const auto isConstantBroadcastbleSecondInput = [&](const std::shared_ptr<ngraph::Node>& op) {
+            secondIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
+            return secondIn != nullptr && MKLDNNExtensionUtils::isPerTensorOrPerChannelBroadcastable(op->get_input_shape(0), op->get_input_shape(1));
+        };
+        if (one_of(getAlgorithm(), EltwiseMultiply, EltwiseDivide, EltwisePrelu) && isConstantBroadcastbleSecondInput(op)) {
+            scales = secondIn->cast_vector<float>();
+        } else if (one_of(getAlgorithm(), EltwiseAdd, EltwiseSubtract) && isConstantBroadcastbleSecondInput(op)) {
+            shifts = secondIn->cast_vector<float>();
+        }
     } else {
         IE_THROW(NotImplemented)
             << "CPU Eltwise node doesn't support ngraph operation " << op->get_type_name() << " with name " << op->get_friendly_name();
@@ -1704,59 +1717,98 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
     return getParentEdgesAtPort(0)[0].get()->getDims() == getChildEdgesAtPort(0)[0].get()->getDims();
 }
 
+void MKLDNNEltwiseNode::fillScalesAndShifts() {
+    const size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].size() > 1 ? 1 : 0]);
+    const size_t bufferSizeAligned = rnd_up(bufferSize, 16);
+
+    size_t initSize = scales.size();
+    if (initSize > 0) {
+        scales.resize(bufferSizeAligned, 0);
+        if (initSize == 1) {
+            std::fill(scales.begin() + 1, scales.begin() + bufferSize, scales[0]);
+        }
+    }
+
+    initSize = shifts.size();
+    if (initSize > 0) {
+        shifts.resize(bufferSizeAligned, 0);
+        if (initSize == 1) {
+            std::fill(shifts.begin() + 1, shifts.begin() + bufferSize, shifts[0]);
+        }
+    }
+
+    switch (getAlgorithm()) {
+        case EltwiseAdd: {
+            scales.resize(bufferSizeAligned, 1.0f);
+            break;
+        }
+        case EltwiseSubtract: {
+            scales.resize(bufferSizeAligned, 1.0f);
+            std::transform(shifts.begin(), shifts.end(), shifts.begin(), [](float shift){ return -1.0f * shift; });
+            break;
+        }
+        case EltwiseMultiply: {
+            shifts.resize(bufferSizeAligned, 0.0f);
+            break;
+        }
+        case EltwiseDivide: {
+            shifts.resize(bufferSizeAligned, 0.0f);
+            std::transform(scales.begin(), scales.end(), scales.begin(), [](float scale){ return 1.0f / scale; });
+            break;
+        }
+        default: break;
+    }
+}
+
 void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
-    switch (getMKLDNNAlgorithm()) {
-        case mkldnn::algorithm::eltwise_relu:
-        case mkldnn::algorithm::eltwise_tanh:
-        case mkldnn::algorithm::eltwise_elu:
-        case mkldnn::algorithm::eltwise_square:
-        case mkldnn::algorithm::eltwise_abs:
-        case mkldnn::algorithm::eltwise_sqrt:
-        case mkldnn::algorithm::eltwise_linear:
-        case mkldnn::algorithm::eltwise_bounded_relu:
-        case mkldnn::algorithm::eltwise_soft_relu:
-        case mkldnn::algorithm::eltwise_logistic:
-        case mkldnn::algorithm::eltwise_exp:
-        case mkldnn::algorithm::eltwise_gelu_erf:
-        case mkldnn::algorithm::eltwise_gelu_tanh:
-        case mkldnn::algorithm::eltwise_clip:
-        case mkldnn::algorithm::eltwise_swish:
-        case mkldnn::algorithm::eltwise_hswish:
-        case mkldnn::algorithm::eltwise_mish:
-        case mkldnn::algorithm::eltwise_hsigmoid:
-        case mkldnn::algorithm::eltwise_round_half_to_even:
-        case mkldnn::algorithm::eltwise_round_half_away_from_zero:
-            ops.append_eltwise(1.0, getMKLDNNAlgorithm(), getAlpha(), getBeta());
-            break;
-        case mkldnn::algorithm::depthwise_scale_shift:
-        case mkldnn::algorithm::depthwise_prelu:
-            IE_THROW() << "[NM] Not implemented";
-//            if (scales.empty() && shifts.empty()) {
-//                size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].size() > 1 ? 1 : 0]);
-//                size_t bufferSizeAligned = rnd_up(bufferSize, 16);
-//
-//                Blob::Ptr scalesBlob = getCnnLayer()->blobs["weights"];
-//                if (scalesBlob == nullptr)
-//                    IE_THROW() << "Cannot get weights blob in Eltwise node with name `" << getName() << "`";
-//                scales.resize(bufferSizeAligned, 0);
-//                const float *scalesBufferPtr = scalesBlob->buffer().as<float *>();
-//                for (int i = 0; i < bufferSize; i++) {
-//                    scales[i] = scalesBufferPtr[scalesBlob->size() == 1 ? 0 : i];
-//                }
-//
-//                Blob::Ptr shiftsBlob = getCnnLayer()->blobs["biases"];
-//                if (shiftsBlob != nullptr) {
-//                    shifts.resize(bufferSizeAligned, 0);
-//                    const float *shiftsBufferPtr = shiftsBlob->buffer().as<float *>();
-//                    for (int i = 0; i < bufferSize; i++) {
-//                        shifts[i] = shiftsBufferPtr[shiftsBlob->size() == 1 ? 0 : i];
-//                    }
-//                }
-//            }
-//
-//            ops.append_depthwise(getAlgorithm(), &scales[0], shifts.empty() ? nullptr : &shifts[0]);
-            break;
-        default: IE_THROW() << "Appending Eltwise node with name `" << getName() << "` as post operation is not supported";
+    const std::string errorPrefix = "Appending Eltwise node with name '" + getName() + "' ";
+    if (getMKLDNNAlgorithm() != mkldnn::algorithm::undef) {
+        switch (getMKLDNNAlgorithm()) {
+            case mkldnn::algorithm::eltwise_relu:
+            case mkldnn::algorithm::eltwise_tanh:
+            case mkldnn::algorithm::eltwise_elu:
+            case mkldnn::algorithm::eltwise_square:
+            case mkldnn::algorithm::eltwise_abs:
+            case mkldnn::algorithm::eltwise_sqrt:
+            case mkldnn::algorithm::eltwise_linear:
+            case mkldnn::algorithm::eltwise_bounded_relu:
+            case mkldnn::algorithm::eltwise_soft_relu:
+            case mkldnn::algorithm::eltwise_logistic:
+            case mkldnn::algorithm::eltwise_exp:
+            case mkldnn::algorithm::eltwise_gelu:
+            case mkldnn::algorithm::eltwise_clip:
+            case mkldnn::algorithm::eltwise_swish:
+            case mkldnn::algorithm::eltwise_hswish:
+            case mkldnn::algorithm::eltwise_mish:
+            case mkldnn::algorithm::eltwise_hsigmoid:
+            case mkldnn::algorithm::eltwise_round_half_to_even:
+            case mkldnn::algorithm::eltwise_round_half_away_from_zero:
+                ops.append_eltwise(1.0, getMKLDNNAlgorithm(), getAlpha(), getBeta());
+                return;
+            case mkldnn::algorithm::depthwise_scale_shift:
+                IE_THROW() << "[NM] Not implemented";
+                return;
+            default: IE_THROW() << errorPrefix << "as post operation is not supported";
+        }
+    } else {
+        switch (getAlgorithm()) {
+            case EltwiseAdd:
+            case EltwiseSubtract:
+                if (shifts.empty()) IE_THROW() << errorPrefix << "has empty shifts";
+                break;
+            case EltwiseMultiply:
+            case EltwiseDivide:
+            case EltwisePrelu:
+                if (scales.empty()) IE_THROW() << errorPrefix << "has empty scales";
+                break;
+            default: IE_THROW() << errorPrefix << "as post operation is not supported";
+        }
+        fillScalesAndShifts();
+        if (getAlgorithm() == EltwisePrelu) {
+            ops.append_depthwise(mkldnn::algorithm::depthwise_prelu, &scales[0], nullptr);
+        } else {
+            ops.append_depthwise(mkldnn::algorithm::depthwise_scale_shift, &scales[0], &shifts[0]);
+        }
     }
 }
 
