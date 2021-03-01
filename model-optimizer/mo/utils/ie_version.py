@@ -14,12 +14,14 @@
  limitations under the License.
 """
 
-try:
-    # needed by install_prerequisites which call extract_release_version as python script
-    from version import extract_release_version, get_version
-except ImportError:
-    from mo.utils.version import extract_release_version, get_version
+
+def get_ie_version():
+    try:
+        from openvino.inference_engine import get_version # pylint: disable=import-error
+        return get_version()
+    except:
+        return None
 
 
 if __name__ == "__main__":
-    print("{}.{}".format(*extract_release_version(get_version())))
+    print(get_ie_version())
