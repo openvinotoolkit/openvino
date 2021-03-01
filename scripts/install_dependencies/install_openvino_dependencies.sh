@@ -181,7 +181,6 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         gstreamer1.0-vaapi
         gstreamer1.0-tools
         gstreamer1.0-x
-        intel-media-va-driver-non-free
         libfaac0
         libfluidsynth2
         libgl-dev
