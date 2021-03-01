@@ -176,7 +176,6 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         object getFunction() except +
         void convertToOldRepresentation() except +
         string getOVNameForTensor(const string &) except +
-        string getOVNameForOperation(const string &) except +
 
     cdef cppclass InferRequestWrap:
         double exec_time;
