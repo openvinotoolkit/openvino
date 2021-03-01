@@ -30,7 +30,6 @@
 #include <blob_factory.hpp>
 #include <legacy/net_pass.h>
 #include <legacy/details/ie_cnn_network_tools.h>
-#include "nodes/common/cpu_memcpy.h"
 #include "nodes/common/cpu_convert.h"
 
 #include "precision_utils.h"
@@ -206,9 +205,6 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
 
 void MKLDNNGraph::Replicate(const CNNNetwork &network, const MKLDNNExtensionManager::Ptr& extMgr) {
     InputsDataMap inputs = network.getInputsInfo();
-    if (inputs.empty()) {
-        THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: No inputs for the topology";
-    }
 
     this->_name = network.getName();
 

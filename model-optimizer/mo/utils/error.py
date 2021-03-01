@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import re
 
 
 class BasicError(Exception):
@@ -44,3 +45,17 @@ class InternalError(BasicError):
     """ Not user-friendly error: user cannot fix it and it points to the bug inside MO. """
     pass
 
+
+def classify_error_type(e):
+    patterns = [
+        # Example: No module named 'openvino.offline_transformations.offline_transformations_api'
+        r"No module named \'\S+\'",
+        # Example: cannot import name 'IECore' from 'openvino.inference_engine' (unknown location)
+        r"cannot import name \'\S+\'",
+    ]
+    error_message = str(e)
+    for pattern in patterns:
+        m = re.search(pattern, error_message)
+        if m:
+            return m.group(0)
+    return "undefined"

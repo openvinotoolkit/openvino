@@ -24,6 +24,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
@@ -31,6 +32,8 @@
 #include <transformations/op_conversions/softplus_decomposition.hpp>
 #include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include <transformations/convert_precision.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -40,6 +43,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
+#include <vpu/ngraph/utilities.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
@@ -47,9 +51,7 @@
 #include <vpu/ngraph/transformations/extract_dynamic_batch/extract_dynamic_batch.hpp>
 #include <vpu/ngraph/transformations/merge_gather_gather_elements.hpp>
 #include <transformations/op_conversions/mvn6_decomposition.hpp>
-
 namespace vpu {
-
 FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
     : _stageBuilder(std::move(stageBuilder)),
     _core(core),
@@ -175,18 +177,29 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     manager.register_pass<vpu::MergeGatherGatherElements>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
 
-    manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t>{
+    manager.register_pass<vpu::ExtractBatch>(std::unordered_set<ngraph::Node::type_info_t> {
         ngraph::opset5::MatMul::type_info,
         ngraph::opset5::Convolution::type_info,
         ngraph::opset5::GroupConvolution::type_info
     });
-
     manager.register_pass<vpu::DynamicToStaticShape>();
     manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
     manager.register_pass<vpu::ConvertExtractImagePatchesToReorgYolo>();
+    // ConstantFolding placed here to avoid precision type missmatch when we try to evaluate nodes with BOOL output.
+    // For example evaluate_greater_equal calls set_broadcast function with hardcoded BOOL precision.
+    // In set_broadcast function we compare original node's precision with hardcoded so we get an error if we change precision before.
+    manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    // ConvertPrecision must be executed before ConvertOpSet1ToLegacy due to this pass works with operations from opsets only
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32, myriadTypeToFuseMap);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u64, ngraph::element::i32, myriadTypeToFuseMap);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u32, ngraph::element::i32, myriadTypeToFuseMap);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::boolean, ngraph::element::i32, myriadTypeToFuseMap);
+
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    //  ConvertOpSet1ToLegacy can produce constants with I64 precision
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32, myriadTypeToFuseMap);
     manager.register_pass<vpu::MergeSubsequentDSROperations>();
 
     auto pass_config = manager.get_pass_config();
@@ -196,6 +209,7 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
     pass_config->disable<ngraph::pass::ConvertMinimum>();
     pass_config->disable<ngraph::pass::HSwishDecomposition>();
     pass_config->disable<ngraph::pass::MVN6Decomposition>();
+    pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
     auto transformationPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         return !!std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
@@ -204,7 +218,6 @@ ie::CNNNetwork FrontEnd::convertNetwork(ie::CNNNetwork& network) {
                               ngraph::pass::ConvertStridedSliceToCropMatcher>(transformationPredicate);
 
     manager.run_passes(nGraphFunc);
-
     return ie::CNNNetwork(ie::details::convertFunctionToICNNNetwork(nGraphFunc, network));
 }
 
@@ -486,11 +499,20 @@ ModelPtr FrontEnd::runCommonPasses(ie::CNNNetwork network,
             network = convertNetwork(network);
         }
 
-        ie::NetPass::ConvertPrecision(network, ie::Precision::I64, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(network, ie::Precision::U32, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(network, ie::Precision::U64, ie::Precision::I32);
-        ie::NetPass::ConvertPrecision(network, ie::Precision::BOOL, ie::Precision::I32);
-
+        const std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
+            {ngraph::element::i64, ngraph::element::i32},
+            {ngraph::element::u64, ngraph::element::i32},
+            {ngraph::element::u32, ngraph::element::i32},
+            {ngraph::element::boolean, ngraph::element::i32},
+        };
+        // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
+        // so we need to apply additional precision conversion but only for inputs and outputs
+        // This method should be removed #-48878
+        for (const auto& precision : convert_precision_list) {
+            ie::NetPass::ConvertIOPrecision(network,
+                                            InferenceEngine::details::convertPrecision(precision.first),
+                                            InferenceEngine::details::convertPrecision(precision.second));
+        }
         removeConstLayers(network);
 
         unrollLoops(network);

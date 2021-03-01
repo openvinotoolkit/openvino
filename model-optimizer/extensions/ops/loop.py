@@ -119,7 +119,7 @@ class Loop(TensorIterator):
             loop_port_idx = record['external_port_id']
             if loop_port_idx != -1:  # the id = -1 for execution condition output which is not connected anywhere
                 output_value = body_node.in_port(0).data.get_value()
-                output_shape = body_node.in_port(0).data.get_shape()
+                output_shape = body_node.in_port(0).data.get_shape().copy()
                 concat_axis = record['axis']
                 if concat_axis is not None:
                     assert output_shape[concat_axis] == 1, 'Dimension for concatenation is not equal to 1 for scan ' \
@@ -406,7 +406,8 @@ class Loop(TensorIterator):
                     new_port_id += 1
 
             for port_idx_to_remove in reversed(range(new_port_id, max_port_id + 1)):
-                loop_node.delete_input_port(port_idx_to_remove)
+                if port_idx_to_remove in loop_node.in_ports().keys():
+                    loop_node.delete_input_port(port_idx_to_remove)
 
     @staticmethod
     def re_numerate_output_ports(loop_node: Node):
