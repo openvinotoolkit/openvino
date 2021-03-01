@@ -29,13 +29,13 @@ namespace ngraph
             {
                 template <typename T>
                 void deformable_convolve_3D_channels(const ConvolutionParams& p,
-                                          const T* batch,
-                                          const Shape& batch_shape,
-                                          const T* offset,
-                                          const Shape& offset_shape,
-                                          const T* filter,
-                                          const Shape& filter_shape,
-                                          T*& out)
+                                                     const T* batch,
+                                                     const Shape& batch_shape,
+                                                     const T* offset,
+                                                     const Shape& offset_shape,
+                                                     const T* filter,
+                                                     const Shape& filter_shape,
+                                                     T*& out)
                 {
                     const int input_size_z = batch_shape[1];
                     const int input_size_y = batch_shape[2];
@@ -224,13 +224,13 @@ namespace ngraph
                         for (size_t f_idx = 0; f_idx < filters_count; ++f_idx)
                         {
                             deformable_convolve_3D_channels(params,
-                                                 batch,
-                                                 batch_shape,
-                                                 offsets,
-                                                 offset_batch_shape,
-                                                 filter,
-                                                 filter_shape,
-                                                 out);
+                                                            batch,
+                                                            batch_shape,
+                                                            offsets,
+                                                            offset_batch_shape,
+                                                            filter,
+                                                            filter_shape,
+                                                            out);
                             filter += filter_size;
                         }
                         batch += batch_size;
