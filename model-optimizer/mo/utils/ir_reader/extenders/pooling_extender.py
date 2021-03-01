@@ -52,7 +52,7 @@ def common_pool_extender(op: Node):
 
     dim = len(op.pads_begin)
 
-    assert dim in (1, 2, 3), '{}D {} not supported!'.format(dim, op.soft_get('name', op.id))
+    assert dim in (1, 2, 3), '{}D {} not supported! Node name: {}'.format(dim, op.soft_get('type'), op.soft_get('name', op.id))
 
     pad = [[0, 0], [0, 0]]
     pad.extend([[op.pads_begin[i], op.pads_end[i]] for i in range(dim)])
