@@ -96,7 +96,7 @@ public:
     bool canBeInPlace() const override {
         return false;
     }
-    bool canFuse(const MKLDNNNodePtr& node) const;
+    bool canFuse(const MKLDNNNodePtr& node) const override;
 
 private:
     // nearest neighbor

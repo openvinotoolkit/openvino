@@ -119,7 +119,7 @@ std::vector<fusingSpecificParams> fusingParamsSet {
         fusingElu,
         fusingSigmoid,
         fusingClamp,
-        fusingPRelu,
+        fusingPReluPerChannel,
         fusingSwish,
         fusingHSwish,
         fusingMish,

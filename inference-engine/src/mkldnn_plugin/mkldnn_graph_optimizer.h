@@ -33,7 +33,7 @@ private:
     void FuseConvolutionSumAndConvolutionSumActivation(MKLDNNGraph &graph);
     void FuseMVNAndSimpleOperation(MKLDNNGraph &graph);
     void FuseInterpolateAndSimpleOperation(MKLDNNGraph &graph);
-    void FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph);
+    void FuseNormalizeL2AndSimpleOperation(MKLDNNGraph &graph);
 
     void DropDoubleReorders(MKLDNNGraph& graph);
     void DropConvertReorder(MKLDNNGraph& graph);
