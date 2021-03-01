@@ -75,7 +75,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_47330,
                    xfail_issue_47337,
                    xfail_issue_48052,
-                   xfail_issue_48098,
                    xfail_issue_48100,
                    xfail_issue_49207,
                    xfail_issue_49750,
@@ -431,10 +430,6 @@ tests_expected_to_fail = [
     (xfail_issue_33593,
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_strides_cpu",
      "OnnxBackendNodeModelTest.test_maxpool_with_argmax_2d_precomputed_pads_cpu",),
-    (xfail_issue_48098,
-     "OnnxBackendNodeModelTest.test_training_dropout_cpu",
-     "OnnxBackendNodeModelTest.test_training_dropout_default_cpu",
-     "OnnxBackendNodeModelTest.test_training_dropout_zero_ratio_cpu",),
     (xfail_issue_48100,
      "OnnxBackendNodeModelTest.test_eyelike_with_dtype_cpu",)
 ]
