@@ -13,24 +13,18 @@ index 5254f7ee..e7a0ce2b 100644
  
  target_include_directories(onnx PUBLIC
 diff --git a/onnx/onnx_pb.h b/onnx/onnx_pb.h
-index 7dc68dea..22cab1ff 100644
+index 7dc68dea..c932b806 100644
 --- a/onnx/onnx_pb.h
 +++ b/onnx/onnx_pb.h
-@@ -40,12 +40,14 @@
+@@ -40,9 +40,10 @@
  //
  // This solution is similar to
  // https://github.com/pytorch/pytorch/blob/master/caffe2/core/common.h
 -#if defined(ONNX_BUILD_SHARED_LIBS) || defined(ONNX_BUILD_MAIN_LIB)
 +#if defined(ONNX_BUILD_MAIN_LIB)
  #define ONNX_API ONNX_EXPORT
--#else
--#define ONNX_API ONNX_IMPORT
+ #else
++// OV as user of ONNX imports symbols
+ #define ONNX_API ONNX_IMPORT
  #endif
  
-+// OV as user of ONNX imports symbols
-+#define ONNX_API ONNX_IMPORT
-+
-+
- #ifdef ONNX_ML
- #include "onnx/onnx-ml.pb.h"
- #else
