@@ -1,9 +1,8 @@
-# Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#openvino_docs_install_guides_installing_openvino_pip}
+# Install Intel® Distribution of OpenVINO™ Toolkit from PyPI Repository {#https://docs.openvinotoolkit.org/latest/openvino_docs_install_guides_installing_openvino_pip.html}
 
 > **LEGAL NOTICE**: Your use of this software and any required dependent software (the
 “Software Package”) is subject to the terms and conditions of the [software license agreements](https://software.intel.com/en-us/license/eula-for-intel-software-development-products) for the Software Package, which may also include notices, disclaimers, or
 license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the “third-party-programs.txt” or other similarly-named text file included with the Software Package for additional details.
-
 
 ## Introduction
 
@@ -18,23 +17,20 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 
 | Component                                                                                           | Description                                                                                                                                                                                                                                                                                                   |  
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Inference Engine](../IE_DG/inference_engine_intro.md)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
+| [Inference Engine](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_inference_engine_intro.html)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
 
-## System Requirements
+## Supported Operating Systems
 
 * [Python* distribution](https://www.python.org/) 3.6, 3.7, 3.8
 * Operating Systems:
   - Ubuntu* 18.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
-  - Ubuntu* 20.04 long-term support (LTS), 64-bit (python 3.8)
-  - macOS* 10.15.x versions
+  - Ubuntu* 20.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
+  - macOS* 10.15.x version
   - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
   - Windows Server* 2016 or higher
+> NOTE: This package can be installed on many versions of Linux, but only the specific versions above are fully validated.
 
-**Packages**
-- Ubuntu 18.04:  `openvino`
-- Ubuntu 20.04:  `openvino-ubuntu20`
-
-## Install the runtime or developer packages using the PyPI repository
+## Install the runtime packages using the PyPI repository
 
 ### Step 1. Set up and update pip to the highest version
 
@@ -47,16 +43,11 @@ python3 -m pip install --upgrade pip
 
 Run the command below: <br>
 
-Ubuntu 18.04: 
    ```sh
    pip install openvino
    ```
-Ubuntu 20.04: 
-   ```sh
-   pip install openvino-ubuntu20
-   ```
 
-### Step 4. Verify that the Runtime package is installed
+### Step 3. Verify that the Runtime package is installed
 
 Run the command below:
 ```sh
