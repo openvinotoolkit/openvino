@@ -152,18 +152,16 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
                 m_pads_begin.clear();
                 m_pads_end.clear();
 
-                const PartialShape filter_shape = [filters_pshape]() {
-                    vector<Dimension> tmp_filter_shape{filters_pshape};
-                    tmp_filter_shape.erase(tmp_filter_shape.begin(),
-                                           tmp_filter_shape.begin() + 2); // Remove {O,I}
-                    PartialShape shape{tmp_filter_shape};
-                    return shape;
+                const PartialShape filter_spatial_shape = [filters_pshape]() {
+                    vector<Dimension> filter_dims{filters_pshape};
+                    filter_dims.erase(filter_dims.begin(), filter_dims.begin() + 2); // Remove {O,I}
+                    return PartialShape{filter_dims};
                 }();
 
-                if (filter_shape.is_static())
+                if (filter_spatial_shape.is_static())
                 {
                     auto_padding_applied = try_apply_auto_padding(data_batch_pshape,
-                                                                  filter_shape.to_shape(),
+                                                                  filter_spatial_shape.to_shape(),
                                                                   m_strides,
                                                                   m_dilations,
                                                                   m_auto_pad,
