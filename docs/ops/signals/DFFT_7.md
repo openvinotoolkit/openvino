@@ -2,7 +2,7 @@
 
 **Versioned name**: *DFFT-7*
 
-**Category**: Image processing
+**Category**: Signal processing
 
 **Short description**: *DFFT* layer performs the discrete fast Fourier transformation of input tensor by specified dimensions.
 
