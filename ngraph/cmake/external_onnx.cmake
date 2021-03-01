@@ -54,6 +54,8 @@ macro(onnx_set_target_properties)
     target_compile_definitions(onnx PUBLIC ONNX_BUILD_MAIN_LIB)
 
     install(TARGETS onnx onnx_proto
+        RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+        ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
     if (NGRAPH_EXPORT_TARGETS_ENABLE)
