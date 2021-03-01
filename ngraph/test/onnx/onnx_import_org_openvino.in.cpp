@@ -399,18 +399,22 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_detection_output_
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposals_single_image)
 {
-    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #1\n";
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #1"
+              << std::endl;
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO,
                              "onnx/org.openvinotoolkit/experimental_detectron/"
                              "generate_proposals_single_image.prototxt"));
 
-    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #2\n";
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #2"
+              << std::endl;
     auto test_case = test::TestCase<TestEngine>(function);
-    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #3\n";
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #3"
+              << std::endl;
     // im_info
     test_case.add_input<float>({1.0f, 1.0f, 1.0f});
-    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #4\n";
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #4"
+              << std::endl;
     // anchors
     test_case.add_input<float>({
         5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -419,7 +423,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
         1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
     });
-    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #5\n";
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #5"
+              << std::endl;
     // deltas
     test_case.add_input<float>(
         {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -436,7 +441,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
 
          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
          1.0f, 1.0f, 1.0f});
-    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #6\n";
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #6"
+              << std::endl;
     // scores
     test_case.add_input<float>(
         {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
@@ -453,13 +459,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_generate_proposal
 
          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
          1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
-    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #7\n";
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #7"
+              << std::endl;
     test_case.add_expected_output<float>(
         Shape{6, 4}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
-    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #8\n";
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #8"
+              << std::endl;
     test_case.add_expected_output<float>(Shape{6}, {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
-    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #9\n";
+    std::cout << "#onnx_model_experimental_detectron_generate_proposals_single_image #9"
+              << std::endl;
 
     test_case.run();
 }
@@ -534,42 +543,43 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extra
     test_case.add_input<float>(rois);
     test_case.add_input<float>(pyramid_layer_0);
 
-    test_case.add_expected_output<float>(Shape{2, 2, 3, 3}, {1.416666746139526367,
-                                                             1.750000119209289551,
-                                                             2.083333492279052734,
-                                                             2.416666746139526367,
-                                                             2.75,
-                                                             3.083333492279052734,
-                                                             3.166666507720947266,
-                                                             3.5,
-                                                             3.833333492279052734,
-                                                             7.416666507720947266,
-                                                             7.75,
-                                                             8.083333015441894531,
-                                                             8.416666984558105469,
-                                                             8.75,
-                                                             9.083333969116210938,
-                                                             9.166666030883789062,
-                                                             9.5,
-                                                             9.833333969116210938,
-                                                             4.166666984558105469,
-                                                             4.5,
-                                                             4.833333492279052734,
-                                                             4.166666984558105469,
-                                                             4.5,
-                                                             4.833333492279052734,
-                                                             2.083333492279052734,
-                                                             2.25,
-                                                             2.416666746139526367,
-                                                             10.16666603088378906,
-                                                             10.5,
-                                                             10.83333206176757812,
-                                                             10.16666603088378906,
-                                                             10.5,
-                                                             10.83333206176757812,
-                                                             5.083333015441894531,
-                                                             5.25,
-                                                             5.416666507720947266});
+    test_case.add_expected_output<float>(Shape{2, 2, 3, 3},
+                                         {1.416666746139526367,
+                                          1.750000119209289551,
+                                          2.083333492279052734,
+                                          2.416666746139526367,
+                                          2.75,
+                                          3.083333492279052734,
+                                          3.166666507720947266,
+                                          3.5,
+                                          3.833333492279052734,
+                                          7.416666507720947266,
+                                          7.75,
+                                          8.083333015441894531,
+                                          8.416666984558105469,
+                                          8.75,
+                                          9.083333969116210938,
+                                          9.166666030883789062,
+                                          9.5,
+                                          9.833333969116210938,
+                                          4.166666984558105469,
+                                          4.5,
+                                          4.833333492279052734,
+                                          4.166666984558105469,
+                                          4.5,
+                                          4.833333492279052734,
+                                          2.083333492279052734,
+                                          2.25,
+                                          2.416666746139526367,
+                                          10.16666603088378906,
+                                          10.5,
+                                          10.83333206176757812,
+                                          10.16666603088378906,
+                                          10.5,
+                                          10.83333206176757812,
+                                          5.083333015441894531,
+                                          5.25,
+                                          5.416666507720947266});
 
     test_case.add_expected_output<float>(Shape{2, 4}, {0, 1, 2, 3, 4, 5, 6, 7});
     test_case.run();

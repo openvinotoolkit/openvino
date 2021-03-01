@@ -31,10 +31,10 @@ namespace ngraph
                     using GenerateProposalsSingleImage =
                         ngraph::op::v6::ExperimentalDetectronGenerateProposalsSingleImage;
 
-                    std::cout << "#experimental_detectron_generate_proposals #1\n";
+                    std::cout << "#experimental_detectron_generate_proposals #1" << std::endl;
 
                     const auto inputs = node.get_ng_inputs();
-                    std::cout << "#experimental_detectron_generate_proposals #2\n";
+                    std::cout << "#experimental_detectron_generate_proposals #2" << std::endl;
                     NGRAPH_CHECK(inputs.size() == 4,
                                  "ExperimentalDetectronGenerateProposalsSingleImage expects 4 "
                                  "inputs, received: ",
@@ -44,23 +44,23 @@ namespace ngraph
                     auto anchors = inputs[1];
                     auto deltas = inputs[2];
                     auto scores = inputs[3];
-                    std::cout << "#experimental_detectron_generate_proposals #3\n";
+                    std::cout << "#experimental_detectron_generate_proposals #3" << std::endl;
 
                     GenerateProposalsSingleImage::Attributes attrs{};
                     attrs.min_size = node.get_attribute_value<float>("min_size", 0.0);
-                    std::cout << "#experimental_detectron_generate_proposals #4\n";
+                    std::cout << "#experimental_detectron_generate_proposals #4" << std::endl;
                     attrs.nms_threshold = node.get_attribute_value<float>("nms_threshold", 0.7);
-                    std::cout << "#experimental_detectron_generate_proposals #5\n";
+                    std::cout << "#experimental_detectron_generate_proposals #5" << std::endl;
                     attrs.post_nms_count =
                         node.get_attribute_value<std::int64_t>("post_nms_count", 1000);
-                    std::cout << "#experimental_detectron_generate_proposals #6\n";
+                    std::cout << "#experimental_detectron_generate_proposals #6" << std::endl;
                     attrs.pre_nms_count =
                         node.get_attribute_value<std::int64_t>("pre_nms_count", 1000);
-                    std::cout << "#experimental_detectron_generate_proposals #7\n";
+                    std::cout << "#experimental_detectron_generate_proposals #7" << std::endl;
                     auto generate_proposals_single_image =
                         std::make_shared<GenerateProposalsSingleImage>(
                             im_info, anchors, deltas, scores, attrs);
-                    std::cout << "#experimental_detectron_generate_proposals #8\n";
+                    std::cout << "#experimental_detectron_generate_proposals #8" << std::endl;
                     return {generate_proposals_single_image->output(0),
                             generate_proposals_single_image->output(1)};
                 }
