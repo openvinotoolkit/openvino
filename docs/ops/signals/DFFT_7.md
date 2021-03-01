@@ -49,6 +49,23 @@ def is_power_of_two(x):
     return (x != 0) and ((x & (x - 1)) == 0)
 
 
+def simple_get_data_from_input(data, input_data, src_index, fft_size, fft_lengths, fft_strides):
+    num_strides = len(fft_strides)
+    return input_data[src_index : src_index + fft_size]
+
+
+def generic_get_data_from_input(data, input_data, src_index, fft_size, fft_lengths, fft_strides):
+    result = np.zeros(fft_size).astype(np,complex64)
+    fft_rank = len(fft_lengths)
+    input_coords = np.zeros(fft_rank, dtype=np.int64)
+
+    for i in range(0, fft_size):
+        curr = i
+        for j in range(0, fft_rank):
+            input_coords[j] = curr / fft_strides[j]
+    return result
+
+
 class DFFT:
     def __init__(self, data, axes, signal_size=None):
         assert len(set(axes)) != len(axes), "DFFT doesn't support non-unique axes. Got: {0}".format(axes)
@@ -97,8 +114,10 @@ class DFFT:
 
     def __call__(self):
         corrected_data = self._get_corrected_data()
+        flattened_data = np.ravel(corrected_data)
+
         axes_and_lengths = sorted([(a, self.output_shape[a]) for a in self.axes], key=lambda p: p[0], reverse=True)
-        fft_lengths = np.array([p[1] for p in axes_and_lengths[::-1]], dtype=np.int64)
+        fft_lengths = np.array([p[1] for p in axes_and_lengths], dtype=np.int64)
         fft_strides = compute_strides(fft_lengths)
         fft_size = fft_strides[self.fft_rank]
 
@@ -118,6 +137,11 @@ class DFFT:
             size = 2 * current_length if is_power_of_two(x) else current_length
             buffer_size = max(buffer_size, size)
         buffer = np.zeros(buffer_size).astype(np.complex64)
+
+        if sorted(self.axes) == list(range(0, fft_rank)):
+            self.get_data_from_input_func = simple_get_data_from_input
+        else:
+            self.get_data_from_input_func = generic_get_data_from_input
 
         return result
 ```
