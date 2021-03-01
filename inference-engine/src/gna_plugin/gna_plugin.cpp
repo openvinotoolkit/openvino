@@ -663,15 +663,14 @@ void GNAPlugin::LoadNetwork(CNNNetwork & _network) {
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
         manager.register_pass<ngraph::pass::ConvertPriorBox>();
-        manager.register_pass<ngraph::pass::Conv2dDecomposition>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::Conv2dDecomposition>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.register_pass<RemoveExtraReshapes>();
         // UnrollTI should be the last transformation in the transformation pipeline
         manager.register_pass<ngraph::pass::UnrollTensorIterator>();
-
         const auto& pass_config = manager.get_pass_config();
         pass_config->set_callback<ngraph::pass::UnrollTensorIterator>(
                 [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
