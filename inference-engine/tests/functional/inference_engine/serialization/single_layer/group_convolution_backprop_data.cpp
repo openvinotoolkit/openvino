@@ -16,11 +16,7 @@ TEST_P(GroupConvBackpropDataLayerTest, Serialize) {
 
 const std::vector<InferenceEngine::Precision> precisions = {
     InferenceEngine::Precision::FP64, InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16, InferenceEngine::Precision::BF16,
-    InferenceEngine::Precision::I8,   InferenceEngine::Precision::I16,
-    InferenceEngine::Precision::I32,  InferenceEngine::Precision::I64,
-    InferenceEngine::Precision::U8,   InferenceEngine::Precision::U16,
-    InferenceEngine::Precision::U32,  InferenceEngine::Precision::U64,
+    InferenceEngine::Precision::FP16, InferenceEngine::Precision::BF16
 };
 const std::vector<std::vector<size_t>> kernels = {{3, 3}};
 const std::vector<std::vector<size_t>> strides = {{1, 1}};
