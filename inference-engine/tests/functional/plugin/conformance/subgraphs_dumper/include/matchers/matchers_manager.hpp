@@ -13,10 +13,10 @@ class Matcher;
 
 class MatchersManager {
 public:
-    typedef std::map<std::string, std::function<Matcher::Ptr()>> registry_map;
-    typedef std::map<std::string, Matcher::Ptr> matchers_map;
+    using RegistryMap = std::map<std::string, std::function<Matcher::Ptr()>>;
+    using MatchersMap =  std::map<std::string, Matcher::Ptr>;
 
-    explicit MatchersManager(const std::string &cfg_path = "");
+    explicit MatchersManager(const std::string &cfg_path = {});
 
     bool match_all(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref);
 
@@ -29,9 +29,9 @@ private:
     std::vector<bool> run_matchers(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref);
 // TODO: No copy constructor for xml_document
 //    pugi::xml_document m_cfg;
-    registry_map m_registry = {
+    RegistryMap m_registry = {
             {SingleOpMatcher::name, []() { return std::make_shared<SingleOpMatcher>(); }}
     };
-    matchers_map m_matchers = {};
+    MatchersMap m_matchers = {};
 };
 }  // namespace SubgraphsDumper

@@ -4,8 +4,10 @@
 
 #pragma once
 
-#include "pugixml.hpp"
+#include <utility>
+
 #include "ngraph/node.hpp"
+#include "pugixml.hpp"
 
 namespace SubgraphsDumper {
 
@@ -15,33 +17,34 @@ class iMatcherConfig {
 public:
     using Ptr = std::shared_ptr<iMatcherConfig>;
 
+    explicit iMatcherConfig(bool is_fallback_config) : is_fallback_config(is_fallback_config) {}
+
+    iMatcherConfig(
+        std::vector<std::string> ignored_attributes,
+        std::vector<size_t> ignored_ports,
+        bool _is_fallback_config)
+        : ignored_attributes(std::move(ignored_attributes)),
+          ignored_ports(std::move(ignored_ports)),
+          is_fallback_config(_is_fallback_config) {}
+
     // Empty vectors stands for any of possible values
     std::vector<std::string> ignored_attributes;
     std::vector<size_t> ignored_ports;
     bool is_fallback_config;
 
-    virtual bool op_in_config(const std::shared_ptr<ngraph::Node> &node) = 0;
+    virtual bool op_in_config(const std::shared_ptr<ngraph::Node>& node) = 0;
+
+    virtual ~iMatcherConfig() = default;
 };
 
-template<typename ...OPTypes>
+template <typename... OPTypes>
 struct MatcherConfig : public iMatcherConfig {
 public:
-    MatcherConfig() : iMatcherConfig() {
-        if (sizeof...(OPTypes) == 0) {
-            is_fallback_config = true;
-        }
-    }
+    MatcherConfig() : iMatcherConfig(sizeof...(OPTypes) == 0) {}
 
-    MatcherConfig(const std::vector<std::string> &_ignored_attributes,
-                  const std::vector<size_t> &_ignored_ports) : iMatcherConfig() {
-        ignored_attributes = _ignored_attributes;
-        ignored_ports = _ignored_ports;
-
-        if (sizeof...(OPTypes) == 0) {
-            is_fallback_config = true;
-        }
-    }
-
+    MatcherConfig(std::vector<std::string> ignored_attributes, std::vector<size_t> ignored_ports)
+        : iMatcherConfig(
+              std::move(ignored_attributes), std::move(ignored_ports), sizeof...(OPTypes) == 0) {}
 
     bool op_in_config(const std::shared_ptr<ngraph::Node> &node) override {
         std::initializer_list<bool> vals{(ngraph::is_type<OPTypes>(node))...};
@@ -51,18 +54,20 @@ public:
 
 class Matcher {
     using Ptr = std::shared_ptr<Matcher>;
-    friend MatchersManager;
+    friend class MatchersManager;
+
 public:
-    virtual bool match(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) = 0;
+    virtual bool match(const std::shared_ptr<ngraph::Node>& node, const std::shared_ptr<ngraph::Node>& ref) const = 0;
 
-    static const char *name;
+    virtual ~Matcher() = default;
+
 protected:
-    virtual const char *get_name() = 0;
+    virtual const char* get_name() = 0;
 
-    virtual void configure(const pugi::xml_document &cfg) = 0;
+    virtual void configure(const pugi::xml_document& cfg) = 0;
 
-    iMatcherConfig::Ptr get_config(const std::shared_ptr<ngraph::Node> &node);
+    iMatcherConfig::Ptr get_config(const std::shared_ptr<ngraph::Node>& node) const;
 
     std::vector<iMatcherConfig::Ptr> default_configs;
 };
-} // namespace SubgraphsDumper
+}  // namespace SubgraphsDumper

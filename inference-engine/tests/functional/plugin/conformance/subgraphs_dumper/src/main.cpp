@@ -15,32 +15,33 @@
 int main(int argc, char *argv[]) {
     uint8_t ret_code = 0;
 
-
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
     if (FLAGS_h) {
         showUsage();
         return 0;
     }
-    auto ie = InferenceEngine::Core();
+    std::vector<std::string> input_folder_content;
+    std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
+    for (const auto &dir : dirs) {
+        if (!CommonTestUtils::directoryExists(dir)) {
+            std::string msg = "Input directory (" + dir + ") doesn't not exist!";
+            throw std::runtime_error(msg);
+        }
+        CommonTestUtils::directoryFileListRecursive(dir, input_folder_content);
+    }
 
+    if (!CommonTestUtils::directoryExists(FLAGS_output_folder)) {
+        std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist!";
+        throw std::runtime_error(msg);
+    }
+
+    auto ie = InferenceEngine::Core();
     auto cache = SubgraphsDumper::OPCache::make_cache();
 
-    if (!CommonTestUtils::directoryExists(FLAGS_input_folders)) {
-        std::string msg = "Input directory (" + FLAGS_input_folders + ") is not exist!";
-        throw std::runtime_error(msg);
-    }
-
-    if (!CommonTestUtils::directoryExists(FLAGS_output_folders)) {
-        std::string msg = "Output directory (" + FLAGS_output_folders + ") is not exist!";
-        throw std::runtime_error(msg);
-    }
-
-    std::vector<std::string> input_folder_content;
-    CommonTestUtils::directoryFileListRecursive(FLAGS_input_folders, input_folder_content);
-
+    auto xml_regex = std::regex(R"(.*\.xml)");
     for (const auto &file : input_folder_content) {
         try {
-            if (CommonTestUtils::fileExists(file) && std::regex_match(file, std::regex(R"(.*\.xml)"))) {
+            if (CommonTestUtils::fileExists(file) && std::regex_match(file, xml_regex)) {
                 std::cout << "Processing model: " << file << std::endl;
                 std::string bin_file = CommonTestUtils::replaceExt(file, "bin");
                 if (!CommonTestUtils::fileExists(bin_file)) {
@@ -53,12 +54,12 @@ int main(int argc, char *argv[]) {
             }
         } catch (std::exception &e) {
             std::cerr << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
-            ret_code = 2;
+            ret_code = 1;
             continue;
         }
     }
 
-    cache->serialize_cached_ops(FLAGS_output_folders);
+    cache->serialize_cached_ops(FLAGS_output_folder);
 
     return ret_code;
 }

@@ -12,10 +12,9 @@ list(APPEND DEPENDENCIES
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../src/matchers
+        ADDITIONAL_SOURCE_DIRS ${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/tests/functional/plugin/conformance/subgraphs_dumper/src/matchers
         INCLUDES
-            ${CMAKE_CURRENT_SOURCE_DIR}/../include
-            ${CMAKE_ROOT}/inference_engine/src/transformations/include
+            ${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/tests/functional/plugin/conformance/subgraphs_dumper/include
             $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>
         DEPENDENCIES
             ${DEPENDENCIES}
@@ -26,6 +25,5 @@ addIeTargetTest(
 )
 
 ie_faster_build(${TARGET_NAME}
-        PCH PRIVATE "../src/precomp.hpp"
+        PCH PRIVATE "${OpenVINO_MAIN_SOURCE_DIR}/inference-engine/tests/functional/plugin/conformance/subgraphs_dumper/src/precomp.hpp"
         )
-#set_property(TARGET ${TARGET_NAME} PROPERTY CXX_STANDARD 17)

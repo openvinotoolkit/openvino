@@ -16,9 +16,8 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
                                const std::string &source_model) {
     const bool op_found = [&] {
         for (auto &&it : m_ops_cache) {
-            // TODO: Extend for subgraphs comparison
             if (manager.match_any(it.first, op)) {
-                it.second.found_in_models.push_back(source_model);
+                it.second.found_in_models[source_model] += 1;
                 return true;
             }
         }
@@ -26,7 +25,8 @@ void OPCache::update_ops_cache(const std::shared_ptr<ngraph::Node> &op,
     }();
     if (!op_found) {
         // TODO: Extend for subgraphs caching
-        m_ops_cache.emplace_back(SubgraphsDumper::cloners_map[op->get_type_info()](op), OPInfo(source_model));
+        const auto& clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
+        m_ops_cache.emplace_back(clone_fn(op), OPInfo(source_model));
     }
 }
 
@@ -99,22 +99,20 @@ void OPCache::serialize_cached_ops(const std::string &serialization_dir) {
             std::replace(op_name.begin(), op_name.end(), '/', '_');
             std::replace(op_name.begin(), op_name.end(), '\\', '_');
             // TODO: Possible names collision
-            auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + (op_name + std::string(".xml"));
-            auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + (op_name + std::string(".bin"));
-            auto mapping = current_op_folder + CommonTestUtils::FileSeparator + (op_name + std::string(".csv"));
+            auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".xml";
+            auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".bin";
+            auto mapping = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".csv";
             auto cnn_net = InferenceEngine::CNNNetwork(function);
-            // TODO: Visitor API is not supported in v0::TensorIterator TensorIterator_623065
-            //  (Parameter_623062[0]:f16{1,16,512}, Constant_623063[0]:f16{1,256}, Constant_623064[0]:f16{1,256}) ->
-            //  (f16{1,16,256})
-            // TODO: Runtime Info doesn't serialized
             cnn_net.serialize(xml_path, bin_path);
 
             std::string delimiter = ",";
             std::ofstream out(mapping);
-            out << "Source model" << delimiter << "Found in models\n";
-            out << op.second.source_model << delimiter;
+            out << "Model" << delimiter << "counters\n";
+            // TODO: rethink format of mapping -
+            //  how to store both initial source model and usage statistics in one file?
+            out << op.second.source_model << delimiter << "source\n";
             for (const auto &m : op.second.found_in_models) {
-                out << m << ";";
+                out << m.first << delimiter << m.second << "\n";
             }
             out.close();
         } catch (std::exception &e) {

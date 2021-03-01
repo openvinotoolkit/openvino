@@ -17,12 +17,18 @@ class SingleOpMatcher : public Matcher {
 public:
     SingleOpMatcher();
 
-    bool match(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) override;
+    bool match(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const override;
 
     static const char *name;
 protected:
     const char *get_name() override { return name; }
 
-    void configure(const pugi::xml_document &cfg) override {};
+    void configure(const pugi::xml_document &cfg) override {}
+private:
+    bool same_op_type(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const;
+    bool match_inputs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const;
+    bool match_outputs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const;
+    bool same_attrs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const;
+    bool match_ports(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const;
 };
 }  // namespace SubgraphsDumper

@@ -6,7 +6,7 @@
 #include "common_test_utils/common_utils.hpp"
 
 
-SubgraphsDumper::iMatcherConfig::Ptr SubgraphsDumper::Matcher::get_config(const std::shared_ptr<ngraph::Node> &node) {
+SubgraphsDumper::iMatcherConfig::Ptr SubgraphsDumper::Matcher::get_config(const std::shared_ptr<ngraph::Node> &node) const {
     for (const auto &cfg : default_configs) {
         if (cfg->op_in_config(node)) {
             return cfg;

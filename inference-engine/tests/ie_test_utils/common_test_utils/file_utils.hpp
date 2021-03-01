@@ -131,7 +131,7 @@ inline void directoryFileListRecursive(const std::string& name, std::vector<std:
         const std::string current_dir{"."};
         const std::string parent_dir{".."};
         while ((entire = readdir(directory.get())) != nullptr) {
-            if (std::string(entire->d_name) == parent_dir || std::string(entire->d_name) == current_dir) {
+            if (entire->d_name == parent_dir || entire->d_name == current_dir) {
                 continue;
             }
             std::string path = name + CommonTestUtils::FileSeparator + entire->d_name;
@@ -155,18 +155,18 @@ inline int createDirectory(const std::string& dirPath) {
 
 inline int createDirectoryRecursive(const std::string& dirPath) {
     std::string copyDirPath = dirPath;
-    std::vector<std::string> paths;
+    std::vector<std::string> nested_dir_names;
     while (!directoryExists(copyDirPath)) {
         auto pos = copyDirPath.rfind(CommonTestUtils::FileSeparator);
-        paths.push_back(copyDirPath.substr(pos, copyDirPath.length() - pos));
+        nested_dir_names.push_back(copyDirPath.substr(pos, copyDirPath.length() - pos));
         copyDirPath = copyDirPath.substr(0, pos);
     }
-    while (!paths.empty()) {
-        std::string a = copyDirPath + paths.back();
+    while (!nested_dir_names.empty()) {
+        std::string a = copyDirPath + nested_dir_names.back();
         if (createDirectory(a) != 0) {
             return -1;
         }
-        paths.pop_back();
+        nested_dir_names.pop_back();
     }
     return 0;
 }
@@ -178,5 +178,16 @@ inline std::string replaceExt(std::string file, const std::string& newExt) {
         file.replace(i + 1, newExt.length(), newExt);
     }
     return file;
+}
+
+inline std::vector<std::string> splitStringByDelimiter(std::string paths, const std::string& delimiter = ",") {
+    size_t delimiterPos;
+    std::vector<std::string> splitPath;
+    while ((delimiterPos = paths.find(delimiter)) != std::string::npos) {
+        splitPath.push_back(paths.substr(0, delimiterPos));
+        paths = paths.substr(delimiterPos + 1);
+    }
+    splitPath.push_back(paths);
+    return splitPath;
 }
 }  // namespace CommonTestUtils

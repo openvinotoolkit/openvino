@@ -19,7 +19,7 @@ bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
     const auto &ref_data = ref->cast_vector<dType>();
     for (size_t i = 0; i < elements_count; ++i) {
         // std:abs doesn't implemented for unsigned types, compare explicitly to keep code universal for all dTypes
-        dType diff = op_data[i] - ref_data[i] > 0 ? op_data[i] - ref_data[i] : ref_data[i] - op_data[i];
+        dType diff = op_data[i] > ref_data[i] ? op_data[i] - ref_data[i] : ref_data[i] - op_data[i];
         if (diff > std::numeric_limits<dType>::epsilon()) {
             return false;
         }
@@ -49,7 +49,7 @@ bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
             return compare_constants_data<int32_t>(op, ref);
         case ngraph::element::Type_t::i64:
             return compare_constants_data<int64_t>(op, ref);
-        // TODO cast_vector doesn't support u1 now
+            // TODO cast_vector doesn't support u1 now
 //        case ngraph::element::Type_t::u1:
 //            return compare_constants_data<char>(op, ref);
         case ngraph::element::Type_t::u8:
@@ -67,54 +67,58 @@ bool compare_constants_data(const std::shared_ptr<ngraph::op::Constant> &op,
 }
 
 const char *SingleOpMatcher::name = "generic_single_op";
+bool
+SingleOpMatcher::same_op_type(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
+    return node->get_type_info().name == ref->get_type_info().name &&
+           node->get_type_info().version == ref->get_type_info().version;
+}
 
-bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) {
-    // Match OP type and version
-    if (node->get_type_info().name != ref->get_type_info().name ||
-        node->get_type_info().version != ref->get_type_info().version) {
-        return false;
-    }
-    // Match inputs size
+bool
+SingleOpMatcher::match_inputs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
     if (node->get_input_size() != ref->get_input_size()) {
         return false;
-    } else {
-        // Match input ranks, element types and static shapes
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            bool rankIsEqual = node->get_input_tensor(i).get_partial_shape().rank() ==
-                               ref->get_input_tensor(i).get_partial_shape().rank();
-            bool elemTypeIsEqual = node->get_input_tensor(i).get_element_type() ==
-                                   ref->get_input_tensor(i).get_element_type();
-            bool is_dynamic = node->get_input_node_ptr(i)->is_dynamic() ==
-                              ref->get_input_node_ptr(i)->is_dynamic();
-            if (!(rankIsEqual && elemTypeIsEqual && is_dynamic)) {
-                return false;
-            }
+    }
+    for (size_t i = 0; i < node->get_input_size(); ++i) {
+        bool rankIsEqual = node->get_input_tensor(i).get_partial_shape().rank() ==
+                           ref->get_input_tensor(i).get_partial_shape().rank();
+        bool elemTypeIsEqual = node->get_input_tensor(i).get_element_type() ==
+                               ref->get_input_tensor(i).get_element_type();
+        bool is_dynamic = node->get_input_node_ptr(i)->is_dynamic() ==
+                          ref->get_input_node_ptr(i)->is_dynamic();
+        if (!(rankIsEqual && elemTypeIsEqual && is_dynamic)) {
+            return false;
         }
     }
 
-    // Match outputs size
+    return true;
+}
+
+bool
+SingleOpMatcher::match_outputs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
     if (node->get_output_size() != ref->get_output_size()) {
         return false;
-    } else {
-        // Match output element type
-        for (size_t i = 0; i < node->get_output_size(); ++i) {
-            if (node->get_output_tensor(i).get_element_type() !=
-                ref->get_output_tensor(i).get_element_type()) {
-                return false;
-            }
+    }
+    // Match output element type
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        if (node->get_output_tensor(i).get_element_type() !=
+            ref->get_output_tensor(i).get_element_type()) {
+            return false;
         }
     }
-    // Compare node attributes
-    auto equal = attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES);
-    if (!equal.valid) {
-        return false;
-    }
-    // Match ports values
+
+    return true;
+}
+
+bool SingleOpMatcher::same_attrs(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
+    return attributes::compare(node.get(), ref.get(), Comparator::CmpValues::ATTRIBUTES).valid;
+}
+
+bool SingleOpMatcher::match_ports(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
     const auto &cfg = get_config(node);
     const std::vector<size_t> &ignored_ports = cfg->ignored_ports;
 
     for (size_t port_id = 0; port_id < node->get_input_size(); ++port_id) {
-        if (std::find(ignored_ports.begin(), ignored_ports.end(), port_id) != ignored_ports.end()) {
+        if (std::any_of(begin(ignored_ports), end(ignored_ports), [=](size_t p){return p == port_id;})) {
             continue;
         }
         const auto &cur_node_input = node->input_value(port_id).get_node_shared_ptr();
@@ -124,16 +128,22 @@ bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node, const std
         const auto &ref_const_input = std::dynamic_pointer_cast<ngraph::op::Constant>(ref_node_input);
 
         // Check that both OP an reference port inputs are constant and have same data
-        if (cur_const_input != nullptr && ref_const_input != nullptr &&
+        if (cur_const_input && ref_const_input &&
             !compare_constants_data(cur_const_input, ref_const_input)) {
             return false;
             // Check that input nodes on the port both not constants
-        } else if ((cur_const_input != nullptr && ref_const_input == nullptr) ||
-                   (cur_const_input == nullptr && ref_const_input != nullptr)) {
+        } else if ((cur_const_input && !ref_const_input) || (!cur_const_input && ref_const_input)) {
             return false;
         }
     }
     return true;
+}
+bool SingleOpMatcher::match(const std::shared_ptr<ngraph::Node> &node, const std::shared_ptr<ngraph::Node> &ref) const {
+    return same_op_type(node, ref) &&
+           match_inputs(node, ref) &&
+           match_outputs(node, ref) &&
+           same_attrs(node, ref) &&
+           match_ports(node, ref);
 }
 
 SingleOpMatcher::SingleOpMatcher() {
