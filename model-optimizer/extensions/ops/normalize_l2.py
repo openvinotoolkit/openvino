@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 import numpy as np
 
 from mo.graph.graph import Graph, Node
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
 
 
@@ -25,15 +26,15 @@ class NormalizeL2Op(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
             'eps': None,
             'p': None,
             'eps_mode': None,
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer
+            'infer': self.infer
         }, attrs)
 
     def supported_attrs(self):
@@ -58,3 +59,5 @@ class NormalizeL2Op(Op):
             node.out_port(0).data.set_value(input_value / norm_value)
         else:
             node.out_port(0).data.set_shape(input_shape)
+
+        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
