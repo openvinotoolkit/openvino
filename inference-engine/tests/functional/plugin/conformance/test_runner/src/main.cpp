@@ -39,7 +39,7 @@ int main(int argc, char* argv[]) {
     }
     // ---------------------------Initialization of Gtest env -----------------------------------------------
     ConformanceTests::targetDevice = FLAGS_device.c_str();
-    ConformanceTests::IRFolderPaths = FuncTestUtils::splitString(FLAGS_input_paths);
+    ConformanceTests::IRFolderPaths = FuncTestUtils::splitString(FLAGS_input_folders);
 
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new LayerTestsUtils::TestEnvironment);

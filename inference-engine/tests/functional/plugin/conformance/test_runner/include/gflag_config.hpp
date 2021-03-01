@@ -19,7 +19,7 @@ static const char input_folders_message[] = "Required. Paths to the input folder
 
 DEFINE_bool(h, false, help_message);
 DEFINE_string(device, "CPU", target_device_message);
-DEFINE_string(input_paths, ".", input_folders_message);
+DEFINE_string(input_folders, ".", input_folders_message);
 DEFINE_bool(disable_test_config, true, disable_test_config_message);
 DEFINE_bool(extend_report, true, extend_report_config_message);
 
@@ -35,5 +35,5 @@ static void showUsage() {
     std::cout << "    --disable_test_config            " << disable_test_config_message << std::endl;
     std::cout << "    --extend_report                  " << extend_report_config_message << std::endl;
     std::cout << "    --device                         " << target_device_message << std::endl;
-    std::cout << "    --input_paths \"<paths>\"          " << input_folders_message << std::endl;
+    std::cout << "    --input_folders \"<paths>\"        " << input_folders_message << std::endl;
 }
