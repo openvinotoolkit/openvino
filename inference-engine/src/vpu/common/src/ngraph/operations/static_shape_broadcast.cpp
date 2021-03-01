@@ -33,10 +33,10 @@ StaticShapeBroadcast::StaticShapeBroadcast(const Output<Node>& arg,
 }
 
 void StaticShapeBroadcast::validate_and_infer_types() {
-    ::ngraph::op::v3::Broadcast::validate_and_infer_types();
-
     auto& outputShape = m_evaluatedOutputShape;
     if (outputShape.is_dynamic()) {
+        ::ngraph::op::v3::Broadcast::validate_and_infer_types();
+
         outputShape = get_output_partial_shape(0);
         NODE_VALIDATION_CHECK(this, outputShape.rank().is_static(), "StaticShapeBroadcast (", get_friendly_name(), ") ",
                               "output is expected to be of static rank");

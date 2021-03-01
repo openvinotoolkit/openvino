@@ -12,10 +12,10 @@ constexpr NodeTypeInfo StaticShapeLoop::type_info;
 StaticShapeLoop::StaticShapeLoop(const Loop& loop) : Loop(loop), m_evaluatedIterationsCount{ngraph::PartialShape::dynamic()} {}
 
 void StaticShapeLoop::validate_and_infer_types() {
-    Loop::validate_and_infer_types();
-
     auto& iterationsCount = m_evaluatedIterationsCount;
     if (iterationsCount.is_dynamic()) {
+        Loop::validate_and_infer_types();
+
         NODE_VALIDATION_CHECK(this, ngraph::evaluate_as_partial_shape(input_value(0), iterationsCount),
                               "Encountered a loop for which upper-bound estimation for iterations count ", input_value(0), " failed");
     }

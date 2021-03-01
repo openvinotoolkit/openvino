@@ -33,10 +33,10 @@ ngraph::vpu::op::StaticShapeTopK::StaticShapeTopK(
 }
 
 void ngraph::vpu::op::StaticShapeTopK::validate_and_infer_types() {
-    ngraph::op::v3::TopK::validate_and_infer_types();
-
     auto& outputShape = m_evaluatedOutputShape;
     if (outputShape.is_dynamic()) {
+        ngraph::op::v3::TopK::validate_and_infer_types();
+
         outputShape = get_output_partial_shape(0);
         NODE_VALIDATION_CHECK(this, outputShape.rank().is_static(), "StaticShapeTopK (", get_friendly_name(), ") ",
                               "output is expected to be of static rank");

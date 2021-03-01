@@ -22,14 +22,14 @@ StaticShapeReshape::StaticShapeReshape(const std::shared_ptr<ngraph::opset3::Res
 }
 
 void StaticShapeReshape::validate_and_infer_types() {
-    opset3::Reshape::validate_and_infer_types();
-
     set_input_is_relevant_to_shape(1);
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static(), "StaticShapeReshape (", get_friendly_name(), ") ",
                           "input#0 is expected to be of static shape, got: ", get_input_partial_shape(0));
 
     auto& outputShape = m_evaluatedOutputShape;
     if (outputShape.is_dynamic()) {
+        opset3::Reshape::validate_and_infer_types();
+
         outputShape = get_output_partial_shape(0);
         NODE_VALIDATION_CHECK(this, outputShape.rank().is_static(), "StaticShapeReshape (", get_friendly_name(), ") ",
                               "output is expected to be of static rank");
