@@ -278,6 +278,9 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                         if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                             auto axesVal = axesNode->cast_vector<int>();
                             auto& mvnShape = mvn->get_output_shape(0);
+                            for (int32_t& axis : axesVal)
+                                axis = axis < 0 ? axis + mvnShape.size() : axis;
+                            std::sort(axesVal.begin(), axesVal.end());
                             if (mvnShape.size() == 1)
                                 return false;
                             if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2))
