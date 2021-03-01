@@ -96,8 +96,7 @@ namespace ngraph
                                             if (x_offset + rel_i_x >= input_size_x ||
                                                 y_offset + rel_i_y >= input_size_y)
                                                 continue;
-                                            if (x_offset + rel_i_x < 0 ||
-                                                y_offset + rel_i_y < 0)
+                                            if (x_offset + rel_i_x < 0 || y_offset + rel_i_y < 0)
                                                 continue;
 
                                             int i_buf_idx =
