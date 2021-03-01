@@ -1,0 +1,26 @@
+# Copyright (C) 2021 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# This is a LeakSanitizer (LSan) suppression file which provides a default
+# configuration for the builds with -DENABLE_SANITIZER=ON.
+# More information about LSan suppressions on
+# https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer#suppressions
+
+# Noisy indirect leaks from pthread. TODO: investigate.
+leak:__pthread_once_slow
+
+# memory leaks in graphics driver
+leak:libigdrcl.so
+
+# Noisy leaks from pybind11. TODO: investigate.
+leak:pybind11
+
+# leak reported if you run through `bash -c`
+leak:/bin/bash
+
+# leak reported by E2E tests
+leak:libfontconfig.so
+
+# leak reported from python wrappers of 3rd parties 
+leak:_pywrap_tensorflow_internal.so
+leak:site-packages/google/protobuf
