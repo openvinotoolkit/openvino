@@ -350,6 +350,7 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     else()
         find_package(Protobuf 2.6.1 REQUIRED)
     endif()
+    # target onnx_proto will be shared lib, onnx static
     include(cmake/external_onnx.cmake)
     if (TARGET ext_protobuf)
         add_dependencies(onnx ext_protobuf)

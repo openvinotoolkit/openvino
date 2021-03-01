@@ -29,6 +29,7 @@ set(ONNX_VERSION 1.8.1)
 set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
 set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
+set(ONNX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/onnx_patch.txt")
 
 FetchContent_Declare(
     ext_onnx
@@ -50,6 +51,7 @@ macro(onnx_set_target_properties)
     CXX_VISIBILITY_PRESET default
     C_VISIBILITY_PRESET default
     VISIBILITY_INLINES_HIDDEN OFF)
+    target_compile_definitions(onnx PUBLIC ONNX_BUILD_MAIN_LIB)
 
     install(TARGETS onnx onnx_proto
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
@@ -62,13 +64,17 @@ endmacro()
 FetchContent_GetProperties(ext_onnx)
 if(NOT ext_onnx_POPULATED)
     FetchContent_Populate(ext_onnx)
-    set(ONNX_USE_PROTOBUF_SHARED_LIBS {${BUILD_SHARED_LIBS})
+    set(ONNX_USE_PROTOBUF_SHARED_LIBS ON CACHE BOOL "Use dynamic protobuf by ONNX library")
     set(ONNX_NAMESPACE ${NGRAPH_ONNX_NAMESPACE})
     set(ONNX_USE_LITE_PROTO ${NGRAPH_USE_PROTOBUF_LITE} CACHE BOOL "Use protobuf lite for ONNX library")
     set(ONNX_ML ON CACHE BOOL "Use ONNX ML")
     if(CMAKE_CROSSCOMPILING)
         set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
     endif()
+
+    # fix problems with symbols visibility for MSVC
+    execute_process(COMMAND git apply --verbose ${ONNX_PATCH_FILE}
+      WORKING_DIRECTORY ${ext_onnx_SOURCE_DIR})
 
     add_subdirectory(${ext_onnx_SOURCE_DIR} ${ext_onnx_BINARY_DIR} EXCLUDE_FROM_ALL)
     onnx_set_target_properties()
