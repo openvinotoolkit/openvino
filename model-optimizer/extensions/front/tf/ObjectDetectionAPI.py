@@ -1172,6 +1172,12 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
             node.in_node(2).shape = int64_array(prior_boxes.shape)
             node.in_node(2).value = prior_boxes
 
+            # create Const node with an updated prior boxes values. Cannot use Port/Connection API here because we are
+            # in the middle of the partial inference phase and graph is in the intermediate step
+            graph.remove_edge(node.in_node(2).in_node(0).id, node.in_node(2).id)
+            const = Const(graph, {'name': 'prior_boxes', 'executable': True, 'value': prior_boxes}).create_node()
+            graph.create_edge(const, node.in_node(2))
+
         node.old_infer(node)
 
         conv_nodes = backward_bfs_for_operation(node.in_node(0), ['Conv2D'])
