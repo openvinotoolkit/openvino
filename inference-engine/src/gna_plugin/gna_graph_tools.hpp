@@ -161,7 +161,7 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
         if (bOnlyCheck) return {nullptr, 0};
         THROW_GNA_LAYER_EXCEPTION(layer) << " no next output layer for outdata: " << oidx;
     }
-    if (iidx >= getInputTo(layer->outData[oidx]).size()) {
+    if (getInputTo(layer->outData[oidx]).empty() || iidx >= getInputTo(layer->outData[oidx]).size()) {
         if (bOnlyCheck) return {nullptr, 0};
         THROW_GNA_LAYER_EXCEPTION(layer) << " no next output layer for outdata: " << oidx << " and inputTo index: " << iidx;
     }
