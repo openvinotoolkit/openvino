@@ -18,6 +18,7 @@ namespace subgraph {
 class AvgPoolFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
         const ngraph::Shape& inputShape,
         const bool addFQ,
@@ -30,6 +31,7 @@ public:
         const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::element::Type precision,
         const ngraph::element::Type inputPrecision,
         const ngraph::Shape& inputShape,
         const bool addFQ,

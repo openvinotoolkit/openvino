@@ -424,11 +424,10 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
         std::vector<InferenceEngine::CNNLayerPtr> inputLayers;
         for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
-            auto prev_layer = InferenceEngine::CNNNetPrevLayer(concatLayer, input_idx);
-            // FlattenConcat inserts reshape between concat and its inputs, which results in taking wrong layers as inputs for scale factor calulation
-            if (prev_layer->type == "reshape" && prev_layer->insData.size() == 1 && prev_layer->outData.size() == 1) {
-                prev_layer = InferenceEngine::CNNNetPrevLayer(prev_layer, 0);
-            }
+            auto notChangeScaleFactors = [](InferenceEngine::CNNLayerPtr layer) {
+                return LayerInfo(layer).isNonFunctional() || LayerInfo(layer).isSplit() || LayerInfo(layer).isCopy();
+            };
+            auto prev_layer = CNNNetPrevLayerSkipCertain(concatLayer, input_idx, notChangeScaleFactors);
             inputLayers.push_back(prev_layer);
         }
 

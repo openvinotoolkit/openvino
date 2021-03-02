@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2020 Intel Corporation
+// Copyright (c) 2016-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 #include "program_dump_graph.h"
 #include "program_impl.h"
 #include "sliding_window_utils.h"
+#include "program_helpers.h"
 
 #include "roi_pooling_inst.h"
 #include "reorg_yolo_inst.h"
@@ -62,9 +63,11 @@
 #include "mvn_inst.h"
 #include "gemm_inst.h"
 #include "reduce_inst.h"
+#include "region_yolo_inst.h"
 #include "strided_slice_inst.h"
 #include "to_string_utils.h"
 #include "gpu/memory_gpu.h"
+#include "cldnn_itt.h"
 
 #include "gpu/ocl_toolkit.h"
 
@@ -373,11 +376,14 @@ void program_impl::build_program(bool is_internal) {
     if (!is_internal)
         prim_info = get_current_stage_info();
 
-    if (!is_internal)  transfer_memory_to_device();
+    if (!is_internal)
+        transfer_memory_to_device();
+
     cleanup();
 }
 
 void program_impl::init_graph() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::InitGraph");
     apply_opt_pass<graph_initializations>();
 
     for (auto& node : processing_order) {
@@ -393,6 +399,7 @@ void program_impl::init_graph() {
 void program_impl::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
 void program_impl::pre_optimize_graph(bool is_internal) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PreOptimizeGraph");
     // trim to outputs
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
 
@@ -470,6 +477,7 @@ void program_impl::pre_optimize_graph(bool is_internal) {
 }
 
 void program_impl::post_optimize_graph(bool is_internal) {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PostOptimizeGraph");
     // input reorder for fully connected if necessary
     apply_opt_pass<post_input_reorder>();
 
@@ -522,15 +530,23 @@ void program_impl::mark_if_data_flow(program_node& node) {
 }
 
 void program_impl::transfer_memory_to_device() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::TransferMemory");
     for (auto& node : processing_order) {
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
+            auto data_node_layout = data_node.get_output_layout();
             auto& mem = data_node.get_attached_memory();
+            auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
+
+            if (!program_helpers::are_layouts_identical(mem_layout, data_node_layout).second) {
+                std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
+                throw std::invalid_argument(err_str);
+            }
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
                 // Allocate and transfer memory
-                auto device_mem = mem.get_engine()->allocate_memory(mem.get_layout(),
+                auto device_mem = mem.get_engine()->allocate_memory(data_node_layout,
                                                                     allocation_type::usm_device,
                                                                     mem.get_net_id(),
                                                                     false);
@@ -1214,7 +1230,9 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::mutable_data::type_id() &&
             prim.type() != cldnn::reduce::type_id() &&
-            prim.type() != cldnn::strided_slice::type_id())
+            prim.type() != cldnn::strided_slice::type_id() &&
+            prim.type() != cldnn::region_yolo::type_id() &&
+            prim.type() != cldnn::mvn::type_id())
             can_use_fsv16 = false;
 
         if (prim.type() == cldnn::quantize::type_id() &&

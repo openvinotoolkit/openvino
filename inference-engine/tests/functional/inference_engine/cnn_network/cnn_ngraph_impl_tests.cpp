@@ -17,7 +17,6 @@
 #include <ie_parameter.hpp>
 #include <ie_core.hpp>
 #include <legacy/net_pass.h>
-#include <generic_ie.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -867,13 +866,16 @@ TEST(CNNNGraphImplTests, CanSetBatchReadValue) {
                 std::vector<float>{1, 2});
 
         auto read_value = std::make_shared<ngraph::opset3::ReadValue>(constant, "variable_id");
+        auto assign = std::make_shared<ngraph::opset3::Assign>(read_value, "variable_id");
+        assign->add_control_dependency(read_value);
         auto add = std::make_shared<ngraph::opset3::Add>(input, read_value);
         auto result = std::make_shared<ngraph::op::Result>(add);
 
         ngraph::ParameterVector params = {input};
         ngraph::ResultVector results = {result};
+        ngraph::SinkVector sinks = {assign};
 
-        ngraph = std::make_shared<ngraph::Function>(results, params);
+        ngraph = std::make_shared<ngraph::Function>(results, sinks, params);
     }
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
@@ -1435,8 +1437,6 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
     }
 
     auto nGraphFunc = network.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
 
@@ -1627,8 +1627,6 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOpOpset6) {
     }
 
     auto nGraphFunc = network.getFunction();
-    // Disable shape inference (WA for generic operations)
-    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
 

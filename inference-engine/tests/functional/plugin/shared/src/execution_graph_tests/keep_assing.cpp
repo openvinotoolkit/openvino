@@ -6,6 +6,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <inference_engine.hpp>
 
 namespace ExecutionGraphTests {
@@ -27,7 +28,7 @@ TEST_P(ExecGraphKeepAssignNode, KeepAssignNode) {
     ngraph::element::Type type = ngraph::element::f32;
 
     using std::make_shared;
-    using namespace ngraph::op;
+    using namespace ngraph::opset5;
 
     // Some simple graph with Memory(Assign) node                     //    in   read     //
     auto input = make_shared<Parameter>(type, shape);                 //    | \  /        //

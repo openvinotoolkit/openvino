@@ -77,15 +77,10 @@ void op::v1::OneHot::validate_and_infer_types()
     PartialShape result_shape{PartialShape::dynamic()};
     const auto& depth = input_value(1).get_node_shared_ptr();
     const auto& depth_constant = get_constant_from_source(input_value(1));
-    if (indices_shape.is_static() && indices_shape.rank().is_static() && depth_constant)
+    if (indices_shape.rank().is_static() && depth_constant)
     {
+        std::vector<Dimension> out_dims{indices_shape};
         const auto indices_rank = indices_shape.rank().get_length();
-
-        std::vector<Dimension> out_dims(indices_rank);
-        for (auto i = 0; i < indices_rank; i++)
-        {
-            out_dims[i] = indices_shape[i];
-        }
         m_axis =
             ngraph::normalize_axis(this, m_axis, indices_rank + 1, -indices_rank - 1, indices_rank);
 
@@ -159,7 +154,7 @@ namespace detail
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_one_hot_out, _, a));                                   \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_one_hot_out, _, a));                                   \
         using IT = typename element_type_traits<element::Type_t::a>::value_type;                   \
         using OT = typename element_type_traits<out_t>::value_type;                                \
         rc = evaluate<IT, OT>(__VA_ARGS__);                                                        \
