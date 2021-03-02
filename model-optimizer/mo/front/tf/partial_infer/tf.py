@@ -185,6 +185,8 @@ def determine_data_type(node: Node):
                 return tf_dtype_extractor(node.pb.attr['dtype'].type)
             if 'T' in node.pb.attr:
                 return tf_dtype_extractor(node.pb.attr['T'].type)
+            if 'type' in node.pb.attr:
+                return tf_dtype_extractor(node.pb.attr['type'].type)
     if node.has_and_set('kind') and node.kind == 'data':
         if 'value' in node and node.value is not None:
             return node.value.dtype

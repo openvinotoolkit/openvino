@@ -34,6 +34,7 @@ class ResultRenameTest(unittest.TestCase):
         graph_ref = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result')])
         res_node = Node(graph_ref, 'result')
         res_node['name'] = 'Op1_tensor'
+        graph.stage = 'back'
 
         ResultRename().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
@@ -42,6 +43,7 @@ class ResultRenameTest(unittest.TestCase):
     def test_case2(self):
         graph = build_graph(nodes, [])
         graph_ref = build_graph(nodes, [])
+        graph.stage = 'back'
 
         ResultRename().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
