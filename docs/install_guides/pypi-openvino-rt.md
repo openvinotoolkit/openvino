@@ -28,7 +28,7 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
   - macOS* 10.15.x version
   - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
   - Windows Server* 2016 or higher
-> NOTE: This package can be installed on many versions of Linux, but only the specific versions above are fully validated.
+> NOTE: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated
 
 ## Install the Runtime Package
 
