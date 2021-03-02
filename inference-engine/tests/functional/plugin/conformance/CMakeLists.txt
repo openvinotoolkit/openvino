@@ -3,6 +3,4 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (ENABLE_CONFORMANCE_TESTS)
-    add_subdirectory(test_runner)
-endif()
+add_subdirectory(test_runner)

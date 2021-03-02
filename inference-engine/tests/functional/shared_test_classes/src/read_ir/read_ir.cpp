@@ -1,9 +1,10 @@
-// Copyright (C) 2019-2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "functional_test_utils/core_config.hpp"
 #include "shared_test_classes/read_ir/read_ir.hpp"
+#include "shared_test_classes/read_ir/generate_inputs.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -29,61 +30,11 @@ void ReadIRTest::SetUp() {
     function = cnnNetwork.getFunction();
 }
 
-InferenceEngine::Blob::Ptr ReadIRTest::generateROIblob(const InferenceEngine::InputInfo &info, const std::shared_ptr<ngraph::Node> node) const {
-    InferenceEngine::Blob::Ptr blob;
-    if (isRoiOperation(node) && info.getTensorDesc().getDims().size() == 1 &&
-        ngraph::is_type<ngraph::op::v3::ROIAlign>(node)) {
-            std::vector<int> roiIdxVector(node->get_shape()[0]);
-            ROIAlignLayerTest::fillIdxTensor(roiIdxVector, node->get_shape()[0]);
-            std::vector<float> a;
-            blob = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), roiIdxVector.data(), roiIdxVector.size());
-    } else if (isRoiOperation(node) && info.getTensorDesc().getDims().size() == 2) {
-        blob = make_blob_with_precision(info.getTensorDesc());
-        blob->allocate();
-        const auto& inputShape = cnnNetwork.getInputShapes().begin()->second;
-
-        if (ngraph::is_type<ngraph::op::v0::PSROIPooling>(node)) {
-            const auto& PSROIPoolNode = std::dynamic_pointer_cast<ngraph::op::v0::PSROIPooling>(node);
-            PSROIPoolingLayerTest::fillROITensor(blob->buffer(),
-                                                 blob->size() / 5,
-                                                 inputShape[0],
-                                                 inputShape[2],
-                                                 inputShape[3],
-                                                 PSROIPoolNode->get_group_size(),
-                                                 PSROIPoolNode->get_spatial_scale(),
-                                                 PSROIPoolNode->get_spatial_bins_x(),
-                                                 PSROIPoolNode->get_spatial_bins_y(),
-                                                 PSROIPoolNode->get_mode());
-        } else if (ngraph::is_type<ngraph::op::v0::ROIPooling>(node)) {
-            const auto& ROIPoolNode = std::dynamic_pointer_cast<ngraph::op::v0::ROIPooling>(node);
-            CommonTestUtils::fill_data_roi(blob->buffer(),
-                                           blob->size(),
-                                           ROIPoolNode->get_input_shape(0).front() - 1,
-                                           inputShape[2],
-                                           inputShape[3],
-                                           1.0f,
-                                           ROIPoolNode->get_method() == "max");
-        } else if (ngraph::is_type<ngraph::op::v3::ROIAlign>(node)) {
-            const auto &ROIAlignNode = std::dynamic_pointer_cast<ngraph::op::v3::ROIAlign>(node);
-            std::vector<float> blobData(ROIAlignNode->get_shape()[0] * 4);
-            ROIAlignLayerTest::fillCoordTensor(blobData,
-                                               inputShape[2],
-                                               inputShape[3],
-                                               ROIAlignNode->get_spatial_scale(),
-                                               ROIAlignNode->get_sampling_ratio(),
-                                               ROIAlignNode->get_pooled_h(),
-                                               ROIAlignNode->get_pooled_w());
-            blob = FuncTestUtils::createAndFillBlobWithFloatArray(info.getTensorDesc(), blobData.data(), blobData.size());
-        }
-    } else {
-        blob = GenerateInput(info);
-    }
-    return blob;
-}
-
 void ReadIRTest::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
     inputs.clear();
+
+    auto inputMap = getInputMap();
 
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     for (const auto& param : function->get_parameters()) {
@@ -96,14 +47,13 @@ void ReadIRTest::Infer() {
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto& node : param->get_output_target_inputs(i)) {
                 const auto nodePtr = node.get_node()->shared_from_this();
-                if (isRoiOperation(nodePtr)) {
-                    blob = generateROIblob(*info, nodePtr);
-                    break;
+                auto it = inputMap.find(nodePtr->get_type_info());
+                if (it != inputMap.end()) {
+                    blob = it->second(nodePtr, *info);
+                } else {
+                    blob = GenerateInput(*info);
                 }
             }
-        }
-        if (!blob) {
-            blob = GenerateInput(*info);
         }
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
