@@ -14,19 +14,19 @@ namespace {
 class ImportReshapePermuteConvGNA : public ImportReshapePermuteConv {
 private:
     void exportImportNetwork() override {
-        static const char appHeader[] = "APPLICATION_HEADER";
         {
             std::ofstream out(fileName);
-            out.write(appHeader, sizeof(appHeader));
+            out.write(applicationHeader.c_str(), applicationHeader.size());
             executableNetwork.Export(out);
         }
         {
-            char coreHeaderBuf[sizeof(appHeader)];
+            std::string appHeader(applicationHeader.size(), ' ');
             std::fstream inputStream(fileName, std::ios_base::in | std::ios_base::binary);
             if (inputStream.fail()) {
                 FAIL() << "Cannot open file to import model: " << fileName;
             }
-            inputStream.read(coreHeaderBuf, sizeof(appHeader));
+            inputStream.read(&appHeader[0], applicationHeader.size());
+            ASSERT_EQ(appHeader, applicationHeader);
             executableNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
         }
     }
@@ -69,12 +69,18 @@ const std::vector<std::map<std::string, std::string>> importConfigs = {
     },
 };
 
+const std::vector<std::string> appHeaders = {
+        "",
+        "APPLICATION_HEADER"
+};
+
 INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkCase, ImportReshapePermuteConvGNA,
                         ::testing::Combine(
                             ::testing::ValuesIn(netPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
                             ::testing::ValuesIn(exportConfigs),
-                            ::testing::ValuesIn(importConfigs)),
+                            ::testing::ValuesIn(importConfigs),
+                            ::testing::ValuesIn(appHeaders)),
                         ImportReshapePermuteConvGNA::getTestCaseName);
 
 } // namespace

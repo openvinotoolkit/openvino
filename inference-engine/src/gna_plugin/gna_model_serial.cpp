@@ -79,10 +79,11 @@ GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &
     is.exceptions(std::istream::failbit);
     auto startPos = is.tellg();
     is.seekg(0, is.end);
-    auto stream_len = is.tellg() - startPos;
+    auto stream_len = is.tellg();
     if (stream_len == -1) {
         THROW_GNA_EXCEPTION << "Can't open file to import";
     }
+    stream_len -= startPos;
     is.seekg(startPos, is.beg);
 
     HeaderLatest::ModelHeader header;
