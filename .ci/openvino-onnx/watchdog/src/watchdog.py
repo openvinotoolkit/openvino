@@ -399,8 +399,6 @@ class Watchdog:
             # CI build in progress - verify timeouts for build queue and duration
             elif any(phrase in status.description for phrase in pending_statuses):
                 self._check_in_progress(pr, build_number)
-            elif pending_statuses[-1] in status.description:
-                self._check_missing_status()
             elif status.description == 'The build of this commit was aborted':
                 pass
             else:
@@ -408,6 +406,8 @@ class Watchdog:
                 self._queue_message(message, message_severity='error', pr=pr)
         try:
             check_statuses()
+        except AttributeError:
+            self._check_missing_status()
         except Exception:
             # Log Watchdog internal error in case any status can't be properly verified
             message = 'Failed to verify status "{}" for PR# {}'.format(status.description, pr.number)
