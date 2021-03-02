@@ -2358,6 +2358,30 @@ CV_ALWAYS_INLINE void v_gather_channel(v_uint8x16& vec, const uint8_t tmp[],
     vec.val = vreinterpretq_u8_s32(result);
 }
 
+template<int chanNum>
+CV_ALWAYS_INLINE void v_gather_channel(v_uint8x16& vec, const uchar src[], const int channel)
+{
+    uint8x16_t result = {};
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + channel), result, 0);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + chanNum + channel), result, 1);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 2 * chanNum + channel), result, 2);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 3 * chanNum + channel), result, 3);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 4 * chanNum + channel), result, 4);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 5 * chanNum + channel), result, 5);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 6 * chanNum + channel), result, 6);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 7 * chanNum + channel), result, 7);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 8 * chanNum + channel), result, 8);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 9 * chanNum + channel), result, 9);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 10 * chanNum + channel), result, 10);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 11 * chanNum + channel), result, 11);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 12 * chanNum + channel), result, 12);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 13 * chanNum + channel), result, 13);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 14 * chanNum + channel), result, 14);
+    result = vsetq_lane_u8(*reinterpret_cast<const uchar*>(src + 15 * chanNum + channel), result, 15);
+
+    vec.val = result;
+}
+
 namespace {
 template<int chanNum>
 CV_ALWAYS_INLINE void v_gather_channel(v_int16x8& vec, const uchar src[], const short* index, const int channel, const int pos)
