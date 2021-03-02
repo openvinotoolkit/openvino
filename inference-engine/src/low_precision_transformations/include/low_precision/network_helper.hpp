@@ -163,8 +163,6 @@ public:
 
     static size_t getParentOutputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
 
-    static std::vector<Output<Node>> getInputs(const std::shared_ptr<ngraph::Node>& node);
-
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
