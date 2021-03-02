@@ -8,6 +8,7 @@
 #include <vector>
 #include <gflags/gflags.h>
 #include <iostream>
+#include <ie_plugin_config.hpp>
 
 /// @brief message for help argument
 static const char help_message[] = "Print a usage message";
@@ -18,8 +19,11 @@ static const char input_message[] = "Optional. Path to a folder with images and/
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.";
 
-/// @brief message for execution mode
-static const char api_message[] = "Optional. Enable Sync/Async API. Default value is \"async\".";
+/// @brief message for execution performance mode
+static const char mode_message[] = "Optional. Selects OpenVINO Performance Mode/Preset. Default value is \"throughput\".";
+
+/// @brief message for execution api
+static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
 
 /// @brief message for assigning cnn calculation to device
 static const char target_device_message[] = "Optional. Specify a target device to infer on (the list of available devices is shown below). " \
@@ -123,7 +127,10 @@ DEFINE_string(i, "", input_message);
 DEFINE_string(m, "", model_message);
 
 /// @brief Define execution mode
-DEFINE_string(api, "async", api_message);
+DEFINE_string(mode, CONFIG_VALUE(THROUGHPUT), mode_message);
+
+/// @brief Define execution mode
+DEFINE_string(api, "async", mode_message);
 
 /// @brief device the target device to infer on <br>
 DEFINE_string(d, "CPU", target_device_message);
@@ -213,6 +220,7 @@ static void showUsage() {
     std::cout << "    -l \"<absolute_path>\"      " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
+    std::cout << "    -mode \"<throughput/latency>\" " << mode_message << std::endl;
     std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
     std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
