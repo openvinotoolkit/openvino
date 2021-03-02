@@ -200,8 +200,8 @@ def test_gelu_operator_with_parameters():
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
-    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
-    assert np.allclose(result, expected, 0.00001, 0.00001)
+    expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
+    assert np.allclose(result, expected)
 
 
 def test_gelu_operator_with_array():
@@ -213,6 +213,36 @@ def test_gelu_operator_with_array():
     computation = runtime.computation(model)
 
     result = computation()
-    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
+    expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
 
-    assert np.allclose(result, expected, 0.00001, 0.00001)
+    assert np.allclose(result, expected)
+
+
+def test_gelu_tanh_operator_with_parameters():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    data_shape = [2, 2]
+    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+
+    model = ng.gelu(parameter_data, "tanh")
+    computation = runtime.computation(model, parameter_data)
+
+    result = computation(data_value)
+    expected = np.array([[0.0, 0.841192], [-0.04540223, 2.9963627]], dtype=np.float32)
+    assert np.allclose(result, expected)
+
+
+def test_gelu_tanh_operator_with_array():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    model = ng.gelu(data_value, "tanh")
+    computation = runtime.computation(model)
+
+    result = computation()
+    expected = np.array([[0.0, 0.841192], [-0.04540223, 2.9963627]], dtype=np.float32)
+
+    assert np.allclose(result, expected)
