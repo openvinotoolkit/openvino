@@ -169,26 +169,26 @@ namespace gelu
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0,
                          const HostTensorPtr& out,
-                         const size_t count,
-                         op::GeluApproximationMode mode)
+                         op::GeluApproximationMode mode,
+                         const size_t count)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::gelu<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count, mode);
+        runtime::reference::gelu<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), mode, count);
         return true;
     }
 
     bool evaluate_gelu(const HostTensorPtr& arg0,
                        const HostTensorPtr& out,
-                       const size_t count,
-                       op::GeluApproximationMode mode)
+                       op::GeluApproximationMode mode,
+                       const size_t count)
     {
         bool rc = true;
         out->set_unary(arg0);
 
         switch (arg0->get_element_type())
         {
-            NGRAPH_TYPE_CASE(evaluate_gelu, f16, arg0, out, count, mode);
-            NGRAPH_TYPE_CASE(evaluate_gelu, f32, arg0, out, count, mode);
+            NGRAPH_TYPE_CASE(evaluate_gelu, f16, arg0, out, mode, count);
+            NGRAPH_TYPE_CASE(evaluate_gelu, f32, arg0, out, mode, count);
         default: rc = false; break;
         }
         return rc;
@@ -199,5 +199,5 @@ bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVec
 {
     NGRAPH_OP_SCOPE(v7_Gelu_evaluate);
     return gelu::evaluate_gelu(
-        inputs[0], outputs[0], shape_size(get_output_shape(0)), m_approximation_mode);
+        inputs[0], outputs[0], m_approximation_mode, shape_size(get_output_shape(0)));
 }

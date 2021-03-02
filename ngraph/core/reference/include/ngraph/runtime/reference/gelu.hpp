@@ -29,8 +29,8 @@ namespace ngraph
             template <typename T>
             void gelu(const T* arg,
                       T* out,
-                      size_t count,
-                      op::GeluApproximationMode mode = op::GeluApproximationMode::ERF)
+                      op::GeluApproximationMode mode,
+                      size_t count)
             {
                 if (mode == op::GeluApproximationMode::ERF)
                 {
