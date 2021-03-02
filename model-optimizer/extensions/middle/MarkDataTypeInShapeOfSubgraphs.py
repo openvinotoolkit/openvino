@@ -32,6 +32,7 @@ class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
     accepts values from ShapeOf subgraph).
     """
     enabled = True
+    graph_condition = [lambda graph: graph.graph['cmd_params'].data_type == 'FP16']
 
     def run_after(self):
         from extensions.middle.pass_separator import PostMiddleStart
