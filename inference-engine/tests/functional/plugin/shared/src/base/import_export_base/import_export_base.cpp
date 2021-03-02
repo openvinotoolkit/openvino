@@ -38,6 +38,7 @@ void ImportNetworkTestBase::Run() {
 
     configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
     LoadNetwork();
+    GenerateInputs();
     Infer();
 
     const auto& actualOutputs = GetOutputs();
@@ -52,6 +53,7 @@ void ImportNetworkTestBase::Run() {
     exportImportNetwork();
     const auto importedExecNetwork = executableNetwork;
 
+    GenerateInputs();
     Infer();
 
     ASSERT_EQ(importedExecNetwork.GetInputsInfo().size(), compiledExecNetwork.GetInputsInfo().size());
