@@ -20,6 +20,7 @@ TEST_P(FakeQuantizeLayerTest, CompareWithRefs) {
     size_t nIterations = 1;
     for (; nIterations != 0; nIterations--) {
         UpdateSeed();
+        GenerateInputs();
         Infer();
         Validate();
     }

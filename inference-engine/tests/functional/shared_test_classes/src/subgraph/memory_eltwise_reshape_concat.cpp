@@ -128,6 +128,7 @@ void MemoryEltwiseReshapeConcatTest::Run() {
                                                                             memory_init.data(), memory_init.size());
     states[0].SetState(state_values_blob);
     IE_SUPPRESS_DEPRECATED_END
+    GenerateInputs();
     Infer();
     initNgraphFriendlyModel();
     Validate();

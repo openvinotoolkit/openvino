@@ -77,10 +77,7 @@ static void fillROITensor(float* buffer, int numROIs, int batchSize,
     }
 }
 
-void PSROIPoolingLayerTest::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-
+void PSROIPoolingLayerTest::GenerateInputs() {
     auto inputShape = cnnNetwork.getInputShapes().begin()->second;
 
     size_t it = 0;
@@ -97,11 +94,9 @@ void PSROIPoolingLayerTest::Infer() {
         } else {
             blob = GenerateInput(*info);
         }
-        inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
         it++;
     }
-    inferRequest.Infer();
 }
 
 void PSROIPoolingLayerTest::SetUp() {

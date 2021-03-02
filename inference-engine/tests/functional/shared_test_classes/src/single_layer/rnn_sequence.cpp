@@ -91,10 +91,7 @@ namespace LayerTestsDefinitions {
         }
     }
 
-    void RNNSequenceTest::Infer() {
-        inferRequest = executableNetwork.CreateInferRequest();
-        inputs.clear();
-
+    void RNNSequenceTest::GenerateInputs() {
         for (const auto &input : executableNetwork.GetInputsInfo()) {
             const auto &info = input.second;
             auto blob = GenerateInput(*info);
@@ -102,14 +99,7 @@ namespace LayerTestsDefinitions {
                 blob = FuncTestUtils::createAndFillBlob(info->getTensorDesc(), m_max_seq_len, 0);
             }
 
-            inferRequest.SetBlob(info->name(), blob);
             inputs.push_back(blob);
         }
-        if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-            configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-            auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-            inferRequest.SetBatch(batchSize);
-        }
-        inferRequest.Infer();
     }
 }  // namespace LayerTestsDefinitions

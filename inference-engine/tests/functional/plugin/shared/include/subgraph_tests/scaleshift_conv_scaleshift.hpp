@@ -10,6 +10,7 @@ namespace SubgraphTestsDefinitions {
 
 TEST_P(ScaleShiftAfterConvTest, CompareWithRefImpl) {
     LoadNetwork();
+    GenerateInputs();
     Infer();
     // Create another copy of function for validation since some data will be changed by GNA plugin
     SetUp();
@@ -18,6 +19,7 @@ TEST_P(ScaleShiftAfterConvTest, CompareWithRefImpl) {
 
 TEST_P(ScaleShiftBeforeConvTest, CompareWithRefImpl) {
     LoadNetwork();
+    GenerateInputs();
     Infer();
     // Create another copy of function for validation since some data will be changed by GNA plugin
     SetUp();

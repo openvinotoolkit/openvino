@@ -32,7 +32,7 @@ class PSROIPoolingLayerTest : public testing::WithParamInterface<psroiParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
         public:
             static std::string getTestCaseName(testing::TestParamInfo<psroiParams> obj);
-            void Infer() override;
+            void GenerateInputs() override;
 
         protected:
             void SetUp() override;

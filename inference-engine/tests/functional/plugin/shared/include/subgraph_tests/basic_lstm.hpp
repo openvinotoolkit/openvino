@@ -56,6 +56,7 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl_LowLatencyTransformation) {
         }
     }
     IE_SUPPRESS_DEPRECATED_END
+    GenerateInputs();
     // Run and compare
     Infer();
     const auto& actualOutputs = GetOutputs();

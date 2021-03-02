@@ -64,10 +64,7 @@ std::string DetectionOutputLayerTest::getTestCaseName(testing::TestParamInfo<Det
     return result.str();
 }
 
-void DetectionOutputLayerTest::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-
+void DetectionOutputLayerTest::GenerateInputs() {
     size_t it = 0;
     for (const auto &input : cnnNetwork.getInputsInfo()) {
         const auto &info = input.second;
@@ -88,11 +85,9 @@ void DetectionOutputLayerTest::Infer() {
         blob = make_blob_with_precision(info->getTensorDesc());
         blob->allocate();
         CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, 0, resolution);
-        inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
         it++;
     }
-    inferRequest.Infer();
 }
 
 void DetectionOutputLayerTest::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
