@@ -17,11 +17,6 @@ source_group("include" FILES ${PUBLIC_HEADERS} ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-if(COMMAND ie_add_vs_version_file)
-        ie_add_vs_version_file(NAME ${TARGET_NAME}
-                        FILEDESCRIPTION "nGraph ONNX Importer common part")
-endif()
-
 # TODO Add handling ie_faster_build
 
 set(ONNX_COMMON_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -30,18 +25,10 @@ set(ONNX_COMMON_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 
 target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_COMMON_INCLUDE_DIR}>
                                                        $<INSTALL_INTERFACE:${ONNX_COMMON_INSTALL_INCLUDE}>)
-target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph onnx_proto onnx ${Protobuf_LIBRARIES})
 
-target_include_directories(${TARGET_NAME}
-        SYSTEM PRIVATE
-                $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
-                $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-                ${Protobuf_INCLUDE_DIRS}
-                ${NGRAPH_INCLUDE_PATH})
-target_compile_definitions(${TARGET_NAME}
-        PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR} ${NGRAPH_INCLUDE_PATH})
 
 if(NGRAPH_USE_PROTOBUF_LITE)
         target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)

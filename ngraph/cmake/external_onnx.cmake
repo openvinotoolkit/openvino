@@ -53,7 +53,7 @@ macro(onnx_set_target_properties)
     VISIBILITY_INLINES_HIDDEN OFF)
     target_compile_definitions(onnx PUBLIC ONNX_BUILD_SHARED_LIBS)
 
-    install(TARGETS onnx onnx_proto
+    install(TARGETS onnx_proto
         RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)

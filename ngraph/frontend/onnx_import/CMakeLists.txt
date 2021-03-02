@@ -68,14 +68,7 @@ target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_
 
 target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
-target_include_directories(onnx_importer PRIVATE
-                $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
-                $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-                ${NGRAPH_INCLUDE_PATH}
-                ${Protobuf_INCLUDE_DIRS})
-
-target_compile_definitions(onnx_importer
-    PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+target_include_directories(onnx_importer PRIVATE ${NGRAPH_INCLUDE_PATH})
 
 target_compile_definitions(onnx_importer PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
@@ -101,7 +94,6 @@ install(DIRECTORY ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import
         PATTERN "*.hpp"
         PATTERN "*.h"
 )
-
 
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
     export(TARGETS onnx_importer NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
