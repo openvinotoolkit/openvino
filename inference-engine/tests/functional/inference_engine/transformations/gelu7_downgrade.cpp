@@ -21,7 +21,7 @@ TEST(TransformationTests, Gelu7Downgrade) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
         auto gelu = std::make_shared<ngraph::opset7::Gelu>(input, ngraph::op::GeluApproximationMode::ERF);
-        gelu->set_friendly_name("gelu6");
+        gelu->set_friendly_name("gelu7");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{gelu}, ngraph::ParameterVector{input});
 
@@ -35,7 +35,7 @@ TEST(TransformationTests, Gelu7Downgrade) {
     {
         auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
         auto gelu = std::make_shared<ngraph::opset2::Gelu>(input);
-        gelu->set_friendly_name("gelu6");
+        gelu->set_friendly_name("gelu7");
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{gelu}, ngraph::ParameterVector{input});
     }
@@ -45,5 +45,5 @@ TEST(TransformationTests, Gelu7Downgrade) {
 
     auto result_node_of_converted_f = f->get_output_op(0);
     auto output_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(output_node->get_friendly_name() == "gelu6") << "Transformation Gelu7Downgrade should keep output names.\n";
+    ASSERT_TRUE(output_node->get_friendly_name() == "gelu7") << "Transformation Gelu7Downgrade should keep output names.\n";
 }

@@ -128,6 +128,7 @@ NGRAPH_OP(Unsqueeze, ngraph::op::v0)
 NGRAPH_OP(VariadicSplit, ngraph::op::v1)
 
 // New operations added in opset2
+NGRAPH_OP(Gelu, ngraph::op::v0)
 NGRAPH_OP(BatchToSpace, ngraph::op::v1)
 NGRAPH_OP(SpaceToBatch, ngraph::op::v1)
 
@@ -170,7 +171,6 @@ NGRAPH_OP(RNNSequence, ngraph::op::v5)
 NGRAPH_OP(Round, ngraph::op::v5)
 
 // New operations added in opset6
-NGRAPH_OP(Assign, ngraph::op::v6)
 NGRAPH_OP(CTCGreedyDecoderSeqLen, ngraph::op::v6)
 NGRAPH_OP(ExperimentalDetectronDetectionOutput, ngraph::op::v6)
 NGRAPH_OP(ExperimentalDetectronGenerateProposalsSingleImage, ngraph::op::v6)
@@ -179,4 +179,5 @@ NGRAPH_OP(ExperimentalDetectronROIFeatureExtractor, ngraph::op::v6)
 NGRAPH_OP(ExperimentalDetectronTopKROIs, ngraph::op::v6)
 NGRAPH_OP(GatherElements, ngraph::op::v6)
 NGRAPH_OP(MVN, ngraph::op::v6)
-NGRAPH_OP(ReadValue, ngraph::op::v6)
+NGRAPH_OP(Assign, ngraph::op::v6)    // new version
+NGRAPH_OP(ReadValue, ngraph::op::v6) // new version
