@@ -70,8 +70,8 @@ def get_concat_after_split(split: Node) -> Optional[Node]:
         return
 
     # The transformation is applicable, only if Split is a unique producer for Concat.
-    dest_inputs = [p.get_connection().get_source().node for _, p in dest.in_ports().items() if not p.disconnected()]
-    names_of_concat_inputs = set([n.name for n in dest_inputs])
+    dest_inputs = [p.get_source().node for p in dest.in_ports().values() if not p.disconnected()]
+    names_of_concat_inputs = set([n.soft_get('name', n.id) for n in dest_inputs])
     if len(names_of_concat_inputs) != 1:
         return
 
