@@ -75,13 +75,13 @@ const std::vector<Precision> precisions = {
         Precision::BF16
 };
 
-const std::vector<std::vector<int64_t>> blockShape4D  = {{1, 1, 2, 2}, {1, 1, 3, 4}, {1, 1, 4, 4}, {1, 1, 6, 4}};
+const std::vector<std::vector<int64_t>> blockShape4D  = {{1, 3, 2, 2}, {1, 2, 3, 4}, {1, 3, 4, 4}, {1, 1, 6, 4}};
 
-const std::vector<std::vector<int64_t>> cropsBegin4D  = {{0, 0, 0, 0}, {0, 0, 0, 1}, {0, 0, 1, 0}, {0, 0, 1, 1}};
+const std::vector<std::vector<int64_t>> cropsBegin4D  = {{0, 1, 0, 0}, {0, 1, 0, 1}, {0, 1, 1, 0}, {0, 0, 1, 1}};
 
-const std::vector<std::vector<int64_t>> cropsEnd4D    = {{0, 0, 0, 0}, {0, 0, 0, 1}, {0, 0, 1, 0}, {0, 0, 1, 1}};
+const std::vector<std::vector<int64_t>> cropsEnd4D    = {{0, 1, 0, 0}, {0, 1, 1, 0}, {0, 1, 1, 1}, {0, 0, 1, 1}};
 
-const std::vector<std::vector<size_t>> inputShapes4D = {{48, 4, 4, 4}, {48, 3, 3, 6}, {96, 2, 5, 8}, {96, 5, 10, 10}};
+const std::vector<std::vector<size_t>> inputShapes4D = {{48, 4, 4, 4}, {48, 4, 3, 6}, {96, 5, 5, 8}, {96, 6, 10, 10}};
 
 const std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nhwc}, {nhwc}, {}, {}),
@@ -107,7 +107,7 @@ const auto batchToSpaceParamsSet4D = ::testing::Combine(
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                 ::testing::ValuesIn(cpuParams_4D));
 
-const  std::vector<std::vector<size_t>> inputShapesBlock4D = {{48, 16, 4, 4}, {48, 16, 3, 6}, {96, 31, 5, 8}, {96, 7, 10, 10}, {48, 11, 5, 5}};
+const  std::vector<std::vector<size_t>> inputShapesBlock4D = {{48, 8, 4, 4}, {48, 16, 3, 6}, {96, 31, 5, 8}, {96, 7, 10, 10}, {48, 11, 5, 5}};
 
 const auto batchToSpaceParamsSetBlock4D = ::testing::Combine(
         ::testing::Combine(
@@ -129,13 +129,13 @@ INSTANTIATE_TEST_CASE_P(smoke_BatchToSpaceCPULayerTest_4D, BatchToSpaceCPULayerT
 INSTANTIATE_TEST_CASE_P(smoke_BatchToSpaceCPULayerTestBlock_4D, BatchToSpaceCPULayerTest,
                             batchToSpaceParamsSetBlock4D, BatchToSpaceCPULayerTest::getTestCaseName);
 
-const std::vector<std::vector<int64_t>> blockShape5D  = {{1, 1, 3, 2, 2}, {1, 1, 6, 2, 2}, {1, 1, 8, 1, 3}, {1, 1, 4, 3, 2}};
+const std::vector<std::vector<int64_t>> blockShape5D  = {{1, 1, 3, 2, 2}, {1, 2, 3, 2, 2}, {1, 2, 4, 1, 3}, {1, 3, 2, 2, 2}};
 
-const std::vector<std::vector<int64_t>> cropsBegin5D  = {{0, 0, 1, 0, 2}, {0, 0, 1, 1, 1}, {0, 0, 2, 1, 2}, {0, 0, 3, 1, 1}};
+const std::vector<std::vector<int64_t>> cropsBegin5D  = {{0, 0, 1, 0, 2}, {0, 1, 1, 1, 1}, {0, 1, 2, 1, 2}, {0, 0, 3, 1, 1}};
 
-const std::vector<std::vector<int64_t>> cropsEnd5D    = {{0, 0, 1, 0, 0}, {0, 0, 1, 1, 0}, {0, 0, 2, 0, 0}, {0, 0, 3, 0, 0}};
+const std::vector<std::vector<int64_t>> cropsEnd5D    = {{0, 1, 1, 0, 0}, {0, 0, 1, 1, 0}, {0, 0, 2, 0, 0}, {0, 1, 1, 1, 0}};
 
-const  std::vector<std::vector<size_t>> inputShapes5D = {{24, 2, 4, 3, 2}, {48, 3, 3, 3, 3}, {96, 4, 4, 3, 4}, {24, 5, 7, 6, 6}};
+const  std::vector<std::vector<size_t>> inputShapes5D = {{24, 4, 4, 3, 2}, {48, 5, 3, 3, 3}, {96, 4, 4, 3, 4}, {24, 5, 7, 6, 6}};
 
 const std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ndhwc}, {ndhwc}, {}, {}),

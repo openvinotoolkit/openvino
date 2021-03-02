@@ -3,13 +3,13 @@
 //
 
 #include "base.hpp"
+#include "ie_parallel.hpp"
 
 #include <cmath>
 #include <string>
 #include <vector>
-#include <cassert>
 #include <set>
-#include "ie_parallel.hpp"
+#include <cassert>
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -40,16 +40,13 @@ public:
             if (inDims.size() != outDims.size())
                 IE_THROW() << "BatchToSpace layer with name '" << batchToSpaceLayer->name << "' has incorrect number of input/output dimensions";
 
-            if (inDims[1] != outDims[1])
-                IE_THROW() << "BatchToSpace layer with name '" << batchToSpaceLayer->name << "' has different IN and OUT channels number";
-
             const auto precision = batchToSpaceLayer->insData[0].lock()->getTensorDesc().getPrecision();
             const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8};
             if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end())
                 IE_THROW() << "BatchToSpace layer with name '" << batchToSpaceLayer->name << "' has unsupported precision: " << precision.name();
 
-            _block_shape = batchToSpaceLayer->_block_shape;
-            _crops_begin = batchToSpaceLayer->_crops_begin;
+            blockShape = batchToSpaceLayer->_block_shape;
+            cropsBegin = batchToSpaceLayer->_crops_begin;
 
             auto createConfig = [&](Layout layout) {
                 LayerConfig config;
@@ -121,8 +118,8 @@ private:
 
     template<typename T>
     void batchToSpaceKernel(std::vector<Blob::Ptr> &inputs, std::vector<Blob::Ptr> &outputs) noexcept {
-        const T *src_data = inputs[0]->cbuffer().as<const T *>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        T *dst_data = outputs[0]->buffer().as<T *>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        const T *srcData = inputs[0]->cbuffer().as<const T *>() + inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        T *dstData = outputs[0]->buffer().as<T *>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         const size_t dimsSize = inDims.size();
         const auto layout = inputs[0]->getTensorDesc().getLayout();
@@ -131,14 +128,14 @@ private:
         auto outShape5D = getShape5D(outDims);
 
         size_t inSpatialStep = inShape5D[2] * inShape5D[3] * inShape5D[4];
-        size_t inBatchStep = inShape5D[1] * inSpatialStep;
+        size_t inBatchStep   = inShape5D[1] * inSpatialStep;
 
         size_t outSpatialStep = outShape5D[2] * outShape5D[3] * outShape5D[4];
-        size_t outBatchStep = outShape5D[1] * outSpatialStep;
+        size_t outBatchStep   = outShape5D[1] * outSpatialStep;
 
-        size_t cropFront = _crops_begin[dimsSize - 3];
-        size_t cropTop   = _crops_begin[dimsSize - 2];
-        size_t cropLeft  = _crops_begin[dimsSize - 1];
+        size_t cropFront = cropsBegin[dimsSize - 3];
+        size_t cropTop   = cropsBegin[dimsSize - 2];
+        size_t cropLeft  = cropsBegin[dimsSize - 1];
 
         size_t ID = dimsSize == 5 ? inShape5D[dimsSize - 3] : 1lu;
         size_t OD = dimsSize == 5 ? outShape5D[dimsSize - 3] : 1lu;
@@ -148,112 +145,131 @@ private:
                 int64_t bIdx = i0 / outShape5D[0];
                 size_t srcIdx1 = i0 * inBatchStep;
                 size_t dstIdx1 = (i0 - (bIdx * outShape5D[0])) * outBatchStep;
-                int64_t owAdd = bIdx % _block_shape[dimsSize - 1] - cropLeft;
-                bIdx /= _block_shape[dimsSize - 1];
-                int64_t ohAdd = (layout == NDHWC ? bIdx % _block_shape[dimsSize - 2] : bIdx) - cropTop;
-                bIdx /= _block_shape[dimsSize - 2];
-                int64_t odAdd = layout == NDHWC ? bIdx % _block_shape[dimsSize - 3] - cropFront : 0lu;
-                size_t i2Begin = layout == NDHWC ? (_block_shape[dimsSize - 3] - 1 - odAdd) / _block_shape[dimsSize - 3] : 0lu;
-                size_t i2End = layout == NDHWC ? (outShape5D[dimsSize - 3] - 1 - odAdd) / _block_shape[dimsSize - 3] + 1 : 1lu;
+                int64_t owAdd = bIdx % blockShape[dimsSize - 1] - cropLeft;
+                bIdx /= blockShape[dimsSize - 1];
+                int64_t ohAdd = bIdx % blockShape[dimsSize - 2] - cropTop;
+                bIdx /= blockShape[dimsSize - 2];
+                int64_t odAdd = layout == NDHWC ? bIdx % blockShape[dimsSize - 3] - cropFront : 0lu;
+                bIdx = layout == NDHWC ? bIdx / blockShape[dimsSize - 3] : bIdx;
+                int64_t ocAdd = bIdx % blockShape[1] - cropsBegin[1];
+                size_t i1Begin = (blockShape[1] - 1 - ocAdd) / blockShape[1];
+                size_t i1End = (outShape5D[1] - 1 - ocAdd) / blockShape[1] + 1;
+                size_t i2Begin = layout == NDHWC ? (blockShape[dimsSize - 3] - 1 - odAdd) / blockShape[dimsSize - 3] : 0lu;
+                size_t i2End = layout == NDHWC ? (outShape5D[dimsSize - 3] - 1 - odAdd) / blockShape[dimsSize - 3] + 1 : 1lu;
+                size_t i3Begin = (blockShape[dimsSize - 2] - 1 - ohAdd) / blockShape[dimsSize - 2];
+                size_t i3End = (outShape5D[dimsSize - 2] - 1 - ohAdd) / blockShape[dimsSize - 2] + 1;
+                size_t i4Begin = (blockShape[dimsSize - 1] - 1 - owAdd) / blockShape[dimsSize - 1];
+                size_t i4End = (outShape5D[dimsSize - 1] - 1 - owAdd) / blockShape[dimsSize - 1] + 1;
                 for (size_t i2 = i2Begin; i2 < i2End; ++i2) {
-                    int64_t tmpOd = i2 * _block_shape[dimsSize - 3];
+                    int64_t tmpOd = i2 * blockShape[dimsSize - 3] + odAdd;
                     size_t srcIdx2 = srcIdx1 + i2 * inShape5D[dimsSize - 2] * inShape5D[dimsSize - 1] * inShape5D[1];
-                    size_t dstIdx2 = dstIdx1 + (tmpOd + odAdd) * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1] * outShape5D[1];
-                    int64_t i3Begin = (_block_shape[dimsSize - 2] - 1 - ohAdd) / _block_shape[dimsSize - 2];
-                    int64_t i3End = (outShape5D[dimsSize - 2] - 1 - ohAdd) / _block_shape[dimsSize - 2] + 1;
+                    size_t dstIdx2 = dstIdx1 + tmpOd * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1] * outShape5D[1];
                     for (size_t i3 = i3Begin; i3 < i3End; ++i3) {
-                        int64_t tmpOh = i3 * _block_shape[dimsSize - 2];
+                        int64_t tmpOh = i3 * blockShape[dimsSize - 2] + ohAdd;
                         size_t srcIdx3 = srcIdx2 + i3 * inShape5D[dimsSize - 1] * inShape5D[1];
-                        size_t dstIdx3 = dstIdx2 + (tmpOh + ohAdd) * outShape5D[dimsSize - 1] * outShape5D[1];
-                        int64_t i4Begin = (_block_shape[dimsSize - 1] - 1 - owAdd) / _block_shape[dimsSize - 1];
-                        int64_t i4End = (outShape5D[dimsSize - 1] - 1 - owAdd) / _block_shape[dimsSize - 1] + 1;
+                        size_t dstIdx3 = dstIdx2 + tmpOh * outShape5D[dimsSize - 1] * outShape5D[1];
                         for (size_t i4 = i4Begin; i4 < i4End; ++i4) {
-                            int64_t tmpOw = i4 * _block_shape[dimsSize - 1];
+                            int64_t tmpOw = i4 * blockShape[dimsSize - 1] + owAdd;
                             size_t srcIdx4 = srcIdx3 + i4 * inShape5D[1];
-                            size_t dstIdx4 = dstIdx3 + (tmpOw + owAdd) * outShape5D[1];
-                            for (size_t i1 = 0; i1 < inShape5D[1]; ++i1) {
+                            size_t dstIdx4 = dstIdx3 + tmpOw * outShape5D[1];
+                            for (size_t i1 = i1Begin; i1 < i1End; ++i1) {
+                                int64_t tmpOc = i1 * blockShape[1] + ocAdd;
                                 size_t srcIdx5 = srcIdx4 + i1;
-                                size_t dstIdx5 = dstIdx4 + i1;
-                                dst_data[dstIdx5] = src_data[srcIdx5];
+                                size_t dstIdx5 = dstIdx4 + tmpOc;
+                                dstData[dstIdx5] = srcData[srcIdx5];
                             }
                         }
                     }
                 }
             });
         } else if (layout == NCHW || layout == NCDHW) {
-            parallel_for2d(inShape5D[0], inShape5D[1], [&](size_t i0, size_t i1) {
+            parallel_for(inShape5D[0], [&](size_t i0) {
                 int64_t bIdx = i0 / outShape5D[0];
-                size_t srcIdx1 = i0 * inBatchStep + i1 * inSpatialStep;
-                size_t dstIdx1 = (i0 - (bIdx * outShape5D[0])) * outBatchStep + i1 * outSpatialStep;
-                int64_t owAdd = bIdx % _block_shape[dimsSize - 1] - cropLeft;
-                bIdx /= _block_shape[dimsSize - 1];
-                int64_t ohAdd = (layout == NCDHW ? bIdx % _block_shape[dimsSize - 2] : bIdx) - cropTop;
-                bIdx /= _block_shape[dimsSize - 2];
-                int64_t odAdd = layout == NCDHW ? bIdx % _block_shape[dimsSize - 3] - cropFront : 0;
-                size_t i2Begin = layout == NCDHW ? (_block_shape[dimsSize - 3] - 1 - odAdd) / _block_shape[dimsSize - 3] : 0lu;
-                size_t i2End = layout == NCDHW ? (outShape5D[dimsSize - 3] - 1 - odAdd) / _block_shape[dimsSize - 3] + 1 : 1lu;
-                for (size_t i2 = i2Begin; i2 < i2End; ++i2) {
-                    size_t tmpOd = i2 * _block_shape[dimsSize - 3];
-                    size_t srcIdx2 = srcIdx1 + i2 * inShape5D[dimsSize - 2] * inShape5D[dimsSize - 1];
-                    size_t dstIdx2 = dstIdx1 + (tmpOd + odAdd) * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1];
-                    int64_t i3Begin = (_block_shape[dimsSize - 2] - 1 - ohAdd) / _block_shape[dimsSize - 2];
-                    int64_t i3End = (outShape5D[dimsSize - 2] - 1 - ohAdd) / _block_shape[dimsSize - 2] + 1;
-                    for (size_t i3 = i3Begin; i3 < i3End; ++i3) {
-                        size_t tmpOh = i3 * _block_shape[dimsSize - 2];
-                        size_t srcIdx3 = srcIdx2 + i3 * inShape5D[dimsSize - 1];
-                        size_t dstIdx3 = dstIdx2 + (tmpOh + ohAdd) * outShape5D[dimsSize - 1];
-                        int64_t i4Begin = (_block_shape[dimsSize - 1] - 1 - owAdd) / _block_shape[dimsSize - 1];
-                        int64_t i4End = (outShape5D[dimsSize - 1] - 1 - owAdd) / _block_shape[dimsSize - 1] + 1;
-                        for (size_t i4 = i4Begin; i4 < i4End; ++i4) {
-                            size_t tmpOw = i4 * _block_shape[dimsSize - 1];
-                            size_t srcIdx4 = srcIdx3 + i4;
-                            size_t dstIdx4 = dstIdx3 + tmpOw + owAdd;
-                            dst_data[dstIdx4] = src_data[srcIdx4];
+                size_t srcIdx0 = i0 * inBatchStep;
+                size_t dstIdx0 = (i0 - (bIdx * outShape5D[0])) * outBatchStep;
+                int64_t owAdd = bIdx % blockShape[dimsSize - 1] - cropLeft;
+                bIdx /= blockShape[dimsSize - 1];
+                int64_t ohAdd = bIdx % blockShape[dimsSize - 2] - cropTop;
+                bIdx /= blockShape[dimsSize - 2];
+                int64_t odAdd = layout == NCDHW ? bIdx % blockShape[dimsSize - 3] - cropFront : 0lu;
+                bIdx = layout == NCDHW ? bIdx / blockShape[dimsSize - 3] : bIdx;
+                int64_t ocAdd = bIdx % blockShape[1] - cropsBegin[1];
+                size_t i1Begin = (blockShape[1] - 1 - ocAdd) / blockShape[1];
+                size_t i1End = (outShape5D[1] - 1 - ocAdd) / blockShape[1] + 1;
+                size_t i2Begin = layout == NCDHW ? (blockShape[dimsSize - 3] - 1 - odAdd) / blockShape[dimsSize - 3] : 0lu;
+                size_t i2End = layout == NCDHW ? (outShape5D[dimsSize - 3] - 1 - odAdd) / blockShape[dimsSize - 3] + 1 : 1lu;
+                size_t i3Begin = (blockShape[dimsSize - 2] - 1 - ohAdd) / blockShape[dimsSize - 2];
+                size_t i3End = (outShape5D[dimsSize - 2] - 1 - ohAdd) / blockShape[dimsSize - 2] + 1;
+                size_t i4Begin = (blockShape[dimsSize - 1] - 1 - owAdd) / blockShape[dimsSize - 1];
+                size_t i4End = (outShape5D[dimsSize - 1] - 1 - owAdd) / blockShape[dimsSize - 1] + 1;
+                for (size_t i1 = i1Begin; i1 < i1End; ++i1) {
+                    int64_t tmpOc = i1 * blockShape[1] + ocAdd;
+                    size_t srcIdx1 = srcIdx0 + i1 * inSpatialStep;
+                    size_t dstIdx1 = dstIdx0 + tmpOc * outSpatialStep;
+                    for (size_t i2 = i2Begin; i2 < i2End; ++i2) {
+                        int64_t tmpOd = i2 * blockShape[dimsSize - 3] + odAdd;
+                        size_t srcIdx2 = srcIdx1 + i2 * inShape5D[dimsSize - 2] * inShape5D[dimsSize - 1];
+                        size_t dstIdx2 = dstIdx1 + tmpOd * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1];
+                        for (size_t i3 = i3Begin; i3 < i3End; ++i3) {
+                            int64_t tmpOh = i3 * blockShape[dimsSize - 2] + ohAdd;
+                            size_t srcIdx3 = srcIdx2 + i3 * inShape5D[dimsSize - 1];
+                            size_t dstIdx3 = dstIdx2 + tmpOh * outShape5D[dimsSize - 1];
+                            for (size_t i4 = i4Begin; i4 < i4End; ++i4) {
+                                int64_t tmpOw = i4 * blockShape[dimsSize - 1] + owAdd;
+                                size_t srcIdx4 = srcIdx3 + i4;
+                                size_t dstIdx4 = dstIdx3 + tmpOw;
+                                dstData[dstIdx4] = srcData[srcIdx4];
+                            }
                         }
                     }
                 }
             });
         } else {  // nC[d]hw16c, nC[d]hw8c
-            size_t blockSize  = inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims().back();
-            size_t blockCount = inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[1];
-            size_t blockRemainder = inShape5D[1] % blockSize;
-            size_t lastBlock = blockRemainder == 0 ? blockSize : blockRemainder;
+            size_t blockSize = outputs[0]->getTensorDesc().getBlockingDesc().getBlockDims().back();
+            size_t blockCountInput = inputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[1];
+            size_t blockCountOutput = outputs[0]->getTensorDesc().getBlockingDesc().getBlockDims()[1];
 
             parallel_for(inShape5D[0], [&](size_t i0) {
                 int64_t bIdx = i0 / outShape5D[0];
-                size_t srcIdx0 = i0 * blockCount * blockSize * ID * inShape5D[dimsSize - 2] * inShape5D[dimsSize - 1];
-                size_t dstIdx0 = (i0 - (bIdx * outShape5D[0])) * blockCount * blockSize * OD * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1];
-                int64_t owAdd = bIdx % _block_shape[dimsSize - 1] - cropLeft;
-                bIdx /= _block_shape[dimsSize - 1];
-                int64_t ohAdd = (dimsSize == 5 ? bIdx % _block_shape[dimsSize - 2] : bIdx) - cropTop;
-                bIdx /= _block_shape[dimsSize - 2];
-                int64_t odAdd = dimsSize == 5 ? bIdx % _block_shape[dimsSize - 3] - cropFront : 0lu;
-                for (size_t i1 = 0; i1 < blockCount; ++i1) {
-                    size_t block = (i1 == blockCount - 1) ? lastBlock : blockSize;
+                size_t srcIdx0 = i0 * blockCountInput * blockSize * ID * inShape5D[dimsSize - 2] * inShape5D[dimsSize - 1];
+                size_t dstIdx0 = (i0 - (bIdx * outShape5D[0])) * blockCountOutput * blockSize * OD * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1];
+                int64_t owAdd = bIdx % blockShape[dimsSize - 1] - cropLeft;
+                bIdx /= blockShape[dimsSize - 1];
+                int64_t ohAdd = bIdx % blockShape[dimsSize - 2] - cropTop;
+                bIdx /= blockShape[dimsSize - 2];
+                int64_t odAdd = dimsSize == 5 ? bIdx % blockShape[dimsSize - 3] - cropFront : 0lu;
+                bIdx = dimsSize == 5 ? bIdx / blockShape[dimsSize - 3] : bIdx;
+                int64_t ocAdd = bIdx % blockShape[1] - cropsBegin[1];
+                size_t i2Begin = dimsSize == 5 ? (blockShape[dimsSize - 3] - 1 - odAdd) / blockShape[dimsSize - 3] : 0lu;
+                size_t i2End = dimsSize == 5 ? (outShape5D[dimsSize - 3] - 1 - odAdd) / blockShape[dimsSize - 3] + 1 : 1lu;
+                size_t i3Begin = (blockShape[dimsSize - 2] - 1 - ohAdd) / blockShape[dimsSize - 2];
+                size_t i3End = (outShape5D[dimsSize - 2] - 1 - ohAdd) / blockShape[dimsSize - 2] + 1;
+                size_t i4Begin = (blockShape[dimsSize - 1] - 1 - owAdd) / blockShape[dimsSize - 1];
+                size_t i4End = (outShape5D[dimsSize - 1] - 1 - owAdd) / blockShape[dimsSize - 1] + 1;
+                for (size_t i1 = 0; i1 < blockCountInput; ++i1) {
                     size_t srcIdx1 = srcIdx0 + i1 * ID * inShape5D[dimsSize - 2] * inShape5D[dimsSize - 1] * blockSize;
-                    size_t dstIdx1 = dstIdx0 + i1 * OD * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1] * blockSize;
-                    size_t i2Begin = dimsSize == 5 ? (_block_shape[dimsSize - 3] - 1 - odAdd) / _block_shape[dimsSize - 3] : 0lu;
-                    size_t i2End = dimsSize == 5 ? (outShape5D[dimsSize - 3] - 1 - odAdd) / _block_shape[dimsSize - 3] + 1 : 1lu;
+                    size_t dstIdx1 = dstIdx0 + (i1 * blockShape[1]) * OD * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1] * blockSize;
+                    size_t i5Begin = i1 == 0 ? (blockShape[1] - 1 - ocAdd) / blockShape[1] - (i1 * blockSize) : 0lu;
+                    size_t i5End = (blockCountOutput * blockSize - 1 - ocAdd) / blockShape[1] - (i1 * blockSize) + 1;
+                    i5End = i5End > blockSize ? blockSize : i5End;
                     for (size_t i2 = i2Begin; i2 < i2End; ++i2) {
-                        size_t tmpOd = i2 * _block_shape[dimsSize - 3];
+                        int64_t tmpOd = i2 * blockShape[dimsSize - 3] + odAdd;
                         size_t srcIdx2 = srcIdx1 + i2 * inShape5D[dimsSize - 2] * inShape5D[dimsSize - 1] * blockSize;
-                        size_t dstIdx2 = dstIdx1 + (tmpOd + odAdd) * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1] * blockSize;
-                        int64_t i3Begin = (_block_shape[dimsSize - 2] - 1 - ohAdd) / _block_shape[dimsSize - 2];
-                        int64_t i3End = (outShape5D[dimsSize - 2] - 1 - ohAdd) / _block_shape[dimsSize - 2] + 1;
+                        size_t dstIdx2 = dstIdx1 + tmpOd * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1] * blockSize;
                         for (size_t i3 = i3Begin; i3 < i3End; ++i3) {
-                            size_t tmpOh = i3 * _block_shape[dimsSize - 2];
+                            int64_t tmpOh = i3 * blockShape[dimsSize - 2] + ohAdd;
                             size_t srcIdx3 = srcIdx2 + i3 * inShape5D[dimsSize - 1] * blockSize;
-                            size_t dstIdx3 = dstIdx2 + (tmpOh + ohAdd) * outShape5D[dimsSize - 1] * blockSize;
-                            int64_t i4Begin = (_block_shape[dimsSize - 1] - 1 - owAdd) / _block_shape[dimsSize - 1];
-                            int64_t i4End = (outShape5D[dimsSize - 1] - 1 - owAdd) / _block_shape[dimsSize - 1] + 1;
+                            size_t dstIdx3 = dstIdx2 + tmpOh * outShape5D[dimsSize - 1] * blockSize;
                             for (size_t i4 = i4Begin; i4 < i4End; ++i4) {
-                                size_t tmpOw = i4 * _block_shape[dimsSize - 1];
+                                int64_t tmpOw = i4 * blockShape[dimsSize - 1] + owAdd;
                                 size_t srcIdx4 = srcIdx3 + i4 * blockSize;
-                                size_t dstIdx4 = dstIdx3 + (tmpOw + owAdd) * blockSize;
-                                for (size_t i5 = 0; i5 < block; ++i5) {
+                                size_t dstIdx4 = dstIdx3 + tmpOw * blockSize;
+                                for (size_t i5 = i5Begin; i5 < i5End; ++i5) {
+                                    int64_t tmpOc = i5 * blockShape[1] + ocAdd;
                                     size_t srcIdx5 = srcIdx4 + i5;
-                                    size_t dstIdx5 = dstIdx4 + i5;
-                                    dst_data[dstIdx5] = src_data[srcIdx5];
+                                    size_t dstIdx5 = dstIdx4 + (tmpOc / blockSize) * OD * outShape5D[dimsSize - 2] * outShape5D[dimsSize - 1] * blockSize
+                                                             + (tmpOc % blockSize);
+                                    dstData[dstIdx5] = srcData[srcIdx5];
                                 }
                             }
                         }
@@ -264,8 +280,8 @@ private:
     }
     SizeVector inDims;
     SizeVector outDims;
-    std::vector<size_t> _block_shape;
-    std::vector<size_t> _crops_begin;
+    std::vector<size_t> blockShape;
+    std::vector<size_t> cropsBegin;
 };
 
 REG_FACTORY_FOR(BatchToSpaceImpl, BatchToSpace);
