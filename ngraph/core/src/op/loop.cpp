@@ -185,12 +185,9 @@ void op::v5::Loop::validate_and_infer_types()
                           "Number of inputs must be the same as number of input descriptions");
 
     // Input
-    uint64_t index_it = input_offset;
     for (const auto& input_description : m_input_descriptions)
     {
         auto index = input_description->m_input_index;
-        NODE_VALIDATION_CHECK(this, index == index_it, "Input_index not in order");
-        index_it++;
 
         if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
         {
@@ -242,12 +239,9 @@ void op::v5::Loop::validate_and_infer_types()
     m_body->validate_nodes_and_infer_types();
 
     // Output
-    index_it = 0;
     for (const auto& output_description : m_output_descriptions)
     {
         auto index = output_description->m_output_index;
-        NODE_VALIDATION_CHECK(this, index == index_it, "Output_index not in order");
-        index_it++;
 
         auto body_value =
             m_body->get_results().at(output_description->m_body_value_index)->input_value(0);
