@@ -105,7 +105,7 @@ else()
         # Use the interface of FindProtobuf.cmake
         # -----------------------------------------------------------------------------
         if (NOT TARGET protobuf::libprotobuf)
-            add_library(protobuf::libprotobuf UNKNOWN IMPORTED)
+            add_library(protobuf::libprotobuf UNKNOWN IMPORTED EXCLUDE_FROM_ALL)
             set_target_properties(protobuf::libprotobuf PROPERTIES
                 INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}"
                 IMPORTED_LOCATION "${Protobuf_LIBRARY}")
@@ -162,15 +162,16 @@ else()
             C_VISIBILITY_PRESET default
             VISIBILITY_INLINES_HIDDEN OFF)
         endif()
-        install(TARGETS ${Protobuf_LIBRARIES}
-            RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-            ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
-            LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
-        endif()
-        if (NGRAPH_EXPORT_TARGETS_ENABLE)
-            export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
-        endif()
 endif()
 
 # Now make sure we restore the original flags
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE "${PUSH_CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE}")
+
+install(TARGETS ${Protobuf_LIBRARIES}
+    RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+    ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
+    LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
+endif()
+if (NGRAPH_EXPORT_TARGETS_ENABLE)
+    export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+endif()
