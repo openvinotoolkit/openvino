@@ -22,6 +22,8 @@ add_library(${TARGET_NAME} STATIC ${SOURCES})
 
 add_library(openvino::itt ALIAS ${TARGET_NAME})
 
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::pp)
+
 if(TARGET ittnotify)
     target_link_libraries(${TARGET_NAME} PUBLIC ittnotify)
 endif()

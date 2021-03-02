@@ -152,6 +152,7 @@ typedef struct {
 
 typedef struct {
     std::array<uint32_t, 2> convStride;
+    std::array<uint32_t, 2> zeroPadding;
     float weight_scale_factor;
     void* ptr_filters;     // filters stored one after the other
     void* ptr_biases;
