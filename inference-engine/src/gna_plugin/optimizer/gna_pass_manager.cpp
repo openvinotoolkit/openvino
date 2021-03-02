@@ -2019,7 +2019,7 @@ int PassManager::run(int index) {
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};
 #endif
 
-    for (auto & pass : passes) {
+    for (auto && pass : passes) {
         if (settings.runBeforeCopy != pass->runBeforeCopyPass()) {
             continue;
         }
