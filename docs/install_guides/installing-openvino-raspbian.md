@@ -145,7 +145,7 @@ Follow the next steps to run pre-trained Face Detection network using Inference 
    make -j2 object_detection_sample_ssd
    ```
 3. Download the pre-trained Face Detection model with the Model Downloader or copy it from the host machine:
-    ```sh
+   ```sh
    git clone --depth 1 https://github.com/openvinotoolkit/open_model_zoo
    cd open_model_zoo/tools/downloader
    python3 -m pip install -r requirements.in
