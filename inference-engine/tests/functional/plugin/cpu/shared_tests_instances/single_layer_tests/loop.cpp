@@ -50,7 +50,7 @@ namespace {
 
     INSTANTIATE_TEST_CASE_P(smoke_StaticShapeLoop, StaticShapeLoopTest,
                             Combine(
-                                    ValuesIn({true, false}),
+                                    ValuesIn(std::vector<bool>{true, false}),
                                     Values(true),
                                     ValuesIn(static_loop_types),
                                     Values<int64_t>(7),

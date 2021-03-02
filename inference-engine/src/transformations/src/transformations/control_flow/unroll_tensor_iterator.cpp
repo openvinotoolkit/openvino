@@ -25,13 +25,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
         }
 
         const auto &function = sub_graph_op->get_function();
-        int64_t num_iter = -1;
-        const auto &loop = std::dynamic_pointer_cast<ngraph::opset6::Loop>(sub_graph_op);
-        if (loop) {
-            num_iter = loop->get_num_iterations();
-        } else if (const auto &ti = std::dynamic_pointer_cast<ngraph::opset6::TensorIterator>(sub_graph_op)) {
-            num_iter = ti->get_num_iterations();
-        }
+        int64_t num_iter = sub_graph_op->get_num_iterations();
 
         // negative value means inconsistent TI
         if (num_iter <= -1) {
@@ -190,6 +184,7 @@ bool ngraph::pass::UnrollTensorIterator::run_on_function(std::shared_ptr<ngraph:
 
         // the current iteration Parameter in Loop body can be disconnected
         // we are replacing it with a Constant (value = current iteration idx)
+        const auto &loop = std::dynamic_pointer_cast<ngraph::opset6::Loop>(sub_graph_op);
         if (loop) {
             // 1. Check CurrentIteration Parameter is not connected to outer network
             bool need_to_remove_iteration_param = false;
