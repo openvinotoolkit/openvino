@@ -678,11 +678,15 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             data->setLayout(Layout::NHWC);
         };
 
-        auto current_layer = getInputTo(pattern_start->outData[0]).begin()->second;
+        auto input_to = getInputTo(pattern_start->outData[0]);
+        IE_ASSERT(!input_to.empty());
+        auto current_layer = input_to.begin()->second;
         setNHWCOrder(current_layer->input());
         while (current_layer != pattern_end) {
             setNHWCOrder(current_layer->outData[0]);
-            current_layer = getInputTo(current_layer->outData[0]).begin()->second;
+            input_to = getInputTo(current_layer->outData[0]);
+            IE_ASSERT(!input_to.empty());
+            current_layer = input_to.begin()->second;
         }
 
         if (LayerInfo(pattern_start).isPermute() && !getInputTo(pattern_start->outData.front()).empty()) {
