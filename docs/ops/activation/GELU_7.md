@@ -18,8 +18,8 @@ The Gelu operation is introduced in the [paper](https://arxiv.org/abs/1606.08415
     * `erf` -- calculate output using the Gauss error function.
     * `tanh` -- calculate output using tanh approximation
   * **Type**: `string`
-  * **Default value**: None
-  * **Required**: *yes*
+  * **Default value**: `erf`
+  * **Required**: *no*
 
 
 **Mathematical Formulation**
