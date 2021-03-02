@@ -115,6 +115,7 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
 
             float* bias_values = nullptr;
             bool can_merge_bias = false;
+            size_t bias_depth = 0;
 
             // Will try to merge bias into FQ
             auto &merge_node = quantize_node.get_dependency(0);
@@ -124,12 +125,22 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
 
                 // Check that this is not input layout
                 if (!eltw_node.get_dependency(1).is_type<input_layout>()) {
-                    // Check a case with reshape node before bias constant data
-                    auto& dep = eltw_node.get_dependency(1).is_type<data>() ? eltw_node.get_dependency(1) :
-                                eltw_node.get_dependency(1).get_dependency(0);
+                    // We should check a case with reshape / reorder nodes before bias constant data
+                    bias_depth = eltw_node.get_dependency(1).is_type<data>() ? 1 :
+                                 eltw_node.get_dependency(1).get_dependency(0).is_type<data>() ? 2 :
+                                 eltw_node.get_dependency(1).get_dependency(0).get_dependency(0).is_type<data>() ? 3 : 0;
 
-                    can_merge_bias = eltw_node.get_primitive()->mode == eltwise_mode::sum && eltw_node.get_dependencies().size() == 2 && dep.is_constant() &&
-                                     dep.get_output_layout().count() == out_features && eltw_node.get_dependency(0).is_type<convolution>();
+                    auto& dep = bias_depth == 1 ? eltw_node.get_dependency(1) :
+                                bias_depth == 2 ? eltw_node.get_dependency(1).get_dependency(0) :
+                                bias_depth == 3 ? eltw_node.get_dependency(1).get_dependency(0).get_dependency(0) :
+                                eltw_node.get_dependency(1);
+
+                    if (bias_depth) {
+                        can_merge_bias = dep.is_constant() && dep.get_output_layout().count() == out_features && dep.get_users().size() == 1 &&
+                                         eltw_node.get_primitive()->mode == eltwise_mode::sum && eltw_node.get_dependencies().size() == 2 &&
+                                         eltw_node.get_dependency(0).is_type<convolution>();
+                    }
+
                     if (can_merge_bias) {
                         auto &bias = dep.as<data>();
                         auto &mem_bias = bias.get_attached_memory();
@@ -362,17 +373,20 @@ void prepare_quantization::prepare_scale_shift_opt(program_impl &p) {
             if (can_merge_bias) {
                 auto &eltw_node = merge_node.as<eltwise>();
 
-                // Find eltwise's constants: there maybe extra reshapes between eltwise and eltwise's constant data
-                auto &dep1 = eltw_node.get_dependency(1);
-                auto &dep2 = dep1.is_type<data>() ? dep1 : dep1.get_dependency(0);
+                // Remove bias constants and extra reshapes / reorders from the graph (dep3, dep2, dep1)
+                if (bias_depth == 3) {
+                    auto &dep3 = eltw_node.get_dependency(1).get_dependency(0).get_dependency(0);
+                    p.remove_all_connections(dep3);
+                    p.remove_if_dangling(dep3);
+                }
 
-                // Remove bias constants from the graph
-                if (!dep1.is_type<data>()) {
+                if (bias_depth >= 2) {
+                    auto &dep2 = eltw_node.get_dependency(1).get_dependency(0);
                     p.remove_all_connections(dep2);
                     p.remove_if_dangling(dep2);
                 }
 
-                // Remove bias constants / extra reshapes from the graph
+                auto &dep1 = eltw_node.get_dependency(1);
                 p.remove_all_connections(dep1);
                 p.remove_if_dangling(dep1);
 
