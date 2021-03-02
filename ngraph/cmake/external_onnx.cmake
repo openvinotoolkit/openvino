@@ -47,10 +47,11 @@ macro(onnx_set_target_properties)
         target_compile_options(onnx PRIVATE -Wno-unused-variable -Wno-unused-parameter)
         target_compile_options(onnx_proto PRIVATE -Wno-unused-variable)
     endif()
+
     set_target_properties(onnx_proto PROPERTIES
-    CXX_VISIBILITY_PRESET default
-    C_VISIBILITY_PRESET default
-    VISIBILITY_INLINES_HIDDEN OFF)
+        CXX_VISIBILITY_PRESET default
+        C_VISIBILITY_PRESET default
+        VISIBILITY_INLINES_HIDDEN OFF)
     target_compile_definitions(onnx PUBLIC ONNX_BUILD_SHARED_LIBS)
 
     install(TARGETS onnx_proto
