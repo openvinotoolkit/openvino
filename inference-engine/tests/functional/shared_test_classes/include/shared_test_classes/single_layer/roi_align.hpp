@@ -28,7 +28,6 @@ public:
     static void fillIdxTensor(std::vector<int>& idx, int batchSize);
 
 protected:
-    void Infer() override;
     void SetUp() override;
 
 private:

@@ -30,40 +30,26 @@ void ReadIRTest::SetUp() {
     function = cnnNetwork.getFunction();
 }
 
-void ReadIRTest::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-
+void ReadIRTest::GenerateInputs() {
     auto inputMap = getInputMap();
 
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
     for (const auto& param : function->get_parameters()) {
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
-
         const auto& info = infoIt->second;
-
-        InferenceEngine::Blob::Ptr blob(nullptr);
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto& node : param->get_output_target_inputs(i)) {
                 const auto nodePtr = node.get_node()->shared_from_this();
                 auto it = inputMap.find(nodePtr->get_type_info());
                 if (it != inputMap.end()) {
-                    blob = it->second(nodePtr, *info);
+                    inputs.push_back(it->second(nodePtr, *info));
                 } else {
-                    blob = GenerateInput(*info);
+                    inputs.push_back(GenerateInput(*info));
                 }
             }
         }
-        inferRequest.SetBlob(info->name(), blob);
-        inputs.push_back(blob);
     }
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
-        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
-        auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-        inferRequest.SetBatch(batchSize);
-    }
-    inferRequest.Infer();
 }
 } // namespace LayerTestsDefinitions
 

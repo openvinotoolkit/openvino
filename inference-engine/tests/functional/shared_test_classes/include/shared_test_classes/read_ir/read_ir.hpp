@@ -15,7 +15,7 @@ public:
 
 protected:
     void SetUp() override;
-    void Infer() override;
+    void GenerateInputs() override;
 
 private:
     std::string pathToModel;
