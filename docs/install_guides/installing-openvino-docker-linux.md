@@ -19,7 +19,9 @@ This guide provides the steps for creating a Docker* image with Intel® Distribu
 
 ## Prebuilt images
 
-Prebuilt images are available on [Docker Hub](https://hub.docker.com/u/openvino).
+Prebuilt images are available on: 
+- [Docker Hub](https://hub.docker.com/u/openvino)
+- [Quay.io](https://quay.io/organization/openvino)
 
 ## Use Docker* Image for CPU
 
