@@ -309,7 +309,6 @@ class DFFT:
 There is no `signal_size` input:
 ```xml
 <layer ... type="DFFT" ... >
-    <data normalization_mode="forward"/>
     <input>
         <port id="0">
             <dim>1</dim>
@@ -335,7 +334,6 @@ There is no `signal_size` input:
 There is `signal_size` input:
 ```xml
 <layer ... type="DFFT" ... >
-    <data normalization_mode="forward"/>
     <input>
         <port id="0">
             <dim>1</dim>
