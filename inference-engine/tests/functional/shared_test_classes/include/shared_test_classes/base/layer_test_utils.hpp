@@ -192,7 +192,7 @@ protected:
 
     virtual void ConfigureNetwork();
 
-    virtual void LoadNetwork();
+    void LoadNetwork();
 
     virtual void GenerateInputs();
 
