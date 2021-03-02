@@ -95,8 +95,7 @@ To make GPU available in the container, attach the GPU to the container using `-
 ```sh
 docker run -it --rm --device /dev/dri <image_name>
 ```
-> **NOTES**:
-> If your host system is Ubuntu 20, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
+> **NOTE**: If your host system is Ubuntu 20, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
 
 ## Use a Docker* Image for Intel® Neural Compute Stick 2
 
