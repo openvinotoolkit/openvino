@@ -38,6 +38,7 @@ FetchContent_Declare(
 )
 
 macro(onnx_set_target_properties)
+    add_dependencies(onnx_proto ${Protobuf_LIBRARIES})
     target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
     target_include_directories(onnx_proto SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 
