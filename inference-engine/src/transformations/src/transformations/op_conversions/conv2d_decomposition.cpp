@@ -54,6 +54,8 @@ std::vector<std::shared_ptr<opset1::Constant>> ReduceConv2DFilterHeightByChannel
 {
     std::vector <std::shared_ptr<opset1::Constant>> result;
     auto filter_shape = filters->get_output_shape(0);
+    if (!horizontal_permute && !vertical_permute)
+        return { filters };
 
     if (filter_shape.size() == 4)
     {
@@ -87,8 +89,16 @@ std::vector<std::shared_ptr<opset1::Constant>> ReduceConv2DFilterHeightByChannel
                 }
             }
         }
-        for (auto new_filter : flat_filters)
-            result.push_back(std::make_shared<opset1::Constant>(element::f32, Shape{ filter_shape[0], filter_shape[1] * filter_shape[2] * filter_shape[3]/split_channels, 1, 1 }, new_filter));
+        if (vertical_permute && horizontal_permute) {
+            for (auto new_filter : flat_filters)
+                result.push_back(std::make_shared<opset1::Constant>(element::f32, Shape{ filter_shape[0], filter_shape[1] * filter_shape[2] * filter_shape[3] / split_channels, 1, 1 }, new_filter));
+        } else if (vertical_permute && !horizontal_permute) {
+            for (auto new_filter : flat_filters)
+                result.push_back(std::make_shared<opset1::Constant>(element::f32, Shape{ filter_shape[0], filter_shape[1] * filter_shape[2] / split_channels, 1, filter_shape[3] }, new_filter));
+        } else {
+            for (auto new_filter : flat_filters)
+                result.push_back(std::make_shared<opset1::Constant>(element::f32, Shape{ filter_shape[0], filter_shape[1] / split_channels, filter_shape[2], filter_shape[3] }, new_filter));
+        }
     }
 
     return result;
@@ -349,7 +359,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             //                    |
             //                 concat
 
-            auto not_padded_row = FlatCrop(flat_input, h * input_width * input_channel_count, input_width * input_channel_count);
+            auto not_padded_row = input_height == 1 ? flat_input : FlatCrop(flat_input, h * input_width * input_channel_count, input_width * input_channel_count);
             ngraph::copy_runtime_info(conv, not_padded_row);
             if (flat_left_padding || flat_right_padding) {
                 OutputVector single_row_concat_inputs;
@@ -527,6 +537,14 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                         ngraph::copy_runtime_info(source_conv2d, { nchw_input, conv, nhwc_output });
                         return nhwc_output;
                 };
+                // this is pointwise convolution
+                if (!horizontal_permute)
+                {
+                    size_t padded_row_width = pads_begin_x + input_width + pads_end_x;
+                    size_t padded_row_flat_width = shape_size(nhwc_conv_y_input.get_shape());
+                    nhwc_conv_y_input = builder::opset1::reshape(input, { 1ull,1ull, padded_row_width, padded_row_flat_width / padded_row_width });
+                }
+
                 // valid 1D convolution wrapped with permutes NHWC => NCHW => conv => NCHW => NHWC
                 auto nhwc_y_output = nhwc_conv_1d(conv, nhwc_conv_y_input, h_1_filters[conv_index], conv_index ? nullptr : conv_bias, filter_stride_x, y);
                 result_chunks.push_back(nhwc_y_output);
