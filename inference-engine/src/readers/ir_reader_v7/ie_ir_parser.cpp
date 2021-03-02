@@ -4,7 +4,6 @@
 
 #include "ie_reader.hpp"
 #include "ie_ir_parser.hpp"
-#include "ie_blob_stream.hpp"
 #include "ie_cnn_net_reader_impl.h"
 
 using namespace InferenceEngine;

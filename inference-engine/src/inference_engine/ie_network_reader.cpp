@@ -7,7 +7,6 @@
 
 #include <details/ie_so_pointer.hpp>
 #include <file_utils.h>
-#include <ie_blob_stream.hpp>
 #include <ie_reader.hpp>
 #include <ie_ir_version.hpp>
 
@@ -239,7 +238,6 @@ CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weig
     // Register readers if it is needed
     registerReaders();
     std::istringstream modelStream(model);
-    details::BlobStream binStream(weights);
 
     assertIfIRv7LikeModel(modelStream);
 

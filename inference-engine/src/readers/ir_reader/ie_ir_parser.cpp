@@ -29,7 +29,6 @@
 #include <ie_ngraph_utils.hpp>
 #include "blob_factory.hpp"
 #include "caseless.hpp"
-#include "ie_blob_stream.hpp"
 #include "precision_utils.h"
 
 using namespace XMLParseUtils;
