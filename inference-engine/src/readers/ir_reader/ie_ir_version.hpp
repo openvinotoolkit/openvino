@@ -22,7 +22,11 @@ inline size_t GetIRVersion(pugi::xml_node& root) {
 size_t GetIRVersion(std::istream& model) {
     std::array<char, 512> header = {};
 
+    model.seekg(0, model.end);
+    auto len = model.tellg();
     model.seekg(0, model.beg);
+    if (len < 512)
+        return false;
     model.read(header.data(), header.size());
     model.clear();
     model.seekg(0, model.beg);
