@@ -90,7 +90,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
             if direction in ['backward', 'bidirectional']:
                 next_in_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
 
-            if direction == ['bidirectional']:
+            if direction == 'bidirectional':
                 d.extend([node for node in next_in_nodes if node not in visited])
 
             next_nodes = next_out_nodes if direction in ['forward', 'bidirectional'] else next_in_nodes

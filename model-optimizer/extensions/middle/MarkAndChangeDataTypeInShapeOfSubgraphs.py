@@ -22,6 +22,15 @@ from mo.middle.replacement import MiddleReplacementPattern
 
 
 class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
+    """
+    This replacer marks op nodes in ShapeOf subgraphs with 'in_shape_subgraph' bool attribute and
+    data nodes of float32 constants with 'correct_data_type' attribute.
+    So that float Consts and Cast_to float will be kept in FP32 even if cmd_param --data_type=FP16 was specified.
+
+    This is needed to enable conversion to FP16 even if values in ShapeOf subgraphs exceed max(float16)
+    or because of FP16 lower precession shape inference is incorrect on some nodes (e.g. if Interpolate in scales mode
+    accepts values from ShapeOf subgraph).
+    """
     enabled = True
 
     def run_after(self):
@@ -44,5 +53,5 @@ class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
                                                                        direction="bidirectional")
         for node in nodes_in_shapeof_subgraph:
             node['in_shape_subgraph'] = True
-            if node.op == 'Const' and node.value.dtype == np.float64:
-                node.out_port(0).data.set_value(np.float32(node.out_port(0).data.get_value()))
+            if node.op == 'Const' and node.value.dtype == np.float32:
+                node.out_node(0)['correct_data_type'] = True
