@@ -174,7 +174,7 @@ class DFFT:
             buffer_size = max(buffer_size, size)
         buffer = np.zeros(buffer_size).astype(np.complex64)
 
-        if sorted(reversed_axes) == list(range(0, fft_rank)):
+        if sorted(reversed_axes) == list(range(0, self.fft_rank)):
             simple_axes = True
             self.get_data_from_input_func = simple_get_data_from_input
         else:
@@ -197,7 +197,36 @@ class DFFT:
 
             for idx, axis in enumerate(fft_axes):
                 # TODO: write calculation with respect to current axis
-                pass
+                current_fft_stride = fft_strides[idx]
+                current_fft_length = fft_lengths[idx]
+
+                outer_fft_axes_indices = []
+                outer_fft_axes_lengths = []
+                outer_fft_axes_strides = []
+                for i in range(0, idx):
+                    outer_fft_axes_indices.append(i)
+                    outer_fft_axes_lengths.append(fft_lengths[i])
+                    outer_fft_axes_strides.append(fft_strides[i])
+                for i in range(idx + 1, self.fft_rank):
+                    outer_fft_axes_indices.append(i)
+                    outer_fft_axes_lengths.append(fft_lengths[i])
+                    outer_fft_axes_strides.append(fft_strides[i])
+
+                outer_fft_size = np.prod(outer_fft_axes_lengths)
+
+                outer_fft_coords = np.zeros(self.fft_rank - 1).astype(np.int64)
+                for outer_fft_idx in range(0, outer_fft_size):
+                    current = outer_fft_idx
+                    for j in list(range(0, self.fft_rank - 1))[::-1]:
+                        outer_fft_coords[j] = current // outer_fft_axes_lengths[j]
+                        current %= outer_fft_axes_lengths[j]
+                    outer_fft_coords[0] = current
+
+                    fft_offset = 0
+                    for j in range(0, self.fft_rank - 1):
+                        fft_offset += outer_fft_coords[j] * outer_fft_axes_strides[j]
+
+                    dfft1(data, current_fft_length, fft_offset, current_fft_stride, buffer)
 
             # Copying of calculation result
             if simple_axes:
