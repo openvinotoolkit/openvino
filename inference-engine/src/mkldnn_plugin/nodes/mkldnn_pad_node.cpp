@@ -134,10 +134,8 @@ void MKLDNNPadNode::createPrimitive() {
     params.dstDims = getChildEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getBlockDims();
 
     size_t nDims = params.srcDims.size();
-    params.srcStrides.resize(nDims);
-    params.dstStrides.resize(nDims);
-    params.srcStrides[nDims - 1] = 1;
-    params.dstStrides[nDims - 1] = 1;
+    params.srcStrides.resize(nDims, 1);
+    params.dstStrides.resize(nDims, 1);
     for (int i = nDims - 2; i >= 0; i--) {
         params.srcStrides[i] = params.srcStrides[i + 1] * params.srcDims[i + 1];
         params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
