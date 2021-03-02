@@ -503,7 +503,7 @@ std::shared_ptr<ngraph::Node> NetworkHelper::separateInStandaloneBranch(std::sha
             parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
         }
 
-        std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);
+        std::vector<Output<Node>> inputs = node->input_values();
         const size_t inputIndex = NetworkHelper::getChildInputIndex(dequantization.multiply, node);
         inputs[inputIndex] = parent;
         const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
@@ -1451,14 +1451,6 @@ size_t NetworkHelper::getParentOutputIndex(const std::shared_ptr<ngraph::Node>& 
     }
     THROW_IE_LPT_EXCEPTION(*child) << "parent output index between " <<
         parent->get_friendly_name() << " and " << child->get_friendly_name() << " was not found";
-}
-
-std::vector<Output<Node>> NetworkHelper::getInputs(const std::shared_ptr<ngraph::Node>& node) {
-    std::vector<Output<Node>> inputs(node->get_input_size());
-    for (size_t i = 0; i < node->get_input_size(); ++i) {
-        inputs[i] = node->get_input_node_shared_ptr(i);
-    }
-    return inputs;
 }
 
 std::shared_ptr<Node> NetworkHelper::toScalarIfPossible(std::shared_ptr<Node> node) {
