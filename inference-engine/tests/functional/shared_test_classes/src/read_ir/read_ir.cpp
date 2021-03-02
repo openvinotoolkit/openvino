@@ -7,13 +7,6 @@
 #include "shared_test_classes/read_ir/generate_inputs.hpp"
 
 namespace LayerTestsDefinitions {
-
-static bool isRoiOperation(const std::shared_ptr<ngraph::Node>& op) {
-    return (ngraph::is_type<ngraph::op::v0::PSROIPooling>(op) ||
-            ngraph::is_type<ngraph::op::v0::ROIPooling>(op) ||
-            ngraph::is_type<ngraph::op::v3::ROIAlign>(op));
-}
-
 std::string ReadIRTest::getTestCaseName(const testing::TestParamInfo<std::tuple<std::string, std::string>>& obj) {
     std::string pathToModel, deviceName;
     std::tie(pathToModel, deviceName) = obj.param;
