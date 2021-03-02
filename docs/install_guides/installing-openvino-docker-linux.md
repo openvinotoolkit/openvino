@@ -45,7 +45,7 @@ docker run -it --rm <image_name>
 - GPU is not available in container by default, you must attach it to the container.
 - Kernel driver must be installed on the host.
 - Intel® OpenCL™ runtime package must be included into the container.
-- In the container, non-root user must be in the `video` and `render` groups. To add an user to render group, please follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
+- In the container, non-root user must be in the `video` and `render` groups. To add a user to the render group, follow the [Configuration Guide for the Intel® Graphics Compute Runtime for OpenCL™ on Ubuntu* 20.04](https://github.com/openvinotoolkit/docker_ci/blob/master/configure_gpu_ubuntu20.md). 
 
 
 Before building a Docker* image on GPU, add the following commands to a Dockerfile:
