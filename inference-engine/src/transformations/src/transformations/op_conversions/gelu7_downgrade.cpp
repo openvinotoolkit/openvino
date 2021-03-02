@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/gelu6_downgrade.hpp"
+#include "transformations/op_conversions/gelu7_downgrade.hpp"
 
 #include <memory>
 
 #include <ngraph/opsets/opset2.hpp>
-#include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include "itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::Gelu6Downgrade, "Gelu6Downgrade", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::Gelu7Downgrade, "Gelu7Downgrade", 0);
 
-ngraph::pass::Gelu6Downgrade::Gelu6Downgrade() {
-    MATCHER_SCOPE(Gelu6Downgrade);
-    auto gelu = ngraph::pattern::wrap_type<opset6::Gelu>();
+ngraph::pass::Gelu7Downgrade::Gelu7Downgrade() {
+    MATCHER_SCOPE(Gelu7Downgrade);
+    auto gelu = ngraph::pattern::wrap_type<opset7::Gelu>();
 
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto gelu_node = std::dynamic_pointer_cast<ngraph::opset6::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
+        auto gelu_node = std::dynamic_pointer_cast<ngraph::opset7::Gelu>(pattern_to_output.at(gelu).get_node_shared_ptr());
 
         if (gelu_node == nullptr || transformation_callback(gelu_node)) {
             return false;

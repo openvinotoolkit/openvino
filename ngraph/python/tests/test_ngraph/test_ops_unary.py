@@ -18,6 +18,7 @@ import pytest
 
 import ngraph as ng
 from ngraph.impl import Shape, Type
+from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 from tests import xfail_issue_44970
 
@@ -185,3 +186,33 @@ def test_hsigmoid():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32
+
+
+def test_gelu_operator_with_parameters():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    data_shape = [2, 2]
+    parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
+
+    model = ng.gelu(parameter_data, "erf")
+    computation = runtime.computation(model, parameter_data)
+
+    result = computation(data_value)
+    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
+    assert np.allclose(result, expected, 0.00001, 0.00001)
+
+
+def test_gelu_operator_with_array():
+    runtime = get_runtime()
+
+    data_value = np.array([[-5, 1], [-2, 3]], dtype=np.float32)
+
+    model = ng.gelu(data_value, "erf")
+    computation = runtime.computation(model)
+
+    result = computation()
+    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
+
+    assert np.allclose(result, expected, 0.00001, 0.00001)

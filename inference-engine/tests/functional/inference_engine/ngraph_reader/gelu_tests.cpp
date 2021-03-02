@@ -152,7 +152,7 @@ TEST_F(NGraphReaderTests, ReadGelu6TanhNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="1" name="gelu" type="Gelu" version="opset6">
+        <layer id="1" name="gelu" type="Gelu" version="opset7">
             <data approximation_mode="tanh"/>
             <input>
                 <port id="0">
@@ -197,7 +197,7 @@ TEST_F(NGraphReaderTests, ReadGelu6TanhNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="1" name="gelu" type="Gelu" version="opset6">
+        <layer id="1" name="gelu" type="Gelu" version="opset7">
             <data approximation_mode="tanh"/>
             <input>
                 <port id="0">
@@ -237,7 +237,7 @@ TEST_F(NGraphReaderTests, ReadGelu6ErfNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="1" name="gelu" type="Gelu" version="opset6">
+        <layer id="1" name="gelu" type="Gelu" version="opset7">
             <data approximation_mode="erf"/>
             <input>
                 <port id="0">
@@ -282,7 +282,7 @@ TEST_F(NGraphReaderTests, ReadGelu6ErfNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="1" name="gelu" type="Gelu" version="opset6">
+        <layer id="1" name="gelu" type="Gelu" version="opset7">
             <data approximation_mode="erf"/>
             <input>
                 <port id="0">

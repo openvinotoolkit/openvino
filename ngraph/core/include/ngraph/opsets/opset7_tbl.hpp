@@ -180,3 +180,6 @@ NGRAPH_OP(ExperimentalDetectronTopKROIs, ngraph::op::v6)
 NGRAPH_OP(GatherElements, ngraph::op::v6)
 NGRAPH_OP(MVN, ngraph::op::v6)
 NGRAPH_OP(ReadValue, ngraph::op::v6)
+
+// New operations added in opset7
+NGRAPH_OP(Gelu, ngraph::op::v7)

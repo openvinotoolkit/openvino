@@ -30,7 +30,7 @@ using namespace ngraph;
 TEST(op_eval, gelu_tanh)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{});
-    auto gelu = make_shared<op::v6::Gelu>(p, op::GeluApproximationMode::TANH);
+    auto gelu = make_shared<op::v7::Gelu>(p, op::GeluApproximationMode::TANH);
     auto fun = make_shared<Function>(OutputVector{gelu}, ParameterVector{p});
 
     std::vector<std::vector<float>> inputs{{-1.0}, {-0.5}, {0}, {0.5}, {1.0}};
@@ -52,7 +52,7 @@ TEST(op_eval, gelu_tanh)
 TEST(op_eval, gelu_erf)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{});
-    auto gelu = make_shared<op::v6::Gelu>(p, op::GeluApproximationMode::ERF);
+    auto gelu = make_shared<op::v7::Gelu>(p, op::GeluApproximationMode::ERF);
     auto fun = make_shared<Function>(OutputVector{gelu}, ParameterVector{p});
 
     std::vector<std::vector<float>> inputs{{-1.0}, {-0.5}, {0}, {0.5}, {1.0}};

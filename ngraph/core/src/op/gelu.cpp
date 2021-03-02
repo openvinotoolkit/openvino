@@ -98,7 +98,7 @@ void op::v0::Gelu::pre_validate_and_infer_types()
     set_output_type(0, input_element_type, input_pshape);
 }
 
-// ------------------------------ V6 ------------------------------
+// ------------------------------ V7 ------------------------------
 
 namespace ngraph
 {
@@ -119,33 +119,33 @@ namespace ngraph
     }
 } // namespace ngraph
 
-NGRAPH_RTTI_DEFINITION(op::v6::Gelu, "Gelu", 6);
+NGRAPH_RTTI_DEFINITION(op::v7::Gelu, "Gelu", 7);
 
-op::v6::Gelu::Gelu(const Output<Node>& data, GeluApproximationMode mode)
+op::v7::Gelu::Gelu(const Output<Node>& data, GeluApproximationMode mode)
     : UnaryElementwiseArithmetic(data)
     , m_approximation_mode(mode)
 {
     constructor_validate_and_infer_types();
 }
 
-bool op::v6::Gelu::visit_attributes(AttributeVisitor& visitor)
+bool op::v7::Gelu::visit_attributes(AttributeVisitor& visitor)
 {
-    NGRAPH_OP_SCOPE(v6_Gelu_visit_attributes);
+    NGRAPH_OP_SCOPE(v7_Gelu_visit_attributes);
     visitor.on_attribute("approximation_mode", m_approximation_mode);
     return true;
 }
 
-shared_ptr<Node> op::v6::Gelu::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v7::Gelu::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    NGRAPH_OP_SCOPE(v6_Gelu_clone_with_new_inputs);
+    NGRAPH_OP_SCOPE(v7_Gelu_clone_with_new_inputs);
     if (new_args.size() != 1)
     {
         throw ngraph_error("Incorrect number of new arguments");
     }
-    return make_shared<op::v6::Gelu>(new_args.at(0), m_approximation_mode);
+    return make_shared<op::v7::Gelu>(new_args.at(0), m_approximation_mode);
 }
 
-void op::v6::Gelu::validate_and_infer_types()
+void op::v7::Gelu::validate_and_infer_types()
 {
     element::Type input_element_type = get_input_element_type(0);
     PartialShape input_pshape = get_input_partial_shape(0);
@@ -159,7 +159,7 @@ void op::v6::Gelu::validate_and_infer_types()
     set_output_type(0, input_element_type, input_pshape);
 }
 
-op::GeluApproximationMode op::v6::Gelu::get_approximation_mode()
+op::GeluApproximationMode op::v7::Gelu::get_approximation_mode()
 {
     return m_approximation_mode;
 }
@@ -195,9 +195,9 @@ namespace gelu
     }
 }
 
-bool op::v6::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v7::Gelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    NGRAPH_OP_SCOPE(v6_Gelu_evaluate);
+    NGRAPH_OP_SCOPE(v7_Gelu_evaluate);
     return gelu::evaluate_gelu(
         inputs[0], outputs[0], shape_size(get_output_shape(0)), m_approximation_mode);
 }

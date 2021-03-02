@@ -1114,7 +1114,7 @@ namespace
     }
 
     template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v6::Gelu>& op,
+    bool evaluate(const shared_ptr<op::v7::Gelu>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {

@@ -8,7 +8,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset6.hpp>
-#include <transformations/op_conversions/gelu6_downgrade.hpp>
+#include <transformations/op_conversions/gelu7_downgrade.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
 
@@ -27,7 +27,7 @@ TEST(TransformationTests, Gelu6Downgrade) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::Gelu6Downgrade>();
+        manager.register_pass<ngraph::pass::Gelu7Downgrade>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -45,5 +45,5 @@ TEST(TransformationTests, Gelu6Downgrade) {
 
     auto result_node_of_converted_f = f->get_output_op(0);
     auto output_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(output_node->get_friendly_name() == "gelu6") << "Transformation Gelu6Downgrade should keep output names.\n";
+    ASSERT_TRUE(output_node->get_friendly_name() == "gelu6") << "Transformation Gelu7Downgrade should keep output names.\n";
 }

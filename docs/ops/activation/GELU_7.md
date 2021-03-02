@@ -1,6 +1,6 @@
-## GELU- Gaussian Error Linear Unit <a name="Gelu"></a> {#openvino_docs_ops_activation_GELU_6}
+## GELU- Gaussian Error Linear Unit <a name="Gelu"></a> {#openvino_docs_ops_activation_GELU_7}
 
-**Versioned name**: *Gelu-6*
+**Versioned name**: *Gelu-7*
 
 **Category**: *Activation*
 

@@ -61,7 +61,7 @@ namespace ngraph
         };
         NGRAPH_API std::ostream& operator<<(std::ostream& s, const GeluApproximationMode& type);
 
-        namespace v6
+        namespace v7
         {
             /// \brief Gaussian Error Linear Unit
             /// f(x) = 0.5 * x * (1 + erf( x / sqrt(2) ) for "approximation" = "erf"
