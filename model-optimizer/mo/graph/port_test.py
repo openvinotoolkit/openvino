@@ -64,7 +64,7 @@ class TestsGetTensorNames(unittest.TestCase):
     def test_port_renumber(self):
         graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'),
                                     ('Op1', 'Op1_data', {'out': 1}), ('Op1_data', 'Op2')])
-        graph.stage = 'back'
+        graph.stage = 'middle'
         input_node = Node(graph, 'input')
         self.assertTrue(input_node.out_port(0).get_tensor_names(port_renumber=True) == ['input', 'Op1\\,Op2'])
 

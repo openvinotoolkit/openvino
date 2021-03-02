@@ -34,14 +34,14 @@ nodes = {
 class ResultRenameTest(unittest.TestCase):
     def test_case1(self):
         graph = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result1')])
-        graph.stage = 'back'
+        graph.stage = 'middle'
         ResultRename().find_and_replace_pattern(graph)
         res_node = Node(graph, 'result1')
         self.assertTrue(res_node['name'] == 'Op1_tensor')
 
     def test_case2(self):
         graph = build_graph(nodes, [])
-        graph.stage = 'back'
+        graph.stage = 'middle'
         graph_ref = build_graph(nodes, [])
 
         ResultRename().find_and_replace_pattern(graph)
@@ -50,7 +50,7 @@ class ResultRenameTest(unittest.TestCase):
 
     def test_case3(self):
         graph = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result1')])
-        graph.stage = 'back'
+        graph.stage = 'middle'
         res_node_graph = Node(graph, 'Op1')
         res_node_graph['name'] = 'Op1_tensor'
         ResultRename().find_and_replace_pattern(graph)
@@ -61,7 +61,7 @@ class ResultRenameTest(unittest.TestCase):
         graph = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result1'),
                                     ('Op1_data', 'Op2'), ('Op2', 'Op2_data'),
                                     ('Op2_data', 'result2')])
-        graph.stage = 'back'
+        graph.stage = 'middle'
         ResultRename().find_and_replace_pattern(graph)
         res1_node = Node(graph, 'result1')
         res2_node = Node(graph, 'result2')
@@ -72,7 +72,7 @@ class ResultRenameTest(unittest.TestCase):
         graph = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result1'),
                                     ('Op1_data', 'Op2'), ('Op2', 'Op2_data'),
                                     ('Op2_data', 'result2')])
-        graph.stage = 'back'
+        graph.stage = 'middle'
         res_node_graph = Node(graph, 'result1')
         res_node_graph['name'] = 'Op1_tensor'
         ResultRename().find_and_replace_pattern(graph)
