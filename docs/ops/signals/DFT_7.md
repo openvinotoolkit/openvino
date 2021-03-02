@@ -306,7 +306,7 @@ class DFFT:
 
 **Example**:
 
-There is no `signal_size` input:
+There is no `signal_size` input (4D input tensor):
 ```xml
 <layer ... type="DFFT" ... >
     <input>
@@ -330,8 +330,30 @@ There is no `signal_size` input:
 </layer>
 ```
 
+There is no `signal_size` input (3D input tensor):
+```xml
+<layer ... type="DFFT" ... >
+    <input>
+        <port id="0">
+            <dim>320</dim>
+            <dim>320</dim>
+            <dim>2</dim>
+        </port>
+        <port id="1">
+            <dim>2</dim> <!-- [0, 1] -->
+        </port>
+    <output>
+        <port id="2">
+            <dim>320</dim>
+            <dim>320</dim>
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
 
-There is `signal_size` input:
+
+There is `signal_size` input (4D input tensor):
 ```xml
 <layer ... type="DFFT" ... >
     <input>
@@ -350,6 +372,32 @@ There is `signal_size` input:
     <output>
         <port id="3">
             <dim>1</dim>
+            <dim>512</dim>
+            <dim>100</dim>
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
+
+
+There is `signal_size` input (3D input tensor):
+```xml
+<layer ... type="DFFT" ... >
+    <input>
+        <port id="0">
+            <dim>320</dim>
+            <dim>320</dim>
+            <dim>2</dim>
+        </port>
+        <port id="1">
+            <dim>2</dim> <!-- [0, 1] -->
+        </port>
+        <port id="2">
+            <dim>2</dim> <!-- [512, 100] -->
+        </port>
+    <output>
+        <port id="3">
             <dim>512</dim>
             <dim>100</dim>
             <dim>2</dim>
