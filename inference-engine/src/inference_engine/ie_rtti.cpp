@@ -81,7 +81,7 @@ Parameter::~Parameter() {
     clear();
 }
 
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#if defined(__ANDROID__)
 Parameter::Any::~Any() {}
 
 template struct InferenceEngine::Parameter::RealData<int>;
@@ -97,12 +97,12 @@ template struct InferenceEngine::Parameter::RealData<std::vector<unsigned long>>
 template struct InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int>>;
 template struct InferenceEngine::Parameter::RealData<std::tuple<unsigned int, unsigned int, unsigned int>>;
 template struct InferenceEngine::Parameter::RealData<InferenceEngine::Blob::Ptr>;
-#endif  // __clang__ && !__SYCL_COMPILER_VERSION
+#endif  // __ANDROID__
 //
 // ie_blob.h
 //
 
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#if defined(__ANDROID__)
 template <typename T, typename U>
 TBlob<T, U>::~TBlob() {
     free();
@@ -120,4 +120,4 @@ template class InferenceEngine::TBlob<long>;
 template class InferenceEngine::TBlob<long long>;
 template class InferenceEngine::TBlob<unsigned long>;
 template class InferenceEngine::TBlob<unsigned long long>;
-#endif  // __clang__ && !__SYCL_COMPILER_VERSION
+#endif  // __ANDROID__

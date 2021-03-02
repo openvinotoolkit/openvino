@@ -323,10 +323,10 @@ void test::IE_Engine::reset()
 
 namespace InferenceEngine
 {
-// those definitions and template specializations are required for clang (both Linux and Mac)
+// those definitions and template specializations are required for Android
 // Without this section the linker is not able to find destructors for missing TBlob specializations
 // which are instantiated in the unit tests that use TestCase and this engine
-#ifdef __clang__
+#ifdef __ANDROID__
     template <typename T, typename U>
     TBlob<T, U>::~TBlob()
     {

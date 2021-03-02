@@ -578,13 +578,13 @@ public:
      *@brief Virtual destructor.
      */
 
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#if defined(__ANDROID__)
     virtual ~TBlob();
 #else
     virtual ~TBlob() {
         free();
     }
-#endif  // __clang__ && !__SYCL_COMPILER_VERSION
+#endif  // __ANDROID__
 
     /**
      * @brief Gets the size of the given type.
@@ -807,7 +807,7 @@ protected:
     }
 };
 
-#if defined(__clang__) && !defined(__SYCL_COMPILER_VERSION)
+#if defined(__ANDROID__)
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<float>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<double>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int8_t>);
@@ -820,7 +820,7 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<unsigned long long>);
-#endif  // __clang__ && !__SYCL_COMPILER_VERSION
+#endif  // __ANDROID__
 
 /**
  * @brief Creates a blob with the given tensor descriptor.
