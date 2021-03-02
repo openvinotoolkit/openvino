@@ -80,6 +80,62 @@ def twiddle(k, length):
     return cmath.exp(complex(0.0, -2.0 * math.pi * k / length))
 
 
+def gather_to_buffer(data, length, start, stride, buffer):
+    for k in range(0, length):
+        buffer[k] = data[start + k * stride]
+
+
+def naive_dfft1d(length, start, stride, data, buffer):
+    gather_to_buffer(data, length, start, stride, buffer)
+    for k in range(0, length):
+        value = complex(0.0, 0.0)
+        for n in range(0, length):
+            value += buffer[n] * twiddle(n * k, length)
+        data[start + k * stride] = value
+
+
+def generate_twiddles(length):
+    result = np.zeros(length // 2).astype(np.complex64)
+    for k in range(0, length // 2):
+        result[k] = twiddle(k, length)
+    return result
+
+
+def fft1d(length, start, stride, data, buffer):
+    gather_to_buffer(data, length, start, stride, buffer)
+    in_base = length
+    out_base = 0
+
+    num_blocks = 1
+    while num_blocks < length:
+        in_base, out_base = out_base, in_base
+        twiddles = generate_twiddles(num_blocks * 2)
+        block_size = length // num_blocks
+        next_iteration_block_size = block_size // 2
+
+        for block in range(0, num_blocks):
+            in_offset = in_base + block * block_size
+            out_offset = out_base + block * next_iteration_block_size
+            for pair in range(0, block_size // 2):
+                even = buffer[in_offset + pair]
+                odd = buffer[in_offset + block_size // 2 + pair]
+                twidded_odd = twiddles[block] * odd
+                buffer[out_offset + pair] = even + twidded_odd
+                buffer[out_offset + length // 2 + pair] = even - twidded_odd
+        num_blocks *= 2
+
+    for k in range(0, length):
+        value = buffer[out_base + k]
+        data[start + k * stride] = value
+
+
+def dfft1d(length, start, stride, data, buffer):
+    if is_power_of_two(length):
+        fft1d(length, start, stride, data, buffer)
+    else:
+        naive_dfft1d(length, start, stride, data, buffer)
+
+
 class DFFT:
     def __init__(self, data, axes, signal_size=None):
         assert len(set(axes)) != len(axes), "DFFT doesn't support non-unique axes. Got: {0}".format(axes)
@@ -196,7 +252,6 @@ class DFFT:
             data = self.get_data_from_input_func(flattened_data, src_index, fft_size, fft_lengths, fft_strides)
 
             for idx, axis in enumerate(fft_axes):
-                # TODO: write calculation with respect to current axis
                 current_fft_stride = fft_strides[idx]
                 current_fft_length = fft_lengths[idx]
 
@@ -226,7 +281,7 @@ class DFFT:
                     for j in range(0, self.fft_rank - 1):
                         fft_offset += outer_fft_coords[j] * outer_fft_axes_strides[j]
 
-                    dfft1(data, current_fft_length, fft_offset, current_fft_stride, buffer)
+                    dfft1d(current_fft_length, fft_offset, current_fft_stride, data, buffer)
 
             # Copying of calculation result
             if simple_axes:
