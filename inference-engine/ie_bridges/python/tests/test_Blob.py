@@ -96,6 +96,18 @@ def test_write_to_buffer_int64():
     write_to_buffer("I64", np.int64)
 
 
+def test_write_to_buffer_bool():
+    write_to_buffer("BOOL", np.uint8)
+
+
+def test_write_to_buffer_bin():
+    write_to_buffer("BIN", np.int8)
+
+
+def test_write_to_buffer_bf16():
+    write_to_buffer("BF16", np.float16)
+
+
 def test_write_numpy_scalar_int64():
     tensor_desc = TensorDesc("I64", [], "SCALAR")
     scalar = np.array(0, dtype=np.int64)
