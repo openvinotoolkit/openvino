@@ -41,7 +41,7 @@ class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
 
         nodes_in_shapeof_subgraph = MarkSubGraphsWithCorrectLayout.bfs(start_nodes, shapeof_nodes,
                                                                        condition=condition,
-                                                                       include_both_directions=True)
+                                                                       direction="bidirectional")
         for node in nodes_in_shapeof_subgraph:
             node['in_shape_subgraph'] = True
             if node.op == 'Const' and node.value.dtype == np.float64:

@@ -62,8 +62,7 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         return result
 
     @staticmethod
-    def bfs(start_nodes: List, visited: Set, condition: callable = None, forward: bool = True,
-            include_both_directions=False) -> List[Node]:
+    def bfs(start_nodes: List, visited: Set, condition: callable = None, direction: str = 'forward') -> List[Node]:
         """
         The function performs BFS starting from selected nodes in forward or backward direction adding nodes by an
         optional condition
@@ -71,11 +70,12 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
         :param visited: set of already visited nodes where traversing should not happen
         :param condition: function getting a Node as input and returning whether the node should be included into the
         result or not. If the value is None then the node is added unconditionally.
-        :param forward: boolean flag specifying the traverse direction
-        :param include_both_directions: if True return both in and out nodes, forward param is ignored in that case
+        :param direction: traverse direction. can be 'forward', 'backward' or 'bidirectional'
         :return: the list of Nodes visited
         """
         assert visited is not None, 'The "visited" set must be defined'
+        assert direction in ['forward', 'backward', 'bidirectional'], "direction must be 'forward', 'backward' " \
+                                                                      "or 'bidirectional'"
         assert start_nodes is not None, 'The list of start nodes must be specified'
 
         result = list()
@@ -84,19 +84,18 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
             cur_node = d.popleft()
             result.append(cur_node)
             visited.add(cur_node)
-            if forward:
-                next_nodes = MarkSubGraphsWithCorrectLayout.get_output_nodes(cur_node)
-            else:
-                next_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
 
-            if include_both_directions:
-                next_nodes = MarkSubGraphsWithCorrectLayout.get_output_nodes(cur_node)
-                next_input_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
-                d.extend([node for node in next_input_nodes if node not in visited])
+            if direction in ['forward', 'bidirectional']:
+                next_out_nodes = MarkSubGraphsWithCorrectLayout.get_output_nodes(cur_node)
+            if direction in ['backward', 'bidirectional']:
+                next_in_nodes = MarkSubGraphsWithCorrectLayout.get_input_nodes(cur_node)
 
-            for next_node in next_nodes:
-                if next_node not in visited and (condition is None or condition(next_node)):
-                    d.append(next_node)
+            if direction == ['bidirectional']:
+                d.extend([node for node in next_in_nodes if node not in visited])
+
+            next_nodes = next_out_nodes if direction in ['forward', 'bidirectional'] else next_in_nodes
+            d.extend([node for node in next_nodes if node not in visited and (condition is None or condition(node))])
+
         return result
 
     def find_and_replace_pattern(self, graph: Graph):
@@ -109,8 +108,8 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
                 if node_condition(node):
                     log.debug('Detected node "{}" as a node which should be executed in the original layout'
                               ''.format(node.soft_get('name', node.id)))
-                    forward_visited_nodes = self.bfs([node], visited, condition_forward, True)
-                    backward_visited_nodes = self.bfs([node], visited, condition_backward, False)
+                    forward_visited_nodes = self.bfs([node], visited, condition_forward, 'forward')
+                    backward_visited_nodes = self.bfs([node], visited, condition_backward, 'backward')
 
                     # find "reinterp_shape" like ops which change rank of input to 4D or 5D from smaller dimensions
                     for back_node in backward_visited_nodes:
