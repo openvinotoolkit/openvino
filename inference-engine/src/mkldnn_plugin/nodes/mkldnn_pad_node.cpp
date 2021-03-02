@@ -133,8 +133,15 @@ void MKLDNNPadNode::createPrimitive() {
     params.srcDims = getParentEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getBlockDims();
     params.dstDims = getChildEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getBlockDims();
 
-    params.srcStrides = getParentEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getStrides();
-    params.dstStrides = getChildEdgeAt(0)->getBlob()->getTensorDesc().getBlockingDesc().getStrides();
+    size_t nDims = params.srcDims.size();
+    params.srcStrides.resize(nDims);
+    params.dstStrides.resize(nDims);
+    params.srcStrides[nDims - 1] = 1;
+    params.dstStrides[nDims - 1] = 1;
+    for (int i = nDims - 2; i >= 0; i--) {
+        params.srcStrides[i] = params.srcStrides[i + 1] * params.srcDims[i + 1];
+        params.dstStrides[i] = params.dstStrides[i + 1] * params.dstDims[i + 1];
+    }
 
     if (getParentEdgeAt(0)->getMemory().GetDesc().isBlockedCFormat()) {
         padsBegin[1] /= params.srcDims[params.srcDims.size() - 1];
