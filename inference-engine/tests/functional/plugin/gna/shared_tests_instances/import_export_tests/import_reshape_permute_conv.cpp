@@ -14,13 +14,23 @@ namespace {
 class ImportReshapePermuteConvGNA : public ImportReshapePermuteConv {
 private:
     void exportImportNetwork() override {
-        executableNetwork.Export(fileName);
-        std::fstream inputStream(fileName, std::ios_base::in | std::ios_base::binary);
-        if (inputStream.fail()) {
-            FAIL() << "Cannot open file to import model: " << fileName;
+        static const char appHeader[] = "APPLICATION_HEADER";
+        {
+            std::ofstream out(fileName);
+            out.write(appHeader, sizeof(appHeader));
+            executableNetwork.Export(out);
         }
-        executableNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
+        {
+            char coreHeaderBuf[sizeof(appHeader)];
+            std::fstream inputStream(fileName, std::ios_base::in | std::ios_base::binary);
+            if (inputStream.fail()) {
+                FAIL() << "Cannot open file to import model: " << fileName;
+            }
+            inputStream.read(coreHeaderBuf, sizeof(appHeader));
+            executableNetwork = core->ImportNetwork(inputStream, targetDevice, configuration);
+        }
     }
+
 protected:
     void TearDown() override {
         if (remove(fileName.c_str()) != 0) {
