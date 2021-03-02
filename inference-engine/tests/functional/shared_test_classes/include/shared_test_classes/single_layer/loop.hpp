@@ -40,7 +40,6 @@ protected:
 
 using StaticShapeLoopParams = typename std::tuple<
         bool,
-        bool,
         std::tuple<
             bool,
             int64_t,
@@ -65,7 +64,6 @@ public:
     std::vector<std::vector<std::uint8_t>> PredefinedRefs();
 
 private:
-    bool unrolling;             // unroll Loop
     bool static_iter_num;       // trip count provided by constant node
     bool static_continue_cond;  // initial_cond provided by constant node
     int64_t max_iter_num;       // -1 means infinity loop (expected dynamic exit condition in body)
