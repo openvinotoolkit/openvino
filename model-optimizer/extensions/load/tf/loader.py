@@ -29,17 +29,18 @@ except:
 import logging as log
 
 from extensions.load.loader import Loader
+from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
 from mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs
 from mo.front.tf.extractor import get_tf_edges, tf_op_extractor, tf_op_extractors
+from mo.front.tf.extractors.utils import get_tf_node_port
 from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph
 from mo.utils import tensorboard_util
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.front.tf.extractors.utils import get_tf_node_port
+
 
 class TFLoader(Loader):
     enabled = True
