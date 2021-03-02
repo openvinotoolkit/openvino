@@ -127,7 +127,7 @@ public:
             outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         const auto& inDims = inputs[0]->getTensorDesc().getDims();
-        const size_t inDimsSize = inDims.size();
+        const size_t inDimsSize = inDims.size(); // MUST ALWAYS be 4. Why do we need it?
 
         const size_t BATCH = 0, CHANNEL = 1, HIGHT = 0, WIDTH = 1;
 
@@ -136,7 +136,7 @@ public:
         const int64_t IW = inDims[inDimsSize - 1];
 
         const auto& outDims = outputs[0]->getTensorDesc().getDims();
-        const size_t outDimsSize = outDims.size();
+        const size_t outDimsSize = outDims.size(); // MUST ALWAYS be 4. Why do we need it?
 
         const int64_t OB = outDims[BATCH];
         const int64_t OC = outDims[CHANNEL];
@@ -183,18 +183,49 @@ public:
         }
 
         const int64_t OH_OW = OH * OW;
-        const int64_t OC_OH_OW = OC * OH_OW;
+        const int64_t OC_OH_OW = OC * OH_OW; // distance between batches in output
         const int64_t IH_IW = IH * IW;
-        const int64_t IC_IH_IW = IC * IH_IW;
+        const int64_t IC_IH_IW = IC * IH_IW; // distance between batches in input
 
         const int64_t work_amount = OB;
 
         auto thread_body = [&](const int ithr, const int nthr) {
-            int64_t start(0lu), end(0lu);
+            int64_t start(0), end(0);
+            //int64_t start(0lu), end(0lu);
             splitter(work_amount, nthr, ithr, start, end);
             if (start >= end)
                 return;
 
+            for (int64_t ob = start; ob < end; ob++) {
+                const int64_t oshift_ob = ob * OC_OH_OW;
+                const int64_t ishift_ob = ob * IC_IH_IW;
+                for (int64_t ic = 0; ic < IC; ic++) {
+                    const int64_t ishift_obic = ishift_ob + ic * IH_IW;
+                    int64_t ih0 = -PT;
+                    for (int64_t oh = 0; oh < OH; oh++, ih0 += SH) {
+                        int64_t iw0 = -PL;
+                        for (int64_t ow = 0; ow < OW; ow++, iw0 += SW) {
+                            int64_t ih = ih0;
+                            const int64_t oshitf_ob_ohow = oshift_ob + oh * OW + ow;
+                            for (int64_t kh = 0; kh < KH; kh++, ih += RH) {
+                                const int64_t ishift_ibicih = ishift_obic + ih * IW;
+                                int64_t iw = iw0;
+                                for (int64_t kw = 0; kw < KW; kw++, iw += RW) {
+                                    int64_t oshift_oc = (kh * KW * IC + kw * IC + ic) * OH_OW;
+                                    int64_t dst_idx = oshitf_ob_ohow + oshift_oc;
+                                    if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
+                                        dst_data[dst_idx] = T(0);
+                                    } else {
+                                        int64_t src_idx = ishift_ibicih + iw;
+                                        dst_data[dst_idx] = src_data[src_idx];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            /*
             for (int64_t ob = start; ob < end; ob++) {
                 const int64_t ibICIHIW = ob * IC_IH_IW;
                 const int64_t obOCOHOW = ob * OC_OH_OW;
@@ -224,7 +255,7 @@ public:
                         }
                     }
                 }
-            }
+            }*/
         };
 
         parallel_nt(0, thread_body);
