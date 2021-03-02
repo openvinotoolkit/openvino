@@ -1621,3 +1621,113 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_5_4_1_2_3) {
         EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
     }
 }
+
+void run_permute_tile_testcase_fsv16(const cldnn::engine &engine, const std::vector<cldnn::tensor::value_type>& sizes)
+{
+    size_t total = 1;
+    for (size_t i = 0; i<sizes.size(); ++i)
+    {
+        total *= sizes.at(i);
+    }
+
+    std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
+    std::reverse(internal_sizes.begin()+2, internal_sizes.end());
+    cldnn::tensor tensor(internal_sizes);
+
+    cldnn::format format = sizes.size() == 4?cldnn::format::bfyx:cldnn::format::bfzyx;
+    cldnn::format format_fsv = sizes.size() == 4?cldnn::format::b_fs_yx_fsv16:cldnn::format::b_fs_zyx_fsv16;
+
+    std::vector<uint16_t> order{0, static_cast<uint16_t>(sizes.size()-1)};
+    for (uint16_t i = 1; i<(sizes.size()-1); ++i)
+    {
+        order.push_back(i);
+    }
+
+    auto input = memory::allocate(engine, {data_types::f32, format, tensor});
+
+    std::vector<float> input_values;
+    input_values.reserve(total);
+    for (size_t i=1;i<=total;++i)
+    {
+        input_values.push_back(i);
+    }
+    std::cout << '\n';
+    set_values(input, input_values);
+
+    topology topology_ref(
+        input_layout("input", input.get_layout()),
+        reorder("reorder", "input", {data_types::f32, format_fsv, tensor}),
+        permute("permute1", "reorder", order )
+    );
+
+    // run with permute_ref
+    cldnn::build_options options_ref;
+    cldnn::implementation_desc permute_ref = { format::b_fs_yx_fsv16, "permute_ref" };
+    options_ref.set_option(cldnn::build_option::force_implementations({ {"permute1", permute_ref} }));
+
+    network network(engine, topology_ref, options_ref);
+    network.set_input_data("input", input);
+    auto outputs_ref = network.execute();
+    auto output_ref = outputs_ref.begin()->second.get_memory();
+    auto output_ref_ptr = output_ref.pointer<float>();
+
+    // run with permute_tile_8x8_4x4_fsv16
+    cldnn::build_options options_tile;
+    cldnn::implementation_desc permute_tile_8x8_4x4_fsv16 = { format::b_fs_yx_fsv16, "permute_tile_8x8_4x4_fsv16" };
+    options_tile.set_option(cldnn::build_option::force_implementations({ {"permute1", permute_tile_8x8_4x4_fsv16} }));
+
+    cldnn::network network_tile(engine, topology_ref, options_tile);
+    network_tile.set_input_data("input", input);
+    auto outputs_tile = network_tile.execute();
+    auto output_tile = outputs_tile.begin()->second.get_memory();
+    auto output_tile_ptr = output_tile.pointer<float>();
+
+    for (size_t i = 0; i < output_ref.count(); i++)
+    {
+        EXPECT_FLOAT_EQ(output_ref_ptr[i], output_tile_ptr[i]);
+    }
+}
+
+TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_yx_fsv16_0_3_1_2_fy_aligned)
+{
+    const auto &engine = get_test_engine();
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 128, 128, 4});
+}
+
+TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_zyx_fsv16_0_4_1_2_3_fz_aligned)
+{
+    const auto &engine = get_test_engine();
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32, 3, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 128, 128, 3, 4});
+}
+
+TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_yx_fsv16_0_3_1_2_f_not_aligned_1)
+{
+    const auto &engine = get_test_engine();
+    // f not align 4D
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 128 - 1, 128, 4});
+}
+
+TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_zyx_fsv16_0_3_1_2_f_not_aligned_2)
+{
+    const auto &engine = get_test_engine();
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 128 - 9, 128, 4});
+}
+
+TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_zyx_fsv16_0_4_1_2_3_f_not_aligned_1)
+{
+    const auto &engine = get_test_engine();
+    // f not align 5D
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32, 3, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 128 - 1, 128, 3, 4});
+}
+
+TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_yx_fsv16_0_4_1_2_3_f_not_aligned_2)
+{
+    const auto &engine = get_test_engine();
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32, 3, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 128 - 9, 128, 3, 4});
+}
