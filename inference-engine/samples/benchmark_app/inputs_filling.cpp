@@ -145,7 +145,20 @@ void fillBlobBinary(Blob::Ptr& inputBlob,
 }
 
 template<typename T>
-void fillBlobRandom(Blob::Ptr& inputBlob) {
+using uniformDistribution =
+    typename std::conditional<
+        std::is_floating_point<T>::value,
+        std::uniform_real_distribution<T>,
+        typename std::conditional<
+            std::is_integral<T>::value,
+            std::uniform_int_distribution<T>,
+            void>::type
+    >::type;
+
+template<typename T>
+void fillBlobRandom(Blob::Ptr& inputBlob,
+        T rand_min = std::numeric_limits<T>::min(),
+        T rand_max = std::numeric_limits<T>::max()) {
     MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
     if (!minput) {
         THROW_IE_EXCEPTION << "We expect inputBlob to be inherited from MemoryBlob in fillBlobRandom, "
@@ -155,9 +168,11 @@ void fillBlobRandom(Blob::Ptr& inputBlob) {
     auto minputHolder = minput->wmap();
 
     auto inputBlobData = minputHolder.as<T *>();
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    uniformDistribution<T> distribution(rand_min, rand_max);
     for (size_t i = 0; i < inputBlob->size(); i++) {
-        auto rand_max = RAND_MAX;
-        inputBlobData[i] = (T) rand() / static_cast<T>(rand_max) * 10;
+        inputBlobData[i] = distribution(gen);
     }
 }
 
@@ -283,7 +298,7 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                         fillBlobBinary<int32_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
                     } else if (precision == InferenceEngine::Precision::I64) {
                         fillBlobBinary<int64_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
-                    } else if (precision == InferenceEngine::Precision::U8) {
+                    } else if ((precision == InferenceEngine::Precision::U8) || (precision == InferenceEngine::Precision::BOOL)) {
                         fillBlobBinary<uint8_t>(inputBlob, binaryFiles, batchSize, requestId, binaryInputId++, binaryInputCount);
                     } else {
                         THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
@@ -330,6 +345,8 @@ void fillBlobs(const std::vector<std::string>& inputFiles,
                 fillBlobRandom<uint16_t>(inputBlob);
             } else if (precision == InferenceEngine::Precision::I16) {
                 fillBlobRandom<int16_t>(inputBlob);
+            } else if (precision == InferenceEngine::Precision::BOOL) {
+                fillBlobRandom<uint8_t>(inputBlob, 0, 1);
             } else {
                 THROW_IE_EXCEPTION << "Input precision is not supported for " << item.first;
             }
