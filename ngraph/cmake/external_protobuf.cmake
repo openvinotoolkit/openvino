@@ -166,7 +166,10 @@ else()
             RUNTIME DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
             ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
             LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
-    endif()
+        endif()
+        if (NGRAPH_EXPORT_TARGETS_ENABLE)
+            export(TARGETS ${Protobuf_LIBRARIES} NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+        endif()
 endif()
 
 # Now make sure we restore the original flags
