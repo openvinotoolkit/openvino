@@ -414,6 +414,7 @@ void MultipleLSTMCellTest::Run() {
         }
     }
     IE_SUPPRESS_DEPRECATED_END
+    GenerateInputs();
     Infer();
     switchToNgraphFriendlyModel();
     Validate();
@@ -464,6 +465,7 @@ void MultipleLSTMCellTest::RunLowLatency(bool regular_api) {
         }
     }
     IE_SUPPRESS_DEPRECATED_END
+    GenerateInputs();
     Infer();
 
     // Calculate ref values for Unrolled TI
