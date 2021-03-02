@@ -816,13 +816,18 @@ void InsertIdentityLayerPass::run() {
 void InsertCopyLayerPass::run() {
     // Copy layer insertion happens in few cases:
     // Crop output goes to concat layer -> copy layer insertion
+    // Splitted part of input goes to concat layer -> copy layer insertion
     // Concat|Split|Crop layer goes to memory layer -> delayed copy layer insertion
     // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
-    // and copies before concay layers (one less copy than outputs)
+    // and copies before concat layers (one less copy than outputs)
     for (auto & l : *pLayers) {
         if (LayerInfo(l).isNonFunctional()) continue;
-        // Crop -> Concat and Concat -> Memory cases
-        if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined()) || LayerInfo(l).isConcat()) {
+        auto isNonFunctional = [](InferenceEngine::CNNLayerPtr layer) {
+            return LayerInfo(layer).isNonFunctional();
+        };
+        // Crop -> Concat, Input -> Split -> Concat and Concat -> Memory cases
+        if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined()) || LayerInfo(l).isConcat() ||
+            (LayerInfo(l).isSplit() && LayerInfo(CNNNetPrevLayerSkipCertain(l, 0, isNonFunctional)).isInput())) {
             std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> copy_insertion_tuples;
             std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> delayed_copy_insertion_tuples;
 
@@ -850,7 +855,7 @@ void InsertCopyLayerPass::run() {
                     if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(current_layer).isMemory()) {
                         // Concat|Split|Crop -> Memory case
                         delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
-                    } else if (LayerInfo(l).isCrop() && LayerInfo(current_layer).isConcat()) {
+                    } else if ((LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(current_layer).isConcat()) {
                         // Crop -> Concat case
                         copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
                     }
