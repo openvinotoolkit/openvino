@@ -291,33 +291,25 @@ class Port:
                             tensor_names_list.append(tensor_name.replace(',', '\\,'))
             return tensor_names_list
 
+        assert self.type != 'in', "Can't get tensor names for input port at {} node".format(self.node.name)
+
         fw_names = []
         if self.node.graph.stage is None or self.node.graph.stage == 'front':
-            if self.type == 'in':
-                if self.idx in self.node.in_edges():
-                    in_edge = self.node.in_edge(self.idx)
-                    fw_names += get_tensor_names_list(in_edge)
-            else:
-                if self.idx in self.node.out_edges():
-                    out_edge = self.node.out_edge(self.idx)
-                    fw_names += get_tensor_names_list(out_edge)
+            if self.idx in self.node.out_edges():
+                out_edge = self.node.out_edge(self.idx)
+                fw_names += get_tensor_names_list(out_edge)
         else:
             node_idx = self.idx
-            if self.type == 'in':
-                if node_idx in self.node.in_nodes():
-                    in_node = self.node.in_node(node_idx)
-                    fw_names += get_tensor_names_list(in_node.attrs())
-            else:
-                # before port renumbering we use sequential numbering
-                if port_renumber:
-                    if self.node.type != 'Const':
-                        # after port renumbering port indices start from zero,
-                        # but data node indices remain the same
-                        node_idx = self.idx + len(self.node.in_nodes())
+            # before port renumbering we use sequential numbering
+            if port_renumber:
+                if self.node.type != 'Const':
+                    # after port renumbering port indices start from zero,
+                    # but data node indices remain the same
+                    node_idx = self.idx + len(self.node.in_nodes())
 
-                if node_idx in self.node.out_nodes():
-                    out_node = self.node.out_node(node_idx)
-                    fw_names += get_tensor_names_list(out_node.attrs())
+            if node_idx in self.node.out_nodes():
+                out_node = self.node.out_node(node_idx)
+                fw_names += get_tensor_names_list(out_node.attrs())
         return fw_names
 
     def disconnect(self):

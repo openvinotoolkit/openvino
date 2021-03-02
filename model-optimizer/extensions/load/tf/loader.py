@@ -38,7 +38,8 @@ from mo.graph.graph import Graph
 from mo.utils import tensorboard_util
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
-
+from mo.front.common.partial_infer.elemental import copy_shape_infer
+from mo.front.tf.extractors.utils import get_tf_node_port
 
 class TFLoader(Loader):
     enabled = True
@@ -96,7 +97,31 @@ class TFLoader(Loader):
         graph.graph['variables_values'] = variables_values
         del variables_values
 
-        restore_edges(graph, get_tf_edges)
+        used_tensors = restore_edges(graph, get_tf_edges)
+        outputs = graph.nodes - used_tensors
+
+        for output in outputs:
+            fake_node_name = graph.unique_id(output)
+            graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
+                           infer=copy_shape_infer)
+            src_node, src_port = get_tf_node_port(output)
+            tensor_name = src_node + ":" + str(src_port)
+            cf_flag = False
+            if src_node[0] == '^':
+                src_node = src_node[1:]
+                cf_flag = True
+            edge = (src_node, fake_node_name, {
+                'out': src_port,
+                'in': 0,
+                # debug anchor for a framework name, out port and tensor name
+                'fw_tensor_debug_info': [(output, src_port, tensor_name)],
+                'in_attrs': ['in', 'control_flow_edge', 'permutation'],
+                'out_attrs': ['out', 'permutation'],
+                'data_attrs': ['fw_tensor_debug_info'],
+                'control_flow_edge': cf_flag
+            })
+            graph.add_edges_from([edge])
+
         remove_control_dependency_inputs(graph)
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')

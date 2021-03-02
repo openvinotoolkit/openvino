@@ -24,6 +24,7 @@ import numpy as np
 from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
+from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
@@ -253,6 +254,7 @@ def caffe_pb_to_nx(graph, proto, model):
                        kind='op')
         blob_producers[input_name] = (input_name, 0)
 
+    used_blobs = set()
     for i, layer in enumerate(proto_layers):
 
         model_layer = None
@@ -309,6 +311,7 @@ def caffe_pb_to_nx(graph, proto, model):
                 'out_attrs': ['out', 'name'],
                 'data_attrs': ['fw_tensor_debug_info']
             }
+            used_blobs.add(bottom)
             graph.add_edge(src_layer, layer.name, **edge_attrs)
 
         # update blob producers dictionary by output ports
@@ -317,7 +320,26 @@ def caffe_pb_to_nx(graph, proto, model):
                 log.debug("Detected reuse of blob {} by layer {}".format(top, layer.name))
             blob_producers[top] = (layer.name, src_port)
 
+    all_blobs = set(blob_producers.keys())
+    for not_used_blob in all_blobs - used_blobs:
+        fake_node_name = graph.unique_id(not_used_blob)
+        graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
+                       infer=copy_shape_infer)
+        src_layer = blob_producers[not_used_blob][0]
+        src_port = blob_producers[not_used_blob][1]
+        edge_attrs = {
+            'out': blob_producers[not_used_blob][1],
+            'in': 0,
+            'name': not_used_blob,
+            # debug anchor for a framework name, out port and tensor name
+            'fw_tensor_debug_info': [(src_layer, src_port, not_used_blob)],
+            'in_attrs': ['in', 'name'],
+            'out_attrs': ['out', 'name'],
+            'data_attrs': ['fw_tensor_debug_info']
+        }
+        graph.add_edge(src_layer, fake_node_name, **edge_attrs)
+
     if len(input_names) <= 0:
         raise Error('The topology contains no "input" layers. ' +
                     refer_to_faq_msg(79))
-    return {name: shape for (name, shape) in zip(input_names, input_dims)}
+    return {fake_node_name: shape for (fake_node_name, shape) in zip(input_names, input_dims)}

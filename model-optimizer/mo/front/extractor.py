@@ -37,6 +37,7 @@ def restore_edges(graph: Graph, get_edges: callable):
     n1 --> n2 edge with attributes attrs.
     It is possible that two nodes n1 and n2 have more than one n1 --> n2 edges, so the resulting graph is Graph.
     """
+    used_tensors = set()
     for node in list(graph.nodes()):
         edges = get_edges(Node(graph, node))
         for u, v, d in edges:
@@ -49,7 +50,10 @@ def restore_edges(graph: Graph, get_edges: callable):
                     ' and '.join(undefined) +
                     refer_to_faq_msg(25)
                 )
+            used_tensors.add(u)
+
         graph.add_edges_from(edges)
+    return used_tensors
 
 
 def remove_control_dependency_inputs(graph: Graph):
@@ -58,6 +62,8 @@ def remove_control_dependency_inputs(graph: Graph):
     :param graph: graph to operate on 
     """
     for _, attrs in list(graph.nodes(data=True)):
+        if 'pb' not in attrs:
+            continue
         pb = attrs['pb']
         ind = 0
         while ind < len(pb.input):
