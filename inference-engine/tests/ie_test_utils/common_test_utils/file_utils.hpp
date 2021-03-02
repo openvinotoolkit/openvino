@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <regex>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -17,7 +18,6 @@
 #define rmdir(dir) _rmdir(dir)
 #else  // _WIN32
 #include <unistd.h>
-#include <regex>
 
 #endif  // _WIN32
 
@@ -138,9 +138,9 @@ inline void directoryFileListRecursive(const std::string& name, std::vector<std:
     }
 }
 
-inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<std::string> &folderPaths,
+inline std::vector<std::string> getFileListByPatternRecursive(const std::vector<std::string>& folderPaths,
                                                               const std::regex& pattern) {
-    auto getFileListByPattern = [&pattern](const std::string &folderPath) {
+    auto getFileListByPattern = [&pattern](const std::string& folderPath) {
         std::vector<std::string> allFilePaths;
         CommonTestUtils::directoryFileListRecursive(folderPath, allFilePaths);
         std::set<std::string> result;
