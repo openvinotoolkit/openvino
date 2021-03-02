@@ -47,7 +47,8 @@ target_compile_definitions(${TARGET_NAME}
 target_include_directories(${TARGET_NAME} PRIVATE
                 $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
                 $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-                ${NGRAPH_INCLUDE_PATH})
+                ${NGRAPH_INCLUDE_PATH}
+                ${Protobuf_INCLUDE_DIRS})
 
 if(NGRAPH_USE_PROTOBUF_LITE)
         target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)

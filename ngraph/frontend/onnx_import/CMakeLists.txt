@@ -71,7 +71,8 @@ target_include_directories(onnx_importer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 target_include_directories(onnx_importer PRIVATE
                 $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
                 $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
-                ${NGRAPH_INCLUDE_PATH})
+                ${NGRAPH_INCLUDE_PATH}
+                ${Protobuf_INCLUDE_DIRS})
 
 target_compile_definitions(onnx_importer
     PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)

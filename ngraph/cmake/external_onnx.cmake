@@ -38,7 +38,6 @@ FetchContent_Declare(
 )
 
 macro(onnx_set_target_properties)
-    add_dependencies(onnx_proto ${Protobuf_LIBRARIES})
     target_include_directories(onnx SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
     target_include_directories(onnx_proto SYSTEM PRIVATE "${Protobuf_INCLUDE_DIRS}")
 
@@ -48,7 +47,7 @@ macro(onnx_set_target_properties)
         target_compile_options(onnx PRIVATE -Wno-unused-variable -Wno-unused-parameter)
         target_compile_options(onnx_proto PRIVATE -Wno-unused-variable)
     endif()
-    set_target_properties(onnx onnx_proto PROPERTIES
+    set_target_properties(onnx_proto PROPERTIES
     CXX_VISIBILITY_PRESET default
     C_VISIBILITY_PRESET default
     VISIBILITY_INLINES_HIDDEN OFF)
@@ -59,7 +58,7 @@ macro(onnx_set_target_properties)
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
-    if (NGRAPH_EXPORT_TARGETS_ENABLE)
+        if (NGRAPH_EXPORT_TARGETS_ENABLE)
         export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
     endif()
 endmacro()
