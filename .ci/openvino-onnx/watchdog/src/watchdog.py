@@ -28,7 +28,7 @@ log.setLevel(logging.INFO)
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 _BUILD_DURATION_THRESHOLD = datetime.timedelta(minutes=60)
 _CI_START_THRESHOLD = datetime.timedelta(minutes=30)
-_AWAITING_JENKINS_THRESHOLD = 15  # minutes
+_AWAITING_JENKINS_THRESHOLD = 30  # minutes
 _WATCHDOG_DIR = os.path.expanduser('~')
 _PR_REPORTS_CONFIG_KEY = 'pr_reports'
 _CI_BUILD_FAIL_MESSAGE = ['ERROR:   py3: commands failed',
