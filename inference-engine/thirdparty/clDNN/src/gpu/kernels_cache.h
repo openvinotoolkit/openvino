@@ -26,7 +26,6 @@ namespace cldnn {
 namespace gpu {
 
 class gpu_toolkit;
-
 class kernels_cache {
 public:
     using source_code = std::vector<std::string>;
@@ -83,7 +82,7 @@ private:
     uint32_t _prog_id;
 
     sorted_code get_program_source(const kernels_code& kernels_source_code) const;
-    kernels_map build_program(const program_code& pcode) const;
+    kernels_map build_batch(const program_code& pcode, size_t batch_id, size_t bucket_id) const;
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
