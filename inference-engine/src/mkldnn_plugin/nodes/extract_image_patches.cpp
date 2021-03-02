@@ -127,7 +127,7 @@ public:
             outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         const auto& inDims = inputs[0]->getTensorDesc().getDims();
-        const size_t inDimsSize = inDims.size();
+        const size_t inDimsSize = inDims.size(); // MUST ALWAYS be 4. Why do we need it?
 
         const size_t BATCH = 0, CHANNEL = 1, HIGHT = 0, WIDTH = 1;
 
@@ -136,7 +136,7 @@ public:
         const int64_t IW = inDims[inDimsSize - 1];
 
         const auto& outDims = outputs[0]->getTensorDesc().getDims();
-        const size_t outDimsSize = outDims.size();
+        const size_t outDimsSize = outDims.size(); // MUST ALWAYS be 4. Why do we need it?
 
         const int64_t OB = outDims[BATCH];
         const int64_t OC = outDims[CHANNEL];
@@ -183,14 +183,15 @@ public:
         }
 
         const int64_t OH_OW = OH * OW;
-        const int64_t OC_OH_OW = OC * OH_OW;
+        const int64_t OC_OH_OW = OC * OH_OW; // distance between batches in output
         const int64_t IH_IW = IH * IW;
-        const int64_t IC_IH_IW = IC * IH_IW;
+        const int64_t IC_IH_IW = IC * IH_IW; // distance between batches in input
 
         const int64_t work_amount = OB;
 
         auto thread_body = [&](const int ithr, const int nthr) {
-            int64_t start(0lu), end(0lu);
+            int64_t start(0), end(0);
+            //int64_t start(0lu), end(0lu);
             splitter(work_amount, nthr, ithr, start, end);
             if (start >= end)
                 return;
