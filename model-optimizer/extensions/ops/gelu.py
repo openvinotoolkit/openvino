@@ -28,13 +28,13 @@ class GeLUOP(Op):
             'op': self.op,
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'version': 'opset6',
+            'version': 'opset7',
             'infer': copy_shape_infer
         }
         super().__init__(graph, mandatory_props, attrs)
 
     def backend_attrs(self):
-        if self.get_opset() == 'opset6':
+        if self.get_opset() == 'opset7':
             return ['approximation']
         else:
             return []
