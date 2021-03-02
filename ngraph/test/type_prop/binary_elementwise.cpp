@@ -274,6 +274,26 @@ TEST(type_prop, binary_arithmetic_bad_argument_element_types)
     }
 }
 
+TEST(type_prop, binary_arithmetic_bad_argument_shape_with_none_autobroadcast_attribute)
+{
+    auto input1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto input2 = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
+    try
+    {
+        auto bc = make_shared<op::v1::Add>(input1, input2, op::AutoBroadcastType::NONE);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Did not detect incorrect element types for arithmetic operator";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, binary_elementwise_arithmetic_both_dynamic)
 {
     auto a = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
