@@ -4,7 +4,7 @@
 
 **Category**: Signal processing
 
-**Short description**: *DFT* layer performs the discrete Fourier transformation of input tensor by specified dimensions.
+**Short description**: *DFT* layer performs the discrete complex-to-complex Fourier transformation of input tensor by specified dimensions.
 
 **Attributes**:
 
@@ -12,7 +12,7 @@
 
 **Inputs**
 
-*   **1**: `data` - Input tensor of type *T* with data for the DFT transformation. Type of elements is any supported floating point type. Required.
+*   **1**: `data` - Input tensor of type *T* with data for the DFT transformation. Type of elements is any supported floating point type. The last dimension of the input tensor must be equal to 2, i.e. the input tensor shape must have the form `[D_0, D_1, ..., D_{N-1}, 2]`, representing the real and imaginary components of complex numbers in `[:, ..., :, 0]` and in `[:, ..., :, 1]` correspondingly.  Required.
 *   **2**: `axes` - 1D tensor of type *T_IND* specifying dimension indices where DFT is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 3d input `signal_size`. Required.
 *   **3**: `signal_size` - 1D tensor of type *T_IND* describing signal size with respect to axes from the input `axes`. For any `i in range(0, len(axes))`, if `signal_size[i] == -1`, then DFT is calculated for full size of the axis `axes[i]`. If `signal_size[i] > input_shape[axes[i]]`, then input data are zero-padded with respect to the axis `axes[i]`. Finally, `signal_size[i] < input_shape[axes[i]]`, then input data are trimmed with respect to the axis `axes[i]`. Optional, with default value `[input_shape[a] for a in axes]`.
 *   **Note**: The following constraint must be satisfied: `rank(data) >= len(axes) + 1 and input_shape[-1] == 2 and (rank(data) - 1) not in axes`.
