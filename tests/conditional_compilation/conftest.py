@@ -13,6 +13,8 @@ python3 -m pytest --artifacts ./compiled --test_conf=<path to test config> \
 """
 
 import sys
+import os
+import re
 from inspect import getsourcefile
 from pathlib import Path
 
@@ -66,7 +68,8 @@ def pytest_generate_tests(metafunc):
     params = []
     ids = []
 
-    with open(metafunc.config.getoption('test_conf'), "r") as file:
+    test_config = metafunc.config.getoption('test_conf')
+    with open(test_config, "r") as file:
         test_cases = yaml.safe_load(file)
 
     for test in test_cases:
@@ -74,17 +77,22 @@ def pytest_generate_tests(metafunc):
         model_path = test["model"]["path"]
         if "marks" in test:
             extra_args["marks"] = test["marks"]
+        
+        path_with_env_vars = Path(expand_env_vars(model_path))
+        model_path.replace('$', '').replace('{', '').replace('}', '')
+        params.append(pytest.param(model_path, path_with_env_vars, **extra_args))
+        ids = ids + [model_path]
 
-        test_id = model_path.replace('$', '').replace('{', '').replace('}', '')
-        params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
-        ids = ids + [test_id]
     metafunc.parametrize("test_id, model", params, ids=ids)
+    setattr(metafunc.config, "orig_cases", test_cases)
 
 
 @pytest.fixture(scope="function")
 def test_info(request, pytestconfig):
-    setattr(request.node._request, "test_info", {"out_file": {},
-                                                 "test_id": {}})
+    current_test_case = re.findall(r"\[.*?\]", os.environ.get('PYTEST_CURRENT_TEST'))[0].strip("[]")
+    setattr(request.node._request, "test_info", {"orig_instance": current_test_case,
+                                                 "csv_path": {}
+                                                 })
     if not hasattr(pytestconfig, "session_info"):
         setattr(pytestconfig, "session_info", [])
 
@@ -94,10 +102,16 @@ def test_info(request, pytestconfig):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def update_test_conf_info(pytestconfig):
+def update_test_conf_info(request, pytestconfig):
     yield
-    with open(Path(__file__).parent / "csv_results.yml", "w") as config:
-        yaml.safe_dump(pytestconfig.session_info, config)
+    upd_cases = pytestconfig.orig_cases.copy()
+    for record in pytestconfig.session_info:
+        rec_i = next((index for (index, d) in enumerate(upd_cases)
+                      if d["model"]["path"] == record["orig_instance"]), None)
+        upd_cases[rec_i]["model"]["csv_path"] = record["csv_path"]
+
+    with open(request.config.getoption("test_conf"), "w") as config:
+        yaml.safe_dump(upd_cases, config)
 
 
 @pytest.fixture(scope="session")
