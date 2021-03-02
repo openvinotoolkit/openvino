@@ -66,11 +66,10 @@ For the list of supported layers, see the **GNA** column of the **Supported Laye
 
 Limitations include:
 
-- Only 1D convolutions are natively supported in the models converted from:
-	- [Kaldi](../../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md) framework
-	- [TensorFlow](../../MO_DG/prepare_model/convert_model/Convert_Model_From_TensorFlow.md) framework. For TensorFlow models, use the `--disable_nhwc_to_nchw` option when running the Model Optimizer.
+- Only 1D convolutions are natively supported.
 - The number of output channels for convolutions must be a multiple of 4.
 - Permute layer support is limited to the cases where no data reordering is needed or when reordering is happening for two dimensions, at least one of which is not greater than 8.
+- Concatinations and splittings are supported only along the channel dimension (axis=1).
 
 #### Experimental Support for 2D Convolutions
 

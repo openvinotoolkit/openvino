@@ -57,6 +57,7 @@
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -71,7 +72,9 @@
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 
-#include <low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <low_precision/pull_reshape_through_dequantization.hpp>
+#include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/convolution.hpp>
 #include <low_precision/group_convolution.hpp>
@@ -119,7 +122,6 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
 
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::ConvertPriorBox>();
-    manager.register_pass<ngraph::pass::MVN6Decomposition>();
     manager.register_pass<ngraph::pass::ConvertNMS5ToLegacyMatcher>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
@@ -227,6 +229,7 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
     pass_config->disable<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
     pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+    pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 
@@ -245,6 +248,15 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     using namespace ngraph::pass::low_precision;
     if (useLpt) {
         OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNN_LT, "LowPrecisionTransformations");
+
+        ngraph::pass::Manager manager;
+        auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
+        const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
+        lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
+        lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
+        lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+        manager.run_passes(nGraphFunc);
+
         auto params = LayerTransformation::Params(
             true,  // updatePrecisions
             LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
