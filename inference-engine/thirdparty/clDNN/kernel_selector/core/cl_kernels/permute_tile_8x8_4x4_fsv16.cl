@@ -74,6 +74,7 @@ KERNEL (permute_tile_8x8_4x4)(
             VSTORE(transpose_buf[local_buf_offset + lh], 0, output + output_idx);
         }
     }
+#ifdef F_REMAINDER_CONDITION
     else if (F_REMAINDER_CONDITION)
     {
         unroll_for (uint lh = 0; lh < TILE_HEIGHT; ++lh) {
@@ -99,7 +100,7 @@ KERNEL (permute_tile_8x8_4x4)(
             VSTORE(transpose_buf[local_buf_offset + lh], 0, output + output_idx);
         }
     }
-
+#endif
 
 
     // if (NORMAL_OUTPUT_CONDITION)

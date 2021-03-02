@@ -130,14 +130,22 @@ JitConstants PermuteKernel_tile_8x8_4x4_fsv16::GetJitConstants(const permute_par
 
     std::string normal_condition = "true";
     std::string f_remainder_condition = "true";
-    if (f % fsv_length != 0) // when F is not fsv-aligned
+    bool f_remainder_condition_enabled = false;
+    if (f % tile_width != 0) // when F is not tile_width-aligned
     {
         normal_condition += "&& (f < (INPUT0_SIZE_F - F_REMAINDER_SIZE))";
         f_remainder_condition += "&& ((INPUT0_SIZE_F - F_REMAINDER_SIZE) <= f) && (f < INPUT0_SIZE_F)";
         jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", f % tile_width));
+        f_remainder_condition_enabled = true;
     }
+
     jit.AddConstant(MakeJitConstant("NORMAL_CONDITION", normal_condition));
-    jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", f_remainder_condition));
+    if (f_remainder_condition_enabled)
+    {
+        jit.AddConstant(MakeJitConstant("F_REMAINDER_CONDITION", f_remainder_condition));
+    }
+
+
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> output_order = GetFusedOpOrderVector(params.output.GetDims().size());
@@ -257,7 +265,7 @@ KernelsPriority PermuteKernel_tile_8x8_4x4_fsv16::GetKernelsPriority(const Param
     // KernelData kd = KernelData::Default<permute_params>(params);
     // permute_params& newParams = *static_cast<permute_params*>(kd.params.get());
 
-    // return FORCE_PRIORITY_1;
-    return DONT_USE_IF_HAVE_SOMETHING_ELSE * 2;
+    return FORCE_PRIORITY_1;
+    // return DONT_USE_IF_HAVE_SOMETHING_ELSE * 2;
 }
 }  // namespace kernel_selector
