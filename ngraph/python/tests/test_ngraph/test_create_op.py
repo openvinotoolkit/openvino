@@ -726,8 +726,8 @@ def test_loop():
         TensorIteratorConcatOutputDesc,
     )
 
-    trip_count = 8
-    condition = True
+    condition = ng.constant(True, dtype=np.bool)
+    trip_count = ng.constant(8, dtype=np.int32)
     #  Body parameters
     body_timestep = ng.parameter([], np.int32, "timestep")
     body_data_in = ng.parameter([1, 2, 2], np.float32, "body_in")
@@ -789,8 +789,8 @@ def test_loop():
         ti_invariant_input_desc,
         ti_body_output_desc,
         ti_concat_output_desc,
+        2,
         -1,
-        2
     )
 
     assert node.get_type_name() == "Loop"

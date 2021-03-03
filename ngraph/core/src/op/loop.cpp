@@ -42,6 +42,7 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
     visitor.on_attribute("special_body_ports", m_special_body_ports);
+
     return true;
 }
 

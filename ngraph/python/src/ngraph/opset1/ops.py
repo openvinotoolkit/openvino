@@ -2805,8 +2805,6 @@ def tensor_iterator(
                                "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc]},
         "output_descriptions": {"body_output_desc": [desc.serialize() for desc in body_output_desc],
                                 "concat_output_desc": [desc.serialize() for desc in concat_output_desc]}
-        "special_body_ports": {"body_condition_output_idx": body_condition_output_idx,
-                               "current_iteration_input_idx": current_iteration_input_idx}
     }
 
     return _get_node_factory_opset1().create("TensorIterator", as_nodes(*inputs), attributes)
