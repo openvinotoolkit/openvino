@@ -21,7 +21,8 @@
 #include <pybind11/stl.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "ngraph/opsets/opset6.hpp"
+#include "ngraph/op/util/sub_graph_base.hpp"
+//#include "ngraph/opsets/opset6.hpp"
 
 namespace py = pybind11;
 
@@ -120,17 +121,18 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name,
             }
             a->set(output_descs);
         }
-        else if (const auto& a = ngraph::as_type<
-                     ngraph::AttributeAdapter<ngraph::opset6::Loop::SpecialBodyPorts>>(&adapter))
-        {
-            ngraph::opset6::Loop::SpecialBodyPorts special_body_ports;
-            const py::dict& special_ports_dict = m_attributes[name.c_str()].cast<py::dict>();
-            special_body_ports.body_condition_output_idx =
-                special_ports_dict["body_condition_output_idx"].cast<int64_t>();
-            special_body_ports.current_iteration_input_idx =
-                special_ports_dict["current_iteration_input_idx"].cast<int64_t>();
-            a->set(special_body_ports);
-        }
+        /*        else if (const auto& a = ngraph::as_type<
+                             ngraph::AttributeAdapter<ngraph::opset6::Loop::SpecialBodyPorts>>(&adapter))
+                {
+                    ngraph::opset6::Loop::SpecialBodyPorts special_body_ports;
+                    const py::dict& special_ports_dict =
+           m_attributes[name.c_str()].cast<py::dict>();
+                    special_body_ports.body_condition_output_idx =
+                        special_ports_dict["body_condition_output_idx"].cast<int64_t>();
+                    special_body_ports.current_iteration_input_idx =
+                        special_ports_dict["current_iteration_input_idx"].cast<int64_t>();
+                    a->set(special_body_ports);
+                }*/
         else if (const auto& a =
                      ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(
                          &adapter))
