@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <fstream>
+#include <signal.h>
 
 #include <transformations/serialize.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
