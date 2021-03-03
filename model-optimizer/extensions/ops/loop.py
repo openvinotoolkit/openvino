@@ -23,7 +23,6 @@ from mo.graph.graph import Node, Graph
 from mo.middle.passes.fusing.helpers import common_bfs
 from mo.middle.passes.infer import partial_infer
 from mo.ops.const import Const
-from mo.utils.graph import backward_bfs_for_operation
 
 
 class Loop(TensorIterator):
@@ -348,9 +347,9 @@ class Loop(TensorIterator):
         for port_idx, in_port in reversed(loop_node.in_ports().items()):
             if port_idx > 1 and not in_port.disconnected() and in_port.get_source().node.soft_get('type') == 'Const':
                 body_parameter = Loop.external_port_id_to_body_node(loop_node, port_idx, loop_node.input_port_map)
-                # if there is a back edge into a body Parameter and then we cannot replace it with a Const because this
-                # input is probably updated during each iteration. So we need to check that the tensor is passed to the
-                # next iteration unchanged
+                # if there is a back edge into a body Parameter then we cannot replace it with a Const if the value
+                # is updated during each iteration. So we need to check that the tensor is passed to the next iteration
+                # unchanged
                 if any([back_edge_attrs['to_layer'] == body_parameter.soft_get('internal_layer_id')
                         for back_edge_attrs in loop_node.back_edges]) and \
                         not Loop.parameter_unchanged_after_iteration(loop_node, body_parameter):
@@ -375,7 +374,7 @@ class Loop(TensorIterator):
 
     @staticmethod
     def update_port_map_value_ext(port_map: dict, layer_id_attr: str, layer_id_value: int,
-                                   updated_attr: str, new_attr_value: int):
+                                  updated_attr: str, new_attr_value: int):
         """
         Updates a value of requested attribute for a certain layer id in a port map
         :param port_map: a map of external ports to internal layer ids
