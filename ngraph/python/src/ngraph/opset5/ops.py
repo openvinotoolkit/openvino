@@ -392,8 +392,8 @@ def loop(
     invariant_input_desc: List[TensorIteratorInvariantInputDesc],
     body_output_desc: List[TensorIteratorBodyOutputDesc],
     concat_output_desc: List[TensorIteratorConcatOutputDesc],
-    current_iteration_input_idx: int,
     body_condition_output_idx: int,
+    current_iteration_input_idx: int = -1,
     name: Optional[str] = None,
 ) -> Node:
     """Perform recurrent execution of the network described in the body, iterating through the data.
@@ -417,19 +417,20 @@ def loop(
                                        iteration.
     @param      concat_output_desc:    The descriptors describing specified output values through
                                        all the iterations concatenated into one node.
+    @param      body_condition_output_idx:    TODO: add desc
+    @param      current_iteration_input_idx:  TODO: add desc
     @return: The new node which performs Loop.
     """
-    inputs = as_nodes(trip_count, execution_condition)
 
     attributes = {
         "body": graph_body.serialize(),
-        "slice_input_desc": [desc.serialize() for desc in slice_input_desc],
-        "merged_input_desc": [desc.serialize() for desc in merged_input_desc],
-        "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc],
-        "body_output_desc": [desc.serialize() for desc in body_output_desc],
-        "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
-        "body_condition_output_idx": body_condition_output_idx,
-        "current_iteration_input_idx": current_iteration_input_idx,
+        "input_descriptions": {"slice_input_desc": [desc.serialize() for desc in slice_input_desc],
+                               "merged_input_desc": [desc.serialize() for desc in merged_input_desc],
+                               "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc]},
+        "output_descriptions": {"body_output_desc": [desc.serialize() for desc in body_output_desc],
+                                "concat_output_desc": [desc.serialize() for desc in concat_output_desc]}
+        "special_body_ports": {"body_condition_output_idx": body_condition_output_idx,
+                               "current_iteration_input_idx": current_iteration_input_idx}
     }
     return _get_node_factory_opset5().create("Loop", as_nodes(trip_count, execution_condition, *inputs),
                                              attributes)

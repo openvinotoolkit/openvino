@@ -2800,11 +2800,13 @@ def tensor_iterator(
     """
     attributes = {
         "body": graph_body.serialize(),
-        "slice_input_desc": [desc.serialize() for desc in slice_input_desc],
-        "merged_input_desc": [desc.serialize() for desc in merged_input_desc],
-        "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc],
-        "body_output_desc": [desc.serialize() for desc in body_output_desc],
-        "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
+        "input_descriptions": {"slice_input_desc": [desc.serialize() for desc in slice_input_desc],
+                               "merged_input_desc": [desc.serialize() for desc in merged_input_desc],
+                               "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc]},
+        "output_descriptions": {"body_output_desc": [desc.serialize() for desc in body_output_desc],
+                                "concat_output_desc": [desc.serialize() for desc in concat_output_desc]}
+        "special_body_ports": {"body_condition_output_idx": body_condition_output_idx,
+                               "current_iteration_input_idx": current_iteration_input_idx}
     }
 
     return _get_node_factory_opset1().create("TensorIterator", as_nodes(*inputs), attributes)

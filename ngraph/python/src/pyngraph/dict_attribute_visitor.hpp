@@ -32,56 +32,47 @@ namespace util
     class DictAttributeDeserializer : public ngraph::AttributeVisitor
     {
     public:
-        DictAttributeDeserializer(const py::dict& attributes);
+        explicit DictAttributeDeserializer(const py::dict& attributes);
 
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<void>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<bool>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::string>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int8_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int16_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int32_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int64_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint8_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint16_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint32_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint64_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<float>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<double>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<std::string>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int8_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int16_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint8_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint16_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint32_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<float>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<double>>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::string>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<int8_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<int16_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<int32_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<uint8_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<uint16_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<uint32_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<uint64_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<float>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<std::string>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<int8_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<int16_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<uint8_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<uint16_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<uint32_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<float>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<double>>& adapter) override;
+
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override;
 
     protected:
         const py::dict& m_attributes;
@@ -90,56 +81,44 @@ namespace util
     class DictAttributeSerializer : public ngraph::AttributeVisitor
     {
     public:
-        DictAttributeSerializer(const std::shared_ptr<ngraph::Node>& node);
+        explicit DictAttributeSerializer(const std::shared_ptr<ngraph::Node>& node);
 
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<void>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<bool>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::string>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int8_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int16_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int32_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<int64_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint8_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint16_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint32_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<uint64_t>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<float>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<double>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<std::string>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int8_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int16_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint8_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint16_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint32_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<float>>& adapter) override;
-        virtual void on_adapter(const std::string& name,
-                                ngraph::ValueAccessor<std::vector<double>>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::string>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<int8_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<int16_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<int32_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<uint8_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<uint16_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<uint32_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<uint64_t>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<float>& adapter) override;
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<std::string>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<int8_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<int16_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<uint8_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<uint16_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<uint32_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<uint64_t>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<float>>& adapter) override;
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::vector<double>>& adapter) override;
 
         template <typename T>
         T get_attribute(const std::string& name)

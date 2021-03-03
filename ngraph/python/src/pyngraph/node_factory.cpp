@@ -33,7 +33,6 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "node_factory.hpp"
-#include "tensor_iterator_builder.hpp"
 
 namespace py = pybind11;
 

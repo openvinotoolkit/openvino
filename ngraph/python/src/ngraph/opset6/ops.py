@@ -15,42 +15,16 @@
 # ******************************************************************************
 
 """Factory functions for all ngraph ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union
-
-import numpy as np
 from functools import partial
+from typing import Optional
 
-from ngraph.impl import Node, Shape
-from ngraph.impl.op import Constant, Parameter
+from ngraph.impl import Node
 from ngraph.opset_utils import _get_node_factory
-from ngraph.utils.decorators import binary_op, nameable_op, unary_op
-from ngraph.utils.input_validation import (
-    assert_list_of_ints,
-    check_valid_attributes,
-    is_non_negative_value,
-    is_positive_value,
-)
-from ngraph.utils.node_factory import NodeFactory
-from ngraph.utils.tensor_iterator_types import (
-    GraphBody,
-    TensorIteratorSliceInputDesc,
-    TensorIteratorMergedInputDesc,
-    TensorIteratorInvariantInputDesc,
-    TensorIteratorBodyOutputDesc,
-    TensorIteratorConcatOutputDesc,
-)
+from ngraph.utils.decorators import nameable_op
 from ngraph.utils.types import (
     NodeInput,
-    NumericData,
-    NumericType,
-    ScalarData,
-    TensorShape,
     as_node,
     as_nodes,
-    get_dtype,
-    get_element_type,
-    get_element_type_str,
-    make_constant_node,
 )
 
 _get_node_factory_opset6 = partial(_get_node_factory, "opset6")
@@ -142,3 +116,35 @@ def mvn(
     }
 
     return _get_node_factory_opset6().create("MVN", inputs, attributes)
+
+
+@nameable_op
+def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    @param new_value:    Node producing a value to be assigned to a variable.
+    @param variable_id:  Id of a variable to be updated.
+    @param name:         Optional name for output node.
+    @return Assign node
+    """
+    return _get_node_factory_opset6().create(
+        "Assign",
+        [as_node(new_value)],
+        {"variable_id": variable_id}
+    )
+
+
+@nameable_op
+def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    @param init_value:   Node producing a value to be returned instead of an unassigned variable.
+    @param variable_id:  Id of a variable to be read.
+    @param name:         Optional name for output node.
+    @return ReadValue node
+    """
+    return _get_node_factory_opset6().create(
+        "ReadValue",
+        [as_node(init_value)],
+        {"variable_id": variable_id}
+    )
