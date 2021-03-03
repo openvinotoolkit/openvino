@@ -45,7 +45,7 @@ request will be merged into our GitHub repository.
 ## System Requirements
 clDNN supports Intel® HD Graphics and Intel® Iris® Graphics and is optimized for Gen9-Gen12LP architectures
 
-clDNN currently uses OpenCL™ with multiple Intel® OpenCL™ extensions and requires Intel® Graphics Driver to run.
+clDNN currently uses OpenCL™ with multiple Intel OpenCL™ extensions and requires Intel® Graphics Driver to run.
 
 clDNN requires CPU with Intel® SSE/Intel® AVX support.
 
@@ -68,26 +68,19 @@ The software dependencies are:
 > [GraphViz\*](http://www.graphviz.org/Download..php) (2.38 or later) is also recommended to generate documentation with all embedded diagrams.
 (Make sure that `dot` application is visible in the `PATH` environment variable.)
 
+# Trademark Information
 
-### Generating documentation
-
-Documentation is provided inline and can be generated in HTML format with Doxygen. We recommend to use latest
-[Doxygen\*](http://www.stack.nl/~dimitri/doxygen/download.html) and [GraphViz\*](http://www.graphviz.org/Download..php).
-
-Documentation templates and configuration files are stored in `docs` subdirectory. You can simply call:
-
-```shellscript
-    cd docs && doxygen
-```
-to generate HTML documentation in `docs/html` subdirectory.
-
-There is also custom CMake target named `docs` which will generate documentation in `CLDNN__OUTPUT_BIN_DIR/html` directory. For example, when using Unix makefiles, you can run:
-```
-    make docs
-```
-in order to create it.
-
+Intel, the Intel logo, Intel Atom, Intel Core, Intel Xeon Phi, Iris, OpenVINO,
+the OpenVINO logo, Pentium, VTune, and Xeon are trademarks
+of Intel Corporation or its subsidiaries.
 
 \* Other names and brands may be claimed as the property of others.
 
-Copyright © 2020, Intel® Corporation
+Microsoft, Windows, and the Windows logo are trademarks, or registered
+trademarks of Microsoft Corporation in the United States and/or other
+countries.
+
+OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission
+by Khronos.
+
+Copyright © 2021, Intel Corporation
