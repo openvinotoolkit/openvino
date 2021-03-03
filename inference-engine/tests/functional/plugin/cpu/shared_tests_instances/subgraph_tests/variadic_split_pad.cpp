@@ -21,6 +21,8 @@ const std::vector<std::vector<size_t>> connectedIndexes = {
         {0},
         {0, 2},
         {0, 1, 3},
+        {0, 1, 1, 0},
+        {0, 0, 0, 1},
 };
 
 const std::vector<std::vector<size_t>> numSplits = {
