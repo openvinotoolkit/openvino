@@ -33,4 +33,3 @@ private:
 };
 
 }  // namespace MKLDNNPlugin
-
