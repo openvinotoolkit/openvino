@@ -4,9 +4,9 @@
 
 **Category**: data movement operation
 
-**Short description**: *Roll* operation shifts elements of a tensor along specified axes.
+**Short description**: The *Roll* operation shifts elements of a tensor along specified axes.
 
-**Detailed description**: *Roll* produces a tensor with the same shape as the first input tensor and with elements shifted along dimensions specified in *axes* tensor. The shift size is specified in *shift* input tensor. Elements that are shifted beyond the last position will be added in the same order starting from the first position.
+**Detailed description**: *Roll* produces a tensor with the same shape as the first input tensor and with elements shifted along dimensions specified in the *axes* tensor. The shift size is specified in the *shift* input tensor. Elements that are shifted beyond the last position will be added in the same order starting from the first position.
 
 Example 1. *Roll* output with `shift` = 1, `axes` = 0:
 
@@ -53,16 +53,16 @@ No attributes available.
 
 **Inputs**:
 
-*   **1**: `data` the tensor of type *T*. **Required.**
+*   **1**: `data` a tensor of type *T*. **Required.**
 
-*   **2**: `shift` scalar or 1D tensor of type *T_IND_1* which specifies the number of places by which the elements of `data` tensor are shifted. If `shift` is a scalar, each dimension specified in `axes` tensor are rolled by same `shift` value. If `shift` is 1D tensor, `axes` must be a 1D tensor of the same size, and each dimension from `axes` tensor are rolled by the corresponding value from `shift` tensor. If the value of `shift` is positive, elements are shifted positively (towards larger indices). Otherwise elements are shifted negatively (towards smaller indices). **Required.**
+*   **2**: a `shift` scalar or 1D tensor of type *T_IND_1*. Specifies the number of places by which the elements of the `data` tensor are shifted. If `shift` is a scalar, each dimension specified in the `axes` tensor are rolled by the same `shift` value. If `shift` is a 1D tensor, `axes` must be a 1D tensor of the same size, and each dimension from `axes` tensor are rolled by the corresponding value from the `shift` tensor. If the value of `shift` is positive, elements are shifted positively (towards larger indices). Otherwise, elements are shifted negatively (towards smaller indices). **Required.**
 
-*   **3**: `axes` scalar or 1D tensor of type *T_IND_2* which specifies axes along which elements are shifted. If the same axis is referenced more than once, the total shift for that axis will be the sum of all the shifts that belong to that axis. If `axes` has negative value, axis index will be calculated using formula: `N_dims + axis`, where `N_dims` - total number of dimensions in `data` tensor, `axis` - negative axis index from `axes` tensor. **Required.**
+*   **3**: `axes` a scalar or 1D tensor of type *T_IND_2*. Specifies axes along which elements are shifted. If the same axis is referenced more than once, the total shift for that axis will be the sum of all the shifts that belong to that axis. If `axes` has negative value, axis index will be calculated using the formula: `N_dims + axis`, where `N_dims` - total number of dimensions in the `data` tensor, `axis` - negative axis index from the `axes` tensor. **Required.**
 
 
 **Outputs**:
 
-*   **1**: output tensor with shape and type equal to `data` tensor.
+*   **1**: output tensor with shape and type equal to the `data` tensor.
 
 **Types**
 
@@ -72,7 +72,7 @@ No attributes available.
 
 **Example**
 
-*Example 1: "shift" and "axes" are 1-D tensors.*
+*Example 1: "shift" and "axes" are 1D tensors.*
 
 ```xml
 <layer ... type="Roll">
@@ -129,4 +129,3 @@ No attributes available.
     </output>
 </layer>
 ```
-
