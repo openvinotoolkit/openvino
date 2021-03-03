@@ -330,6 +330,11 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             using namespace ngraph::pass::low_precision;
 
             ngraph::pass::Manager manager;
+            // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
+            // With this key users can work-around such issues
+            if (!config.enable_fp16_for_quantized_models) {
+                manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+            }
             auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
             const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
             lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
