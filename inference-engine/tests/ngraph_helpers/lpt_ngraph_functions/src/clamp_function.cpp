@@ -61,6 +61,20 @@ std::shared_ptr<ngraph::Function> ClampFunction::getOriginal(
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ClampFunction");
 }
 
+std::shared_ptr<ngraph::Function> ClampFunction::getWithNonDequantizationMultiply(
+    const ngraph::Shape& inputShape,
+    const ngraph::element::Type precision) {
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
+
+    const auto multiply = std::make_shared<ngraph::opset1::Multiply>(input1, input2);
+    const auto clamp = std::make_shared<ngraph::opset1::Clamp>(multiply, 0.0, 6.0);
+    clamp->set_friendly_name("output");
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(clamp) };
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "ClampFunction");
+}
+
 std::shared_ptr<ngraph::Function> ClampFunction::getReference(
     const ngraph::Shape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
