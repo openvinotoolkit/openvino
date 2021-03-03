@@ -26,7 +26,7 @@ ie_option (ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer"
 
 ie_option (ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
 
-ie_dependent_option (COVERAGE "enable code coverage" OFF "CMAKE_CXX_COMPILER_ID STREQUAL GNU" OFF)
+ie_dependent_option (ENABLE_COVERAGE "enable code coverage" OFF "CMAKE_CXX_COMPILER_ID STREQUAL GNU" OFF)
 
 # Defines CPU capabilities
 
@@ -42,9 +42,13 @@ ie_option (BUILD_SHARED_LIBS "Build as a shared library" ON)
 
 ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
 
-ie_dependent_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
+if(NOT DEFINED ENABLE_CPPLINT)
+	ie_dependent_option (ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
+endif()
 
-ie_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
+if(NOT DEFINED ENABLE_CPPLINT_REPORT)
+	ie_dependent_option (ENABLE_CPPLINT_REPORT "Build cpplint report instead of failing the build" OFF "ENABLE_CPPLINT" OFF)
+endif()
 
 ie_option (ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON)
 

@@ -9,6 +9,9 @@
 
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
 #include "lpt_ngraph_functions/common/fake_quantize_on_weights.hpp"
+#include "lpt_ngraph_functions/common/constant.hpp"
+#include "lpt_ngraph_functions/common/dequantization_operations.hpp"
+
 #include "lpt_ngraph_functions/mat_mul_function.hpp"
 #include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
@@ -17,10 +20,12 @@ namespace LayerTestsDefinitions {
 class MatMulWithConstantTransformationTestValues {
 public:
     ngraph::Shape inputShape;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-    ngraph::Shape weightsConstShape;
-    std::vector<float> weightsConstValues;
-    ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnData;
+
+    ngraph::builder::subgraph::Constant weights;
+    ngraph::builder::subgraph::FakeQuantizeOnDataWithConstant fqOnWeights;
+    ngraph::builder::subgraph::DequantizationOperations deqOnWeights;
+
     std::string layerName;
     std::string expectedKernelType;
 };

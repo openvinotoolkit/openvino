@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,6 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <generic_ie.hpp>
 #include <ie_ngraph_utils.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
@@ -30,6 +29,9 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
@@ -47,22 +49,29 @@
 #include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
 #include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include <transformations/op_conversions/rnn_cell_decomposition.hpp>
+#include <transformations/op_conversions/mvn6_decomposition.hpp>
 #include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 #include <transformations/op_conversions/convert_previous_nms_to_nms_5.hpp>
 #include <transformations/op_conversions/convert_nms_to_nms_ie_internal.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/convert_gather_0d.hpp>
+#include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <low_precision/pull_reshape_through_dequantization.hpp>
+#include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
 #include <low_precision/strided_slice.hpp>
+#include <low_precision/network_helper.hpp>
 
 #include "cldnn_engine.h"
 #include "cldnn_executable_network.h"
@@ -132,11 +141,16 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
     if (clonedNetwork.getFunction()) {
         OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork");
         auto nGraphFunc = clonedNetwork.getFunction();
-        // Disable shape inference (WA for generic operations)
-        ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
+        bool enableInt8;
         {
             ngraph::pass::Manager manager;
+            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+            if (enableInt8) {
+                manager.register_pass<ngraph::pass::DisableConvertConstantFoldingOnConstPath>(
+                    std::vector<ngraph::element::Type>{ ngraph::element::i8, ngraph::element::u8 });
+            }
+
             manager.register_pass<ngraph::pass::InitNodeInfo>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
             manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
@@ -257,6 +271,31 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                                node->input_value(1).get_shape().size() == 3lu;
                     });
 
+            pass_config->set_callback<ngraph::pass::MVN6Decomposition>(
+                [](const_node_ptr &node) -> bool {
+                    const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
+                    if (mvn != nullptr && node->get_input_size() == 2) {
+                        if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
+                            auto axesVal = axesNode->cast_vector<int>();
+                            auto& mvnShape = mvn->get_output_shape(0);
+                            for (int32_t& axis : axesVal)
+                                axis = axis < 0 ? axis + mvnShape.size() : axis;
+                            std::sort(axesVal.begin(), axesVal.end());
+                            if (mvnShape.size() == 1)
+                                return false;
+                            if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2))
+                                return false;
+                            int value = mvnShape.size() - 1;
+                            for (int i = axesVal.size() - 1; i >= 0; i--, value--) {
+                                if (axesVal[i] != value)
+                                    return false;
+                            }
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+
             // List of enabled/disabled transformations
             pass_config->disable<ngraph::pass::ConvertGELU>();
             pass_config->disable<ngraph::pass::ConvertMod>();
@@ -268,26 +307,49 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
             pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
             pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
             pass_config->disable<ngraph::pass::ConvertBroadcast3>();
+            pass_config->disable<ngraph::pass::WeightsDequantizeToFakeQuantize>();
+            pass_config->disable<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
 
             pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
+
+            if (enableInt8) {
+                pass_config->set_callback<ngraph::pass::ConvertQuantizeDequantize>([](const_node_ptr &node) -> bool {
+                    return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForMultiply(node);
+                });
+
+                pass_config->set_callback<ngraph::pass::ConvertSubtract>([](const_node_ptr &node) -> bool {
+                    return ngraph::pass::low_precision::NetworkHelper::areQuantizeAndDequantizeSupportedForSubtract(node);
+                });
+            }
 
             manager.run_passes(nGraphFunc);
         }
 
-        bool enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
         if (enableInt8) {
             OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
             using namespace ngraph::pass::low_precision;
-            ngraph::pass::Manager conversion_manager;
-            // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-            conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
-            conversion_manager.run_passes(nGraphFunc);
+
+            ngraph::pass::Manager manager;
+            // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
+            // With this key users can work-around such issues
+            if (!config.enable_fp16_for_quantized_models) {
+                manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+            }
+            auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
+            const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
+            lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
+            lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
+            lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+            manager.run_passes(nGraphFunc);
+
             auto params = LayerTransformation::Params(true,                                                        // updatePrecisions
                                                       LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
                                                       LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
                                                       true);                                                       // supportAsymmetricQuantization
             LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false))
+                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params)
+                    .setSupportAsymmetricQuantization(false)
+                    .setSupport3DTensorOnActivations(false))
                 // INT8 StridedSlice not supported
                 .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
 
@@ -445,11 +507,11 @@ RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
         auto context = std::make_shared<CLDNNRemoteCLContext>(shared_from_this(), params, _impl->m_config);
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else if (GPU_PARAM_VALUE(VA_SHARED) == contextTypeStr) {
-        #ifdef WIN32
+#ifdef _WIN32
         auto context = std::make_shared<CLDNNRemoteD3DContext>(shared_from_this(), params, _impl->m_config);
-        #else
+#else
         auto context = std::make_shared<CLDNNRemoteVAContext>(shared_from_this(), params, _impl->m_config);
-        #endif
+#endif
         return std::dynamic_pointer_cast<RemoteContext>(context);
     } else {
         THROW_IE_EXCEPTION << "Invalid remote context type" << contextTypeStr;

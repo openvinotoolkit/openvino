@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Intel Corporation
+# Copyright (C) 2019-2021 Intel Corporation
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -6,6 +6,7 @@
 set(TARGET_NAME ieFuncTests)
 
 set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine)
+
 set(LINK_LIBRARIES
     gmock
     funcTestUtils
@@ -16,6 +17,7 @@ set(LINK_LIBRARIES
     openvino::conditional_compilation
     sharedTestClasses
 )
+
 set(DEPENDENCIES
     mock_engine
     inference_engine_ir_reader
@@ -25,16 +27,8 @@ set(DEPENDENCIES
     sharedTestClasses
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
-    list(APPEND INCLUDES "${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op")
-    list(APPEND LINK_LIBRARIES onnx_custom_op)
-    list(APPEND DEPENDENCIES onnx_custom_op)
-else()
+if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NGRAPH_USE_PROTOBUF_LITE)
     set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
-endif()
-
-if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NOT ENABLE_MKL_DNN OR NGRAPH_USE_PROTOBUF_LITE)
-    set(EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS} "${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp")
 endif()
 
 addIeTargetTest(
@@ -49,15 +43,16 @@ addIeTargetTest(
         IE
 )
 
-ie_faster_build(${TARGET_NAME}
-    PCH PRIVATE "precomp.hpp"
-)
-
-if(TARGET inference_engine_onnx_reader)
+if(NGRAPH_ONNX_IMPORT_ENABLE)
+    target_compile_definitions(${TARGET_NAME} PRIVATE
+        NGRAPH_ONNX_IMPORT_ENABLE
+        ONNX_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/")
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()
 
-target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/")
+ie_faster_build(${TARGET_NAME}
+    PCH PRIVATE "precomp.hpp"
+)
 
 include(CMakeParseArguments)
 
@@ -91,7 +86,7 @@ function(ie_headers_compilation_with_custom_flags)
     endif()
 
     if(NOT IE_TEST_PLUGIN_API)
-        if(NOT CLDNN__IOCL_ICD_INCDIRS)
+        if(NOT CLDNN__OCL_ICD_INCDIRS)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                 "gpu/gpu_context_api_ocl.hpp"
                                                 "gpu/gpu_context_api_va.hpp"
@@ -144,8 +139,8 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         # OpenCL headers if any
-        if(CLDNN__IOCL_ICD_INCDIRS)
-            target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
+        if(CLDNN__OCL_ICD_INCDIRS)
+            target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__OCL_ICD_INCDIRS})
         endif()
     endif()
 
@@ -211,13 +206,11 @@ endif()
 #
 
 ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiCxx17
-                                         HEADERS_TO_SKIP "generic_ie.hpp"
                                          CXX_STANDARD 17 PLUGIN_API)
 
 if(UNIX)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ie_headers_compilation_with_custom_flags(TEST_SUFFIX PluginApiWarningsAreErrors
-                                                 HEADERS_TO_SKIP "generic_ie.hpp"
                                                  FLAGS "-Werror-all -Werror -Wall"
                                                  PLUGIN_API)
     else()

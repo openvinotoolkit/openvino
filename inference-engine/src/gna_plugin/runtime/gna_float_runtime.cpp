@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,10 @@ void FP::infer() {
             }
             case kDnnConvolutional1dOp: {
                 ApplyConvolutional1DTransform(comp);
+                break;
+            }
+            case kDnnConvolutional2dOp: {
+                ApplyConvolutional2DTransform(comp);
                 break;
             }
             case kDnnPiecewiselinearOp: {

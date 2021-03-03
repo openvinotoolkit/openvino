@@ -67,7 +67,7 @@ namespace topk
 #define EXECUTE_EVALUATE_TOPK(a, ...)                                                              \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(exec_topk_eval, _, a));                                         \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(exec_topk_eval, _, a));                                         \
         rc = evaluate_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);                          \
     }                                                                                              \
     break
@@ -189,7 +189,7 @@ namespace topk
 #define CASE_GET_K(a, ...)                                                                         \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(topk_get_k, _, a));                                             \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(topk_get_k, _, a));                                             \
         k = get_k_from_hosttensor<element::Type_t::a>(__VA_ARGS__);                                \
     }                                                                                              \
     break
@@ -295,27 +295,31 @@ void op::v1::TopK::validate_and_infer_types()
     if (output_shape.rank().is_static())
     {
         m_normalized_axis = ngraph::normalize_axis(this, m_axis, output_shape.rank());
-        if (k != 0)
+
+        PartialShape k_as_shape;
+        if (evaluate_as_partial_shape(input_value(1), k_as_shape))
         {
-            output_shape[m_normalized_axis] = k;
-        }
-        else
-        {
-            auto max_k = maximum_value(input_value(1));
-            if (max_k.first)
+            if (k_as_shape.is_static())
             {
-                const auto in_min = output_shape[m_normalized_axis].get_min_length();
-                const auto in_max = output_shape[m_normalized_axis].get_max_length();
-                const auto lower = std::min<Dimension::value_type>(in_min, max_k.second);
-                const auto upper = in_max < 0
-                                       ? Dimension::dynamic().get_max_length()
-                                       : std::max<Dimension::value_type>(in_max, max_k.second);
-                output_shape[m_normalized_axis] = Dimension(lower, upper);
+                output_shape[m_normalized_axis] = k_as_shape[0];
             }
             else
             {
-                output_shape[m_normalized_axis] = -1;
+                const auto in_min = output_shape[m_normalized_axis].get_min_length();
+                const auto in_max = output_shape[m_normalized_axis].get_max_length();
+
+                const auto k_min = k_as_shape[0].get_min_length();
+                const auto k_max = k_as_shape[0].get_max_length();
+
+                const auto lower = std::min<Dimension::value_type>(in_min, k_min);
+                const auto upper = in_max < 0 ? Dimension::dynamic().get_max_length()
+                                              : std::max<Dimension::value_type>(in_max, k_max);
+                output_shape[m_normalized_axis] = Dimension(lower, upper);
             }
+        }
+        else
+        {
+            output_shape[m_normalized_axis] = -1;
         }
     }
 

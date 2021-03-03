@@ -22,7 +22,6 @@ class TRANSFORMATIONS_API Serialize;
  * @brief Serialize transformation converts ngraph::Function into IR files
  * @attention
  * - dynamic shapes are not supported
- * - GenericIE operation type (experimental opset) is not supported
  * - order of generated layers in xml file is ngraph specific (given by
  * get_ordered_ops()); MO generates file with different order, but they are
  * logically equivalent

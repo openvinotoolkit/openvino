@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import numpy as np
 
 from mo.front.common.layout import get_width_dim, get_height_dim
-from mo.front.extractor import attr_getter
+from mo.front.extractor import attr_getter, bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -30,7 +30,9 @@ class PriorBoxOp(Op):
             'type': self.op,
             'op': self.op,
             'version': 'opset1',
-            'flip': 1,
+            'flip': True,
+            'clip': True,
+            'scale_all_sizes': True,
             'max_size': np.array([]),
             'min_size': np.array([]),
             'aspect_ratio': np.array([]),
@@ -66,11 +68,13 @@ class PriorBoxOp(Op):
 
     def backend_attrs(self):
         return [
-            'flip',
-            'clip',
+            ('flip', lambda node: int(node.flip)),  # We need to convert this boolean attribute value to int to keep
+            # forward compatibility with IE 2021.2
+            ('clip', lambda node: int(node.clip)),  # We need to convert this boolean attribute value to int to keep
+            # forward compatibility with IE 2021.2
             'step',
             'offset',
-            'scale_all_sizes',
+            ('scale_all_sizes', lambda node: bool_to_str(node, 'scale_all_sizes')),
             ('min_size', lambda node: attr_getter(node, 'min_size')),
             ('max_size', lambda node: attr_getter(node, 'max_size')),
             ('aspect_ratio', lambda node: attr_getter(node, 'aspect_ratio')),

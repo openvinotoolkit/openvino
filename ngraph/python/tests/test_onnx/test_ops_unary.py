@@ -22,8 +22,7 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 from ngraph.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
-from tests import (xfail_issue_40957,
-                   xfail_issue_35930)
+from tests import xfail_issue_35930, xfail_issue_48100
 
 
 @pytest.mark.parametrize(
@@ -244,45 +243,6 @@ def test_hardsigmoid():
     assert np.allclose(ng_results, [expected])
 
 
-def test_softmax():
-    def softmax_2d(x):
-        max_x = np.max(x, axis=1).reshape((-1, 1))
-        exp_x = np.exp(x - max_x)
-        return exp_x / np.sum(exp_x, axis=1).reshape((-1, 1))
-
-    np.random.seed(133391)
-    data = np.random.randn(3, 4, 5).astype(np.float32)
-
-    node = onnx.helper.make_node("Softmax", inputs=["x"], outputs=["y"], axis=0)
-    expected = softmax_2d(data.reshape(1, 60)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data])
-    assert np.allclose(ng_results, [expected])
-
-    node = onnx.helper.make_node("Softmax", inputs=["x"], outputs=["y"], axis=1)
-    expected = softmax_2d(data.reshape(3, 20)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data])
-    assert np.allclose(ng_results, [expected])
-
-    # default axis is 1
-    node = onnx.helper.make_node("Softmax", inputs=["x"], outputs=["y"])
-    ng_results = run_node(node, [data])
-    assert np.allclose(ng_results, [expected])
-
-    node = onnx.helper.make_node("Softmax", inputs=["x"], outputs=["y"], axis=2)
-    expected = softmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data])
-    assert np.allclose(ng_results, [expected])
-
-    node = onnx.helper.make_node("Softmax", inputs=["x"], outputs=["y"], axis=-1)
-    expected = softmax_2d(data.reshape(12, 5)).reshape(3, 4, 5)
-    ng_results = run_node(node, [data])
-    assert np.allclose(ng_results, [expected])
-
-    with pytest.raises(RuntimeError):
-        node = onnx.helper.make_node("Softmax", inputs=["x"], outputs=["y"], axis=3)
-        ng_results = run_node(node, [data])
-
-
 def test_logsoftmax():
     def logsoftmax_2d(x):
         max_x = np.max(x, axis=1).reshape((-1, 1))
@@ -501,8 +461,8 @@ def test_cast_errors():
 
 
 @pytest.mark.parametrize("value_type",
-                         [pytest.param(np.float32, marks=xfail_issue_40957),
-                          pytest.param(np.float64, marks=xfail_issue_40957)])
+                         [pytest.param(np.float64, marks=xfail_issue_48100),
+                          pytest.param(np.float32)])
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)
     node = onnx.helper.make_node(

@@ -7,7 +7,7 @@
 """ Pytest configuration for compilation tests.
 
 Sample usage:
-python3 -m pytest --artifacts ./compiled --models_root=<path to openvinotoolkit/testdata repository> \
+python3 -m pytest --artifacts ./compiled --test_conf=<path to test config> \
     --sea_runtool=./IntelSEAPI/runtool/sea_runtool.py \
     --benchmark_app=./bin/benchmark_app test_collect.py
 """
@@ -17,38 +17,39 @@ from inspect import getsourcefile
 from pathlib import Path
 
 import pytest
+import yaml
 
 # add ../lib to imports
 sys.path.insert(
     0, str((Path(getsourcefile(lambda: 0)) / ".." / ".." / "lib").resolve(strict=True))
 )
 
-# Using models from https://github.com/openvinotoolkit/testdata
-# $find models -wholename "*.xml"
-TESTS = [
-    {"path": "models/mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml"},
-    {"path": "models/mobilenet_v2_1.0_224/mobilenet_v2_1.0_224_i8.xml"},
-    {"path": "models/inception_v3/inception_v3_i8.xml"},
-    {"path": "models/resnet_v1_50/resnet_v1_50_i8.xml"},
-    {"path": "models/test_model/test_model_fp16.xml"},
-    {"path": "models/test_model/test_model_fp32.xml"},
-]
+from path_utils import expand_env_vars  # pylint: disable=import-error
 
 
 def pytest_addoption(parser):
     """ Define extra options for pytest options
     """
     parser.addoption(
-        "--models_root", required=True, type=Path, help="Path to models root directory"
+        "--test_conf",
+        type=Path,
+        default=Path(__file__).parent / "test_config.yml",
+        help="Path to models root directory"
     )
     parser.addoption(
-        "--sea_runtool", required=True, type=Path, help="Path to sea_runtool.py"
+        "--sea_runtool",
+        type=Path,
+        help="Path to sea_runtool.py"
     )
     parser.addoption(
         "--benchmark_app",
-        required=True,
         type=Path,
         help="Path to the benchmark_app tool",
+    )
+    parser.addoption(
+        "--collector_dir",
+        type=Path,
+        help="Path to a directory with a collector binary",
     )
     parser.addoption(
         "-A",
@@ -65,15 +66,19 @@ def pytest_generate_tests(metafunc):
     params = []
     ids = []
 
-    for test in TESTS:
+    with open(metafunc.config.getoption('test_conf'), "r") as file:
+        test_cases = yaml.safe_load(file)
+
+    for test in test_cases:
         extra_args = {}
-        path = test["path"]
+        model_path = test["model"]["path"]
         if "marks" in test:
             extra_args["marks"] = test["marks"]
 
-        params.append(pytest.param(Path(path), **extra_args))
-        ids = ids + [path]
-    metafunc.parametrize("model", params, ids=ids)
+        test_id = model_path.replace('$', '').replace('{', '').replace('}', '')
+        params.append(pytest.param(test_id, Path(expand_env_vars(model_path)), **extra_args))
+        ids = ids + [test_id]
+    metafunc.parametrize("test_id, model", params, ids=ids)
 
 
 @pytest.fixture(scope="session")
@@ -89,9 +94,9 @@ def benchmark_app(request):
 
 
 @pytest.fixture(scope="session")
-def models_root(request):
+def collector_dir(request):
     """Fixture function for command-line option."""
-    return request.config.getoption("models_root")
+    return request.config.getoption("collector_dir")
 
 
 @pytest.fixture(scope="session")

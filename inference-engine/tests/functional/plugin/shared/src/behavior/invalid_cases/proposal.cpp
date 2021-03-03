@@ -93,6 +93,12 @@ void ProposalBehTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "proposal");
 }
 
+void ProposalBehTest::Run() {
+    LoadNetwork();
+    GenerateInputs();
+    Infer();
+}
+
 TEST_P(ProposalBehTest, CompareWithRefs) {
     ASSERT_THROW(Run(), InferenceEngine::details::InferenceEngineException);
 }
