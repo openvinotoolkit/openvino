@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,7 @@ namespace {
 
     INSTANTIATE_TEST_CASE_P(smoke_StaticShapeLoop, StaticShapeLoopTest,
                             Combine(
+                                    ValuesIn(std::vector<bool>{true, false}),
                                     Values(true),
                                     ValuesIn(static_loop_types),
                                     Values<int64_t>(7),
