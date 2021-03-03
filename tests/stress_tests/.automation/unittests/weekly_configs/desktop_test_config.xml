@@ -1,6 +1,7 @@
 <attributes>
     <processes>
         <value>1</value>
+        
     </processes>
     <threads>
         <value>1</value>
@@ -14,7 +15,8 @@
         <value>GPU</value>
     </devices>
     <models>
-        <model name="alexnet" precision="FP32" source="omz" />
-        <model name="mobilenet-ssd" precision="FP32" source="omz" />
+        <model name="alexnet" source="omz" />
+        <model name="mobilenet-ssd" source="omz" />
+        
     </models>
 </attributes>
