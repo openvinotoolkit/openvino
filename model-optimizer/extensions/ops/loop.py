@@ -20,8 +20,10 @@ import numpy as np
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.fusing.helpers import common_bfs
 from mo.middle.passes.infer import partial_infer
 from mo.ops.const import Const
+from mo.utils.graph import backward_bfs_for_operation
 
 
 class Loop(TensorIterator):
@@ -313,14 +315,45 @@ class Loop(TensorIterator):
                                      'to_port': 0})
 
     @staticmethod
+    def parameter_unchanged_after_iteration(loop_node: Node, body_parameter: Node):
+        """
+        Checks if the body Parameter node is connected to some body Result and the data provided to Result is not
+        changed between iterations (so this function call is applicable for Parameters with back edges). The date is
+        considered unchanged if there are only Identity ops in between or Parameter is connected to Result directly.
+
+        :param loop_node: the Loop node to check
+        :param body_parameter: the body Parameter node
+        :return: the result of the check
+        """
+        assert body_parameter.id in loop_node.body
+        assert body_parameter.soft_get('op') == 'Parameter'
+        assert any([attr['to_layer'] == body_parameter.soft_get('internal_layer_id') for attr in loop_node.back_edges])
+
+        for back_edge_attrs in loop_node.back_edges:
+            if back_edge_attrs['to_layer'] == body_parameter.soft_get('internal_layer_id'):
+                result_internal_id = back_edge_attrs['from_layer']
+                result_nodes = loop_node.body.get_op_nodes(internal_layer_id=result_internal_id)
+                assert len(result_nodes) == 1, 'There should be exactly one node with id {}, but there are {}' \
+                                               ''.format(result_internal_id, len(result_nodes))
+                result_node = result_nodes[0]
+                # check that the Result node consumes data from Parameter node directly or through Identity operations
+                parameters = common_bfs(result_node, ['Identity'], ['Parameter'], is_backward=True, attr_to_check='op',
+                                        follow_multi_consumer_data_nodes=True)
+                if any([node.soft_get('internal_layer_id') == body_parameter.internal_layer_id for node in parameters]):
+                    return True
+        return False
+
+    @staticmethod
     def pull_constant_inputs_into_body(loop_node: Node):
         for port_idx, in_port in reversed(loop_node.in_ports().items()):
             if port_idx > 1 and not in_port.disconnected() and in_port.get_source().node.soft_get('type') == 'Const':
                 body_parameter = Loop.external_port_id_to_body_node(loop_node, port_idx, loop_node.input_port_map)
-                # if there is a back edge into a body Parameter then we cannot replace it with a Const because this
-                # input is probably updated during each iteration
+                # if there is a back edge into a body Parameter and then we cannot replace it with a Const because this
+                # input is probably updated during each iteration. So we need to check that the tensor is passed to the
+                # next iteration unchanged
                 if any([back_edge_attrs['to_layer'] == body_parameter.soft_get('internal_layer_id')
-                        for back_edge_attrs in loop_node.back_edges]):
+                        for back_edge_attrs in loop_node.back_edges]) and \
+                        not Loop.parameter_unchanged_after_iteration(loop_node, body_parameter):
                     continue
 
                 original_const_node = in_port.get_source().node
