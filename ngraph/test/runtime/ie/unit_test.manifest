@@ -209,7 +209,7 @@ onnx_model_max_pool_dyn_rank_without_default_attrs
 IE_CPU.onnx_model_lstm_fwd_large_batch_no_clip
 IE_CPU.onnx_model_lstm_fwd_mixed_seq
 IE_CPU.onnx_model_lstm_mixed_seq_reverse
-# GRUSequence 
+# GRUSequence
 IE_CPU.onnx_model_gru_defaults_fwd
 IE_CPU.onnx_model_gru_fwd_mixed_seq_len
 IE_CPU.onnx_model_gru_rev_clip
@@ -217,7 +217,7 @@ IE_CPU.onnx_model_gru_reverse
 IE_CPU.onnx_model_gru_fwd_bias_initial_h
 IE_CPU.onnx_model_gru_bidirectional
 IE_CPU.onnx_model_gru_fwd_linear_before_reset
-# RNNSequence 
+# RNNSequence
 IE_CPU.onnx_model_rnn_defaults_fwd
 IE_CPU.onnx_model_rnn_fwd_activations
 IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
@@ -231,7 +231,7 @@ IE_CPU.onnx_model_rnn_bidirectional
 onnx_model_lstm_fwd_with_clip_peepholes
 onnx_model_lstm_bdir_short_input_seq_peepholes
 # Activation function hardsigmoid is not supported
-onnx_model_gru_fwd_activations_relu_hardsigmoid 
+onnx_model_gru_fwd_activations_relu_hardsigmoid
 onnx_model_lstm_fwd_hardsigmoid_activation
 
 # Const layer has incorrect dimensions in the output data
@@ -1588,3 +1588,6 @@ evaluate_mvn_6_inside_sqrt
 evaluate_mvn_6_across_chanells
 evaluate_mvn_6_across_batch
 IE_CPU.onnx_mvn_v6
+
+# The test randomly fails in CI (MSVC2019 Debug)
+onnx_model_experimental_detectron_generate_proposals_single_image
