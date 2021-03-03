@@ -119,12 +119,6 @@ TEST(scatter_nd_update_gpu_fp16_test15, data5_indice3_update5) {
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
 
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
-
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
@@ -209,12 +203,6 @@ TEST(scatter_nd_update_gpu_fp16_test14, data5_indice2_update3) {
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
 
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
-
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
@@ -278,12 +266,6 @@ TEST(scatter_nd_update_gpu_fp16_test13, data4_indice2_update2) {
 
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
-
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -355,12 +337,6 @@ TEST(scatter_nd_update_gpu_fp16_test12, data3_indice3_update1) {
 
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
-
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -493,12 +469,6 @@ TEST(scatter_nd_update_gpu_fp16_test11, data6_indice1_update6) {
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
 
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
-
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
@@ -596,12 +566,6 @@ TEST(scatter_nd_update_gpu_fp16_test10, data5_indice1_update5) {
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
 
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
-
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
@@ -680,12 +644,6 @@ TEST(scatter_nd_update_gpu_fp16_test9, data4_indice1_update4) {
 
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
-
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -785,12 +743,6 @@ TEST(scatter_nd_update_gpu_fp16_test8, data6_indice2_update5) {
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
 
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
-
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
@@ -859,12 +811,6 @@ TEST(scatter_nd_update_gpu_fp16_test7, data5_indice2_update4) {
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
 
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
-
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
@@ -931,12 +877,6 @@ TEST(scatter_nd_update_gpu_fp16_test6, data4_indice2_update3) {
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
 
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
-
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
@@ -1002,12 +942,6 @@ TEST(scatter_nd_update_gpu_fp16_test5, data3_indice2_update2) {
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
 
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
-
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
@@ -1062,12 +996,6 @@ TEST(scatter_nd_update_gpu_fp16_test4, data2_indice2_update1) {
 
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
-
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
@@ -1144,12 +1072,6 @@ TEST(scatter_nd_update_gpu_fp16_test3, data3_indice1_update3) {
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
 
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
-
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
@@ -1205,12 +1127,6 @@ TEST(scatter_nd_update_gpu_fp16_test2, data2_indice1_update2) {
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
 
-    printf("output: ");
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
-
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
     }
@@ -1259,11 +1175,6 @@ TEST(scatter_nd_update_gpu_fp16_test1, data1_indice1_update1) {
 
     auto output = outputs.at("scatter_nd_update").get_memory();
     auto output_ptr = output.pointer<uint16_t>();
-
-    for (int i = 0; i < output_ptr.size(); i++) {
-        printf("%d ", int(float16_to_float32(output_ptr[i])));
-    }
-    printf("\n");
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
