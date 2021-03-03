@@ -4,7 +4,7 @@
 
 **Category**: Arithmetic binary operation
 
-**Short description**: *Add* performs element-wise addition operation with two given tensors applying multi-directional broadcast rules.
+**Short description**: *Add* performs element-wise addition operation with two given tensors applying broadcasting rule specified in the *auto_broacast* attribute.
 
 **Detailed description**
 Before performing arithmetic operation, input tensors *a* and *b* are broadcasted if their shapes are different and `auto_broadcast` attribute is not `none`. Broadcasting is performed according to `auto_broadcast` value.
@@ -22,7 +22,7 @@ o_{i} = a_{i} + b_{i}
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
     * *none* - no auto-broadcasting is allowed, all input shapes must match,
-    * *numpy* - numpy broadcasting rules, description is available in [broadcast_rules](../broadcast_rules.md).
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md).
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
@@ -34,7 +34,7 @@ o_{i} = a_{i} + b_{i}
 
 **Outputs**
 
-* **1**: The result of element-wise addition operation. A tensor of type T with shape equal to broadcasted shape of the two inputs. When both inputs are of rank = 0 result is a scalar.
+* **1**: The result of element-wise addition operation. A tensor of type T with shape equal to broadcasted shape of the two inputs.
 
 **Types**
 
