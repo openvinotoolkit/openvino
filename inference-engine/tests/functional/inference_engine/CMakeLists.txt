@@ -86,7 +86,7 @@ function(ie_headers_compilation_with_custom_flags)
     endif()
 
     if(NOT IE_TEST_PLUGIN_API)
-        if(NOT CLDNN__IOCL_ICD_INCDIRS)
+        if(NOT CLDNN__OCL_ICD_INCDIRS)
             list(APPEND IE_TEST_HEADERS_TO_SKIP "gpu/gpu_ocl_wrapper.hpp"
                                                 "gpu/gpu_context_api_ocl.hpp"
                                                 "gpu/gpu_context_api_va.hpp"
@@ -139,8 +139,8 @@ function(ie_headers_compilation_with_custom_flags)
             $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
     else()
         # OpenCL headers if any
-        if(CLDNN__IOCL_ICD_INCDIRS)
-            target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__IOCL_ICD_INCDIRS})
+        if(CLDNN__OCL_ICD_INCDIRS)
+            target_include_directories(${target_name} SYSTEM PRIVATE ${CLDNN__OCL_ICD_INCDIRS})
         endif()
     endif()
 

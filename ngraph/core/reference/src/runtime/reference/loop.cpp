@@ -176,8 +176,9 @@ namespace ngraph
                         // Copy new values for sliced inputs
                         for (size_t i = 0; i < slice_inputs.size(); ++i)
                         {
-                            inputs_to_body[slice_inputs[i]->m_body_parameter_index] =
-                                sliced_values[i][cur_iter];
+                            if (sliced_values[i].size() > cur_iter)
+                                inputs_to_body[slice_inputs[i]->m_body_parameter_index] =
+                                    sliced_values[i][cur_iter];
                         }
 
                         // Evaluate body

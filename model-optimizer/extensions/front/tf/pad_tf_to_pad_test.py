@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 
 from extensions.front.tf.pad_tf_to_pad import PadTFToPad
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import int64_array, float_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, const
 
@@ -27,7 +27,7 @@ nodes_attributes = {
     'placeholder': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'tfpad': {'type': None, 'kind': 'op', 'op': 'TFPad', 'mode': 'constant', 'name': 'tfpad_name'},
     **const('paddings', int64_array([1, 2, 3, 4, 5, 6]).reshape([3, 2])),
-    **const('fill', int64_array(5.75)),
+    **const('fill', float_array(5.75)),
     'result': {'type': 'Result', 'value': None, 'kind': 'op', 'op': 'Result'},
 
     # new Pad layer and sub-graph

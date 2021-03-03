@@ -72,6 +72,7 @@ void TestEnvironment::TearDown() {
     opsets.push_back(ngraph::get_opset3());
     opsets.push_back(ngraph::get_opset4());
     opsets.push_back(ngraph::get_opset5());
+    opsets.push_back(ngraph::get_opset6());
     std::set<ngraph::NodeTypeInfo> opsInfo;
     for (const auto &opset : opsets) {
         const auto &type_info_set = opset.get_type_info_set();
@@ -177,6 +178,7 @@ void LayerTestsCommon::Run() {
 
     try {
         LoadNetwork();
+        GenerateInputs();
         Infer();
         Validate();
         reportStatus(PassRate::Statuses::PASSED);
@@ -335,19 +337,33 @@ void LayerTestsCommon::LoadNetwork() {
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
 
-void LayerTestsCommon::Infer() {
-    inferRequest = executableNetwork.CreateInferRequest();
-    inputs.clear();
-
+void LayerTestsCommon::GenerateInputs() {
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
-    for (const auto& param : function->get_parameters()) {
+    const auto& functionParams = function->get_parameters();
+    for (int i = 0; i < functionParams.size(); ++i) {
+        const auto& param = functionParams[i];
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
 
         const auto& info = infoIt->second;
         auto blob = GenerateInput(*info);
-        inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
+    }
+}
+
+void LayerTestsCommon::Infer() {
+    inferRequest = executableNetwork.CreateInferRequest();
+
+    const auto& inputsInfo = executableNetwork.GetInputsInfo();
+    const auto& functionParams = function->get_parameters();
+    for (int i = 0; i < functionParams.size(); ++i) {
+        const auto& param = functionParams[i];
+        const auto infoIt = inputsInfo.find(param->get_friendly_name());
+        GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+
+        const auto& info = infoIt->second;
+        auto blob = inputs[i];
+        inferRequest.SetBlob(info->name(), blob);
     }
     if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
         configuration.count(InferenceEngine::PluginConfigParams::YES)) {
