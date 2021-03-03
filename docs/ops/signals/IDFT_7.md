@@ -2,11 +2,11 @@
 
 **Versioned name**: *IDFT-7*
 
-**Category**: Image processing
+**Category**: Signal processing
 
-**Short description**: *IDFT* layer performs the discrete inverse fast Fourier transformation of input tensor by specified dimensions.
+**Short description**: *IDFT* layer performs the inverse discrete Fourier transformation of input tensor by specified dimensions.
 
-**Detailed description**: *IDFT* performs the discrete inverse fast Fourier transformation of input tensor with respect to specified axes.
+**Detailed description**: *IDFT* performs the inverse discrete Fourier transformation of input tensor with respect to specified axes.
 
 **Attributes**:
 
@@ -14,7 +14,7 @@
 
 **Inputs**
 
-*   **1**: `data` - Input tensor of type *T* with data for the IDFT transformation. Type of elements is any supported floating point type or `int8` type. Required.
+*   **1**: `data` - Input tensor of type *T* with data for the IDFT transformation. Type of elements is any supported floating point type. Required.
 *   **2**: `axes` - 1D tensor of type *T_IND* specifying dimension indices where IDFT is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 3d input `signal_size`. Required.
 *   **3**: `signal_size` - 1D tensor of type *T_IND* describing signal size with respect to axes from the input `axes`. For any `i in range(0, len(axes))`, if `signal_size[i] == -1`, then IDFT is calculated for full size of the axis `axes[i]`. If `signal_size[i] > input_shape[axes[i]]`, then input data are zero-padded with respect to the axis `axes[i]`. Finally, `signal_size[i] < input_shape[axes[i]]`, then input data are trimmedwith respect to the axis `axes[i]`. Optional, with default value `[input_shape[a] for a in axes]`.
 *   **Note**: The following constraint must be satisfied: `rank(data) >= len(axes) + 1 and input_shape[-1] == 2 and (rank(data) - 1) not in axes`.
