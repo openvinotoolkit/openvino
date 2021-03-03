@@ -77,6 +77,10 @@ class GroupNormToMVN(MiddleReplacementPattern):
 
         group_size_node = Const(graph, {'value': int64_array([group_norm_node.num_groups]),
                                         'name': group_norm_node.name + '/GroupSize'}).create_node()
+        group_size_node_float = Cast(
+            graph, {'name': initial_spatial_dims_node_int.name + '/to_float',
+                    'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node()
+        group_size_node.out_port(0).connect(group_size_node_float.in_port(0))
 
         # calculate "features // group_size" value
         reciprocal_group_size_node = Const(graph, {'value': np.array([1.0 / group_norm_node.num_groups]),
@@ -86,12 +90,8 @@ class GroupNormToMVN(MiddleReplacementPattern):
         c_div_g_node.in_port(0).connect(initial_features_dim_node.out_port(0))
         c_div_g_node.in_port(1).connect(reciprocal_group_size_node.out_port(0))
 
-        batch_mul_group_size_node = Mul(graph, {}).create_node()
-        batch_mul_group_size_node.in_port(0).connect(initial_batch_dim_node.out_port(0))
-        batch_mul_group_size_node.in_port(1).connect(group_size_node.out_port(0))
-
         # create new node which concatenates several dims to one
-        new_shape_node_float = new_shape_node_from_shape_nodes([batch_mul_group_size_node, c_div_g_node,
+        new_shape_node_float = new_shape_node_from_shape_nodes([initial_batch_dim_node, group_size_node_float, c_div_g_node,
                                                                 initial_spatial_dims_node])
         new_shape_node = Cast(graph,
                               {'name': new_shape_node_float.name + '/to_int64', 'dst_type': np.int64}).create_node()
@@ -125,7 +125,7 @@ class GroupNormToMVN(MiddleReplacementPattern):
         # MVN axes
         _, rank = get_shape_and_rank_nodes_by_port(mvn_node.in_port(0).get_connection().get_source(),
                                                    return_as_a_scalar=True)
-        rng = create_op_with_const_inputs(graph, Range, {0: int64_array(1), 2: int64_array(1)},
+        rng = create_op_with_const_inputs(graph, Range, {0: int64_array(2), 2: int64_array(1)},
                                           {'name': group_norm_node.name + '/Range', 'output_type': np.int64})
         mvn_node.in_port(1).connect(rng.out_port(0))
         rng.in_port(1).connect(rank.out_port(0))
