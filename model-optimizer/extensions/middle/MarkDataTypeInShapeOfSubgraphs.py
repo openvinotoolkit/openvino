@@ -30,6 +30,9 @@ class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
     This is needed to enable conversion to FP16 even if values in ShapeOf subgraphs exceed max(float16)
     or because of FP16 lower precession shape inference is incorrect on some nodes (e.g. if Interpolate in scales mode
     accepts values from ShapeOf subgraph).
+
+    This transformation must be run after shape inference and after all transformations that insert/modify
+    Cast nodes in ShapeOf subgraphs therefore it's placed at the end of the middle phase before layout permutations.
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['cmd_params'].data_type == 'FP16']
@@ -39,7 +42,8 @@ class MarkShapeOfSubgraphDataType(MiddleReplacementPattern):
         return [PostMiddleStart]
 
     def run_before(self):
-        return [MarkSubGraphsWithCorrectLayout]
+        from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
+        return [LayoutChangeForConstantShapePaths]
 
     def find_and_replace_pattern(self, graph: Graph):
         condition = lambda node: any([out_port.data.get_value() is not None for out_port in node.out_ports().values()])

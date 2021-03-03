@@ -36,8 +36,8 @@ class ChangeCastOutputType(MiddleReplacementPattern):
         return [MarkShapeOfSubgraphDataType]
 
     def run_before(self):
-        from extensions.back.pass_separator import BackStart
-        return [BackStart]
+        from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
+        return [LayoutChangeForConstantShapePaths]
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes(op='Cast'):
