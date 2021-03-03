@@ -40,7 +40,7 @@ Next, put
 for all indices `j_0,...,j_{k+r}`, where `i` is an imaginary unit, i.e. `X` is a complex tensor.
 
 Then the discrete Fourier transform is the tensor `Y` (the shapes of the tensors `X` and `Y` are the same) such that
-\f[Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}]=\frac{1}{\prod\limits_{j=0}^{r-1}S_j}\sum\limits_{p_0=0}^{S_0}\cdots\sum\limits_{p_{r-1}=0}^{S_{r-1}}X[n_0,\dots,n_{k-1},j_0,\dots,j_{r-1}]\exp\left(-2\pi i\sum\limits_{q=0}^{r-1}\frac{m_qj_q}{S_s}\right)\f]
+\f[Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}]=\frac{1}{\prod\limits_{j=0}^{r-1}S_j}\sum\limits_{p_0=0}^{S_0}\cdots\sum\limits_{p_{r-1}=0}^{S_{r-1}}X[n_0,\dots,n_{k-1},j_0,\dots,j_{r-1}]\exp\left(2\pi i\sum\limits_{q=0}^{r-1}\frac{m_qj_q}{S_s}\right)\f]
 for all indices `n_0,...,n_{k-1}`, `m_0,...,m_{r-1}`, and the result of the operation is the real tensor `Z` with the shape `[B_0, ..., B_{k-1}, S_0, ..., S_{r-1}, 2]` and such that
 \f[Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 0]=Re Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}],\f]
 \f[Z[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}, 1]=Im Y[n_0,\dots,n_{k-1},m_0,\dots,m_{r-1}].\f]
