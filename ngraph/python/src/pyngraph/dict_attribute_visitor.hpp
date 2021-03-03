@@ -74,6 +74,9 @@ namespace util
         void on_adapter(const std::string& name,
                         ngraph::ValueAccessor<std::vector<double>>& adapter) override;
 
+        void on_adapter(const std::string& name,
+                        ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter) override;
+
     protected:
         const py::dict& m_attributes;
         std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& m_variables;
