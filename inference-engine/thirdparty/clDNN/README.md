@@ -21,7 +21,7 @@ clDNN uses 3<sup>rd</sup>-party components licensed under following licenses:
 - *RapidJSON* under [Tencent\* License](https://github.com/Tencent/rapidjson/blob/master/license.txt)
 
 ## Documentation
-There is inline documentation available that can be [generated with Doxygen](#generating-documentation).
+There is inline documentation available that can be generated with Doxygen.
 
 Accelerate Deep Learning Inference with Intel® Processor Graphics whitepaper [link](https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics).
 
@@ -62,11 +62,6 @@ The software dependencies are:
 > Intel® CPU intrinsics header (`<immintrin.h>`) must be available during compilation.
 
 - [python™](https://www.python.org/downloads/) 2.7 or later (scripts are both compatible with python™ 2.7.x and python™ 3.x)
-- *(optional)* [Doxygen\*](http://www.stack.nl/~dimitri/doxygen/download.html) 1.8.13 or later
-    Needed for manual generation of documentation from inline comments or running `docs` custom target which will generate it automatically.
-
-> [GraphViz\*](http://www.graphviz.org/Download..php) (2.38 or later) is also recommended to generate documentation with all embedded diagrams.
-(Make sure that `dot` application is visible in the `PATH` environment variable.)
 
 # Trademark Information
 
