@@ -100,17 +100,17 @@ else()
         set(Protobuf_LIBRARIES libprotobuf)
     endif()
 
-    if(CMAKE_COMPILER_IS_GNUCXX)
+    if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         set(_proto_libs ${Protobuf_LIBRARIES})
         if(TARGET libprotoc)
             list(APPEND _proto_libs libprotoc)
         endif()
         set_target_properties(${_proto_libs} PROPERTIES
-                                COMPILE_FLAGS "-Wno-unused-variable")
+                                COMPILE_FLAGS "-Wno-unused-variable -Wno-inconsistent-missing-override")
         set_target_properties(${_proto_libs} PROPERTIES
-        CXX_VISIBILITY_PRESET default
-        C_VISIBILITY_PRESET default
-        VISIBILITY_INLINES_HIDDEN OFF)
+            CXX_VISIBILITY_PRESET default
+            C_VISIBILITY_PRESET default
+            VISIBILITY_INLINES_HIDDEN OFF)
     endif()
 endif()
 
