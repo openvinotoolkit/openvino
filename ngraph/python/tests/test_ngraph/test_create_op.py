@@ -795,11 +795,11 @@ def test_loop():
     )
 
     assert node.get_type_name() == "Loop"
-    assert node.get_output_size() == 3
+    assert node.get_output_size() == 2
     # final average
-    assert list(node.get_output_shape(1)) == [2, 2]
+    assert list(node.get_output_shape(0)) == [2, 2]
     # cma history
-    assert list(node.get_output_shape(2)) == [16, 2, 2]
+    assert list(node.get_output_shape(1)) == [16, 2, 2]
 
 
 def test_roi_pooling():
