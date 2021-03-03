@@ -39,8 +39,8 @@ To avoid dependency conflicts, use a virtual environment. Skip this
 
 Create virtual environment:
 ```sh
-python3 -m pip install --user virtualenv 
-python3 -m venv openvino_env --system-site-packages
+python -m pip install --user virtualenv 
+python -m venv openvino_env --system-site-packages
 ```
 
 Activate virtual environment:<br>
@@ -57,7 +57,7 @@ openvino_env\Scripts\activate
 
 Run the command below:
 ```sh
-python3 -m pip install --upgrade pip
+python -m pip install --upgrade pip
 ```
 
 ### Step 3. Install the Package
@@ -72,7 +72,7 @@ Run the command below: <br>
 
 Run the command below:
 ```sh
-python3 -c "from openvino.inference_engine import IECore"
+python -c "from openvino.inference_engine import IECore"
 ```
    
 You will not see any error messages if installation finished successfully.
