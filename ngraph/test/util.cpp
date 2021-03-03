@@ -301,7 +301,6 @@ TEST(graph_util, clone_rt_info)
 
         nodeInfo["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(testAffinity);
         affinity[node->get_friendly_name()] = testAffinity;
-        auto itInfo = nodeInfo.find("affinity");
     }
 
     auto clonedFunction = ngraph::clone_function(*original_f);
