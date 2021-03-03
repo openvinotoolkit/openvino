@@ -49,7 +49,7 @@ Calculations for the generic case of axes and signal sizes are similar.
 
 There is no `signal_size` input (4D input tensor):
 ```xml
-<layer ... type="DFFT" ... >
+<layer ... type="DFT" ... >
     <input>
         <port id="0">
             <dim>1</dim>
@@ -73,7 +73,7 @@ There is no `signal_size` input (4D input tensor):
 
 There is no `signal_size` input (3D input tensor):
 ```xml
-<layer ... type="DFFT" ... >
+<layer ... type="DFT" ... >
     <input>
         <port id="0">
             <dim>320</dim>
@@ -96,7 +96,7 @@ There is no `signal_size` input (3D input tensor):
 
 There is `signal_size` input (4D input tensor):
 ```xml
-<layer ... type="DFFT" ... >
+<layer ... type="DFT" ... >
     <input>
         <port id="0">
             <dim>1</dim>
@@ -124,7 +124,7 @@ There is `signal_size` input (4D input tensor):
 
 There is `signal_size` input (3D input tensor):
 ```xml
-<layer ... type="DFFT" ... >
+<layer ... type="DFT" ... >
     <input>
         <port id="0">
             <dim>320</dim>
