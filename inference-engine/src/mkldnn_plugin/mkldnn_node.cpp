@@ -766,7 +766,7 @@ void MKLDNNNode::prepareMemory(const PrimitiveDescInfo *selected_pd, mkldnn::pri
                                             + "_" + std::to_string(internalBlob->byteSize())
                                             + "_" + std::to_string(data_hash);
 
-            ptr = weightCache->findOrCreate(string_hash, create);
+            ptr = *weightCache->findOrCreate(string_hash, create);
         } else {
             ptr = create();
         }
