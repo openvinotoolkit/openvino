@@ -234,15 +234,18 @@ def load_components(file_descr, graph, component_layer_map=None):
         # it is separated in 2 parts to remove cycle from graph
         file_descr.seek(start_index)
         dim = 0
-        try:
-            collect_until_token(file_descr, b'<Dim>', size_search_zone=end_index - start_index)
-            cur_index = file_descr.tell()
-            if start_index < cur_index < end_index:
-                dim = read_binary_integer32_token(file_descr)
-            else:
+        dim_words = {b'<Dim>', b'<InputDim>'}
+        for dim_word in dim_words:
+            try:
+                collect_until_token(file_descr, dim_word, size_search_zone=end_index - start_index)
+                cur_index = file_descr.tell()
+                if start_index < cur_index < end_index:
+                    dim = read_binary_integer32_token(file_descr)
+                    break
+                else:
+                    file_descr.seek(start_index)
+            except Error:
                 file_descr.seek(start_index)
-        except Error:
-            file_descr.seek(start_index)
 
         if is_nnet3:
             if name in component_layer_map:
