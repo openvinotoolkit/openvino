@@ -197,6 +197,36 @@ public:
                 return;
 
             for (int64_t ob = start; ob < end; ob++) {
+                const int64_t oshift_ob = ob * OC_OH_OW;
+                const int64_t ishift_ob = ob * IC_IH_IW;
+                for (int64_t ic = 0; ic < IC; ic++) {
+                    const int64_t ishift_obic = ishift_ob + ic * IH_IW;
+                    int64_t ih0 = -PT;
+                    for (int64_t oh = 0; oh < OH; oh++, ih0 += SH) {
+                        int64_t iw0 = -PL;
+                        for (int64_t ow = 0; ow < OW; ow++, iw0 += SW) {
+                            int64_t ih = ih0;
+                            const int64_t oshitf_ob_ohow = oshift_ob + oh * OW + ow;
+                            for (int64_t kh = 0; kh < KH; kh++, ih += RH) {
+                                const int64_t ishift_ibicih = ishift_obic + ih * IW;
+                                int64_t iw = iw0;
+                                for (int64_t kw = 0; kw < KW; kw++, iw += RW) {
+                                    int64_t oshift_oc = (kh * KW * IC + kw * IC + ic) * OH_OW;
+                                    int64_t dst_idx = oshitf_ob_ohow + oshift_oc;
+                                    if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
+                                        dst_data[dst_idx] = T(0);
+                                    } else {
+                                        int64_t src_idx = ishift_ibicih + iw;
+                                        dst_data[dst_idx] = src_data[src_idx];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            /*
+            for (int64_t ob = start; ob < end; ob++) {
                 const int64_t ibICIHIW = ob * IC_IH_IW;
                 const int64_t obOCOHOW = ob * OC_OH_OW;
                 for (int64_t oh = 0; oh < OH; oh++) {
@@ -225,7 +255,7 @@ public:
                         }
                     }
                 }
-            }
+            }*/
         };
 
         parallel_nt(0, thread_body);
