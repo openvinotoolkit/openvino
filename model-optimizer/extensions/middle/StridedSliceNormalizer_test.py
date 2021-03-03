@@ -38,6 +38,12 @@ edges = (
     *connect('strided_slice', 'res')
 )
 
+edges_without_strides = (
+    *connect('input', '0:strided_slice'),
+    *connect('begin', '1:strided_slice'),
+    *connect('end', '2:strided_slice'),
+    *connect('strided_slice', 'res')
+)
 
 class TestStridedSliceNormalizer(unittest.TestCase):
 
@@ -96,6 +102,65 @@ class TestStridedSliceNormalizer(unittest.TestCase):
         )
 
         graph = build_graph(nodes, edges, nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes, edges_ref_extended_inputs, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+        graph_ref.stage = 'middle'
+
+        graph = partial_infer(graph)
+        StridedSliceNormalizer().find_and_replace_pattern(graph)
+        graph = partial_infer(graph)
+        graph_ref = partial_infer(graph_ref)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'res', check_op_attrs=False)
+        self.assertTrue(flag, 'Graphs after StridedSliceNormalizer do not match to reference: {}'.format(resp))
+
+    def test_strided_slice_extend_inputs_without_strides(self):
+        input_shape = (16, 100, 100, 3)
+        nodes = {
+            **valued_const_with_data('input', np.arange(np.product(input_shape)).reshape(*input_shape)),
+            **regular_op_with_empty_data('strided_slice', {'op': 'StridedSlice',
+                                                           'type': 'StridedSlice',
+                                                           'begin_mask': [1, 1, 1],
+                                                           'end_mask': [1, 1, 1],
+                                                           'shrink_axis_mask': [1, 0, 0],
+                                                           'new_axis_mask': [0, 0, 0],
+                                                           'ellipsis_mask': [0, 0, 0],
+                                                           'infer': StridedSlice.infer}),
+
+            **regular_op_with_empty_data('strided_slice_ref', {'op': 'StridedSlice',
+                                                               'type': 'StridedSlice',
+                                                               'begin_mask': [1, 1, 1, 0],
+                                                               'end_mask': [1, 1, 1, 0],
+                                                               'new_axis_mask': [0, 0, 0, 0],
+                                                               'shrink_axis_mask': [1, 0, 0, 0],
+                                                               'ellipsis_mask': [0, 0, 0, 0],
+                                                               'infer': StridedSlice.infer}),
+            **valued_const_with_data('begin', int64_array([0, 0, 0])),
+            **valued_const_with_data('begin_placeholder', int64_array([0])),
+            **regular_op_with_empty_data('begin_concat',
+                                         {'op': 'Concat', 'infer': concat_infer, 'axis': 0, 'dim_attrs': {}}),
+            **valued_const_with_data('end', int64_array([4, 25, 50])),
+            **valued_const_with_data('end_placeholder', int64_array([0])),
+            **regular_op_with_empty_data('end_concat',
+                                         {'op': 'Concat', 'infer': concat_infer, 'axis': 0, 'dim_attrs': {}}),
+            **regular_op('res', {'kind': 'op', 'type': 'Result', 'op': 'Result', 'infer': lambda x: None})
+        }
+
+        edges_ref_extended_inputs = (
+            *connect('input', '0:strided_slice_ref'),
+
+            *connect('begin', '0:begin_concat'),
+            *connect('begin_placeholder', '1:begin_concat'),
+            *connect('begin_concat', '1:strided_slice_ref'),
+
+            *connect('end', '0:end_concat'),
+            *connect('end_placeholder', '1:end_concat'),
+            *connect('end_concat', '2:strided_slice_ref'),
+
+            *connect('strided_slice_ref', 'res')
+        )
+
+        graph = build_graph(nodes, edges_without_strides, nodes_with_edges_only=True)
         graph_ref = build_graph(nodes, edges_ref_extended_inputs, nodes_with_edges_only=True)
         graph.stage = 'middle'
         graph_ref.stage = 'middle'
@@ -193,6 +258,84 @@ class TestStridedSliceNormalizer(unittest.TestCase):
         )
 
         graph = build_graph(nodes, edges, nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes, edges_ref_ellipsis_unrolled, nodes_with_edges_only=True)
+        graph.stage = 'middle'
+        graph_ref.stage = 'middle'
+        graph = partial_infer(graph)
+        StridedSliceNormalizer().find_and_replace_pattern(graph)
+        graph = partial_infer(graph)
+        graph_ref = partial_infer(graph_ref)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'res', check_op_attrs=False)
+        self.assertTrue(flag, 'Graphs after StridedSliceNormalizer do not match to reference: {}'.format(resp))
+
+    def test_strided_slice_unrooll_ellipsis_without_strides(self):
+        input_shape = (10, 10, 10, 10)
+        # out = inp[1:4, ..., 0:5] -> inp[1:4, :, :, 0:5] => out_shape = (3, 10, 10, 5)
+        ellipsis_start = 1
+
+        nodes = {
+            **valued_const_with_data('input', np.arange(np.product(input_shape)).reshape(*input_shape)),
+            **regular_op_with_empty_data('strided_slice', {'op': 'StridedSlice', 'type': 'StridedSlice',
+                                                           'begin_mask': [1, 1, 1], 'end_mask': [1, 1, 1],
+                                                           'shrink_axis_mask': [0, 0, 0],
+                                                           'new_axis_mask': [0, 0, 0],
+                                                           'ellipsis_mask': [0, 1, 0],
+                                                           'infer': StridedSlice.infer}),
+
+            **regular_op_with_empty_data('strided_slice_ref', {'op': 'StridedSlice', 'begin_mask': [1, 0, 0, 1],
+                                                               'end_mask': [1, 0, 0, 1], 'ellipsis_mask': [0, 0, 0, 0],
+                                                               'new_axis_mask': [0, 0, 0, 0],
+                                                               'shrink_axis_mask': [0, 0, 0, 0],
+                                                               'infer': StridedSlice.infer}),
+
+            **valued_const_with_data('begin', int64_array([1, 0, 0])),
+            **valued_const_with_data('split_axis_begin', int64_array(0)),
+            **valued_const_with_data('splits_lengths_begin', int64_array([ellipsis_start, -1])),
+            **regular_op_with_empty_data('split_for_begin', {'op': 'VariadicSplit', 'infer': VariadicSplit.infer}),
+            **empty_data('split_for_begin_data_1'),
+            **valued_const_with_data('begin_placeholder', int64_array([0])),
+            **regular_op_with_empty_data('begin_concat',
+                                         {'op': 'Concat', 'infer': concat_infer, 'axis': 0, 'dim_attrs': {}}),
+
+
+            **valued_const_with_data('end', int64_array([4, 0, 5])),
+            **valued_const_with_data('split_axis_end', int64_array(0)),
+            **valued_const_with_data('splits_lengths_end', int64_array([ellipsis_start, -1])),
+            **regular_op_with_empty_data('split_for_end', {'op': 'VariadicSplit', 'infer': VariadicSplit.infer}),
+            **empty_data('split_for_end_data_1'),
+            **valued_const_with_data('end_placeholder', int64_array([0])),
+            **regular_op_with_empty_data('end_concat',
+                                         {'op': 'Concat', 'infer': concat_infer, 'axis': 0, 'dim_attrs': {}}),
+
+            **regular_op('res', {'kind': 'op', 'type': 'Result', 'op': 'Result', 'infer': lambda x: None})
+        }
+
+        edges_ref_ellipsis_unrolled = (
+            *connect('input', '0:strided_slice_ref'),
+
+            *connect('begin', '0:split_for_begin'),
+            *connect('split_axis_begin', '1:split_for_begin'),
+            *connect('splits_lengths_begin', '2:split_for_begin'),
+            *connect('split_for_begin:0', '0:begin_concat'),
+            *connect('begin_placeholder', '1:begin_concat'),
+            ('split_for_begin', 'split_for_begin_data_1', {'out': 1, 'in': 2}),
+            ('split_for_begin_data_1', 'begin_concat', {'out': 1, 'in': 2}),
+            *connect('begin_concat', '1:strided_slice_ref'),
+
+            *connect('end', '0:split_for_end'),
+            *connect('split_axis_end', '1:split_for_end'),
+            *connect('splits_lengths_end', '2:split_for_end'),
+            *connect('split_for_end:0', '0:end_concat'),
+            *connect('end_placeholder', '1:end_concat'),
+            ('split_for_end', 'split_for_end_data_1', {'out': 1, 'in': 2}),
+            ('split_for_end_data_1', 'end_concat', {'out': 1, 'in': 2}),
+            *connect('end_concat', '2:strided_slice_ref'),
+
+            *connect('strided_slice_ref', 'res')
+        )
+
+        graph = build_graph(nodes, edges_without_strides, nodes_with_edges_only=True)
         graph_ref = build_graph(nodes, edges_ref_ellipsis_unrolled, nodes_with_edges_only=True)
         graph.stage = 'middle'
         graph_ref.stage = 'middle'
