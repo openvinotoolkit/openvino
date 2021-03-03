@@ -11,6 +11,11 @@
 namespace LayerTestsDefinitions {
 
 namespace {
+InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::Node> node,
+                                    const InferenceEngine::InputInfo& info) {
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+}
+
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::PSROIPooling> node,
                                     const InferenceEngine::InputInfo& info) {
     const auto& inputShape = info.getInputData()->getDims();
@@ -88,7 +93,12 @@ InferenceEngine::Blob::Ptr generateInput(const std::shared_ptr<ngraph::Node> nod
 InputsMap getInputMap() {
     static InputsMap inputsMap{
 #define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, generateInput<NAMESPACE::NAME>},
-    #include <shared_test_classes/read_ir/opset_int_tbl.hpp>
+    #include "ngraph/opsets/opset1_tbl.hpp"
+    #include "ngraph/opsets/opset2_tbl.hpp"
+    #include "ngraph/opsets/opset3_tbl.hpp"
+    #include "ngraph/opsets/opset4_tbl.hpp"
+    #include "ngraph/opsets/opset5_tbl.hpp"
+    #include "ngraph/opsets/opset6_tbl.hpp"
 #undef NGRAPH_OP
     };
     return inputsMap;

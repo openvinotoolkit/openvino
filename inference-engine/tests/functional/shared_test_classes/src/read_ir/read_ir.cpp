@@ -35,11 +35,12 @@ void ReadIRTest::GenerateInputs() {
             for (const auto& node : param->get_output_target_inputs(i)) {
                 const auto nodePtr = node.get_node()->shared_from_this();
                 auto it = inputMap.find(nodePtr->get_type_info());
-                if (it != inputMap.end()) {
+//                if (it != inputMap.end()) {
+                    auto b = it->second(nodePtr, *info);
                     inputs.push_back(it->second(nodePtr, *info));
-                } else {
-                    inputs.push_back(GenerateInput(*info));
-                }
+//                } else {
+//                    inputs.push_back(GenerateInput(*info));
+//                }
             }
         }
     }
