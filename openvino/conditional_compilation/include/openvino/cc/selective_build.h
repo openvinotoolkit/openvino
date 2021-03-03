@@ -215,8 +215,8 @@ bool match(char const *region, Ctx && ctx, T && val, Case && cs, Cases&&... case
 // Return second argument from possible sequences {1, 0}, {0, 1, 0}
 #define OV_CC_SCOPE_IS_ENABLED2(arg1_or_junk) OV_CC_SCOPE_SECOND_ARG(arg1_or_junk 1, 0)
 
-#define OV_SCOPE(Module, region)                                                         \
-    if (OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(Module, _, region)))
+#define OV_SCOPE(Module, region)    \
+    for (bool ovCCScopeIsEnabled = OV_CC_SCOPE_IS_ENABLED(OV_PP_CAT3(Module, _, region)); ovCCScopeIsEnabled; ovCCScopeIsEnabled = false)
 
 // Switch is disabled
 #define OV_CC_SWITCH_0(Module, fn, ctx, val)
