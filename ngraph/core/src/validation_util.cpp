@@ -1256,7 +1256,8 @@ void propagate_rt_info(Node* node, const Output<Node>& final_port)
                 copy_runtime_info({curr_node, consumer}, consumer);
 
                 auto& rt_info = consumer->get_rt_info();
-                for (const auto& it : orig_rt_info) {
+                for (const auto& it : orig_rt_info)
+                {
                     if (rt_info.find(it.first) == rt_info.end())
                         rt_info[it.first] = it.second;
                 }
