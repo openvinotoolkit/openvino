@@ -195,7 +195,69 @@ public:
             splitter(work_amount, nthr, ithr, start, end);
             if (start >= end)
                 return;
-
+            // ob -> kh -> kw -> ic -> oh -> ow
+            for (int64_t ob = start; ob < end; ob++) {
+                const int64_t oshift_ob = ob * OC_OH_OW;
+                const int64_t ishift_ob = ob * IC_IH_IW;
+                for (int64_t kh = 0; kh < KH; kh++) {
+                    const int64_t ih_start = kh * RH - PT;
+                    const int64_t oshift_obkh = oshift_ob + kh * KW * IC * OH_OW;
+                    for (int64_t kw = 0; kw < KW; kw++) {
+                        const int64_t oshift_obkhkw = oshift_obkh + kw * IC * OH_OW;
+                        const int64_t iw_start = kw * RW - PL;
+                        for (int64_t ic = 0; ic < IC; ic++) {
+                            const int64_t ishift_obic = ishift_ob + ic * IH_IW;
+                            const int64_t oshift_obkhkwic = oshift_obkhkw + ic * OH_OW;
+                            int64_t ih = ih_start;
+                            for (int64_t oh = 0; oh < OH; oh++, ih += SH) {
+                                int64_t iw = iw_start;
+                                for (int64_t ow = 0; ow < OW; ow++, iw += SW) {
+                                    int64_t dst_idx = oshift_obkhkwic + oh * OW + ow;
+                                    if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
+                                        dst_data[dst_idx] = T(0);
+                                    } else {
+                                        int64_t src_idx = ishift_obic + ih * IW + iw;
+                                        dst_data[dst_idx] = src_data[src_idx];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            /*
+            // ob -> ic -> kh -> kw -> oh -> ow
+             for (int64_t ob = start; ob < end; ob++) {
+                const int64_t oshift_ob = ob * OC_OH_OW;
+                const int64_t ishift_ob = ob * IC_IH_IW;
+                for (int64_t ic = 0; ic < IC; ic++) {
+                    const int64_t ishift_obic = ishift_ob + ic * IH_IW;
+                    for (int64_t kh = 0; kh < KH; kh++) {
+                        const int64_t ih_start = kh * RH - PT;
+                        const int64_t oshift_obkh = oshift_ob + kh * KW * IC * OH_OW;
+                        for (int64_t kw = 0; kw < KW; kw++) {
+                            const int64_t oshift_obkhkw = oshift_obkh + kw * IC * OH_OW;
+                            int64_t ih = ih_start;
+                            const int64_t iw_start = kw * RW - PL;
+                            for (int64_t oh = 0; oh < OH; oh++, ih += SH) {
+                                int64_t iw = iw_start;
+                                for (int64_t ow = 0; ow < OW; ow++, iw += SW) {
+                                    int64_t dst_idx = oshift_obkhkw + ic * OH_OW + oh * OW + ow;
+                                    int64_t src_idx = ishift_obic + ih * IW + iw;
+                                    if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
+                                        dst_data[dst_idx] = T(0);
+                                    } else {
+                                        dst_data[dst_idx] = src_data[src_idx];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            */
+            // ob -> ic -> oh -> ow -> kh -> kw
+            /*
             for (int64_t ob = start; ob < end; ob++) {
                 const int64_t oshift_ob = ob * OC_OH_OW;
                 const int64_t ishift_ob = ob * IC_IH_IW;
@@ -225,6 +287,7 @@ public:
                     }
                 }
             }
+            /*
             /*
             for (int64_t ob = start; ob < end; ob++) {
                 const int64_t ibICIHIW = ob * IC_IH_IW;
