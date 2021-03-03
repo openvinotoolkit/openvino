@@ -67,13 +67,12 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
     const auto fq_output_low_p = ngraph::pattern::any_input();
     const auto fq_output_high_p = ngraph::pattern::any_input();
 
-    const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
-                                                                            {ngraph::pattern::any_input(),
-                                                                                ngraph::pattern::any_input(),
-                                                                                ngraph::pattern::any_input(),
-                                                                                fq_output_low_p,
-                                                                                fq_output_high_p},
-                                                                                pattern::consumers_count(1));
+    const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>({ngraph::pattern::any_input(),
+                                                                             ngraph::pattern::any_input(),
+                                                                             ngraph::pattern::any_input(),
+                                                                             fq_output_low_p,
+                                                                             fq_output_high_p},
+                                                                             pattern::consumers_count(1));
 
     const auto mul_constant_p = ngraph::pattern::wrap_type<opset4::Constant>();
     const auto mul_node_p = ngraph::pattern::wrap_type<opset4::Multiply>(
@@ -84,9 +83,9 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
 
         const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
 
-        const auto original_output_low = pattern_map.at(fq_output_low_p);
-        const auto original_output_high = pattern_map.at(fq_output_high_p);
-        const auto mul_constant = pattern_map.at(mul_constant_p);
+        const auto & original_output_low = pattern_map.at(fq_output_low_p);
+        const auto & original_output_high = pattern_map.at(fq_output_high_p);
+        const auto & mul_constant = pattern_map.at(mul_constant_p);
 
         const auto new_output_limits = get_adjusted_output_range(
                                                                  original_output_low, original_output_high, mul_constant);
@@ -98,6 +97,26 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
             new_output_limits.second});
 
         const auto mul_node = pattern_map.at(mul_node_p).get_node_shared_ptr();
+
+        // WA: this check is intended to prevent replacement when new FQ has shape
+        // which is different to Multiply output shape. Otherwise such replacement
+        // will lead to shape inconsistency in remaining graph. This check must be
+        // removed in future when FQ will have correct validate_and_infer function
+        // for cases with NUMPY broadcast.
+        auto fq_casted = std::dynamic_pointer_cast<opset4::FakeQuantize>(new_fq_node);
+        if (!fq_casted) {
+            return false;
+        }
+        if (fq_casted->get_auto_broadcast() == op::AutoBroadcastType::NUMPY) {
+            if (fq_casted->get_output_partial_shape(0).is_dynamic() ||
+                mul_node->get_output_partial_shape(0).is_dynamic()) {
+                return false;
+            }
+            if (fq_casted->get_shape() != mul_node->get_shape()) {
+                return false;
+            }
+        }
+
         replace_node(mul_node, new_fq_node);
 
         new_fq_node->set_friendly_name(fq_node->get_friendly_name());
