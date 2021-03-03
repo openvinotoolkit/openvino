@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2021 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -510,13 +510,16 @@ inline CNNLayerPtr CNNNetworkCreateReshape(TensorDesc td, std::string name, bool
 inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                                   CNNLayerPtr before,
                                   CNNLayerPtr layerToInsert,
-                                  size_t outDataIndex = invalid_data_idx) {
+                                  size_t outDataIndex = invalid_data_idx,
+                                  size_t inDataIndex = invalid_data_idx) {
     if (after == nullptr && before == nullptr) {
         THROW_IE_EXCEPTION << "Cannot Insert Layer: before or after layers should be valid layer pointers";
     }
 
     bool bLocated = false;
     bool hasOutputIndex = outDataIndex != invalid_data_idx;
+    int  number_of_connections_between_after_n_before = 0;
+
     if (after != nullptr) {
         int nUnconnectedOData = 0;
         for (auto && data : after->outData) {
@@ -531,8 +534,10 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                     continue;
 
                 // located data
-                for (auto x : CNNLayerFindInsDataIdxes(data, input)) {
-                    input->insData[x] = layerToInsert->outData.front();
+                for (auto input_port_idx : CNNLayerFindInsDataIdxes(data, input)) {
+                    if (((size_t)inDataIndex != invalid_data_idx && (size_t)inDataIndex == input_port_idx) || (size_t)inDataIndex == invalid_data_idx)
+                        input->insData[input_port_idx] = layerToInsert->outData.front();
+                    number_of_connections_between_after_n_before++;
                 }
 
                 getInputTo(layerToInsert->outData.front())[inputIt->first] = input;
@@ -540,7 +545,10 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                 bLocated = true;
 
                 // erasing only one particular connection
-                getInputTo(data).erase(inputIt->first);
+                // we must check if there is only one connection between after <=> before
+                if (number_of_connections_between_after_n_before == 1)
+                    getInputTo(data).erase(inputIt->first);
+
                 if (before != nullptr) {
                     break;
                 }
@@ -565,7 +573,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
 
         // separately checking case of possible single unconnected output of given layer
         if (!bLocated && !before && !hasOutputIndex) {
-            if (nUnconnectedOData != 1) {
+            if (nUnconnectedOData != 1 && number_of_connections_between_after_n_before <= 1) {
                 THROW_GNA_EXCEPTION << "Cannot insert layer: " << LAYER_NAME(layerToInsert) <<" after: " << LAYER_NAME(after);
             }
 
@@ -583,7 +591,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
         // if given outputDataIndex is not correct, lets find index that matches *before* layer
         if (!bLocated) {
             if (before != nullptr) {
-                IE_ASSERT(before->insData.size() == 1);
+                IE_ASSERT(before->insData.size() == 1 || inDataIndex != invalid_data_idx && inDataIndex < before->insData.size());
                 auto prevLayer = after;
                 for (auto idx = prevLayer->outData.begin(); idx != prevLayer->outData.end(); idx++) {
                     auto &outputports = getInputTo(*idx);
@@ -591,8 +599,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                         if (ll->second.get() == before.get()) {
                             // looks we found where need to remove
                             outputports.erase(ll);
-                            before->insData.clear();
-                            before->insData.push_back(layerToInsert->outData.front());
+                            before->insData[inDataIndex != invalid_data_idx ? inDataIndex : 0] = layerToInsert->outData.front();
                             getInputTo(layerToInsert->outData.front())[before->name] = before;
 
                             bLocated = true;
@@ -603,7 +610,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                         break;
                     }
                 }
-                // now we have a before layer without inputs
+                // now we have a before layer with one input less
             }
             if (bLocated) {
                 // inserting into node that doesnt have child
