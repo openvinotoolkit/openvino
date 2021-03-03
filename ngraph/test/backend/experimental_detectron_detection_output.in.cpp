@@ -48,5 +48,53 @@ static string s_manifest = "${MANIFEST}";
 
 NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_detection_output_eval)
 {
+    Attrs attrs;
+    attrs.class_agnostic_box_regression = true;
+    attrs.deltas_weights = {10.0f, 10.0f, 5.0f, 5.0f};
+    attrs.max_delta_log_wh = 2.0f;
+    attrs.max_detections_per_image = 5;
+    attrs.nms_threshold = 0.2f;
+    attrs.num_classes = 2;
+    attrs.post_nms_count = 500;
+    attrs.score_threshold = 0.01000000074505806f;
+
+    // size_t rois_num = static_cast<size_t>(attrs.max_detections_per_image);
+
+    auto rois = std::make_shared<op::Parameter>(element::f32, Shape{16, 4});
+    auto deltas = std::make_shared<op::Parameter>(element::f32, Shape{16, 8});
+    auto scores = std::make_shared<op::Parameter>(element::f32, Shape{16, 2});
+    auto im_info = std::make_shared<op::Parameter>(element::f32, Shape{1, 3});
+
+    auto detection = std::make_shared<ExperimentalDO>(rois, deltas, scores, im_info, attrs);
+
+    auto f = make_shared<Function>(detection, ParameterVector{rois, deltas, scores, im_info});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    std::vector<float> rois_data = {1.0f, 1.0f, 10.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 4.0f, 1.0f, 8.0f, 5.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                    1.0f, 1.0f, 1.0f,  1.0f,  1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
+    std::vector<float> deltas_data = {
+        5.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
+    std::vector<float> scores_data = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                      1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                                      1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+
+    std::vector<float> im_info_data = {1.0f, 1.0f, 1.0f};
     ASSERT_TRUE(true);
 }
