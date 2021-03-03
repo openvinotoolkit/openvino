@@ -6,8 +6,7 @@ import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
-from tests import (xfail_issue_34327,
-                   xfail_issue_36485,
+from tests import (xfail_issue_36485,
                    xfail_issue_36486,
                    xfail_issue_36487,
                    xfail_issue_44976)
