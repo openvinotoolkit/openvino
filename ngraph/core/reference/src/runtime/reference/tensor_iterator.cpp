@@ -115,8 +115,9 @@ namespace ngraph
                     // Copy new values for sliced inputs
                     for (size_t i = 0; i < slice_inputs.size(); ++i)
                     {
-                        inputs_to_body[slice_inputs[i]->m_body_parameter_index] =
-                            sliced_values[i][cur_iter];
+                        if (sliced_values[i].size() > cur_iter)
+                            inputs_to_body[slice_inputs[i]->m_body_parameter_index] =
+                                sliced_values[i][cur_iter];
                     }
 
                     // Evaluate body
@@ -169,11 +170,11 @@ namespace ngraph
                     pointers_on_values.reserve(values_to_concat[i].size());
                     for (size_t j = 0; j < values_to_concat[i].size(); ++j)
                     {
-                        pointers_on_values.push_back(
-                            values_to_concat[i][concat_desc->m_stride > 0
-                                                    ? j
-                                                    : (values_to_concat[i].size() - j - 1)]
-                                ->get_data_ptr<char>());
+                        size_t idx =
+                            concat_desc->m_stride > 0 ? j : (values_to_concat[i].size() - j - 1);
+                        if (values_to_concat[i].size() > idx && values_to_concat[i][idx])
+                            pointers_on_values.push_back(
+                                values_to_concat[i][idx]->get_data_ptr<char>());
                     }
                     reference::concat(pointers_on_values,
                                       out[concat_desc->m_output_index]->get_data_ptr<char>(),

@@ -1,7 +1,8 @@
 # [OpenVINO™ Toolkit](https://01.org/openvinotoolkit) - Deep Learning Deployment Toolkit repository
 [![Stable release](https://img.shields.io/badge/version-2021.2-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2021.2)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
-![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/9/master?label=Public%20CI)
+![GitHub branch checks state](https://img.shields.io/github/checks-status/openvinotoolkit/openvino/master?label=GitHub%20checks)
+![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/13?label=Public%20CI)
 
 This toolkit allows developers to deploy pre-trained deep learning models
 through a high-level C++ Inference Engine API integrated with application logic.
