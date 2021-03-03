@@ -361,33 +361,26 @@ const PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_
     auto filter_pshape = get_input_partial_shape(1);
 
     PartialShape shape;
-    if (data_pshape.rank().is_static())
-    {
-        shape = PartialShape{vector<Dimension>(data_pshape.rank().get_length() - 2)};
-    }
-    else
-    {
-        shape = PartialShape{vector<Dimension>(m_strides.size())};
-    }
     bool is_output_shape_present = inputs().size() == 3;
     if (is_output_shape_present)
     {
         if (const auto& const_op = get_constant_from_source(input_value(2)))
         {
-            shape = const_op->get_shape_val();
+            return PartialShape{const_op->get_shape_val()};
         }
-        else if (data_pshape.rank().is_static())
-        {
-            shape = PartialShape{vector<Dimension>(data_pshape.rank().get_length() - 2)};
-        }
-        else if (filter_pshape.rank().is_static())
-        {
-            shape = PartialShape{vector<Dimension>(data_pshape.rank().get_length() - 3)};
-        }
-        else
-        {
-            shape = PartialShape::dynamic();
-        }
+    }
+
+    if (data_pshape.rank().is_static())
+    {
+        shape = PartialShape{vector<Dimension>(data_pshape.rank().get_length() - 2)};
+    }
+    else if (filter_pshape.rank().is_static())
+    {
+        shape = PartialShape{vector<Dimension>(filter_pshape.rank().get_length() - 3)};
+    }
+    else
+    {
+        shape = PartialShape::dynamic();
     }
     return shape;
 }
@@ -432,10 +425,10 @@ void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_sh
 
 void op::v1::GroupConvolutionBackpropData::validate_and_infer_types()
 {
-    const auto& data_pshape = get_input_partial_shape(0);
+    NGRAPH_OP_SCOPE(v1_GroupConvolutionBackpropData_validate_and_infer_types);
+    const PartialShape& data_pshape = get_input_partial_shape(0);
     element::Type data_et = get_input_element_type(0);
-
-    const auto& filters_pshape = get_input_partial_shape(1);
+    const PartialShape& filters_pshape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
     element::Type result_et;
@@ -449,6 +442,9 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types()
         ").");
 
     NODE_VALIDATION_CHECK(
+        this, result_et.is_real(), "Element type of inputs must be float point. Got: ", result_et);
+
+    NODE_VALIDATION_CHECK(
         this,
         (data_pshape.rank().compatible(5) && filters_pshape.rank().compatible(6)) ||
             (data_pshape.rank().compatible(4) && filters_pshape.rank().compatible(5)) ||
@@ -459,74 +455,10 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types()
         filters_pshape,
         ").");
 
-    if (m_pads_begin.size() == 0)
-    {
-        m_pads_begin = conv_default_padding(this, data_pshape, filters_pshape);
-    }
-    if (m_pads_end.size() == 0)
-    {
-        m_pads_end = conv_default_padding(this, data_pshape, filters_pshape);
-    }
-    if (m_output_padding.size() == 0)
-    {
-        m_output_padding = conv_default_padding(this, data_pshape, filters_pshape);
-    }
-    if (m_strides.size() == 0)
-    {
-        m_strides = conv_default_strides(this, data_pshape, filters_pshape);
-    }
-    if (m_dilations.size() == 0)
-    {
-        m_dilations = conv_default_strides(this, data_pshape, filters_pshape);
-    }
-
-    if (data_pshape.rank().is_static() && filters_pshape.rank().is_static())
-    {
-        if (filters_pshape[0].is_static() && filters_pshape[1].is_static() &&
-            data_pshape[1].is_static())
-        {
-            auto groups = filters_pshape[0].get_length();
-            auto input_channels = filters_pshape[1].get_length();
-            auto n_data_channels = data_pshape[1].get_length();
-
-            NODE_VALIDATION_CHECK(this,
-                                  n_data_channels % groups == 0,
-                                  "Number of data channels not a multiple of group size.");
-            NODE_VALIDATION_CHECK(this,
-                                  n_data_channels / groups == input_channels,
-                                  "Data second dimension has incompatible value "
-                                  "with number of input channels.");
-        }
-
-        const auto num_spatial_dims = data_pshape.rank().get_length() - 2;
-
-        NODE_VALIDATION_CHECK(this,
-                              m_pads_begin.size() == num_spatial_dims &&
-                                  m_pads_end.size() == num_spatial_dims,
-                              "Pads should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(this,
-                              m_strides.size() == num_spatial_dims,
-                              "Strides should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(this,
-                              m_dilations.size() == num_spatial_dims,
-                              "Dilations should be defined for all and only spatial features.");
-
-        NODE_VALIDATION_CHECK(this,
-                              m_output_padding.size() == num_spatial_dims,
-                              "Output padding should be defined for all and only "
-                              "spatial features.");
-    }
-
     bool is_output_shape_present = inputs().size() == 3;
-    PartialShape output_pshape;
-
-    // If output shape is provided, ignore current values for padding begin/end
-    // and infer them.
     if (is_output_shape_present)
     {
-        const auto& output_shape_pshape = get_input_partial_shape(2);
+        const PartialShape& output_shape_pshape = get_input_partial_shape(2);
         const element::Type output_shape_et = get_input_element_type(2);
 
         NODE_VALIDATION_CHECK(this,
@@ -542,62 +474,141 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types()
                               "(output_shape shape: ",
                               output_shape_pshape,
                               ").");
+    }
+    PartialShape output_spatial_pshape = get_convolution_output_shape();
 
-        output_pshape = get_convolution_output_shape();
+    if (data_pshape.rank().is_static() || filters_pshape.rank().is_static())
+    {
+        const bool is_data_ps_static = data_pshape.rank().is_static();
+        const auto output_ps_rank = is_data_ps_static ? data_pshape.rank().get_length()
+                                                      : filters_pshape.rank().get_length() - 1;
+        const auto num_spatial_dims = output_ps_rank - 2;
 
-        if (output_pshape.rank().is_static())
+        if (m_strides.size() == 0)
         {
-            vector<Dimension> tmp_output_shape{output_pshape};
+            m_strides = Strides(num_spatial_dims, 1);
+        }
+        if (m_dilations.size() == 0)
+        {
+            m_dilations = Strides(num_spatial_dims, 1);
+        }
+        if (m_pads_begin.size() == 0 || m_auto_pad == PadType::VALID)
+        {
+            m_pads_begin = CoordinateDiff(num_spatial_dims, 0);
+        }
+        if (m_pads_end.size() == 0 || m_auto_pad == PadType::VALID)
+        {
+            m_pads_end = CoordinateDiff(num_spatial_dims, 0);
+        }
+        if (m_output_padding.size() == 0)
+        {
+            m_output_padding = CoordinateDiff(num_spatial_dims, 0);
+        }
+
+        NODE_VALIDATION_CHECK(this,
+                              m_strides.size() == num_spatial_dims,
+                              "Strides should be defined for all and only spatial features.");
+
+        NODE_VALIDATION_CHECK(this,
+                              m_dilations.size() == num_spatial_dims,
+                              "Dilations should be defined for all and only spatial features.");
+
+        NODE_VALIDATION_CHECK(this,
+                              m_pads_begin.size() == num_spatial_dims &&
+                                  m_pads_end.size() == num_spatial_dims,
+                              "Pads should be defined for all and only spatial features.");
+
+        NODE_VALIDATION_CHECK(this,
+                              m_output_padding.size() == num_spatial_dims,
+                              "Output padding should be defined for all and only "
+                              "spatial features.");
+
+        if (data_pshape.rank().is_static() && filters_pshape.rank().is_static())
+        {
+            if (filters_pshape[0].is_static() && filters_pshape[1].is_static() &&
+                data_pshape[1].is_static())
+            {
+                auto groups = filters_pshape[0].get_length();
+                auto input_channels = filters_pshape[1].get_length();
+                auto n_data_channels = data_pshape[1].get_length();
+
+                NODE_VALIDATION_CHECK(this,
+                                      n_data_channels % groups == 0,
+                                      "Number of data channels not a multiple of group size.");
+                NODE_VALIDATION_CHECK(this,
+                                      n_data_channels / groups == input_channels,
+                                      "Data second dimension has incompatible value "
+                                      "with number of input channels.");
+            }
+        }
+
+        if (is_output_shape_present && output_spatial_pshape.is_static())
+        {
+            Shape output_shape = output_spatial_pshape.to_shape();
+            NODE_VALIDATION_CHECK(this,
+                                  output_shape.size() == num_spatial_dims,
+                                  "Output shape should be specified only and for "
+                                  "all spatial dimensions.");
+        }
+    }
+
+    PartialShape result_pshape{PartialShape::dynamic()};
+    // If output shape is provided, ignore current values for padding begin/end
+    // and infer them.
+    if (is_output_shape_present)
+    {
+        if (output_spatial_pshape.rank().is_static())
+        {
             if (data_pshape.rank().is_static() && filters_pshape.rank().is_static())
             {
-                const size_t num_spatial_dims = data_pshape.rank().get_length() - 2;
-                NODE_VALIDATION_CHECK(this,
-                                      output_pshape.rank().get_length() == num_spatial_dims,
-                                      "Output shape should be specified only and for "
-                                      "all spatial dimensions.");
+                const PartialShape data_spatial_shape = [data_pshape]() {
+                    vector<Dimension> data_dims{data_pshape};
+                    data_dims.erase(data_dims.begin(), data_dims.begin() + 2); // remove {N, C_IN}
+                    return PartialShape{data_dims};
+                }();
+
+                const PartialShape filters_spatial_shape = [filters_pshape]() {
+                    vector<Dimension> filters_dims{filters_pshape};
+                    filters_dims.erase(filters_dims.begin(),
+                                       filters_dims.begin() + 3); // remove {GROUPS, C_OUT, C_IN}
+                    return PartialShape{filters_dims};
+                }();
 
                 // If auto_pad has one of following mode we infer paddings. Otherwise in
                 // EXPLICIT auto_pad mode we use what is provided.
-                if ((output_pshape.is_static() && data_pshape.is_static() &&
-                     filters_pshape.is_static()) &&
-                    (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER))
+                if ((m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER) &&
+                    (data_spatial_shape.is_static() && filters_spatial_shape.is_static() &&
+                     output_spatial_pshape.is_static()))
                 {
-                    const Shape& data_shape = data_pshape.to_shape();
-                    const Shape& filters_shape = filters_pshape.to_shape();
-
-                    opset1::infer_conv_backprop_auto_padding(
-                        Shape{std::next(data_shape.begin(), 2), std::end(data_shape)},
-                        Shape{std::next(filters_shape.begin(), 3), std::end(filters_shape)},
-                        output_pshape.to_shape(),
-                        m_strides,
-                        m_dilations,
-                        m_auto_pad,
-                        m_output_padding,
-                        m_pads_begin,
-                        m_pads_end);
+                    opset1::infer_conv_backprop_auto_padding(data_spatial_shape.to_shape(),
+                                                             filters_spatial_shape.to_shape(),
+                                                             output_spatial_pshape.to_shape(),
+                                                             m_strides,
+                                                             m_dilations,
+                                                             m_auto_pad,
+                                                             m_output_padding,
+                                                             m_pads_begin,
+                                                             m_pads_end);
                 }
+            }
 
-                // GROUP * C_OUTPUT
+            vector<Dimension> output_pshape{output_spatial_pshape};
+            // GROUPS * C_OUT
+            auto n_out_channels = Dimension::dynamic();
+            if (filters_pshape.rank().is_static())
+            {
                 auto group_dim = filters_pshape[0];
                 if (!group_dim.is_static())
                 {
                     group_dim = infer_group_from_input_shapes(data_pshape, filters_pshape);
                 }
-                tmp_output_shape.insert(tmp_output_shape.begin(), group_dim * filters_pshape[2]);
-                // N
-                tmp_output_shape.insert(tmp_output_shape.begin(), data_pshape[0]);
+                n_out_channels = group_dim * filters_pshape[2];
             }
-            else
-            {
-                auto n_out_channels = filters_pshape.rank().is_static()
-                                          ? filters_pshape[0] * filters_pshape[2]
-                                          : Dimension::dynamic();
-                auto batches =
-                    data_pshape.rank().is_static() ? data_pshape[0] : Dimension::dynamic();
-                tmp_output_shape.insert(tmp_output_shape.begin(), n_out_channels);
-                tmp_output_shape.insert(tmp_output_shape.begin(), batches);
-            }
-            output_pshape = tmp_output_shape;
+            output_pshape.insert(output_pshape.begin(), n_out_channels);
+            // N
+            auto batches = data_pshape.rank().is_static() ? data_pshape[0] : Dimension::dynamic();
+            output_pshape.insert(output_pshape.begin(), batches);
+            result_pshape = PartialShape{output_pshape};
         }
         set_input_is_relevant_to_shape(2);
     }
@@ -612,53 +623,57 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types()
             m_pads_end.assign(m_pads_end.size(), 0);
         }
 
+        vector<Dimension> output_pshape;
         if (data_pshape.rank().is_static() && filters_pshape.rank().is_static())
         {
-            vector<Dimension> data_shape{data_pshape}, filters_shape{filters_pshape}, output_shape;
+            auto data_spatial_shape = [data_pshape]() {
+                vector<Dimension> data_dims{data_pshape};
+                return vector<Dimension>{std::next(data_dims.begin(), 2), std::end(data_dims)};
+            }();
 
-            infer_conv_backprop_output_spatial_shape(
-                vector<Dimension>{std::next(data_shape.begin(), 2), std::end(data_shape)},
-                vector<Dimension>{std::next(filters_shape.begin(), 3), std::end(filters_shape)},
-                m_strides,
-                m_dilations,
-                m_pads_begin,
-                m_pads_end,
-                m_output_padding,
-                output_shape);
+            auto filters_spatial_shape = [filters_pshape]() {
+                vector<Dimension> filters_dims{filters_pshape};
+                return vector<Dimension>{std::next(filters_dims.begin(), 3),
+                                         std::end(filters_dims)};
+            }();
 
-            // GROUP * C_OUTPUT
-            auto group_dim = filters_pshape[0];
-            if (!group_dim.is_static())
-            {
-                group_dim = infer_group_from_input_shapes(data_pshape, filters_pshape);
-            }
-            output_shape.insert(output_shape.begin(), group_dim * filters_shape.at(2));
-            // N
-            output_shape.insert(output_shape.begin(), data_shape.at(0));
-            output_pshape = PartialShape{output_shape};
+            infer_conv_backprop_output_spatial_shape(data_spatial_shape,
+                                                     filters_spatial_shape,
+                                                     m_strides,
+                                                     m_dilations,
+                                                     m_pads_begin,
+                                                     m_pads_end,
+                                                     m_output_padding,
+                                                     output_pshape);
         }
         else
         {
-            if (data_pshape.rank().is_static())
+            output_pshape = vector<Dimension>{output_spatial_pshape};
+        }
+
+        if (output_pshape.size())
+        {
+            // GROUPS * C_OUT
+            auto n_out_channels = Dimension::dynamic();
+            if (filters_pshape.rank().is_static())
             {
-                output_pshape = PartialShape::dynamic(data_pshape.rank());
-                output_pshape[0] = data_pshape[0];
+                auto group_dim = filters_pshape[0];
+                if (!group_dim.is_static())
+                {
+                    group_dim = infer_group_from_input_shapes(data_pshape, filters_pshape);
+                }
+                n_out_channels = group_dim * filters_pshape[2];
             }
-            else if (filters_pshape.rank().is_static())
-            {
-                output_pshape = PartialShape::dynamic(filters_pshape.rank().get_length() - 1);
-                output_pshape[1] = filters_pshape[0] * filters_pshape[2];
-            }
-            else
-            {
-                output_pshape = PartialShape::dynamic();
-            }
+            output_pshape.insert(output_pshape.begin(), n_out_channels);
+            // N
+            auto batches = data_pshape.rank().is_static() ? data_pshape[0] : Dimension::dynamic();
+            output_pshape.insert(output_pshape.begin(), batches);
+            result_pshape = PartialShape{output_pshape};
         }
     }
-
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
-    set_output_type(0, result_et, output_pshape);
+    set_output_type(0, result_et, result_pshape);
 }
 
 shared_ptr<Node>
