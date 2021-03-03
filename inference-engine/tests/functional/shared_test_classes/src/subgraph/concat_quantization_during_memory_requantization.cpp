@@ -115,6 +115,7 @@ namespace SubgraphTestsDefinitions {
             }
         }
         IE_SUPPRESS_DEPRECATED_END
+        GenerateInputs();
         Infer();
         switchToNgraphFriendlyModel();
         Validate();
