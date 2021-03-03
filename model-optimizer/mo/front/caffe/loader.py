@@ -322,6 +322,8 @@ def caffe_pb_to_nx(graph, proto, model):
 
     all_blobs = set(blob_producers.keys())
     for not_used_blob in all_blobs - used_blobs:
+        if not not_used_blob:
+            continue
         fake_node_name = graph.unique_id(not_used_blob)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
                        infer=copy_shape_infer)

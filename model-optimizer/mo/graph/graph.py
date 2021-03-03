@@ -1058,7 +1058,7 @@ def add_opoutput(graph: Graph, node_name: str, port: int, cut: bool = True):
         opoutput_node = Result(graph).create_node_on_port(node, port, {'name': node_name + '/sink_port_' + str(port)})
     else:
         tensor_names = None
-        if port in node.out_ports():
+        if node.has_valid('op') and port in node.out_ports():
             tensor_names = node.out_port(port).get_tensor_names()
         opoutput_node = Result(graph).create_node([(node, port)], {'name': node_name + '/sink_port_' + str(port)})
         opoutput_node.in_edge()['data_attrs'] = ['fw_tensor_debug_info']
