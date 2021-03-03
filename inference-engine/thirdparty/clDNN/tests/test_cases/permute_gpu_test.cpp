@@ -1662,7 +1662,7 @@ void run_permute_tile_testcase_fsv16(const cldnn::engine &engine, const std::vec
 
     // run with permute_ref
     cldnn::build_options options_ref;
-    cldnn::implementation_desc permute_ref = { format::b_fs_yx_fsv16, "permute_ref" };
+    cldnn::implementation_desc permute_ref = { format_fsv, "permute_ref" };
     options_ref.set_option(cldnn::build_option::force_implementations({ {"permute1", permute_ref} }));
 
     network network(engine, topology_ref, options_ref);
@@ -1673,7 +1673,7 @@ void run_permute_tile_testcase_fsv16(const cldnn::engine &engine, const std::vec
 
     // run with permute_tile_8x8_4x4_fsv16
     cldnn::build_options options_tile;
-    cldnn::implementation_desc permute_tile_8x8_4x4_fsv16 = { format::b_fs_yx_fsv16, "permute_tile_8x8_4x4_fsv16" };
+    cldnn::implementation_desc permute_tile_8x8_4x4_fsv16 = { format_fsv, "permute_tile_8x8_4x4_fsv16" };
     options_tile.set_option(cldnn::build_option::force_implementations({ {"permute1", permute_tile_8x8_4x4_fsv16} }));
 
     cldnn::network network_tile(engine, topology_ref, options_tile);
