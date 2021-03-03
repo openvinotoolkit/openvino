@@ -22,7 +22,7 @@
 
 #include "dict_attribute_visitor.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
-//#include "ngraph/opsets/opset6.hpp"
+#include "ngraph/opsets/opset6.hpp"
 
 namespace py = pybind11;
 
