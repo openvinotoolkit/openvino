@@ -126,5 +126,24 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_detection_output_eval)
     std::vector<int32_t> expected_output_classes = {1, 0, 0, 0, 0};
 
     std::vector<float> expected_output_scores = {1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+    auto output_boxes = backend->create_tensor(element::f32, output_boxes_shape);
+    auto output_classes = backend->create_tensor(element::i32, output_classes_shape);
+    auto output_scores = backend->create_tensor(element::f32, output_scores_shape);
+
+    auto backend_rois = backend->create_tensor(element::f32, Shape{16, 4});
+    auto backend_deltas = backend->create_tensor(element::f32, Shape{16, 8});
+    auto backend_scores = backend->create_tensor(element::f32, Shape{16, 2});
+    auto backend_im_info = backend->create_tensor(element::f32, Shape{1, 3});
+    copy_data(backend_rois, rois_data);
+    copy_data(backend_deltas, deltas_data);
+    copy_data(backend_scores, scores_data);
+    copy_data(backend_im_info, im_info_data);
+
+    auto handle = backend->compile(f);
+
+    handle->call({output_boxes, output_classes, output_scores},
+                 {backend_rois, backend_deltas, backend_scores, backend_im_info});
+
     ASSERT_TRUE(true);
 }
