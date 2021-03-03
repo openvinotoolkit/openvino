@@ -23,7 +23,8 @@
 #include <atomic>
 #include <string>
 #include <unordered_set>
-#include <kernel_selector_common.h>
+#include <future>
+#include "kernel_selector_common.h"
 
 namespace cl {
 class Kernel;
@@ -70,7 +71,7 @@ public:
 
         bool operator == (const kernel_code& c2) const {
             return kernel_strings->get_hash() == c2.kernel_strings->get_hash();
-        };
+        }
     };
 
     struct hash_kernel_code {
@@ -95,11 +96,12 @@ private:
     uint32_t _prog_id;
 
     sorted_code get_program_source(const kernels_code& kernels_source_code) const;
-    kernels_map build_program(const program_code& pcode) const;
+    void build_program(const program_code& pcode, std::vector<std::future<kernels_map>> *builds, size_t batch_id, size_t bucket_id) const;
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
     size_t get_max_kernels_per_batch() const;
+
 public:
     explicit kernels_cache(gpu_toolkit& context, uint32_t prog_id);
     kernel_id set_kernel_source(const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,
