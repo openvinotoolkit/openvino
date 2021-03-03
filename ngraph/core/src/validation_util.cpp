@@ -1225,6 +1225,35 @@ bool could_propagate(const Output<Node>& output, std::vector<Node*>& order)
     return status;
 }
 
+void propagate_rt_info(Node* node, const Output<Node>& final_port)
+{
+    auto node_outputs = node->outputs();
+    bool same_outputs =
+        std::all_of(node_outputs.begin(), node_outputs.end(), [](const Output<Node>& output) {
+            return output.get_tensor().has_and_set_bound();
+        });
+    if (same_outputs && op::is_constant(node)) // constant should not propagate it's rt_info
+    {
+        std::unordered_set<Node*> stop_nodes;
+        for (const auto& in : final_port.get_target_inputs())
+            stop_nodes.insert(in.get_node());
+
+        auto curr_node = node->shared_from_this();
+        for (const auto& output : node_outputs)
+        {
+            if (output == final_port)
+                continue;
+            for (auto& in : output.get_target_inputs())
+            {
+                if (stop_nodes.count(in.get_node()))
+                    continue;
+                auto consumer = in.get_node()->shared_from_this();
+                copy_runtime_info({curr_node, consumer}, consumer);
+            }
+        }
+    }
+}
+
 HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
 {
     // bound is already set in the tensor
@@ -1262,6 +1291,7 @@ HostTensorPtr evaluate_bound(const Output<Node>& output, bool is_upper)
                 for (const auto& input : input_values)
                     if (input.get_target_inputs().size() == 1)
                         input.get_tensor().invalidate_values();
+                propagate_rt_info(node, output);
             }
             else
             {
