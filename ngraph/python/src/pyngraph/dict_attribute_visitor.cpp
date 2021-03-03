@@ -335,28 +335,6 @@ void util::DictAttributeDeserializer::on_adapter(
     }
 }
 
-void util::DictAttributeDeserializer::on_adapter(
-    const std::string& name, ngraph::ValueAccessor<std::shared_ptr<ngraph::Function>>& adapter)
-{
-    if (m_attributes.contains(name))
-    {
-        if (name == "body")
-        {
-            const py::dict& body_attrs = m_attributes[name.c_str()].cast<py::dict>();
-            const auto& body_outputs =
-                as_output_vector(body_attrs["results"].cast<ngraph::NodeVector>());
-            const auto& body_parameters = body_attrs["parameters"].cast<ngraph::ParameterVector>();
-            auto body = std::make_shared<ngraph::Function>(body_outputs, body_parameters);
-            adapter.set(body);
-        }
-        else
-        {
-            NGRAPH_CHECK(
-                false, "No AttributeVisitor support for accessing attribute named: ", name);
-        }
-    }
-}
-
 util::DictAttributeSerializer::DictAttributeSerializer(const std::shared_ptr<ngraph::Node>& node)
 {
     node->visit_attributes(*this);
