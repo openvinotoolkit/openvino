@@ -22,6 +22,7 @@
 
 namespace InferenceEngine {
 
+IE_SUPPRESS_DEPRECATED_START_WIN
 /**
  * @brief Executable network `noexcept` wrapper which accepts IExecutableNetworkInternal derived instance which can throw exceptions
  * @ingroup ie_dev_api_exec_network_api
@@ -110,6 +111,7 @@ public:
 protected:
     ~ExecutableNetworkBase() override = default;
 };
+IE_SUPPRESS_DEPRECATED_END_WIN
 
 /**
  * @brief Create an execuable network public C++ object wrapper based on internal inplementation
