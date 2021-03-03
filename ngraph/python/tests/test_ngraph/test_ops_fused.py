@@ -135,7 +135,6 @@ def test_depth_to_space():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34327
 def test_space_to_batch():
     runtime = get_runtime()
 
@@ -172,7 +171,6 @@ def test_space_to_batch():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_34327
 def test_batch_to_space():
     runtime = get_runtime()
 
