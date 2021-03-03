@@ -168,39 +168,40 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
-    const DequantizationOperations& dequantizationOperations,
-    const ngraph::Shape& weightsConstShape,
-    const std::vector<float>& weightsConstValues,
-    const FakeQuantizeOnWeights& fqOnWeights) {
+    const DequantizationOperations& deqOnData,
+    const Constant& weights,
+    const FakeQuantizeOnWeights& fqOnWeights,
+    const DequantizationOperations& deqOnWeights) {
     const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
         inputShape);
     input->set_friendly_name("input1");
 
-    auto lastDequantization = makeDequantization(input, dequantizationOperations);
+    const auto dequantizationOnData = makeDequantization(input, deqOnData);
 
-    const std::shared_ptr<ngraph::opset1::Constant> weightsConst = std::make_shared<ngraph::opset1::Constant>(
-        precision,
-        weightsConstShape,
-        weightsConstValues);
+    const std::shared_ptr<ngraph::Node> weightsConst = std::make_shared<ngraph::opset1::Constant>(
+        weights.outPrecision,
+        weights.shape,
+        weights.values);
 
-    auto fakeQuantize = makeFakeQuantize(weightsConst, precision, fqOnWeights);
+    const std::shared_ptr<ngraph::Node> fakeQuantize = fqOnWeights.empty() ? nullptr : makeFakeQuantize(weightsConst, precision, fqOnWeights);
+    const auto dequantizationOnWeights = makeDequantization(fakeQuantize == nullptr ? weightsConst : fakeQuantize, deqOnWeights);
 
-    const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::opset1::MatMul>(
-        lastDequantization,
-        fakeQuantize,
+    const auto matMul = std::make_shared<ngraph::opset1::MatMul>(
+        dequantizationOnData,
+        dequantizationOnWeights,
         false,
         false);
     matMul->set_friendly_name("matMul");
     auto& rtInfo = matMul->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("matMul");
 
-    std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(matMul);
-
+    const auto result = std::make_shared<ngraph::opset1::Result>(matMul);
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ result },
         std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
         "MatMulTransformation");
+
     return function;
 }
 
@@ -262,9 +263,7 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     const ngraph::Shape& inputShape,
     const ngraph::element::Type precisionBeforeDequantization,
     const DequantizationOperations& dequantization,
-    const ngraph::element::Type weightsConstPrecision,
-    const ngraph::Shape& weightsConstShape,
-    const std::vector<float>& weightsConstValues,
+    const Constant& weights,
     const DequantizationOperations& resultDequantization) {
     const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precisionBeforeDequantization,
@@ -274,9 +273,9 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     const std::shared_ptr<ngraph::Node> lastDequantizationBefore = makeDequantization(input, dequantization);
 
     const std::shared_ptr<ngraph::opset1::Constant> weightsConst = std::make_shared<ngraph::opset1::Constant>(
-        weightsConstPrecision,
-        weightsConstShape,
-        weightsConstValues);
+        weights.outPrecision,
+        weights.shape,
+        weights.values);
 
     const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::MatMul>>(
         std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
@@ -305,36 +304,35 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnDataWithConstant& fqOnData,
-    const ngraph::Shape& weightsConstShape,
-    const std::vector<float>& weightsConstValues,
-    const FakeQuantizeOnDataWithConstant& fqOnWeights) {
-    const std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precision,
-        inputShape);
+    const Constant& weights,
+    const FakeQuantizeOnDataWithConstant& fqOnWeights,
+    const DequantizationOperations& deqOnWeights) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input->set_friendly_name("input1");
 
-    auto lastDequantization = makeFakeQuantize(input, precision, fqOnData);
+    const auto dequantizationOnData = makeFakeQuantize(input, precision, fqOnData);
 
-    const std::shared_ptr<ngraph::opset1::Constant> weightsConst = std::make_shared<ngraph::opset1::Constant>(
-        precision,
-        weightsConstShape,
-        weightsConstValues);
+    const std::shared_ptr<ngraph::Node> weightsConst = std::make_shared<ngraph::opset1::Constant>(
+        weights.outPrecision,
+        weights.shape,
+        weights.values);
 
-    auto fakeQuantize = makeFakeQuantize(weightsConst, precision, fqOnWeights);
+    const std::shared_ptr<ngraph::Node> fakeQuantize = fqOnWeights.empty() ? nullptr : makeFakeQuantize(weightsConst, precision, fqOnWeights);
+    const auto dequantizationOnWeights = makeDequantization(fakeQuantize == nullptr ? weightsConst : fakeQuantize, deqOnWeights);
 
     const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::opset1::MatMul>(
-        lastDequantization,
-        fakeQuantize,
+        dequantizationOnData,
+        dequantizationOnWeights,
         false,
         true);
     matMul->set_friendly_name("matMul");
 
-    std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(matMul);
-
+    const auto result = std::make_shared<ngraph::opset1::Result>(matMul);
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ result },
         std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
         "MatMulTransformation");
+
     return function;
 }
 
