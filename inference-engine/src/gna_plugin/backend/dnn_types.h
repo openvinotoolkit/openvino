@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,6 +46,10 @@ struct DnnActivation {
             float scale;
             float offset;
         } pow;
+        struct {
+            float low;
+            float high;
+        } clamp;
         struct {
             int32_t levels;
             // if input is per-channel quantization - input pointers contains per-channel ranges
@@ -148,6 +152,7 @@ typedef struct {
 
 typedef struct {
     std::array<uint32_t, 2> convStride;
+    std::array<uint32_t, 2> zeroPadding;
     float weight_scale_factor;
     void* ptr_filters;     // filters stored one after the other
     void* ptr_biases;

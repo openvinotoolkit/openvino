@@ -50,6 +50,10 @@ else()
     message(FATAL_ERROR "Python was not found!")
 endif()
 
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${PYTHON_VERSION})
+set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${PYTHON_VERSION})
+set(CMAKE_PDB_OUTPUT_DIRECTORY ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${PYTHON_VERSION})
+
 # compile options
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -60,6 +64,9 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     add_link_options(-stdlib=libc++)
     add_compile_options(-Wno-unused-value)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
+    add_compile_options(-Wno-error=attributes)
 endif()
 
 # create target

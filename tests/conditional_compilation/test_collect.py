@@ -25,9 +25,9 @@ def test_cc_collect(test_id, model, sea_runtool, benchmark_app, collector_dir, a
         [
             sys.executable,
             str(sea_runtool),
-            f"-o={out}",
-            "-f=stat",
+            f"--output={out}",
             f"--bindir={collector_dir}",
+            "--app_status",
             "!",
             str(benchmark_app),
             "-d=CPU",

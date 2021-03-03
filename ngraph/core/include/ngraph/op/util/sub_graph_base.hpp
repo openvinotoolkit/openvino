@@ -30,6 +30,7 @@ namespace ngraph
             class NGRAPH_API SubGraphOp : public Op
             {
             public:
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Describes a connection between a SubGraphOp input and the body.
                 class InputDescription
                 {
@@ -326,7 +327,11 @@ namespace ngraph
                 SubGraphOp& operator=(const SubGraphOp&) = delete;
                 SubGraphOp& operator=(SubGraphOp&&) = default;
 
+                int64_t get_num_iterations() const { return m_num_iterations; }
             protected:
+                int64_t m_num_iterations =
+                    -1; // -1 means infinity for Loop op, inconsistent for TensorIterator
+
                 // Find an input corresponding to value, adding one if necessary.
                 Input<Node> input_for_value(const Output<Node>& value);
 

@@ -29,11 +29,11 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+
 #include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
-#include "generic_ie.hpp"
-#include "shape_infer/ie_built_in_holder.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -45,7 +45,6 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
                                                       bool constFolding) {
     OV_ITT_SCOPED_TASK(itt::domains::IE, "copyFunction");
 
-    ::ngraph::op::GenericIE::DisableReshape noReshape(func);
     auto specialized_function = ngraph::clone_function(*func);
 
     if (constFolding) {
@@ -114,16 +113,12 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(
         network.setInputInfo(info);
     };
 
-    // Add shape infer method for old operations which are not included to opset1, opset2 and opset3
-    ::ngraph::op::GenericIE::addExtension(_ngraph_function, std::make_shared<ShapeInfer::BuiltInShapeInferHolder>());
-
     reshape();
     for (const auto& layer : _ngraph_function->get_parameters()) {
         std::string outName = layer->get_friendly_name();
         IE_ASSERT(layer->get_output_size() == 1);  // Parameter as only singly output port
 
         // map original names to OpenVINO name
-        _opNames[outName] = outName;
         for (const auto& name : layer->get_output_tensor(0).get_names()) {
             _tensorNames[name] = outName;
         }
@@ -156,7 +151,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const CNNNetwork& network) {
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
 
-    _opNames = net->_opNames;
     _tensorNames = net->_tensorNames;
 
     for (const auto& outputInfo : outputs) {
@@ -258,12 +252,6 @@ void CNNNetworkNGraphImpl::addOutput(const ::ngraph::Output<::ngraph::Node> & ou
     for (const auto& name : output.get_tensor().get_names()) {
         _tensorNames[name] = dataName;
     }
-    for (const auto consumerInput : output.get_target_inputs()) {
-        const auto &consumerLayer = consumerInput.get_node()->shared_from_this();
-        if (std::dynamic_pointer_cast<ngraph::op::Result>(consumerLayer)) {
-            _opNames[consumerLayer->get_friendly_name()] = dataName;
-        }
-    }
 }
 
 size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
@@ -290,8 +278,6 @@ std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool const
 }
 
 void CNNNetworkNGraphImpl::reshape() {
-    // Disable reshape for generic nodes
-    ::ngraph::op::GenericIE::DisableReshape noReshape(_ngraph_function);
     reshape({});
 }
 
@@ -363,6 +349,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
                 ::ngraph::pass::Manager manager;
                 // resolves dynamism by replacing dynamic operation with static version
                 manager.register_pass<::ngraph::pass::ConvertNMS5ToLegacyMatcher>(false);
+                manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
                 manager.register_pass<::ngraph::pass::ConstantFolding>();
                 // OneHotToLegacy changes output precision
                 manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
@@ -454,13 +441,6 @@ StatusCode CNNNetworkNGraphImpl::getOVNameForTensor(std::string& ov_name, const 
     if (_tensorNames.find(orig_name) == _tensorNames.end())
         return DescriptionBuffer(NOT_FOUND, resp) << "Framework tensor with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
     ov_name = _tensorNames.at(orig_name);
-    return OK;
-}
-
-StatusCode CNNNetworkNGraphImpl::getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept {
-    if (_opNames.find(orig_name) == _opNames.end())
-        return DescriptionBuffer(NOT_FOUND, resp) << "Framework operation with name \"" << orig_name << "\" was not mapped to OpenVINO data!";
-    ov_name = _opNames.at(orig_name);
     return OK;
 }
 

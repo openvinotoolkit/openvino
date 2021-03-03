@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(QuantGroupConv3D).*)",
         // TODO: failed to downgrade to opset v0 in interpreter backend
         R"(.*Gather.*axis=-1.*)",
-        // TODO: Issue 33151
-        R"(.*Reduce.*axes=\(1\.-1\).*)",
         // TODO: Issue: 34518
         R"(.*RangeLayerTest.*)",
         R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
@@ -39,8 +37,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
         R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
         R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
-        // TODO: Issue: 40957
-        R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 25533
@@ -59,8 +55,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
-        // TODO: Issue 47556. [NGraph] CTCGreedyDecoderSeqLen. Invalid type transformation i64 to i32.
-        R"(.*(CTCGreedyDecoderSeqLenLayerTest).*(idxPRC=I64).*)",
+        // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)
+        R"(.*BF16.*(jit_avx(?!5)|jit_sse).*)",
     };
 
     if (!InferenceEngine::with_cpu_x86_avx512_core()) {

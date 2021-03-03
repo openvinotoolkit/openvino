@@ -17,18 +17,24 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     const std::shared_ptr<ngraph::Node> strSlice,
     const std::shared_ptr<ngraph::Node> dequantizaitonConstant) {
     auto constant = as_type_ptr<ngraph::opset1::Constant>(dequantizaitonConstant);
-    if (NetworkHelper::isScalarLike(constant)) {
-        return NetworkHelper::toScalar(constant);
-    }
+    // issue #48857: constant is mistakenly recognized as a scalar. Uncomment after fix
+    //if (NetworkHelper::isScalarLike(constant)) {
+    //    return NetworkHelper::toScalar(constant);
+    //}
 
-    if (strSlice->get_input_shape(0).size() != constant->get_shape().size()) {
-        const auto constantShape = constant->get_shape();
-        const auto stridedSliceShape = strSlice->get_input_shape(0);
-        ngraph::Shape newConstantShape(stridedSliceShape.size(), 1);
+    const auto stridedSliceShape = strSlice->get_input_shape(0);
+    const auto constantShape = constant->get_shape();
+    if (stridedSliceShape.size() != constantShape.size()) {
+        ngraph::Shape newConstantShape;
+        if (ngraph::shape_size(constantShape) == 1) {
+            newConstantShape = ngraph::Shape(stridedSliceShape.size(), 1);
+        } else {
+            newConstantShape = constantShape;
 
-        for (size_t i = 0; i < constantShape.size(); ++i) {
-            if (constantShape[i] != 1) {
-                newConstantShape[i] = constantShape[i];
+            // case when constShape without batch
+            if ((constantShape.size() > 1) &&
+                (constantShape.size() < stridedSliceShape.size())) {
+                newConstantShape.insert(newConstantShape.begin(), stridedSliceShape[0]);
             }
         }
 
@@ -39,7 +45,7 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
     }
 
     const auto stridedSlice = as_type_ptr<ngraph::opset1::StridedSlice>(strSlice);
-    return fold<ngraph::opset1::StridedSlice>(
+    const auto result = fold<ngraph::opset1::StridedSlice>(
         constant,
         stridedSlice->get_input_node_shared_ptr(1),
         stridedSlice->get_input_node_shared_ptr(2),
@@ -49,6 +55,8 @@ std::shared_ptr<Node> stridedSliceDeqConstant(
         stridedSlice->get_new_axis_mask(),
         stridedSlice->get_shrink_axis_mask(),
         stridedSlice->get_ellipsis_mask());
+
+    return NetworkHelper::toScalarIfPossible(result);
 }
 
 StridedSliceTransformation::StridedSliceTransformation(const Params& params) : LayerTransformation(params) {}
