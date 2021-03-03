@@ -22,6 +22,9 @@ public:
     const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     void validate_and_infer_types() override;
+
+protected:
+    ngraph::PartialShape m_evaluatedOutputShape;
 };
 
 }  // namespace op
