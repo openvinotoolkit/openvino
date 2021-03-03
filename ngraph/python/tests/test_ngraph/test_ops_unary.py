@@ -187,6 +187,7 @@ def test_hsigmoid():
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32
 
+
 @xfail_issue_49913
 def test_gelu_operator_with_parameters():
     runtime = get_runtime()
@@ -202,6 +203,7 @@ def test_gelu_operator_with_parameters():
     result = computation(data_value)
     expected = np.array([[-1.6391277e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
     assert np.allclose(result, expected)
+
 
 @xfail_issue_49913
 def test_gelu_operator_with_array():
