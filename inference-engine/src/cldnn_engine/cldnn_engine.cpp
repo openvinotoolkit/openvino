@@ -347,7 +347,9 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                                                       LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
                                                       true);                                                       // supportAsymmetricQuantization
             LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false))
+                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params)
+                    .setSupportAsymmetricQuantization(false)
+                    .setSupport3DTensorOnActivations(false))
                 // INT8 StridedSlice not supported
                 .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
 
