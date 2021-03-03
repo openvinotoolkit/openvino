@@ -7497,7 +7497,6 @@ INSTANTIATE_TEST_CASE_P(DISABLED_fusings_gpu,
 /* ----------------------------------------------------------------------------------------------------- */
 /* ------------------------------------------ ScatterNDUpdate cases ------------------------------ */
 /* ----------------------------------------------------------------------------------------------------- */
-
 struct scatter_nd_update_test_params {
     tensor input_shape;
     tensor indices_shape;
@@ -7511,7 +7510,6 @@ struct scatter_nd_update_test_params {
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
 };
-
 
 #define CASE_SCATTER_ND_UPDATE_FP16_4D_1 {6, 1, 1, 1}, {3, 1, 1, 1}, {3, 1, 1, 1}, 6, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_SCATTER_ND_UPDATE_FP16_4D_2 {6, 6, 1, 1}, {3, 2, 1, 1}, {3, 1, 1, 1}, 6, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx
@@ -7668,8 +7666,6 @@ TEST_P(scatter_nd_update_scale_activation_eltwise, basic) {
     tolerance = 1.f;
     execute(p);
 }
-
-
 
 INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_nd_update_scale_activation_eltwise,
     ::testing::ValuesIn(std::vector<scatter_nd_update_test_params>{

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
 
 KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
-                   const __global INPUT2_TYPE* updates, 
+                   const __global INPUT2_TYPE* updates,
                    __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
                    , FUSED_OPS_DECLS
@@ -41,26 +41,12 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
     const uint dim2 = get_global_id(2);
 
 #ifndef IS_SECOND_ITER // First kernel
-
-    #if OUTPUT_DIMS == 4
-        const uint x = dim0;
-        const uint y = dim1;
-        const uint f = dim2 % OUTPUT_FEATURE_NUM;
-        const uint b = dim2 / OUTPUT_FEATURE_NUM;
-    #elif OUTPUT_DIMS == 5
-        const uint x = dim0 % OUTPUT_SIZE_X;
-        const uint y = dim0 / OUTPUT_SIZE_X;
-        const uint z = dim1;
-        const uint f = dim2 % OUTPUT_FEATURE_NUM;
-        const uint b = dim2 / OUTPUT_FEATURE_NUM;
-    #elif OUTPUT_DIMS == 6
-        const uint x = dim0 % OUTPUT_SIZE_X;
-        const uint y = dim0 / OUTPUT_SIZE_X;
-        const uint z = dim1 % OUTPUT_SIZE_Z;
-        const uint w = dim1 / OUTPUT_SIZE_Z;
-        const uint f = dim2 % OUTPUT_FEATURE_NUM;
-        const uint b = dim2 / OUTPUT_FEATURE_NUM;
-    #endif
+    const uint x = dim0 % OUTPUT_SIZE_X;
+    const uint y = dim0 / OUTPUT_SIZE_X;
+    const uint z = dim1 % OUTPUT_SIZE_Z;
+    const uint w = dim1 / OUTPUT_SIZE_Z;
+    const uint f = dim2 % OUTPUT_FEATURE_NUM;
+    const uint b = dim2 / OUTPUT_FEATURE_NUM;
 
     const uint output_idx = GET_OUTPUT_INDEX(ORDER);
     INPUT0_TYPE val = data[output_idx];
@@ -93,7 +79,56 @@ KERNEL(scatter_nd_update_ref)(const __global INPUT0_TYPE* data,
         INPUT2_TYPE val = updates[up_idx];
 
     #if HAS_FUSED_OPS
-        OUTPUT_INDEX_SECOND_KERNEL;
+        #if OUTPUT_DIMS == 4
+            const uint y_pitch = OUTPUT_SIZE_X;
+            const uint f_pitch = y_pitch * OUTPUT_SIZE_Y;
+            const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
+
+            const uint b_remain = dst_idx % b_pitch;
+            const uint f_remain = b_remain % f_pitch;
+            const uint y_remain = f_remain % y_pitch;
+
+            const uint b = dst_idx / b_pitch;
+            const uint f = b_remain / f_pitch;
+            const uint y = f_remain / y_pitch;
+            const uint x = y_remain;
+        #elif OUTPUT_DIMS == 5
+            const uint y_pitch = OUTPUT_SIZE_X;
+            const uint z_pitch = y_pitch * OUTPUT_SIZE_Y;
+            const uint f_pitch = z_pitch * OUTPUT_SIZE_Z;
+            const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
+
+            const uint b_remain = dst_idx % b_pitch;
+            const uint f_remain = b_remain % f_pitch;
+            const uint z_remain = f_remain % z_pitch;
+            const uint y_remain = z_remain % y_pitch;
+
+            const uint b = dst_idx / b_pitch;
+            const uint f = b_remain / f_pitch;
+            const uint z = f_remain / z_pitch;
+            const uint y = z_remain / y_pitch;
+            const uint x = y_remain;
+        #elif OUTPUT_DIMS == 6
+            const uint y_pitch = OUTPUT_SIZE_X;
+            const uint z_pitch = y_pitch * OUTPUT_SIZE_Y;
+            const uint w_pitch = z_pitch * OUTPUT_SIZE_Z;
+            const uint f_pitch = w_pitch * OUTPUT_SIZE_W;
+            const uint b_pitch = f_pitch * OUTPUT_FEATURE_NUM;
+
+            const uint b_remain = dst_idx % b_pitch;
+            const uint f_remain = b_remain % f_pitch;
+            const uint w_remain = f_remain % w_pitch;
+            const uint z_remain = w_remain % z_pitch;
+            const uint y_remain = z_remain % y_pitch;
+
+            const uint b = dst_idx / b_pitch;
+            const uint f = b_remain / f_pitch;
+            const uint w = f_remain / w_pitch;
+            const uint z = w_remain / z_pitch;
+            const uint y = z_remain / y_pitch;
+            const uint x = y_remain;
+        #endif
+
         FUSED_OPS_SECOND_KERNEL;
         output[dst_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
     #else

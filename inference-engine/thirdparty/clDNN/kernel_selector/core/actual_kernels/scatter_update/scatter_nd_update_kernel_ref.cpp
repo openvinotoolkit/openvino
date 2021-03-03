@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,23 +71,7 @@ ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, con
 
     if (!is_second) {
         const auto& scope = params.output;
-
-        switch (params.inputs[0].GetLayout()) {
-        case DataLayout::bfyx:
-                dispatchData.gws = { scope.X().v, scope.Y().v, scope.Feature().v * scope.Batch().v };
-            break;
-
-        case DataLayout::bfzyx:
-                dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v, scope.Feature().v * scope.Batch().v };
-            break;
-
-        case DataLayout::bfwzyx:
-                dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v };
-            break;
-        default:
-            throw std::invalid_argument("Unsupported data layout for scatter nd update primitive");
-            break;
-        }
+        dispatchData.gws = { scope.X().v * scope.Y().v, scope.Z().v * scope.W().v, scope.Feature().v * scope.Batch().v };
     } else {
         auto indices_rank = params.indices_rank;
         const auto& indices = params.inputs[1];
@@ -111,66 +95,10 @@ ScatterNDUpdateKernelRef::SetDefault(const scatter_nd_update_params& params, con
     return dispatchData;
 }
 
-static std::string GetOutputIndex(const scatter_nd_update_params& params) {
-    std::string output_index_str;
-
-    const auto& output = params.output;
-
-    const auto& output_dim_size = output.GetDims().size();
-
-    if (output_dim_size == 4) {
-        output_index_str.append("const uint b_remain = dst_idx % ").append(std::to_string(output.Batch().pitch)).append(";");
-        output_index_str.append("const uint f_remain = b_remain % ").append(std::to_string(output.Feature().pitch)).append(";");
-        output_index_str.append("const uint y_remain = f_remain % ").append(std::to_string(output.Y().pitch)).append(";");
-
-        output_index_str.append("const uint b = dst_idx / ").append(std::to_string(output.Batch().pitch)).append(";");
-        output_index_str.append("const uint f = b_remain / ").append(std::to_string(output.Feature().pitch)).append(";");
-        output_index_str.append("const uint y = f_remain / ").append(std::to_string(output.Y().pitch)).append(";");
-        output_index_str.append("const uint x = y_remain;");
-
-        output_index_str.append("const uint w = 0;");
-        output_index_str.append("const uint z = 0;");
-    } else if (output_dim_size == 5) {
-        output_index_str.append("const uint b_remain = dst_idx % ").append(std::to_string(output.Batch().pitch)).append(";");
-        output_index_str.append("const uint f_remain = b_remain % ").append(std::to_string(output.Feature().pitch)).append(";");
-        output_index_str.append("const uint z_remain = f_remain % ").append(std::to_string(output.Z().pitch)).append(";");
-        output_index_str.append("const uint y_remain = z_remain % ").append(std::to_string(output.Y().pitch)).append(";");
-
-        output_index_str.append("const uint b = dst_idx / ").append(std::to_string(output.Batch().pitch)).append(";");
-        output_index_str.append("const uint f = b_remain / ").append(std::to_string(output.Feature().pitch)).append(";");
-        output_index_str.append("const uint z = f_remain / ").append(std::to_string(output.Z().pitch)).append(";");
-        output_index_str.append("const uint y = z_remain / ").append(std::to_string(output.Y().pitch)).append(";");
-        output_index_str.append("const uint x = y_remain;");
-
-        output_index_str.append("const uint w = 0;");
-    } else if (output_dim_size == 6) {
-        output_index_str.append("const uint b_remain = dst_idx % ").append(std::to_string(output.Batch().pitch)).append(";");
-        output_index_str.append("const uint f_remain = b_remain % ").append(std::to_string(output.Feature().pitch)).append(";");
-        output_index_str.append("const uint w_remain = f_remain % ").append(std::to_string(output.W().pitch)).append(";");
-        output_index_str.append("const uint z_remain = w_remain % ").append(std::to_string(output.Z().pitch)).append(";");
-        output_index_str.append("const uint y_remain = z_remain % ").append(std::to_string(output.Y().pitch)).append(";");
-
-        output_index_str.append("const uint b = dst_idx / ").append(std::to_string(output.Batch().pitch)).append(";");
-        output_index_str.append("const uint f = b_remain / ").append(std::to_string(output.Feature().pitch)).append(";");
-        output_index_str.append("const uint w = f_remain / ").append(std::to_string(output.W().pitch)).append(";");
-        output_index_str.append("const uint z = w_remain / ").append(std::to_string(output.Z().pitch)).append(";");
-        output_index_str.append("const uint y = z_remain / ").append(std::to_string(output.Y().pitch)).append(";");
-        output_index_str.append("const uint x = y_remain;");
-    }
-
-
-
-
-    return output_index_str;
-}
-
-
 JitConstants ScatterNDUpdateKernelRef::GetJitConstants(const scatter_nd_update_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     if (!params.fused_ops.empty()) {
-        jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_SECOND_KERNEL", GetOutputIndex(params)));
-
         FusedOpsConfiguration conf1 = { "_FIRST_KERNEL", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };
         FusedOpsConfiguration conf2 = { "_SECOND_KERNEL", GetDefaultOrder(params.output.GetDims().size()), "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf1, conf2}));
