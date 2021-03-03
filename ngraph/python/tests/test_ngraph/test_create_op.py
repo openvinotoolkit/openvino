@@ -19,6 +19,7 @@ from _pyngraph import PartialShape
 
 import ngraph as ng
 import ngraph.opset1 as ng_opset1
+import ngraph.opset5 as ng_opset5
 from ngraph.impl import Type
 
 np_types = [np.float32, np.int32]
@@ -1167,6 +1168,28 @@ def test_tensor_iterator():
     assert list(node.get_output_shape(0)) == [2, 2]
     # cma history
     assert list(node.get_output_shape(1)) == [16, 2, 2]
+
+
+def test_read_value_opset5():
+    init_value = ng_opset5.parameter([2, 2], name="init_value", dtype=np.int32)
+
+    node = ng_opset5.read_value(init_value, "var_id_667")
+
+    assert node.get_type_name() == "ReadValue"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [2, 2]
+    assert node.get_output_element_type(0) == Type.i32
+
+
+def test_assign_opset5():
+    input_data = ng_opset5.parameter([5, 7], name="input_data", dtype=np.int32)
+    rv = ng_opset5.read_value(input_data, "var_id_667")
+    node = ng_opset5.assign(rv, "var_id_667")
+
+    assert node.get_type_name() == "Assign"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [5, 7]
+    assert node.get_output_element_type(0) == Type.i32
 
 
 def test_read_value():

@@ -25,8 +25,11 @@
 
 namespace py = pybind11;
 
-util::DictAttributeDeserializer::DictAttributeDeserializer(const py::dict& attributes)
+util::DictAttributeDeserializer::DictAttributeDeserializer(
+    const py::dict& attributes,
+    std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables)
     : m_attributes(attributes)
+    , m_variables(variables)
 {
 }
 
@@ -127,6 +130,18 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name,
             special_body_ports.current_iteration_input_idx =
                 special_ports_dict["current_iteration_input_idx"].cast<int64_t>();
             a->set(special_body_ports);
+        }
+        else if (const auto& a =
+                     ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<ngraph::Variable>>>(
+                         &adapter))
+        {
+            std::string variable_id = m_attributes[name.c_str()].cast<std::string>();
+            if (!m_variables.count(variable_id))
+            {
+                m_variables[variable_id] = std::make_shared<ngraph::Variable>(ngraph::VariableInfo{
+                    ngraph::PartialShape::dynamic(), ngraph::element::dynamic, variable_id});
+            }
+            a->set(m_variables[variable_id]);
         }
         else
         {

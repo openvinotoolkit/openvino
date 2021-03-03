@@ -22,6 +22,7 @@
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/op/util/variable.hpp"
 
 #include <pybind11/pybind11.h>
 
@@ -32,7 +33,9 @@ namespace util
     class DictAttributeDeserializer : public ngraph::AttributeVisitor
     {
     public:
-        explicit DictAttributeDeserializer(const py::dict& attributes);
+        DictAttributeDeserializer(
+            const py::dict& attributes,
+            std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& variables);
 
         void on_adapter(const std::string& name, ngraph::ValueAccessor<void>& adapter) override;
         void on_adapter(const std::string& name, ngraph::ValueAccessor<bool>& adapter) override;
@@ -76,6 +79,7 @@ namespace util
 
     protected:
         const py::dict& m_attributes;
+        std::unordered_map<std::string, std::shared_ptr<ngraph::Variable>>& m_variables;
     };
 
     class DictAttributeSerializer : public ngraph::AttributeVisitor

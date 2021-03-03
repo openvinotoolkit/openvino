@@ -421,7 +421,6 @@ def loop(
     @param      current_iteration_input_idx:  TODO: add desc
     @return: The new node which performs Loop.
     """
-
     attributes = {
         "body": graph_body.serialize(),
         "input_descriptions": {"slice_input_desc": [desc.serialize() for desc in slice_input_desc],
