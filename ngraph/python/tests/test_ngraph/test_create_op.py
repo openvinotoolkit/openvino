@@ -757,17 +757,17 @@ def test_loop():
     ti_slice_input_desc = [
         # timestep
         # input_idx, body_param_idx, start, stride, part_size, end, axis
-        TensorIteratorSliceInputDesc(0, 0, 0, 1, 1, -1, 0),
+        TensorIteratorSliceInputDesc(2, 0, 0, 1, 1, -1, 0),
         # data
-        TensorIteratorSliceInputDesc(1, 1, 0, 1, 1, -1, 0),
+        TensorIteratorSliceInputDesc(3, 1, 0, 1, 1, -1, 0),
     ]
     ti_merged_input_desc = [
         # body prev/curr_cma
-        TensorIteratorMergedInputDesc(2, 2, 0),
+        TensorIteratorMergedInputDesc(4, 2, 0),
     ]
     ti_invariant_input_desc = [
         # body const one
-        TensorIteratorInvariantInputDesc(3, 3),
+        TensorIteratorInvariantInputDesc(5, 3),
     ]
 
     # TI outputs

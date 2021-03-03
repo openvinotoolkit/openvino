@@ -417,8 +417,11 @@ def loop(
                                        iteration.
     @param      concat_output_desc:    The descriptors describing specified output values through
                                        all the iterations concatenated into one node.
-    @param      body_condition_output_idx:    TODO: add desc
-    @param      current_iteration_input_idx:  TODO: add desc
+    @param      body_condition_output_idx:    Determines the purpose of the corresponding result in the graph_body.
+                                              This result will determine the dynamic exit condition.
+                                              If the value of this result is False, then iterations stop.
+    @param      current_iteration_input_idx:  Determines the purpose of the corresponding parameter in the graph_body.
+                                              This parameter will be used as an iteration counter. Optional.
     @return: The new node which performs Loop.
     """
     attributes = {

@@ -130,7 +130,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     return _get_node_factory_opset6().create(
         "Assign",
         [as_node(new_value)],
-        {"variable": variable_id}
+        {"variable_id": variable_id}
     )
 
 
@@ -146,5 +146,5 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     return _get_node_factory_opset6().create(
         "ReadValue",
         [as_node(init_value)],
-        {"variable": variable_id}
+        {"variable_id": variable_id}
     )
