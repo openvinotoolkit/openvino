@@ -21,7 +21,8 @@
 #include <pybind11/stl.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "ngraph/opsets/opset6.hpp"
+#include "ngraph/op/loop.hpp"
+#include "ngraph/op/util/sub_graph_base.hpp"
 
 namespace py = pybind11;
 
@@ -121,9 +122,9 @@ void util::DictAttributeDeserializer::on_adapter(const std::string& name,
             a->set(output_descs);
         }
         else if (const auto& a = ngraph::as_type<
-                     ngraph::AttributeAdapter<ngraph::opset6::Loop::SpecialBodyPorts>>(&adapter))
+                     ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter))
         {
-            ngraph::opset6::Loop::SpecialBodyPorts special_body_ports;
+            ngraph::op::v5::Loop::SpecialBodyPorts special_body_ports;
             const py::dict& special_ports_dict = m_attributes[name.c_str()].cast<py::dict>();
             special_body_ports.body_condition_output_idx =
                 special_ports_dict["body_condition_output_idx"].cast<int64_t>();
