@@ -316,10 +316,16 @@ class Loop(TensorIterator):
     def pull_constant_inputs_into_body(loop_node: Node):
         for port_idx, in_port in reversed(loop_node.in_ports().items()):
             if port_idx > 1 and not in_port.disconnected() and in_port.get_source().node.soft_get('type') == 'Const':
+                body_parameter = Loop.external_port_id_to_body_node(loop_node, port_idx, loop_node.input_port_map)
+                # if there is a back edge into a body Parameter then we cannot replace it with a Const because this
+                # input is probably updated during each iteration
+                if any([back_edge_attrs['to_layer'] == body_parameter.soft_get('internal_layer_id')
+                        for back_edge_attrs in loop_node.back_edges]):
+                    continue
+
                 original_const_node = in_port.get_source().node
                 new_const_node = Const(loop_node.body, original_const_node.attrs()).create_node()
 
-                body_parameter = Loop.external_port_id_to_body_node(loop_node, port_idx, loop_node.input_port_map)
                 body_parameter.out_port(0).get_connection().set_source(new_const_node.out_port(0))
                 loop_node.body.remove_nodes_from([body_parameter.id])
                 loop_node.delete_input_port(port_idx)
