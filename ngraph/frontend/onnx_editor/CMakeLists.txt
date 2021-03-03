@@ -22,7 +22,7 @@ add_library(ngraph::onnx_editor ALIAS ${TARGET_NAME})
 
 # TODO Add handling ie_faster_build
 
-target_link_libraries(${TARGET_NAME} PRIVATE onnx_common onnx onnx_proto ${Protobuf_LIBRARIES} 
+target_link_libraries(${TARGET_NAME} PRIVATE onnx_common onnx onnx_proto ${Protobuf_LIBRARIES}
                                      PUBLIC ngraph)
 
 set(ONNX_EDITOR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -32,7 +32,7 @@ set(ONNX_EDITOR_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_EDITOR_INCLUDE_DIR}>
                                                        $<INSTALL_INTERFACE:${ONNX_EDITOR_INSTALL_INCLUDE}>)
 
-target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_EDITOR_SRC_DIR} ${NGRAPH_INCLUDE_PATH})
+target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_EDITOR_SRC_DIR} ${NGRAPH_INCLUDE_PATH} ${Protobuf_INCLUDE_DIRS})
 
 if(NGRAPH_USE_PROTOBUF_LITE)
         target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)

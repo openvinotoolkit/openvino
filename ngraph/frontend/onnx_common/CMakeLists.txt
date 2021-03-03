@@ -29,7 +29,7 @@ target_include_directories(${TARGET_NAME} SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX
 
 target_link_libraries(${TARGET_NAME} PRIVATE ngraph onnx_proto onnx ${Protobuf_LIBRARIES})
 
-target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR} ${NGRAPH_INCLUDE_PATH})
+target_include_directories(${TARGET_NAME} PRIVATE ${ONNX_COMMON_SRC_DIR} ${NGRAPH_INCLUDE_PATH} ${Protobuf_INCLUDE_DIRS})
 
 if(NGRAPH_USE_PROTOBUF_LITE)
         target_compile_definitions(${TARGET_NAME} PRIVATE NGRAPH_USE_PROTOBUF_LITE)
