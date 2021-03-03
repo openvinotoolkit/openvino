@@ -105,7 +105,7 @@ else()
         # Use the interface of FindProtobuf.cmake
         # -----------------------------------------------------------------------------
         if (NOT TARGET protobuf::libprotobuf)
-            add_library(protobuf::libprotobuf UNKNOWN IMPORTED EXCLUDE_FROM_ALL)
+            add_library(protobuf::libprotobuf UNKNOWN IMPORTED)
             set_target_properties(protobuf::libprotobuf PROPERTIES
                 INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}"
                 IMPORTED_LOCATION "${Protobuf_LIBRARY}")
