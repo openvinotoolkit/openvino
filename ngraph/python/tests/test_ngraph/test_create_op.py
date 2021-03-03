@@ -728,7 +728,7 @@ def test_loop():
     )
 
     condition = ng.constant(True, dtype=np.bool)
-    trip_count = ng.constant(8, dtype=np.int32)
+    trip_count = ng.constant(16, dtype=np.int32)
     #  Body parameters
     body_timestep = ng.parameter([], np.int32, "timestep")
     body_data_in = ng.parameter([1, 2, 2], np.float32, "body_in")
