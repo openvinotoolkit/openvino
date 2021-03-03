@@ -136,7 +136,7 @@ The following pre-trained models are available:
 * rm\_lstm4f
 * rm\_cnn4a\_smbr
 
-All of them can be downloaded from [https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi](https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi) or using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) .
+All of them can be downloaded from [https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/](https://storage.openvinotoolkit.org/models_contrib/speech/2021.2/) or using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) .
 
 
 ### Speech Inference
