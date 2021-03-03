@@ -30,6 +30,7 @@ extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
 extensions/back/LayoutChangeForGatherND.py
 extensions/back/LeakyReLUMutation.py
+extensions/back/LinearToLinearONNXReplacer.py
 extensions/back/LRNToNorm.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
@@ -96,7 +97,7 @@ extensions/front/caffe/input_ext.py
 extensions/front/caffe/interp_ext.py
 extensions/front/caffe/lrn_ext.py
 extensions/front/caffe/mvn_ext.py
-extensions/front/caffe/MVNNormalizer.py
+extensions/front/caffe/MVNCaffeToMVN.py
 extensions/front/caffe/normalize_ext.py
 extensions/front/caffe/permute_ext.py
 extensions/front/caffe/pooling_ext.py
@@ -294,6 +295,7 @@ extensions/front/onnx/mask_rcnn.json
 extensions/front/onnx/mask_rcnn_conversion.py
 extensions/front/onnx/matmul_ext.py
 extensions/front/onnx/mean_variance_normalization_ext.py
+extensions/front/onnx/MvnOnnxToMvn.py
 extensions/front/onnx/non_max_suppression_ext.py
 extensions/front/onnx/non_zero_ext.py
 extensions/front/onnx/normalize_ext.py
@@ -638,6 +640,7 @@ extensions/ops/box_nms.py
 extensions/ops/bucketize.py
 extensions/ops/Cast.py
 extensions/ops/constant_fill.py
+extensions/ops/ConvertLike.py
 extensions/ops/copyop.py
 extensions/ops/correlation.py
 extensions/ops/ctc_greedy_decoder.py
@@ -977,6 +980,7 @@ mo/utils/find_inputs.py
 mo/utils/get_ov_update_message.py
 mo/utils/graph.py
 mo/utils/guess_framework.py
+mo/utils/ie_version.py
 mo/utils/import_extensions.py
 mo/utils/ir_engine/__init__.py
 mo/utils/ir_engine/compare_graphs.py

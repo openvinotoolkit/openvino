@@ -78,7 +78,7 @@ std::shared_ptr<ngraph::Function> FuseFakeQuantizeFunction::getOriginal(
             fqOnDataCopy.outputHighValues = {255.f};
             fqOnDataCopy.outputPrecision = ngraph::element::u8;
             lastNode = makeFakeQuantizeTypeRelaxed(lastDequantization, precisionFqOnData, fqOnDataCopy);
-            lastNode = makeDequantization(lastNode, {{element::f32}, {}, {0.01f}});
+            lastNode = makeDequantization(lastNode, { {element::f32}, {}, {{0.01f}, precisionFqOnData} });
 
         } else {
             throw std::runtime_error("Unknown parameter on output intervals!");

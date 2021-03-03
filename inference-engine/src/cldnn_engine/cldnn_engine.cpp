@@ -29,6 +29,7 @@
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
 #include <transformations/common_optimizations/weights_dequantize_to_fake_quantize.hpp>
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
@@ -64,7 +65,9 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
-#include <low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <transformations/low_precision/disable_convert_constant_folding_on_const_path.hpp>
+#include <low_precision/pull_reshape_through_dequantization.hpp>
+#include <low_precision/pull_transpose_through_dequantization.hpp>
 #include <low_precision/transformer.hpp>
 #include <low_precision/mat_mul.hpp>
 #include <low_precision/strided_slice.hpp>
@@ -275,6 +278,9 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
                         if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
                             auto axesVal = axesNode->cast_vector<int>();
                             auto& mvnShape = mvn->get_output_shape(0);
+                            for (int32_t& axis : axesVal)
+                                axis = axis < 0 ? axis + mvnShape.size() : axis;
+                            std::sort(axesVal.begin(), axesVal.end());
                             if (mvnShape.size() == 1)
                                 return false;
                             if (mvnShape.size() > 5 || (mvnShape.size() != axesVal.size() + 1 && mvnShape.size() != axesVal.size() + 2))
@@ -322,16 +328,28 @@ InferenceEngine::CNNNetwork clDNNEngine::CloneAndTransformNetwork(const Inferenc
         if (enableInt8) {
             OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "clDNNEngine::TransformNetwork::LPT");
             using namespace ngraph::pass::low_precision;
-            ngraph::pass::Manager conversion_manager;
-            // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-            conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
-            conversion_manager.run_passes(nGraphFunc);
+
+            ngraph::pass::Manager manager;
+            // Conversion to FP32 might be needed for quantized models that face any fp16 related issues (e.g. overflow) for non-quantized layers
+            // With this key users can work-around such issues
+            if (!config.enable_fp16_for_quantized_models) {
+                manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+            }
+            auto lptPrerequisites = manager.register_pass<ngraph::pass::GraphRewrite>();
+            const std::vector<ngraph::element::Type> supportedTypes = { ngraph::element::i8, ngraph::element::u8 };
+            lptPrerequisites->add_matcher<PullReshapeThroughDequantization>(supportedTypes);
+            lptPrerequisites->add_matcher<PullTransposeThroughDequantization>(supportedTypes);
+            lptPrerequisites->add_matcher<ngraph::pass::LinOpSequenceFusion>();
+            manager.run_passes(nGraphFunc);
+
             auto params = LayerTransformation::Params(true,                                                        // updatePrecisions
                                                       LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
                                                       LayerTransformation::QuantizedTensorAlignment::None,         // quantizedTensorAlignmentOnWeights
                                                       true);                                                       // supportAsymmetricQuantization
             LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false))
+                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params)
+                    .setSupportAsymmetricQuantization(false)
+                    .setSupport3DTensorOnActivations(false))
                 // INT8 StridedSlice not supported
                 .remove<StridedSliceTransformation, ngraph::opset1::StridedSlice>());
 

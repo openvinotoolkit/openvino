@@ -738,14 +738,10 @@ std::shared_ptr<ngraph::Function> ConcatFunction::get(
         parent2 = makeDequantization(parent2, dequantization2);
     }
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Concat>>(
-        ngraph::OutputVector{ parent1, parent2 }, 1);
+    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{ parent1, parent2 }, 1);
 
     auto& rtInfo = concat->get_rt_info();
     rtInfo["Variant::std::string"] = std::make_shared<VariantWrapper<std::string>>("concat");
-    if (precisionAfterOperation != ngraph::element::undefined) {
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(concat, precisionAfterOperation);
-    }
 
     const auto lastDequantization = makeDequantization(concat, dequantizationAfter);
     lastDequantization->set_friendly_name("output");

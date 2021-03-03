@@ -39,7 +39,7 @@ JitConstants CTCGreedyDecoderKernelBase::GetJitConstants(const ctc_greedy_decode
             MakeJitConstant("T_", inp.Batch().v),
             MakeJitConstant("N_", inp.Feature().v)
         });
-    };
+    }
 
     return jit;
 }
@@ -48,7 +48,7 @@ CTCGreedyDecoderKernelBase::DispatchData CTCGreedyDecoderKernelBase::SetDefault(
     DispatchData dispatchData;
 
     dispatchData.gws = { 1, 1, 1 };
-    dispatchData.lws= GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
 }

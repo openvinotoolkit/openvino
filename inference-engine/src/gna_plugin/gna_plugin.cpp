@@ -585,7 +585,7 @@ void GNAPlugin::ConvertModelLayoutFromNCHWToNHWC(const std::vector<CNNLayerPtr> 
             if (InferenceEngine::CNNNetHasPrevLayer(l.get())) {
                 transpositionInfo = FindTranspositionInfoFromPrevLayers(InferenceEngine::CNNNetPrevLayer(l));
                 // If no convolutions are found try to find them in next layers
-                if (!foundPartToTranspose(transpositionInfo)) {
+                if (!foundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
                     transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
                 }
             }
@@ -662,7 +662,7 @@ void GNAPlugin::ConvertModelLayoutFromNCHWToNHWC(const std::vector<CNNLayerPtr> 
             }
             // Find a convolution in previous or next layers
             auto transpositionInfo = FindTranspositionInfoFromPrevLayers(firstInput);
-            if (!foundPartToTranspose(transpositionInfo)) {
+            if (!foundPartToTranspose(transpositionInfo) && !l->outData.empty() && !getInputTo(l->outData[0]).empty()) {
                 transpositionInfo = FindTranspositionInfoFromNextLayers(getInputTo(l->outData[0]).begin()->second);
             }
             if (!transpositionInfo.empty()) {
@@ -1569,10 +1569,9 @@ InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networ
 
     for (auto && memory : mt) {
         GNAMemoryLayer memoryLayer(nullptr, nullptr, gnaFlags->sw_fp32 ? 4 : 2);
-        memoryLayer.gna_ptr = memory.first;
-        memoryLayer.reserved_size = memory.second;
-
-        graphCompiler.memory_connection.emplace_back(make_pair(std::string("noname"), memoryLayer));
+        std::string name;
+        std::tie(memoryLayer.gna_ptr, memoryLayer.reserved_size, name, memoryLayer.scale_factor) = memory;
+        graphCompiler.memory_connection.emplace_back(make_pair(name, memoryLayer));
     }
 
     DumpXNNToFile();
@@ -1627,7 +1626,9 @@ void GNAPlugin::Export(std::ostream &outStream) {
                     .SetOutputRotation(transpose_outputs_info);
 
     for (auto && memoryConnection : graphCompiler.memory_connection) {
-        serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size);
+        auto state = std::make_shared<memory::GNAVariableState>(memoryConnection.first, std::make_shared <GNAMemoryLayer>(memoryConnection.second));
+        gnalog() << "Scale factor Memory layer " << state->GetScaleFactor() << std::endl;
+        serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size, memoryConnection.first, state->GetScaleFactor());
     }
 
     serial.Export(gnamem->getBasePtr(), gnamem->getTotalBytes(), outStream);
