@@ -159,7 +159,7 @@ void op::v7::Gelu::validate_and_infer_types()
     set_output_type(0, input_element_type, input_pshape);
 }
 
-op::GeluApproximationMode op::v7::Gelu::get_approximation_mode()
+op::GeluApproximationMode op::v7::Gelu::get_approximation_mode() const
 {
     return m_approximation_mode;
 }
