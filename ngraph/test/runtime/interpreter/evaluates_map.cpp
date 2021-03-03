@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,10 +22,13 @@
 #include <ngraph/runtime/reference/abs.hpp>
 #include <ngraph/runtime/reference/avg_pool.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
+#include <ngraph/runtime/reference/bucketize.hpp>
 #include <ngraph/runtime/reference/ceiling.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
 #include <ngraph/runtime/reference/convolution.hpp>
+#include <ngraph/runtime/reference/convolution_backprop_data.hpp>
 #include <ngraph/runtime/reference/ctc_greedy_decoder.hpp>
+#include <ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp>
 #include <ngraph/runtime/reference/ctc_loss.hpp>
 #include <ngraph/runtime/reference/cum_sum.hpp>
 #include <ngraph/runtime/reference/detection_output.hpp>
@@ -35,10 +38,13 @@
 #include <ngraph/runtime/reference/embedding_segments_sum.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/fake_quantize.hpp>
+#include <ngraph/runtime/reference/gather_elements.hpp>
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gather_tree.hpp>
 #include <ngraph/runtime/reference/gelu.hpp>
 #include <ngraph/runtime/reference/grn.hpp>
+#include <ngraph/runtime/reference/group_convolution.hpp>
+#include <ngraph/runtime/reference/group_convolution_backprop_data.hpp>
 #include <ngraph/runtime/reference/gru_cell.hpp>
 #include <ngraph/runtime/reference/hard_sigmoid.hpp>
 #include <ngraph/runtime/reference/log_softmax.hpp>
@@ -51,6 +57,7 @@
 #include <ngraph/runtime/reference/one_hot.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
+#include <ngraph/runtime/reference/proposal.hpp>
 #include <ngraph/runtime/reference/psroi_pooling.hpp>
 #include <ngraph/runtime/reference/region_yolo.hpp>
 #include <ngraph/runtime/reference/reorg_yolo.hpp>
@@ -78,6 +85,110 @@ namespace
         return false;
     }
 
+    namespace bucketize_v3
+    {
+        template <element::Type_t t1, element::Type_t t2, element::Type_t t3>
+        inline void evaluate(const shared_ptr<op::v3::Bucketize>& op,
+                             const HostTensorVector& outputs,
+                             const HostTensorVector& inputs)
+        {
+            using T1 = typename element_type_traits<t1>::value_type;
+            using T2 = typename element_type_traits<t2>::value_type;
+            using T3 = typename element_type_traits<t3>::value_type;
+
+            runtime::reference::bucketize<T1, T2, T3>(inputs[0]->get_data_ptr<T1>(),
+                                                      inputs[1]->get_data_ptr<T2>(),
+                                                      outputs[0]->get_data_ptr<T3>(),
+                                                      op->get_input_shape(0),
+                                                      op->get_input_shape(1),
+                                                      op->get_with_right_bound());
+        }
+
+        static inline constexpr uint16_t getElementMask(element::Type_t type1,
+                                                        element::Type_t type2)
+        {
+            return (static_cast<uint8_t>(type1)) | (static_cast<uint8_t>(type2) << 8);
+        }
+
+    } // namespace bucketize_v3
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v3::Bucketize>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        switch (bucketize_v3::getElementMask(op->get_input_element_type(0),
+                                             op->get_input_element_type(1)))
+        {
+        case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::f32):
+            bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::f32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::f16):
+            bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::f16, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::i32):
+            bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f32, element::Type_t::i64):
+            bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::f32):
+            bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::f32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::f16):
+            bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::f16, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::i32):
+            bucketize_v3::evaluate<element::Type_t::f16, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::f16, element::Type_t::i64):
+            bucketize_v3::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::f32):
+            bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::f32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::f16):
+            bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::f16, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::i32):
+            bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i32, element::Type_t::i64):
+            bucketize_v3::evaluate<element::Type_t::i32, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::f32):
+            bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::f32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::f16):
+            bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::f16, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::i32):
+            bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+            break;
+        case bucketize_v3::getElementMask(element::Type_t::i64, element::Type_t::i64):
+            bucketize_v3::evaluate<element::Type_t::i64, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+            break;
+        default: return false;
+        }
+        return true;
+    }
+
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::Convolution>& op,
                   const HostTensorVector& outputs,
@@ -89,8 +200,6 @@ namespace
         const auto& out_shape = outputs[0]->get_shape();
         const auto& in_shape = inputs[0]->get_shape();
         const auto& filter_shape = inputs[1]->get_shape();
-        Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
-        std::fill(in_dilation.begin(), in_dilation.end(), 1);
         runtime::reference::convolution<typename element_type_traits<ET>::value_type>(
             in_data_ptr,
             filter_data,
@@ -101,8 +210,7 @@ namespace
             op->get_strides(),
             op->get_dilations(),
             op->get_pads_begin(),
-            op->get_pads_end(),
-            in_dilation);
+            op->get_pads_end());
         return true;
     }
 
@@ -131,6 +239,56 @@ namespace
             op->get_pads_begin(),
             op->get_pads_end(),
             op->get_strides());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::GroupConvolution>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto filter_data = inputs[1]->get_data_ptr<ET>();
+        auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
+        const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
+        const auto& out_shape = outputs[0]->get_shape();
+        const auto& in_shape = inputs[0]->get_shape();
+        const auto& filter_shape = inputs[1]->get_shape();
+        runtime::reference::group_convolution<typename element_type_traits<ET>::value_type>(
+            in_data_ptr,
+            filter_data,
+            out_data_ptr,
+            in_shape,
+            filter_shape,
+            out_shape,
+            op->get_strides(),
+            op->get_dilations(),
+            op->get_pads_begin(),
+            op->get_pads_end());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v1::GroupConvolutionBackpropData>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
+        const auto filter_data_ptr = inputs[1]->get_data_ptr<ET>();
+        const auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
+        const auto in_shape = inputs[0]->get_shape();
+        const auto filter_shape = inputs[1]->get_shape();
+        const auto out_shape = outputs[0]->get_shape();
+        runtime::reference::group_convolution_backprop_data<
+            typename element_type_traits<ET>::value_type>(in_data_ptr,
+                                                          filter_data_ptr,
+                                                          out_data_ptr,
+                                                          in_shape,
+                                                          filter_shape,
+                                                          out_shape,
+                                                          op->get_strides(),
+                                                          op->get_dilations(),
+                                                          op->get_pads_begin(),
+                                                          op->get_pads_end());
         return true;
     }
 
@@ -299,6 +457,63 @@ namespace
         return true;
     }
 
+    namespace mvn_6_axes
+    {
+        template <typename T>
+        AxisSet mvn_6_reduction_axes(const HostTensorPtr& axes_input, size_t rank)
+        {
+            T* a = axes_input->get_data_ptr<T>();
+            auto v = std::vector<T>(a, a + axes_input->get_shape()[0]);
+            std::vector<size_t> axes(v.size(), 0);
+            for (int i = 0; i < v.size(); i++)
+            {
+                if (v[i] < 0)
+                {
+                    if (rank + v[i] < 0)
+                    {
+                        throw ngraph_error("Unexpected axis");
+                    }
+                    axes[i] = (size_t)(rank + v[i]);
+                }
+                else
+                {
+                    axes[i] = (size_t)(v[i]);
+                }
+            }
+            return AxisSet(axes);
+        }
+    } // mvn_6_axes
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::MVN>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        AxisSet reduction_axes;
+        auto rank = inputs[0]->get_shape().size();
+        if (inputs[1]->get_element_type() == element::i64)
+        {
+            reduction_axes = mvn_6_axes::mvn_6_reduction_axes<int64_t>(inputs[1], rank);
+        }
+        else if (inputs[1]->get_element_type() == element::i32)
+        {
+            reduction_axes = mvn_6_axes::mvn_6_reduction_axes<int32_t>(inputs[1], rank);
+        }
+        else
+        {
+            throw ngraph_error("Unexpected indices type");
+        }
+        runtime::reference::mvn_6<T>(inputs[0]->get_data_ptr<ET>(),
+                                     outputs[0]->get_data_ptr<ET>(),
+                                     inputs[0]->get_shape(),
+                                     reduction_axes,
+                                     op->get_normalize_variance(),
+                                     op->get_eps(),
+                                     op->get_eps_mode());
+        return true;
+    }
+
     namespace nms_v5
     {
         using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
@@ -321,10 +536,6 @@ namespace
 
         constexpr size_t boxes_port = 0;
         constexpr size_t scores_port = 1;
-        constexpr size_t max_output_boxes_port = 2;
-        constexpr size_t iou_threshold_port = 3;
-        constexpr size_t score_threshold_port = 4;
-        constexpr size_t soft_nms_sigma_port = 5;
 
         PartialShape
             infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
@@ -349,6 +560,93 @@ namespace
                     result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
                                 scores_ps[0].get_length();
                 }
+            }
+            return result;
+        }
+
+        std::vector<int64_t> get_integers(const std::shared_ptr<HostTensor>& input,
+                                          const Shape& shape)
+        {
+            size_t input_size = shape_size(shape);
+            std::vector<int64_t> result(input_size);
+
+            switch (input->get_element_type())
+            {
+            case element::Type_t::i8:
+            {
+                auto p = input->get_data_ptr<int8_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::i16:
+            {
+                auto p = input->get_data_ptr<int16_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::i32:
+            {
+                auto p = input->get_data_ptr<int32_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::i64:
+            {
+                auto p = input->get_data_ptr<int64_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::u8:
+            {
+                auto p = input->get_data_ptr<uint8_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::u16:
+            {
+                auto p = input->get_data_ptr<uint16_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::u32:
+            {
+                auto p = input->get_data_ptr<uint32_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            case element::Type_t::u64:
+            {
+                auto p = input->get_data_ptr<uint64_t>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = int64_t(p[i]);
+                }
+            }
+            break;
+            default:
+                throw std::runtime_error("Unsupported data type in op NonMaxSuppression-5");
+                break;
             }
 
             return result;
@@ -476,10 +774,11 @@ namespace
         {
             InfoForNMS5 result;
 
-            result.max_output_boxes_per_class = nms5->max_boxes_output_from_input();
-            result.iou_threshold = nms5->iou_threshold_from_input();
-            result.score_threshold = nms5->score_threshold_from_input();
-            result.soft_nms_sigma = nms5->soft_nms_sigma_from_input();
+            result.max_output_boxes_per_class =
+                inputs.size() > 2 ? get_integers(inputs[2], Shape({}))[0] : 0;
+            result.iou_threshold = inputs.size() > 3 ? get_floats(inputs[3], Shape({}))[0] : 0.0f;
+            result.score_threshold = inputs.size() > 4 ? get_floats(inputs[4], Shape({}))[0] : 0.0f;
+            result.soft_nms_sigma = inputs.size() > 5 ? get_floats(inputs[5], Shape({}))[0] : 0.0f;
 
             auto selected_indices_shape =
                 infer_selected_indices_shape(inputs, result.max_output_boxes_per_class);
@@ -577,8 +876,10 @@ namespace
                   const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::referenceDetectionOutput<T> refDetOut(
-            op->get_attrs(), op->get_input_shape(0), op->get_input_shape(2));
+        runtime::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
+                                                                  op->get_input_shape(0),
+                                                                  op->get_input_shape(2),
+                                                                  op->get_output_shape(0));
         if (op->get_input_size() == 3)
         {
             refDetOut.run(inputs[0]->get_data_ptr<const T>(),
@@ -715,6 +1016,44 @@ namespace
                                          outputs[0]->get_data_ptr<float>(),
                                          outputs[0]->get_shape(),
                                          op->get_attrs());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::Proposal>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::proposal_v0<T>(inputs[0]->get_data_ptr<T>(),
+                                           inputs[1]->get_data_ptr<T>(),
+                                           inputs[2]->get_data_ptr<T>(),
+                                           outputs[0]->get_data_ptr<T>(),
+                                           inputs[0]->get_shape(),
+                                           inputs[1]->get_shape(),
+                                           inputs[2]->get_shape(),
+                                           outputs[0]->get_shape(),
+                                           op.get()->get_attrs());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v4::Proposal>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::proposal_v4<T>(inputs[0]->get_data_ptr<T>(),
+                                           inputs[1]->get_data_ptr<T>(),
+                                           inputs[2]->get_data_ptr<T>(),
+                                           outputs[0]->get_data_ptr<T>(),
+                                           outputs[1]->get_data_ptr<T>(),
+                                           inputs[0]->get_shape(),
+                                           inputs[1]->get_shape(),
+                                           inputs[2]->get_shape(),
+                                           outputs[0]->get_shape(),
+                                           outputs[1]->get_shape(),
+                                           op.get()->get_attrs());
         return true;
     }
 
@@ -966,16 +1305,6 @@ namespace
 
     namespace convert_v0
     {
-        template <element::Type_t ET>
-        inline void evaluate_bool(const shared_ptr<op::v0::Convert>& op,
-                                  const HostTensorVector& outputs,
-                                  const HostTensorVector& inputs)
-        {
-            using T = typename element_type_traits<ET>::value_type;
-            runtime::reference::convert_to_bool<T>(inputs[0]->get_data_ptr<T>(),
-                                                   outputs[0]->get_data_ptr<char>(),
-                                                   shape_size(inputs[0]->get_shape()));
-        }
         template <element::Type_t ti, element::Type_t to>
         inline void evaluate(const shared_ptr<op::v0::Convert>& op,
                              const HostTensorVector& outputs,
@@ -994,91 +1323,109 @@ namespace
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        if (OUT_ET == element::Type_t::boolean)
+        switch (inputs[0]->get_element_type())
         {
-            switch (inputs[0]->get_element_type())
-            {
-            case element::Type_t::boolean:
-                convert_v0::evaluate_bool<element::Type_t::boolean>(op, outputs, inputs);
-                break;
-            case element::Type_t::i8:
-                convert_v0::evaluate_bool<element::Type_t::i8>(op, outputs, inputs);
-                break;
-            case element::Type_t::i16:
-                convert_v0::evaluate_bool<element::Type_t::i16>(op, outputs, inputs);
-                break;
-            case element::Type_t::i32:
-                convert_v0::evaluate_bool<element::Type_t::i32>(op, outputs, inputs);
-                break;
-            case element::Type_t::i64:
-                convert_v0::evaluate_bool<element::Type_t::i64>(op, outputs, inputs);
-                break;
-            case element::Type_t::u8:
-                convert_v0::evaluate_bool<element::Type_t::u8>(op, outputs, inputs);
-                break;
-            case element::Type_t::u16:
-                convert_v0::evaluate_bool<element::Type_t::u16>(op, outputs, inputs);
-                break;
-            case element::Type_t::u32:
-                convert_v0::evaluate_bool<element::Type_t::u32>(op, outputs, inputs);
-                break;
-            case element::Type_t::u64:
-                convert_v0::evaluate_bool<element::Type_t::u64>(op, outputs, inputs);
-                break;
-            case element::Type_t::f16:
-                convert_v0::evaluate_bool<element::Type_t::f16>(op, outputs, inputs);
-                break;
-            case element::Type_t::f32:
-                convert_v0::evaluate_bool<element::Type_t::f32>(op, outputs, inputs);
-                break;
-            case element::Type_t::f64:
-                convert_v0::evaluate_bool<element::Type_t::f64>(op, outputs, inputs);
-                break;
-            default: return false;
-            }
+        case element::Type_t::boolean:
+            convert_v0::evaluate<element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i8:
+            convert_v0::evaluate<element::Type_t::i8, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i16:
+            convert_v0::evaluate<element::Type_t::i16, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i32:
+            convert_v0::evaluate<element::Type_t::i32, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i64:
+            convert_v0::evaluate<element::Type_t::i64, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u8:
+            convert_v0::evaluate<element::Type_t::u8, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u16:
+            convert_v0::evaluate<element::Type_t::u16, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u32:
+            convert_v0::evaluate<element::Type_t::u32, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u64:
+            convert_v0::evaluate<element::Type_t::u64, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::f16:
+            convert_v0::evaluate<element::Type_t::f16, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::f32:
+            convert_v0::evaluate<element::Type_t::f32, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::f64:
+            convert_v0::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
+            break;
+        default: return false;
         }
-        else
+        return true;
+    }
+
+    namespace convert_like_v1
+    {
+        template <element::Type_t ti, element::Type_t to>
+        inline void evaluate(const shared_ptr<op::v1::ConvertLike>& op,
+                             const HostTensorVector& outputs,
+                             const HostTensorVector& inputs)
         {
-            switch (inputs[0]->get_element_type())
-            {
-            case element::Type_t::boolean:
-                convert_v0::evaluate<element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::i8:
-                convert_v0::evaluate<element::Type_t::i8, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::i16:
-                convert_v0::evaluate<element::Type_t::i16, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::i32:
-                convert_v0::evaluate<element::Type_t::i32, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::i64:
-                convert_v0::evaluate<element::Type_t::i64, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::u8:
-                convert_v0::evaluate<element::Type_t::u8, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::u16:
-                convert_v0::evaluate<element::Type_t::u16, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::u32:
-                convert_v0::evaluate<element::Type_t::u32, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::u64:
-                convert_v0::evaluate<element::Type_t::u64, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::f16:
-                convert_v0::evaluate<element::Type_t::f16, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::f32:
-                convert_v0::evaluate<element::Type_t::f32, OUT_ET>(op, outputs, inputs);
-                break;
-            case element::Type_t::f64:
-                convert_v0::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
-                break;
-            default: return false;
-            }
+            using TI = typename element_type_traits<ti>::value_type;
+            using TO = typename element_type_traits<to>::value_type;
+            runtime::reference::convert<TI, TO>(inputs[0]->get_data_ptr<TI>(),
+                                                outputs[0]->get_data_ptr<TO>(),
+                                                shape_size(inputs[0]->get_shape()));
+        }
+
+    } // namespace convert_like_v1
+
+    template <element::Type_t OUT_ET>
+    bool evaluate(const shared_ptr<op::v1::ConvertLike>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        switch (inputs[0]->get_element_type())
+        {
+        case element::Type_t::boolean:
+            convert_like_v1::evaluate<element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u8:
+            convert_like_v1::evaluate<element::Type_t::u8, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u16:
+            convert_like_v1::evaluate<element::Type_t::u16, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u32:
+            convert_like_v1::evaluate<element::Type_t::u32, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::u64:
+            convert_like_v1::evaluate<element::Type_t::u64, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i8:
+            convert_like_v1::evaluate<element::Type_t::i8, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i16:
+            convert_like_v1::evaluate<element::Type_t::i16, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i32:
+            convert_like_v1::evaluate<element::Type_t::i32, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::i64:
+            convert_like_v1::evaluate<element::Type_t::i64, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::bf16:
+            convert_like_v1::evaluate<element::Type_t::bf16, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::f16:
+            convert_like_v1::evaluate<element::Type_t::f16, OUT_ET>(op, outputs, inputs);
+            break;
+        case element::Type_t::f32:
+            convert_like_v1::evaluate<element::Type_t::f32, OUT_ET>(op, outputs, inputs);
+            break;
+        default: return false;
         }
         return true;
     }
@@ -1563,6 +1910,86 @@ namespace
         return true;
     }
 
+    namespace ctc_greedy_decoder_v6
+    {
+        template <element::Type_t T1, element::Type_t T2, element::Type_t TOUT>
+        inline void evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
+                             const HostTensorVector& outputs,
+                             const HostTensorVector& inputs)
+        {
+            using TF = typename element_type_traits<T1>::value_type;
+            using TI = typename element_type_traits<T2>::value_type;
+            using TIND1 = typename element_type_traits<TOUT>::value_type;
+            if (op->get_sequence_length_type() == element::i32)
+            {
+                runtime::reference::ctc_greedy_decoder_seq_len<TF>(
+                    inputs[0]->get_data_ptr<const TF>(),
+                    inputs[1]->get_data_ptr<const TI>(),
+                    inputs[2]->get_data_ptr<const TI>(),
+                    outputs[0]->get_data_ptr<TIND1>(),
+                    outputs[1]->get_data_ptr<int32_t>(),
+                    inputs[0]->get_shape(),
+                    outputs[0]->get_shape(),
+                    op->get_merge_repeated());
+            }
+            else if (op->get_sequence_length_type() == element::i64)
+            {
+                runtime::reference::ctc_greedy_decoder_seq_len<TF>(
+                    inputs[0]->get_data_ptr<const TF>(),
+                    inputs[1]->get_data_ptr<const TI>(),
+                    inputs[2]->get_data_ptr<const TI>(),
+                    outputs[0]->get_data_ptr<TIND1>(),
+                    outputs[1]->get_data_ptr<int64_t>(),
+                    inputs[0]->get_shape(),
+                    outputs[0]->get_shape(),
+                    op->get_merge_repeated());
+            }
+        }
+    }
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::CTCGreedyDecoderSeqLen>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        const auto& dataType = inputs[0]->get_element_type();
+        const auto& seqLenType = inputs[1]->get_element_type();
+        if (dataType == element::Type_t::f16 && seqLenType == element::Type_t::i32)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f16, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+        }
+        else if (dataType == element::Type_t::f32 && seqLenType == element::Type_t::i32)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f32, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+        }
+        else if (dataType == element::Type_t::f64 && seqLenType == element::Type_t::i32)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f64, element::Type_t::i32, ET>(
+                op, outputs, inputs);
+        }
+        else if (dataType == element::Type_t::f16 && seqLenType == element::Type_t::i64)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f16, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+        }
+        else if (dataType == element::Type_t::f32 && seqLenType == element::Type_t::i64)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f32, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+        }
+        else if (dataType == element::Type_t::f64 && seqLenType == element::Type_t::i64)
+        {
+            ctc_greedy_decoder_v6::evaluate<element::Type_t::f64, element::Type_t::i64, ET>(
+                op, outputs, inputs);
+        }
+        else
+        {
+            return false;
+        }
+        return true;
+    }
+
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::SquaredDifference>& op,
                   const HostTensorVector& outputs,
@@ -1575,6 +2002,45 @@ namespace
                                                   inputs[0]->get_shape(),
                                                   inputs[1]->get_shape(),
                                                   ngraph::op::AutoBroadcastSpec::NUMPY);
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v6::GatherElements>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        Shape params_shape = inputs[0]->get_shape();
+        Shape indices_shape = inputs[1]->get_shape();
+
+        outputs[0]->set_shape(indices_shape);
+
+        if (inputs[1]->get_element_type() == element::i64)
+        {
+            runtime::reference::gather_elements<T, int64_t>(inputs[0]->get_data_ptr<ET>(),
+                                                            inputs[1]->get_data_ptr<int64_t>(),
+                                                            outputs[0]->get_data_ptr<ET>(),
+                                                            inputs[0]->get_shape(),
+                                                            inputs[1]->get_shape(),
+                                                            outputs[0]->get_shape(),
+                                                            op->get_axis());
+        }
+        else if (inputs[1]->get_element_type() == element::i32)
+        {
+            runtime::reference::gather_elements<T, int32_t>(inputs[0]->get_data_ptr<ET>(),
+                                                            inputs[1]->get_data_ptr<int32_t>(),
+                                                            outputs[0]->get_data_ptr<ET>(),
+                                                            inputs[0]->get_shape(),
+                                                            inputs[1]->get_shape(),
+                                                            outputs[0]->get_shape(),
+                                                            op->get_axis());
+        }
+        else
+        {
+            throw ngraph_error("Unexpected indices type");
+        }
+
         return true;
     }
 
@@ -1678,9 +2144,8 @@ namespace
         {
         case element::Type_t::boolean:
             return evaluate<element::Type_t::boolean>(as_type_ptr<T>(node), outputs, inputs);
-            ;
-        //            case element::Type_t::bf16:
-        //                break;
+        case element::Type_t::bf16:
+            return evaluate<element::Type_t::bf16>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::f16:
             return evaluate<element::Type_t::f16>(as_type_ptr<T>(node), outputs, inputs);
         case element::Type_t::f64:

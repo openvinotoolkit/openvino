@@ -1,3 +1,19 @@
+"""
+ Copyright (C) 2018-2021 Intel Corporation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+
 import os
 import pytest
 import warnings
@@ -181,11 +197,20 @@ def test_batch_size_after_reshape():
 
 
 def test_serialize():
-    with pytest.raises(RuntimeError) as excinfo:
-        ie = IECore()
-        net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-        net.serialize("./serialized_net.xml", "./serialized_net.bin")
-    assert "The serialize for IR v10 is not implemented" in str(excinfo.value)
+    import ngraph as ng
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    net.serialize("./serialized_net.xml", "./serialized_net.bin")
+    serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")
+    func_net = ng.function_from_cnn(net)
+    ops_net = func_net.get_ordered_ops()
+    ops_net_names = [op.friendly_name for op in ops_net]
+    func_serialized_net = ng.function_from_cnn(serialized_net)
+    ops_serialized_net = func_serialized_net.get_ordered_ops()
+    ops_serialized_net_names = [op.friendly_name for op in ops_serialized_net]
+    assert ops_serialized_net_names == ops_net_names
+    os.remove("./serialized_net.xml")
+    os.remove("./serialized_net.bin")
 
 
 def test_reshape():
@@ -227,7 +252,7 @@ def test_net_from_buffer_valid_deprecated():
 
 
 def test_multi_out_data():
-    # Regression test CVS-23965
+    # Regression test 23965
     # Check that DataPtr for all output layers not copied between outputs map  items
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
@@ -238,3 +263,60 @@ def test_multi_out_data():
     assert net.outputs["28/Reshape"].name == "28/Reshape" and net.outputs["28/Reshape"].shape == [1, 5184]
     assert net.outputs["fc_out"].name == "fc_out" and net.outputs["fc_out"].shape == [1, 10]
     pass
+
+def test_tensor_names():
+    model = """
+            <net name="Network" version="10">
+                <layers>
+                    <layer name="in1" type="Parameter" id="0" version="opset1">
+                        <data element_type="f32" shape="1,3,22,22"/>
+                        <output>
+                            <port id="0" precision="FP32" names="input">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer name="activation" id="1" type="ReLU" version="opset1">
+                        <input>
+                            <port id="1" precision="FP32">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </input>
+                        <output>
+                            <port id="2" precision="FP32" names="relu_t, identity_t">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </output>
+                    </layer>
+                    <layer name="output" type="Result" id="2" version="opset1">
+                        <input>
+                            <port id="0" precision="FP32">
+                                <dim>1</dim>
+                                <dim>3</dim>
+                                <dim>22</dim>
+                                <dim>22</dim>
+                            </port>
+                        </input>
+                    </layer>
+                </layers>
+                <edges>
+                    <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+                    <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+                </edges>
+            </net>
+            """
+    ie = IECore()
+    weights = b''
+    net = ie.read_network(model=model.encode('utf-8'), weights=weights, init_from_buffer=True)
+    assert net.get_ov_name_for_tensor("relu_t") == "activation"
+    assert net.get_ov_name_for_tensor("identity_t") == "activation"
+    assert net.get_ov_name_for_tensor("input") == "in1"

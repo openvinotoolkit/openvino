@@ -1,20 +1,17 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "vpu/frontend/frontend.hpp"
 #include "vpu/stages/iteration_rule.hpp"
 #include "vpu/utils/auto_scope.hpp"
-#include "vpu/compile_env.hpp"
 #include <legacy/graph_transformer.h>
 #include "vpu/model/data_contents/ie_blob_content.hpp"
 
 #include <legacy/ie_layers_internal.hpp>
 #include <legacy/net_pass.h>
 
-#include <unordered_map>
 #include <memory>
-#include <set>
 #include <utility>
 #include <vector>
 #include <map>
@@ -25,6 +22,11 @@ namespace vpu {
 namespace {
 
 using PortMap = ie::TensorIterator::PortMap;
+
+constexpr auto s_curIterPort   = "loop_body_current_iteration_idx";
+constexpr auto s_tripCountPort = "loop_trip_count_idx";
+constexpr auto s_initCondPort  = "loop_execution_condition_idx";
+constexpr auto s_condPort      = "loop_body_condition_output_idx";
 
 bool isIterable(const PortMap& rule) {
     return rule.axis != -1;
@@ -184,9 +186,9 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
         const auto& bodyInputs = tensorIterator->body.inputs;
         VPU_THROW_UNLESS(!bodyInputs.empty(), "If there is no an input for Tensor Iterator's body, so there is no iteration in tensor iterator");
 
-        for (auto iterator = bodyInputs.begin(); iterator != bodyInputs.end(); ++iterator) {
-            const auto& bodyInput = *iterator;
-            const bool isLast = iterator == std::prev(bodyInputs.end());
+        for (std::size_t bodyInputPort = 0; bodyInputPort < bodyInputs.size(); ++bodyInputPort) {
+            const auto& bodyInput = bodyInputs[bodyInputPort];
+            const bool isLast = bodyInputPort == (bodyInputs.size() - 1);
             VPU_THROW_UNLESS(!isFakeHolder(bodyInput) || isLast , "There can be only one fake holder and it can be only the last Tensor Iterator body input");
             if (isFakeHolder(bodyInput)) {
                 // fake holder keeps strong references on const data objects that are not presented in Tensor Iterator's body input vector
@@ -195,11 +197,11 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
             }
 
             VPU_THROW_UNLESS(!(isIterable(bodyInput, tensorIterator) && hasBackEdgeConnectionTo(bodyInput, tensorIterator)),
-                "There must not be a back-edge connection to iterable component");
+                             "There must not be a back-edge connection to iterable component");
 
             const auto& tensorIteratorInputs = findTIInputsDataByBodyData(bodyInput);
             VPU_THROW_UNLESS(tensorIteratorInputs.size() == 1,
-                "There must be exactly one Tensor Iterator's input data object for each body's input data object except fake holder");
+                             "There must be exactly one Tensor Iterator's input data object for each body's input data object except fake holder");
             const auto& tensorIteratorInput = tensorIteratorInputs.front();
 
             if (isIterable(bodyInput, tensorIterator)) {
@@ -210,8 +212,8 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
             } else if (hasBackEdgeConnectionTo(bodyInput, tensorIterator)) {
                 const auto& bodyOutputs = getBodyOutputsByBodyInput(bodyInput);
                 VPU_THROW_UNLESS(bodyOutputs.size() == 1,
-                    "There must be exactly one Tensor Iterator's body output data object for each back-edge connection "
-                    "with the same Tensor Iterator's body input data object");
+                                 "There must be exactly one Tensor Iterator's body output data object for each back-edge connection "
+                                 "with the same Tensor Iterator's body input data object");
                 const auto& bodyOutput = bodyOutputs.front();
 
                 backedges[std::make_pair(bodyOutput, tensorIteratorInput)].push_back(bodyInput);
@@ -255,6 +257,30 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
             for (const auto& data : backedgeInputs) {
                 bindData(loopStartOutput, data);
             }
+        }
+
+        vpu::Optional<std::uint32_t> batchIdx{};
+        if (tensorIterator->params.count(s_tripCountPort)) {
+            VPU_THROW_UNLESS(!iterations.empty(),
+                "Encountered Loop which is supposed to be loop by dynamic batch (dynamic iterations count), but didn't find an iteration component");
+            VPU_THROW_UNLESS(!tensorIterator->params.count(s_curIterPort), "Current iteration port for body of Loop operation is not supported");
+            batchIdx = static_cast<std::uint32_t>(loopStartInputs.size());
+        }
+
+        if (tensorIterator->params.count(s_initCondPort)) {
+            const auto& input = tensorIterator->insData[tensorIterator->GetParamAsUInt(s_initCondPort)].lock();
+            VPU_THROW_UNLESS(isConst(input), "Execution condition for Loop must be constant true");
+
+            const auto& creator = getCreatorLayer(input).lock();
+            VPU_THROW_UNLESS(creator->blobs.size() == 1, "Execution condition for Loop must contain exactly one blob, got {}", creator->blobs.size());
+
+            const auto& blob = creator->blobs.begin()->second;
+            VPU_THROW_UNLESS(blob->size() == 1, "Execution condition for Loop must be single value, got {} values", blob->size());
+            VPU_THROW_UNLESS(blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::I32,
+                             "Execution condition for Loop must have I32 type, got {}", blob->getTensorDesc().getPrecision());
+
+            const auto value = blob->buffer().as<std::int32_t*>()[0];
+            VPU_THROW_UNLESS(value == 1, "Execution condition for Loop must be true, got {} as value", value);
         }
 
         IterationComponents start_iteration_components;
@@ -313,6 +339,10 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
 
         auto loopStart = _stageBuilder->addLoopStartStage(model, tensorIterator->name + "@LoopStart", loopStartInputs, loopStartOutputs);
         loopStart->attrs().set("start-iteration-components", start_iteration_components);
+        if (batchIdx.hasValue()) {
+            loopStart->attrs().set("batchId", batchIdx.get());
+        }
+
         for (const auto& backedge : backedges) {
             const auto& parent = getVpuData(backedge.first.first);
             VPU_THROW_UNLESS(parent != nullptr, "Loop End's inputs must be already parsed");
@@ -344,7 +374,27 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
         const auto& bodyOutputs = tensorIterator->body.outputs;
         VPU_THROW_UNLESS(!bodyOutputs.empty(), "If there is no an output for Tensor Iterator's body, so there is no iteration in tensor iterator");
 
-        for (const auto& bodyOutput : bodyOutputs) {
+        for (std::size_t bodyOutputIdx = 0; bodyOutputIdx < bodyOutputs.size(); ++bodyOutputIdx) {
+            const auto& bodyOutput = bodyOutputs[bodyOutputIdx];
+
+            if (tensorIterator->params.count(s_condPort) && tensorIterator->GetParamAsUInt(s_condPort) == bodyOutputIdx) {
+                const auto& creator = getCreatorLayer(bodyOutput).lock();
+                if (!creator) {
+                    // ConstTransformer leaves constant without creator
+                    // Assume it's true
+                    continue;
+                }
+                VPU_THROW_UNLESS(isConst(bodyOutput), "Body execution condition must be constant true");
+
+                VPU_THROW_UNLESS(creator->blobs.size() == 1, "Body execution condition constant must have one blob");
+                const auto& blob = creator->blobs.begin()->second;
+                VPU_THROW_UNLESS(blob->size() == 1, "Body execution condition must be single value");
+                VPU_THROW_UNLESS(blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::I32, "Body execution condition must be I32");
+                const auto value = blob->buffer().as<std::int32_t*>()[0];
+                VPU_THROW_UNLESS(value == 1, "Body execution condition must be true");
+                continue;
+            }
+
             VPU_THROW_UNLESS(!isFakeHolder(bodyOutput), "Fake holder can be only in body's input");
 
             const auto& tensorIteratorOutputs = findTIOutputsDataByBodyData(bodyOutput);
@@ -379,6 +429,14 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
         }
 
         auto loopEndOutputs = DataVector{};
+
+        vpu::Optional<std::uint32_t> batchIdx{};
+        if (tensorIterator->params.count(s_tripCountPort)) {
+            VPU_THROW_UNLESS(!iterations.empty(),
+                "Encountered Loop which is supposed to be loop by dynamic batch (dynamic iterations count), but didn't find an iteration component");
+            VPU_THROW_UNLESS(!tensorIterator->params.count(s_curIterPort), "Current iteration port for body of Loop operation is not supported");
+            batchIdx = static_cast<std::uint32_t>(loopEndOutputs.size());
+        }
 
         IterationComponents end_iteration_components;
         for (const auto& iteration : iterations) {
@@ -428,6 +486,10 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
 
         auto loopEnd = _stageBuilder->addLoopEndStage(model, tensorIterator->name + "@LoopEnd", loopEndInputs, loopEndOutputs);
         loopEnd->attrs().set("end-iteration-components", end_iteration_components);
+        if (batchIdx.hasValue()) {
+            loopEnd->attrs().set("batchId", batchIdx.get());
+        }
+
         return loopEnd;
     };
 
@@ -435,8 +497,13 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
     auto loopEnd = introduceLoopEnd();
     auto loopStart = introduceLoopStart();
 
-    loopStart->attrs().set<uint32_t>("iterations-count", getNumIteration(*tensorIterator));
-    loopEnd->attrs().set<uint32_t>("iterations-count", getNumIteration(*tensorIterator));
+    if (!tensorIterator->params.count(s_tripCountPort)) {
+        const auto iterationsCount = getNumIteration(*tensorIterator);
+        VPU_THROW_UNLESS(iterationsCount >= 0, "Encountered Tensor Iterator with iterations count equal to {}, but only non-negative values are supported",
+            iterationsCount);
+        loopStart->attrs().set<std::uint32_t>("iterations-count", static_cast<std::uint32_t>(iterationsCount));
+        loopEnd->attrs().set<std::uint32_t>("iterations-count", static_cast<std::uint32_t>(iterationsCount));
+    }
 
     // to allocate LoopEnd and LoopStart at the same time
     loopStart->attrs().set<Stage>("loop-end", loopEnd);

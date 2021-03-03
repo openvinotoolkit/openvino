@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MimicSetBatchSize, "MimicSetBatchSize", 0);
 
 bool ngraph::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(MimicSetBatchSize);
     // extracting ratio of out to in 0-index dimension value from the folded function
     auto specialized_function = ngraph::clone_function(*f);
     ngraph::pass::Manager manager;

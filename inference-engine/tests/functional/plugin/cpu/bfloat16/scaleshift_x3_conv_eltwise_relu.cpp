@@ -152,7 +152,6 @@ protected:
         expectedPrecisions["Add_2"] = "FP32";
         expectedPrecisions["ELT_1"] = "ndef";
         expectedPrecisions["RELU_1"] = "ndef";
-        expectedPrecisions["Add_3"] = "FP32";
     }
 };
 

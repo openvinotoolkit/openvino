@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Shape, Type
 from tests.test_ngraph.util import run_op_node
+from tests import xfail_issue_44970
 
 
 @pytest.mark.parametrize(
@@ -110,7 +111,7 @@ def test_sigmoid():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip(reason="Wrong results are broadcasted along given axis")
+@xfail_issue_44970
 def test_softmax():
     axis = 0
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)

@@ -27,10 +27,12 @@ std::string MatMulWithConstantTransformation::getTestCaseName(testing::TestParam
 
     std::ostringstream result;
     result <<
+        testValues.inputShape << "_" <<
         precision << "_" <<
         targetDevice << "_" <<
         testValues.fqOnData << "_" <<
-        testValues.fqOnWeights;
+        testValues.fqOnWeights << "_" <<
+        testValues.deqOnWeights;
 
     return result.str();
 }
@@ -64,11 +66,30 @@ void MatMulWithConstantTransformation::SetUp() {
         precision,
         testValues.inputShape,
         testValues.fqOnData,
-        testValues.weightsConstShape,
-        testValues.weightsConstValues,
-        testValues.fqOnWeights);
+        testValues.weights,
+        testValues.fqOnWeights,
+        testValues.deqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+
+    if (testValues.deqOnWeights.empty()) {
+        validate();
+    }
+}
+
+void MatMulWithConstantTransformation::validate() {
+    ngraph::element::Type precision;
+    std::string targetDevice;
+    MatMulWithConstantTransformationTestValues testValues;
+    std::tie(precision, targetDevice, testValues) = this->GetParam();
+
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    const auto output = transformed->get_output_op(0);
+    const auto scaleShift = output->get_input_node_shared_ptr(0);
+    const std::string typeName = scaleShift->get_type_name();
+    ASSERT_TRUE("ScaleShiftIE" == typeName || "Eltwise" == typeName);
 }
 
 void MatMulWithConstantTransformation::Run() {

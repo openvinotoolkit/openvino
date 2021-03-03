@@ -6,7 +6,7 @@
 
 #include "subgraph_tests/multiply_add.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
 

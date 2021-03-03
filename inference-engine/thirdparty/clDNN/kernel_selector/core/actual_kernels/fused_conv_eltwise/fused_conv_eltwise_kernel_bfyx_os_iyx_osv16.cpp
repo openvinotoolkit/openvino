@@ -166,8 +166,6 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_os_i
     const auto of_maps = cp.output.Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-    dispatchData.efficiency = FORCE_PRIORITY_3;
-
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
     dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
@@ -193,6 +191,10 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_os_i
     dispatchData.lws[2] = sub_group_size;
 
     return dispatchData;
+}
+
+KernelsPriority fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_3;
 }
 
 bool fused_conv_eltwise_kernel_bfyx_os_iyx_osv16::Validate(const Params& p, const optional_params& o) const {

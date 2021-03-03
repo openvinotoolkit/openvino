@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,13 +18,13 @@
 #include <memory>
 #include <vector>
 
-#include "gather.hpp"
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/exceptions.hpp"
-#include "onnx_import/utils/common.hpp"
+#include "op/gather.hpp"
+#include "utils/common.hpp"
 
 namespace
 {
@@ -139,15 +139,16 @@ namespace ngraph
                     // expected_output_shape: {3, 3, 1, 1}
                     OutputVector adjusted_indices(slice_indices_length);
                     std::vector<uint64_t> target_axes(axes);
-                    const auto gather_axis = default_opset::Constant::create(element::i64, {}, {0});
+                    const auto gather_axis =
+                        default_opset::Constant::create(indices.get_element_type(), {}, {0});
 
                     int added_indices_number = 0;
                     for (int i = 0; i < slice_indices_length; ++i)
                     {
                         if (std::find(std::begin(axes), std::end(axes), i) == axes.end())
                         {
-                            adjusted_indices[i] =
-                                default_opset::Constant::create(element::i64, {1}, {fill_in_value});
+                            adjusted_indices[i] = default_opset::Constant::create(
+                                indices.get_element_type(), {1}, {fill_in_value});
                             target_axes.insert(std::next(target_axes.begin(), i), i);
                             ++added_indices_number;
                         }
@@ -156,7 +157,7 @@ namespace ngraph
                             adjusted_indices[i] = std::make_shared<default_opset::Gather>(
                                 indices,
                                 default_opset::Constant::create(
-                                    element::i64, {1}, {i - added_indices_number}),
+                                    indices.get_element_type(), {1}, {i - added_indices_number}),
                                 gather_axis);
                         }
                     }

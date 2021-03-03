@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,9 +40,5 @@ if (NGRAPH_INTERPRETER_ENABLE)
             SOVERSION ${NGRAPH_API_VERSION})
     endif()
     target_link_libraries(interpreter_backend PUBLIC ngraph_backend)
-    install(TARGETS interpreter_backend
-        LIBRARY DESTINATION "${NGRAPH_INSTALL_LIB}"
-        ARCHIVE DESTINATION "${NGRAPH_INSTALL_LIB}"
-        RUNTIME DESTINATION "${NGRAPH_INSTALL_LIB}"
-    )
+
 endif()

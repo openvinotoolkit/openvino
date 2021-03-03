@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -267,6 +267,26 @@ TEST(type_prop, binary_arithmetic_bad_argument_element_types)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
                              std::string("Arguments cannot have boolean element type"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, binary_arithmetic_bad_argument_shape_with_none_autobroadcast_attribute)
+{
+    auto input1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
+    auto input2 = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
+    try
+    {
+        auto bc = make_shared<op::v1::Add>(input1, input2, op::AutoBroadcastType::NONE);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Did not detect incorrect element types for arithmetic operator";
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Argument shapes are inconsistent"));
     }
     catch (...)
     {

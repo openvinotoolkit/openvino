@@ -55,6 +55,6 @@ public:
 protected:
     JitConstants GetJitConstants(const border_params& params) const;
     DispatchData SetDefault(const border_params& params) const;
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 };
 }  // namespace kernel_selector

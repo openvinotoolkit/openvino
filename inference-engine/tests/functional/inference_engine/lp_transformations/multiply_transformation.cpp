@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,17 +52,16 @@ public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::Shape shape = std::get<1>(GetParam());
-        const bool broadcast = std::get<2>(GetParam());
+        //const bool broadcast = std::get<2>(GetParam());
         const MultiplyTransformationTestValues testParams = std::get<3>(GetParam());
 
-        actualFunction = MultiplyFunction::get(shape, testParams.actual);
-
+        actualFunction = MultiplyFunction::get(precision, shape, testParams.actual);
         SimpleLowPrecisionTransformer transform;
         transform.add<low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(
             low_precision::LayerTransformation::Params(testParams.transformationParams));
         transform.transform(actualFunction);
 
-        referenceFunction = MultiplyFunction::get(shape, testParams.expected);
+        referenceFunction = MultiplyFunction::get(precision, shape, testParams.expected);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
@@ -90,7 +89,7 @@ TEST_P(MultiplyTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    //ngraph::element::f16
+    ngraph::element::f16
 };
 
 const std::vector<ngraph::Shape> shapes = {
@@ -103,40 +102,40 @@ const std::vector<bool> broadcastValues = {
 };
 
 const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
-    // U8
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 3.f }, { 7.f }}
-            },
-            false
-        },
-        {
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 2.f }, { 10.f }}
-            },
-            {
-                { 1, 3, 8, 16 },
-                {},
-                ngraph::element::u8,
-                {ngraph::element::f32, { 3.f }, { 7.f }}
-            },
-            false
-        }
-    },
+//    // U8
+//    {
+//        LayerTransformation::createParamsU8I8(),
+//        {
+//            {
+//                { 1, 3, 8, 16 },
+//                {},
+//                ngraph::element::u8,
+//                {ngraph::element::f32, { 2.f }, { 10.f }}
+//            },
+//            {
+//                { 1, 3, 8, 16 },
+//                {},
+//                ngraph::element::u8,
+//                {ngraph::element::f32, { 3.f }, { 7.f }}
+//            },
+//            false
+//        },
+//        {
+//            {
+//                { 1, 3, 8, 16 },
+//                {},
+//                ngraph::element::u8,
+//                {ngraph::element::f32, { 2.f }, { 10.f }}
+//            },
+//            {
+//                { 1, 3, 8, 16 },
+//                {},
+//                ngraph::element::u8,
+//                {ngraph::element::f32, { 3.f }, { 7.f }}
+//            },
+//            false
+//        }
+//    },
 
     {
         LayerTransformation::createParamsU8I8(),
@@ -275,6 +274,36 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
         }
     },
 
+    // Actual:
+    //
+    // Parameter
+    //  |I8
+    //  |
+    // Convert Constant    Parameter
+    //  \FP32  /FP32          |I8
+    //   \    /               |
+    //  Subtract  Constant  Convert  Constant
+    //     \FP32   /FP32      \FP32  /FP32
+    //      \     /            \    /
+    //      Multiply          Multiply
+    //             \FP32      /FP32
+    //              \        /
+    //               Multiply
+    // Transformed:
+    //
+    // Parameter
+    //   |I8
+    //   |
+    // Convert  Constant
+    //   \FP32   /FP32
+    //    \     /
+    //   Subtract    Constant
+    //      \FP32    /FP32
+    //       \      /
+    //      Multiply   Parameter
+    //          \FP32  /I8
+    //           \    /
+    //          Multiply
     {
         LayerTransformation::createParamsI8I8(),
         {
@@ -283,6 +312,74 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
                 {},
                 ngraph::element::i8,
                 {ngraph::element::f32, { 2.f }, { 10.f }}
+            },
+            {
+                { 1, 3, 8, 16 },
+                {},
+                ngraph::element::i8,
+                {ngraph::element::f32, { }, { 7.f }}
+            },
+            false
+        },
+        {
+            {
+                { 1, 3, 8, 16 },
+                {},
+                ngraph::element::i8,
+                {ngraph::element::f32, { 2.f }, { 70.f }},
+            },
+            {
+                { 1, 3, 8, 16 },
+                {},
+                ngraph::element::i8,
+                {}
+            },
+            false
+        }
+    },
+
+    // Actual:
+    //
+    // Parameter Constant
+    //  |I8      |I8
+    //  |        |
+    // Convert Convert      Parameter
+    //  \FP32  /FP32         |I8
+    //   \    /              |
+    //  Subtract  Constant  Convert  Constant
+    //     \FP32   /FP32      \FP32  /FP32
+    //      \     /            \    /
+    //      Multiply          Multiply
+    //             \FP32      /FP32
+    //              \        /
+    //               Multiply
+    // Transformed:
+    //
+    // Parameter
+    //   |I8
+    //   |
+    // Convert  Constant
+    //   \FP32   /FP32
+    //    \     /
+    //   Subtract    Constant
+    //      \FP32    /FP32
+    //       \      /
+    //      Multiply   Parameter
+    //          \FP32  /I8
+    //           \    /
+    //          Multiply
+    {
+        LayerTransformation::createParamsI8I8(),
+        {
+            {
+                { 1, 3, 8, 16 },
+                {},
+                ngraph::element::i8,
+                {
+                    ngraph::element::f32,
+                    { {2.f}, ngraph::element::f32, {}, true, 1ul, ngraph::element::i8, true },
+                    { 10.f }
+                }
             },
             {
                 { 1, 3, 8, 16 },
@@ -444,7 +541,190 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
             },
             true
         }
-    }
+    },
+
+    // Constant as input
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
+                { 1, 3, 8, 16 },
+                {},
+                ngraph::element::i8,
+                {ngraph::element::f32, { }, { 0.2f }},
+            },
+            {
+                {},
+                {{ 7.f }, ngraph::element::i8}, // Constant as input
+                ngraph::element::i8,
+                {ngraph::element::f32, { }, { 0.5f }},
+            },
+            false
+        },
+        {
+            {
+                { 1, 3, 8, 16 },
+                {},
+                ngraph::element::i8,
+                {ngraph::element::f32, {}, {}},
+            },
+            {
+                {},
+                {{ 0.7f }, ngraph::element::f32},
+                ngraph::element::f32,
+                {}
+            },
+            true
+        }
+    },
+
+    // Actual:
+    //
+    // Parameter Constant   Constant  Constant
+    //  |I8      |I8         |I8       |I8
+    //  |        |           |         |
+    // Convert Convert      Convert  Convert
+    //  \FP32  /FP32         |I8    /FP32
+    //   \    /              |     /
+    //  Subtract  Constant  Subtract  Constant
+    //     \FP32   /FP32      \FP32  /FP32
+    //      \     /            \    /
+    //      Multiply          Multiply
+    //            \FP32      /FP32
+    //             \        /
+    //              Multiply
+    // Transformed:
+    //
+    // Parameter Constant
+    //   |I8      |I8
+    //   |        |
+    // Convert   Convert
+    //   \FP32   /FP32
+    //    \     /
+    //   Subtract    Constant
+    //      \FP32    /FP32
+    //       \      /
+    //      Multiply
+    //
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
+                { 1, 3, 8, 16 },
+                {},
+                ngraph::element::i8,
+                {
+                    ngraph::element::f32,
+                    { {127.f}, ngraph::element::f32, {}, false, 1, ngraph::element::i8, true },
+                    { 0.2f }
+                },
+            },
+            {
+                {},
+                {{ 7.f }, ngraph::element::i8}, // Constant as input
+                ngraph::element::i8,
+                {
+                    ngraph::element::f32,
+                    { {127.f}, ngraph::element::f32, {}, false, 1, ngraph::element::i8, true },
+                    { 0.5f }
+                },
+            },
+            false
+        },
+        {
+            {
+                { 1, 3, 8, 16 },
+                {},
+                ngraph::element::i8,
+                {
+                    ngraph::element::f32,
+                    { {127.f}, ngraph::element::f32, {}, false, 1, ngraph::element::i8, true },
+                    {}
+                },
+            },
+            {
+                {},
+                {{ -12.f }, ngraph::element::f32},
+                ngraph::element::f32,
+                {}
+            },
+            true
+        }
+    },
+
+    // Actual:
+    //
+    // Constant Constant   Parameter  Constant
+    //  |I8      |I8         |I8       |I8
+    //  |        |           |         |
+    // Convert Convert      Convert  Convert
+    //  \FP32  /FP32         |I8    /FP32
+    //   \    /              |     /
+    //  Subtract  Constant  Subtract  Constant
+    //     \FP32   /FP32      \FP32  /FP32
+    //      \     /            \    /
+    //      Multiply          Multiply
+    //            \FP32      /FP32
+    //             \        /
+    //              Multiply
+    // Transformed:
+    //
+    // Parameter Constant
+    //   |I8      |I8
+    //   |        |
+    // Convert   Convert
+    //   \FP32   /FP32
+    //    \     /
+    //   Subtract    Constant
+    //      \FP32    /FP32
+    //       \      /
+    //      Multiply
+    //
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            {
+                {},
+                {{ 7.f }, ngraph::element::i8}, // Constant as input
+                ngraph::element::i8,
+                {
+                    ngraph::element::f32,
+                    { {127.f}, ngraph::element::f32, {}, false, 1, ngraph::element::i8, true },
+                    { 0.5f }
+                },
+            },
+            {
+                { 1, 3, 8, 16 },
+                {},
+                ngraph::element::i8,
+                {
+                    ngraph::element::f32,
+                    { {127.f}, ngraph::element::f32, {}, false, 1, ngraph::element::i8, true },
+                    { 0.2f }
+                },
+            },
+            false
+        },
+        {
+            {
+                { 1, 3, 8, 16 },
+                {},
+                ngraph::element::i8,
+                {
+                    ngraph::element::f32,
+                    { {127.f}, ngraph::element::f32, {}, false, 1, ngraph::element::i8, true },
+                    {}
+                },
+            },
+            {
+                {},
+                {{ -12.f }, ngraph::element::f32},
+                ngraph::element::f32,
+                {}
+            },
+            true
+        }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(

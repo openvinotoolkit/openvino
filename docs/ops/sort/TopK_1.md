@@ -32,6 +32,14 @@
   * **Default value**: None
   * **Required**: *yes*
 
+* *index_element_type*
+
+  * **Description**: the type of output tensor with indices
+  * **Range of values**: "i64" or "i32"
+  * **Type**: string
+  * **Default value**: "i32"
+  * **Required**: *No*
+
 **Inputs**:
 
 *   **1**: Arbitrary tensor. Required.
@@ -59,6 +67,8 @@ Sorting and minimum/maximum are controlled by `sort` and `mode` attributes:
   * *mode*=`min`, *sort*=`value` - ascending by value
   * *mode*=`min`, *sort*=`index` - ascending by index
   * *mode*=`min`, *sort*=`none`  - undefined
+
+If there are several elements with the same value then their output order is not determined.
 
 **Example**
 

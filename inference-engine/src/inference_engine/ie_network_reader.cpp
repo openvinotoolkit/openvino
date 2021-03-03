@@ -7,7 +7,6 @@
 
 #include <details/ie_so_pointer.hpp>
 #include <file_utils.h>
-#include <ie_blob_stream.hpp>
 #include <ie_reader.hpp>
 #include <ie_ir_version.hpp>
 
@@ -46,11 +45,11 @@ class Reader: public IReader {
     InferenceEngine::details::SOPointer<IReader> getReaderPtr() {
         std::call_once(readFlag, [&] () {
             FileUtils::FilePath libraryName = FileUtils::toFilePath(location);
-            FileUtils::FilePath readersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
+            FileUtils::FilePath readersLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
             if (!FileUtils::fileExist(readersLibraryPath)) {
                 THROW_IE_EXCEPTION << "Please, make sure that Inference Engine ONNX reader library "
-                    << FileUtils::fromFilePath(::FileUtils::makeSharedLibraryName({}, libraryName)) << " is in "
+                    << FileUtils::fromFilePath(::FileUtils::makePluginLibraryName({}, libraryName)) << " is in "
                     << getIELibraryPath();
             }
             ptr = InferenceEngine::details::SOPointer<IReader>(readersLibraryPath);
@@ -107,7 +106,7 @@ void registerReaders() {
     // TODO: Read readers info from XML
     auto create_if_exists = [] (const std::string name, const std::string library_name) {
         FileUtils::FilePath libraryName = FileUtils::toFilePath(library_name);
-        FileUtils::FilePath readersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
+        FileUtils::FilePath readersLibraryPath = FileUtils::makePluginLibraryName(getInferenceEngineLibraryPath(), libraryName);
 
         if (!FileUtils::fileExist(readersLibraryPath))
             return std::shared_ptr<Reader>();
@@ -239,7 +238,6 @@ CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weig
     // Register readers if it is needed
     registerReaders();
     std::istringstream modelStream(model);
-    details::BlobStream binStream(weights);
 
     assertIfIRv7LikeModel(modelStream);
 

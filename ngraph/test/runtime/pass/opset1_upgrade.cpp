@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,11 +49,6 @@ namespace opset1_upgrade
 
     // Default is that we didn nothing
     shared_ptr<Node> op_cast(shared_ptr<Node> node) { return nullptr; }
-    shared_ptr<Node> op_cast(shared_ptr<op::v0::Multiply> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Multiply, op::v1::Multiply>(node);
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v0::ConvolutionBackpropData> node)
     {
         auto data_batch_shape = node->get_data_batch_shape();

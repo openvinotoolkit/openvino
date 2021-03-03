@@ -24,6 +24,8 @@ public:
            std::vector<int64_t> dim,
            std::vector<int64_t> offset);
 
+    bool visit_attributes(AttributeVisitor &visitor) override;
+
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

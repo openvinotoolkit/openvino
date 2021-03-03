@@ -6,7 +6,7 @@
 #include <ngraph/variant.hpp>
 #include "ie_extension.h"
 #include <condition_variable>
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 #include <tuple>
@@ -14,7 +14,7 @@
 #include <string>
 #include <ie_core.hpp>
 #include <legacy/details/ie_cnn_network_tools.h>
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <base/behavior_test_utils.hpp>
 #include <exec_graph_info.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"

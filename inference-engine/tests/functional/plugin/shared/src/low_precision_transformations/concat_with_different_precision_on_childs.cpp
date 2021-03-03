@@ -59,6 +59,28 @@ void ConcatWithDifferentChildsTransformation::SetUp() {
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithDifferentPrecisionOnChilds(
         netPrecision, inputShapes, param.fqOnData1, param.fqOnData2);
+
+    validate();
+}
+
+void ConcatWithDifferentChildsTransformation::validate() {
+    ngraph::element::Type netPrecision;
+    ngraph::Shape inputShapes;
+    std::string targetDevice;
+    ConcatWithDifferentChildsTransformationParam param;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    bool multiChannel;
+    std::tie(netPrecision, inputShapes, targetDevice, param, params, multiChannel) = this->GetParam();
+
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+    ASSERT_EQ(2ul, transformed->get_output_size());
+    for (size_t i = 0; i < 2ul; ++i) {
+        const auto output = transformed->get_output_op(0);
+        const auto scaleShift = output->get_input_node_shared_ptr(0);
+        const std::string typeName = scaleShift->get_type_name();
+        ASSERT_EQ("ScaleShiftIE", typeName);
+    }
 }
 
 TEST_P(ConcatWithDifferentChildsTransformation, CompareWithRefImpl) {

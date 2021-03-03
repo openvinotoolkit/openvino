@@ -76,8 +76,10 @@ KernelsData ReverseSequenceKernelRef::GetKernelsData(const Params& params, const
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2);
 
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return {kd};
+}
+
+KernelsPriority ReverseSequenceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

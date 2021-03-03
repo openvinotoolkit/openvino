@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -84,14 +84,12 @@ NGRAPH_OP(Log, ngraph::op)
 NGRAPH_OP(LRN, ngraph::op)
 NGRAPH_OP(LSTMSequence, ngraph::op::v0)
 NGRAPH_OP(MatMul, ngraph::op)
-NGRAPH_OP(Multiply, ngraph::op::v0)
 NGRAPH_OP(MVN, ngraph::op)
 NGRAPH_OP(Negative, ngraph::op)
 NGRAPH_OP(NormalizeL2, ngraph::op)
 NGRAPH_OP(Parameter, ngraph::op)
 NGRAPH_OP(PRelu, ngraph::op)
 NGRAPH_OP(PriorBox, ngraph::op)
-NGRAPH_OP(Quantize, ngraph::op)
 NGRAPH_OP(Range, ngraph::op)
 NGRAPH_OP(Relu, ngraph::op)
 NGRAPH_OP(Result, ngraph::op)

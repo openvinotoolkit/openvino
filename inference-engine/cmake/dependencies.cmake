@@ -4,10 +4,7 @@
 
 cmake_policy(SET CMP0054 NEW)
 
-include(models)
-
-#we have number of dependencies stored on ftp
-include(dependency_solver)
+# we have number of dependencies stored on ftp
 
 if (CMAKE_CROSSCOMPILING)
     set(CMAKE_STAGING_PREFIX "${TEMP}")
@@ -32,7 +29,6 @@ message(STATUS "MODELS_PATH=" ${MODELS_PATH})
 
 fetch_models_and_validation_set()
 
-include(linux_name)
 if(COMMAND get_linux_name)
     get_linux_name(LINUX_OS_NAME)
 endif()
@@ -40,7 +36,7 @@ endif()
 include(CMakeParseArguments)
 
 if (ENABLE_MYRIAD)
-    include(vpu_dependencies)
+    include(cmake/vpu_dependencies.cmake)
 endif()
 
 ## enable cblas_gemm from OpenBLAS package
@@ -107,19 +103,22 @@ if (THREADING STREQUAL "OMP")
                 ARCHIVE_WIN "iomp.zip"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                SHA256 "62c68646747fb10f19b53217cb04a1e10ff93606f992e6b35eb8c31187c68fbf")
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_LIN "iomp.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                SHA256 "7832b16d82513ee880d97c27c7626f9525ebd678decf6a8fe6c38550f73227d9")
     elseif(APPLE AND X86_64)
         RESOLVE_DEPENDENCY(OMP
                 ARCHIVE_MAC "iomp_20190130_mac.tgz"
                 TARGET_PATH "${TEMP}/omp"
                 ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*"
+                SHA256 "591ea4a7e08bbe0062648916f42bded71d24c27f00af30a8f31a29b5878ea0cc")
     else()
         message(FATAL_ERROR "Intel OMP is not available on current platform")
     endif()
@@ -137,51 +136,44 @@ endif ()
 
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    reset_deps_cache(TBBROOT)
+    reset_deps_cache(TBBROOT TBB_DIR)
 
-    if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
-        if (WIN32 AND X86_64)
-            #TODO: add target_path to be platform specific as well, to avoid following if
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_WIN "tbb2020_20200415_win.zip"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
-        elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
-        elseif(LINUX AND X86_64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
-        elseif(LINUX AND AARCH64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
-                    TARGET_PATH "${TEMP}/tbb_yocto"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "57ad3ceeab119c8a4d5e9fc38e80952fc19d4bf23ae065e9540cde89b25561d5")
-        elseif(APPLE AND X86_64)
-            RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
-        else()
-            message(FATAL_ERROR "TBB is not available on current platform")
-        endif()
+    if (WIN32 AND X86_64)
+        #TODO: add target_path to be platform specific as well, to avoid following if
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_WIN "tbb2020_20200415_win.zip"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "f1c9b9e2861efdaa01552bd25312ccbc5feeb45551e5f91ae61e29221c5c1479")
+    elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "f42d084224cc2d643314bd483ad180b081774608844000f132859fca3e9bf0ce")
+    elseif(LINUX AND X86_64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                SHA256 "95b2f3b0b70c7376a0c7de351a355c2c514b42c4966e77e3e34271a599501008")
+    elseif(LINUX AND AARCH64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_LIN "keembay/tbb2020_38404_kmb_lic.tgz"
+                TARGET_PATH "${TEMP}/tbb_yocto"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "321261ff2eda6d4568a473cb883262bce77a93dac599f7bd65d2918bdee4d75b")
+    elseif(APPLE AND X86_64)
+        RESOLVE_DEPENDENCY(TBB
+                ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
+                TARGET_PATH "${TEMP}/tbb"
+                ENVIRONMENT "TBBROOT"
+                SHA256 "ad9cf52e657660058aa6c6844914bc0fc66241fec89a392d8b79a7ff69c3c7f6")
     else()
-        if(DEFINED TBB_DIR)
-            get_filename_component(TBB ${TBB_DIR} DIRECTORY)
-        else()
-            get_filename_component(TBB $ENV{TBB_DIR} DIRECTORY)
-        endif()
+        message(FATAL_ERROR "TBB is not available on current platform")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
+    update_deps_cache(TBB_DIR "${TBB}/cmake" "Path to TBB cmake folder")
 
     if (WIN32)
         log_rpath_from_dir(TBB "${TBB}/bin")
@@ -242,22 +234,23 @@ if (ENABLE_OPENCV)
             elseif (ARM)
                 set(OPENCV_SUFFIX "debian9arm")
                 set(OPENCV_HASH "0e787d6738092993bc92bb55975f52caabae45dc73473b5196d15e65e87d6b9d")
-            elseif (LINUX_OS_NAME STREQUAL "CentOS 7" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9")
+            elseif ((LINUX_OS_NAME STREQUAL "CentOS 7" OR
+                     CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9") AND X86_64)
                 set(OPENCV_SUFFIX "centos7")
                 set(OPENCV_HASH "9b813af064d463b31fa1603b11b6559532a031d59bb0782d234380955fd397e0")
-            elseif (LINUX_OS_NAME MATCHES "CentOS 8")
+            elseif (LINUX_OS_NAME MATCHES "CentOS 8" AND X86_64)
                 set(OPENCV_SUFFIX "centos8")
                 set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
-            elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04")
+            elseif (LINUX_OS_NAME STREQUAL "Ubuntu 16.04" AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu16")
                 set(OPENCV_HASH "cd46831b4d8d1c0891d8d22ff5b2670d0a465a8a8285243059659a50ceeae2c3")
-            elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04")
+            elseif (LINUX_OS_NAME STREQUAL "Ubuntu 18.04" AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu18")
                 set(OPENCV_HASH "8ec3e3552500dee334162386b98cc54a5608de1f1a18f283523fc0cc13ee2f83")
-            elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
+            elseif ((LINUX_OS_NAME STREQUAL "Ubuntu 20.04" OR LINUX_OS_NAME STREQUAL "LinuxMint 20.1") AND X86_64)
                 set(OPENCV_SUFFIX "ubuntu20")
                 set(OPENCV_HASH "2b7808d002864acdc5fc0b19cd30dadc31a37cc267931cad605f23f2383bfc21")
-            else()
+            elseif(NOT DEFINED OpenCV_DIR AND NOT DEFINED ENV{OpenCV_DIR})
                 message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
             endif()
             RESOLVE_DEPENDENCY(OPENCV
@@ -286,9 +279,13 @@ if (ENABLE_OPENCV)
         log_rpath_from_dir(OPENCV "${OpenCV_DIR}/../lib")
     endif()
     debug_message(STATUS "opencv=" ${OPENCV})
+else()
+    reset_deps_cache(OpenCV_DIR)
 endif()
 
-include(ie_parallel)
+# TODO: remove global CMAKE_MODULE_PATH
+list(APPEND CMAKE_MODULE_PATH "${IEDevScripts_DIR}")
+include(cmake/ie_parallel.cmake)
 
 if (ENABLE_GNA)
     reset_deps_cache(
@@ -363,18 +360,3 @@ if (ENABLE_SPEECH_DEMO)
     endif()
     update_deps_cache(SPEECH_LIBS_AND_DEMOS "${SPEECH_LIBS_AND_DEMOS}" "Path to SPEECH_LIBS_AND_DEMOS root folder")
 endif()
-
-configure_file(
-        "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig.cmake.in"
-        "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig.cmake"
-        @ONLY)
-
-configure_file(
-        "${IE_MAIN_SOURCE_DIR}/cmake/share/InferenceEngineConfig-version.cmake.in"
-        "${CMAKE_BINARY_DIR}/share/InferenceEngineConfig-version.cmake"
-        COPYONLY)
-
-configure_file(
-        "${IE_MAIN_SOURCE_DIR}/cmake/ie_parallel.cmake"
-        "${CMAKE_BINARY_DIR}/share/ie_parallel.cmake"
-        COPYONLY)

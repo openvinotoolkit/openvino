@@ -394,7 +394,7 @@ INSTANTIATE_TEST_CASE_P(ColorFormat_NV12, PreprocTest,
                                 Values(TEST_SIZES_PREPROC)));
 
 
-INSTANTIATE_TEST_CASE_P(DISABLED_PlainPrecisionConversions, PreprocTest,
+INSTANTIATE_TEST_CASE_P(PlainPrecisionConversions, PreprocTest,
                         Combine(Values(std::make_pair(IE::Precision::U16,IE::Precision::FP32),
                                        std::make_pair(IE::Precision::FP32,IE::Precision::U16)
                                 ),
@@ -415,5 +415,5 @@ INSTANTIATE_TEST_CASE_P(PrecisionConversionsPipelines, PreprocTest,
                                 Values(IE::ColorFormat::RAW),
                                 Values(IE::Layout::NHWC, IE::Layout::NCHW),
                                 Values(IE::Layout::NHWC, IE::Layout::NCHW),
-                                Values(std::make_pair(1, 1)/*, std::make_pair(3, 3)*/), //U16 Split and Merge are not there
+                                Values(std::make_pair(1, 1), std::make_pair(3, 3)),
                                 Values(TEST_SIZES_PREPROC)));

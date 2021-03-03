@@ -3,6 +3,8 @@
 //
 
 #include <vpu/frontend/frontend.hpp>
+#include <vpu/stages/interpolate_stages.hpp>
+
 #include <ie_common.h>
 #include <ie_blob.h>
 #include <ngraph/opsets/opset4.hpp>
@@ -25,92 +27,87 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
                      "Interpolate stage with name {} must have only 1 output, actually provided {} outputs",
                      _layer->name, outputs.size());
 
-    const auto interpolateMode = _layer->GetParamAsString("mode");
+    const auto interpolateMode = _layer->GetParamAsString(g_mode, g_nearest);
 
     const auto input = inputs[0];
     const auto output = outputs[0];
 
     // try to use existing resize layers
-    if (input->desc().dimsOrder() == DimsOrder::NCHW || input->desc().dimsOrder() == DimsOrder::NHWC ||
-        input->desc().dimsOrder() == DimsOrder::CHW || input->desc().dimsOrder() == DimsOrder::HWC) {
-        const auto ic = input->desc().dim(Dim::C);
-        const auto in = (input->desc().numDims() == 3) ? 1 : input->desc().dim(Dim::N);
 
-        const auto oc = output->desc().dim(Dim::C);
-        const auto on = (output->desc().numDims() == 3) ? 1 : output->desc().dim(Dim::N);
+    const auto ic = input->desc().dim(Dim::C);
+    const auto in = (input->desc().numDims() == 3) ? 1 : input->desc().dim(Dim::N);
 
-        auto padsBegin = _layer->GetParamAsInts("pads_begin", {});
-        auto padsEnd = _layer->GetParamAsInts("pads_end", {});
+    const auto oc = output->desc().dim(Dim::C);
+    const auto on = (output->desc().numDims() == 3) ? 1 : output->desc().dim(Dim::N);
 
-        const auto isPadZeros = [](const std::vector<int>& pad) {
-            return std::all_of(pad.begin(), pad.end(), [](int i) { return i == 0; });
-        };
+    auto padsBegin = _layer->GetParamAsInts(g_pads_begin, {});
+    auto padsEnd   = _layer->GetParamAsInts(g_pads_end, {});
 
-        if (ic == oc && in == 1 && on == 1 && isPadZeros(padsBegin) && isPadZeros(padsEnd)) {
-            ie::details::CaselessEq<std::string> cmp;
-            if (cmp(interpolateMode, "nearest")) {
-                // current "Resample" supports the following "Interpolate" modes only:
-                // coordinate_transformation_mode = half_pixel; nearest_mode = round_prefer_ceil;
-                // coordinate_transformation_mode = asymmetric; nearest_mode = floor;
-                // other "Interpolate" modes are translated to the default ones
-                const auto antialias = _layer->GetParamAsBool("antialias", false);
-                const auto coordinateTransformation = _layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
-                const auto nearest = _layer->GetParamAsString("nearest_mode", "round_prefer_floor");
-                InterpolateCoordTransMode coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-                InterpolateNearestMode nearestMode = InterpolateNearestMode::RoundPreferCeil;
+    const auto isPadZeros = [](const std::vector<int>& pad) {
+        return std::all_of(pad.begin(), pad.end(), [](int i) { return i == 0; });
+    };
 
-                if (cmp(coordinateTransformation, "asymmetric")) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::Asymmetric;
-                } else if (cmp(coordinateTransformation, "half_pixel")) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::HalfPixel;
-                } else if (cmp(coordinateTransformation, "pytorch_half_pixel")) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::PytorchHalfPixel;
-                } else if (cmp(coordinateTransformation, "tf_half_pixel_for_nn")) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::TfHalfPixelForNn;
-                } else if (cmp(coordinateTransformation, "align_corners")) {
-                    coordinateTransformationMode = InterpolateCoordTransMode::AlignCorners;
-                }
+    const auto orderIsSupported = input->desc().dimsOrder() == DimsOrder::NCHW || input->desc().dimsOrder() == DimsOrder::NHWC
+                               || input->desc().dimsOrder() == DimsOrder::CHW ||  input->desc().dimsOrder() == DimsOrder::HWC;
+    VPU_THROW_UNLESS(orderIsSupported, "Current Interpolate supports (N)HWC, (N)CHW data orders only, actual {}", input->desc().dimsOrder());
 
-                if (cmp(nearest, "round_prefer_floor")) {
-                    nearestMode = InterpolateNearestMode::RoundPreferFloor;
-                } else if (cmp(nearest, "round_prefer_ceil")) {
-                    nearestMode = InterpolateNearestMode::RoundPreferCeil;
-                } else if (cmp(nearest, "floor")) {
-                    nearestMode = InterpolateNearestMode::Floor;
-                } else if (cmp(nearest, "ceil")) {
-                    nearestMode = InterpolateNearestMode::Ceil;
-                } else if (cmp(nearest, "simple")) {
-                    nearestMode = InterpolateNearestMode::Simple;
-                }
+    const auto interpolateModeIt = interpModeMap.find(interpolateMode);
+    VPU_THROW_UNLESS(interpolateModeIt != interpModeMap.end(),
+                     "Current Interpolate supports 'nearest' and 'linear' modes only, actual {}", interpolateMode);
+    const auto modeIsSupported = interpolateModeIt->second == InterpolateMode::Nearest ||
+                                 interpolateModeIt->second == InterpolateMode::Linear  ||
+                                 interpolateModeIt->second == InterpolateMode::LinearOnnx;
+    VPU_THROW_UNLESS(modeIsSupported, "Current Interpolate supports 'nearest' and 'linear' modes only, actual {}", interpolateMode);
 
-                _stageBuilder->addResampleNearestStage(model,
-                                                       _layer->name,
-                                                       _layer,
-                                                       antialias,
-                                                       coordinateTransformationMode,
-                                                       nearestMode,
-                                                       -1.0f,
-                                                       input,
-                                                       output);
-            } else if (cmp(interpolateMode, "linear") || cmp(interpolateMode, "linear_onnx")) {
-                // current "Interp" supports modes "align_corners" and "asymmetric" only
-                // other "Interpolate" modes are translated to the default ones
-                const auto coordinateTransformationMode = _layer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
+    const auto paramIsSupported = ic == oc && in == 1 && on == 1 && isPadZeros(padsBegin) && isPadZeros(padsEnd);
+    VPU_THROW_UNLESS(paramIsSupported, "Current Interpolate does not support paddings, batches, and resize by channels");
 
-                _stageBuilder->addInterpStage(model,
-                                              _layer->name,
-                                              _layer,
-                                              cmp(coordinateTransformationMode, "align_corners"),
-                                              input,
-                                              output);
-            } else {
-                VPU_THROW_EXCEPTION << "Current Interpolate supports 'nearest' and 'linear' modes only; layer name = " << _layer->name;
-            }
-        } else {
-            VPU_THROW_EXCEPTION << "Current Interpolate does not support paddings, batches, and resize by channels; layer name = " << _layer->name;
-        }
-    } else {
-        VPU_THROW_EXCEPTION << "Current Interpolate supports (N)HWC, (N)CHW data orders only; layer name = " << _layer->name;
+    if (interpolateModeIt->second == InterpolateMode::Nearest) {
+        // current "Resample" supports the following "Interpolate" modes only:
+        // coordinate_transformation_mode = half_pixel; nearest_mode = round_prefer_ceil;
+        // coordinate_transformation_mode = asymmetric; nearest_mode = floor;
+        // other "Interpolate" modes are translated to the default ones
+        const auto anti = _layer->GetParamAsBool(g_antialias, false);
+        const auto coordinateTransformation = _layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
+        const auto near = _layer->GetParamAsString(g_nearest_mode, g_round_prefer_floor);
+
+        const auto coordModeIt   = coordTransformModeMap.find(coordinateTransformation);
+        const auto nearestModeIt = nearestModeMap.find(near);
+        VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Interpolate stage does not support this coordinate transforation mode");
+        VPU_THROW_UNLESS(nearestModeIt != nearestModeMap.end(), "Interpolate stage does not support this nearest transforation mode");
+        auto coordinateTransformationMode = coordModeIt->second;
+        auto nearestMode = nearestModeIt->second;
+
+        _stageBuilder->addResampleNearestStage(model,
+                                                _layer->name,
+                                                _layer,
+                                                anti,
+                                                coordinateTransformationMode,
+                                                nearestMode,
+                                                -1.0f,
+                                                input,
+                                                output);
+    } else if (interpolateModeIt->second == InterpolateMode::Linear ||
+               interpolateModeIt->second == InterpolateMode::LinearOnnx) {
+        // current "Interp" supports modes "align_corners" and "asymmetric" only
+        // other "Interpolate" modes are translated to the default ones
+        const auto coordinateTransformation = _layer->GetParamAsString(g_coordinate_transformation_mode, g_half_pixel);
+        const auto coordModeIt  = coordTransformModeMap.find(coordinateTransformation);
+        VPU_THROW_UNLESS(interpolateModeIt != interpModeMap.end(), "Interp stage with name {} does not support this interp mode", _layer->name);
+        VPU_THROW_UNLESS(interpolateModeIt->second == InterpolateMode::Linear || interpolateModeIt->second  == InterpolateMode::LinearOnnx,
+                            "Interp stage supports linear and linear_onnx modes");
+        VPU_THROW_UNLESS(coordModeIt != coordTransformModeMap.end(), "Interp stage does not support this coordinate transforation mode");
+        auto coordinateTransformationMode = coordModeIt->second;
+        auto mode = interpolateModeIt->second;
+
+        _stageBuilder->addInterpStage(model,
+                                        _layer->name,
+                                        _layer,
+                                        coordModeIt->second == InterpolateCoordTransMode::AlignCorners,
+                                        mode,
+                                        coordinateTransformationMode,
+                                        input,
+                                        output);
     }
 }
 

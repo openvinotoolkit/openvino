@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <memory>
 #include "cldnn_remote_context.h"
+#include "cldnn_itt.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
@@ -35,7 +36,7 @@ ParamMap CLDNNRemoteBlobImpl::getParams() const {
             { GPU_PARAM_KEY(OCL_CONTEXT), params.context },
             { GPU_PARAM_KEY(MEM_HANDLE),  params.mem }
         };
-#ifdef WIN32
+#ifdef _WIN32
     case BT_DX_BUF_SHARED:
         return{
             { GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(DX_BUFFER) },
@@ -80,6 +81,7 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
 }
 
 void CLDNNRemoteBlobImpl::allocate_if_needed() {
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNRemoteBlobImpl::AllocateIfNeeded");
     auto _impl = getContextImpl(m_context.lock());
     _impl->acquire_lock();
 
@@ -92,7 +94,7 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
         case BlobType::BT_BUF_SHARED:
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_buffer(*eng, m_layout, m_mem)));
             break;
-#ifdef WIN32
+#ifdef _WIN32
         case BlobType::BT_SURF_SHARED:
             m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_mem, m_plane)));
             break;
@@ -127,7 +129,7 @@ void CLDNNRemoteBlobImpl::allocate() noexcept {
     case BlobType::BT_BUF_SHARED:
         m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_buffer(*eng, m_layout, m_mem)));
         break;
-#ifdef WIN32
+#ifdef _WIN32
     case BlobType::BT_SURF_SHARED:
         m_memObject = std::unique_ptr<cldnn::memory>(new cldnn::memory(cldnn::memory::share_surface(*eng, m_layout, m_mem, m_plane)));
         break;
@@ -248,22 +250,25 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<IInfe
     auto iter = device_map.find(m_config.device_id);
     auto& dev = iter != device_map.end() ? iter->second : device_map.begin()->second;
 
-    m_engine = std::make_shared<cldnn::engine>(dev,
-        cldnn::engine_configuration((m_config.useProfiling ||
-            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
-            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache)),
-            false,
-            m_config.dumpCustomKernels,
-            std::string(),
-            std::string(),
-            true,
-            std::string(),
-            m_config.sources_dumps_dir,
-            m_config.queuePriority,
-            m_config.queueThrottle,
-            m_config.memory_pool_on,
-            m_config.throughput_streams,
-            m_config.kernels_cache_dir));
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNNExecutionContextImpl::Create");
+        m_engine = std::make_shared<cldnn::engine>(dev,
+            cldnn::engine_configuration((m_config.useProfiling ||
+                (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
+                (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache)),
+                false,
+                m_config.dumpCustomKernels,
+                std::string(),
+                std::string(),
+                true,
+                std::string(),
+                m_config.sources_dumps_dir,
+                m_config.queuePriority,
+                m_config.queueThrottle,
+                m_config.memory_pool_on,
+                m_config.throughput_streams,
+                m_config.kernels_cache_dir));
+    }
 }
 
 ParamMap CLDNNExecutionContextImpl::getParams() const {

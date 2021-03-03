@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018-2020 Intel Corporation
+﻿// Copyright (c) 2018-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,8 +27,9 @@ struct mvn_params : public base_params {
     mvn_params() : base_params(KernelType::MVN) {}
 
     MVNMode mvnMode = MVNMode::WITHIN_CHANNELS;
-    bool mvnNormalizeVariance = true;
-    float epsilon = 1e-10f;
+    bool mvnNormalizeVariance;
+    float epsilon;
+    MVNEpsMode mvnEpsMode;
 
     virtual ParamsKey GetParamsKey() const {
         ParamsKey k = base_params::GetParamsKey();
@@ -71,7 +72,7 @@ protected:
     virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const mvn_params& params) const;
     virtual std::string GetKernelName(const mvn_params&) const { return kernelName; }
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     Datatype GetActivationType(const mvn_params& params) const;
 };
 }  // namespace kernel_selector

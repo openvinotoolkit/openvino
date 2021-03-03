@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1995,8 +1995,6 @@ TEST(constant_folding, constant_dyn_reshape_shape_not_originally_constant)
         constant_in, std::make_shared<op::v1::Add>(constant_shape_a, constant_shape_b), false);
     dyn_reshape->set_friendly_name("test");
     auto f = make_shared<Function>(dyn_reshape, ParameterVector{});
-
-    ASSERT_TRUE(dyn_reshape->get_output_partial_shape(0).is_dynamic());
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::ConstantFolding>();

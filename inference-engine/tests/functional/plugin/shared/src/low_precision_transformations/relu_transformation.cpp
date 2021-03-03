@@ -19,14 +19,14 @@ std::string ReluTransformation::getTestCaseName(testing::TestParamInfo<ReluTrans
     ngraph::element::Type precision;
     ngraph::Shape inputShape;
     std::string targetDevice;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, inputShape, targetDevice, fqOnData) = obj.param;
+    ReluTestValues testValues;
+    std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
     result <<
         precision << "_" <<
         targetDevice << "_" <<
-        fqOnData;
+        testValues.fakeQuantize;
 
     return result.str();
 }
@@ -35,9 +35,10 @@ InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngi
     ngraph::element::Type precision;
     ngraph::Shape inputShape;
     std::string targetDevice;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, inputShape, targetDevice, fqOnData) = this->GetParam();
+    ReluTestValues testValues;
+    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
+    const auto fqOnData = testValues.fakeQuantize;
     return FuncTestUtils::createAndFillBlobConsistently(
         info.getTensorDesc(),
         static_cast<uint32_t>(fqOnData.empty() ? 25.f : fqOnData.outputHighValues[0] - fqOnData.outputLowValues[0]),
@@ -48,12 +49,34 @@ InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngi
 void ReluTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::Shape inputShape;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, inputShape, targetDevice, fqOnData) = this->GetParam();
+    ReluTestValues testValues;
+    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
 
-    function = ngraph::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, fqOnData);
+    function = ngraph::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+    validate();
+}
+
+void ReluTransformation::validate() {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
+    std::string targetDevice;
+    ReluTestValues testValues;
+    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
+
+
+    const auto output = transformed->get_output_op(0);
+    const auto layer = output->get_input_node_shared_ptr(0);
+    const std::string typeName = layer->get_type_name();
+    if ((!testValues.fakeQuantize.empty()) && (!testValues.isSubtract)) {
+        ASSERT_EQ("ScaleShiftIE", typeName);
+    } else {
+        ASSERT_EQ("Relu", typeName);
+    }
 }
 
 TEST_P(ReluTransformation, CompareWithRefImpl) {

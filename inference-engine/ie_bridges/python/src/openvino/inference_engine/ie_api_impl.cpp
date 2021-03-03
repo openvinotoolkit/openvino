@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -258,6 +258,10 @@ const std::map <std::string, InferenceEngine::DataPtr> InferenceEnginePython::IE
         outputs[out.first] = out.second;
     }
     return outputs;
+}
+
+std::string InferenceEnginePython::IENetwork::getOVNameForTensor(const std::string& orig_name) {
+    return actual->getOVNameForTensor(orig_name);
 }
 
 void

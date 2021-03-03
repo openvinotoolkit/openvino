@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/min.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
-#include "ngraph/graph_util.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/shape_util.hpp"
@@ -48,18 +48,12 @@ namespace minop
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(i64)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(u32)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(u64)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f16)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f32)(arg, out, axes, keep_dims);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_min, i32, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_min, i64, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_min, u32, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_min, u64, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_min, f16, arg, out, axes, keep_dims);
+            NGRAPH_TYPE_CASE(evaluate_min, f32, arg, out, axes, keep_dims);
         default: rc = false; break;
         }
         return rc;
@@ -78,6 +72,7 @@ op::v1::ReduceMin::ReduceMin(const Output<Node>& arg,
 
 shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_ReduceMin_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::ReduceMin>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
@@ -85,6 +80,22 @@ shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& ne
 bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceMin::evaluate");
+    NGRAPH_OP_SCOPE(v1_ReduceMin_evaluate);
+    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, 2));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
     return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+}
+
+bool op::v1::ReduceMin::evaluate_lower(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::ReduceMin::evaluate_upper(const HostTensorVector& output_values) const
+{
+    if (!input_value(1).get_tensor().has_and_set_bound())
+        return false;
+    return default_upper_bound_evaluator(this, output_values);
 }

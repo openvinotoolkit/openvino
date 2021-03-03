@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/activation.hpp>
+#include <shared_test_classes/single_layer/activation.hpp>
 #include "test_utils/cpu_test_utils.hpp"
 
 using namespace InferenceEngine;
@@ -65,7 +65,7 @@ TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Eltwise");
+    CheckPluginRelatedResults(executableNetwork, "Eltwise");
 }
 
 

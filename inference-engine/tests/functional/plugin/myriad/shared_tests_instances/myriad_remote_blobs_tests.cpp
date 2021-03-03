@@ -9,7 +9,7 @@
 
 const std::vector<DevicesNamesAndSupportPair> device_names_and_support_for_remote_blobs {
         {{MYRIAD}, false}, // MYX via MULTI
-#if ENABLE_MKL_DNN
+#ifdef ENABLE_MKL_DNN
         {{CPU, MYRIAD}, false},  // CPU+MYX
 #endif
 };

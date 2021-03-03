@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,11 +66,15 @@ namespace ngraph
                 void set_special_zero(bool special_zero) { m_special_zero = special_zero; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
 
             protected:
                 bool m_special_zero;
+                bool evaluate_reshape(const HostTensorVector& outputs,
+                                      const HostTensorVector& inputs) const;
             };
         }
     }

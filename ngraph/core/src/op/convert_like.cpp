@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,10 @@
 //*****************************************************************************
 
 #include <memory>
+#include "itt.hpp"
 
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/convert.hpp"
 #include "ngraph/op/convert_like.hpp"
 
 using namespace std;
@@ -31,16 +34,33 @@ op::v1::ConvertLike::ConvertLike(const Output<Node>& data, const Output<Node>& l
 
 void op::v1::ConvertLike::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_ConvertLike_validate_and_infer_types);
     set_output_type(0, get_input_element_type(1), get_input_partial_shape(0));
 }
 
 bool op::v1::ConvertLike::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_ConvertLike_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v1::ConvertLike::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_ConvertLike_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<ConvertLike>(new_args.at(0), new_args.at(1));
+}
+
+bool op::v1::ConvertLike::constant_fold(OutputVector& output_values,
+                                        const OutputVector& input_values)
+{
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v1::ConvertLike::constant_fold");
+    if (auto data_const =
+            std::dynamic_pointer_cast<op::Constant>(input_values[0].get_node_shared_ptr()))
+    {
+        auto convert = make_shared<Convert>(input_values[0], input_values[1].get_element_type());
+        convert->constant_fold(output_values, OutputVector{data_const});
+        return true;
+    }
+    return false;
 }

@@ -3,6 +3,7 @@
 //
 
 #include "cpu_test_utils.hpp"
+#include "utils/rt_info/memory_formats_attribute.hpp"
 
 namespace CPUTestUtils {
 
@@ -27,6 +28,17 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
             || !strcmp("mkldnn_" #_fmt, str)) \
         return _fmt; \
 } while (0)
+    CASE(undef);
+    CASE(a);
+    CASE(ab);
+    CASE(abcd);
+    CASE(acdb);
+    CASE(aBcd8b);
+    CASE(aBcd16b);
+    CASE(abcde);
+    CASE(acdeb);
+    CASE(aBcde8b);
+    CASE(aBcde16b);
     CASE(nchw);
     CASE(nChw8c);
     CASE(nChw16c);
@@ -64,8 +76,9 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
     return str;
 }
 
-void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
-    IE_SUPPRESS_DEPRECATED_START
+void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
+    if (nodeType.empty()) return;
+
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     bool isNodeFound = false;
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
@@ -88,6 +101,12 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
             IE_ASSERT(nullptr != value);
             return value->get();
         };
+        // skip policy
+        auto should_be_skipped = [] (const ngraph::Shape &shape, cpu_memory_format_t fmt) {
+            bool skip_unsquized_1D =  std::count(shape.begin(), shape.end(), 1) == shape.size() - 1;
+            bool permule_of_1 = (fmt == cpu_memory_format_t::nhwc || fmt == cpu_memory_format_t::ndhwc) && shape[1] == 1;
+            return skip_unsquized_1D || permule_of_1;
+        };
 
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
             isNodeFound = true;
@@ -98,20 +117,25 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
                 const auto port = node->inputs()[i];
                 if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
                     auto parentNode = parentPort.get_node_shared_ptr();
+                    auto shape = parentNode->get_output_tensor(0).get_shape();
                     auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
-                    ASSERT_EQ(inFmts[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
+
+                    if (!should_be_skipped(shape, inFmts[i]))
+                        ASSERT_EQ(inFmts[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
                 }
             }
             for (int i = 0; i < outFmts.size(); i++) {
-                auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
-                ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormat.c_str()));
+                const auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
+                const auto shape = node->get_output_shape(i);
+
+                if (!should_be_skipped(shape, outFmts[i]))
+                    ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormat.c_str()));
             }
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
             ASSERT_EQ(selectedType, primType);
         }
     }
     ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
@@ -155,10 +179,12 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
     CPUInfo cpuInfo;
 
     if (!inFmts.empty()) {
-        cpuInfo.insert({"InputMemoryFormats", std::make_shared<ngraph::VariantWrapper<std::string>>(fmts2str(inFmts))});
+        cpuInfo.insert({std::string(ngraph::MLKDNNInputMemoryFormatsAttr),
+                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNInputMemoryFormats>>(ngraph::MLKDNNInputMemoryFormats(fmts2str(inFmts)))});
     }
     if (!outFmts.empty()) {
-        cpuInfo.insert({"OutputMemoryFormats", std::make_shared<ngraph::VariantWrapper<std::string>>(fmts2str(outFmts))});
+        cpuInfo.insert({std::string(ngraph::MLKDNNOutputMemoryFormatsAttr),
+                        std::make_shared<ngraph::VariantWrapper<ngraph::MLKDNNOutputMemoryFormats>>(ngraph::MLKDNNOutputMemoryFormats(fmts2str(outFmts)))});
     }
     if (!priority.empty()) {
         cpuInfo.insert({"PrimitivesPriority", std::make_shared<ngraph::VariantWrapper<std::string>>(impls2str(priority))});
@@ -167,8 +193,23 @@ CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts, std::vector<c
     return cpuInfo;
 }
 
+std::shared_ptr<ngraph::Function>
+CPUTestsBase::makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
+                                 const std::shared_ptr<ngraph::Node> &lastNode, std::string name) const {
+   auto newLastNode = modifyGraph(ngPrc, params, lastNode);
+
+   ngraph::ResultVector results = {std::make_shared<ngraph::opset1::Result>(newLastNode)};
+   return std::make_shared<ngraph::Function>(results, params, name);
+}
+
+std::shared_ptr<ngraph::Node>
+CPUTestsBase::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params, const std::shared_ptr<ngraph::Node> &lastNode) const {
+    lastNode->get_rt_info() = getCPUInfo();
+    return lastNode;
+}
+
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
-    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
+auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (int i = 0; i < formats.size(); i++) {
             if (formats[i] == nChw16c)
                 formats[i] = nChw8c;
@@ -187,4 +228,48 @@ std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificPa
     return paramsVector;
 }
 
+void CheckNodeOfTypeCount(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, size_t expectedCount) {
+    InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
+    auto function = execGraphInfo.getFunction();
+    ASSERT_NE(nullptr, function);
+    size_t actualNodeCount = 0;
+    for (const auto &node : function->get_ops()) {
+        const auto & rtInfo = node->get_rt_info();
+        auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+            auto it = rtInfo.find(paramName);
+            IE_ASSERT(rtInfo.end() != it);
+            auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+            IE_ASSERT(nullptr != value);
+            return value->get();
+        };
+        if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
+            actualNodeCount++;
+        }
+    }
+
+    ASSERT_EQ(expectedCount, actualNodeCount) << "Unexpected count of the node type '" << nodeType << "' ";
+}
+std::vector<CPUSpecificParams> filterCPUInfoForDevice(std::vector<CPUSpecificParams> CPUParams) {
+    std::vector<CPUSpecificParams> resCPUParams;
+    const int selectedTypeIndex = 3;
+
+    for (auto param : CPUParams) {
+        auto selectedTypeStr = std::get<selectedTypeIndex>(param);
+
+        if (selectedTypeStr.find("jit") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
+            continue;
+        if (selectedTypeStr.find("sse42") != std::string::npos && !InferenceEngine::with_cpu_x86_sse42())
+            continue;
+        if (selectedTypeStr.find("avx") != std::string::npos && !InferenceEngine::with_cpu_x86_avx())
+            continue;
+        if (selectedTypeStr.find("avx2") != std::string::npos && !InferenceEngine::with_cpu_x86_avx2())
+            continue;
+        if (selectedTypeStr.find("avx512") != std::string::npos && !InferenceEngine::with_cpu_x86_avx512f())
+            continue;
+
+        resCPUParams.push_back(param);
+    }
+
+    return resCPUParams;
+}
 } // namespace CPUTestUtils

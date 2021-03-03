@@ -73,8 +73,10 @@ KernelsData TileKernelRef::GetKernelsData(const Params& params, const optional_p
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return {kd};
+}
+
+KernelsPriority TileKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

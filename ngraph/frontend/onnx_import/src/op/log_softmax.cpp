@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 #include <memory>
 
-#include "log_softmax.hpp"
+#include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "op/log_softmax.hpp"
 
 namespace ngraph
 {
@@ -40,15 +40,8 @@ namespace ngraph
                     std::make_shared<default_opset::Subtract>(coerced_data, max);
 
                 const auto result = std::make_shared<default_opset::LogSoftmax>(data_minus_max, 1);
-                if (data.get_partial_shape().is_static())
-                {
-                    return ngraph::builder::opset1::reshape(result, data.get_shape());
-                }
-                else
-                {
-                    const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
-                    return std::make_shared<default_opset::Reshape>(result, data_shape, false);
-                }
+                const auto data_shape = std::make_shared<default_opset::ShapeOf>(data);
+                return std::make_shared<default_opset::Reshape>(result, data_shape, false);
             }
 
             OutputVector log_softmax(const Node& node, const int64_t DEFAULT_AXIS)

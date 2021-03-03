@@ -185,12 +185,12 @@ protected:
         expectedPrecisions["ReLU1"] = "ndef";
         expectedPrecisions["Convolution2"] = "BF16";
         expectedPrecisions["Convolution3"] = "BF16";
-        expectedPrecisions["ReLU2"] = "FP32";
-        expectedPrecisions["Norm1"] = "FP32";
+        expectedPrecisions["ReLU2"] = "BF16";
+        expectedPrecisions["Norm1"] = "BF16";
         expectedPrecisions["Eltwise1"] = "ndef";
         expectedPrecisions["ReLU3"] = "ndef";
         expectedPrecisions["maxPooling1"] = "BF16";
-        expectedPrecisions["Eltwise2"] = "FP32";
+        expectedPrecisions["Eltwise2"] = "BF16";
     }
 };
 

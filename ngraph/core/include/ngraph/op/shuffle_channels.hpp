@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,6 +69,8 @@ namespace ngraph
                 /// \param data_shape - Shape of the original input data tensor
                 /// \return A 4D tensor to be used to reshape the input data before shuffling it
                 Shape get_pre_shuffle_shape(const Shape& data_shape) const;
+                bool evaluate_shuffle_channels(const HostTensorVector& outputs,
+                                               const HostTensorVector& inputs) const;
 
                 int64_t m_axis;
                 int64_t m_group;

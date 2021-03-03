@@ -11,7 +11,6 @@
 #include <fstream>
 #include <ngraph/variant.hpp>
 #include <hetero/hetero_plugin_config.hpp>
-#include <legacy/graph_tools.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ngraph/op/util/op_types.hpp>
@@ -56,22 +55,18 @@ namespace BehaviorTestsDefinitions {                                            
     ASSERT_NE(metrics.end(), it);                                    \
 }
 
+// TODO: issue with RTTI
+#ifdef __APPLE__
+using NotImplementedException = std::exception;
+#else
+using NotImplementedException = InferenceEngine::NotImplemented;
+#endif
 
 #define SKIP_IF_NOT_IMPLEMENTED(...)                                            \
 {                                                                               \
     try {                                                                       \
         __VA_ARGS__;                                                            \
-    } catch(InferenceEngine::details::InferenceEngineException& ieException) {  \
-        auto notImplementedExceptionIsThrown =                                  \
-            std::string::npos != std::string {ieException.what()}               \
-            .find(NOT_IMPLEMENTED_str);                                         \
-        if (notImplementedExceptionIsThrown) {                                  \
-            GTEST_SKIP();                                                       \
-        } else {                                                                \
-            FAIL() << "thrown from expression: " # __VA_ARGS__ << std::endl     \
-            << "what: " << ieException.what();                                  \
-        }                                                                       \
-    } catch (const InferenceEngine::NotImplemented& ex) {                       \
+    } catch (const NotImplementedException &) {                                 \
         GTEST_SKIP();                                                           \
     }                                                                           \
 }
@@ -245,7 +240,7 @@ TEST(IEClassBasicTest, smoke_createNonExistingConfigThrows) {
     ASSERT_THROW(Core ie("nonExistPlugins.xml"), InferenceEngineException);
 }
 
-#if defined __linux__  && !defined(__APPLE__)
+#ifdef __linux__
 
 TEST(IEClassBasicTest, smoke_createMockEngineConfigNoThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -435,8 +430,9 @@ TEST_P(IEClassBasicTestP, ImportNetworkThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
 
-    if (deviceName == CommonTestUtils::DEVICE_CPU || deviceName == CommonTestUtils::DEVICE_FPGA) {
-        ASSERT_THROW(ie.ImportNetwork("model", deviceName), InferenceEngineException);
+    if (deviceName == CommonTestUtils::DEVICE_CPU ||
+        deviceName == CommonTestUtils::DEVICE_GPU) {
+        ASSERT_THROW(ie.ImportNetwork("model", deviceName), NotImplementedException);
     }
 }
 
@@ -493,7 +489,7 @@ TEST_P(IEClassImportExportTestP, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
     SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    if (!strm.str().empty() && deviceName.find(CommonTestUtils::DEVICE_FPGA) != std::string::npos) {
+    if (!strm.str().empty()) {
         SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm));
     }
     if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
@@ -1074,8 +1070,9 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
         Parameter deviceConfigValue = deviceExeNetwork.GetConfig(deviceConf);
 
         // HETERO returns EXCLUSIVE_ASYNC_REQUESTS as a boolean value
-        if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf)
+        if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf) {
             ASSERT_EQ(deviceConfigValue, heteroConfigValue);
+        }
     }
 }
 
@@ -1112,8 +1109,9 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
         Parameter deviceMetricValue = deviceExeNetwork.GetMetric(deviceMetricName);
 
         if (std::find(heteroSpecificMetrics.begin(), heteroSpecificMetrics.end(), deviceMetricName) ==
-            heteroSpecificMetrics.end())
+            heteroSpecificMetrics.end()) {
             ASSERT_TRUE(heteroMetricValue == deviceMetricValue);
+        }
     }
 }
 
@@ -1370,9 +1368,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-                expectedLayers.emplace(node->get_friendly_name());
-            }
+            expectedLayers.emplace(node->get_friendly_name());
         }
         QueryNetworkResult result;
         std::string targetFallback(CommonTestUtils::DEVICE_MULTI + std::string(",") + CommonTestUtils::DEVICE_CPU);
@@ -1407,9 +1403,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-                expectedLayers.emplace(node->get_friendly_name());
-            }
+            expectedLayers.emplace(node->get_friendly_name());
         }
         QueryNetworkResult result;
         ASSERT_NO_THROW(result = ie.QueryNetwork(multinputNetwork, CommonTestUtils::DEVICE_MULTI, {

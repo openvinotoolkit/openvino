@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"HardSigmoid", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-                HardSigmoid() = default;
+                HardSigmoid();
 
                 /// \brief      Constructs a HardSigmoid operation.
                 ///

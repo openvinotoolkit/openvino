@@ -1,3 +1,19 @@
+"""
+ Copyright (C) 2018-2021 Intel Corporation
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+"""
+
 import numpy as np
 import os
 import pytest
@@ -387,9 +403,9 @@ def test_get_perf_counts(device):
     del net
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU", reason="Can't run test on device {},"
-                                                                          "Dynamic batch fully supported only on CPU".format(
-    os.environ.get("TEST_DEVICE", "CPU")))
+@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
+                    reason=f"Can't run test on device {os.environ.get('TEST_DEVICE', 'CPU')}, "
+                            "Dynamic batch fully supported only on CPU")
 def test_set_batch_size(device):
     ie_core = ie.IECore()
     ie_core.set_config({"DYN_BATCH_ENABLED": "YES"}, device)
@@ -491,7 +507,7 @@ def test_resize_algorithm_work(device):
 
     net.input_info['data'].preprocess_info.resize_algorithm = ie.ResizeAlgorithm.RESIZE_BILINEAR
 
-    exec_net_2 = ie_core.load_network(net, 'CPU')
+    exec_net_2 = ie_core.load_network(net, device)
 
     import cv2
 

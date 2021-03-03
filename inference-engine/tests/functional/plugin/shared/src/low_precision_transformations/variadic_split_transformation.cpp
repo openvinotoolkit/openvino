@@ -66,10 +66,10 @@ void VariadicSplitTransformation::SetUp() {
         param.splitedAxis,
         param.splitLengths);
 
-    validateNGraph();
+    validate();
 }
 
-void VariadicSplitTransformation::validateNGraph() {
+void VariadicSplitTransformation::validate() {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShape;
     std::string targetDevice;
@@ -77,15 +77,15 @@ void VariadicSplitTransformation::validateNGraph() {
     VariadicSplitTransformationParam param;
     std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
-    ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations;
-    additionalTransformations.add<ngraph::pass::low_precision::VariadicSplitTransformation, ngraph::opset1::VariadicSplit>(params);
-    auto transformed = transformNGraph(params, additionalTransformations);
+    ngraph::pass::low_precision::LowPrecisionTransformations transformations = getLowPrecisionTransformationsNGraph(params);
+    transformations.add<ngraph::pass::low_precision::VariadicSplitTransformation, ngraph::opset1::VariadicSplit>(params);
+    const auto transformed = transformNGraph(params, transformations);
 
     ASSERT_EQ(param.splitLengths.size(), transformed->get_output_size());
 
     for (size_t i = 0; i < param.splitLengths.size(); ++i) {
-        std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);
-        std::shared_ptr<ngraph::Node> scaleShift = output->get_input_node_shared_ptr(0);
+        const auto output = transformed->get_output_op(0);
+        const auto scaleShift = output->get_input_node_shared_ptr(0);
         const std::string typeName = scaleShift->get_type_name();
         ASSERT_TRUE(typeName == "ScaleShiftIE" || typeName == "PowerIE" || typeName == "ConvolutionIE");
     }

@@ -149,14 +149,18 @@ KernelsData EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsData(const Par
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
 
-    if ((newParams.output.GetLayout() == newParams.inputs[0].GetLayout()) &&
-        (newParams.output.GetLayout() ==
-         newParams.inputs[1].GetLayout())) {  // There is no need for reordering kernel, better use something more optimal
-        kd.estimatedTime = FORCE_PRIORITY_9;
-    } else {  // There is need for byxf/fsv32 reordering kernel use this one
-        kd.estimatedTime = FORCE_PRIORITY_2;
-    }
-
     return {kd};
+}
+
+KernelsPriority EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const eltwise_params&>(params);
+
+    if ((p.output.GetLayout() == p.inputs[0].GetLayout()) &&
+        (p.output.GetLayout() ==
+         p.inputs[1].GetLayout())) {  // There is no need for reordering kernel, better use something more optimal
+        return FORCE_PRIORITY_9;
+    } else {  // There is need for byxf/fsv32 reordering kernel use this one
+        return FORCE_PRIORITY_2;
+    }
 }
 }  // namespace kernel_selector

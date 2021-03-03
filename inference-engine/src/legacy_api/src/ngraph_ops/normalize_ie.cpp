@@ -27,7 +27,7 @@ void op::NormalizeIE::validate_and_infer_types() {
     const PartialShape& input_shape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(this,
-                          input_shape.rank().is_dynamic() || input_shape.rank().get_length() >= 2 && input_shape.rank().get_length() <= 4,
+                          input_shape.rank().is_dynamic() || (input_shape.rank().get_length() >= 2 && input_shape.rank().get_length() <= 4),
                           "Argument must have rank >= 2 and <= 4 (argument shape: ", input_shape, ").");
 }
 

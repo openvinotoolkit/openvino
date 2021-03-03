@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -55,12 +55,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 #if GNA_LIB_VER == 2
     uint32_t activeLayerIndex = 0xffffffff;
 #endif
-    bool do_rotate_input = false;
-    uint32_t num_rotate_rows = 0;
-    uint32_t num_rotate_columns = 0;
-    bool do_rotate_output = false;
-    uint32_t num_rotate_output_rows = 0;
-    uint32_t num_rotate_output_columns = 0;
+    TranspositionInfoMap transpose_inputs_info;
+    TranspositionInfoMap transpose_outputs_info;
     uint32_t *ptr_active_indices = nullptr;
     uint32_t num_active_indices = 0;
     uint32_t num_group_in = 0;
@@ -88,6 +84,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
     std::vector<InferenceEngine::VariableStateInternal::Ptr> memoryStates;
+    bool trivialTopology = false;
 
  public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);
@@ -102,7 +99,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void LoadNetwork(InferenceEngine::CNNNetwork &network);
 
     bool Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
-    void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap);
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts();
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
@@ -131,6 +128,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
 
     void Export(const std::string &fileName);
+    void Export(std::ostream &networkModel);
     InferenceEngine::ExecutableNetwork ImportNetwork(const std::string &modelFileName,
                                                      const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
@@ -222,8 +220,23 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                     int idx = 0);
 
     void UpdateFieldsFromConfig();
-    void UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork &);
-    void UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork &);
+    void UpdateGnaQuantModeFromNetwork(InferenceEngine::CNNNetwork &);
+    void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork &);
+    /**
+     * @brief Tries to init an output on the base of a layer data
+     * @param portId output port identificator
+     * @param layer layer pointer
+     * @return true if the output is initiated, false otherwise
+    */
+    bool TryToInitOutput(int portId, InferenceEngine::CNNLayerPtr layer);
+
+    /**
+     * @brief Converts a model from NCHW to NHWC. It fills inputs and outputs transposition info and
+     *        changes weights order for affine, eltwise and scaleshift layers. Information for transposition
+     *        is found from convolution/pooling input or output dimensions.
+     * @param layers model sorted layers
+     */
+    void ConvertModelLayoutFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr> &layers);
 };
 
 }  // namespace GNAPluginNS

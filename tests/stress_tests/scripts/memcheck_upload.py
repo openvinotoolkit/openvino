@@ -67,7 +67,7 @@ def metadata_from_manifest(manifest):
         'commit_sha': repo_trigger['revision'],
         'commit_date': repo_trigger['commit_time'],
         'repo_url': repo_trigger['url'],
-        'target_branch': repo_trigger['target_branch'],
+        'target_branch': repo_trigger['branch'],
         'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
         f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
     }
@@ -123,10 +123,8 @@ def parse_memcheck_log(log_path):
             entry = SimpleNamespace(
                 metrics=dict(zip(heading, values)),
                 test_name=test_name,
-                model_name=os.path.splitext(
-                    os.path.basename(model['path']))[0],
-                precision=next(pr for pr in PRECISSIONS if pr.upper()
-                               in model['path'].upper()),
+                model_name=os.path.splitext(os.path.basename(model['path']))[0],
+                precision=next(pr for pr in PRECISSIONS if pr.upper() in model['precision'].upper()),
                 model=model['path'],
                 device=model['device'].upper(),
                 status='passed' if passed_match else 'failed' if failed_match else 'started'
