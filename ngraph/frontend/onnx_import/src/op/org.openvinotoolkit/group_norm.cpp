@@ -54,9 +54,12 @@ namespace ngraph
                             splits[0].get_node_shared_ptr(),
                             num_groups_const,
                             std::make_shared<default_opset::Divide>(splits[1], num_groups_const)};
+                        
+                        auto zero_const =
+                            default_opset::Constant::create(element::i64, Shape{1}, {0});
                         for (size_t i = 2; i < rank_size; i++)
                         {
-                            new_shape.push_back(splits[i].get_node_shared_ptr());
+                            new_shape.push_back(std::make_shared<default_opset::Add>(splits[i], zero_const));
                         }
                         return std::make_shared<default_opset::Concat>(new_shape, 0);
                     }
