@@ -6,9 +6,7 @@
 
 **Short description**: *HardSigmoid* calculates the hard sigmoid function `y(x) = max(0, min(1, alpha * x + beta))` element-wise with given tensor.
 
-**Attributes**:
-
-    No attributes available.
+**Attributes**: No attributes available.
 
 **Inputs**
 
