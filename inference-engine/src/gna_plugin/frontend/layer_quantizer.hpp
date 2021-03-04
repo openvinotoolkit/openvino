@@ -95,6 +95,15 @@ struct QuantPair {
     static B optional () { return B();}
 };
 
+struct FakeQuantizeParams {
+    bool paramsSet = false;
+    uint32_t levelsNum = 1;
+    float inputMinValue = 1.0f;
+    float inputMaxValue = 1.0f;
+    float outputMinValue = 1.0f;
+    float outputMaxValue = 1.0f;
+};
+
 /**
  * @brief should allocated blob for specific data type, in case of src blob is nullptr
  * @tparam T
@@ -170,14 +179,41 @@ class Quant<FakeQuantI8> {
 
 
 template <typename T>
-inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::Ptr fp32_blob, InferenceEngine::Precision precision, float scale_factor) {
+inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::Ptr fp32_blob, InferenceEngine::Precision precision,
+    float scale_factor, const FakeQuantizeParams& fqParams) {
     auto prec_blob = InferenceEngine::make_shared_blob<T>({ precision,
         fp32_blob->getTensorDesc().getDims(), fp32_blob->getTensorDesc().getLayout() });
     prec_blob->allocate();
 
+    auto input_low = 0.0f;
+    auto input_high = 0.0f;
+    auto output_low = 0.0f;
+    auto output_high = 0.0f;
+    auto levels = 1;
+    if (fqParams.paramsSet) {
+        input_low = fqParams.inputMinValue;
+        input_high = fqParams.inputMaxValue;
+        output_low = fqParams.outputMinValue;
+        output_high = fqParams.outputMaxValue;
+        levels = fqParams.levelsNum;
+    }
+
     int i = 0;
     for (auto& precValue : *prec_blob) {
-        auto f32Value = fp32_blob->buffer().template as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()[i++] * scale_factor;
+        auto f32Value = fp32_blob->buffer().template as<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type*>()[i++];
+        if (fqParams.paramsSet) {
+            auto x = f32Value;
+            if (x <= std::min(input_low, input_high)) {
+                f32Value = output_low;
+            } else if (x > std::max(input_low, input_high)) {
+                f32Value = output_high;
+            } else {
+                f32Value = nearbyint((x - input_low) / (input_high - input_low) * (levels - 1)) /
+                    (levels - 1) * (output_high - output_low) + output_low;
+            }
+        }
+
+        f32Value = f32Value * scale_factor;
         if (f32Value > std::numeric_limits<T>::max()) {
             precValue = std::numeric_limits<T>::max();
         } else if (f32Value < std::numeric_limits<T>::min()) {
@@ -190,20 +226,21 @@ inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::
     return  static_cast<InferenceEngine::Blob::Ptr>(prec_blob);
 }
 
-inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::Ptr fp32_blob, InferenceEngine::Precision precision, float scale_factor) {
+inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::Ptr fp32_blob, InferenceEngine::Precision precision,
+    float scale_factor, const FakeQuantizeParams &fqParams) {
     InferenceEngine::Blob::Ptr result_ptr = nullptr;
     switch (precision) {
     case InferenceEngine::Precision::FP32:
-        result_ptr = fp32_to_precision_blob<float>(fp32_blob, precision, scale_factor);
+        result_ptr = fp32_to_precision_blob<float>(fp32_blob, precision, scale_factor, fqParams);
         break;
     case InferenceEngine::Precision::I32:
-        result_ptr = fp32_to_precision_blob<int32_t>(fp32_blob, precision, scale_factor);
+        result_ptr = fp32_to_precision_blob<int32_t>(fp32_blob, precision, scale_factor, fqParams);
         break;
     case InferenceEngine::Precision::I16:
-        result_ptr = fp32_to_precision_blob<int16_t>(fp32_blob, precision, scale_factor);
+        result_ptr = fp32_to_precision_blob<int16_t>(fp32_blob, precision, scale_factor, fqParams);
         break;
     case InferenceEngine::Precision::I8:
-        result_ptr = fp32_to_precision_blob<int8_t>(fp32_blob, precision, scale_factor);
+        result_ptr = fp32_to_precision_blob<int8_t>(fp32_blob, precision, scale_factor, fqParams);
         break;
     default:
         THROW_GNA_EXCEPTION << "FP32 to " << precision << " not supported";
@@ -304,13 +341,15 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
     {
-        auto per_channel_weights = !quantData->_weights_quant.GetMinValues().empty();
+        auto weightsStats = !quantData->_weights_quant.GetMinValues().empty();
         auto weightsScale = quantData->_weights_quant.GetScale();
         auto dstScale = quantData->_dst_quant.GetScale();
-        fnc(wl->_weights->buffer().as<float *>(),
-            wl->_biases ? wl->_biases->buffer().as<float *>() : nullptr,
+        auto blob_precision = wl->_weights->getTensorDesc().getPrecision();
+        auto quantizedWeights = blob_precision != InferenceEngine::Precision::FP32 && blob_precision != InferenceEngine::Precision::FP16;
+        fnc(wl->_weights->buffer().as<float*>(),
+            wl->_biases ? wl->_biases->buffer().as<float*>() : nullptr,
             intWeights->buffer(),
-            intBiases ? intBiases->buffer() : static_cast<BiasesPrecision *>(nullptr),
+            intBiases ? intBiases->buffer() : static_cast<BiasesPrecision*>(nullptr),
             input_scale_factor,
             &weightsScale,
             &dstScale,
@@ -318,12 +357,13 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
             num_columns,
             num_rows_padded,
             num_columns_padded,
+            quantizedWeights,
             quantData->_weights_quant.GetLevels(),
-            nullptr,
-            nullptr,
-            per_channel_weights ? &quantData->_weights_quant.GetMinValues().front(): nullptr,
-            per_channel_weights ? &quantData->_weights_quant.GetMaxValues().front(): nullptr,
-            &quantData->_weights_quantized);
+            quantData->_weights_quant.GetMinValues().size(),
+            weightsStats ? &quantData->_weights_quant.GetMinValues(true).front() : nullptr,
+            weightsStats ? &quantData->_weights_quant.GetMaxValues(true).front() : nullptr,
+            weightsStats ? &quantData->_weights_quant.GetMinValues(false).front() : nullptr,
+            weightsStats ? &quantData->_weights_quant.GetMaxValues(false).front() : nullptr);
     }
     wl->_weights = intWeights;
     wl->_biases = intBiases;
@@ -410,19 +450,29 @@ inline void quantizeWeightsBiasesConv(const QuantDesc & quantDesc,
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*conv);
     {
+        auto weightsStats = !quantData->_weights_quant.GetMinValues().empty();
         auto weightsScale = quantData->_weights_quant.GetScale();
         auto dstScale = quantData->_dst_quant.GetScale();
-        fnc(conv->_weights->buffer().as<float *>(),
-            conv->_biases ? conv->_biases->buffer().as<float *>() : nullptr,
+        auto blob_precision = conv->_weights->getTensorDesc().getPrecision();
+        auto quantizedWeights = blob_precision != InferenceEngine::Precision::FP32 && blob_precision != InferenceEngine::Precision::FP16;
+        fnc(conv->_weights->buffer().as<float*>(),
+            conv->_biases ? conv->_biases->buffer().as<float*>() : nullptr,
             intWeights->buffer(),
-            intBiases ? intBiases->buffer() : static_cast<BiasesPrecision *>(nullptr),
+            intBiases ? intBiases->buffer() : static_cast<BiasesPrecision*>(nullptr),
             input_scale_factor,
             &weightsScale,
             &dstScale,
             num_rows,
             num_columns,
             num_rows_padded,
-            num_columns_padded);
+            num_columns_padded,
+            quantizedWeights,
+            quantData->_weights_quant.GetLevels(),
+            quantData->_weights_quant.GetMinValues().size(),
+            weightsStats ? &quantData->_weights_quant.GetMinValues(true).front() : nullptr,
+            weightsStats ? &quantData->_weights_quant.GetMaxValues(true).front() : nullptr,
+            weightsStats ? &quantData->_weights_quant.GetMinValues(false).front() : nullptr,
+            weightsStats ? &quantData->_weights_quant.GetMaxValues(false).front() : nullptr);
     }
     conv->_weights = intWeights;
     conv->_biases = intBiases;
@@ -494,11 +544,22 @@ class DataQuantizer<Desc, InferenceEngine::CNNLayer *> : public DataQuantizerBas
             if (initial_precision == InferenceEngine::Precision::FP16) {
                 cnnLayer->blobs["custom"] = make_fp32_blob(cnnLayer->blobs["custom"]);
             }
-            auto const_scale_factor = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer)->_dst_quant.GetScale();
+            auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
             auto new_const_blob = InferenceEngine::Blob::CreateFromData(cnnLayer->outData[0]);
             auto const_blob = cnnLayer->blobs["custom"];
             if (const_blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
-                cnnLayer->blobs["custom"] = fp32_to_precision_blob(const_blob, cnnLayer->outData[0]->getPrecision(), const_scale_factor);
+                auto fqParams = FakeQuantizeParams{};
+                if (quantParams->_dst_quant.IsStatsSet()) {
+                    fqParams.paramsSet = true;
+                    fqParams.levelsNum = quantParams->_dst_quant.GetLevels();
+                    fqParams.inputMinValue = quantParams->_dst_quant.GetMinValues(true).front();
+                    fqParams.inputMaxValue = quantParams->_dst_quant.GetMaxValues(true).front();
+                    fqParams.outputMinValue = quantParams->_dst_quant.GetMinValues(false).front();
+                    fqParams.outputMaxValue = quantParams->_dst_quant.GetMaxValues(false).front();
+                }
+
+                cnnLayer->blobs["custom"] = fp32_to_precision_blob(const_blob, cnnLayer->outData[0]->getPrecision(),
+                    quantParams->_dst_quant.GetScale(), fqParams);
             }
         }
 
