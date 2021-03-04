@@ -46,7 +46,7 @@ class AssignSubElimination(FrontReplacementOp):
         node = match['op']
         # here we request all data flow output edges (control flow edges will not be listed)
         out_edges = node.out_edges()
-        if len(out_edges) == 0:
+        if len(out_edges) == 0 or node.out_node().soft_get('type') == 'Result':
             graph.remove_node(node.id)
             log.debug('AssignSub op was removed {}'.format(node.id))
         else:
