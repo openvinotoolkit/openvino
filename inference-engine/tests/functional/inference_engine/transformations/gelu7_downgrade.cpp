@@ -47,3 +47,4 @@ TEST(TransformationTests, Gelu7Downgrade) {
     auto output_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
     ASSERT_TRUE(output_node->get_friendly_name() == "gelu7") << "Transformation Gelu7Downgrade should keep output names.\n";
 }
+

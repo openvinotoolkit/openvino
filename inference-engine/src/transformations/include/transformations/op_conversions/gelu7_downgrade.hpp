@@ -18,8 +18,8 @@ namespace pass {
 /**
  * @ingroup ie_transformation_common_api
  * @brief Gelu7Downgrade converts v7::Gelu6 operation to v2::Gelu unconditionally. This is done because only limited
- * set of plugins support v7::Gelu which specifies approximation mode. For other plugins the behaviour is to use v2
- * version of the operation which does not specify the approximation mo
+ * set of plugins support v7::Gelu which has an attribute specifying approximation mode. For other plugins the
+ * behaviour is to use v2 version of the operation which does not support the approximation mode.
  */
 class ngraph::pass::Gelu7Downgrade : public ngraph::pass::MatcherPass {
 public:
