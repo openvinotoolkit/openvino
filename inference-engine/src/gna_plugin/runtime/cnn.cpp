@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <limits>
 #include <cstdint>
 #include <cstdio>
@@ -45,7 +46,7 @@ void CNNFilter32(intel_dnn_component_t *component) {
     }
 }
 
-void CNNMaxPool(intel_dnn_component_t *component, intel_dnn_number_type_t number_type, const bool sumPoolingOverRide) {
+void CNNMaxPoolLegacy(intel_dnn_component_t *component, intel_dnn_number_type_t number_type, const bool sumPoolingOverRide) {
     const uint32_t num_inputs = component->op.maxpool.inCHW[0] * component->op.maxpool.inCHW[1] * component->op.maxpool.inCHW[2];
     const uint32_t in_c = component->op.maxpool.inCHW[0];
     // TODO: issue 50379 find out why looks like CNN1D pooling uses stride == window only
@@ -126,13 +127,63 @@ void CNNMaxPool(intel_dnn_component_t *component, intel_dnn_number_type_t number
     }
 }
 
-#if GNA_LIB_VER == 2
+namespace {
 // a1: fastest changing index
 // A - size neede
 template <typename T>
 T getQubeIndex(T a1, T a2, T a3, T A2, T A3) {
     return a1 * A2 * A3 + a2 * A3 + a3;
 }
+} // namespace
+
+float MaxPool2D32SingleHWC(const unsigned poolWinH, const unsigned poolWinW,
+    const float* input, const unsigned IH, const unsigned IW, const unsigned IC,
+    const unsigned oh, const unsigned ow, const unsigned oc,
+    const uint32_t poolStrideH,
+    const uint32_t poolStrideW) {
+    float output = std::numeric_limits<float>::lowest();
+    const auto winStartH = oh * poolStrideH;
+    const auto winStartW = ow * poolStrideW;
+    for (unsigned winIdxH = 0; winIdxH < poolWinH && winStartH + winIdxH < IH; winIdxH++) {
+        for (unsigned winIdxW = 0; winIdxW < poolWinW && winStartW + winIdxW < IW; winIdxW++) {
+            const auto inputIndex = getQubeIndex(winStartH + winIdxH, winStartW + winIdxW, oc, IW, IC);
+            output = (std::max)(output, input[inputIndex]);
+        }
+    }
+    return output;
+}
+
+void CNNMaxPool2DFloat(intel_dnn_component_t* component) {
+    float* ptr_inputs = reinterpret_cast<float*>(component->ptr_inputs);
+    float* ptr_outputs = reinterpret_cast<float*>(component->ptr_outputs);
+    const auto OC = component->op.maxpool.outCHW[0];
+    const auto OH = component->op.maxpool.outCHW[1];
+    const auto OW = component->op.maxpool.outCHW[2];
+
+    const auto IC = component->op.maxpool.inCHW[0];
+    const auto IH = component->op.maxpool.inCHW[1];
+    const auto IW = component->op.maxpool.inCHW[2];
+
+    const auto poolWinW = component->op.maxpool.poolingWindowXY[0];
+    const auto poolWinH = component->op.maxpool.poolingWindowXY[1];
+    const auto poolStrideW = component->op.maxpool.poolingStrideXY[0];
+    const auto poolStrideH = component->op.maxpool.poolingStrideXY[1];
+
+    for (unsigned oc = 0; oc < OC; oc++) {
+        for (unsigned ow = 0; ow < OW; ow++) {
+            for (unsigned oh = 0; oh < OH; oh++) {
+                const auto outputIndex = getQubeIndex(oh, ow, oc, OW, OC);
+                ptr_outputs[outputIndex] = MaxPool2D32SingleHWC(poolWinH, poolWinW,
+                    ptr_inputs, IH, IW, IC,
+                    oh, ow, oc,
+                    poolStrideH,
+                    poolStrideW);
+            }
+        }
+    }
+}
+
+#if GNA_LIB_VER == 2
 
 bool matchesPaddedArea(unsigned filterIndex, unsigned outputIndex, unsigned inputSize, unsigned paddingSize, unsigned stride) {
     const auto paddedIndex = stride * outputIndex + filterIndex;
@@ -225,3 +276,23 @@ void CNN2DFilter32(intel_dnn_component_t* component) {
 }
 
 #endif
+
+namespace {
+template<class T>
+bool is2D(T&& vec) {
+    return vec.size() >= 2 && vec[0] > 1 && vec[1] > 1;
+}
+} // namespace
+
+void CNNMaxPool(intel_dnn_component_t* component, intel_dnn_number_type_t number_type, const bool sumPoolingOverRide) {
+    if (is2D(component->op.maxpool.poolingStrideXY) ||
+        is2D(component->op.maxpool.poolingWindowXY)) {
+        if (!sumPoolingOverRide) {
+            CNNMaxPool2DFloat(component);
+        } else {
+            THROW_GNA_EXCEPTION << "SUM pooling2D not supported";
+        }
+    } else {
+        CNNMaxPoolLegacy(component, number_type, sumPoolingOverRide);
+    }
+}

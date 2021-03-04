@@ -32,11 +32,12 @@ typedef struct {
 } convReluSpecificParamsAll;
 
 typedef std::tuple<
-    convReluSpecificParamsAll,      // CNN2D sequence desc
-    InferenceEngine::Precision,     // Net precision
-    InferenceEngine::Precision,     // Input precision
-    InferenceEngine::Precision,     // Output precision
-    LayerTestsUtils::TargetDevice   // Device name
+    convReluSpecificParamsAll,          // CNN2D sequence desc
+    InferenceEngine::Precision,         // Net precision
+    InferenceEngine::Precision,         // Input precision
+    InferenceEngine::Precision,         // Output precision
+    LayerTestsUtils::TargetDevice,      // Device name
+    std::map<std::string, std::string>  // Configuration
 > convReluSequenceTestParamsSet;
 
 class ConvolutionReluSequenceTest : public testing::WithParamInterface<convReluSequenceTestParamsSet>,

@@ -332,7 +332,7 @@ void ReorderMaxPoolPass::run() {
         if (!pool.isMaxPooling()) continue;
 
         // don't reorder if pooling is 2D for CNN2D
-        auto pooling = dynamic_cast<PoolingLayer*>(l.get() );
+        auto pooling = dynamic_cast<PoolingLayer*>(l.get());
         if (pooling == nullptr || (is2D(pooling->_kernel) || is2D(pooling->_stride))) continue;
 
         // checking prev layer type

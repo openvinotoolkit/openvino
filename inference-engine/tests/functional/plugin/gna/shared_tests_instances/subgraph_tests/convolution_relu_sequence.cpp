@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include "gna/gna_config.hpp"
+
 #include "subgraph_tests/convolution_relu_sequence.hpp"
 #include "common_test_utils/test_constants.hpp"
 
@@ -115,6 +117,18 @@ const std::vector<convReluSpecificParamsAll> convReluSpecificParamsAllAll = {
     }
 };
 
+const std::vector<std::map<std::string, std::string> > configs = {
+    {
+        {InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_AUTO}
+    },
+    {
+        {InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_FP32}
+    },
+    {
+        {InferenceEngine::GNAConfigParams::KEY_GNA_DEVICE_MODE, InferenceEngine::GNAConfigParams::GNA_SW_EXACT}
+    }
+};
+
 // Enable when using GNA 2.1 library
 INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ConvolutionReluSequenceTest, ConvolutionReluSequenceTest,
     ::testing::Combine(
@@ -122,7 +136,8 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ConvolutionReluSequenceTest, ConvolutionR
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA)),
+        ::testing::Values(CommonTestUtils::DEVICE_GNA),
+        ::testing::ValuesIn(configs)),
     ConvolutionReluSequenceTest::getTestCaseName);
 
 } // namespace

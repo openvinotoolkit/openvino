@@ -271,6 +271,8 @@ void GNAPluginNS::backend::AMIntelDNN::InitMaxpoolComponentPrivate(intel_dnn_com
     comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = kDnnNonInterleavedOrientation;
     comp.orientation_out = kDnnNonInterleavedOrientation;
+    comp.op.maxpool.inCHW = inCHW;
+    comp.op.maxpool.outCHW = outCHW;
     comp.op.maxpool.poolingWindowXY = poolingWindowXY;
     comp.op.maxpool.poolingStrideXY = poolingStrideXY;
     comp.output_scale_factor = output_scale_factor;
@@ -1715,8 +1717,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                     if (pConvolutionalLayer->pwl.nSegments != 0) {
                         THROW_GNA_EXCEPTION << "Encountered activation component before pooling component at." << i;
                     } else {
-                        pConvolutionalLayer->poolType =
-                                (component[i].op.maxpool.do_sum_not_max) ? INTEL_SUM_POOLING : INTEL_MAX_POOLING;
+                        pConvolutionalLayer->poolType = INTEL_MAX_POOLING;
                         // TODO: issue 50379 find out why looks like CNN1D pooling uses stride == window only
                         pConvolutionalLayer->nPoolSize = component[i].op.maxpool.poolingWindowXY[0];
                         pConvolutionalLayer->nPoolStride = component[i].op.maxpool.poolingWindowXY[0];

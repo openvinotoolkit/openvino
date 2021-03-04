@@ -813,26 +813,21 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
-    auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());
-    const uint32_t w_dim_in = FROM_IR_DIM(inputs, in_order[3]);
-    const uint32_t h_dim_in = FROM_IR_DIM(inputs, in_order[2]);
+    const auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());
+    uint32_t w_dim_in = FROM_IR_DIM(inputs, in_order[3]);
+    uint32_t h_dim_in = FROM_IR_DIM(inputs, in_order[2]);
     const uint32_t c_dim_in = FROM_IR_DIM(inputs, in_order[1]);
 
-    auto out_order = getFromIRDimsOrderNCHW(outputs->getLayout());
+    const auto out_order = getFromIRDimsOrderNCHW(outputs->getLayout());
     uint32_t w_dim_out = FROM_IR_DIM(outputs, out_order[3]);
     uint32_t h_dim_out = FROM_IR_DIM(outputs, out_order[2]);
-    uint32_t c_dim_out = FROM_IR_DIM(outputs, out_order[1]);
+    const uint32_t c_dim_out = FROM_IR_DIM(outputs, out_order[1]);
 
-    // if (w_dim_in == 1) {  // swap dimensions if needed to support swapped 1D case
-    //     swap(h_dim_in, w_dim_in);
-    //     swap(h_dim_out, w_dim_out);
-    //     swap(pooling._kernel[X_AXIS], pooling._kernel[Y_AXIS]);
-    // }
-
-    // uint32_t num_rows_in = w_dim_in;
-    // uint32_t num_rows_out = w_dim_out;
-    // uint32_t num_columns_out = c_dim_out;
-
+    if (w_dim_in == 1) {  // swap dimensions if needed to support swapped 1D case
+        swap(h_dim_in, w_dim_in);
+        swap(h_dim_out, w_dim_out);
+        swap(pooling._kernel[X_AXIS], pooling._kernel[Y_AXIS]);
+    }
 
     void* ptr_inputs = nullptr;
     void* ptr_outputs = nullptr;
