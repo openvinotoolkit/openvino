@@ -1351,8 +1351,11 @@ bool MKLDNNMVNNode::checkAxesSuitability(const std::shared_ptr<const ngraph::Nod
     const auto mvn = std::dynamic_pointer_cast<const ngraph::op::v6::MVN>(node);
     if (mvn != nullptr && node->get_input_size() == 2) {
         if (auto axesNode = dynamic_cast<ngraph::op::v0::Constant*>(mvn->get_input_node_ptr(1))) {
-            auto axesVal = axesNode->cast_vector<int>();
             auto& mvnShape = mvn->get_output_shape(0);
+            auto axesVal = axesNode->cast_vector<int>();
+            for (int& axe : axesVal)
+                axe = axe < 0 ? axe + mvnShape.size() : axe;
+            std::sort(axesVal.begin(), axesVal.end());
             if (mvnShape.size() == 1) {
                 if (axesVal.size() == 1 && axesVal[0] == 0)
                     return true;

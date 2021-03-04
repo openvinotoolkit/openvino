@@ -311,22 +311,6 @@ void BackEnd::dumpModelToDot(
         }
 
         //
-        // Dump Data->Stage edges
-        //
-
-        for (const auto& data : model->datas()) {
-            for (const auto& dependentStageEdge : data->dependentStagesEdges()) {
-                out.append("%s -> %s [", dataDotName(data), stageDotName(dependentStageEdge->dependentStage()));
-                {
-                    VPU_DOT_IDENT(out);
-
-                    DotLabel lbl("Extra dependency", out);
-                }
-                out.append("];");
-            }
-        }
-
-        //
         // Dump Data<->Data edges
         //
 
@@ -394,6 +378,16 @@ void BackEnd::dumpModelToDot(
                     out.append("%s, %s", stageDotName(stage), stageDotName(injectionEdge->child()));
                 }
                 out.append("}");
+            }
+
+            for (const auto& stageDependencyEdge : stage->childDependencyEdges()) {
+                out.append("%s -> %s [", stageDotName(stage), stageDotName(stageDependencyEdge->child()));
+                {
+                    VPU_DOT_IDENT(out);
+
+                    DotLabel lbl("Extra dependency", out);
+                }
+                out.append("];");
             }
         }
     }

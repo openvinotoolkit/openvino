@@ -43,11 +43,7 @@ TEST_P(SerializationTest, CompareFunctions) {
     InferenceEngine::Core ie;
     InferenceEngine::CNNNetwork expected;
 
-    if (!m_binary_path.empty()) {
-        expected = ie.ReadNetwork(m_model_path, m_binary_path);
-    } else {
-        expected = ie.ReadNetwork(m_model_path);
-    }
+    expected = ie.ReadNetwork(m_model_path, m_binary_path);
     expected.serialize(m_out_xml_path, m_out_bin_path);
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
@@ -64,7 +60,9 @@ INSTANTIATE_TEST_CASE_P(IRSerialization, SerializationTest,
                         std::make_tuple("split_equal_parts_2d.xml", "split_equal_parts_2d.bin"),
                         std::make_tuple("addmul_abc.xml", "addmul_abc.bin"),
                         std::make_tuple("add_abc_initializers.xml", "add_abc_initializers.bin"),
+                        std::make_tuple("add_abc_initializers.xml", "add_abc_initializers_f32_nan_const.bin"),
                         std::make_tuple("add_abc_initializers_nan_const.xml", "add_abc_initializers_nan_const.bin"),
+                        std::make_tuple("add_abc_initializers_u1_const.xml", "add_abc_initializers_u1_const.bin"),
                         std::make_tuple("experimental_detectron_roi_feature_extractor.xml", ""),
                         std::make_tuple("experimental_detectron_roi_feature_extractor_opset6.xml", ""),
                         std::make_tuple("experimental_detectron_detection_output.xml", ""),

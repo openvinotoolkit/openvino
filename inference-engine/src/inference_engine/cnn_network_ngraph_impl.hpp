@@ -84,8 +84,6 @@ public:
 
     StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept override;
 
-    StatusCode getOVNameForOperation(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const noexcept override;
-
     // used by convertFunctionToICNNNetwork from legacy library
     std::map<std::string, DataPtr> _data;
 protected:
@@ -96,7 +94,6 @@ private:
     InferenceEngine::InputsDataMap _inputData;
     std::map<std::string, DataPtr> _outputData;
     const std::vector<IExtensionPtr> _ie_extensions;
-    std::unordered_map<std::string, std::string> _opNames;
     std::unordered_map<std::string, std::string> _tensorNames;
 
     /**
