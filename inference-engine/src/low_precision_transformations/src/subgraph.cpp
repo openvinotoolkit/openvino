@@ -22,38 +22,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-bool isQuantizationPerChannel(const std::shared_ptr<ngraph::Node>& node) {
-    if (node->outputs().size() > 1ul) {
-        return false;
-    }
-
-    //WA to support StridedSlice in ConcatTransformation
-    if (ngraph::is_type<opset1::StridedSlice>(node)) {
-        return true;
-    }
-
-    const auto inputs = node->input_values();
-    for (const auto& input : inputs) {
-        if (ngraph::is_type<opset1::Constant>(input.get_node())) {
-            continue;
-        }
-
-        const Shape& in = input.get_shape();
-        const Shape& out = node->output(0).get_shape();
-        for (size_t i = 0; i < 2; ++i) {
-            if ((i >= in.size()) || (i >= out.size())) {
-                // all previous dimensions are equal
-                return true;
-            }
-            if (in[i] != out[i]) {
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
 Subgraph::Subgraph(ngraph::pass::ILayerTransformationsManager* layerTransformationsManager) : layerTransformationsManager(layerTransformationsManager) {
 }
 
@@ -82,7 +50,7 @@ bool Subgraph::fillSubgraphForQuantization(
                 if (fakeQuantizeChild != nullptr) {
                     //
                 } else {
-                    if (layerTransformationsManager->isPrecisionPreserved(child) && isQuantizationPerChannel(child)) {
+                    if (layerTransformationsManager->isPrecisionPreserved(child)) {
                         if (!fillSubgraphForIntermediate(child, handledLayers)) {
                             return false;
                         }
@@ -104,7 +72,7 @@ bool Subgraph::atLeastOneIsIntermediate(const std::shared_ptr<ngraph::Node>& nod
                 return true;
             }
 
-            if (!layerTransformationsManager->isPrecisionPreserved(child) || !isQuantizationPerChannel(child)) {
+            if (!layerTransformationsManager->isPrecisionPreserved(child)) {
                 // child branch is out of subgraph
                 continue;
             }
@@ -144,10 +112,6 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 return false;
             }
         } else {
-            // WA: issue #46906
-            if (parent->get_output_size() != 1ul) {
-                return false;
-            }
             const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(parent, 0, true);
             const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeParent = dequantization.empty() ?
                 ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(parent) :
@@ -161,7 +125,7 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 if (constant != nullptr) {
                     //
                 } else {
-                    if (layerTransformationsManager->isPrecisionPreserved(parent) && isQuantizationPerChannel(parent)) {
+                    if (layerTransformationsManager->isPrecisionPreserved(parent)) {
                         if (!fillSubgraphForIntermediate(parent, handledLayers)) {
                             return false;
                         }
@@ -197,7 +161,7 @@ bool Subgraph::fill(const std::shared_ptr<ngraph::Node>& layer, std::unordered_s
                 const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeChild = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(child);
                 if (fakeQuantizeChild != nullptr) {
                     //
-                } else if (layerTransformationsManager->isPrecisionPreserved(child) && isQuantizationPerChannel(child)) {
+                } else if (layerTransformationsManager->isPrecisionPreserved(child)) {
                     if (!fillSubgraphForIntermediate(child, handledLayers)) {
                         return false;
                     }

@@ -46,8 +46,6 @@ private:
         const FakeQuantizeDequantization& dequantization,
         const size_t sourceOutputIdx);
 
-    static FakeQuantizeDequantization broadcastDequantiationConstant(const FakeQuantizeDequantization& deq);
-
     bool isMultiChannel(const std::vector<std::shared_ptr<ngraph::opset1::Concat>>& concatLayers) const noexcept;
 };
 
