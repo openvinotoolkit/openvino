@@ -20,7 +20,7 @@ static const char input_message[] = "Optional. Path to a folder with images and/
 static const char model_message[] = "Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.";
 
 /// @brief message for execution performance mode
-static const char mode_message[] = "Optional. Selects OpenVINO Performance Mode/Preset. Default value is \"throughput\".";
+static const char mode_message[] = "Optional. Selects OpenVINO Performance Mode/Preset. Default value is \"throughput (tput)\".";
 
 /// @brief message for execution api
 static const char api_message[] = "Optional (deprecated). Enable Sync/Async API. Default value is \"async\".";
@@ -220,7 +220,7 @@ static void showUsage() {
     std::cout << "    -l \"<absolute_path>\"      " << custom_cpu_library_message << std::endl;
     std::cout << "          Or" << std::endl;
     std::cout << "    -c \"<absolute_path>\"      " << custom_cldnn_message << std::endl;
-    std::cout << "    -mode \"<throughput/latency>\" " << mode_message << std::endl;
+    std::cout << "    -mode \"<throughput(tput)/latency>\" " << mode_message << std::endl;
     std::cout << "    -api \"<sync/async>\"       " << api_message << std::endl;
     std::cout << "    -niter \"<integer>\"        " << iterations_count_message << std::endl;
     std::cout << "    -nireq \"<integer>\"        " << infer_requests_count_message << std::endl;
