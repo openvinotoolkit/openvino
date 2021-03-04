@@ -67,6 +67,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 
@@ -193,6 +194,27 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
         }
         return false;
     };
+
+    auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
+        if (const auto &rnn_seq = std::dynamic_pointer_cast<const ngraph::opset6::RNNSequence>(node)) {
+            return rnn_seq->get_clip() == 0.0f;
+        } else if (const auto &gru_seq = std::dynamic_pointer_cast<const ngraph::opset6::GRUSequence>(
+                node)) {
+            return gru_seq->get_clip() == 0.0f &&
+                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"};
+        } else if (const auto &lstm_seq = std::dynamic_pointer_cast<const ngraph::opset6::LSTMSequence>(
+                node)) {
+            return lstm_seq->get_clip() == 0.0f &&
+                    lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+        }
+        return false;
+    };
+
+    pass_config->set_callback<ngraph::pass::ConvertRNNSequenceToTensorIterator, ngraph::pass::ConvertGRUSequenceToTensorIterator,
+            ngraph::pass::ConvertLSTMSequenceToTensorIterator>(
+            [isSequencePrimitiveSupported](const_node_ptr &node) -> bool {
+                return isSequencePrimitiveSupported(node);
+            });
 
     pass_config->set_callback<ngraph::pass::RNNCellDecomposition, ngraph::pass::GRUCellDecomposition,
             ngraph::pass::LSTMCellDecomposition>(
