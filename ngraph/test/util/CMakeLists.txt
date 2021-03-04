@@ -51,4 +51,4 @@ SYSTEM PRIVATE
     ${Protobuf_INCLUDE_DIRS})
 target_compile_definitions(ngraph_test_util
 PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
-target_link_libraries(ngraph_test_util PRIVATE ngraph ngraph_backend libgtest onnx_common)
+target_link_libraries(ngraph_test_util PRIVATE ngraph ngraph_backend libgtest onnx_common onnx onnx_proto)
