@@ -1624,14 +1624,14 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_5_4_1_2_3) {
 
 void run_permute_tile_testcase_fsv16(const cldnn::engine &engine, const std::vector<cldnn::tensor::value_type>& sizes)
 {
-    size_t total = 1;
+    size_t input_size = 1;
     for (size_t i = 0; i<sizes.size(); ++i)
     {
-        total *= sizes.at(i);
+        input_size *= sizes.at(i);
     }
 
     std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
-    std::reverse(internal_sizes.begin()+2, internal_sizes.end());
+    std::swap(internal_sizes.at(2), internal_sizes.back());
     cldnn::tensor tensor(internal_sizes);
 
     cldnn::format format = sizes.size() == 4?cldnn::format::bfyx:cldnn::format::bfzyx;
@@ -1646,12 +1646,11 @@ void run_permute_tile_testcase_fsv16(const cldnn::engine &engine, const std::vec
     auto input = memory::allocate(engine, {data_types::f32, format, tensor});
 
     std::vector<float> input_values;
-    input_values.reserve(total);
-    for (size_t i=1;i<=total;++i)
+    input_values.reserve(input_size);
+    for (size_t i = 1; i <= input_size; ++i)
     {
         input_values.push_back(i);
     }
-    std::cout << '\n';
     set_values(input, input_values);
 
     topology topology_ref(
@@ -1665,9 +1664,9 @@ void run_permute_tile_testcase_fsv16(const cldnn::engine &engine, const std::vec
     cldnn::implementation_desc permute_ref = { format_fsv, "permute_ref" };
     options_ref.set_option(cldnn::build_option::force_implementations({ {"permute1", permute_ref} }));
 
-    network network(engine, topology_ref, options_ref);
-    network.set_input_data("input", input);
-    auto outputs_ref = network.execute();
+    cldnn::network network_ref(engine, topology_ref, options_ref);
+    network_ref.set_input_data("input", input);
+    auto outputs_ref = network_ref.execute();
     auto output_ref = outputs_ref.begin()->second.get_memory();
     auto output_ref_ptr = output_ref.pointer<float>();
 
@@ -1682,52 +1681,108 @@ void run_permute_tile_testcase_fsv16(const cldnn::engine &engine, const std::vec
     auto output_tile = outputs_tile.begin()->second.get_memory();
     auto output_tile_ptr = output_tile.pointer<float>();
 
-    for (size_t i = 0; i < output_ref.count(); i++)
+    // compare results
+    const size_t output_size= output_ref.get_layout().get_linear_size();
+    for (size_t i = 0; i < output_size; i++)
     {
         EXPECT_FLOAT_EQ(output_ref_ptr[i], output_tile_ptr[i]);
     }
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_yx_fsv16_0_3_1_2_fy_aligned)
+TEST(permute_gpu_f32_tile_8x8_4x4_fsv16, b_fs_yx_fsv16_0_3_1_2_fy_aligned)
 {
     const auto &engine = get_test_engine();
     run_permute_tile_testcase_fsv16(engine, {1, 32, 32, 2});
-    run_permute_tile_testcase_fsv16(engine, {1, 128, 128, 4});
+    run_permute_tile_testcase_fsv16(engine, {1, 16, 16, 3});
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_zyx_fsv16_0_4_1_2_3_fz_aligned)
+TEST(permute_gpu_f32_tile_8x8_4x4_fsv16, b_fs_zyx_fsv16_0_4_1_2_3_fz_aligned)
 {
     const auto &engine = get_test_engine();
-    run_permute_tile_testcase_fsv16(engine, {1, 32, 32, 3, 2});
-    run_permute_tile_testcase_fsv16(engine, {1, 128, 128, 3, 4});
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32, 2, 3});
+    run_permute_tile_testcase_fsv16(engine, {1, 16, 16, 3, 2});
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_yx_fsv16_0_3_1_2_f_not_aligned_1)
+TEST(permute_gpu_f32_tile_8x8_4x4_fsv16, b_fs_yx_fsv16_0_3_1_2_f_not_aligned)
 {
     const auto &engine = get_test_engine();
-    // f not align 4D
     run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32, 2});
-    run_permute_tile_testcase_fsv16(engine, {1, 128 - 1, 128, 4});
-}
-
-TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_zyx_fsv16_0_3_1_2_f_not_aligned_2)
-{
-    const auto &engine = get_test_engine();
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 7, 32, 2});
     run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32, 2});
-    run_permute_tile_testcase_fsv16(engine, {1, 128 - 9, 128, 4});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 15, 32, 2});
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_zyx_fsv16_0_4_1_2_3_f_not_aligned_1)
+TEST(permute_gpu_f32_tile_8x8_4x4_fsv16, b_fs_zyx_fsv16_0_4_1_2_3_f_not_aligned)
 {
     const auto &engine = get_test_engine();
-    // f not align 5D
-    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32, 3, 2});
-    run_permute_tile_testcase_fsv16(engine, {1, 128 - 1, 128, 3, 4});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 7, 32, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 15, 32, 2, 2});
 }
 
-TEST(permute_gpu_f32_tile_8x8_4x4, b_fs_yx_fsv16_0_4_1_2_3_f_not_aligned_2)
+TEST(permute_gpu_f32_tile_8x8_4x4_fsv16, b_fs_yx_fsv16_0_3_1_2_y_not_aligned)
 {
     const auto &engine = get_test_engine();
-    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32, 3, 2});
-    run_permute_tile_testcase_fsv16(engine, {1, 128 - 9, 128, 3, 4});
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32 - 1, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32 - 7, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32 - 9, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32 - 15, 2});
+}
+
+TEST(permute_gpu_f32_tile_8x8_4x4_fsv16, b_fs_zyx_fsv16_0_4_1_2_3_z_not_aligned)
+{
+    const auto &engine = get_test_engine();
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32 - 1, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32 - 7, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32 - 9, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32, 32 - 15, 2, 2});
+}
+
+TEST(permute_gpu_f32_tile_8x8_4x4_fsv16, b_fs_yx_fsv16_0_3_1_2_fy_not_aligned)
+{
+    const auto &engine = get_test_engine();
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32 - 1, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 7, 32 - 7, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32 - 9, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 15, 32 - 15, 2});
+
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 7, 32 - 1, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32 - 7, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 15, 32 - 9, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32 - 15, 2});
+
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32 - 1, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 15, 32 - 7, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32 - 9, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 7, 32 - 15, 2});
+
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 15, 32 - 1, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32 - 7, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 7, 32 - 9, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32 - 15, 2});
+}
+
+TEST(permute_gpu_f32_tile_8x8_4x4_fsv16, b_fs_zyx_fsv16_0_4_1_2_3_fz_not_aligned)
+{
+    const auto &engine = get_test_engine();
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32 - 1, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 7, 32 - 7, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32 - 9, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 15, 32 - 15, 2, 2});
+
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 7, 32 - 1, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32 - 7, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 15, 32 - 9, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32 - 15, 2, 2});
+
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32 - 1, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 15, 32 - 7, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32 - 9, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 7, 32 - 15, 2, 2});
+
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 15, 32 - 1, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 1, 32 - 7, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 7, 32 - 9, 2, 2});
+    run_permute_tile_testcase_fsv16(engine, {1, 32 - 9, 32 - 15, 2, 2});
 }
