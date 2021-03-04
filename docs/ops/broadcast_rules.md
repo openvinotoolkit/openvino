@@ -100,7 +100,7 @@ Broadcast allows to perform element-wise operation for inputs of arbitrary numbe
        `B: Shape(5,)`
   `Result: Shape(2, 3, 4, 5)`
 
-# Bidirectional Broadcast Rules {#openvino_docs_ops_broadcast_rules}
+# Bidirectional Broadcast Rules {#openvino_docs_ops_bidirectional_broadcast_rules}
 
 ## Description
 
