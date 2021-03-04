@@ -10,7 +10,7 @@
 As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *Power* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
 
 \f[
-o_{i} = {a_{i} ^ b}_{i}
+o_{i} = {a_{i} ^ b_{i}}
 \f] 
 
 **Attributes**:
