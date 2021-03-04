@@ -40,8 +40,7 @@ namespace ngraph
                 /// \param data  Input data
                 /// \param axes Axes to perform DFT
                 /// \param signal_size Signal sizes for 'axes'
-                DFT(const Output<Node>& data,
-                    const Output<Node>& axes);
+                DFT(const Output<Node>& data, const Output<Node>& axes);
 
                 /// \brief Constructs a DFT operation.
                 ///
