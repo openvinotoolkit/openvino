@@ -39,6 +39,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto shape_b = input_b.get_shape();
         auto output_shape = matmul->get_shape();
 
+        // Transformation to FC is not supported for 1D second input
         if (shape_b.size() == 1) {
             return false;
         }
@@ -58,7 +59,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
             for (size_t i = 0, cnt = max_size - shape_b_aligned.size(); i < cnt; ++i)
                 shape_b_aligned.insert(shape_b_aligned.begin(), 1);
 
-            if (matmul->get_transpose_a()) {
+            if (matmul->get_transpose_a() && shape_a.size() != 1) {
                 std::swap(*(shape_a_aligned.end() - 1), *(shape_a_aligned.end() - 2));
             }
             if (matmul->get_transpose_b()) {
@@ -142,7 +143,7 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
             }
 
             // Input normalization
-            if (matmul->get_transpose_a()) {
+            if (matmul->get_transpose_a() && shape_a.size() != 1) {
                 fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
                 new_ops.push_back(fc_input_a.get_node_shared_ptr());
             }
@@ -197,6 +198,8 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             op::Constant::create(element::i64, Shape{1}, {0}));
             shape_a = fc_input_a.get_shape();
             new_ops.push_back(fc_input_a.get_node_shared_ptr());
+            // For 1D inputs transpose flag is expected to always act like `false`
+            matmul->set_transpose_a(false);
         }
         if (shape_b.size() == 1) {
             // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
@@ -206,6 +209,8 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             op::Constant::create(element::i64, Shape{1}, {1}));
             shape_b = fc_input_b.get_shape();
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
+            // For 1D inputs transpose flag is expected to always act like `false`
+            matmul->set_transpose_b(false);
         }
 
         // WA for IE that Gemm must have inputs with the same length.
