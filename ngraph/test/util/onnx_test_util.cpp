@@ -22,7 +22,8 @@
 #include "onnx_common/parser.hpp"
 #include "onnx_test_util.hpp"
 
-using namespace ngraph::onnx_import;
+using namespace ngraph;
+using namespace ngraph::test;
 
 namespace
 {
@@ -261,7 +262,7 @@ namespace
 } // namespace
 namespace ngraph
 {
-    namespace onnx_import
+    namespace test
     {
         ComparisonResult compare_onnx_models(const std::string& model,
                                              const std::string& reference_model_path)
@@ -271,5 +272,5 @@ namespace ngraph
             const auto ref_model = onnx_common::parse_from_file(reference_model_path);
             return compare_onnx_graphs(model_proto.graph(), ref_model.graph());
         }
-    } // namespace onnx_import
+    } // namespace test
 } // namespace ngraph

@@ -40,6 +40,6 @@ namespace ngraph
         ///
         /// \return  The parsed in-memory representation of the ONNX model
         ONNX_NAMESPACE::ModelProto parse_from_istream(std::istream& model_stream);
-    } // namespace onnx_editor
+    } // namespace onnx_common
 
 } // namespace ngraph

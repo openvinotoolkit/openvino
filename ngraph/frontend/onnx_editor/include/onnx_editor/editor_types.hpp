@@ -21,28 +21,27 @@
 
 namespace ngraph
 {
+    enum class EdgeType
+    {
+        INPUT,
+        OUTPUT
+    };
+
+    template <EdgeType>
+    struct Edge
+    {
+        Edge() = delete;
+        Edge(const int node_idx, std::string tensor_name)
+            : m_node_idx{node_idx}
+            , m_tensor_name{std::move(tensor_name)}
+        {
+        }
+
+        const int m_node_idx;
+        const std::string m_tensor_name;
+    };
     namespace onnx_editor
     {
-        enum class EdgeType
-        {
-            INPUT,
-            OUTPUT
-        };
-
-        template <EdgeType>
-        struct Edge
-        {
-            Edge() = delete;
-            Edge(const int node_idx, std::string tensor_name)
-                : m_node_idx{node_idx}
-                , m_tensor_name{std::move(tensor_name)}
-            {
-            }
-
-            const int m_node_idx;
-            const std::string m_tensor_name;
-        };
-
         /// \brief Defines an edge connected to an input of any node in the graph.
         ///        It consists of a node index in the processed ONNX model and the input name.
         ///        The index should point to a node in the topological sort of the underlying graph

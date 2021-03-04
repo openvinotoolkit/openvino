@@ -26,15 +26,16 @@
 #include "onnx_editor/editor.hpp"
 #include "onnx_import/onnx.hpp"
 #include "util/engine/interpreter_engine.hpp"
+#include "util/onnx_test_util.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "utils/onnx_test_util.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 using namespace ngraph::onnx_import;
 using namespace ngraph::onnx_editor;
+using namespace ngraph::test;
 
 static std::string s_manifest = "${MANIFEST}";
 

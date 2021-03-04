@@ -73,5 +73,5 @@ namespace ngraph
 
             return model_proto;
         }
-    } // namespace onnx_editor
+    } // namespace onnx_common
 } // namespace ngraph

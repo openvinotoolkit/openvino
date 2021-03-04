@@ -18,13 +18,11 @@
 
 #include <string>
 
-#include "onnx_import/utils/onnx_importer_visibility.hpp"
-
 namespace ngraph
 {
-    namespace onnx_import
+    namespace test
     {
-        struct ONNX_IMPORTER_API ComparisonResult
+        struct ComparisonResult
         {
             ComparisonResult() = default;
             ComparisonResult(std::string error)
@@ -47,8 +45,8 @@ namespace ngraph
             }
         };
 
-        ONNX_IMPORTER_API ComparisonResult
-            compare_onnx_models(const std::string& model, const std::string& reference_model_path);
+        ComparisonResult compare_onnx_models(const std::string& model,
+                                             const std::string& reference_model_path);
 
-    } // namespace onnx_import
+    } // namespace test
 } // namespace ngraph
