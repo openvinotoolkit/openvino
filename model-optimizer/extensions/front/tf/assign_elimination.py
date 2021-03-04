@@ -18,54 +18,19 @@ import logging as log
 
 import networkx as nx
 
-from mo.front.common.replacement import FrontReplacementOp
+from mo.front.common.replacement import FrontReplacementPattern, FrontReplacementOp
 from mo.graph.graph import Graph
 from mo.utils.error import Error
 
 
-class AssignElimination(FrontReplacementOp):
-    op = "Assign"
+class AssignElimination(FrontReplacementPattern):
     enabled = True
 
-    def replace_sub_graph(self, graph: Graph, match: dict):
-        node = match['op']
-        # here we request all data flow output edges (control flow edges will not be listed)
-        out_edges = node.out_edges()
-        if len(out_edges) == 0:
-            graph.remove_node(node.id)
-            log.debug('Assign op was removed {}'.format(node.id))
-        else:
-            raise Error('Data flow edge coming out of Assign node {}'.format(node.id))
-
-
-class AssignSubElimination(FrontReplacementOp):
-    op = "AssignSub"
-    enabled = True
-
-    def replace_sub_graph(self, graph: Graph, match: dict):
-        node = match['op']
-        # here we request all data flow output edges (control flow edges will not be listed)
-        out_edges = node.out_edges()
-        if len(out_edges) == 0 or node.out_node().soft_get('type') == 'Result':
-            graph.remove_node(node.id)
-            log.debug('AssignSub op was removed {}'.format(node.id))
-        else:
-            raise Error('Data flow edge coming out of AssignSub node {}'.format(node.id))
-
-
-class AssignAddElimination(FrontReplacementOp):
-    op = "AssignAdd"
-    enabled = True
-
-    def replace_sub_graph(self, graph: Graph, match: dict):
-        node = match['op']
-        # here we request all data flow output edges (control flow edges will not be listed)
-        out_edges = node.out_edges()
-        if len(out_edges) == 0:
-            graph.remove_node(node.id)
-            log.debug('AssignAdd op was removed {}'.format(node.id))
-        else:
-            raise Error('Data flow edge coming out of AssignAdd node {}'.format(node.id))
+    def find_and_replace_pattern(self, graph: Graph):
+        for node in graph.get_op_nodes():
+            if node.op in ["Assign", "AssignSub", "AssignAdd"]:
+                graph.remove_node(node.id)
+                log.debug('Assign op was removed {}'.format(node.id))
 
 
 class AssertElimination(FrontReplacementOp):
