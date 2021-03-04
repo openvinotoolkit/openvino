@@ -190,7 +190,7 @@ public:
         const int64_t IC_IH_IW = IC * IH_IW; // distance between batches in input
 
         //const int64_t work_amount = OB;
-        auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic, const int64_t oh) {
+        auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
         //auto thread_body = [&](const int ithr, const int nthr) {
             //int64_t start(0), end(0);
             //int64_t start(0lu), end(0lu);
@@ -210,8 +210,8 @@ public:
                         //for (int64_t ic = 0; ic < IC; ic++) {
                             const int64_t ishift_obic = ishift_ob + ic * IH_IW;
                             const int64_t oshift_obkhkwic = oshift_obkhkw + ic * OH_OW;
-                            int64_t ih = ih_start + oh * SH;
-                            //for (int64_t oh = 0; oh < OH; oh++, ih += SH) {
+                            int64_t ih = ih_start;
+                            for (int64_t oh = 0; oh < OH; oh++, ih += SH) {
                                 int64_t iw = iw_start;
                                 for (int64_t ow = 0; ow < OW; ow++, iw += SW) {
                                     int64_t dst_idx = oshift_obkhkwic + oh * OW + ow;
@@ -222,13 +222,13 @@ public:
                                         dst_data[dst_idx] = src_data[src_idx];
                                     }
                                 }
-                            //}
+                            }
                         //}
                     //}
                 //}
             //}
         };
-        parallel_for5d(OB, KH, KW, IC, OH, thread_body);
+        parallel_for4d(OB, KH, KW, IC, thread_body);
 
         /*
         auto thread_body = [&](const int ithr, const int nthr) {
