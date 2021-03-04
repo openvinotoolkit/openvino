@@ -181,96 +181,32 @@ public:
                 }
             }
         }
-
         const int64_t OH_OW = OH * OW;
-        const int64_t OC_OH_OW = OC * OH_OW; // distance between batches in output
+        const int64_t OC_OH_OW = OC * OH_OW;
         const int64_t IC_OH_OW = IC * OH_OW;
         const int64_t KW_IC_OH_OW = KW * IC_OH_OW;
         const int64_t IH_IW = IH * IW;
-        const int64_t IC_IH_IW = IC * IH_IW; // distance between batches in input
+        const int64_t IC_IH_IW = IC * IH_IW;
 
-        //const int64_t work_amount = OB;
         auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
-        //auto thread_body = [&](const int ithr, const int nthr) {
-            //int64_t start(0), end(0);
-            //int64_t start(0lu), end(0lu);
-            //splitter(work_amount, nthr, ithr, start, end);
-            //if (start >= end)
-            //    return;
-            // ob -> kh -> kw -> ic -> oh -> ow
-            //for (int64_t ob = start; ob < end; ob++) {
-                const int64_t oshift_ob = ob * OC_OH_OW;
-                const int64_t ishift_ob = ob * IC_IH_IW;
-                //for (int64_t kh = 0; kh < KH; kh++) {
-                    const int64_t ih_start = kh * RH - PT;
-                    const int64_t oshift_obkh = oshift_ob + kh * KW_IC_OH_OW;
-                    //for (int64_t kw = 0; kw < KW; kw++) {
-                        const int64_t oshift_obkhkw = oshift_obkh + kw * IC_OH_OW;
-                        const int64_t iw_start = kw * RW - PL;
-                        //for (int64_t ic = 0; ic < IC; ic++) {
-                            const int64_t ishift_obic = ishift_ob + ic * IH_IW;
-                            const int64_t oshift_obkhkwic = oshift_obkhkw + ic * OH_OW;
-                            int64_t ih = ih_start;
-                            for (int64_t oh = 0; oh < OH; oh++, ih += SH) {
-                                int64_t iw = iw_start;
-                                for (int64_t ow = 0; ow < OW; ow++, iw += SW) {
-                                    int64_t dst_idx = oshift_obkhkwic + oh * OW + ow;
-                                    if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
-                                        dst_data[dst_idx] = T(0);
-                                    } else {
-                                        int64_t src_idx = ishift_obic + ih * IW + iw;
-                                        dst_data[dst_idx] = src_data[src_idx];
-                                    }
-                                }
-                            }
-                        //}
-                    //}
-                //}
-            //}
-        };
-        parallel_for4d(OB, KH, KW, IC, thread_body);
-
-        /*
-        auto thread_body = [&](const int ithr, const int nthr) {
-            int64_t start(0), end(0);
-            //int64_t start(0lu), end(0lu);
-            splitter(work_amount, nthr, ithr, start, end);
-            if (start >= end)
-                return;
-            // ob -> kh -> kw -> ic -> oh -> ow
-            for (int64_t ob = start; ob < end; ob++) {
-                const int64_t oshift_ob = ob * OC_OH_OW;
-                const int64_t ishift_ob = ob * IC_IH_IW;
-                for (int64_t kh = 0; kh < KH; kh++) {
-                    const int64_t ih_start = kh * RH - PT;
-                    const int64_t oshift_obkh = oshift_ob + kh * KW * IC * OH_OW;
-                    for (int64_t kw = 0; kw < KW; kw++) {
-                        const int64_t oshift_obkhkw = oshift_obkh + kw * IC * OH_OW;
-                        const int64_t iw_start = kw * RW - PL;
-                        for (int64_t ic = 0; ic < IC; ic++) {
-                            const int64_t ishift_obic = ishift_ob + ic * IH_IW;
-                            const int64_t oshift_obkhkwic = oshift_obkhkw + ic * OH_OW;
-                            int64_t ih = ih_start;
-                            for (int64_t oh = 0; oh < OH; oh++, ih += SH) {
-                                int64_t iw = iw_start;
-                                for (int64_t ow = 0; ow < OW; ow++, iw += SW) {
-                                    int64_t dst_idx = oshift_obkhkwic + oh * OW + ow;
-                                    if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
-                                        dst_data[dst_idx] = T(0);
-                                    } else {
-                                        int64_t src_idx = ishift_obic + ih * IW + iw;
-                                        dst_data[dst_idx] = src_data[src_idx];
-                                    }
-                                }
-                            }
-                        }
+            const int64_t ishift = ob * IC_IH_IW + ic * IH_IW;
+            const int64_t oshift = ob * OC_OH_OW + kh * KW_IC_OH_OW + kw * IC_OH_OW + ic * OH_OW;
+            int64_t ih = kh * RH - PT;
+            const int64_t iw_start = kw * RW - PL;
+            for (int64_t oh = 0; oh < OH; oh++, ih += SH) {
+                int64_t iw = iw_start;
+                for (int64_t ow = 0; ow < OW; ow++, iw += SW) {
+                    int64_t dst_idx = oshift + oh * OW + ow;
+                    if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
+                        dst_data[dst_idx] = T(0);
+                    } else {
+                        int64_t src_idx = ishift + ih * IW + iw;
+                        dst_data[dst_idx] = src_data[src_idx];
                     }
                 }
             }
         };
-
-        parallel_nt(0, thread_body);
-        */
+        parallel_for4d(OB, KH, KW, IC, thread_body);
     }
 
 private:
