@@ -44,4 +44,11 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
         VERSION ${NGRAPH_VERSION})
 endif()
 target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${IE_MAIN_SOURCE_DIR}/include)
-target_link_libraries(ngraph_test_util PRIVATE ngraph ngraph_backend libgtest onnx_proto onnx onnx_common)
+target_include_directories(ngraph_test_util
+SYSTEM PRIVATE
+    $<TARGET_PROPERTY:onnx,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:onnx_proto,INTERFACE_INCLUDE_DIRECTORIES>
+    ${Protobuf_INCLUDE_DIRS})
+target_compile_definitions(ngraph_test_util
+PRIVATE $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>)
+target_link_libraries(ngraph_test_util PRIVATE ngraph ngraph_backend libgtest onnx_common)
