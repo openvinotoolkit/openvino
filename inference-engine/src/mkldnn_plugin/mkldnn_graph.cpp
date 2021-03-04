@@ -68,6 +68,8 @@ using namespace InferenceEngine::details;
 typedef std::unordered_set<MKLDNNEdgePtr> edge_cluster_t;
 typedef std::vector<edge_cluster_t> edge_clusters_t;
 
+mkldnn::engine MKLDNNGraph::eng(mkldnn::engine::kind::cpu, 0);
+
 template<typename NET>
 void MKLDNNGraph::ApplyUnrollPasses(NET &net) {
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::ApplyUnrollPasses");
