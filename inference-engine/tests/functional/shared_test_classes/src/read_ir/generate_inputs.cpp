@@ -16,6 +16,11 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::Node> node,
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 }
 
+//InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::DetectionOutput> node,
+//                                    const InferenceEngine::InputInfo& info) {
+//
+//}
+
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::PSROIPooling> node,
                                     const InferenceEngine::InputInfo& info) {
     const auto& inputShape = node->get_input_shape(0);

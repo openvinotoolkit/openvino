@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < argc; ++i) {
         if (std::string(argv[i]) == "--disable_tests_skipping") {
             FuncTestUtils::SkipTestsConfig::disable_tests_skipping = true;
-        } else if (std::string(argv[i]) == "--extend_test_report") {
+        } else if (std::string(argv[i]) == "--extend_report") {
             LayerTestsUtils::extendReport = true;
         } else if (std::string(argv[i]) == "--help") {
             print_custom_help = true;
