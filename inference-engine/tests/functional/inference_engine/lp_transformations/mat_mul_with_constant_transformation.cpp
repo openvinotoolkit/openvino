@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,7 +79,10 @@ inline std::ostream& operator << (std::ostream& out, const MatMullTransformation
 }
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues& values) {
-    return out << "_" << values.actual << "_" << values.expected;
+    return out << "_" <<
+        values.params.support3DTensorOnActivations << "_" <<
+        values.actual << "_" <<
+        values.expected;
 }
 
 typedef std::tuple<
@@ -197,6 +200,28 @@ std::vector<MatMullTransformationTestValues> testValues = {
             ngraph::element::u8,
             { {}, {}, { 0.02f * 0.1f } },
             {},
+            {}
+        }
+    },
+
+    // support3DTensorOnActivations = false for 3D tensor
+    {
+        LayerTransformation::createParamsU8I8().setSupport3DTensorOnActivations(false),
+        {
+            { 1, 384, 1024 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f } },
+            { std::vector<float>(1024 * 1024, 1.f), ngraph::element::f32, { 1024, 1024 } },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} }
+        },
+        {
+            { 1, 384, 1024 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f } },
+            { std::vector<float>(1024 * 1024, 1.f), ngraph::element::f32, { 1024, 1024 } },
+            ngraph::element::i8,
+            {},
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
             {}
         }
     },
@@ -429,6 +454,28 @@ std::vector<MatMullTransformationTestValues> testValues = {
         }
     },
 
+    // support3DTensorOnActivations = false, but 2D tensor is used
+    {
+        LayerTransformation::createParamsU8I8().setSupport3DTensorOnActivations(false),
+        {
+            { 1, 2048 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f } },
+            { std::vector<float>(2048 * 1000, 1.f), ngraph::element::f32, { 2048, 1000 }},
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+            {}
+        },
+        {
+            { 1, 2048 },
+            ngraph::element::u8,
+            {},
+            { std::vector<float>(2048 * 1000, -126), ngraph::element::i8, { 2048, 1000 }},
+            ngraph::element::i8,
+            { {}, {}, { 0.02f * 0.1f } },
+            {}
+        }
+    },
+
     // 2D: I8 & I8
     {
         LayerTransformation::createParamsI8I8(),
@@ -542,7 +589,7 @@ std::vector<MatMullTransformationTestValues> testValues = {
             {},
             {}
         }
-    },
+    }
 };
 
 INSTANTIATE_TEST_CASE_P(
