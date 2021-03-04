@@ -18,7 +18,7 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::Node> node,
 
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::PSROIPooling> node,
                                     const InferenceEngine::InputInfo& info) {
-    const auto& inputShape = info.getInputData()->getDims();
+    const auto& inputShape = node->get_input_shape(0);
     if (inputShape.size() == 2) {
         InferenceEngine::Blob::Ptr blob;
         blob = make_blob_with_precision(info.getTensorDesc());
@@ -40,7 +40,7 @@ InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::PSROIP
 
 InferenceEngine::Blob::Ptr generate(const std::shared_ptr<ngraph::op::v0::ROIPooling> node,
                                     const InferenceEngine::InputInfo& info) {
-    const auto& inputShape = info.getInputData()->getDims();
+    const auto& inputShape = node->get_input_shape(0);
     if (inputShape.size() == 2) {
         InferenceEngine::Blob::Ptr blob;
         blob = make_blob_with_precision(info.getTensorDesc());
