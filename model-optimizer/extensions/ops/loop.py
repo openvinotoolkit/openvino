@@ -317,7 +317,7 @@ class Loop(TensorIterator):
     def parameter_unchanged_after_iteration(loop_node: Node, body_parameter: Node):
         """
         Checks if the body Parameter node is connected to some body Result and the data provided to Result is not
-        changed between iterations (so this function call is applicable for Parameters with back edges). The date is
+        changed between iterations (so this function call is applicable for Parameters with back edges). The data is
         considered unchanged if there are only Identity ops in between or Parameter is connected to Result directly.
 
         :param loop_node: the Loop node to check
