@@ -73,10 +73,6 @@ def apply_biases_to_last_layer(graph, counts):
         raise Error('No outputs were found')
 
     target_node = Node(graph, outputs_ids[0])
-
-    if target_node.op == 'Identity':
-        target_node = target_node.in_port(0).get_source().node
-
     if target_node.op == 'SoftMax':
         target_node = target_node.in_port(0).get_source().node
 

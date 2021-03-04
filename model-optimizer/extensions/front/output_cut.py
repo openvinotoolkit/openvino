@@ -32,3 +32,11 @@ class OutputCut(FrontReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         add_output_ops(graph, graph.graph['packed_outputs'], inputs=graph.graph['user_shapes'])
+
+        graph_stage = graph.stage
+        graph.stage = 'front'
+        for node in graph.get_op_nodes():
+            if node.soft_get('needs_removal') is True:
+                node.out_port(0).get_connection().set_source(node.in_port(0).get_source())
+                graph.remove_node(node.id)
+        graph.stage = graph_stage

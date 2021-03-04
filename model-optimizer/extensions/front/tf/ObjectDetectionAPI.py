@@ -1147,6 +1147,16 @@ class ObjectDetectionAPISSDPostprocessorReplacement(FrontReplacementFromConfigFi
         conv_nodes = backward_bfs_for_operation(detection_output_node.in_node(0), ['Conv2D'])
         swap_weights_xy(graph, conv_nodes)
 
+        # As outputs are replaced with a postprocessing node, outgoing tensor names are no longer
+        # correspond to original tensors and should be removed from output->Result edges
+        for out_idx in range(match.outputs_count()):
+            out_node = match.output_node(out_idx)[0]
+            if out_node.out_edges():
+                new_fw_info = []
+                for fw_info in out_node.out_edge(0)['fw_tensor_debug_info']:
+                    new_fw_info.append((fw_info[0], fw_info[1], None))
+                out_node.out_edge(0)['fw_tensor_debug_info'] = new_fw_info
+
         return {'detection_output_node': detection_output_node}
 
     @staticmethod
