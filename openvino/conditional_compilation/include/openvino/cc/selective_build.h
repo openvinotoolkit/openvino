@@ -70,8 +70,9 @@
 #include <openvino/pp.hpp>
 #include <openvino/itt.hpp>
 
-#define OV_CC_EXPAND(...) OV_PP_EXPAND(__VA_ARGS__)
-#define OV_CC_CAT(_0, _1) OV_PP_CAT(_0, _1)
+#define OV_CC_EXPAND OV_PP_EXPAND
+#define OV_CC_CAT OV_PP_CAT
+#define OV_CC_TOSTRING OV_PP_TOSTRING
 
 #ifdef SELECTIVE_BUILD_ANALYZER
 # include <string>
