@@ -25,7 +25,7 @@ from google.protobuf import text_format
 from google.protobuf.internal import api_implementation
 
 from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.utils.error import Error, FrameworkError
 from mo.utils.utils import refer_to_faq_msg
 
@@ -326,9 +326,12 @@ def caffe_pb_to_nx(graph, proto, model):
             continue
         fake_node_name = graph.unique_id(not_used_blob)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
-                       infer=copy_shape_infer)
+                       infer=copy_shape_infer, needs_removal=True)
         src_layer = blob_producers[not_used_blob][0]
         src_port = blob_producers[not_used_blob][1]
+        fake_node = Node(graph, fake_node_name)
+        fake_node.add_input_port(0)
+        fake_node.add_output_port(0)
         edge_attrs = {
             'out': blob_producers[not_used_blob][1],
             'in': 0,
