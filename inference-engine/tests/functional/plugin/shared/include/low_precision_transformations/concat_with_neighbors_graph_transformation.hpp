@@ -15,7 +15,9 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params> ConcatNeighboringGraphTransformationParams;
+    ngraph::pass::low_precision::LayerTransformation::Params,
+    std::pair<std::string, std::map<std::string, std::string>>>
+    ConcatNeighboringGraphTransformationParams;
 
 class ConcatWithNeighborsGraphTransformation :
     public testing::WithParamInterface<ConcatNeighboringGraphTransformationParams>,

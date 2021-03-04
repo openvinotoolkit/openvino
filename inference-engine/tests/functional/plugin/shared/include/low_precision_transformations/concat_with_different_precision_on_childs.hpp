@@ -24,7 +24,9 @@ typedef std::tuple<
     ConcatWithDifferentChildsTransformationParam,
     ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
     // multichannel
-    bool> ConcatWithDifferentChildsTransformationParams;
+    bool,
+    std::pair<std::string, std::map<std::string, std::string>>>
+    ConcatWithDifferentChildsTransformationParams;
 
 class ConcatWithDifferentChildsTransformation :
     public testing::WithParamInterface<ConcatWithDifferentChildsTransformationParams>,

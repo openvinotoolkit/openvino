@@ -21,9 +21,17 @@ std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(testing::Tes
     ngraph::Shape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::tie(precision, inputShapes, targetDevice, params) = obj.param;
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(precision, inputShapes, targetDevice, params, config) = obj.param;
 
-    return getTestCaseNameByParams(precision, inputShapes, targetDevice, params);
+    std::ostringstream result;
+    result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params);
+
+    if (!config.first.empty()) {
+        result << "_targetConfig=" << config.first;
+    }
+
+    return result.str();
 }
 
 InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -31,7 +39,8 @@ InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(netPrecision, inputShape, targetDevice, params, config) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2") && (info.name() != "input3")) {
         THROW_IE_EXCEPTION << "unexpected input name " << info.name();
@@ -45,7 +54,10 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
     ngraph::element::Type ngPrecision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::tie(ngPrecision, inputShape, targetDevice, params) = this->GetParam();
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(ngPrecision, inputShape, targetDevice, params, config) = this->GetParam();
+
+    configuration = config.second;
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithNeighbors(
         ngPrecision,
@@ -62,7 +74,8 @@ void ConcatWithNeighborsGraphTransformation::validate() {
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(netPrecision, inputShape, targetDevice, params, config) = this->GetParam();
 
     const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
     ASSERT_EQ(2ul, transformed->get_output_size());

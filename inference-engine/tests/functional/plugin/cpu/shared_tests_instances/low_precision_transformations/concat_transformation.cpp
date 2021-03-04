@@ -44,11 +44,14 @@ const std::vector<ngraph::Shape> shapes = {
     ngraph::Shape({ 4, 3, 16, 16 })
 };
 
+const std::pair<std::string, std::map<std::string, std::string>> config = {};
+
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(testValues),
+        ::testing::Values(config)),
     ConcatTransformation::getTestCaseName);
 }  // namespace

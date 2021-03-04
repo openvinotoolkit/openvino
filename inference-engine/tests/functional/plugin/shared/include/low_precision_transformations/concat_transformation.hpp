@@ -22,7 +22,9 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
     std::string,
-    ConcatTransformationTestValues> ConcatTransformationParams;
+    ConcatTransformationTestValues,
+    std::pair<std::string, std::map<std::string, std::string>>>
+    ConcatTransformationParams;
 
 class ConcatTransformation :
     public testing::WithParamInterface<ConcatTransformationParams>,

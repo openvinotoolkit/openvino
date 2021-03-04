@@ -21,7 +21,9 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
     std::string,
-    PReluTestValues> PReluTransformationParams;
+    PReluTestValues,
+    std::pair<std::string, std::map<std::string, std::string>>>
+    PReluTransformationParams;
 
 class PReluTransformation :
     public testing::WithParamInterface<PReluTransformationParams>,

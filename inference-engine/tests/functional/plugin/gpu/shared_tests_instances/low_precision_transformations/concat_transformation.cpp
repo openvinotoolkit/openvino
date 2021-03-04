@@ -34,11 +34,14 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     }
 };
 
+const std::pair<std::string, std::map<std::string, std::string>> config = {};
+
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(testValues),
+        ::testing::Values(config)),
     ConcatTransformation::getTestCaseName);
 }  // namespace

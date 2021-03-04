@@ -26,6 +26,8 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 const std::vector<bool> transparentIntermediateValues = { true, false };
 const std::vector<bool> multiChannelValues = { /*true,*/ false };
 
+const std::pair<std::string, std::map<std::string, std::string>> config = {};
+
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithIntermediateTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
@@ -33,6 +35,7 @@ INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithIntermediateTransformation,
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(transparentIntermediateValues),
-        ::testing::ValuesIn(multiChannelValues)),
+        ::testing::ValuesIn(multiChannelValues),
+        ::testing::Values(config)),
     ConcatWithIntermediateTransformation::getTestCaseName);
 }  // namespace

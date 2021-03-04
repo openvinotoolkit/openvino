@@ -18,7 +18,9 @@ typedef std::tuple<
     ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
     bool, // transparent intermediate
     // multichannel
-    bool> ConcatWithIntermediateTransformationParams;
+    bool,
+    std::pair<std::string, std::map<std::string, std::string>>>
+    ConcatWithIntermediateTransformationParams;
 
 class ConcatWithIntermediateTransformation :
     public testing::WithParamInterface<ConcatWithIntermediateTransformationParams>,

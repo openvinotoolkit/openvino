@@ -21,12 +21,18 @@ std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<ConcatT
     ngraph::Shape inputShapes;
     std::string targetDevice;
     ConcatTransformationTestValues testValues;
-    std::tie(precision, inputShapes, targetDevice, testValues) = obj.param;
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(precision, inputShapes, targetDevice, testValues, config) = obj.param;
 
     const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
 
     std::ostringstream result;
     result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params) << testValues.fqOnData1 << testValues.fqOnData2;
+
+    if (!config.first.empty()) {
+        result << "_targetConfig=" << config.first;
+    }
+
     return result.str();
 }
 
@@ -35,7 +41,8 @@ InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEn
     ngraph::element::Type netPrecision;
     std::string targetDevice;
     ConcatTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, testValues) = this->GetParam();
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(netPrecision, inputShape, targetDevice, testValues, config) = this->GetParam();
 
     const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
 
@@ -50,7 +57,10 @@ void ConcatTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     ngraph::element::Type precision;
     ConcatTransformationTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(precision, inputShape, targetDevice, testValues, config) = this->GetParam();
+
+    configuration = config.second;
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginal(
         precision,
@@ -66,7 +76,8 @@ void ConcatTransformation::validate() {
     ngraph::Shape inputShapes;
     std::string targetDevice;
     ConcatTransformationTestValues testValues;
-    std::tie(precision, inputShapes, targetDevice, testValues) = GetParam();
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(precision, inputShapes, targetDevice, testValues, config) = GetParam();
 
     const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));

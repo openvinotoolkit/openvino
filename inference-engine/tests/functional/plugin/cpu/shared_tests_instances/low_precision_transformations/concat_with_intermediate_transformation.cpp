@@ -31,6 +31,8 @@ const std::vector<ngraph::Shape> shapes = {
     { 4, 3, 16, 16 }
 };
 
+const std::pair<std::string, std::map<std::string, std::string>> config = {};
+
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithIntermediateTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
@@ -38,6 +40,7 @@ INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithIntermediateTransformation,
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(transparentIntermediateValues),
-        ::testing::ValuesIn(multiChannelValues)),
+        ::testing::ValuesIn(multiChannelValues),
+        ::testing::Values(config)),
     ConcatWithIntermediateTransformation::getTestCaseName);
 }  // namespace

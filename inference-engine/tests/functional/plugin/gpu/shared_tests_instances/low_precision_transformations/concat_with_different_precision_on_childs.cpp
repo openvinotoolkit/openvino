@@ -45,6 +45,8 @@ const std::vector<ConcatWithDifferentChildsTransformationParam> testValues = {
 
 const std::vector<bool> multiChannel = { true/*, false*/ };
 
+const std::pair<std::string, std::map<std::string, std::string>> config = {};
+
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithDifferentChildsTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
@@ -52,6 +54,7 @@ INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithDifferentChildsTransformation,
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(testValues),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(multiChannel)),
+        ::testing::ValuesIn(multiChannel),
+        ::testing::Values(config)),
     ConcatWithDifferentChildsTransformation::getTestCaseName);
 }  // namespace

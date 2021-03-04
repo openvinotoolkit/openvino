@@ -23,12 +23,15 @@ std::vector<PReluTestValues> testValues = {
     { { 256ul, ngraph::Shape({}), {-12.8f / 2.f}, {12.7f}, {-12.8f / 2.f}, {12.7f} }, true }
 };
 
+const std::pair<std::string, std::map<std::string, std::string>> config = {};
+
 // PRelu in low precision is not supported in GPU
 INSTANTIATE_TEST_CASE_P(DISABLED_LPT, PReluTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(testValues)),
+        ::testing::ValuesIn(testValues),
+        ::testing::Values(config)),
     PReluTransformation::getTestCaseName);
 }  // namespace

@@ -20,13 +20,18 @@ std::string PReluTransformation::getTestCaseName(testing::TestParamInfo<PReluTra
     ngraph::Shape inputShape;
     std::string targetDevice;
     PReluTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = obj.param;
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(precision, inputShape, targetDevice, testValues, config) = obj.param;
 
     std::ostringstream result;
     result <<
         precision << "_" <<
         targetDevice << "_" <<
         testValues.fakeQuantize;
+
+    if (!config.first.empty()) {
+        result << "_targetConfig=" << config.first;
+    }
 
     return result.str();
 }
@@ -36,7 +41,8 @@ InferenceEngine::Blob::Ptr PReluTransformation::GenerateInput(const InferenceEng
     ngraph::Shape inputShape;
     std::string targetDevice;
     PReluTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(precision, inputShape, targetDevice, testValues, config) = this->GetParam();
 
     const auto fqOnData = testValues.fakeQuantize;
     return FuncTestUtils::createAndFillBlobConsistently(
@@ -50,9 +56,12 @@ void PReluTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::Shape inputShape;
     PReluTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(precision, inputShape, targetDevice, testValues, config) = this->GetParam();
 
     function = ngraph::builder::subgraph::PReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
+
+    configuration = config.second;
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
     validate();
@@ -63,7 +72,8 @@ void PReluTransformation::validate() {
     ngraph::Shape inputShape;
     std::string targetDevice;
     PReluTestValues testValues;
-    std::tie(precision, inputShape, targetDevice, testValues) = this->GetParam();
+    std::pair<std::string, std::map<std::string, std::string>> config;
+    std::tie(precision, inputShape, targetDevice, testValues, config) = this->GetParam();
 
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     const auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
