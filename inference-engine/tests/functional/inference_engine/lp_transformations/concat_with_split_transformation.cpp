@@ -259,9 +259,8 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     },
 };
 
-// TODO: Split/VariadicSplit operations are not supported in ConcatTransformation
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_smoke_LPT,
+    smoke_LPT,
     ConcatWithSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
