@@ -178,10 +178,10 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         }
 
         // graph update
-        std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
+        std::vector<Output<Node>> inputs{ {}, {} };
         auto fullPathInput = dequantizationFullPath.convert == nullptr ? dequantizationFullPath.data : dequantizationFullPath.convert;
 
-        inputs[emptyPathIndex] = dequantizationEmptyPath.data.get_node_shared_ptr();
+        inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<DequantizationMultiply>(
             newSubtractFullPathValues == nullptr ?
                 fullPathInput :
