@@ -13,7 +13,7 @@ As a first step input tensors *a* and *b* are broadcasted if their shapes differ
 o_{i} = a_{i} % b_{i}
 \f]
 
-*Mod* operation computes a reminder of a truncated division. It is the same behaviour like in C programming language: `truncated(x / y) * y + truncated_mod(x, y) = x`. The sign of the result is equal to a sign of a dividend.
+*Mod* operation computes a reminder of a truncated division. It is the same behaviour like in C programming language: `truncated(x / y) * y + truncated_mod(x, y) = x`. The sign of the result is equal to a sign of a dividend. Division by zero is undefined.
 
 **Attributes**:
 
