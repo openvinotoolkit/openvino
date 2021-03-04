@@ -20,25 +20,4 @@
 
 namespace py = pybind11;
 
-class InferQueue
-{
-public:
-    explicit InferQueue(InferenceEngine::ExecutableNetwork& net, size_t id, QueueCallbackFunction callbackQueue) :
-        _request(net.CreateInferRequest()),
-        _id(id),
-        _callbackQueue(callbackQueue) {
-        _request.SetCompletionCallback(
-                [&]() {
-                    _endTime = Time::now();
-                    _callbackQueue(_id, getExecutionTimeInMilliseconds());
-                });
-    }
-
-    void infer(size_t id, py::dict data);
-    void start();
-    void set_infer_callback();
-
-private:
-}
-
 void regclass_InferQueue(py::module m);

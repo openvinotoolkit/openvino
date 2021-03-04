@@ -55,10 +55,6 @@ void regclass_InferRequest(py::module m)
         }
     });
     cls.def("set_batch", &InferenceEngine::InferRequest::SetBatch);
-    cls.def(
-        "set_completion_callback",
-        &InferenceEngine::InferRequest::SetCompletionCallback<std::function<void(
-            InferenceEngine::InferRequest, InferenceEngine::StatusCode)>>);
     cls.def("infer", &InferenceEngine::InferRequest::Infer);
     cls.def("async_infer",
             &InferenceEngine::InferRequest::StartAsync,
@@ -67,7 +63,14 @@ void regclass_InferRequest(py::module m)
             &InferenceEngine::InferRequest::Wait,
             py::arg("millis_timeout") = InferenceEngine::IInferRequest::WaitMode::RESULT_READY,
             py::call_guard<py::gil_scoped_acquire>());
-
+    cls.def("set_completion_callback",
+            [](InferenceEngine::InferRequest* self, py::function f_callback) {
+                self->SetCompletionCallback([f_callback]() {
+                    py::gil_scoped_acquire acquire;
+                    f_callback();
+                    py::gil_scoped_release release;
+                });
+            });
     //    cls.def_property_readonly("input_blobs", [](){
     //
     //    });
