@@ -68,7 +68,7 @@ std::wstring multiByteCharToWString(const char* str) {
 #endif  // _WIN32
 }
 #endif  // ENABLE_UNICODE_PATH_SUPPORT
-#if 0
+
 static std::vector<unsigned char> loadBinaryFromFile(std::string path) {
     std::lock_guard<std::mutex> lock(cacheAccessMutex);
 
@@ -110,7 +110,7 @@ static void saveBinaryToFile(std::string path, const std::vector<unsigned char> 
         out_file.write(reinterpret_cast<const char*>(&buffer[0]), buffer.size());
     }
 }
-#endif
+
 std::string get_undef_jit(cldnn::gpu::kernels_cache::source_code org_source_code) {
     const std::string white_space_with_new_lines = " \t\r\n";
     const std::string white_space = " \t";
@@ -296,7 +296,7 @@ kernels_cache::kernel_id kernels_cache::set_kernel_source(
     }
     return id;
 }
-#if 0
+
 static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     // Get the size of the program binary in bytes.
     std::vector<size_t> binary_sizes = program.getInfo<CL_PROGRAM_BINARY_SIZES>();
@@ -312,13 +312,12 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     // Get program binary.
     return program.getInfo<CL_PROGRAM_BINARIES>().front();
 }
-#endif
-class ThreadPool {
+
+class Semaphore {
 public:
-    explicit ThreadPool(size_t max_count) : max_count(max_count), cur_count(0) {}
+    explicit Semaphore(size_t max_count) : max_count(max_count), cur_count(0) {}
     size_t get_count() const { return max_count; }
-    void create() {
-        //std::lock_guard<std::mutex> lock(mutex);
+    void lock() {
         std::unique_lock<std::mutex> lock(mutex);
         condition.wait(lock, [this] { return (cur_count + 1 <= max_count); });
         ++cur_count;
@@ -335,139 +334,117 @@ private:
     size_t cur_count;
 };
 
-void kernels_cache::build_program(const program_code& program_source, std::vector<std::future<kernels_map>> *builds,
-        ThreadPool* threads, size_t batch_id, size_t bucket_id) const {
+class BatchBuilder {
+public:
+    explicit BatchBuilder(Semaphore &s) : s{s} {
+        s.lock();
+    }
+    ~BatchBuilder() {
+        s.release();
+    }
+private:
+    Semaphore& s;
+};
+
+kernels_cache::kernels_map kernels_cache::build_batch(const program_code& program_source,
+       size_t batch_id, size_t program_id) const {
     OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram");
 
     bool dump_sources = !_context.get_configuration().ocl_sources_dumps_dir.empty() || program_source.dump_custom_program;
 
-    std::string dump_file_name = "";
+    kernels_map kmap;
+    std::string current_dump_file_name = "";
     if (dump_sources) {
-        dump_file_name = _context.get_configuration().ocl_sources_dumps_dir;
-        if (!dump_file_name.empty() && dump_file_name.back() != '/')
-            dump_file_name += '/';
+        current_dump_file_name = _context.get_configuration().ocl_sources_dumps_dir;
+        if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
+            current_dump_file_name += '/';
 
-        dump_file_name += "clDNN_program_" + std::to_string(bucket_id) + "_part_";
+        current_dump_file_name += "clDNN_program_" + std::to_string(program_id) + "_part_" + std::to_string(batch_id) + ".cl";
     }
-
     try {
         std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
-                              // failed to compile)
-        //     uint32_t part_idx = 0;
-        builds->push_back(std::async(std::launch::async, [&] (size_t batch_id, const program_code& program_source, ThreadPool* threads)->kernels_map {
-                    //                auto start_each_batch = std::chrono::high_resolution_clock::now();
-                    threads->create();
-                    auto sources_bucket_to_compile = program_source.source[batch_id];
-                    const auto& hash_value = program_source.hash_values[batch_id];
-                    std::string cached_bin_name = get_cache_path() + std::to_string(hash_value) + ".cl_cache";
-                    cl::Program::Binaries precompiled_kernels = {};
-#if 0
-                    if (is_cache_enabled()) {
-                        printf("cache enabled\n");
-                        // Try to load file with name ${hash_value}.cl_cache which contains precompiled kernels for current bucket
-                        // If read is successful, then remove kernels from compilation bucket
-                        auto bin = loadBinaryFromFile(cached_bin_name);
-                        if (!bin.empty()) {
-                        precompiled_kernels.push_back(bin);
-                        }
-                    }
-                    std::string current_dump_file_name = "";
-                    {
-                        std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
-                        //                    current_dump_file_name = dump_file_name + std::to_string(part_idx++) + ".cl";
-                        current_dump_file_name = dump_file_name + std::to_string(batch_id) + ".cl";
-                    }
-                    std::ofstream dump_file;
-                    if (dump_sources) {
-                        printf("dump_sources\n");
-                        dump_file.open(current_dump_file_name);
-                        if (dump_file.good()) {
-                            for (auto& s : sources_bucket_to_compile)
-                                dump_file << s;
-                        }
-                    }
-#endif
-                    kernels_map kmap;
-                    try {
-                        cl::vector<cl::Kernel> kernels;
-                        // Run compilation
-                        if (precompiled_kernels.empty()) {
-                            cl::Program program(_context.context(), sources_bucket_to_compile);
-                            {
-                                OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram::RunCompilation");
-                                program.build(_context.device(), program_source.options.c_str());
-                            }
-#if 0
-                            if (dump_sources && dump_file.good()) {
-                                dump_file << "\n/* Build Log:\n";
-                                for (auto& p : program.getBuildInfo<CL_PROGRAM_BUILD_LOG>())
-                                    dump_file << p.second << "\n";
+        // failed to compile)
+        auto sources_bucket_to_compile = program_source.source[batch_id];
+        const auto& hash_value = program_source.hash_values[batch_id];
+        std::string cached_bin_name = get_cache_path() + std::to_string(hash_value) + ".cl_cache";
+        cl::Program::Binaries precompiled_kernels = {};
 
-                                dump_file << "*/\n";
-                            }
-#endif
-                            program.createKernels(&kernels);
-#if 0
-                            if (is_cache_enabled()) {
-                                // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
-                                // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
-                                // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
-                                // compile time.
-                                saveBinaryToFile(cached_bin_name, getProgramBinaries(program));
-                            }
-#endif
-                        } else {
-                            printf("never to be here!\n");
-#if 0
-                            cl::Program program(_context.context(), {_context.device()}, precompiled_kernels);
-                            program.build(_context.device(), program_source.options.c_str());
-                            program.createKernels(&kernels);
-#endif
-                        }
-                        {
-                            //                        std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
-                            for (auto& k : kernels) {
-                                auto kernel_name = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-                                kmap.emplace(kernel_name, kernels_cache::kernel_type(k, _context.get_device_info().supports_usm));
-                            }
-                        }
-                        threads->release();
-                        return kmap;
-                    } catch (const cl::BuildError& err) {
-#if 0
-                        if (dump_sources && dump_file.good())
-                            dump_file << "\n/* Build Log:\n";
-#endif
-                        {
-                            std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
-                            for (auto& p : err.getBuildLog()) {
-#if 0
-                                if (dump_sources && dump_file.good())
-                                    dump_file << p.second << "\n";
-#endif
-                                err_log += p.second + '\n';
-                            }
-                        }
-#if 0
-                        if (dump_sources && dump_file.good())
-                            dump_file << "*/\n";
-#endif
-                    }
-                    //                auto end_each_batch = std::chrono::high_resolution_clock::now();
-                    //                auto total_each_batch = std::chrono::duration_cast<std::chrono::milliseconds>(end_each_batch - start_each_batch);
-                    //                std::cout << "[ INFO ] Build batch in bucket took "  << total_each_batch.count() << " ms" << std::endl;
-                    threads->release();
-                    return kmap;
-        }, batch_id, program_source, threads));
+        if (is_cache_enabled()) {
+            // Try to load file with name ${hash_value}.cl_cache which contains precompiled kernels for current bucket
+            // If read is successful, then remove kernels from compilation bucket
+            auto bin = loadBinaryFromFile(cached_bin_name);
+            if (!bin.empty()) {
+                precompiled_kernels.push_back(bin);
+            }
+        }
+        std::ofstream dump_file;
+        if (dump_sources) {
+            dump_file.open(current_dump_file_name);
+            if (dump_file.good()) {
+                for (auto& s : sources_bucket_to_compile)
+                    dump_file << s;
+            }
+        }
+        try {
+            cl::vector<cl::Kernel> kernels;
+            // Run compilation
+            if (precompiled_kernels.empty()) {
+                cl::Program program(_context.context(), sources_bucket_to_compile);
+                {
+                    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "KernelsCache::BuildProgram::RunCompilation");
+                    program.build(_context.device(), program_source.options.c_str());
+                }
+
+                if (dump_sources && dump_file.good()) {
+                    dump_file << "\n/* Build Log:\n";
+                    for (auto& p : program.getBuildInfo<CL_PROGRAM_BUILD_LOG>())
+                        dump_file << p.second << "\n";
+
+                    dump_file << "*/\n";
+                }
+
+                program.createKernels(&kernels);
+
+                if (is_cache_enabled()) {
+                    // If kernels caching is enabled, then we save compiled bucket to binary file with name ${code_hash_value}.cl_cache
+                    // Note: Bin file contains full bucket, not separate kernels, so kernels reuse across different models is quite limited
+                    // Bucket size can be changed in get_max_kernels_per_batch() method, but forcing it to 1 will lead to much longer
+                    // compile time.
+                    saveBinaryToFile(cached_bin_name, getProgramBinaries(program));
+                }
+            } else {
+                cl::Program program(_context.context(), {_context.device()}, precompiled_kernels);
+                program.build(_context.device(), program_source.options.c_str());
+                program.createKernels(&kernels);
+            }
+            {
+                //                        std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
+                for (auto& k : kernels) {
+                    auto kernel_name = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+                    kmap.emplace(kernel_name, kernels_cache::kernel_type(k, _context.get_device_info().supports_usm));
+                }
+            }
+        } catch (const cl::BuildError& err) {
+            if (dump_sources && dump_file.good())
+                dump_file << "\n/* Build Log:\n";
+
+            for (auto& p : err.getBuildLog()) {
+                if (dump_sources && dump_file.good())
+                    dump_file << p.second << "\n";
+                err_log += p.second + '\n';
+            }
+            if (dump_sources && dump_file.good())
+                dump_file << "*/\n";
+        }
         if (!err_log.empty()) {
             static const size_t max_msg_length = 128;
             std::string short_err_log(err_log, 0, std::min(err_log.length(), max_msg_length));
             throw std::runtime_error("Program build failed:\n" + std::move(short_err_log));
         }
-        return;
-} catch (const cl::Error& err) {
-    throw ocl_error(err);
-}
+        return kmap;
+    } catch (const cl::Error& err) {
+        throw ocl_error(err);
+    }
 }
 
 kernels_cache::kernel_type kernels_cache::get_kernel(kernel_id id, bool one_time_kernel) {
@@ -475,8 +452,7 @@ kernels_cache::kernel_type kernels_cache::get_kernel(kernel_id id, bool one_time
     if (one_time_kernel) {
         return _one_time_kernels.at(id);
     } else {
-        auto kernel = _kernels.at(id);
-        return kernel;
+        return _kernels.at(id);
     }
 }
 
@@ -490,46 +466,41 @@ void kernels_cache::build_all() {
         sorted_program_code = get_program_source(_kernels_code);
         _one_time_kernels.clear();
     }
-    ThreadPool max_threads(4);
+    Semaphore max_threads(4);
     std::cout << "Build all ===========================" << std::endl;
     std::cout << "sorted_program_code.size() = " << sorted_program_code.size() << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
-    std::vector<std::future<kernels_map>> builds;
-//    size_t  t_iter = 0;
+    std::vector<std::future<void>> builds;
     std::vector<program_code> programs;
 
     int numKernels = 0;
-    size_t n_total_threads = 0;
-    size_t bucket_id = 0;
-    std::for_each(sorted_program_code.begin(), sorted_program_code.end(), [&] (const std::pair<std::string, program_code>&  p) {
-        n_total_threads += p.second.source.size();});
+    size_t program_id = 0;
     for (auto& program : sorted_program_code) {
         for (size_t batch_id = 0; batch_id < program.second.source.size(); ++batch_id) {
             programs.push_back(program.second);
-            build_program(program.second, &builds, &max_threads, batch_id, bucket_id);
+            builds.push_back(std::async(std::launch::async, [&]
+                (Semaphore& max_threads, std::pair<std::string, program_code> program, size_t program_id, size_t batch_id) {
+                BatchBuilder b(max_threads);
+                auto kmap = build_batch(program.second, batch_id, program_id);
+                std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
+                for (auto k : kmap) {
+                    const auto& entry_point = k.first;
+                    const auto& k_id = program.second.entry_point_to_id[entry_point];
+                    if (program.second.one_time) {
+                    _one_time_kernels[k_id] = k.second;
+                    } else {
+                        _kernels[k_id] = k.second;
+                        numKernels++;
+                    }
+                }
+            }, std::ref(max_threads), program, program_id, batch_id));
         }
-        bucket_id++;
+        program_id++;
     }
 
-    int pid = 0;
-    std::for_each(builds.begin(), builds.end(), [&] (std::future<kernels_map>& f){
-        kernels_map kmap = f.get();
-        std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
-        for (auto k : kmap) {
-            const auto& entry_point = k.first;
-            const auto& k_id = programs[pid].entry_point_to_id[entry_point];
-            if (programs[pid].one_time) {
-                _one_time_kernels[k_id] = k.second;
-            } else {
-                _kernels[k_id] = k.second;
-                numKernels++;
-            }
-        }
-        pid++;
+    std::for_each(builds.begin(), builds.end(), [&] (std::future<void>& f){
+        f.wait();
     });
-
-    builds.clear();
-    programs.clear();
 
     std::cout << "[ INFO ] Total number of kernels in _kernels "  << numKernels << std::endl;
 
