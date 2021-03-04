@@ -20,6 +20,7 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(PRECISION), Precision(Precision::I16).name()},
     {GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN), CONFIG_VALUE(NO)},
+    {GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "1.000000"},
     {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO)},
     {GNA_CONFIG_KEY(LIB_N_THREADS), "1"},
     {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)}
@@ -151,6 +152,17 @@ TEST_F(GNAPluginConfigTest, GnaConfigPrecisionTest) {
 TEST_F(GNAPluginConfigTest, GnaConfigPwlUniformDesignTest) {
     SetAndCheckFlag(GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN),
                     config.gnaFlags.uniformPwlDesign);
+}
+
+TEST_F(GNAPluginConfigTest, GnaConfigPwlMaxErrorPercentTest) {
+    SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("0.100000"));
+    EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 0.1f);
+    SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("1.000000"));
+    EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 1);
+    SetAndCompare(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), std::string("5.000000"));
+    EXPECT_FLOAT_EQ(config.gnaFlags.pwlMaxErrorPercent, 5);
+    ExpectThrow(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "-1");
+    ExpectThrow(GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT), "100.1");
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPerfCountTest) {

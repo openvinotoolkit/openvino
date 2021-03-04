@@ -24,27 +24,57 @@ public:
     int32_t GetLevels() const {
         return levels;
     }
-    void SetMinValues(const std::vector<float> &min) {
-        min_values.clear();
-        min_values.insert(min_values.end(), min.begin(), min.end());
+    bool IsStatsSet() const {
+        return !input_min_values.empty() && !input_max_values.empty();
     }
-    const std::vector<float>& GetMinValues() const {
-        return min_values;
+    void SetMinValues(const std::vector<float> &min, bool input = true) {
+        if (input) {
+            input_min_values.clear();
+            input_min_values.insert(input_min_values.end(), min.begin(), min.end());
+        } else {
+            output_min_values.clear();
+            output_min_values.insert(output_min_values.end(), min.begin(), min.end());
+        }
     }
-    void SetMaxValues(const std::vector<float>& max) {
-        max_values.clear();
-        max_values.insert(max_values.end(), max.begin(), max.end());
+    std::vector<float>& GetMinValues(bool input = true) {
+        if (input) {
+            return input_min_values;
+        }
+
+        return output_min_values;
     }
-    const std::vector<float>& GetMaxValues() const {
-        return max_values;
+    void SetMaxValues(const std::vector<float>& max, bool input = true) {
+        if (input) {
+            input_max_values.clear();
+            input_max_values.insert(input_max_values.end(), max.begin(), max.end());
+        } else {
+            output_max_values.clear();
+            output_max_values.insert(output_max_values.end(), max.begin(), max.end());
+        }
+    }
+    std::vector<float>& GetMaxValues(bool input = true) {
+        if (input) {
+            return input_max_values;
+        }
+
+        return output_max_values;
+    }
+    void CopyStats(Quantization &src) {
+        levels = src.GetLevels();
+        SetMinValues(src.GetMinValues(true), true);
+        SetMaxValues(src.GetMaxValues(true), true);
+        SetMinValues(src.GetMinValues(false), false);
+        SetMaxValues(src.GetMaxValues(false), false);
     }
 
 private:
     float scale = 1.0f;
     bool scale_set = false;
     int32_t levels = 0;
-    std::vector<float> min_values;
-    std::vector<float> max_values;
+    std::vector<float> input_min_values;
+    std::vector<float> input_max_values;
+    std::vector<float> output_min_values;
+    std::vector<float> output_max_values;
 };
 
 struct QuantizedLayerParams {
@@ -53,7 +83,6 @@ struct QuantizedLayerParams {
 
     // deprecate this
     Quantization _weights_quant;
-    bool _weights_quantized = false;
     Quantization _bias_quant;
     float _o_shift = 0.0f;
     float _b_shift = 0.0f;

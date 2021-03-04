@@ -7,6 +7,7 @@
 #include <vector>
 #include <utility>
 #include <string>
+#include <type_traits>
 
 #include <legacy/layer_transform.hpp>
 #include "gna_graph_tools.hpp"
@@ -77,7 +78,8 @@ class ModelQuantizer {
             scaleIndex++;
         }
 
-        propagateScaleFactor(sortedNewNet, T::mandatory().getWeightsPrecision().size());
+        bool isFakeQuantize = std::is_same<T, FakeQuantI8>() || std::is_same<T, FakeQuantI16>();
+        propagateScaleFactor(sortedNewNet, T::mandatory().getWeightsPrecision().size(), isFakeQuantize);
 
         // sorted order gives possibility for propagate quantisation along depended layers
         for (auto &&layer : sortedNewNet) {
@@ -88,8 +90,8 @@ class ModelQuantizer {
     }
 
  private :
-    void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr> & net, int weightsBytesSize) const {
-        ScaleFactorCalculator sf(net, weightsBytesSize);
+    void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr> & net, int weightsBytesSize, bool fakeQuantize) const {
+        ScaleFactorCalculator sf(net, weightsBytesSize, fakeQuantize);
 
         while (!sf.allLayersProcessed()) {
             for (auto &&layer : sf.getStartLayers()) {

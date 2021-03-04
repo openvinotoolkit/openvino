@@ -23,6 +23,7 @@
 #include "gna_plugin_policy.hpp"
 #include "gna_plugin_log.hpp"
 #include "gna_plugin_config.hpp"
+#include <legacy/ie_util_internal.hpp>
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -237,6 +238,11 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      * @param layers model sorted layers
      */
     void ConvertModelLayoutFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr> &layers);
+#ifdef PLOT
+    void AddDebugProperties(const InferenceEngine::CNNLayerPtr layer,
+        InferenceEngine::ordered_properties& printed_properties,
+        InferenceEngine::ordered_properties& node_properties);
+#endif
 };
 
 }  // namespace GNAPluginNS
