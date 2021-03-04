@@ -67,10 +67,9 @@ NGRAPH_TEST(${BACKEND_NAME}, experimental_detectron_detection_output_eval)
 
     auto detection = std::make_shared<ExperimentalDO>(rois, deltas, scores, im_info, attrs);
 
-    auto f = make_shared<Function>(OutputVector{detection->output(0),
-                                                detection->output(1),
-                                                detection->output(2)},
-                                   ParameterVector{rois, deltas, scores, im_info});
+    auto f = make_shared<Function>(
+        OutputVector{detection->output(0), detection->output(1), detection->output(2)},
+        ParameterVector{rois, deltas, scores, im_info});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
