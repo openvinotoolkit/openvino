@@ -4,10 +4,10 @@
 
 **Category**: Arithmetic binary operation
 
-**Short description**: *Maximum* performs element-wise maximum operation with two given tensors applying multi-directional broadcast rules.
+**Short description**: *Maximum* performs element-wise maximum operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute.
 
 **Detailed description**
-As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *maximum* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
+As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *Maximum* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
 
 After broadcasting *Maximum* does the following with the input tensors *a* and *b*:
 
@@ -21,8 +21,8 @@ o_{i} = max(a_{i}, b_{i})
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules](../broadcast_rules.md)</a>.
+    * *none* - no auto-broadcasting is allowed, all input shapes must match
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
@@ -42,7 +42,7 @@ o_{i} = max(a_{i}, b_{i})
 
 **Examples**
 
-*Example 1 - no broadcsting*
+*Example 1 - no broadcasting*
 
 ```xml
 <layer ... type="Maximum">
