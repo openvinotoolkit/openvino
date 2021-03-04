@@ -9,7 +9,7 @@ networkx==2.2
 tqdm==4.31.1
 texttable==1.6.3
 py-cpuinfo!=5.0,!=6.0
-PyYAML>=5.4.2
+PyYAML>=5.4.1
 pillow>=8.1.0
 scikit-image
 scikit-learn
