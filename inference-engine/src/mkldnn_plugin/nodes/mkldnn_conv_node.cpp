@@ -300,6 +300,7 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 // for input of inplace tensor precision) to FP32. This will add reorder for that in-place tensor
                 // bofore the fused convolution. This behaviour might be more correct regarding expected markup
                 // of the graph but performance of first and second approaches might be different. Need to verify
+                eltwisePrecision = eltwisePrecision == Precision::BF16 ? Precision::BF16 : Precision::FP32;
                 outputDataType = eltwisePrecision == Precision::BF16 ? memory::data_type::bf16 : memory::data_type::f32;
             }
         }
