@@ -181,6 +181,7 @@ def load_kalid_nnet1_model(graph, file_descr, name):
             continue
         fake_node_name = graph.unique_id(output)
         fake_node = Node(graph, fake_node_name)
+        Node(graph, output).add_output_port(0)
         fake_node.add_input_port(0)
         fake_node.add_output_port(0)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
@@ -217,6 +218,7 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
             continue
         fake_node_name = graph.unique_id(output)
         fake_node = Node(graph, fake_node_name)
+        Node(graph, output).add_output_port(0)
         fake_node.add_input_port(0)
         fake_node.add_output_port(0)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',

@@ -329,6 +329,7 @@ def caffe_pb_to_nx(graph, proto, model):
                        infer=copy_shape_infer, needs_removal=True)
         src_layer = blob_producers[not_used_blob][0]
         src_port = blob_producers[not_used_blob][1]
+        Node(graph, not_used_blob).add_output_port(0)
         fake_node = Node(graph, fake_node_name)
         fake_node.add_input_port(0)
         fake_node.add_output_port(0)
