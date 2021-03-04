@@ -74,7 +74,7 @@ void op::v7::DFT::validate_and_infer_types()
     element::Type axes_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           axes_et == element::i64 || axes_et == element::i32 ||
-                              sizes_et == element::u32 || sizes_et == element::u64,
+                              axes_et == element::u32 || axes_et == element::u64,
                           "Axes element type must be i32, i64, u32 or u64");
 
     if (input_values().size() == 3)
