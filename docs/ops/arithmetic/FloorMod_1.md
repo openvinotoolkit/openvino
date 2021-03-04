@@ -4,16 +4,16 @@
 
 **Category**: Arithmetic binary operation
 
-**Short description**: *FloorMod* performs an element-wise floor modulo operation with two given tensors applying multi-directional broadcast rules. 
+**Short description**: *FloorMod* performs an element-wise floor modulo operation with two given tensors applying broadcasting rule specified in the *auto_broadcast* attribute. 
 
 **Detailed description**
-As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *floor modulo* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
+As a first step input tensors *a* and *b* are broadcasted if their shapes differ. Broadcasting is performed according to `auto_broadcast` attribute specification. As a second step *FloorMod* operation is computed element-wise on the input tensors *a* and *b* according to the formula below:
 
 \f[
 o_{i} = a_{i} % b_{i}
 \f] 
 
-Floor modulo operation computes a reminder of a floored division. It is the same behaviour like in Python programming language: `floor(x / y) * y + floor_mod(x, y) = x`. The sign of the result is equal to a sign of a dividend.
+*FloorMod* operation computes a reminder of a floored division. It is the same behaviour like in Python programming language: `floor(x / y) * y + floor_mod(x, y) = x`. The sign of the result is equal to a sign of a dividend.
 
 **Attributes**:
 
@@ -21,8 +21,8 @@ Floor modulo operation computes a reminder of a floored division. It is the same
 
   * **Description**: specifies rules used for auto-broadcasting of input tensors.
   * **Range of values**:
-    * *none* - no auto-broadcasting is allowed, all input shapes should match
-    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules](../broadcast_rules.md)</a>.
+    * *none* - no auto-broadcasting is allowed, all input shapes must match
+    * *numpy* - numpy broadcasting rules, description is available in [Broadcast Rules For Elementwise Operations](../broadcast_rules.md)
   * **Type**: string
   * **Default value**: "numpy"
   * **Required**: *no*
@@ -42,7 +42,7 @@ Floor modulo operation computes a reminder of a floored division. It is the same
 
 **Examples**
 
-*Example 1 - no broadcsting*
+*Example 1 - no broadcasting*
 
 ```xml
 <layer ... type="FloorMod">
