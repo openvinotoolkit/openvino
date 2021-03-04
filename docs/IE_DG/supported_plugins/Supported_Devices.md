@@ -111,7 +111,7 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | Acosh                          | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
 | Activation-Clamp               | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Activation-ELU                 | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
-| Activation-Exp                 | Supported     |Supported\*\*\*| Not Supported | Supported     | Supported     |
+| Activation-Exp                 | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Activation-Leaky ReLU          | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Activation-Not                 | Supported     |Supported\*\*\*| Not Supported | Not Supported | Supported     |
 | Activation-PReLU               | Supported     |Supported\*\*\*| Supported     | Not Supported | Supported     |
@@ -167,7 +167,7 @@ The following layers are supported by the plugins and by [Shape Inference featur
 | Eltwise-Sub                    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Eltwise-Sum                    | Supported     |Supported\*\*\*| Supported     | Supported     | Supported     |
 | Erf                            | Supported     | Supported\*\* | Not Supported | Not Supported | Supported     |
-| Exp                            | Supported     | Supported     | Not Supported | Supported     | Supported     |
+| Exp                            | Supported     | Supported     | Supported     | Supported     | Supported     |
 | FakeQuantize                   | Not Supported | Supported     | Not Supported | Not Supported | Supported     |
 | Fill                           | Not Supported | Supported\*\* | Not Supported | Not Supported | Supported     |
 | Flatten                        | Supported     | Supported     | Supported     | Not Supported | Supported     |
