@@ -8,6 +8,10 @@ Broadcast allows to perform element-wise operation for inputs with different sha
 
 ## Rules
 
+**None broadcast**:
+1. Input tensors dimensions must match.
+2. No implicit broadcast rule is applied.
+
 **Numpy broadcast**:
 1. Right aligned dimensions of the two tensors are compared elementwise.
 2. Smaller tensor is prepended with dimension(s) of size 1 in order to have the same shape as the larger tensor.
@@ -25,11 +29,20 @@ Broadcast allows to perform element-wise operation for inputs with different sha
    * *desired* shape contains dimensions of size 1,
    * *desired* shape rank is smaller than the rank of input tensor.
 
+**PDPD broadcast**:
+1. First input tensor A is of any rank, second input B has rank smaller or equal to the first input.
+2. Input tensor B is a continuous subsequence of input A.
+3. Apply broadcast B to match the shape of A, where provided *axis* is the start dimension index
+   for broadcasting B onto A.
+4. If *axis* is set to default (-1) calculate new value: `axis = rank(A) - rank(B)`.
+5. The trailing dimensions of size 1 for input B will be ignored for the consideration of
+   subsequence, such as shape(B) = (3, 1) => (3).
+
 ## Examples
 
-*      `A: Shape() -> scalar`
-       `B: Shape() -> scalar`
-  `Result: Shape() -> scalar`
+*      `A: Shape(,) -> scalar`
+       `B: Shape(,) -> scalar`
+  `Result: Shape(,) -> scalar`
 
 *      `A: Shape(2, 3)`
        `B: Shape(   1)`
@@ -40,7 +53,7 @@ Broadcast allows to perform element-wise operation for inputs with different sha
   `Result: Shape(2, 3)`
 
 *      `A: Shape(2, 3, 5)`
-       `B: Shape() -> scalar`
+       `B: Shape(,) -> scalar`
   `Result: Shape(2, 3, 5)`
 
 *      `A: Shape(2, 1, 5)`
