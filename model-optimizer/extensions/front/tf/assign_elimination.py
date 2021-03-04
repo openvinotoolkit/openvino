@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,11 +16,8 @@
 
 import logging as log
 
-import networkx as nx
-
-from mo.front.common.replacement import FrontReplacementPattern, FrontReplacementOp
+from mo.front.common.replacement import FrontReplacementPattern
 from mo.graph.graph import Graph
-from mo.utils.error import Error
 
 
 class AssignElimination(FrontReplacementPattern):
@@ -28,21 +25,7 @@ class AssignElimination(FrontReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for node in graph.get_op_nodes():
-            if node.op in ["Assign", "AssignSub", "AssignAdd"]:
+            if node.op in ["Assign", "AssignSub", "AssignAdd", "Assert"]:
+                node_op = node.op
                 graph.remove_node(node.id)
-                log.debug('Assign op was removed {}'.format(node.id))
-
-
-class AssertElimination(FrontReplacementOp):
-    op = "Assert"
-    enabled = True
-
-    def replace_sub_graph(self, graph: nx.MultiDiGraph, match: dict):
-        node = match['op']
-        # here we request all data flow output edges (control flow edges will not be listed)
-        out_edges = node.out_edges()
-        if len(out_edges) == 0:
-            graph.remove_node(node.id)
-            log.debug('Assert op was removed {}'.format(node.id))
-        else:
-            raise Error('Data flow edge coming out of Assert node {}'.format(node.id))
+                log.debug('"{}" op with id="{}" was removed'.format(node_op, node.id))
