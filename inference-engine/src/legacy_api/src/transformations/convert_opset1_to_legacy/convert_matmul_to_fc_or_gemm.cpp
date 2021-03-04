@@ -194,8 +194,8 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             // If the first input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
             // by adding axes with size 1 at ROW_INDEX_DIM, to the left of the shape.
             // For example {S} will be reshaped to {1, S}.
-            fc_input_a = std::make_shared<op::v0::Unsqueeze>(fc_input_a,
-            op::Constant::create(element::i64, Shape{1}, {0}));
+            fc_input_a = std::make_shared<ngraph::opset1::Unsqueeze>(fc_input_a,
+                ngraph::opset1::Constant::create(element::i64, Shape{1}, {0}));
             shape_a = fc_input_a.get_shape();
             new_ops.push_back(fc_input_a.get_node_shared_ptr());
             // For 1D inputs transpose flag is expected to always act like `false`
@@ -205,8 +205,8 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
             // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
             // For example {S} will be reshaped to {S, 1}.
-            fc_input_b = std::make_shared<op::v0::Unsqueeze>(fc_input_b,
-            op::Constant::create(element::i64, Shape{1}, {1}));
+            fc_input_b = std::make_shared<ngraph::opset1::Unsqueeze>(fc_input_b,
+                ngraph::opset1::Constant::create(element::i64, Shape{1}, {1}));
             shape_b = fc_input_b.get_shape();
             new_ops.push_back(fc_input_b.get_node_shared_ptr());
             // For 1D inputs transpose flag is expected to always act like `false`
@@ -241,8 +241,8 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
             if (output_shape.size() == 0) {
                 std::vector<int64_t> dim_indices(gemm->get_shape().size());
                 std::iota(dim_indices.begin(), dim_indices.end(), 0);
-                reshape_output = std::make_shared<op::v0::Squeeze>(gemm,
-                    op::Constant::create(element::i64, Shape{dim_indices.size()}, dim_indices));
+                reshape_output = std::make_shared<ngraph::opset1::Squeeze>(gemm,
+                    ngraph::opset1::Constant::create(element::i64, Shape{dim_indices.size()}, dim_indices));
             } else {
                 reshape_output = op::util::reshapeTo(gemm, output_shape);
             }
