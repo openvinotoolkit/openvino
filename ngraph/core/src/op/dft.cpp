@@ -62,5 +62,35 @@ std::shared_ptr<Node> op::v7::DFT::clone_with_new_inputs(const OutputVector& new
     return std::make_shared<op::v7::DFT>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 
-void op::v6::DFT::validate_and_infer_types()
-{}
+void op::v7::DFT::validate_and_infer_types()
+{
+    NGRAPH_OP_SCOPE(v7_DFT_validate_and_infer_types);
+    element::Type input_et = get_input_element_type(0);
+    NODE_VALIDATION_CHECK(this,
+                          input_et == element::f32 || input_et == element::f16 ||
+                              input_et == element::bf16,
+                          "Input element type must be f32, f16, or bf16");
+
+    element::Type axes_et = get_input_element_type(1);
+    NODE_VALIDATION_CHECK(this,
+                          axes_et == element::i64 || axes_et == element::i32 ||
+                              sizes_et == element::u32 || sizes_et == element::u64,
+                          "Axes element type must be i32, i64, u32 or u64");
+
+    if (input_values().size() == 3)
+    {
+        element::Type signal_sizes_et = get_input_element_type(2);
+        NODE_VALIDATION_CHECK(this,
+                              signal_sizes_et == element::i64 || signal_sizes_et == element::i32 ||
+                                  signal_sizes_et == element::u32 || signal_sizes_et == element::u64,
+                              "Axes element type must be i32, i64, u32 or u64");
+    }
+
+    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+
+    if (!input_shape.rank().is_static())
+    {
+        set_output_type(0, get_input_element_type(0), input_shape);
+        return;
+    }
+}
