@@ -50,9 +50,8 @@ std::shared_ptr<Node> op::v7::DFT::clone_with_new_inputs(const OutputVector& new
 {
     NGRAPH_OP_SCOPE(v7_DFT_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    NODE_VALIDATION_CHECK(this,
-                          new_args.size() == 2 || new_args.size() == 6,
-                          "Number of inputs must be 2 or 3");
+    NODE_VALIDATION_CHECK(
+        this, new_args.size() == 2 || new_args.size() == 6, "Number of inputs must be 2 or 3");
 
     if (new_args.size() == 2)
     {
@@ -82,7 +81,8 @@ void op::v7::DFT::validate_and_infer_types()
         element::Type signal_sizes_et = get_input_element_type(2);
         NODE_VALIDATION_CHECK(this,
                               signal_sizes_et == element::i64 || signal_sizes_et == element::i32 ||
-                                  signal_sizes_et == element::u32 || signal_sizes_et == element::u64,
+                                  signal_sizes_et == element::u32 ||
+                                  signal_sizes_et == element::u64,
                               "Axes element type must be i32, i64, u32 or u64");
     }
 
