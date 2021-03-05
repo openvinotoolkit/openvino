@@ -112,9 +112,9 @@ Bidirectional Broadcast is not intended for element-wise operations. Its purpose
 1. Dimensions of the input tensors are right alignment.
 2. Following broadcast rule is applied: `numpy.array(input) * numpy.ones(target_shape)`.
 3. Two corresponding dimension must have the same value, or one of them is equal to 1.
-4. Output shape may not be equal to *desired* shape if:
-   * *desired* shape contains dimensions of size 1,
-   * *desired* shape rank is smaller than the rank of input tensor.
+4. Output shape may not be equal to `target_shape` if:
+   * `target_shape` contains dimensions of size 1,
+   * `target_shape` rank is smaller than the rank of input tensor.
 
 ## Bidirectional examples
 
@@ -128,6 +128,10 @@ Bidirectional Broadcast is not intended for element-wise operations. Its purpose
 
 *      `A: Shape(3, 1)`
        `B: Shape(3, 4)`
+  `Result: Shape(3, 4)`
+
+*      `A: Shape(3, 4)`
+       `B: Shape(,) -> scalar`
   `Result: Shape(3, 4)`
 
 *      `A: Shape(   3, 1)`
