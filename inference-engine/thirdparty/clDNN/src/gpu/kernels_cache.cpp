@@ -27,6 +27,7 @@
 #include <utility>
 #include <future>
 #include <thread>
+#include <queue>
 #include <condition_variable>
 #include "kernel_selector_helper.h"
 #include "cldnn_itt.h"
@@ -307,12 +308,13 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     size_t binary_size = binary_sizes.front();
     // Binary is not available for the device.
     if (binary_size == 0)
-        throw std::runtime_error("Binary is not avaliable after program build");
+        throw std::runtime_error("Binary is not avaliable after program builid");
 
     // Get program binary.
     return program.getInfo<CL_PROGRAM_BINARIES>().front();
 }
 
+#ifdef USE_ASYNC
 class Semaphore {
 public:
     explicit Semaphore(size_t max_count) : max_count(max_count), cur_count(0) {}
@@ -344,6 +346,61 @@ public:
     }
 private:
     Semaphore& s;
+};
+#endif
+
+class ThreadPool {
+public:
+    ThreadPool(size_t num_threads) : _num_threads(num_threads), _stop_pool(false) {
+        _workers.reserve(num_threads);
+        for (size_t i = 0; i < _num_threads; ++i) {
+            _workers.emplace_back([this]() { this->WorkerThread(); });
+        }
+    }
+    ~ThreadPool() {
+        _stop_pool = true;
+        _cv.notify_all();
+        for (auto& w : _workers) {
+            w.join();
+        }
+    }
+
+    template <class F, class... Args>
+    std::future<typename std::result_of<F(Args...)>::type> Enqueue(F&& f, Args&&... args) {
+        if (_stop_pool) {
+            throw std::runtime_error("Thread pool is stoped");
+        }
+
+        using return_type = typename std::result_of<F(Args...)>::type;
+        auto task = std::make_shared<std::packaged_task<return_type()>> (std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+        std::future<return_type> result = task->get_future();
+        {
+            std::lock_guard<std::mutex> lock(_q_m);
+            _tasks.push([task]() {(*task)();});
+        }
+        _cv.notify_one();
+        return result;
+    }
+
+private:
+    size_t _num_threads;
+    std::vector<std::thread> _workers;
+    std::queue<std::function<void()>> _tasks;
+    std::condition_variable _cv;
+    std::mutex _q_m;
+    bool _stop_pool;
+
+    void WorkerThread() {
+        while (true) {
+            std::unique_lock<std::mutex> lock(_q_m);
+            _cv.wait(lock, [this]() { return (!this->_tasks.empty()) || (_stop_pool); });
+            if ( (_stop_pool) && (this->_tasks.empty())) return;
+            std::function<void()> task = std::move(_tasks.front());
+            _tasks.pop();
+            lock.unlock();
+            task();
+        }
+    }
 };
 
 kernels_cache::kernels_map kernels_cache::build_batch(const program_code& program_source,
@@ -466,7 +523,11 @@ void kernels_cache::build_all() {
         sorted_program_code = get_program_source(_kernels_code);
         _one_time_kernels.clear();
     }
+#ifdef USE_ASYNC
     Semaphore max_threads(2);
+#endif
+
+    ThreadPool pool(4);
     std::cout << "Build all ===========================" << std::endl;
     std::cout << "sorted_program_code.size() = " << sorted_program_code.size() << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
@@ -478,9 +539,13 @@ void kernels_cache::build_all() {
     for (auto& program : sorted_program_code) {
         for (size_t batch_id = 0; batch_id < program.second.source.size(); ++batch_id) {
             programs.push_back(program.second);
+#ifdef USE_ASYNC
             builds.push_back(std::async(std::launch::async | std::launch::deferred, [&]
                 (Semaphore& max_threads, std::pair<std::string, program_code> program, size_t program_id, size_t batch_id) {
                 BatchBuilder b(max_threads);
+#else // threadpool
+            builds.push_back(pool.Enqueue([&](std::pair<std::string, program_code> program, size_t program_id, size_t batch_id) {
+#endif
                 auto kmap = build_batch(program.second, batch_id, program_id);
                 std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
                 for (auto k : kmap) {
@@ -493,7 +558,11 @@ void kernels_cache::build_all() {
                         numKernels++;
                     }
                 }
+#ifdef USE_ASYNC
             }, std::ref(max_threads), program, program_id, batch_id));
+#else
+            }, program, program_id, batch_id));
+#endif
         }
         program_id++;
     }
