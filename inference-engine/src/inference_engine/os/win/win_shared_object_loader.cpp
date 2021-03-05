@@ -247,7 +247,8 @@ class SharedObjectLoader::Impl {
         }
         auto procAddr = reinterpret_cast<void*>(GetProcAddress(shared_object, symbolName));
         if (procAddr == nullptr)
-            THROW_IE_EXCEPTION << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
+            THROW_IE_EXCEPTION << details::as_status << NOT_FOUND 
+                << "GetProcAddress cannot locate method '" << symbolName << "': " << GetLastError();
 
         return procAddr;
     }
