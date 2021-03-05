@@ -11,50 +11,20 @@
 #include <ngraph/builder/split.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
 #include "itt.hpp"
 
 using namespace ngraph;
 using namespace op;
 
-#define GNA_MAX_1D_CONV_CHANNEL_COUNT 512
+#define GNA_MAX_1D_CONV_CHANNEL_COUNT 768
 #define GNA_MAX_PERMUTE_COL_COUNT 8
-//#define RESHAPE_NCHW_NHWC
-
-std::vector<std::shared_ptr<opset1::Constant>> Convert2DFilter2PointwiseFilterSet(std::shared_ptr<opset1::Constant>& filters)
-{
-    std::vector <std::shared_ptr<opset1::Constant>> result;
-    auto filter_shape = filters->get_output_shape(0);
-    if (filter_shape.size() == 4)
-    {
-        std::vector<std::vector<float>> pointwise_filters;
-        pointwise_filters.resize(filter_shape[2] * filter_shape[3]);
-        for (size_t i = 0; i < filter_shape[2] * filter_shape[3]; i++) {
-            pointwise_filters[i].resize(filter_shape[0] * filter_shape[1]);
-        }
-        size_t offset = 0;
-        const float* data = filters->get_data_ptr<float>();
-        for (size_t n = 0; n < filter_shape[0]; n++) {
-            for (size_t c = 0; c < filter_shape[1]; c++) {
-                for (size_t h = 0; h < filter_shape[2]; h++) {
-                    for (size_t w = 0; w < filter_shape[3]; w++) {
-                        pointwise_filters[h * filter_shape[3] + w][n * filter_shape[1] + c] = data[offset++];
-                    }
-                }
-            }
-        }
-        for (auto pwf : pointwise_filters) {
-            result.push_back(std::make_shared<opset1::Constant>(element::f32, Shape{ filter_shape[0], filter_shape[1]* filter_shape[1]* filter_shape[1], 1, 1}, pwf));
-        }
-    }
-
-    return result;
-}
 
 std::vector<std::shared_ptr<opset1::Constant>> ReduceConv2DFilterHeightByChannelPermute(std::shared_ptr<opset1::Constant>& filters, bool vertical_permute, bool horizontal_permute, size_t split_channels)
 {
     std::vector <std::shared_ptr<opset1::Constant>> result;
     auto filter_shape = filters->get_output_shape(0);
-    if (!horizontal_permute && !vertical_permute)
+    if (!horizontal_permute && !vertical_permute && split_channels == 1)
         return { filters };
 
     if (filter_shape.size() == 4)
@@ -73,16 +43,26 @@ std::vector<std::shared_ptr<opset1::Constant>> ReduceConv2DFilterHeightByChannel
 
         size_t CS = (C / split_channels);
         const float* data = filters->get_data_ptr<float>();
-        if (!(vertical_permute ^ horizontal_permute))
+        if (!(vertical_permute ^ horizontal_permute) || (vertical_permute && (!horizontal_permute)))
         {
-            size_t dst_index = 0;
-            size_t src_index = 0;
             for (size_t n = 0; n < N; n++) {
                 for (size_t c = 0; c < CS; c++) {
                     for (size_t s = 0; s < split_channels; s++) {
                         for (size_t h = 0; h < H; h++) {
                             for (size_t w = 0; w < W; w++) {
                                 flat_filters[s][n * CS * H * W + c * H * W + h * W + w] = data[n * C * H * W + (c*split_channels+s) * H * W + h * W + w];
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (vertical_permute) {
+            for (size_t n = 0; n < N; n++) {
+                for (size_t c = 0; c < CS; c++) {
+                    for (size_t s = 0; s < split_channels; s++) {
+                        for (size_t h = 0; h < H; h++) {
+                            for (size_t w = 0; w < W; w++) {
+                                flat_filters[s][n * CS * H * W + c * H * W + w * H + h] = data[n * C * H * W + (c * split_channels + s) * H * W + h * W + w];
                             }
                         }
                     }
@@ -180,16 +160,21 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             input.get_shape()[0] != 1) {
             continue;
         }
+        // TODO: Check if filter weights are not dynamic
+
         // we are looking for Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC)
         // so required network must be in NHWC order like in TF
         //   supported cases:
         //     - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC)
         //     - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => Transpose(NCHW->NHWC)
         //     - TODO: Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPooling => Transpose(NCHW->NHWC)
+        //     - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => ActivationFunction => Transpose(NCHW->NHWC)
+        //     - TODO: Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPool => ActivationFunction => Transpose(NCHW->NHWC)
         auto leading_transpose = std::dynamic_pointer_cast<Transpose>(input.get_node_shared_ptr());
         if (!leading_transpose || !IsTransposeOrderMatches(leading_transpose, {0,3,1,2}))
             continue;
 
+        // check if convolution output port is connected with only one Op
         auto output_0 = node->get_output_target_inputs(0);
         if (output_0.size() != 1)
             continue;
@@ -198,7 +183,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         auto trailing_transpose = std::dynamic_pointer_cast<Transpose>(output_0_node);
         auto conv_bias = std::dynamic_pointer_cast<ngraph::opset1::Add>(output_0_node);
         auto max_pool = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(output_0_node);
-
+        auto af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(output_0_node);
         if (!trailing_transpose && conv_bias) {
             // the NCHW order
             // TODO: check if this is broadcast add H=1/W=1 and match conv channel count in C
@@ -209,11 +194,46 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             auto bias_output_0_node = bias_output_0.begin()->get_node()->shared_from_this();
             trailing_transpose = std::dynamic_pointer_cast<Transpose>(bias_output_0_node);
             max_pool = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(bias_output_0_node);
+            af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(bias_output_0_node);
         }
-        //TODO: MaxPool handling
-        if (!trailing_transpose && max_pool) {
-            // Check if MaxPool is only in horizonal
 
+        size_t pool_size_x = 1;
+        size_t pool_size_y = 1;
+        size_t pool_stride_x = 1;
+        size_t pool_stride_y = 1;
+        if (!trailing_transpose && max_pool) {
+            // Check if MaxPool vertical stride == pool size
+            auto pool_strides = max_pool->get_strides();
+            auto pool_kernel = max_pool->get_kernel();
+            // We support only VALID PADDING
+            if (max_pool->get_auto_pad() != PadType::VALID)
+                continue;
+
+            if (pool_kernel.size() != 2 || pool_strides.size() != 2)
+                continue;
+
+            if (pool_kernel[0] != pool_strides[0] || pool_kernel[0] > 8)
+                continue;
+            pool_size_x = pool_kernel[1];
+            pool_size_y = pool_kernel[0];
+            pool_stride_x = pool_strides[1];
+            pool_stride_y = pool_strides[0];
+
+            auto maxpool_output_0 = max_pool->get_output_target_inputs(0);
+            if (maxpool_output_0.size() != 1)
+                continue;
+            auto maxpool_output_0_node = maxpool_output_0.begin()->get_node()->shared_from_this();
+            trailing_transpose = std::dynamic_pointer_cast<Transpose>(maxpool_output_0_node);
+            af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(maxpool_output_0_node);
+        }
+
+        //and finally activation function
+        if (!trailing_transpose && af) {
+            auto af_output_0 = af->get_output_target_inputs(0);
+            if (af_output_0.size() != 1)
+                continue;
+            auto af_output_0_node = af_output_0.begin()->get_node()->shared_from_this();
+            trailing_transpose = std::dynamic_pointer_cast<Transpose>(af_output_0_node);
         }
 
         if (!trailing_transpose || !IsTransposeOrderMatches(trailing_transpose, {0,2,3,1}))
@@ -227,14 +247,14 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         size_t input_height = input.get_shape()[2];
         size_t input_width = input.get_shape()[3];
 
-        if (input_channel_count < 1 ||
-            0 != input_channel_count % 32) {
-            // we do only support conv2d with channels k * 32
-            continue;
-        }
+        //if (input_channel_count < 1 ||
+        //    0 != input_channel_count % 32) {
+        //    // we do only support conv2d with channels k * 32
+        //    continue;
+        //}
 
-        size_t filter_count = filters.get_shape()[0];
-        size_t filter_channel_count = filters.get_shape()[1];
+        size_t filter_channel_count = filters.get_shape()[0];
+        size_t filter_count = filters.get_shape()[1];
         size_t filter_height = filters.get_shape()[2];
         size_t filter_width = filters.get_shape()[3];
 
@@ -319,10 +339,6 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         }
 
         auto flat_input = builder::opset1::reshape(leading_transpose->input_value(0), Shape{ (size_t)1, shape_size(leading_transpose->input_value(0).get_shape()) });
-        // we start injecting subgraph
-        ngraph::copy_runtime_info(leading_transpose, flat_input);
-        ngraph::replace_node(leading_transpose, flat_input);
-
         // zero padding
         // TODO: find biggest padding in whole network
         auto const_holding_padding = std::make_shared<opset1::Constant>(element::Type_t::f32, Shape{ 1, biggest_padding }, 0);
@@ -340,73 +356,76 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
 
         // Add top padding
         OutputVector input_rows_to_concat;
-        // padding
-        for (size_t p = 0; p < pads_begin_y; p++) {
-            if (padded_row_size == biggest_padding) {
-                input_rows_to_concat.push_back(const_holding_padding);
-            } else {
-                auto slice = FlatCrop(const_holding_padding, 0, padded_row_size);
-                ngraph::copy_runtime_info(conv, slice);
-                input_rows_to_concat.push_back(slice);
-            }
-        }
-
-        // pad every row of input plan
-        for (int h = 0; h < input_height; h++) {
-            // left padding     input     right padding
-            //     |              |           |
-            //     +--------------+-----------+
-            //                    |
-            //                 concat
-
-            auto not_padded_row = input_height == 1 ? flat_input : FlatCrop(flat_input, h * input_width * input_channel_count, input_width * input_channel_count);
-            ngraph::copy_runtime_info(conv, not_padded_row);
-            if (flat_left_padding || flat_right_padding) {
-                OutputVector single_row_concat_inputs;
-                if (flat_left_padding) {
-                    if (flat_left_padding == biggest_padding) {
-                        single_row_concat_inputs.push_back(const_holding_padding);
-                    }
-                    else {
-                        auto slice = FlatCrop(const_holding_padding, 0, flat_left_padding);
-                        ngraph::copy_runtime_info(conv, slice);
-                        single_row_concat_inputs.push_back(slice);
-                    }
-                }
-                single_row_concat_inputs.push_back(not_padded_row);
-                if (flat_right_padding) {
-                    if (flat_right_padding == biggest_padding) {
-                        single_row_concat_inputs.push_back(const_holding_padding);
-                    }
-                    else {
-                        auto slice = FlatCrop(const_holding_padding, 0, flat_right_padding);
-                        ngraph::copy_runtime_info(conv, slice);
-                        single_row_concat_inputs.push_back(slice);
-                    }
-                }
-                auto padded_row_concat = std::make_shared<opset1::Concat>(single_row_concat_inputs, 0);
-                ngraph::copy_runtime_info(conv, padded_row_concat);
-                input_rows_to_concat.push_back(padded_row_concat);
-            } else {
-                input_rows_to_concat.push_back(not_padded_row);
-            }
-        }
-        // Bottom padding
-        for (size_t p = 0; p < pads_end_y; p++) {
-            if (padded_row_size == biggest_padding) {
-                input_rows_to_concat.push_back(const_holding_padding);
-            } else {
-                auto slice = FlatCrop(const_holding_padding, 0, padded_row_size);
-                ngraph::copy_runtime_info(conv, slice);
-                input_rows_to_concat.push_back(slice);
-            }
-        }
-
         auto padded_input_plane = flat_input;
-        if (pads_begin_x || pads_end_y || filter_height > 1) {
+        // padding
+        if (pads_begin_x || pads_end_x || pads_begin_y || pads_end_y) {
+            for (size_t p = 0; p < pads_begin_y; p++) {
+                if (padded_row_size == biggest_padding) {
+                    input_rows_to_concat.push_back(const_holding_padding);
+                }
+                else {
+                    auto slice = FlatCrop(const_holding_padding, 0, padded_row_size);
+                    ngraph::copy_runtime_info(conv, slice);
+                    input_rows_to_concat.push_back(slice);
+                }
+            }
+
+            // pad every row of input plan
+            for (int h = 0; h < input_height; h++) {
+                // left padding     input     right padding
+                //     |              |           |
+                //     +--------------+-----------+
+                //                    |
+                //                 concat
+
+                auto not_padded_row = input_height == 1 ? flat_input : FlatCrop(flat_input, h * input_width * input_channel_count, input_width * input_channel_count);
+                ngraph::copy_runtime_info(conv, not_padded_row);
+                if (flat_left_padding || flat_right_padding) {
+                    OutputVector single_row_concat_inputs;
+                    if (flat_left_padding) {
+                        if (flat_left_padding == biggest_padding) {
+                            single_row_concat_inputs.push_back(const_holding_padding);
+                        }
+                        else {
+                            auto slice = FlatCrop(const_holding_padding, 0, flat_left_padding);
+                            ngraph::copy_runtime_info(conv, slice);
+                            single_row_concat_inputs.push_back(slice);
+                        }
+                    }
+                    single_row_concat_inputs.push_back(not_padded_row);
+                    if (flat_right_padding) {
+                        if (flat_right_padding == biggest_padding) {
+                            single_row_concat_inputs.push_back(const_holding_padding);
+                        }
+                        else {
+                            auto slice = FlatCrop(const_holding_padding, 0, flat_right_padding);
+                            ngraph::copy_runtime_info(conv, slice);
+                            single_row_concat_inputs.push_back(slice);
+                        }
+                    }
+                    auto padded_row_concat = std::make_shared<opset1::Concat>(single_row_concat_inputs, 0);
+                    ngraph::copy_runtime_info(conv, padded_row_concat);
+                    input_rows_to_concat.push_back(padded_row_concat);
+                }
+                else {
+                    input_rows_to_concat.push_back(not_padded_row);
+                }
+            }
+            // Bottom padding
+            for (size_t p = 0; p < pads_end_y; p++) {
+                if (padded_row_size == biggest_padding) {
+                    input_rows_to_concat.push_back(const_holding_padding);
+                }
+                else {
+                    auto slice = FlatCrop(const_holding_padding, 0, padded_row_size);
+                    ngraph::copy_runtime_info(conv, slice);
+                    input_rows_to_concat.push_back(slice);
+                }
+            }
             padded_input_plane = std::make_shared<opset1::Concat>(input_rows_to_concat, 1);
             ngraph::copy_runtime_info(conv, padded_input_plane);
         }
+
         OutputVector splitted_planes;
         if (conv_count > 1)
         {
@@ -432,6 +451,15 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         auto org_input_channel_count = input_channel_count;
         input_channel_count /= conv_count;
 
+        if (conv_count == 1 && input_height == 1 && filter_dilation_x == 1 && filter_dilation_y == 1)
+            continue;
+        if (input_channel_count == 32 && input_height > 1)
+        {
+            printf("conv name: %s in [%u, %u, %u, %u] k [%u, %u, %u, %u] \n",
+                conv->get_friendly_name().c_str(),
+                1ull, input_channel_count, input_height, input_width,
+                filter_count, filter_channel_count, filter_height, filter_width);
+        }
         for (size_t conv_index = 0; conv_index < conv_count; conv_index++) {
             Output<Node> reduced_input_plane = splitted_planes[conv_index];
             // lets change filter height to 1
@@ -517,6 +545,9 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                     std::shared_ptr<ngraph::Node> filters,
                     std::shared_ptr<ngraph::Node> add_bias_op,
                     size_t stride_x,
+                    size_t pool_size_x,
+                    size_t pool_stride_x,
+                    RoundingType rounding_type,
                     size_t h_index,
                     size_t c_index = 0) {
                         // valid 1D convolution wrapped with permutes NHWC => NCHW => conv => NCHW => NHWC
@@ -532,6 +563,18 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                         if (add_bias_op) {
                             last_conv_block_op = add_bias_op->clone_with_new_inputs(OutputVector{ conv, /* BIAS */add_bias_op->input_value(1) });
                         }
+                        //add max pooling
+                        if (pool_size_x > 1) {
+                            auto max_pool_x = ngraph::opset1::MaxPool(last_conv_block_op, { 1, pool_stride_x }, { 0,0 }, { 0,0 },
+                                { 1, pool_size_x }, rounding_type, op::PadType::VALID);
+
+                            auto max_pool_x_op = std::make_shared<op::TypeRelaxed<opset1::MaxPool>>(
+                                max_pool_x,
+                                std::vector<element::Type>{ element::f32, element::f32 },
+                                std::vector<element::Type>{});
+
+                            last_conv_block_op = max_pool_x_op;
+                        }
                         // NCHW => NHWC
                         auto nhwc_output = builder::opset1::reorder_axes(last_conv_block_op, { 0ull,2ull,3ull,1ull });
                         ngraph::copy_runtime_info(source_conv2d, { nchw_input, conv, nhwc_output });
@@ -542,11 +585,12 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                 {
                     size_t padded_row_width = pads_begin_x + input_width + pads_end_x;
                     size_t padded_row_flat_width = shape_size(nhwc_conv_y_input.get_shape());
-                    nhwc_conv_y_input = builder::opset1::reshape(input, { 1ull,1ull, padded_row_width, padded_row_flat_width / padded_row_width });
+                    nhwc_conv_y_input = builder::opset1::reshape(nhwc_conv_y_input, { 1ull,1ull, padded_row_width, padded_row_flat_width / padded_row_width });
                 }
 
                 // valid 1D convolution wrapped with permutes NHWC => NCHW => conv => NCHW => NHWC
-                auto nhwc_y_output = nhwc_conv_1d(conv, nhwc_conv_y_input, h_1_filters[conv_index], conv_index ? nullptr : conv_bias, filter_stride_x, y);
+                auto nhwc_y_output = nhwc_conv_1d(conv, nhwc_conv_y_input, h_1_filters[conv_index], conv_index ? nullptr : conv_bias,
+                    filter_stride_x, pool_size_x,pool_stride_x, max_pool ? max_pool->get_rounding_type() : RoundingType::FLOOR, y);
                 result_chunks.push_back(nhwc_y_output);
                 last_op = nhwc_y_output;
             }
@@ -566,6 +610,12 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             auto add_result = std::make_shared<ngraph::opset1::Add>(partial_conv_results[i], conv_result);
             ngraph::copy_runtime_info(conv, add_result);
             conv_result = add_result;
+        }
+        // activation function
+        if (af) {
+            auto af_result = af->copy_with_new_inputs({ conv_result });
+            ngraph::copy_runtime_info(conv, af_result);
+            conv_result = af_result;
         }
         // we need to put friendly name, so the conv output can be used as network result
         std::string conv_result_name = trailing_transpose->get_friendly_name();
