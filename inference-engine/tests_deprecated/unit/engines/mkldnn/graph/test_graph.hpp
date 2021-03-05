@@ -278,10 +278,7 @@ public:
             MKLDNNGraph::CreateGraph(InferenceEngine::CNNNetwork(convertedNetwork), extMgr, cache);
         } else {
             auto & icnnnet = static_cast<InferenceEngine::ICNNNetwork&>(network);
-            InferenceEngine::details::CNNNetworkImpl* netImpl = dynamic_cast<InferenceEngine::details::CNNNetworkImpl*>(&icnnnet);
-            if (netImpl == nullptr) {
-                THROW_IE_EXCEPTION << "unexpected network type";
-            }
+            InferenceEngine::details::CNNNetworkImpl* netImpl = static_cast<InferenceEngine::details::CNNNetworkImpl*>(&icnnnet);
             MoveInternalBlobsToConstLayers(netImpl);
             MKLDNNGraph::CreateGraph(network, extMgr, cache);
         }
@@ -295,10 +292,7 @@ public:
             MKLDNNGraph::CreateGraph(InferenceEngine::CNNNetwork(convertedNetwork), extensionManager, cache);
         } else {
             auto & icnnnet = static_cast<InferenceEngine::ICNNNetwork&>(network);
-            InferenceEngine::details::CNNNetworkImpl* netImpl = dynamic_cast<InferenceEngine::details::CNNNetworkImpl*>(&icnnnet);
-            if (netImpl == nullptr) {
-                THROW_IE_EXCEPTION << "unexpected network type";
-            }
+            InferenceEngine::details::CNNNetworkImpl* netImpl = static_cast<InferenceEngine::details::CNNNetworkImpl*>(&icnnnet);
             MoveInternalBlobsToConstLayers(netImpl);
             MKLDNNGraph::CreateGraph(network, extensionManager, cache);
         }

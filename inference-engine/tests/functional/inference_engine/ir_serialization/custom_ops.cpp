@@ -43,7 +43,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_MO) {
 
     InferenceEngine::Core ie;
     ie.AddExtension(
-        InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
+        std::make_shared<InferenceEngine::Extension>(
             get_extension_path()));
 
     auto expected = ie.ReadNetwork(model);
@@ -65,7 +65,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpUser_ONNXImporter) {
 
     InferenceEngine::Core ie;
     ie.AddExtension(
-        InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
+        std::make_shared<InferenceEngine::Extension>(
             get_extension_path()));
 
     auto expected = ie.ReadNetwork(model);
@@ -87,7 +87,7 @@ TEST_F(CustomOpsSerializationTest, CustomOpTransformation) {
 
     InferenceEngine::Core ie;
     auto extension =
-        InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
+        std::make_shared<InferenceEngine::Extension>(
             get_extension_path());
     ie.AddExtension(extension);
     auto expected = ie.ReadNetwork(model);
