@@ -159,9 +159,9 @@ void op::v7::DFT::validate_and_infer_types()
     NODE_VALIDATION_CHECK(this,
                           axes.size() == signal_size.size(),
                           "Sizes of inputs 'axes' and 'sinal_size' must be equal. Got "
-                          "size of 'axes':",
+                          "size of 'axes': ",
                           axes.size(),
-                          "size of 'signal_size':",
+                          "size of 'signal_size': ",
                           signal_size.size());
 
     size_t num_of_axes = axes.size();
