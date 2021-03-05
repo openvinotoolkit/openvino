@@ -631,8 +631,7 @@ bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
     Shape prev_shape = m_shape;
     element::Type prev_type = m_element_type;
     visitor.on_attribute("element_type", m_element_type);
-    visitor.on_attribute("shape", m_shape);
-    
+    visitor.on_attribute("shape", m_shape);   
     bool need_to_reallocate = (m_shape != prev_shape || prev_type != m_element_type);
     if (m_alloc_buffer_on_visit_attributes && need_to_reallocate)
     {

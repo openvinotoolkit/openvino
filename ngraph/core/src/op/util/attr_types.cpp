@@ -201,6 +201,12 @@ namespace ngraph
         std::string name = visitor.finish_structure();
         visitor.on_attribute(name, m_ref.m_type);
         visitor.start_structure(name);
+        if (m_ref.m_type == op::BroadcastType::PDPD)
+        {
+            visitor.start_structure(name);
+            visitor.on_attribute("axis", m_ref.m_axis);
+            visitor.finish_structure();
+        }
         visitor.on_attribute("axis", m_ref.m_axis);
         return true;
     }
