@@ -114,9 +114,6 @@ class TFLoader(Loader):
             if src_node[0] == '^':
                 src_node = src_node[1:]
                 cf_flag = True
-            Node(graph, output).add_output_port(src_port)
-            Node(graph, fake_node_name).add_input_port(0)
-            Node(graph, fake_node_name).add_output_port(0)
             edge = (src_node, fake_node_name, {
                 'out': src_port,
                 'in': 0,

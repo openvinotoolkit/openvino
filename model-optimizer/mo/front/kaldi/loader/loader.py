@@ -180,12 +180,8 @@ def load_kalid_nnet1_model(graph, file_descr, name):
         if not output:
             continue
         fake_node_name = graph.unique_id(output)
-        fake_node = Node(graph, fake_node_name)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
                        infer=copy_shape_infer, needs_removal=True)
-        Node(graph, output).add_output_port(0)
-        fake_node.add_input_port(0)
-        fake_node.add_output_port(0)
         graph.create_edge(Node(graph, output), Node(graph, fake_node_name), 0, 0,
                           create_edge_attrs(output, fake_node_name, output))
 
@@ -217,12 +213,8 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
         if not output:
             continue
         fake_node_name = graph.unique_id(output)
-        fake_node = Node(graph, fake_node_name)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
                        infer=copy_shape_infer, needs_removal=True)
-        Node(graph, output).add_output_port(0)
-        fake_node.add_input_port(0)
-        fake_node.add_output_port(0)
         graph.create_edge(Node(graph, output), Node(graph, fake_node_name), 0, 0,
                           create_edge_attrs(output, fake_node_name, output))
 

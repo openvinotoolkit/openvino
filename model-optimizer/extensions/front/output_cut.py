@@ -33,10 +33,15 @@ class OutputCut(FrontReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         add_output_ops(graph, graph.graph['packed_outputs'], inputs=graph.graph['user_shapes'])
 
-        graph_stage = graph.stage
-        graph.stage = 'front'
         for node in graph.get_op_nodes():
             if node.soft_get('needs_removal') is True:
-                node.out_port(0).get_connection().set_source(node.in_port(0).get_source())
-                graph.remove_node(node.id)
-        graph.stage = graph_stage
+                in_node = None
+                if node.in_nodes():
+                    in_node = node.in_node(0)
+                fw_info = None
+                if node.in_edges() and 'fw_tensor_debug_info' in node.in_edge(0):
+                    fw_info = node.in_edge(0)['fw_tensor_debug_info']
+                graph.erase_node(node)
+
+                if fw_info is not None and in_node is not None and in_node.out_edges():
+                    in_node.out_edge(0)['fw_tensor_debug_info'] = fw_info
