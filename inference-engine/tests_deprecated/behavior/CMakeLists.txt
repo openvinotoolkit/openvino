@@ -4,8 +4,6 @@
 
 add_subdirectory(shared_tests)
 
-disable_deprecated_warnings()
-
 if (ENABLE_MKL_DNN)
     add_subdirectory(mkldnn)
 endif()

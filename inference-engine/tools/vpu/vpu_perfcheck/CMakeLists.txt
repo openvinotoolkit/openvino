@@ -14,8 +14,6 @@
 # limitations under the License.
 #
 
-disable_deprecated_warnings()
-
 function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
     find_package(Threads REQUIRED)
 
