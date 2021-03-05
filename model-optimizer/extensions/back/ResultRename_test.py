@@ -1,12 +1,9 @@
 """
  Copyright (C) 2018-2021 Intel Corporation
-
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
-
       http://www.apache.org/licenses/LICENSE-2.0
-
  Unless required by applicable law or agreed to in writing, software
  distributed under the License is distributed on an "AS IS" BASIS,
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -68,6 +65,7 @@ class ResultRenameTest(unittest.TestCase):
         graph = build_graph(nodes, [('Op1', 'Op1_data'), ('Op1_data', 'result1'),
                                     ('Op1_data', 'Op2'), ('Op2', 'Op2_data'),
                                     ('Op2_data', 'result2')])
+
         res_node_graph = Node(graph, 'result1')
         res_node_graph['name'] = 'Op1_tensor'
         ResultRename().find_and_replace_pattern(graph)

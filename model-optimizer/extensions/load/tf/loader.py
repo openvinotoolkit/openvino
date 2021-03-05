@@ -108,8 +108,6 @@ class TFLoader(Loader):
         # on (output, fake output) edge. After Result nodes adding transformation fake outputs
         # are deleted from graph.
         for output in outputs:
-            if not output:
-                continue
             fake_node_name = graph.unique_id(output)
             graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
                            infer=copy_shape_infer, needs_removal=True)
