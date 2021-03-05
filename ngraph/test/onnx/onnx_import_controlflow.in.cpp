@@ -330,8 +330,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_the_proper_opset_in_subgraph)
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_mul_opset1.prototxt"));
 
     const auto parent_ops = function->get_ops();
-    const auto loop_node_it =
-        std::find_if(parent_ops.begin(), parent_ops.end(), [](const std::shared_ptr<ngraph::Node>& op) {
+    const auto loop_node_it = std::find_if(
+        parent_ops.begin(), parent_ops.end(), [](const std::shared_ptr<ngraph::Node>& op) {
             return std::string{op->get_type_name()} == "Loop";
         });
     const auto body_ops =

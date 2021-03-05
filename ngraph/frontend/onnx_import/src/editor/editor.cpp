@@ -21,16 +21,16 @@
 #include <algorithm> // std::set_intersection, std::unique
 #include <fstream>
 #include <iterator> // std::inserter
-#include <set>
-#include <string>
 #include <onnx/onnx_pb.h>
 #include <onnx/shape_inference/implementation.h>
+#include <set>
+#include <string>
 
 #include "ngraph/log.hpp"
 #include "onnx_import/editor/editor.hpp"
+#include "onnx_import/onnx_utils.hpp"
 #include "utils/common.hpp"
 #include "utils/parser.hpp"
-#include "onnx_import/onnx_utils.hpp"
 
 using namespace ngraph;
 
@@ -217,22 +217,22 @@ namespace
 
     void shift_node_indexes(std::vector<std::vector<int>>& node_indexes)
     {
-        for(int i = node_indexes.size() - 1; i >= 1; --i)
+        for (int i = node_indexes.size() - 1; i >= 1; --i)
         {
             std::vector<int> shifts(node_indexes[i].size());
-            for(int j = 0; j < i; ++j)
+            for (int j = 0; j < i; ++j)
             {
                 int dim = 0;
-                for(auto index: node_indexes[i])
+                for (auto index : node_indexes[i])
                 {
                     auto shift = std::count_if(node_indexes[j].begin() + 1,
                                                node_indexes[j].end(),
-                                               [&index](int val){return val < index;});
+                                               [&index](int val) { return val < index; });
                     shifts[dim++] += shift;
                 }
             }
 
-            for(int j = 0; j < shifts.size(); ++j)
+            for (int j = 0; j < shifts.size(); ++j)
             {
                 node_indexes[i][j] -= shifts[j];
             }
@@ -403,13 +403,14 @@ void onnx_import::ONNXModelEditor::set_input_values(
     }
 }
 
-void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(std::vector<std::vector<int>> node_indexes, Operator node_generator)
+void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
+    std::vector<std::vector<int>> node_indexes, Operator node_generator)
 {
     std::string new_op_name = "custom_op_" + std::to_string(m_custom_op_ID++);
 
     shift_node_indexes(node_indexes);
 
-    for(auto node_vector: node_indexes)
+    for (auto node_vector : node_indexes)
     {
         auto new_end = std::unique(node_vector.begin(), node_vector.end());
         node_vector.erase(new_end, node_vector.end());
@@ -418,21 +419,20 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(std::vector<st
     onnx_import::register_operator(new_op_name, 1, "org.openvinotoolkit.editor", node_generator);
 }
 
-void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes
-    (std::vector<int> node_indexes
-    , onnx_import::Operator node_generator
-    , std::string new_op_name
-    )
+void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes(
+    std::vector<int> node_indexes, onnx_import::Operator node_generator, std::string new_op_name)
 {
     std::vector<std::string> inputs;
     std::vector<std::string> outputs;
 
     auto nodes = model().graph().node();
 
-    for(auto node_index: node_indexes)
+    for (auto node_index : node_indexes)
     {
-        inputs.insert(inputs.end(), nodes[node_index].input().begin(), nodes[node_index].input().end());
-        outputs.insert(outputs.end(), nodes[node_index].output().begin(), nodes[node_index].output().end());
+        inputs.insert(
+            inputs.end(), nodes[node_index].input().begin(), nodes[node_index].input().end());
+        outputs.insert(
+            outputs.end(), nodes[node_index].output().begin(), nodes[node_index].output().end());
     }
 
     auto insert_position = node_indexes[0];
@@ -442,35 +442,34 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes
     std::set<std::string> inputs_set(inputs.begin(), inputs.end());
     std::set<std::string> outputs_set(outputs.begin(), outputs.end());
 
-    std::set_intersection(inputs_set.begin(), inputs_set.end(),
-                          outputs_set.begin(), outputs_set.end(),
+    std::set_intersection(inputs_set.begin(),
+                          inputs_set.end(),
+                          outputs_set.begin(),
+                          outputs_set.end(),
                           std::inserter(internal_tensors, internal_tensors.end()));
 
-    auto is_external_tensor =
-        [&node_indexes, &nodes](std::string tensor_name)
+    auto is_external_tensor = [&node_indexes, &nodes](std::string tensor_name) {
+        bool is_external = false;
+        for (int i = 0; i < nodes.size(); ++i)
         {
-            bool is_external = false;
-            for(int i = 0; i < nodes.size(); ++i)
+            if (std::count(node_indexes.begin(), node_indexes.end(), i))
             {
-                if(std::count(node_indexes.begin(), node_indexes.end(), i))
-                {
-                    continue;
-                }
-
-                is_external = is_external || std::count(nodes[i].input().begin(), nodes[i].input().end(), tensor_name);
+                continue;
             }
-            return is_external;
-        };
 
-    auto is_on_kill_list =
-        [&internal_tensors](std::string target_name)
-        {
-            return std::count(internal_tensors.begin(), internal_tensors.end(), target_name);
-        };
+            is_external = is_external ||
+                          std::count(nodes[i].input().begin(), nodes[i].input().end(), tensor_name);
+        }
+        return is_external;
+    };
+
+    auto is_on_kill_list = [&internal_tensors](std::string target_name) {
+        return std::count(internal_tensors.begin(), internal_tensors.end(), target_name);
+    };
 
     auto new_end = std::remove_if(inputs.begin(), inputs.end(), is_on_kill_list);
     inputs.erase(new_end, inputs.end());
-  
+
     new_end = std::remove_if(internal_tensors.begin(), internal_tensors.end(), is_external_tensor);
     internal_tensors.erase(new_end, internal_tensors.end());
 
@@ -483,11 +482,11 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes
     auto new_node = model().mutable_graph()->mutable_node(insert_position);
     new_node->Clear();
     new_node->set_op_type(new_op_name);
-    for(auto input:inputs)
+    for (auto input : inputs)
     {
         new_node->add_input(input);
     }
-    for(auto output:outputs)
+    for (auto output : outputs)
     {
         new_node->add_output(output);
     }
@@ -495,18 +494,19 @@ void onnx_import::ONNXModelEditor::ONNXModelEditor::replace_nodes
     node_indexes.erase(node_indexes.begin());
     remove_nodes(node_indexes);
     // DEBUG CODE
-    serialize("/home/tsocha/dev/openvino/build/"+new_op_name+".onnx");
+    serialize("/home/tsocha/dev/openvino/build/" + new_op_name + ".onnx");
     // /DEBUG CODE
 }
 
-void onnx_import::ONNXModelEditor::ONNXModelEditor::remove_nodes(const std::vector<int>& nodes_to_remove)
+void onnx_import::ONNXModelEditor::ONNXModelEditor::remove_nodes(
+    const std::vector<int>& nodes_to_remove)
 {
     auto nodes = model().mutable_graph()->mutable_node();
-    
+
     int idx = -1;
     const auto discard_node = [&idx, &nodes_to_remove](const ngraph_onnx::NodeProto&) {
         ++idx;
-        return std::any_of(nodes_to_remove.begin(), nodes_to_remove.end(), [&idx](int val){return val == idx;});
+        return std::count(nodes_to_remove.begin(), nodes_to_remove.end(), idx);
     };
 
     const auto new_end = std::remove_if(nodes->begin(), nodes->end(), discard_node);

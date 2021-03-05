@@ -125,6 +125,7 @@ namespace ngraph
             void serialize(const std::string& out_file_path) const;
 
             void replace_nodes(std::vector<std::vector<int>> node_indexes, Operator node_generator);
+
         private:
             const std::string m_model_path;
 
@@ -133,8 +134,10 @@ namespace ngraph
 
             int m_custom_op_ID = 0;
 
-            void replace_nodes(std::vector<int> node_indexes, onnx_import::Operator node_generator, std::string new_op_name);
-            
+            void replace_nodes(std::vector<int> node_indexes,
+                               onnx_import::Operator node_generator,
+                               std::string new_op_name);
+
             /// \brief Removes all nodes from a container whose index is in nodes_to_remove
             void remove_nodes(const std::vector<int>& nodes_to_remove);
         };
