@@ -186,22 +186,22 @@ public:
         const int64_t IC_OH_OW = IC * OH_OW;
         const int64_t KW_IC_OH_OW = KW * IC_OH_OW;
         const int64_t IH_IW = IH * IW;
-        const int64_t IC_IH_IW = IC * IH_IW;
+        const int64_t IC_IH_IW = IC * IH * IW;
+        const int64_t SH_IW = SH * IW;
 
         auto thread_body = [&](const int64_t ob, const int64_t kh, const int64_t kw, const int64_t ic) {
-            const int64_t ishift = ob * IC_IH_IW + ic * IH_IW;
-            const int64_t oshift = ob * OC_OH_OW + kh * KW_IC_OH_OW + kw * IC_OH_OW + ic * OH_OW;
-            int64_t ih = kh * RH - PT;
             const int64_t iw_start = kw * RW - PL;
-            for (int64_t oh = 0; oh < OH; oh++, ih += SH) {
-                int64_t iw = iw_start;
-                for (int64_t ow = 0; ow < OW; ow++, iw += SW) {
-                    int64_t dst_idx = oshift + oh * OW + ow;
+            const int64_t iw_stop = iw_start + OW * SW;
+            const int64_t ih_start = kh * RH - PT;
+            const int64_t ih_stop = ih_start + OH * SH;
+            int64_t dst_idx = ob * OC_OH_OW + kh * KW_IC_OH_OW + kw * IC_OH_OW + ic * OH_OW;
+            int64_t ishift = ob * IC_IH_IW + ic * IH_IW + ih_start * IW;
+            for (int64_t ih = ih_start; ih < ih_stop; ih += SH, ishift += SH_IW) {
+                for (int64_t iw = iw_start; iw < iw_stop; iw += SW, dst_idx++) {
                     if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
                         dst_data[dst_idx] = T(0);
                     } else {
-                        int64_t src_idx = ishift + ih * IW + iw;
-                        dst_data[dst_idx] = src_data[src_idx];
+                        dst_data[dst_idx] = src_data[ishift + iw];
                     }
                 }
             }
