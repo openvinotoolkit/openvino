@@ -28,6 +28,16 @@ public:
 private:
     void fillCellDesc();
     void fillSeqDesc();
+    bool verifyWeightsPrecision(const InferenceEngine::Precision& layerPrec,
+                                const InferenceEngine::Precision& weightsPrec);
+    void verifyWeights();
+    void verifyBiases();
+    void convertWeightsBlobPrecision(const InferenceEngine::Precision cur_precision,
+                                     const InferenceEngine::Precision new_precision);
+    template <typename Prec>
+    void fillWeights(const int* gate_map);
+    template <typename Prec>
+    void fillBiases(const int* gate_map);
 
 private:
     /** Specify mode Cell or Seq. true - Cell, false - Seq */
@@ -69,6 +79,14 @@ private:
     // List of in/out reorders if required
     std::vector<mkldnn::reorder> exec_before;
     std::vector<mkldnn::reorder> exec_after;
+
+    std::map<InferenceEngine::Precision, InferenceEngine::Precision> weightsByLayerPrec {
+        // layer precision, weights precision
+        {InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP32},
+        {InferenceEngine::Precision::BF16, InferenceEngine::Precision::BF16},
+        {InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP16},
+        {InferenceEngine::Precision::U8,   InferenceEngine::Precision::I8},
+    };
 };
 
 }  // namespace MKLDNNPlugin

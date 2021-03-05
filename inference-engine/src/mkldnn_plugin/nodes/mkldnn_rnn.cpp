@@ -5,8 +5,11 @@
 #include "mkldnn_rnn.h"
 #include "mkldnn_extension_utils.h"
 
+#include "mkldnn_node.h"
 #include "utils/general_utils.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "utils/bfloat16.hpp"
+#include "nodes/common/cpu_convert.h"
 
 #include <string>
 #include <utility>
@@ -149,38 +152,66 @@ void MKLDNNRNN::fillCellDesc() {
     if (!weights)
         IE_THROW() << "RNN Layer. Weights do not present.";
 
-    if (weights->size() != G*SC*(SC+DC))
-        IE_THROW() << "RNN Layer. Weights size is not correct. Expected size:" << G*SC*(SC+DC);
+    if (weights->size() != G * SC * (SC + DC))
+        IE_THROW() << "RNN Layer. Weights size is not correct. Expected size:" << G * SC * (SC + DC);
 
-    if (bias && bias->size() != Gb*SC)
-        IE_THROW() << "RNN Layer. Biases size is not correct. Expected size:" << G*SC;
+    if (bias && bias->size() != Gb * SC)
+        IE_THROW() << "RNN Layer. Biases size is not correct. Expected size:" << G * SC;
 
-    // Shapes and Attributes are correct. Can start internal stuff initialization.
-    for (size_t i = 0; i < S; i++) {
-        in_states_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
-        out_states_d.emplace_back(S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc);
+    auto runtimePrecision = outs[0]->getPrecision();
+
+    // set recurent input data type
+    if (ins.size() > 1)
+        ins[1].lock()->setPrecision(runtimePrecision);
+    if (outs.size() > 1)
+        outs[1]->setPrecision(runtimePrecision);
+
+    // set cell datatype
+    if (cell_type == mkldnn::algorithm::vanilla_lstm) {
+        if (ins.size() == 3)
+            ins[2].lock()->setPrecision(Precision::FP32);
+        if (outs.size() == 3)
+            outs[2]->setPrecision(Precision::FP32);
     }
 
-    in_data_d  = {{T, N, DC}, memory::data_type::f32, memory::format_tag::tnc};;
-    out_data_d = {{T, N, SC}, memory::data_type::f32, memory::format_tag::tnc};;
+    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
-    w_data_d   = {{L, D, DC, G, SC}, memory::data_type::f32, memory::format_tag::ldigo};
-    w_state_d  = {{L, D, SC, G, SC}, memory::data_type::f32, memory::format_tag::ldigo};
+    in_states_d.resize(S);
+    out_states_d.resize(S);
+
+    // Shapes and Attributes are correct. Can start internal stuff initialization.
+    in_states_d[0]  = {S_4D_shape, dataType, memory::format_tag::ldnc};
+    out_states_d[0] = {S_4D_shape, dataType, memory::format_tag::ldnc};
+
+    if (S == 2) {
+        in_states_d[1] = {S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc};
+        out_states_d[1] = {S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc};
+    }
+
+    in_data_d  = {{T, N, DC}, dataType, memory::format_tag::tnc};;
+    out_data_d = {{T, N, SC}, dataType, memory::format_tag::tnc};;
+
+    w_data_d   = {{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo};
+    w_state_d  = {{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo};
 
     if (bias)
         w_bias_d = {{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo};
 
     std::vector<TensorDesc> in_candidate, out_candidate;
-    std::vector<memory::format_tag> outputFormats;
-    in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, memory::data_type::f32, memory::format_tag::nc});
-    in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
-    out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
-    outputFormats.emplace_back(memory::format_tag::nc);
+    in_candidate.emplace_back(MKLDNNMemoryDesc {D_shape, dataType, memory::format_tag::nc});
+    in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, dataType, memory::format_tag::nc});
+    out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, dataType, memory::format_tag::nc});
 
     if (S == 2) {
-        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
-        out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
-        outputFormats.emplace_back(memory::format_tag::nc);
+        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, dataType, memory::format_tag::nc});
+        out_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, dataType, memory::format_tag::nc});
+    }
+
+    Precision weights_prec = as<MemoryBlob>(weights)->getTensorDesc().getPrecision();
+
+    if (!verifyWeightsPrecision(runtimePrecision, weights_prec)) {
+        if (runtimePrecision == Precision::BF16 && weights_prec == Precision::FP32)
+            convertWeightsBlobPrecision(weights_prec, weightsByLayerPrec[runtimePrecision]);
     }
 
     createDescriptor(in_candidate, out_candidate);
@@ -248,8 +279,38 @@ void MKLDNNRNN::fillSeqDesc() {
     if (out_data_dims != OD_shape)
         IE_THROW() << "Incorrect shape of input/output ports for layer " << getName();
 
+    auto& blobs = rnnLayer->blobs;
+    Blob::Ptr weights, bias;
+    if (blobs.find("weights") != blobs.end()) weights = blobs["weights"];
+    if (blobs.find("biases") != blobs.end()) bias = blobs["biases"];
+
+    if (!weights)
+        IE_THROW() << "RNN Layer. Weights do not present.";
+
+    if (weights->size() != G * SC * (SC + DC))
+        IE_THROW() << "RNN Layer. Weights size is not correct. Expected size:" << G * SC * (SC + DC);
+
     in_states_d.resize(S);
     out_states_d.resize(S);
+
+    // auto cnnLayer = getCnnLayer();
+    auto runtimePrecision = outs[0]->getPrecision();
+
+    // set recurent input data type
+    if (ins.size() > 1)
+        ins[1].lock()->setPrecision(runtimePrecision);
+    if (outs.size() > 1)
+        outs[1]->setPrecision(runtimePrecision);
+
+    // set cell datatype
+    if (cell_type == mkldnn::algorithm::vanilla_lstm) {
+        if (ins.size() == 3)
+            ins[2].lock()->setPrecision(Precision::FP32);
+        if (outs.size() == 3)
+            outs[2]->setPrecision(Precision::FP32);
+    }
+
+    auto dataType = MKLDNNExtensionUtils::IEPrecisionToDataType(runtimePrecision);
 
     for (int i = 1; i < ins.size(); i++) {
         if (getParentEdgeAt(i)->getDims() != S_shape)
@@ -263,51 +324,63 @@ void MKLDNNRNN::fillSeqDesc() {
         out_states_d[i - 1] = {S_4D_shape, memory::data_type::f32, memory::format_tag::ldnc};
     }
 
-    auto blobs = rnnLayer->blobs;
-    Blob::Ptr weights, bias;
-    if (blobs.find("weights") != blobs.end()) weights = blobs["weights"];
-    if (blobs.find("biases") != blobs.end()) bias = blobs["biases"];
+    in_states_d[0]  = {S_4D_shape, dataType, memory::format_tag::ldnc};
+    out_states_d[0] = {S_4D_shape, dataType, memory::format_tag::ldnc};
 
-    if (!weights)
-        IE_THROW() << "RNN Layer. Weights do not present.";
+    w_data_d  = {{L, D, DC, G, SC}, dataType, memory::format_tag::ldigo};
+    w_state_d = {{L, D, SC, G, SC}, dataType, memory::format_tag::ldigo};
 
-    if (weights->size() != G*SC*(SC+DC))
-        IE_THROW() << "RNN Layer. Weights size is not correct. Expected size:" << G*SC*(SC+DC);
-
-    w_data_d  = {{L, D, DC, G, SC}, memory::data_type::f32, memory::format_tag::ldigo};
-    w_state_d = {{L, D, SC, G, SC}, memory::data_type::f32, memory::format_tag::ldigo};
-
-    if (bias && bias->size() != Gb*SC)
-        IE_THROW() << "RNN Layer. Biases size is not correct. Expected size:" << G*SC;
+    if (bias && bias->size() != Gb * SC)
+        IE_THROW() << "RNN Layer. Biases size is not correct. Expected size:" << G * SC;
 
     if (bias)
         w_bias_d = {{L, D, Gb, SC}, memory::data_type::f32, memory::format_tag::ldgo};
 
     // Try to create descriptor and corresponding configuration
-    in_data_d = {in_data_dims, memory::data_type::f32, memory::format_tag::tnc};
-    out_data_d = {out_data_dims, memory::data_type::f32, memory::format_tag::tnc};
+    in_data_d = {in_data_dims, dataType, memory::format_tag::tnc};
+    out_data_d = {out_data_dims, dataType, memory::format_tag::tnc};
 
-    std::vector<TensorDesc> in_candidate;
-    if (nativeOrder)
-        in_candidate.push_back(in_data_d);
-    else
-        in_candidate.push_back(MKLDNNMemoryDesc{{N, T, DC}, memory::data_type::f32, memory::format_tag::ntc});
+    std::vector<TensorDesc> in_candidate, out_candidate;
 
-    for (int i = 1; i < ins.size(); i++)
-        in_candidate.emplace_back(MKLDNNMemoryDesc {S_shape, memory::data_type::f32, memory::format_tag::nc});
-
-    std::vector<TensorDesc> out_candidate;
     if (nativeOrder) {
+        in_candidate.push_back(in_data_d);
         out_candidate.push_back(out_data_d);
     } else {
-        out_candidate.push_back(MKLDNNMemoryDesc{{N, T, SC}, memory::data_type::f32, memory::format_tag::ntc});
+        in_candidate.emplace_back(MKLDNNMemoryDesc{{N, T, DC}, dataType, memory::format_tag::ntc});
+        out_candidate.emplace_back(MKLDNNMemoryDesc{{N, T, SC}, dataType, memory::format_tag::ntc});
     }
 
-    for (int i = 1; i < outs.size(); i++) {
+    in_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, dataType, memory::format_tag::nc});
+    out_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, dataType, memory::format_tag::nc});
+
+    if (S == 2) {
+        in_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, memory::data_type::f32, memory::format_tag::nc});
         out_candidate.emplace_back(MKLDNNMemoryDesc{S_shape, memory::data_type::f32, memory::format_tag::nc});
     }
 
+    Precision weights_prec = as<MemoryBlob>(weights)->getTensorDesc().getPrecision();
+
+    if (!verifyWeightsPrecision(runtimePrecision, weights_prec)) {
+        if (runtimePrecision == Precision::BF16 && weights_prec == Precision::FP32)
+            convertWeightsBlobPrecision(weights_prec, weightsByLayerPrec[runtimePrecision]);
+    }
+
     createDescriptor(in_candidate, out_candidate);
+}
+
+void MKLDNNRNN::convertWeightsBlobPrecision(const Precision cur_precision,
+                                            const Precision new_precision) {
+    Blob::Ptr &weights = getCnnLayer()->blobs["weights"];
+    MemoryBlob::Ptr cur_weights = as<MemoryBlob>(weights);
+    TensorDesc td(new_precision, cur_weights->getTensorDesc().getDims(), cur_weights->getTensorDesc().getLayout());
+    MemoryBlob::Ptr new_weights_blob = make_shared_blob<uint16_t>(td);
+
+    new_weights_blob->allocate();
+    bfloat16_t *dst = new_weights_blob->wmap();
+
+    float* fp32src = cur_weights->rmap().as<float*>();
+    cpu_convert(fp32src, dst, cur_precision, new_precision, new_weights_blob->size());
+    weights = new_weights_blob;
 }
 
 void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
@@ -389,36 +462,39 @@ void MKLDNNRNN::createDescriptor(const std::vector<TensorDesc> &inputDesc,
     supportedPrimitiveDescriptors.emplace_back(config, ref_any);
 }
 
+bool MKLDNNRNN::verifyWeightsPrecision(const Precision &layerPrec, const Precision &weightsPrec) {
+    if (!weightsByLayerPrec.count(layerPrec))
+        IE_THROW() << "Unsupported layer precision " << layerPrec;
+    return weightsPrec == weightsByLayerPrec[layerPrec];
+}
+
+void MKLDNNRNN::verifyWeights() {
+    auto layer = getCnnLayer();
+    auto weightsIt = layer->blobs.find("weights");
+
+    if (weightsIt == layer->blobs.end())
+        IE_THROW() << "Missed weights blob.";
+
+    const auto& weightsPrec = weightsIt->second->getTensorDesc().getPrecision();
+    const auto& layerPrec = layer->outData[0]->getPrecision();
+    if (!verifyWeightsPrecision(layerPrec, weightsPrec)) {
+        IE_THROW() << "Weights precision " << weightsPrec <<
+            " does not match layer precision" << layerPrec;
+    }
+}
+
+void MKLDNNRNN::verifyBiases() {
+    auto layer = getCnnLayer();
+    if (layer->blobs.find("biases") != layer->blobs.end()
+            && layer->blobs["biases"]->getTensorDesc().getPrecision() != Precision::FP32)
+        IE_THROW() << "Invalid biases precision: " << layer->blobs["biases"]->getTensorDesc().getPrecision();
+}
+
 void MKLDNNRNN::createPrimitive() {
     if (prim) return;
 
-    std::string errorPrefix =  "RNN layer '" + getCnnLayer()->name + "'";
-    auto weightsIt = getCnnLayer()->blobs.find("weights");
-    if (weightsIt == getCnnLayer()->blobs.end())
-        IE_THROW() << errorPrefix << " does not have weights blob.";
-    if (weightsIt->second->getTensorDesc().getPrecision() != Precision::FP32)
-        IE_THROW() << errorPrefix << " has invalid weights precision: " << weightsIt->second->getTensorDesc().getPrecision();
-    if (getCnnLayer()->blobs.find("biases") != getCnnLayer()->blobs.end()
-            && getCnnLayer()->blobs["biases"]->getTensorDesc().getPrecision() != Precision::FP32)
-        IE_THROW() << errorPrefix << " has invalid biases precision: " << getCnnLayer()->blobs["biases"]->getTensorDesc().getPrecision();
-
-    auto pd = descs[0].createPrimitiveDescriptorIterator(getEngine());
-
-    auto src_data_mem = getParentEdgeAt(0)->getMemoryPtr();
-    auto dst_data_mem = getChildEdgeAt(0)->getMemoryPtr();
-
-    // create weight blobs (data and state part)
-    auto w_data_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    w_data_mem->Create(w_data_d);
-    internalBlobMemory.push_back(w_data_mem);
-
-    auto w_state_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    w_state_mem->Create(w_state_d);
-    internalBlobMemory.push_back(w_state_mem);
-
-    auto w_bias_mem = std::make_shared<MKLDNNMemory>(getEngine());
-    w_bias_mem->Create(w_bias_d);
-    internalBlobMemory.push_back(w_bias_mem);
+    verifyWeights();
+    verifyBiases();
 
     {
         /* Copy Weight data
@@ -473,41 +549,72 @@ void MKLDNNRNN::createPrimitive() {
             }
         }
 
-        auto ie_w_ptr = getCnnLayer()->blobs["weights"]->buffer().as<const float*>();
-        auto w_ptr = static_cast<float*>(w_data_mem->GetData());
-        auto r_ptr = static_cast<float*>(w_state_mem->GetData());
-        const int step = SC * G;
+        auto runtimePrecision = getCnnLayer()->outData[0]->getPrecision();
 
-        for (int g = 0; g < G; g++) {
-            for (int out_i = 0; out_i < SC; out_i++) {
-                float *l_w_ptr = w_ptr + gate_map[g]*SC + out_i;
-                float *l_r_ptr = r_ptr + gate_map[g]*SC+ out_i;
-                for (int in_i = 0; in_i < DC; in_i++) {
-                    *l_w_ptr = *ie_w_ptr;
-                    ie_w_ptr++;
-                    l_w_ptr += step;
-                }
+        if (runtimePrecision == Precision::BF16)
+            fillWeights<bfloat16_t>(gate_map);
+        if (runtimePrecision == Precision::FP32)
+            fillWeights<float>(gate_map);
 
-                for (int in_i = 0; in_i < SC; in_i++) {
-                    *l_r_ptr = *ie_w_ptr;
-                    ie_w_ptr++;
-                    l_r_ptr += step;
-                }
+        if (runtimePrecision == Precision::BF16 ||
+            runtimePrecision == Precision::FP32)
+            fillBiases<float>(gate_map);
+    }
+
+    auto pd = descs[0].createPrimitiveDescriptorIterator(getEngine());
+    prim.reset(new mkldnn::primitive(pd));
+}
+
+template <typename Prec>
+void MKLDNNRNN::fillBiases(const int *gate_map) {
+    if (!w_bias_d)
+        return;
+
+    auto w_bias_mem = std::make_shared<MKLDNNMemory>(getEngine());
+    w_bias_mem->Create(w_bias_d);
+    internalBlobMemory.push_back(w_bias_mem);
+
+    auto ie_b_ptr = getCnnLayer()->blobs["biases"]->buffer().as<const Prec*>();
+    auto b_ptr = static_cast<Prec*>(w_bias_mem->GetData());
+    for (int g = 0; g < Gb; g++) {
+        Prec *l_b_ptr = b_ptr + gate_map[g]*SC;
+        const Prec *l_ie_b_ptr = ie_b_ptr + g * SC;
+        cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(Prec));
+    }
+}
+
+template <typename Prec>
+void MKLDNNRNN::fillWeights(const int *gate_map) {
+    // create weight blobs (data and state part)
+    auto w_data_mem = std::make_shared<MKLDNNMemory>(getEngine());
+    w_data_mem->Create(w_data_d);
+    internalBlobMemory.push_back(w_data_mem);
+    auto w_state_mem = std::make_shared<MKLDNNMemory>(getEngine());
+    w_state_mem->Create(w_state_d);
+    internalBlobMemory.push_back(w_state_mem);
+
+    auto ie_w_ptr = getCnnLayer()->blobs["weights"]->buffer().as<const Prec*>();
+    auto w_ptr = static_cast<Prec*>(w_data_mem->GetData());
+    auto r_ptr = static_cast<Prec*>(w_state_mem->GetData());
+    const int step = SC * G;
+
+    for (int g = 0; g < G; g++) {
+        for (int out_i = 0; out_i < SC; out_i++) {
+            Prec *l_w_ptr = w_ptr + gate_map[g]*SC + out_i;
+            Prec *l_r_ptr = r_ptr + gate_map[g]*SC+ out_i;
+            for (int in_i = 0; in_i < DC; in_i++) {
+                *l_w_ptr = *ie_w_ptr;
+                ie_w_ptr++;
+                l_w_ptr += step;
             }
-        }
 
-        if (w_bias_d) {
-            auto ie_b_ptr = getCnnLayer()->blobs["biases"]->buffer().as<const float*>();
-            auto b_ptr = static_cast<float*>(w_bias_mem->GetData());
-            for (int g = 0; g < Gb; g++) {
-                float *l_b_ptr = b_ptr + gate_map[g]*SC;
-                const float *l_ie_b_ptr = ie_b_ptr + g * SC;
-                cpu_memcpy(l_b_ptr, l_ie_b_ptr, SC * sizeof(float));
+            for (int in_i = 0; in_i < SC; in_i++) {
+                *l_r_ptr = *ie_w_ptr;
+                ie_w_ptr++;
+                l_r_ptr += step;
             }
         }
     }
-
-    prim.reset(new mkldnn::primitive(pd));
 }
 
 void MKLDNNRNN::execute(mkldnn::stream strm) {
