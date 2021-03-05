@@ -183,13 +183,12 @@ namespace ngraph
                 // Inputs are 2D and below, perform dot directly
                 if (arg0_rank <= 2 && arg1_rank <= 2)
                 {
-                    dot(arg0_update,
-                        arg1_update,
-                        out,
-                        wip_arg0_shape,
-                        wip_arg1_shape,
-                        out_shape,
-                        1);
+                    details::dot(arg0_update,
+                                 arg1_update,
+                                 out,
+                                 wip_arg0_shape,
+                                 wip_arg1_shape,
+                                 out_shape);
                     return;
                 }
 
@@ -302,13 +301,12 @@ namespace ngraph
                 const size_t output_offset = shape_size(dot_output_shape);
                 for (size_t i = 0; i < output_batch_size; i++)
                 {
-                    dot(arg0_update + i * arg0_offset,
-                        arg1_update + i * arg1_offset,
-                        out + i * output_offset,
-                        dot_arg0_shape,
-                        dot_arg1_shape,
-                        dot_output_shape,
-                        1);
+                    details::dot(arg0_update + i * arg0_offset,
+                                 arg1_update + i * arg1_offset,
+                                 out + i * output_offset,
+                                 dot_arg0_shape,
+                                 dot_arg1_shape,
+                                 dot_output_shape);
                 }
             }
         }
