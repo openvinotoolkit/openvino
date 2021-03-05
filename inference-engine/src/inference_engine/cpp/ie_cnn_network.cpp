@@ -10,8 +10,6 @@
 
 namespace InferenceEngine {
 
-ICNNNetwork::~ICNNNetwork() {}
-
 CNNNetwork::CNNNetwork() :
     network(), actual(), output() {
 }
