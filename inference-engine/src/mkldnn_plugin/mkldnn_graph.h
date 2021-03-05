@@ -42,7 +42,6 @@ public:
 
     void setConfig(const Config &cfg);
     void setProperty(const std::map<std::string, std::string> &properties);
-    Config getProperty();
     Config getProperty() const;
 
     void getInputBlobs(InferenceEngine::BlobMap &in_map);

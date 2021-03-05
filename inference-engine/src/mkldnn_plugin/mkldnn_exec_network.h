@@ -61,9 +61,14 @@ protected:
             Graph&                          _graph;
         };
     };
+    // WARNING: Do not use _graphs directly.
     std::deque<Graph>                           _graphs;
     NumaNodesWeights&                           _numaNodesWeights;
 
+    /* WARNING: Use GetGraph() function to get access to graph in current stream.
+     * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
+     *       even from main thread
+     */
     Graph::Lock GetGraph();
 
     bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
