@@ -30,9 +30,9 @@ OpenVINO™ toolkit is a comprehensive toolkit for quickly developing applicatio
   - Ubuntu* 20.04 long-term support (LTS), 64-bit (python 3.6 or 3.7)
   - Red Hat* Enterprise Linux* 8.2 (64 bit) (python 3.6 or 3.7)
   - CentOS 7.4 (64 bit) (python 3.6 or 3.7)
-  - macOS* 10.15.x versions
-  - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions
-  - Windows Server* 2016 or higher
+  - macOS* 10.15.x versions (python 3.6, 3.7, 3.8)
+  - Windows 10*, 64-bit Pro, Enterprise or Education (1607 Anniversary Update, Build 14393 or higher) editions (python 3.6, 3.7, 3.8)
+  - Windows Server* 2016 or higher (python 3.6, 3.7, 3.8)
 > NOTE: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
 
 ## Install the Developer Package
