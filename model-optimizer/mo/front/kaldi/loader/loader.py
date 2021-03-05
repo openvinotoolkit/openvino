@@ -178,7 +178,7 @@ def load_kalid_nnet1_model(graph, file_descr, name):
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code
     # for each output Identity node is added, and tensor name for the output is kept
-    # on (output, fake output) edge. After Result nodes adding transformations fake outputs
+    # on (output, fake output) edge. After Result nodes adding transformation fake outputs
     # are deleted from graph.
     output_layers = graph.nodes - used_layers
     for output in output_layers:
@@ -214,7 +214,7 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
     # Tensor names information corresponding to a node is stored on outgoing edges.
     # As output nodes do not have outgoing edges, fake outputs are required. In the following code
     # for each output Identity node is added, and tensor name for the output is kept
-    # on (output, fake output) edge. After Result nodes adding transformations fake outputs
+    # on (output, fake output) edge. After Result nodes adding transformation fake outputs
     # are deleted from graph.
     output_layers = graph.nodes - used_layers
     for output in output_layers:
