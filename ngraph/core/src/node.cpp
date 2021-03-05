@@ -1037,13 +1037,8 @@ AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>&
 
 bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor& visitor)
 {
-    auto original_id = visitor.get_registered_node_id(m_ref);
-    auto id = original_id;
+    auto id = visitor.get_registered_node_id(m_ref);
     visitor.on_attribute("ID", id);
-    if (id != original_id)
-    {
-        m_ref = visitor.get_registered_node(id);
-    }
     return true;
 }
 
@@ -1058,25 +1053,25 @@ bool AttributeAdapter<NodeVector>::visit_attributes(AttributeVisitor& visitor)
 {
     int64_t size = m_ref.size();
     visitor.on_attribute("size", size);
-    if (size != m_ref.size())
-    {
-        m_ref.resize(size);
-    }
-    ostringstream index;
-    for (int64_t i = 0; i < size; i++)
-    {
-        index.str("");
-        index << i;
-        string id;
-        if (m_ref[i])
-        {
-            id = visitor.get_registered_node_id(m_ref[i]);
-        }
-        visitor.on_attribute(index.str(), id);
-        if (!m_ref[i])
-        {
-            m_ref[i] = visitor.get_registered_node(id);
-        }
-    }
+    // if (size != m_ref.size())
+    // {
+    //     m_ref.resize(size);
+    // }
+    // ostringstream index;
+    // for (int64_t i = 0; i < size; i++)
+    // {
+    //     index.str("");
+    //     index << i;
+    //     string id;
+    //     if (m_ref[i])
+    //     {
+    //         id = visitor.get_registered_node_id(m_ref[i]);
+    //     }
+    //     visitor.on_attribute(index.str(), id);
+    //     if (!m_ref[i])
+    //     {
+    //         m_ref[i] = visitor.get_registered_node(id);
+    //     }
+    // }
     return true;
 }

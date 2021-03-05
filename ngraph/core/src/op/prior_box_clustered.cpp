@@ -100,9 +100,7 @@ shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector
 bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
 {
     NGRAPH_OP_SCOPE(v0_PriorBoxClustered_visit_attributes);
-    float step = 0;
-    float step_w_tmp = m_attrs.step_widths;
-    float step_h_tmp = m_attrs.step_heights;
+    float step = 0.0f;
 
     visitor.on_attribute("step", step);
     visitor.on_attribute("step_w", m_attrs.step_widths);
@@ -111,11 +109,11 @@ bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
     {
         // deserialization:
         // if step_w/h is 0 or did not change, replace it with step
-        if (m_attrs.step_widths == 0 || m_attrs.step_widths == step_w_tmp)
+        if (m_attrs.step_widths == 0)
         {
             m_attrs.step_widths = step;
         }
-        if (m_attrs.step_heights == 0 || m_attrs.step_heights == step_h_tmp)
+        if (m_attrs.step_heights == 0)
         {
             m_attrs.step_heights = step;
         }
