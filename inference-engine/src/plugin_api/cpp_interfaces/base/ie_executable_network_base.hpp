@@ -88,10 +88,6 @@ public:
     }
     IE_SUPPRESS_DEPRECATED_END
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->SetConfig(config));
     }
@@ -107,9 +103,6 @@ public:
     StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept override {
         TO_STATUS(pContext = _impl->GetContext());
     }
-
-protected:
-    ~ExecutableNetworkBase() override = default;
 };
 IE_SUPPRESS_DEPRECATED_END_WIN
 
@@ -124,9 +117,7 @@ template <class T>
 inline typename InferenceEngine::ExecutableNetwork make_executable_network(std::shared_ptr<T> impl) {
     // to suppress warning about deprecated QueryState
     IE_SUPPRESS_DEPRECATED_START
-    typename ExecutableNetworkBase::Ptr net(new ExecutableNetworkBase(impl), [](IExecutableNetwork* p) {
-        p->Release();
-    });
+    typename ExecutableNetworkBase::Ptr net(new ExecutableNetworkBase(impl));
     IE_SUPPRESS_DEPRECATED_END
     return InferenceEngine::ExecutableNetwork(net);
 }
