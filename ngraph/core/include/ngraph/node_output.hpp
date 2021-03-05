@@ -18,6 +18,7 @@
 
 #include <cstring>
 #include <unordered_set>
+#include <map>
 
 #include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/partial_shape.hpp"
@@ -35,6 +36,8 @@ namespace ngraph
     class Output
     {
     };
+
+    class Variant;
 
     /// \brief A handle for one of a node's outputs.
     template <>
@@ -87,6 +90,11 @@ namespace ngraph
         const Shape& get_shape() const;
         /// \return The partial shape of the output referred to by this output handle.
         const PartialShape& get_partial_shape() const;
+
+        using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+
+        RTMap& get_rt_info();
+        //const RTMap& get_rt_info() const;
 
         /// \return A set containing handles for all inputs targeted by the output referenced by
         ///        this output handle.

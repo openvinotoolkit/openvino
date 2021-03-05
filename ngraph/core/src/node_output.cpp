@@ -17,6 +17,7 @@
 #include "ngraph/node_output.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/variant.hpp"
 
 namespace ngraph
 {
@@ -88,6 +89,16 @@ namespace ngraph
             input.replace_source_output(replacement);
         }
     }
+
+    using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+
+    RTMap& Output<Node>::get_rt_info() {
+        return m_node->get_output_descriptor(m_index).get_rt_info();
+    }
+
+//    const RTMap& Output<Node>::get_rt_info() const {
+//        return m_node->get_output_descriptor(m_index).get_rt_info();
+//    }
 
     bool Output<Node>::operator==(const Output& other) const
     {

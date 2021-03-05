@@ -363,7 +363,7 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     std::stringstream ss;
     ss << "{" << node->get_element_type().get_type_name() << "}";
     ss << pretty_partial_shape(node->get_output_partial_shape(0));
-
+    return ss.str();
     if (!op::is_constant(node))
         return ss.str();
 

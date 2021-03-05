@@ -20,6 +20,7 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <map>
 
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/tensor.hpp"
@@ -33,6 +34,8 @@ namespace ngraph
     // in practice including node.hpp here was causing compilation errors on some
     // systems (namely macOS).
     class Node;
+
+    class Variant;
 
     namespace descriptor
     {
@@ -63,6 +66,11 @@ namespace ngraph
             const std::vector<Input*>& get_inputs() const { return m_inputs; }
             Tensor& get_tensor() const;
 
+            using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
+
+            RTMap& get_rt_info() { return m_rt_info; }
+            const RTMap& get_rt_info() const { return m_rt_info; }
+
             /// \return the shape of the output
             const Shape& get_shape() const;
 
@@ -80,6 +88,7 @@ namespace ngraph
             Node* m_node;
             size_t m_index;
             std::shared_ptr<Tensor> m_tensor;
+            RTMap m_rt_info;
             std::vector<Input*> m_inputs;
         };
     }

@@ -43,7 +43,7 @@ namespace ngraph
             NGRAPH_RTTI_DECLARATION;
 
             using node_modifiers_t =
-                std::function<void(const Node& node, std::vector<std::string>& attributes)>;
+                std::function<void(Node& node, std::vector<std::string>& attributes)>;
             VisualizeTree(const std::string& file_name,
                           node_modifiers_t nm = nullptr,
                           bool dot_only = false);

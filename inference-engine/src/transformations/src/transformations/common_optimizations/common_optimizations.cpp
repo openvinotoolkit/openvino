@@ -100,6 +100,10 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     common_fusions->add_matcher<ngraph::pass::SoftmaxFusion>();
     common_fusions->set_name("ngraph::pass::CommonFusions");
 
+    manager.register_pass<ngraph::pass::BatchNormDecomposition>();
+    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+    manager.register_pass<ngraph::pass::Pruning>();
+
     manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::ConvertInterpolate1ToInterpolate4, false>();
 
@@ -121,7 +125,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::ConvertNegative>();
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
-    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::MVN6Decomposition>();
     decomp->add_matcher<ngraph::pass::SimplifyCTCGreedyDecoderSeqLen>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
