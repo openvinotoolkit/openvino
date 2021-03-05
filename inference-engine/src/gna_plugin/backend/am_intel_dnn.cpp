@@ -1243,15 +1243,15 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                             break;
                         case kActFakeQuantize :
                             out_file << "<fakeQuantize.levels> " <<
-                                std::dec << component[i].op.pwl.func_id.args.fakeQuantize.levels << "\n";
+                                std::dec << component[i].op.pwl.func_id.fqParams.levels << "\n";
                             out_file << "<fakeQuantize.input_low> " <<
-                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.input_low << "\n";
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.fqParams.input_low << "\n";
                             out_file << "<fakeQuantize.input_high> " <<
-                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.input_high << "\n";
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.fqParams.input_high << "\n";
                             out_file << "<fakeQuantize.output_low> " <<
-                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.output_low << "\n";
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.fqParams.output_low << "\n";
                             out_file << "<fakeQuantize.output_high> " <<
-                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.output_high << "\n";
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.fqParams.output_high << "\n";
                             break;
                         default:
                             break;
