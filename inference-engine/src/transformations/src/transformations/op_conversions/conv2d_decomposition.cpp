@@ -247,12 +247,6 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         size_t input_height = input.get_shape()[2];
         size_t input_width = input.get_shape()[3];
 
-        //if (input_channel_count < 1 ||
-        //    0 != input_channel_count % 32) {
-        //    // we do only support conv2d with channels k * 32
-        //    continue;
-        //}
-
         size_t filter_channel_count = filters.get_shape()[0];
         size_t filter_count = filters.get_shape()[1];
         size_t filter_height = filters.get_shape()[2];
@@ -453,13 +447,13 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
 
         if (conv_count == 1 && input_height == 1 && filter_dilation_x == 1 && filter_dilation_y == 1)
             continue;
-        if (input_channel_count == 32 && input_height > 1)
-        {
-            printf("conv name: %s in [%u, %u, %u, %u] k [%u, %u, %u, %u] \n",
-                conv->get_friendly_name().c_str(),
-                1ull, input_channel_count, input_height, input_width,
-                filter_count, filter_channel_count, filter_height, filter_width);
-        }
+        //if (input_channel_count == 32 && input_height > 1)
+        //{
+        //    printf("conv name: %s in [%u, %u, %u, %u] k [%u, %u, %u, %u] \n",
+        //        conv->get_friendly_name().c_str(),
+        //        1ull, input_channel_count, input_height, input_width,
+        //        filter_count, filter_channel_count, filter_height, filter_width);
+        //}
         for (size_t conv_index = 0; conv_index < conv_count; conv_index++) {
             Output<Node> reduced_input_plane = splitted_planes[conv_index];
             // lets change filter height to 1
