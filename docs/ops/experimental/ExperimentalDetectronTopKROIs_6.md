@@ -20,9 +20,9 @@
 
 **Inputs**
 
-* **1**: A tensor of type *T1* with input rois. **Required.**
+* **1**: A 2D tensor of type *T1* with shape `[number_of_input_ROIs, 4]` contains input rois. **Required.**
 
-* **2**: A tensor of type *T2* with probabilities for input ROIs. **Required.**
+* **2**: A 1D tensor of type *T2* with probabilities for input ROIs. Number of rois and number of probabilities should be equal. **Required.**
 
 **Outputs**
 

@@ -51,21 +51,22 @@
 
 **Inputs**:
 
-*   **0**: 2D inputtensor of type *T* describing the rois as 4-tuples: [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. Batch size is the number of rois. Coordinates *x* and *y* are refer to the input *image_size*. **Required**.
+*   **1**: 2D input tensor of type *T* describing the rois as 4-tuples: [x<sub>1</sub>, y<sub>1</sub>, x<sub>2</sub>, y<sub>2</sub>]. Batch size is the number of rois. Coordinates *x* and *y* are refer to the input *image_size*. **Required**.
 
-*   **1**, ..., **L**: Pyramid of 4D input blobs with feature maps. Batch size must be 1. The number of channels must be the same for all layers of the pyramid. The layer width and height must equal to the `layer_size[l] = image_size / pyramid_scales[l]`. **Required**.
+*   **2**, ..., **L**: Pyramid of 4D input blobs with feature maps. Batch size must be 1. The number of channels must be the same for all layers of the pyramid. The layer width and height must equal to the `layer_size[l] = image_size / pyramid_scales[l]`. **Required**.
 
 **Outputs**:
 
-*   **0**: 4D output blob. Batch size equals to number of rois. Channels number is the same as for all images in the input pyramid. A tensor of type *T*. Required.
+*   **1**: 4D output tensor of type *T*. Batch size equals to number of rois. Channels number is the same as for all images in the input pyramid. Required.
+
+*   **2**: 2D output tensor of type *T* with same shape as 0 input. Required.
 
 **Types**
 
 * *T*: any supported floating point type.
 
 
-
-**Mathematical Formulation** #TODO: add `alligned` attr to this formula!
+**Mathematical Formulation** #TODO: Update this formula and add `alligned` attr to it!
 
 *ExperimentalDetectronROIFeatureExtractor* applies the *ROIAlign* algorithm to the pyramid layers:
 
@@ -82,44 +83,48 @@ Here 224 is the "canonical" size, 2 is the pyramid starting level, and w, h are 
 
 ```xml
 <layer ... type="ExperimentalDetectronROIFeatureExtractor">
-	<data output_size="14" pyramid_scales="4,8,16,32" sampling_ratio="2" aligned="false"/>
-	<input>
-		<port id="0">
-			<dim>100</dim>
-			<dim>4</dim>
-		</port>
-		<port id="1">
-			<dim>1</dim>
-			<dim>256</dim>
-			<dim>160</dim>
-			<dim>160</dim>
-		</port>
-		<port id="2">
-			<dim>1</dim>
-			<dim>256</dim>
-			<dim>80</dim>
-			<dim>80</dim>
-		</port>
-		<port id="3">
-			<dim>1</dim>
-			<dim>256</dim>
-			<dim>40</dim>
-			<dim>40</dim>
-		</port>
-		<port id="4">
-			<dim>1</dim>
-			<dim>256</dim>
-			<dim>20</dim>
-			<dim>20</dim>
-		</port>
-	</input>
-	<output>
-		<port id="5">
-			<dim>100</dim>
-			<dim>256</dim>
-			<dim>14</dim>
-			<dim>14</dim>
-		</port>
-	</output>
+    <data aligned="false" output_size="7" pyramid_scales="4,8,16,32,64" sampling_ratio="2"/>
+    <input>
+        <port id="0">
+            <dim>1000</dim>
+            <dim>4</dim>
+        </port>
+        <port id="1">
+            <dim>1</dim>
+            <dim>256</dim>
+            <dim>200</dim>
+            <dim>336</dim>
+        </port>
+        <port id="2">
+            <dim>1</dim>
+            <dim>256</dim>
+            <dim>100</dim>
+            <dim>168</dim>
+        </port>
+        <port id="3">
+            <dim>1</dim>
+            <dim>256</dim>
+            <dim>50</dim>
+            <dim>84</dim>
+        </port>
+        <port id="4">
+            <dim>1</dim>
+            <dim>256</dim>
+            <dim>25</dim>
+            <dim>42</dim>
+        </port>
+    </input>
+    <output>
+        <port id="5" precision="FP32">
+            <dim>1000</dim>
+            <dim>256</dim>
+            <dim>7</dim>
+            <dim>7</dim>
+        </port>
+        <port id="6" precision="FP32">
+            <dim>1000</dim>
+            <dim>4</dim>
+        </port>
+    </output>
 </layer>
 ```
