@@ -207,7 +207,6 @@ namespace ngraph
             visitor.on_attribute("axis", m_ref.m_axis);
             visitor.finish_structure();
         }
-        visitor.on_attribute("axis", m_ref.m_axis);
         return true;
     }
 

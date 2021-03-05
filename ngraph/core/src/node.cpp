@@ -1036,7 +1036,7 @@ AttributeAdapter<std::shared_ptr<Node>>::AttributeAdapter(std::shared_ptr<Node>&
 }
 
 bool AttributeAdapter<std::shared_ptr<Node>>::visit_attributes(AttributeVisitor& visitor)
-{    
+{
     auto original_id = visitor.get_registered_node_id(m_ref);
     auto id = original_id;
     visitor.on_attribute("ID", id);
