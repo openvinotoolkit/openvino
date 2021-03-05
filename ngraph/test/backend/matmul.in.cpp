@@ -964,7 +964,6 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_param)
     test_case.run();
 }
 
-
 NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2_1_3_x_3_false_false_const)
 {
     Shape shape_a{2, 2, 1, 3};
@@ -1024,7 +1023,6 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_param)
     test_case.run();
 }
 
-
 NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_const)
 {
     Shape shape_a{3};
@@ -1053,4 +1051,3 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_3_x_2_2_3_1_false_false_const)
     test_case.add_expected_output<float>(shape_out, expected_result);
     test_case.run();
 }
-
