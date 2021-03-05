@@ -3,6 +3,7 @@
 //
 
 #include "transformations/op_conversions/conv2d_decomposition.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <memory>
 
@@ -161,15 +162,17 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             continue;
         }
         // TODO: Check if filter weights are not dynamic
+        // TODO: Check BIAS sizes
 
         // we are looking for Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC)
         // so required network must be in NHWC order like in TF
         //   supported cases:
         //     - Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC)
         //     - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => Transpose(NCHW->NHWC)
-        //     - TODO: Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPooling => Transpose(NCHW->NHWC)
+        //     - TODO: Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPooling => Transpose(NCHW->NHWC) (2d max pool case)
         //     - Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => ActivationFunction => Transpose(NCHW->NHWC)
-        //     - TODO: Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPool => ActivationFunction => Transpose(NCHW->NHWC)
+        //     - TODO: Transpose(NHWC->NCHW) => conv => broadcasted add (BIAS) => MaxPool => ActivationFunction => Transpose(NCHW->NHWC) (2d max pool case)
+        //     - TODO: Transpose(NHWC->NCHW) => conv => Transpose(NCHW->NHWC) => BIAS (output of MO --disable_nhwc_to_nchw option)
         auto leading_transpose = std::dynamic_pointer_cast<Transpose>(input.get_node_shared_ptr());
         if (!leading_transpose || !IsTransposeOrderMatches(leading_transpose, {0,3,1,2}))
             continue;
@@ -179,29 +182,78 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         if (output_0.size() != 1)
             continue;
 
+        auto filter_values = std::dynamic_pointer_cast<ngraph::opset1::Constant>(filters.get_node_shared_ptr());
+        if (!filter_values) {
+            continue;
+        }
+        size_t input_channel_count = input.get_shape()[1];
+        size_t input_height = input.get_shape()[2];
+        size_t input_width = input.get_shape()[3];
+
+        size_t filter_count = filters.get_shape()[0];
+        size_t filter_channel_count = filters.get_shape()[1];
+        size_t filter_height = filters.get_shape()[2];
+        size_t filter_width = filters.get_shape()[3];
+
+        if (filter_width > GNA_MAX_PERMUTE_COL_COUNT || filter_height > GNA_MAX_PERMUTE_COL_COUNT) {
+            continue;
+        }
+
         auto output_0_node = output_0.begin()->get_node()->shared_from_this();
         auto trailing_transpose = std::dynamic_pointer_cast<Transpose>(output_0_node);
         auto conv_bias = std::dynamic_pointer_cast<ngraph::opset1::Add>(output_0_node);
         auto max_pool = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(output_0_node);
         auto af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(output_0_node);
-        if (!trailing_transpose && conv_bias) {
+        std::shared_ptr<Node>last_op_in_sequence_for_replacement = trailing_transpose;
+
+        std::shared_ptr<ngraph::Node> bias_const;
+        bool disable_nhwc_to_nchw_option = false;
+        if (leading_transpose && trailing_transpose && conv) {
+            auto trailing_transpose_output_0 = trailing_transpose->get_output_target_inputs(0);
+            if (trailing_transpose_output_0.size() == 1) {
+                auto trailing_transpose_output_0_node = trailing_transpose_output_0.begin()->get_node()->shared_from_this();
+                auto add_op = std::dynamic_pointer_cast<ngraph::opset1::Add>(trailing_transpose_output_0_node);
+                max_pool = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(trailing_transpose_output_0_node);
+                af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(trailing_transpose_output_0_node);
+                if (add_op) {
+                    auto add_const = std::dynamic_pointer_cast<ngraph::op::Constant>(add_op->input_value(1).get_node_shared_ptr());
+                    if (add_const) {
+                        auto bias_size = shape_size(add_const->get_shape());
+                        // the add maybe normal add not bias, than we just go further
+                        if (bias_size == filter_count) {
+                            conv_bias = add_op;
+                            last_op_in_sequence_for_replacement = add_op;
+                            disable_nhwc_to_nchw_option = true;
+
+                            auto bias_output_0 = add_op->get_output_target_inputs(0);
+                            if (bias_output_0.size() == 1) {
+                                auto bias_output_0_node = bias_output_0.begin()->get_node()->shared_from_this();
+                                max_pool = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(bias_output_0_node);
+                                af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(bias_output_0_node);
+                            }
+                        }
+                    }
+                }
+            }
+        } else if (!trailing_transpose && conv_bias) {
             // the NCHW order
-            // TODO: check if this is broadcast add H=1/W=1 and match conv channel count in C
             auto bias_output_0 = conv_bias->get_output_target_inputs(0);
             if (bias_output_0.size() != 1)
                 continue;
 
             auto bias_output_0_node = bias_output_0.begin()->get_node()->shared_from_this();
             trailing_transpose = std::dynamic_pointer_cast<Transpose>(bias_output_0_node);
+            last_op_in_sequence_for_replacement = trailing_transpose;
             max_pool = std::dynamic_pointer_cast<ngraph::opset1::MaxPool>(bias_output_0_node);
             af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(bias_output_0_node);
         }
-
+        
         size_t pool_size_x = 1;
         size_t pool_size_y = 1;
         size_t pool_stride_x = 1;
         size_t pool_stride_y = 1;
-        if (!trailing_transpose && max_pool) {
+
+        if (max_pool) {
             // Check if MaxPool vertical stride == pool size
             auto pool_strides = max_pool->get_strides();
             auto pool_kernel = max_pool->get_kernel();
@@ -223,37 +275,49 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
             if (maxpool_output_0.size() != 1)
                 continue;
             auto maxpool_output_0_node = maxpool_output_0.begin()->get_node()->shared_from_this();
-            trailing_transpose = std::dynamic_pointer_cast<Transpose>(maxpool_output_0_node);
+            // disable_nhwc_to_nchw option case
+            if (!trailing_transpose) {
+                trailing_transpose = std::dynamic_pointer_cast<Transpose>(maxpool_output_0_node);
+                last_op_in_sequence_for_replacement = trailing_transpose;
+            } else {
+                last_op_in_sequence_for_replacement = max_pool;
+                disable_nhwc_to_nchw_option = true;
+            }
             af = std::dynamic_pointer_cast<ngraph::op::util::UnaryElementwiseArithmetic>(maxpool_output_0_node);
         }
 
         //and finally activation function
-        if (!trailing_transpose && af) {
+        if (af) {
             auto af_output_0 = af->get_output_target_inputs(0);
             if (af_output_0.size() != 1)
                 continue;
             auto af_output_0_node = af_output_0.begin()->get_node()->shared_from_this();
-            trailing_transpose = std::dynamic_pointer_cast<Transpose>(af_output_0_node);
+            if (!trailing_transpose) {
+                trailing_transpose = std::dynamic_pointer_cast<Transpose>(af_output_0_node);
+                last_op_in_sequence_for_replacement = trailing_transpose;
+            } else {
+                last_op_in_sequence_for_replacement = af;
+                disable_nhwc_to_nchw_option = true;
+            }
         }
 
-        if (!trailing_transpose || !IsTransposeOrderMatches(trailing_transpose, {0,2,3,1}))
+        if (!last_op_in_sequence_for_replacement || !trailing_transpose || !IsTransposeOrderMatches(trailing_transpose, {0,2,3,1}))
             continue;
 
-        auto filter_values = std::dynamic_pointer_cast<ngraph::opset1::Constant>(filters.get_node_shared_ptr());
-        if (!filter_values) {
-            continue;
-        }
-        size_t input_channel_count = input.get_shape()[1];
-        size_t input_height = input.get_shape()[2];
-        size_t input_width = input.get_shape()[3];
-
-        size_t filter_channel_count = filters.get_shape()[0];
-        size_t filter_count = filters.get_shape()[1];
-        size_t filter_height = filters.get_shape()[2];
-        size_t filter_width = filters.get_shape()[3];
-
-        if (filter_width > GNA_MAX_PERMUTE_COL_COUNT || filter_height > GNA_MAX_PERMUTE_COL_COUNT) {
-            continue;
+        if (conv_bias) {
+            auto add_const = std::dynamic_pointer_cast<ngraph::op::Constant>(conv_bias->input_value(1).get_node_shared_ptr());
+            if (add_const) {
+                auto bias_size = shape_size(add_const->get_shape());
+                if (bias_size == filter_count) {
+                    auto& bias_const_node = opset1::Constant(element::Type_t::f32, Shape{ 1, bias_size , 1, 1 }, add_const->get_data_ptr());
+                    bias_const = std::make_shared<opset1::Constant>(bias_const_node);
+                } else {
+                    continue;
+                }
+            } else {
+                // BIAS size does not match (or dynamic BIAS), can't convert such convolution
+                continue;
+            }
         }
 
         size_t filter_dilation_x = conv->get_dilations()[1];
@@ -268,7 +332,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         size_t pads_end_x = 0;
         size_t pads_end_y = 0;
 
-        size_t output_channel_count = filter_channel_count;
+        size_t output_channel_count = filter_count;
         size_t output_height = 0;
         size_t output_width = 0;
 
@@ -445,6 +509,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         auto org_input_channel_count = input_channel_count;
         input_channel_count /= conv_count;
 
+        // the GNA supported features
         if (conv_count == 1 && input_height == 1 && filter_dilation_x == 1 && filter_dilation_y == 1)
             continue;
         //if (input_channel_count == 32 && input_height > 1)
@@ -537,7 +602,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                 auto nhwc_conv_1d = [](std::shared_ptr<ngraph::Node> source_conv2d,
                     Output<Node> input,
                     std::shared_ptr<ngraph::Node> filters,
-                    std::shared_ptr<ngraph::Node> add_bias_op,
+                    std::shared_ptr<ngraph::Node> add_bias_const,
                     size_t stride_x,
                     size_t pool_size_x,
                     size_t pool_stride_x,
@@ -554,8 +619,16 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                         conv->set_friendly_name(conv_name);
 
                         std::shared_ptr<Node> last_conv_block_op = conv;
-                        if (add_bias_op) {
-                            last_conv_block_op = add_bias_op->clone_with_new_inputs(OutputVector{ conv, /* BIAS */add_bias_op->input_value(1) });
+                        if (add_bias_const) {
+                            auto add_bias_op = ngraph::opset1::Add({ conv, add_bias_const });
+                            last_conv_block_op = std::make_shared<op::TypeRelaxed<ngraph::opset1::Add>>(
+                                add_bias_op,
+                                std::vector<element::Type>{ element::f32, element::f32 },
+                                std::vector<element::Type>{});
+
+                            //last_conv_block_op = std::make_shared<ngraph::opset1::Add>(add_bias_op);
+                            ngraph::copy_runtime_info(source_conv2d, {last_conv_block_op});
+                            //last_conv_block_op = add_bias_op->clone_with_new_inputs(OutputVector{ conv, /* BIAS */add_bias_op->input_value(1) });
                         }
                         //add max pooling
                         if (pool_size_x > 1) {
@@ -583,7 +656,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
                 }
 
                 // valid 1D convolution wrapped with permutes NHWC => NCHW => conv => NCHW => NHWC
-                auto nhwc_y_output = nhwc_conv_1d(conv, nhwc_conv_y_input, h_1_filters[conv_index], conv_index ? nullptr : conv_bias,
+                auto nhwc_y_output = nhwc_conv_1d(conv, nhwc_conv_y_input, h_1_filters[conv_index], conv_index ? nullptr : bias_const,
                     filter_stride_x, pool_size_x,pool_stride_x, max_pool ? max_pool->get_rounding_type() : RoundingType::FLOOR, y);
                 result_chunks.push_back(nhwc_y_output);
                 last_op = nhwc_y_output;
@@ -613,8 +686,7 @@ bool ngraph::pass::Conv2dDecomposition::run_on_function(std::shared_ptr<ngraph::
         }
         // we need to put friendly name, so the conv output can be used as network result
         std::string conv_result_name = trailing_transpose->get_friendly_name();
-
-        ngraph::replace_node(trailing_transpose, conv_result);
+        ngraph::replace_node(last_op_in_sequence_for_replacement, conv_result);
         conv_result->set_friendly_name(conv_result_name);
 
         is_graph_modfied = true;
