@@ -21,6 +21,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/axis_vector.hpp"
+#include "ngraph/op/constant.hpp"
 #include "ngraph/op/dft.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
@@ -84,7 +85,7 @@ void op::v7::DFT::validate_and_infer_types()
     PartialShape output_shape = input_shape;
 
     if (input_shape.rank().is_dynamic() || axes_shape.rank().is_dynamic() ||
-        !is_type<opset1::Constant>(input_value(1).get_node()))
+        !is_type<op::Constant>(input_value(1).get_node()))
     {
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
@@ -143,7 +144,7 @@ void op::v7::DFT::validate_and_infer_types()
 
     PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
     if (signal_size_shape.rank().is_dynamic() ||
-        !is_type<opset1::Constant>(input_value(2).get_node()))
+        !is_type<op::Constant>(input_value(2).get_node()))
     {
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
