@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,6 +106,23 @@ public:
         const std::map<std::string, std::string>& config = {});
 
     /**
+     * @brief Reads model and creates an executable network from IR or ONNX file
+     *
+     * This can be more efficient than using Code::ReadNetwork + Code::LoadNetwork(CNNNetwork) flow
+     *        especially for cases when caching is enabled and cached model is available
+     *
+     * @param modelPath path to model
+     * @param deviceName Name of device to load network to
+     * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
+     * operation/
+     *
+     * @return An executable network reference
+     */
+    ExecutableNetwork LoadNetwork(
+        const std::string & modelPath, const std::string & deviceName,
+        const std::map<std::string, std::string>&config = {});
+
+    /**
      * @brief Registers extension
      * @param extension Pointer to already loaded extension
      */
@@ -134,8 +151,8 @@ public:
     /**
      * @brief Creates an executable network from a previously exported network
      *
-     * @param deviceName Name of device load executable network on
      * @param modelFileName Path to the location of the exported file
+     * @param deviceName Name of device load executable network on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
      * @return An executable network reference
@@ -146,8 +163,8 @@ public:
 
     /**
      * @brief Creates an executable network from a previously exported network
-     * @param deviceName Name of device load executable network on
      * @param networkModel network model stream
+     * @param deviceName Name of device load executable network on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
      * @return An executable network reference
@@ -185,7 +202,8 @@ public:
      * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
      *
      * @param deviceName An optional name of a device. If device name is not specified, the config is set for all the
-     * registered devices.
+     * registered devices. The special case is CACHE_DIR global key. When "CACHE_DIR" is enabled for all devices,
+     * model caching is enabled for all supported devices. Devices which don't support model caching will ignore this config setting
      *
      * @param config Map of pairs: (config parameter name, config parameter value)
      */

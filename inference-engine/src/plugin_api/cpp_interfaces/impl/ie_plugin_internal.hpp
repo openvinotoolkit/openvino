@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,25 +22,6 @@
 #include "cpp_interfaces/plugin_itt.hpp"
 
 namespace InferenceEngine {
-
-namespace {
-
-/**
- * @private
- */
-static inline void parsePluginName(std::istream& networkModel) {
-    ExportMagic magic = {};
-    auto currentPos = networkModel.tellg();
-    networkModel.read(magic.data(), magic.size());
-    auto exportedWithName = (exportMagic == magic);
-    if (exportedWithName) {
-        networkModel.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    } else {
-        networkModel.seekg(currentPos, networkModel.beg);
-    }
-}
-
-}  // namespace
 
 /**
  * @brief Optimal implementation of IInferencePlugin interface to avoid duplication in all plugins
@@ -83,14 +64,12 @@ public:
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const std::map<std::string, std::string>& config) override {
-        parsePluginName(networkModel);
         return ImportNetworkImpl(networkModel, config);
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config) override {
-        parsePluginName(networkModel);
         return ImportNetworkImpl(networkModel, context, config);
     }
 
