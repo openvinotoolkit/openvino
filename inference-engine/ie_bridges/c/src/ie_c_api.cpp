@@ -451,7 +451,7 @@ IEStatusCode ie_core_add_extension(ie_core_t *core, const char *extension_path, 
     }
 
     try {
-        auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(extension_path);
+        auto extension_ptr = std::make_shared<InferenceEngine::Extension>(std::string{extension_path});
         auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
         core->object.AddExtension(extension, device_name);
     } catch (const IE::details::InferenceEngineException& e) {
@@ -524,6 +524,8 @@ IEStatusCode ie_core_get_available_devices(const ie_core_t *core, ie_available_d
         avai_devices->devices = dev_ptrs.release();
     } catch (const IE::details::InferenceEngineException& e) {
         return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;
+    } catch (const std::exception& e) {
+        return IEStatusCode::UNEXPECTED;
     } catch (...) {
         return IEStatusCode::UNEXPECTED;
     }
