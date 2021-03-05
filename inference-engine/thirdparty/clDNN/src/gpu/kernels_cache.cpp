@@ -466,7 +466,7 @@ void kernels_cache::build_all() {
         sorted_program_code = get_program_source(_kernels_code);
         _one_time_kernels.clear();
     }
-    Semaphore max_threads(4);
+    Semaphore max_threads(2);
     std::cout << "Build all ===========================" << std::endl;
     std::cout << "sorted_program_code.size() = " << sorted_program_code.size() << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
@@ -478,7 +478,7 @@ void kernels_cache::build_all() {
     for (auto& program : sorted_program_code) {
         for (size_t batch_id = 0; batch_id < program.second.source.size(); ++batch_id) {
             programs.push_back(program.second);
-            builds.push_back(std::async(std::launch::async, [&]
+            builds.push_back(std::async(std::launch::async | std::launch::deferred, [&]
                 (Semaphore& max_threads, std::pair<std::string, program_code> program, size_t program_id, size_t batch_id) {
                 BatchBuilder b(max_threads);
                 auto kmap = build_batch(program.second, batch_id, program_id);
