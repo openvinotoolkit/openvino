@@ -28,6 +28,7 @@
 #include <cpp/ie_executable_network.hpp>
 #include <cpp/ie_infer_request.hpp>
 #include <ie_common.h>
+#include <ie_iinfer_request.hpp>
 
 #include "../../../pybind11/include/pybind11/pybind11.h"
 #include "pyopenvino/inference_engine/ie_infer_queue.hpp"
@@ -48,62 +49,50 @@ public:
     size_t getIdleRequestId()
     {
         std::unique_lock<std::mutex> lock(_mutex);
-        py::gil_scoped_acquire acquire;
-        py::print("--- get");
-        py::print(_idle_ids.size());
-        py::print(_idle_ids.front());
-        py::print(_idle_ids.back());
-        py::print("--------");
-        py::gil_scoped_acquire release;
-        _cv.wait(lock, [&, this] { return _idle_ids.size() > 0; }); // tylko idle_ids capture
+        _cv.wait(lock, [this] { return !(_idle_ids.empty()); });
+
         size_t idle_request_id = _idle_ids.front();
         _idle_ids.pop();
+
         return idle_request_id;
     }
 
-    void addIdleRequestId(size_t id)
+    std::vector<InferenceEngine::StatusCode> waitAll()
     {
-        py::gil_scoped_acquire acquire;
-        py::print("--- add");
-        py::print(id);        
-        py::print(_idle_ids.size());
-        py::print(_idle_ids.front());
-        py::print(_idle_ids.back());
-        py::print("--------");
-        py::gil_scoped_acquire release;
-        // std::unique_lock<std::mutex> lock(_mutex);
-        _idle_ids.push(id);
-        // _cv.notify_one();
-    }
+        std::vector<InferenceEngine::StatusCode> statuses;
 
-    void waitAll()
-    {
-        py::gil_scoped_acquire acquire;
         std::unique_lock<std::mutex> lock(_mutex);
-        _cv.wait(lock, [&, this] { return _idle_ids.size() == _requests.size(); });
-        // TODO: some deadlock happens? with wait(-1)
-        // for (size_t i = 0; i < _requests.size(); i++)
-        // {
-        //     _requests[i].Wait(-1);
-        // }
+        _cv.wait(lock, [this] { return _idle_ids.size() == _requests.size(); });
+
+        for (size_t id = 0; id < _requests.size(); id++)
+        {
+            statuses.push_back(
+                _requests[id].Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
+        }
+
+        return statuses;
     }
 
     void setCallbacks(py::function f_callback)
     {
+        // auto& ref_idle_ids = _idle_ids; // fujka
+
         for (size_t id = 0; id < _requests.size(); id++)
         {
-            _requests[id].SetCompletionCallback([&, this, f_callback, id /* ... */]() {
+            _requests[id].SetCompletionCallback([this, f_callback, id /* ... */]() {
                 py::gil_scoped_acquire acquire;
-                f_callback(/* request_id, result */);
+                f_callback(id /* request_id, result */);
                 py::gil_scoped_release release;
 
-                // lock queue and add idle id
+                // lock queue and add idle id to queue
                 // TODO: always set completion callback with this
                 //       on creation of queue constructor (?)
                 //       just in case no callback is given
                 //       then for sure they want be push to queue
-                std::unique_lock<std::mutex> lock(_mutex);
-                addIdleRequestId(id);
+                {
+                    std::lock_guard<std::mutex> lock(_mutex);
+                    _idle_ids.push(id);
+                }
                 _cv.notify_one();
             });
         }
@@ -124,17 +113,20 @@ void regclass_InferQueue(py::module m)
     cls.def(py::init([](InferenceEngine::ExecutableNetwork& net, size_t jobs) {
         std::vector<InferenceEngine::InferRequest> requests;
         std::queue<size_t> idle_ids;
-        for (size_t i = 0; i < jobs; i++)
+        for (size_t id = 0; id < jobs; id++)
         {
             requests.push_back(net.CreateInferRequest());
-            idle_ids.push(i);
+            idle_ids.push(id);
         }
         return new InferQueue(requests, idle_ids);
     }));
 
     cls.def("infer", [](InferQueue& self, const py::dict inputs) {
-        auto id = self.getIdleRequestId(); // todo: add docs for blocking call
-
+        py::gil_scoped_release release; // !!!!!! i m p o r t a n t, deadlocks because of this
+        // getIdleRequestId function has an intention to block InferQueue until there is at least
+        // one idle (free to use) InferRequest
+        auto id = self.getIdleRequestId();
+        // Update inputs of given InferRequest
         for (auto&& input : inputs)
         {
             auto name = input.first.cast<std::string>().c_str();
@@ -142,11 +134,14 @@ void regclass_InferQueue(py::module m)
                 input.second.cast<const std::shared_ptr<InferenceEngine::TBlob<float>>&>();
             self._requests[id].SetBlob(name, blob);
         }
-
+        // Start InferRequest in asynchronus mode
         self._requests[id].StartAsync();
     });
 
-    cls.def("wait_all", [](InferQueue& self) { self.waitAll(); });
+    cls.def("wait_all", [](InferQueue& self) {
+        // py::gil_scoped_release release; // TODO: is needed?
+        return self.waitAll();
+    });
 
     cls.def("set_infer_callback",
             [](InferQueue& self, py::function f_callback) { self.setCallbacks(f_callback); });
