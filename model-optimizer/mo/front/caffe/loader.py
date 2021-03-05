@@ -320,10 +320,13 @@ def caffe_pb_to_nx(graph, proto, model):
                 log.debug("Detected reuse of blob {} by layer {}".format(top, layer.name))
             blob_producers[top] = (layer.name, src_port)
 
+    # Tensor names information corresponding to a node is stored on outgoing edges.
+    # As output nodes do not have outgoing edges, fake outputs are required. In the following code
+    # for each output Identity node is added, and tensor name for the output is kept
+    # on (output, fake output) edge. After Result nodes adding transformations fake outputs
+    # are deleted from graph.
     all_blobs = set(blob_producers.keys())
     for not_used_blob in all_blobs - used_blobs:
-        if not not_used_blob:
-            continue
         fake_node_name = graph.unique_id(not_used_blob)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
                        infer=copy_shape_infer, needs_removal=True)

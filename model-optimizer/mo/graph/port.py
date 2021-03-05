@@ -294,13 +294,13 @@ class Port:
         assert self.type != 'in', "Can't get tensor names for input port at {} node".format(self.node.name)
 
         fw_names = []
-        if self.node.graph.stage is None or self.node.graph.stage == 'front':
+        if self.node.graph.stage == 'front':
             if self.idx in self.node.out_edges():
                 out_edge = self.node.out_edge(self.idx)
                 fw_names += get_tensor_names_list(out_edge)
         else:
-            node_idx = self.idx
             # before port renumbering we use sequential numbering
+            node_idx = self.idx
             if port_renumber:
                 if self.node.type != 'Const':
                     # after port renumbering port indices start from zero,

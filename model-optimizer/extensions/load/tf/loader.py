@@ -102,6 +102,11 @@ class TFLoader(Loader):
         used_tensors = restore_edges(graph, get_tf_edges)
         outputs = graph.nodes - used_tensors
 
+        # Tensor names information corresponding to a node is stored on outgoing edges.
+        # As output nodes do not have outgoing edges, fake outputs are required. In the following code
+        # for each output Identity node is added, and tensor name for the output is kept
+        # on (output, fake output) edge. After Result nodes adding transformations fake outputs
+        # are deleted from graph.
         for output in outputs:
             if not output:
                 continue

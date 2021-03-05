@@ -1101,6 +1101,28 @@ def rename_nodes(nodes: List[tuple]):
     for node, name in nodes:
         rename_node(node, name)
 
+
+def get_attribute_between_nodes(node1: Node, node2: Node, attr_name: str):
+    attr_value = None
+    for edge_idx in node1.out_edges():
+        edge = node1.out_edge(edge_idx)
+        out_port = edge['out']
+        out_node = node1.out_node(out_port)
+        if out_node.soft_get('id') is node2.soft_get('id'):
+            if attr_name in edge:
+                attr_value = edge[attr_name]
+    return attr_value
+
+
+def set_attribute_between_nodes(node1: Node, node2: Node, attr_name: str, new_value):
+    for edge_idx in node1.out_edges():
+        edge = node1.out_edge(edge_idx)
+        out_port = edge['out']
+        out_node = node1.out_node(out_port)
+        if out_node.soft_get('id') is node2.soft_get('id'):
+            if attr_name in edge:
+                edge[attr_name] = new_value
+
 # All functions below are deprecated and will be removed in next release
 # Please, use methods from Graph/Node classes instead
 

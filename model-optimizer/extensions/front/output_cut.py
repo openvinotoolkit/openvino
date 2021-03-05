@@ -15,7 +15,7 @@
 """
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.extractor import add_output_ops
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, get_attribute_between_nodes, set_attribute_between_nodes
 
 
 class OutputCut(FrontReplacementPattern):
@@ -35,13 +35,13 @@ class OutputCut(FrontReplacementPattern):
 
         for node in graph.get_op_nodes():
             if node.soft_get('needs_removal') is True:
-                in_node = None
-                if node.in_nodes():
-                    in_node = node.in_node(0)
                 fw_info = None
-                if node.in_edges() and 'fw_tensor_debug_info' in node.in_edge(0):
-                    fw_info = node.in_edge(0)['fw_tensor_debug_info']
+                if 0 in node.in_edges():
+                    in_node = node.in_node(node.in_edge(0)['out'])
+                    fw_info = get_attribute_between_nodes(in_node, node, 'fw_tensor_debug_info')
                 graph.erase_node(node)
 
-                if fw_info is not None and in_node is not None and in_node.out_edges():
-                    in_node.out_edge(0)['fw_tensor_debug_info'] = fw_info
+                if fw_info is not None and in_node is not None:
+                    for out_idx in in_node.out_nodes():
+                        set_attribute_between_nodes(in_node, in_node.out_node(out_idx),
+                                                    'fw_tensor_debug_info', fw_info)

@@ -175,10 +175,13 @@ def load_kalid_nnet1_model(graph, file_descr, name):
         prev_layer_id = layer_id
         log.debug('{} (type is {}) was loaded'.format(prev_layer_id, component_type))
 
+    # Tensor names information corresponding to a node is stored on outgoing edges.
+    # As output nodes do not have outgoing edges, fake outputs are required. In the following code
+    # for each output Identity node is added, and tensor name for the output is kept
+    # on (output, fake output) edge. After Result nodes adding transformations fake outputs
+    # are deleted from graph.
     output_layers = graph.nodes - used_layers
     for output in output_layers:
-        if not output:
-            continue
         fake_node_name = graph.unique_id(output)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
                        infer=copy_shape_infer, needs_removal=True)
@@ -208,10 +211,13 @@ def load_kalid_nnet2_model(graph, file_descr, nnet_name):
         prev_layer_id = layer_id
         log.debug('{} and {} were connected'.format(prev_layer_id, layer_id))
 
+    # Tensor names information corresponding to a node is stored on outgoing edges.
+    # As output nodes do not have outgoing edges, fake outputs are required. In the following code
+    # for each output Identity node is added, and tensor name for the output is kept
+    # on (output, fake output) edge. After Result nodes adding transformations fake outputs
+    # are deleted from graph.
     output_layers = graph.nodes - used_layers
     for output in output_layers:
-        if not output:
-            continue
         fake_node_name = graph.unique_id(output)
         graph.add_node(fake_node_name, name=fake_node_name, identity=True, kind='op', op='Identity',
                        infer=copy_shape_infer, needs_removal=True)
