@@ -98,8 +98,9 @@ void op::v7::DFT::validate_and_infer_types()
                           "Axes input must be 1D tensor. Got axes input rank: ",
                           axes_shape.rank().get_length());
 
+    auto last_dim_with_two = input_shape[input_rank - 1] & Dimension(2);
     NODE_VALIDATION_CHECK(this,
-                          input_shape[input_rank - 1] & Dimension(2),
+                          !last_dim_with_two.empty(),
                           "The last dimension of input data must be 2. Got: ",
                           input_shape[input_rank - 1]);
 
@@ -143,8 +144,7 @@ void op::v7::DFT::validate_and_infer_types()
                           "Signal size element type must be i32, i64, u32 or u64");
 
     PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
-    if (signal_size_shape.rank().is_dynamic() ||
-        !is_type<op::Constant>(input_value(2).get_node()))
+    if (signal_size_shape.rank().is_dynamic() || !is_type<op::Constant>(input_value(2).get_node()))
     {
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
