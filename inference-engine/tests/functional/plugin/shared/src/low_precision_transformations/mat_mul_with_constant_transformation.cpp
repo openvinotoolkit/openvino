@@ -31,7 +31,8 @@ std::string MatMulWithConstantTransformation::getTestCaseName(testing::TestParam
         precision << "_" <<
         targetDevice << "_" <<
         testValues.fqOnData << "_" <<
-        testValues.fqOnWeights;
+        testValues.fqOnWeights << "_" <<
+        testValues.deqOnWeights;
 
     return result.str();
 }
@@ -65,12 +66,15 @@ void MatMulWithConstantTransformation::SetUp() {
         precision,
         testValues.inputShape,
         testValues.fqOnData,
-        testValues.weightsConstShape,
-        testValues.weightsConstValues,
-        testValues.fqOnWeights);
+        testValues.weights,
+        testValues.fqOnWeights,
+        testValues.deqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    validate();
+
+    if (testValues.deqOnWeights.empty()) {
+        validate();
+    }
 }
 
 void MatMulWithConstantTransformation::validate() {
