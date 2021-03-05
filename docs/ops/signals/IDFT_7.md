@@ -149,3 +149,63 @@ There is `signal_size` input (3D input tensor):
     </output>
 </layer>
 ```
+
+
+There is `signal_size` input (5D input tensor, `-1` in `signal_size`, unsorted axes):
+```xml
+<layer ... type="IDFT" ... >
+    <input>
+        <port id="0">
+            <dim>16</dim>
+            <dim>768</dim>
+            <dim>580</dim>
+            <dim>320</dim>
+            <dim>2</dim>
+        </port>
+        <port id="1">
+            <dim>3</dim> <!-- axes input contains  [3, 1, 2] -->
+        </port>
+        <port id="2">
+            <dim>3</dim> <!-- signal_size input contains [170, -1, 1024] -->
+        </port>
+    <output>
+        <port id="3">
+            <dim>16</dim>
+            <dim>768</dim>
+            <dim>1024</dim>
+            <dim>170</dim>
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
+
+
+There is `signal_size` input (5D input tensor, `-1` in `signal_size`, unsorted axes, the second example):
+```xml
+<layer ... type="IDFT" ... >
+    <input>
+        <port id="0">
+            <dim>16</dim>
+            <dim>768</dim>
+            <dim>580</dim>
+            <dim>320</dim>
+            <dim>2</dim>
+        </port>
+        <port id="1">
+            <dim>3</dim> <!-- axes input contains  [3, 0, 2] -->
+        </port>
+        <port id="2">
+            <dim>3</dim> <!-- signal_size input contains [258, -1, 2056] -->
+        </port>
+    <output>
+        <port id="3">
+            <dim>16</dim>
+            <dim>768</dim>
+            <dim>2056</dim>
+            <dim>258</dim>
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
