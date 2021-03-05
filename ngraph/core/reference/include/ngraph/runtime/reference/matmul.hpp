@@ -268,24 +268,7 @@ namespace ngraph
                 }
 
                 // Perform batched dot
-
                 size_t output_batch_size = 1;
-
-                // Calculate number of batches
-                if (out_rank < 3)
-                {
-                    // Output is {batch_size, dot_result}, i.e.,
-                    // arg 0 shape {2}, arg1 shape {3, 2, 1}, output shape {3, 1}
-                    output_batch_size = out_shape[0];
-                }
-                else
-                {
-                    for (size_t i = 0; i < (out_rank - 2); i++)
-                    {
-                        output_batch_size *= out_shape[i];
-                    }
-                }
-
                 Shape dot_arg0_shape = (arg0_rank > 2) ? Shape{wip_arg0_shape[arg0_rank - 2],
                                                                wip_arg0_shape[arg0_rank - 1]}
                                                        : wip_arg0_shape;
@@ -293,9 +276,23 @@ namespace ngraph
                                                                wip_arg1_shape[arg1_rank - 1]}
                                                        : wip_arg1_shape;
                 Shape dot_output_shape =
-                    (out_rank > 2) ? Shape{out_shape[out_rank - 2], out_shape[out_rank - 1]}
+                    (out_rank > 2 && arg0_rank > 1 && arg1_rank > 1) ? Shape{out_shape[out_rank - 2], out_shape[out_rank - 1]}
                                    : Shape{out_shape[out_rank - 1]};
 
+                // Calculate number of batches
+                if (out_rank <= 2)
+                {
+                    // Output is {batch_size, dot_result}, i.e.,
+                    // arg 0 shape {2}, arg1 shape {3, 2, 1}, output shape {3, 1}
+                    output_batch_size = out_shape[0];
+                }
+                else
+                {
+                    for (size_t i = 0; i < (out_rank - dot_output_shape.size()); i++)
+                    {
+                        output_batch_size *= out_shape[i];
+                    }
+                }
                 const size_t arg0_offset = (arg0_rank > 2) ? shape_size(dot_arg0_shape) : 0;
                 const size_t arg1_offset = (arg1_rank > 2) ? shape_size(dot_arg1_shape) : 0;
                 const size_t output_offset = shape_size(dot_output_shape);
