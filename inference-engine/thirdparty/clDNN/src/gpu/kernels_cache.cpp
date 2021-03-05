@@ -308,7 +308,7 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     size_t binary_size = binary_sizes.front();
     // Binary is not available for the device.
     if (binary_size == 0)
-        throw std::runtime_error("Binary is not avaliable after program builid");
+        throw std::runtime_error("Binary is not avaliable after program build");
 
     // Get program binary.
     return program.getInfo<CL_PROGRAM_BINARIES>().front();
@@ -527,7 +527,7 @@ void kernels_cache::build_all() {
     Semaphore max_threads(2);
 #endif
 
-    ThreadPool pool(4);
+    ThreadPool pool(1);
     std::cout << "Build all ===========================" << std::endl;
     std::cout << "sorted_program_code.size() = " << sorted_program_code.size() << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
