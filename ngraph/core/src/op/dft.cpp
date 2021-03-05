@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -23,6 +24,7 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/dft.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
 using namespace std;
@@ -100,7 +102,7 @@ void op::v7::DFT::validate_and_infer_types()
 
     auto last_dim_with_two = input_shape[input_rank - 1] & Dimension(2);
     NODE_VALIDATION_CHECK(this,
-                          !last_dim_with_two.empty(),
+                          !last_dim_with_two.get_interval().empty(),
                           "The last dimension of input data must be 2. Got: ",
                           input_shape[input_rank - 1]);
 
