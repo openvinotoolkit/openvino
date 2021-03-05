@@ -38,7 +38,7 @@ namespace ngraph
     {
         namespace reference
         {
-             namespace details
+            namespace details
             {
                 template <typename T>
                 void dot(const T* arg0,
@@ -55,20 +55,21 @@ namespace ngraph
                     // 2D inputs shapes are interpreted as {I, K} x {K, J}
                     // If first input is 1D tensor of shape {K}, it is interpreted as {1, K}
                     // If second input is 1D tensor of shape {K}, it is interpreted as {K, 1}
-                    size_t I_dim = arg0_rank == 1 ? 1 : arg0_shape[arg0_rank-2];
-                    size_t J_dim = arg1_rank == 1 ? 1 : arg1_shape[arg1_rank-1];
-                    size_t K_dim = arg1_rank == 1 ? arg1_shape[arg1_rank-1] : arg1_shape[arg1_rank-2];
+                    size_t I_dim = arg0_rank == 1 ? 1 : arg0_shape[arg0_rank - 2];
+                    size_t J_dim = arg1_rank == 1 ? 1 : arg1_shape[arg1_rank - 1];
+                    size_t K_dim =
+                        arg1_rank == 1 ? arg1_shape[arg1_rank - 1] : arg1_shape[arg1_rank - 2];
 
-                    size_t a_idx=0, b_idx=0, out_idx=0;
-                    for (size_t i=0; i < I_dim; ++i)
+                    size_t a_idx = 0, b_idx = 0, out_idx = 0;
+                    for (size_t i = 0; i < I_dim; ++i)
                     {
-                        for (size_t k=0; k < K_dim; ++k)
+                        for (size_t k = 0; k < K_dim; ++k)
                         {
-                            a_idx = i*K_dim + k;
-                            for (size_t j=0; j < J_dim; ++j)
+                            a_idx = i * K_dim + k;
+                            for (size_t j = 0; j < J_dim; ++j)
                             {
-                                b_idx = k*J_dim + j;
-                                out_idx = i*J_dim + j;
+                                b_idx = k * J_dim + j;
+                                out_idx = i * J_dim + j;
                                 out[out_idx] += arg0[a_idx] * arg1[b_idx];
                             }
                         }
@@ -183,12 +184,8 @@ namespace ngraph
                 // Inputs are 2D and below, perform dot directly
                 if (arg0_rank <= 2 && arg1_rank <= 2)
                 {
-                    details::dot(arg0_update,
-                                 arg1_update,
-                                 out,
-                                 wip_arg0_shape,
-                                 wip_arg1_shape,
-                                 out_shape);
+                    details::dot(
+                        arg0_update, arg1_update, out, wip_arg0_shape, wip_arg1_shape, out_shape);
                     return;
                 }
 
@@ -276,8 +273,9 @@ namespace ngraph
                                                                wip_arg1_shape[arg1_rank - 1]}
                                                        : wip_arg1_shape;
                 Shape dot_output_shape =
-                    (out_rank > 2 && arg0_rank > 1 && arg1_rank > 1) ? Shape{out_shape[out_rank - 2], out_shape[out_rank - 1]}
-                                   : Shape{out_shape[out_rank - 1]};
+                    (out_rank > 2 && arg0_rank > 1 && arg1_rank > 1)
+                        ? Shape{out_shape[out_rank - 2], out_shape[out_rank - 1]}
+                        : Shape{out_shape[out_rank - 1]};
 
                 // Calculate number of batches
                 if (out_rank <= 2)
