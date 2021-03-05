@@ -32,9 +32,6 @@ namespace InferenceEngine {
  */
 class IRReader: public IReader {
 public:
-    void Release() noexcept override {
-        delete this;
-    }
     /**
      * @brief Checks that reader supports format of the model
      * @param model stream with model

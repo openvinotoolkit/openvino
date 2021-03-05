@@ -22,7 +22,7 @@ IE_SUPPRESS_DEPRECATED_START
  * @class MockICNNNetwork
  * @brief Main interface to describe the NN topology
  */
-class MockICNNNetwork : public InferenceEngine::ICNNNetwork {
+class MockICNNNetwork final : public InferenceEngine::ICNNNetwork {
  public:
     MOCK_QUALIFIED_METHOD0(getFunction, const noexcept, std::shared_ptr<const ngraph::Function> ());
     MOCK_QUALIFIED_METHOD0(getFunction, noexcept, std::shared_ptr<ngraph::Function>());
@@ -37,33 +37,10 @@ class MockICNNNetwork : public InferenceEngine::ICNNNetwork {
             InferenceEngine::ResponseDesc*));
     MOCK_QUALIFIED_METHOD2(setBatchSize, noexcept, InferenceEngine::StatusCode(const size_t size, InferenceEngine::ResponseDesc*));
     MOCK_QUALIFIED_METHOD0(getBatchSize, const noexcept, size_t());
-    MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
     MOCK_QUALIFIED_METHOD1(getInputShapes, const noexcept, void(InferenceEngine::ICNNNetwork::InputShapes&));
     MOCK_QUALIFIED_METHOD2(reshape, noexcept, InferenceEngine::StatusCode(const InferenceEngine::ICNNNetwork::InputShapes &, InferenceEngine::ResponseDesc *));
     MOCK_QUALIFIED_METHOD3(serialize, const noexcept, InferenceEngine::StatusCode(
             const std::string &,
             const std::string &,
             InferenceEngine::ResponseDesc*));
-};
-
-/**
- * @class MockCNNNetworkImpl
- * @brief Main interface to describe the NN topology
- */
-class MockCNNNetworkImpl: public InferenceEngine::details::CNNNetworkImpl {
-public:
-    MOCK_QUALIFIED_METHOD1(getOutputsInfo, const noexcept, void(InferenceEngine::OutputsDataMap& out));
-    MOCK_QUALIFIED_METHOD1(getInputsInfo, const noexcept, void(InferenceEngine::InputsDataMap &inputs));
-    MOCK_QUALIFIED_METHOD1(getInput, const noexcept, InferenceEngine::InputInfo::Ptr(const std::string &inputName));
-    MOCK_QUALIFIED_METHOD0(getName, const noexcept, const std::string&());
-    MOCK_QUALIFIED_METHOD0(layerCount, const noexcept, size_t());
-    MOCK_QUALIFIED_METHOD3(addOutput, noexcept, InferenceEngine::StatusCode(const std::string &, size_t , InferenceEngine::ResponseDesc*));
-    MOCK_QUALIFIED_METHOD2(setBatchSize, noexcept, InferenceEngine::StatusCode(const size_t size, InferenceEngine::ResponseDesc*));
-    MOCK_QUALIFIED_METHOD0(getBatchSize, const noexcept, size_t());
-    MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
-    MOCK_METHOD1(validate, void(int));
-
-    void validateNetwork() {
-        InferenceEngine::details::CNNNetworkImpl::validate();
-    }
 };

@@ -20,9 +20,7 @@ using namespace InferenceEngine::details;
 
 template <class T>
 inline typename InferenceEngine::InferRequest make_infer_request(std::shared_ptr<T> impl) {
-    typename InferRequestBase::Ptr req(new InferRequestBase(impl), [](IInferRequest* p) {
-        p->Release();
-    });
+    typename InferRequestBase::Ptr req(new InferRequestBase(impl));
     return InferenceEngine::InferRequest(req);
 }
 

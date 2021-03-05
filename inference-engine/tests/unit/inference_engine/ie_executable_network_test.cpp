@@ -223,7 +223,7 @@ protected:
 
     virtual void SetUp() {
         mock_impl.reset(new MockIExecutableNetworkInternal());
-        exeNetwork = shared_from_irelease(new ExecutableNetworkBase(mock_impl));
+        exeNetwork = std::make_shared<ExecutableNetworkBase>(mock_impl);
     }
 };
 

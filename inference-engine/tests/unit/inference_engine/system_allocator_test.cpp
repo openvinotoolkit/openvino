@@ -9,13 +9,9 @@
 
 #include "system_allocator.hpp"
 
+using namespace InferenceEngine;
 class SystemAllocatorReleaseTests : public CommonTestUtils::TestsCommon {
 };
-
-TEST_F(SystemAllocatorReleaseTests, canRelease) {
-    SystemMemoryAllocator *allocator_ = new SystemMemoryAllocator();
-    allocator_->Release();
-}
 
 class SystemAllocatorTests : public CommonTestUtils::TestsCommon {
 protected:

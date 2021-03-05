@@ -344,7 +344,7 @@ make --jobs=$(nproc)
 
 The result of this command is a compiled shared library (`.so`, `.dylib` or `.dll`). It should be loaded in the
 application using `Core` class instance method `AddExtension` like this
-`core.AddExtension(make_so_pointer<IExtension>(compiled_library_file_name), "CPU");`.
+`core.AddExtension(std::make_shared<Extension>(compiled_library_file_name), "CPU");`.
 
 To test that the extension is implemented correctly we can run the "mri_reconstruction_demo.py" with the following content:
 

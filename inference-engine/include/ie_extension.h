@@ -38,7 +38,7 @@ public:
 /**
  * @brief This class is a C++ helper to work with objects created using extensions.
  */
-class INFERENCE_ENGINE_API_CLASS(Extension) : public IExtension {
+class INFERENCE_ENGINE_API_CLASS(Extension) final : public IExtension {
 public:
     /**
      * @brief Loads extension from a shared library
@@ -64,11 +64,6 @@ public:
     void Unload() noexcept override {
         actual->Unload();
     }
-
-    /**
-     * @brief Does nothing since destruction is done via the regular mechanism
-     */
-    void Release() noexcept override {}
 
     /**
      * @brief Returns operation sets
@@ -106,23 +101,29 @@ protected:
 };
 
 /**
- * @brief Creates a special shared_pointer wrapper for the given type from a specific shared module
- *
- * @param name A std::string name of the shared library file
- * @return shared_pointer A wrapper for the given type from a specific shared module
+ * @brief Creates extension using deprecated API
+ * @tparam T extension type
+ * @param name extension library name
+ * @return shared pointer to extension
  */
-template <>
-inline std::shared_ptr<IExtension> make_so_pointer(const std::string& name) {
+template<typename T = IExtension>
+INFERENCE_ENGINE_DEPRECATED("Use std::make_shared<Extension>")
+inline std::shared_ptr<T> make_so_pointer(const std::string& name) {
     return std::make_shared<Extension>(name);
 }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
-template <>
+/**
+ * @brief Creates extension using deprecated API
+ * @param name extension library name
+ * @return shared pointer to extension
+ */
+template<typename T = IExtension>
+INFERENCE_ENGINE_DEPRECATED("Use std::make_shared<Extension>")
 inline std::shared_ptr<IExtension> make_so_pointer(const std::wstring& name) {
     return std::make_shared<Extension>(name);
 }
 
 #endif
-
 }  // namespace InferenceEngine

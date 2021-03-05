@@ -83,10 +83,6 @@ public:
 
     void Unload() noexcept override {}
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     using LayersFactory = openvino::cc::Factory<
                                 std::string,
                                 InferenceEngine::ILayerImplFactory*(const InferenceEngine::CNNLayer*)>;

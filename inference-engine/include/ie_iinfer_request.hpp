@@ -18,7 +18,6 @@
 #include "ie_common.h"
 #include "ie_preprocess.hpp"
 #include "ie_imemory_state.hpp"
-#include "details/ie_irelease.hpp"
 
 namespace InferenceEngine {
 
@@ -26,7 +25,7 @@ namespace InferenceEngine {
  * @brief This is an interface of asynchronous infer request
  *
  */
-class IInferRequest : public details::IRelease {
+class IInferRequest : public std::enable_shared_from_this<IInferRequest> {
 public:
     /**
      * @enum WaitMode
@@ -198,7 +197,9 @@ public:
      * given index
      */
     virtual StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
-    IE_SUPPRESS_DEPRECATED_END
+
+protected:
+    ~IInferRequest() = default;
 };
 
 }  // namespace InferenceEngine

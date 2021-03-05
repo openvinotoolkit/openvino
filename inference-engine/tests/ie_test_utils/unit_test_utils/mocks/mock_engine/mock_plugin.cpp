@@ -40,16 +40,10 @@ MockPlugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork& network,
 
 InferenceEngine::IInferencePlugin *__target = nullptr;
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
-    try {
-        IInferencePlugin *p = nullptr;
-        std::swap(__target, p);
-        plugin = new MockPlugin(p);
-        return OK;
-    }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
+INFERENCE_PLUGIN_API(void) CreatePluginEngine(std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin) {
+    IInferencePlugin *p = nullptr;
+    std::swap(__target, p);
+    plugin = std::make_shared<MockPlugin>(p);
 }
 
 INFERENCE_PLUGIN_API(InferenceEngine::IInferencePlugin*)

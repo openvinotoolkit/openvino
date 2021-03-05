@@ -33,10 +33,6 @@ class ConstAllocatorWrapper : public IAllocator {
 public:
     explicit ConstAllocatorWrapper(std::shared_ptr<ngraph::op::Constant> constOp): _constOp(std::move(constOp)) {}
 
-    void Release() noexcept override {
-        delete this;
-    }
-
     void* lock(void* handle, LockOp) noexcept override {
         return handle;
     }

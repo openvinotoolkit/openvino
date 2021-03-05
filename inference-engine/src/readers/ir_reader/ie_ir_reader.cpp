@@ -48,12 +48,6 @@ CNNNetwork IRReader::read(std::istream& model, const Blob::CPtr& weights, const 
     return CNNNetwork(parser.parse(root, weights));
 }
 
-INFERENCE_PLUGIN_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
-    try {
-        reader = new IRReader();
-        return OK;
-    }
-    catch (std::exception &) {
-        return GENERAL_ERROR;
-    }
+INFERENCE_PLUGIN_API(void) InferenceEngine::CreateReader(std::shared_ptr<IReader>& reader) {
+    reader = std::make_shared<IRReader>();
 }

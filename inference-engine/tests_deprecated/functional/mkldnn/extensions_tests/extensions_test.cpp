@@ -104,7 +104,6 @@ public:
             return std::make_shared<NewFakePrimitiveImpl>(node);
         };
     }
-    void Release() noexcept override { delete this; }
 
     void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override {
         static const InferenceEngine::Version VERSION{{}, "", ""};

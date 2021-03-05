@@ -21,7 +21,7 @@ class Engine : public ie::InferencePluginInternal {
 public:
     explicit Engine(std::shared_ptr<IMvnc> mvnc);
 
-    ~Engine() override {
+    ~Engine() {
         MyriadExecutor::closeDevices(_devicePool, _mvnc);
     }
 

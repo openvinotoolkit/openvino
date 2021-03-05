@@ -131,8 +131,6 @@ public:
 
     void Unload() noexcept override {}
 
-    void Release() noexcept override {}
-
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
         if (impls.find(node->description()) == impls.end())
             return {};

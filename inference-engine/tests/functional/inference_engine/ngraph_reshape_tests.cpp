@@ -259,8 +259,6 @@ public:
 
     void Unload() noexcept override {}
 
-    void Release() noexcept override {}
-
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;
         if (opsets.empty()) {
@@ -425,8 +423,6 @@ public:
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {};
 
     void Unload() noexcept override {};
-
-    void Release() noexcept override {}
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;

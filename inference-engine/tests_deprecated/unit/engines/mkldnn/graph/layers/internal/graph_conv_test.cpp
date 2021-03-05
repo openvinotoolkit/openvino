@@ -433,8 +433,8 @@ protected:
             InferenceEngine::CNNNetwork network;
             ASSERT_NO_THROW(network = core.ReadNetwork(model, weights_ptr));
 
-            auto implNet = dynamic_cast<details::CNNNetworkImpl *>(&((ICNNNetwork&)network));
-            ASSERT_NE(nullptr, implNet) << "Failed to cast ICNNNetwork to CNNNetworkImpl";
+            ASSERT_EQ(nullptr, network.getFunction());
+            auto implNet = static_cast<InferenceEngine::details::CNNNetworkImpl *>(&((InferenceEngine::ICNNNetwork&)network));
             ResponseDesc resp;
             StatusCode sts  = implNet->setBatchSizeReshape(dims[0], &resp);
             ASSERT_EQ((int)StatusCode::OK, sts) << resp.msg;
