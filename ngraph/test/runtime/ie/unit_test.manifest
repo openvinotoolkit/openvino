@@ -1591,3 +1591,15 @@ IE_CPU.onnx_mvn_v6
 
 # The test randomly fails in CI (MSVC2019 Debug)
 onnx_model_experimental_detectron_generate_proposals_single_image
+
+# TO ENABLE AFTER PR #4509 (MatMul transformation 1D input support)
+IE_CPU.matmul_3_x_3_false_false_param
+IE_CPU.matmul_3_x_3_true_true_param
+IE_CPU.matmul_3_x_3_false_false_const
+IE_CPU.matmul_3_x_3_true_true_const
+IE_CPU.matmul_3_x_1_3_true_true_param
+IE_CPU.matmul_3_x_1_3_true_true_const
+IE_CPU.matmul_1_1_3_x_3_false_false_const
+IE_CPU.matmul_1_3_1_x_3_true_false_const
+IE_CPU.matmul_2_2_1_3_x_3_false_false_const
+IE_CPU.matmul_2_2_1_3_x_3_false_false_const
