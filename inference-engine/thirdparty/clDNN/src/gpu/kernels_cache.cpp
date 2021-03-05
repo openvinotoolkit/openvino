@@ -27,6 +27,7 @@
 #include <utility>
 #include <future>
 #include <thread>
+#include <queue>
 #include <condition_variable>
 #include "kernel_selector_helper.h"
 #include "cldnn_itt.h"
@@ -307,43 +308,64 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     size_t binary_size = binary_sizes.front();
     // Binary is not available for the device.
     if (binary_size == 0)
-        throw std::runtime_error("Binary is not avaliable after program build");
+        throw std::runtime_error("Binary is not avaliable after program builid");
 
     // Get program binary.
     return program.getInfo<CL_PROGRAM_BINARIES>().front();
 }
 
-class Semaphore {
+class ThreadPool {
 public:
-    explicit Semaphore(size_t max_count) : max_count(max_count), cur_count(0) {}
-    size_t get_count() const { return max_count; }
-    void lock() {
-        std::unique_lock<std::mutex> lock(mutex);
-        condition.wait(lock, [this] { return (cur_count + 1 <= max_count); });
-        ++cur_count;
+    ThreadPool(size_t num_threads) : _num_threads(num_threads), _stop_pool(false) {
+        _workers.reserve(num_threads);
+        for (size_t i = 0; i < _num_threads; ++i) {
+            _workers.emplace_back([this]() { this->WorkerThread(); });
+        }
     }
-    void release() {
-        std::lock_guard<std::mutex> lock(mutex);
-        --cur_count;
-        condition.notify_one();
+    ~ThreadPool() {
+        _stop_pool = true;
+        _cv.notify_all();
+        for (auto& w : _workers) {
+            w.join();
+        }
     }
-private:
-    std::mutex mutex;
-    std::condition_variable condition;
-    size_t max_count;
-    size_t cur_count;
-};
 
-class BatchBuilder {
-public:
-    explicit BatchBuilder(Semaphore &s) : s{s} {
-        s.lock();
+    template <class F, class... Args>
+    std::future<typename std::result_of<F(Args...)>::type> Enqueue(F&& f, Args&&... args) {
+        if (_stop_pool) {
+            throw std::runtime_error("Thread pool is stoped");
+        }
+
+        using return_type = typename std::result_of<F(Args...)>::type;
+        auto task = std::make_shared<std::packaged_task<return_type()>> (std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+        std::future<return_type> result = task->get_future();
+        {
+            std::lock_guard<std::mutex> lock(_q_m);
+            _tasks.push([task]() {(*task)();});
+        }
+        _cv.notify_one();
+        return result;
     }
-    ~BatchBuilder() {
-        s.release();
-    }
+
 private:
-    Semaphore& s;
+    size_t _num_threads;
+    std::vector<std::thread> _workers;
+    std::queue<std::function<void()>> _tasks;
+    std::condition_variable _cv;
+    std::mutex _q_m;
+    bool _stop_pool;
+
+    void WorkerThread() {
+        while (true) {
+            std::unique_lock<std::mutex> lock(_q_m);
+            _cv.wait(lock, [this]() { return (!this->_tasks.empty()) || (_stop_pool); });
+            if ( (_stop_pool) && (this->_tasks.empty())) return;
+            std::function<void()> task = std::move(_tasks.front());
+            _tasks.pop();
+            lock.unlock();
+            task();
+        }
+    }
 };
 
 kernels_cache::kernels_map kernels_cache::build_batch(const program_code& program_source,
@@ -352,19 +374,29 @@ kernels_cache::kernels_map kernels_cache::build_batch(const program_code& progra
 
     bool dump_sources = !_context.get_configuration().ocl_sources_dumps_dir.empty() || program_source.dump_custom_program;
 
-    kernels_map kmap;
-    std::string current_dump_file_name = "";
-    if (dump_sources) {
-        current_dump_file_name = _context.get_configuration().ocl_sources_dumps_dir;
-        if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
-            current_dump_file_name += '/';
-
-        current_dump_file_name += "clDNN_program_" + std::to_string(program_id) + "_part_" + std::to_string(batch_id) + ".cl";
-    }
     try {
+        kernels_map kmap;
         std::string err_log;  // accumulated build log from all program's parts (only contains messages from parts which
-        // failed to compile)
         auto sources_bucket_to_compile = program_source.source[batch_id];
+
+        std::string current_dump_file_name = "";
+        if (dump_sources) {
+            current_dump_file_name = _context.get_configuration().ocl_sources_dumps_dir;
+            if (!current_dump_file_name.empty() && current_dump_file_name.back() != '/')
+                current_dump_file_name += '/';
+
+            current_dump_file_name += "clDNN_program_" + std::to_string(program_id) + "_part_" + std::to_string(batch_id) + ".cl";
+        }
+
+        std::ofstream dump_file;
+        if (dump_sources) {
+            dump_file.open(current_dump_file_name);
+            if (dump_file.good()) {
+                for (auto& s : sources_bucket_to_compile)
+                    dump_file << s;
+            }
+        }
+
         const auto& hash_value = program_source.hash_values[batch_id];
         std::string cached_bin_name = get_cache_path() + std::to_string(hash_value) + ".cl_cache";
         cl::Program::Binaries precompiled_kernels = {};
@@ -377,16 +409,9 @@ kernels_cache::kernels_map kernels_cache::build_batch(const program_code& progra
                 precompiled_kernels.push_back(bin);
             }
         }
-        std::ofstream dump_file;
-        if (dump_sources) {
-            dump_file.open(current_dump_file_name);
-            if (dump_file.good()) {
-                for (auto& s : sources_bucket_to_compile)
-                    dump_file << s;
-            }
-        }
         try {
             cl::vector<cl::Kernel> kernels;
+
             // Run compilation
             if (precompiled_kernels.empty()) {
                 cl::Program program(_context.context(), sources_bucket_to_compile);
@@ -418,7 +443,6 @@ kernels_cache::kernels_map kernels_cache::build_batch(const program_code& progra
                 program.createKernels(&kernels);
             }
             {
-                //                        std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
                 for (auto& k : kernels) {
                     auto kernel_name = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
                     kmap.emplace(kernel_name, kernels_cache::kernel_type(k, _context.get_device_info().supports_usm));
@@ -466,21 +490,18 @@ void kernels_cache::build_all() {
         sorted_program_code = get_program_source(_kernels_code);
         _one_time_kernels.clear();
     }
-    Semaphore max_threads(2);
+
+    ThreadPool pool(4);
     std::cout << "Build all ===========================" << std::endl;
     std::cout << "sorted_program_code.size() = " << sorted_program_code.size() << std::endl;
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::future<void>> builds;
-    std::vector<program_code> programs;
 
     int numKernels = 0;
     size_t program_id = 0;
     for (auto& program : sorted_program_code) {
         for (size_t batch_id = 0; batch_id < program.second.source.size(); ++batch_id) {
-            programs.push_back(program.second);
-            builds.push_back(std::async(std::launch::async | std::launch::deferred, [&]
-                (Semaphore& max_threads, std::pair<std::string, program_code> program, size_t program_id, size_t batch_id) {
-                BatchBuilder b(max_threads);
+            builds.push_back(pool.Enqueue([&](std::pair<std::string, program_code> program, size_t program_id, size_t batch_id) {
                 auto kmap = build_batch(program.second, batch_id, program_id);
                 std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
                 for (auto k : kmap) {
@@ -493,7 +514,7 @@ void kernels_cache::build_all() {
                         numKernels++;
                     }
                 }
-            }, std::ref(max_threads), program, program_id, batch_id));
+            }, program, program_id, batch_id));
         }
         program_id++;
     }
