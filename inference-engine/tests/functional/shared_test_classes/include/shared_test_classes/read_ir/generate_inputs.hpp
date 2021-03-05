@@ -10,7 +10,8 @@
 namespace LayerTestsDefinitions {
 using InputsMap = std::map<ngraph::NodeTypeInfo, std::function<InferenceEngine::Blob::Ptr(
         const std::shared_ptr<ngraph::Node> node,
-        const InferenceEngine::InputInfo& info)>>;
+        const InferenceEngine::InputInfo& info,
+        size_t port)>>;
 
 InputsMap getInputMap();
 } // namespace LayerTestsDefinitions

@@ -29,12 +29,18 @@ void ReadIRTest::GenerateInputs() {
     for (const auto& param : function->get_parameters()) {
         const auto infoIt = inputsInfo.find(param->get_friendly_name());
         GTEST_ASSERT_NE(infoIt, inputsInfo.cend());
+
         const auto& info = infoIt->second;
         for (size_t i = 0; i < param->get_output_size(); i++) {
             for (const auto& node : param->get_output_target_inputs(i)) {
                 const auto nodePtr = node.get_node()->shared_from_this();
                 auto it = inputMap.find(nodePtr->get_type_info());
-                inputs.push_back(it->second(nodePtr, *info));
+                for (size_t j = 0; j < nodePtr->get_input_size(); ++j) {
+                    if (nodePtr->get_input_node_ptr(j)->shared_from_this() == param->shared_from_this()) {
+                        inputs.push_back(it->second(nodePtr, *info, j));
+                        break;
+                    }
+                }
             }
         }
     }
