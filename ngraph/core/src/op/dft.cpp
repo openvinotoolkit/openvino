@@ -84,7 +84,7 @@ void op::v7::DFT::validate_and_infer_types()
     PartialShape output_shape = input_shape;
 
     if (input_shape.rank().is_dynamic() || axes_shape.rank().is_dynamic() ||
-        !is_type<op::Constant>(input_value(1).get_node()))
+        !is_type<opset1::Constant>(input_value(1).get_node()))
     {
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
@@ -142,7 +142,7 @@ void op::v7::DFT::validate_and_infer_types()
                           "Signal size element type must be i32, i64, u32 or u64");
 
     PartialShape signal_size_shape = PartialShape(get_input_partial_shape(2));
-    if (signal_size_shape.rank().is_dynamic() || !is_type<op::Constant>(input_value(2).get_node()))
+    if (signal_size_shape.rank().is_dynamic() || !is_type<opset1::Constant>(input_value(2).get_node()))
     {
         set_output_type(0, get_input_element_type(0), output_shape);
         return;
