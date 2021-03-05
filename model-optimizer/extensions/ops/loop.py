@@ -20,6 +20,7 @@ import numpy as np
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
+from mo.middle.passes.fusing.helpers import common_bfs
 from mo.middle.passes.infer import partial_infer
 from mo.ops.const import Const
 
@@ -313,13 +314,51 @@ class Loop(TensorIterator):
                                      'to_port': 0})
 
     @staticmethod
+    def parameter_unchanged_after_iteration(loop_node: Node, body_parameter: Node):
+        """
+        Checks if the body Parameter node is connected to some body Result and the data provided to Result is not
+        changed between iterations. The data is considered unchanged if:
+        1. There is no back edge for this Parameter OR
+        2. There is a back edge from some Result to Parameter and there are only Identity ops in between or
+           Parameter is connected to Result directly.
+
+        :param loop_node: the Loop node to check
+        :param body_parameter: the body Parameter node
+        :return: the result of the check
+        """
+        assert body_parameter.id in loop_node.body
+        assert body_parameter.soft_get('op') == 'Parameter'
+        if not any([attr['to_layer'] == body_parameter.soft_get('internal_layer_id') for attr in loop_node.back_edges]):
+            return True
+
+        for back_edge_attrs in loop_node.back_edges:
+            if back_edge_attrs['to_layer'] == body_parameter.soft_get('internal_layer_id'):
+                result_internal_id = back_edge_attrs['from_layer']
+                result_nodes = loop_node.body.get_op_nodes(internal_layer_id=result_internal_id)
+                assert len(result_nodes) == 1, 'There should be exactly one node with id {}, but there are {}' \
+                                               ''.format(result_internal_id, len(result_nodes))
+                result_node = result_nodes[0]
+                # check that the Result node consumes data from Parameter node directly or through Identity operations
+                parameters = common_bfs(result_node, ['Identity'], ['Parameter'], is_backward=True, attr_to_check='op',
+                                        follow_multi_consumer_data_nodes=True)
+                if any([node.soft_get('internal_layer_id') == body_parameter.internal_layer_id for node in parameters]):
+                    return True
+        return False
+
+    @staticmethod
     def pull_constant_inputs_into_body(loop_node: Node):
         for port_idx, in_port in reversed(loop_node.in_ports().items()):
             if port_idx > 1 and not in_port.disconnected() and in_port.get_source().node.soft_get('type') == 'Const':
+                body_parameter = Loop.external_port_id_to_body_node(loop_node, port_idx, loop_node.input_port_map)
+                # if there is a back edge into a body Parameter then we cannot replace it with a Const if the value
+                # is updated during each iteration. So we need to check that the tensor is passed to the next iteration
+                # unchanged
+                if not Loop.parameter_unchanged_after_iteration(loop_node, body_parameter):
+                    continue
+
                 original_const_node = in_port.get_source().node
                 new_const_node = Const(loop_node.body, original_const_node.attrs()).create_node()
 
-                body_parameter = Loop.external_port_id_to_body_node(loop_node, port_idx, loop_node.input_port_map)
                 body_parameter.out_port(0).get_connection().set_source(new_const_node.out_port(0))
                 loop_node.body.remove_nodes_from([body_parameter.id])
                 loop_node.delete_input_port(port_idx)
@@ -336,7 +375,7 @@ class Loop(TensorIterator):
 
     @staticmethod
     def update_port_map_value_ext(port_map: dict, layer_id_attr: str, layer_id_value: int,
-                                   updated_attr: str, new_attr_value: int):
+                                  updated_attr: str, new_attr_value: int):
         """
         Updates a value of requested attribute for a certain layer id in a port map
         :param port_map: a map of external ports to internal layer ids
