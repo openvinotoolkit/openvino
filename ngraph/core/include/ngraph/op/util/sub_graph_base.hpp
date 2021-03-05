@@ -30,6 +30,7 @@ namespace ngraph
             class NGRAPH_API SubGraphOp : public Op
             {
             public:
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Describes a connection between a SubGraphOp input and the body.
                 class InputDescription
                 {
@@ -218,6 +219,7 @@ namespace ngraph
                 };
 
                 virtual std::shared_ptr<Function> get_function() { return m_body; };
+                virtual std::shared_ptr<const Function> get_function() const { return m_body; };
                 virtual void set_function(const std::shared_ptr<Function>& func) { m_body = func; };
                 /// \return a reference to the input descriptions.
                 const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const
@@ -319,7 +321,17 @@ namespace ngraph
                                                              int64_t end,
                                                              int64_t axis);
 
+                SubGraphOp(const SubGraphOp&) = delete;
+                SubGraphOp(SubGraphOp&&) = default;
+
+                SubGraphOp& operator=(const SubGraphOp&) = delete;
+                SubGraphOp& operator=(SubGraphOp&&) = default;
+
+                int64_t get_num_iterations() const { return m_num_iterations; }
             protected:
+                int64_t m_num_iterations =
+                    -1; // -1 means infinity for Loop op, inconsistent for TensorIterator
+
                 // Find an input corresponding to value, adding one if necessary.
                 Input<Node> input_for_value(const Output<Node>& value);
 

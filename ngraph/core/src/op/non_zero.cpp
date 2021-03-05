@@ -13,9 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include <numeric>
 
-#include "ngraph/op/non_zero.hpp"
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
+#include "ngraph/op/non_zero.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/non_zero.hpp"
@@ -74,10 +76,27 @@ void op::v3::NonZero::validate_and_infer_types()
     }
     else
     {
-        set_output_type(0, m_output_type, PartialShape{input_shape.rank(), Dimension::dynamic()});
+        const Dimension dim = input_shape.is_static()
+                                  ? std::accumulate(begin(input_shape),
+                                                    end(input_shape),
+                                                    Dimension(0, 1),
+                                                    std::multiplies<Dimension>())
+                                  : Dimension();
+        set_output_type(0, m_output_type, PartialShape{input_shape.rank(), dim});
     }
 
     set_input_is_relevant_to_shape(0);
+
+    if (const auto& input_constant = get_constant_from_source(input_value(0)))
+    { // input_value is available to calculate output shape
+        const auto& input_data = std::make_shared<HostTensor>(input_constant);
+        auto output = std::make_shared<HostTensor>(m_output_type, get_output_partial_shape(0));
+        if (!evaluate({output}, {input_data}))
+            return;
+        set_output_type(0, m_output_type, output->get_partial_shape());
+        get_output_tensor(0).set_lower_value(output);
+        get_output_tensor(0).set_upper_value(output);
+    }
 }
 
 shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_args) const
@@ -121,7 +140,7 @@ namespace nonzero
 #define TYPE_OUT_CASE(a, ...)                                                                      \
     case element::Type_t::a:                                                                       \
     {                                                                                              \
-        NGRAPH_OP_SCOPE(OV_CC_CAT3(evaluate_nonzero_out, _, a));                                   \
+        NGRAPH_OP_SCOPE(OV_PP_CAT3(evaluate_nonzero_out, _, a));                                   \
         rc = evaluate_nonzero_execute<INPUT_ET, element::Type_t::a>(__VA_ARGS__);                  \
     }                                                                                              \
     break

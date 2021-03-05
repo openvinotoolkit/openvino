@@ -269,7 +269,7 @@ float StdDevRelError(score_error_t error) {
 }
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
 #include <intrin.h>
 #include <windows.h>
 #else
@@ -281,7 +281,7 @@ float StdDevRelError(score_error_t error) {
 inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
                          unsigned int *ecx, unsigned int *edx) {
     size_t level = *eax;
-#if defined(_WIN32) || defined(WIN32)
+#ifdef _WIN32
     int regs[4] = {static_cast<int>(*eax), static_cast<int>(*ebx), static_cast<int>(*ecx), static_cast<int>(*edx)};
     __cpuid(regs, level);
     *eax = static_cast<uint32_t>(regs[0]);
@@ -519,6 +519,10 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("Invalid value for 'cw_l' argument. It must be greater than or equal to 0");
     }
 
+    if (FLAGS_pwl_me < 0.0 || FLAGS_pwl_me > 100.0) {
+        throw std::logic_error("Invalid value for 'pwl_me' argument. It must be greater than 0.0 and less than 100.0");
+    }
+
     return true;
 }
 
@@ -671,6 +675,7 @@ int main(int argc, char *argv[]) {
 
         gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] = std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
+        gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Write model to file --------------------------------------------------
@@ -982,7 +987,7 @@ int main(int argc, char *argv[]) {
                                     // locked memory holder should be alive all time while access to its buffer happens
                                     auto moutputHolder = moutput->rmap();
                                     auto byteSize =
-                                            inferRequest.numFramesThisBatch * numScoresPerFrame * sizeof(float);
+                                            numScoresPerFrame * sizeof(float);
                                     std::memcpy(outputFrame,
                                                 moutputHolder.as<const void *>(),
                                                 byteSize);

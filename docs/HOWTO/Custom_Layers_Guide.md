@@ -344,7 +344,7 @@ make --jobs=$(nproc)
 
 The result of this command is a compiled shared library (`.so`, `.dylib` or `.dll`). It should be loaded in the
 application using `Core` class instance method `AddExtension` like this
-`core.AddExtension(make_so_pointer<IExtension>(compiled_library_file_name), "CPU");`.
+`core.AddExtension(std::make_shared<Extension>(compiled_library_file_name), "CPU");`.
 
 To test that the extension is implemented correctly we can run the "mri_reconstruction_demo.py" with the following content:
 
@@ -369,7 +369,6 @@ python3 mri_reconstruction_demo.py \
 - [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md)
 - [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
 - [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
-- [Inference Engine Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 
 ## Converting Models:

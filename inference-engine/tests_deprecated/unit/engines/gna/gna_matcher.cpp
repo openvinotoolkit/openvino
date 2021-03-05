@@ -63,9 +63,6 @@ public:
     bool   free(void* handle) noexcept override {
         return true;
     }
-    void Release() noexcept override {
-        delete this;
-    }
 };
 #if GNA_LIB_VER == 2
 void expect_enqueue_calls(GNACppApi &mockApi, bool enableHardwareConsistency = true){
@@ -472,8 +469,7 @@ void GNAPropagateMatcher :: match() {
             }
         }
 
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-        plugin.GetPerformanceCounts(perfMap);
+        auto perfMap = plugin.GetPerformanceCounts();
 
         if(_env.is_profiling_enabled != false) {
             ASSERT_NE(perfMap.empty(),true);

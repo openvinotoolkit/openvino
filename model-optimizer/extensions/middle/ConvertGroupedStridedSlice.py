@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -69,7 +69,8 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        return [ConvertSlice]
+        from extensions.middle.StridedSliceNormalizer import StridedSliceNormalizer
+        return [ConvertSlice, StridedSliceNormalizer]
 
     def run_before(self):
         from extensions.middle.pass_separator import MiddleFinish

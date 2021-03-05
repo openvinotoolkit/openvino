@@ -38,6 +38,8 @@
 #include "gna_upstream_iterator.hpp"
 #include "frontend/quantization.h"
 #include "gna_groups.hpp"
+#include "gna_graph_patterns.hpp"
+#include "gna_data_types.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -53,6 +55,10 @@ std::shared_ptr<IPassManager> BasePass::getPassManager() {
     return sharedMgr;
 }
 
+
+static bool fp32eq(float p1, float p2) {
+    return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+}
 // indexes stored in pass manager
 static const char identityLayersCounterName[] = "identityLayerCounter";
 static const char diagonalLayersCounterName[] = "diagonalLayerCounter";
@@ -115,7 +121,7 @@ static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer,
                          copyLayer;
     getCreatorLayer(dataPtr) = copyWithQuant;
     copyWithQuant->outData.push_back(dataPtr);
-    CNNNetworkInsertLayer(prevLayer, nextLayer, copyWithQuant);
+    CNNNetworkInsertLayer(prevLayer, nextLayer, copyWithQuant, invalid_data_idx, beforeIdx);
     return copyWithQuant;
 }
 
@@ -635,59 +641,19 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             continue;
         }
 
-        if (l->outData.size() != 1) {
-            continue;
+        CNNLayerPtr prev, next;
+        std::tie(prev, next) = FindPermutationsAroundConvolutionInNHWCModel(l);
+
+        if (prev == nullptr || next == nullptr) continue;
+
+        if (LayerInfo(prev).isPermute() && getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
+            permutations_to_remove.insert(prev);
         }
 
-        if (getInputTo(l->outData.front()).empty()) {
-            continue;
+        if (LayerInfo(next).isPermute()) {
+            permutations_to_remove.insert(next);
         }
 
-        if (!CNNNetHasPrevLayer(l.get())) {
-            continue;
-        }
-
-        auto next = getInputTo(l->outData.front()).begin()->second;
-        while (!LayerInfo(next).isPermute() && !LayerInfo(next).isNonFunctional() && !LayerInfo(next).isOutput() &&
-               next->outData.size() == 1) {
-            auto input_to = getInputTo(next->outData.front());
-            if (input_to.size() != 1) break;
-            next = input_to.begin()->second;
-        }
-
-        // The next layer must be NCHW to NHWC permute
-        if (!LayerInfo(next).isPermute() || next->input()->getLayout() != Layout::NCHW ||
-            next->GetParamAsInts("order") != GetPermuteOrder(Layout::NCHW, Layout::NHWC)) {
-            continue;
-        }
-
-        auto parent = CNNNetPrevLayer(l);
-        auto prev = parent;
-        while (!LayerInfo(prev).isPermute() && !LayerInfo(prev).isNonFunctional() &&
-               !LayerInfo(prev).isInput() && CNNNetHasPrevLayer(prev.get())) {
-            prev = CNNNetPrevLayer(prev);
-        }
-        // The previous layer must be NHWC to NCHW permute or have 1D data
-        if (LayerInfo(prev).isPermute()) {
-            if (prev->outData[0]->getLayout() != Layout::NCHW ||
-                prev->GetParamAsInts("order") != GetPermuteOrder(Layout::NHWC, Layout::NCHW)) {
-                continue;
-            }
-
-            if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
-                permutations_to_remove.insert(prev);
-            }
-        } else  {
-            if (parent->outData.size() != 1 || getInputTo(parent->outData[0]).size() != 1) {
-                continue;
-            }
-            auto parent_dims = parent->outData[0]->getDims();
-            // Check if the previous layer has all dimensions except one to be equal to 1
-            if (std::count_if(std::begin(parent_dims), std::end(parent_dims), [](size_t dim) { return dim != 1; }) > 1) {
-                continue;
-            }
-        }
-        permutations_to_remove.insert(next);
         nhwc_layout_patterns.push_back({prev, next});
 
         auto* convolution = dynamic_cast<ConvolutionLayer*>(l.get());
@@ -717,11 +683,15 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             data->setLayout(Layout::NHWC);
         };
 
-        auto current_layer = getInputTo(pattern_start->outData[0]).begin()->second;
+        auto input_to = getInputTo(pattern_start->outData[0]);
+        IE_ASSERT(!input_to.empty());
+        auto current_layer = input_to.begin()->second;
         setNHWCOrder(current_layer->input());
         while (current_layer != pattern_end) {
             setNHWCOrder(current_layer->outData[0]);
-            current_layer = getInputTo(current_layer->outData[0]).begin()->second;
+            input_to = getInputTo(current_layer->outData[0]);
+            IE_ASSERT(!input_to.empty());
+            current_layer = input_to.begin()->second;
         }
 
         if (LayerInfo(pattern_start).isPermute() && !getInputTo(pattern_start->outData.front()).empty()) {
@@ -769,6 +739,30 @@ void InsertIdentityLayerPass::run() {
                     break;
                 }
             }
+            // check if prev layer have id layer already connected to output
+            // if so reuse it instead of create new one
+            bool reconnected = false;
+            for (auto prev_layer_output : prev->outData) {
+                // prev ---------+--> identity --> layer XYZ
+                //               |
+                //               |  <= here we want to inject identity
+                //               |
+                //               +--> l layer
+                // but we may just connect l layer with existing identity
+                for (auto&& next_layer : getInputTo(prev_layer_output)) {
+                    auto child_of_prev_layer = next_layer.second;
+                    if (child_of_prev_layer.get() == true_layer.get()) {
+                        continue;
+                    } else if (LayerInfo(child_of_prev_layer).isIdentity()) {
+                        CNNNetworkReconnectLayer(prev, child_of_prev_layer, true_layer);
+                        reconnected = true;
+                        break;
+                    }
+                }
+            }
+            if (reconnected)
+                continue;
+
             int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
             // actual insertion
             auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
@@ -799,7 +793,7 @@ void InsertIdentityLayerPass::run() {
                                             activationLayer;
             getCreatorLayer(dataPtr) = activationLayerWithQuant;
             activationLayerWithQuant->outData.push_back(dataPtr);
-            // wether 1 identity or all outputs TODO possible grouping here, need to implement special groupped inserter
+            // wether 1 identity or all outputs TODO possible grouping here, need to implement special grouped inserter
             bool notAll = false;
             for (auto && nextData  : prev->outData) {
                 for (auto && nextLayer : getInputTo(nextData)) {
@@ -827,43 +821,47 @@ void InsertIdentityLayerPass::run() {
 void InsertCopyLayerPass::run() {
     // Copy layer insertion happens in few cases:
     // Crop output goes to concat layer -> copy layer insertion
+    // Splitted part of input goes to concat layer -> copy layer insertion
     // Concat|Split|Crop layer goes to memory layer -> delayed copy layer insertion
     // One output goes to multiple concat and/or memory layers -> delayed copies before memory layers
-    // and copies before concay layers (one less copy than outputs)
+    // and copies before concat layers (one less copy than outputs)
     for (auto & l : *pLayers) {
         if (LayerInfo(l).isNonFunctional()) continue;
-        // Crop -> Concat and Concat -> Memory cases
-        if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined()) || LayerInfo(l).isConcat()) {
+
+        // Crop -> Concat, Input -> Split -> Concat and Concat -> Memory cases
+        if ((LayerInfo(l).isCrop() && !LayerInfo(l).isCropAffined()) || LayerInfo(l).isConcat() || LayerInfo(l).isSplit()) {
             std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> copy_insertion_tuples;
             std::vector<std::tuple<CNNLayerPtr, CNNLayerPtr, size_t>> delayed_copy_insertion_tuples;
-
             for (auto output : l->outData) {
                 auto& inputTo = getInputTo(output);
                 for (auto& childLayer : inputTo) {
                     auto original_child = childLayer.second;
                     auto original_parent = l;
                     auto current_layer = original_child;
-                    size_t input_idx = CNNLayerFindInsDataIdxes(output, original_child)[0];
+                    std::vector<int> connections = CNNLayerFindInsDataIdxes(output, original_child);
 
-                    while (LayerInfo(current_layer).isNonFunctional()) {
-                        if (current_layer->outData.size() == 0) break;
-                        if (getInputTo(current_layer->outData[0]).size() == 0) break;
+                    for (auto input_idx : connections) {
+                        while (LayerInfo(current_layer).isNonFunctional()) {
+                            if (current_layer->outData.size() == 0) break;
+                            if (getInputTo(current_layer->outData[0]).size() == 0) break;
 
-                        auto next_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
-                        if (current_layer->outData.size() == 1 && getInputTo(current_layer->outData[0]).size() == 1 && original_child == current_layer) {
-                            original_child = next_layer;
-                            original_parent = current_layer;
-                            input_idx = CNNLayerFindInsDataIdxes(original_parent->outData[0], original_child)[0];
+                            auto next_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin) {return false; }).first;
+                            if (current_layer->outData.size() == 1 && getInputTo(current_layer->outData[0]).size() == 1 && original_child == current_layer) {
+                                original_child = next_layer;
+                                original_parent = current_layer;
+                                input_idx = CNNLayerFindInsDataIdxes(original_parent->outData[0], original_child)[0];
+                            }
+                            current_layer = next_layer;
                         }
-                        current_layer = next_layer;
-                    }
 
-                    if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(current_layer).isMemory()) {
-                        // Concat|Split|Crop -> Memory case
-                        delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
-                    } else if (LayerInfo(l).isCrop() && LayerInfo(current_layer).isConcat()) {
-                        // Crop -> Concat case
-                        copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
+                        if ((LayerInfo(l).isConcat() || LayerInfo(l).isCrop() || LayerInfo(l).isSplit()) && LayerInfo(current_layer).isMemory()) {
+                            // Concat|Split|Crop -> Memory case
+                            delayed_copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
+                        } else if ((LayerInfo(l).isSplit() || LayerInfo(l).isCrop()) && LayerInfo(current_layer).isConcat()) {
+                            // Split|Crop -> Concat case
+                            // concat may be connected to previous layer with multiple connections
+                            copy_insertion_tuples.push_back(std::make_tuple(original_parent, original_child, input_idx));
+                        }
                     }
                 }
             }
@@ -1438,6 +1436,8 @@ void EltwiseSplitOverChannelsPass::run() {
 
 void SubstituteScaleShiftBroadCastPass::run() {
     std::map<std::string, InferenceEngine::SizeVector> reshaped_data;
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+
     for (auto & l : *pLayers) {
         LayerInfo layerInfo(l);
 
@@ -1500,12 +1500,14 @@ void SubstituteScaleShiftBroadCastPass::run() {
                 scaleShift->_biases = tileBlob(scaleShift->_biases, nElements);
             }
 
-            // currently data type no providing reshape method of tensor desc
-            scaleShift->outData.front()->reshape({batchSize, nElements}, Layout::NC);
-            if (!was_reshaped) {
-                reshaped_data[insData->getName()] = insData->getDims();
-                insData->reshape({batchSize, nElements}, Layout::NC);
-            }
+            auto tensor = InferenceEngine::TensorDesc(insData->getTensorDesc());
+            tensor.reshape(SizeVector{ batchSize, nElements }, Layout::NC);
+            auto reshapeName = scaleShift->name + "_input_" + std::to_string(0) + "_reshape";
+            auto reshape = CNNNetworkCreateReshape(tensor, reshapeName, quantized);
+            auto layer_before_scale_shift = getCreatorLayer(insData);
+
+            CNNNetworkInsertLayer(layer_before_scale_shift.lock(), l, reshape);
+            gnalog() << "\tInserted " << reshapeName << " between " << layer_before_scale_shift.lock()->name << " and " << l->name << std::endl;
         } else {
             THROW_GNA_EXCEPTION << "Not implemented substitution of scaleshift broadcast policy of "
                                 << getPassManager()->getPolicy().ScaleShiftPolicy <<  "using layers tiling, layer: " << l->name;
@@ -1839,9 +1841,6 @@ void FuseFQIntoWeightsPass::run() {
         weightableLayer->insData.resize(1);
 
         // 2. running FQ function for given layer
-        if (weightDims.size() != 2) {
-            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " layout of weigths not equal to NC not yet supported";
-        }
         auto outputSize = details::product(weightDims.begin(), weightDims.end());
 
         // depending on compute precision weights will be recreated
@@ -1877,61 +1876,42 @@ void FuseFQIntoWeightsPass::run() {
             // check if
             // - weights were float values and need to be quantized,
             // - weights are integer values and quantization can be skipped
-            for (size_t i = 0; i < outputRange.first.size(); ++i) {
-                if (inputRange.first[i] > outputRange.first[i] ||
-                    inputRange.second[i] > outputRange.second[i]) {
-                    quantized->_weights_quantized = true;
-                    break;
-                }
-            }
-
-            quantized->_weights_quant.SetMinValues(outputRange.first);
-            quantized->_weights_quant.SetMaxValues(outputRange.second);
+            quantized->_weights_quant.SetMinValues(inputRange.first, true);
+            quantized->_weights_quant.SetMaxValues(inputRange.second, true);
+            quantized->_weights_quant.SetMinValues(outputRange.first, false);
+            quantized->_weights_quant.SetMaxValues(outputRange.second, false);
             quantized->_weights_quant.SetLevels(levels);
 
             // lets find out minimum scale factor among channels
-            if (quantized->_weights_quant.GetMinValues().empty()) {
+            if (!quantized->_weights_quant.IsStatsSet()) {
                 THROW_GNA_LAYER_EXCEPTION(fqLayer) << " per channel/tensor weigths scales are missed";
             }
-            auto getScale = [&quantized](size_t i) {
-                return (quantized->_weights_quant.GetLevels() - 1) /
-                    (quantized->_weights_quant.GetMaxValues()[i] - quantized->_weights_quant.GetMinValues()[i]);
-            };
-
-            float min_channel_scale = getScale(0);
-            for (uint32_t i = 1; i < quantized->_weights_quant.GetMinValues().size(); i++) {
-                min_channel_scale = std::min(min_channel_scale, getScale(i));
-            }
-
-            auto multiplier = 1.0f;
-            if (quantized->_weights_quant.GetLevels() <= std::numeric_limits<uint8_t>::max()) {
-                // GNA supports additional multiplier for only 8bit weights.
-                // The multipler is used to extend dynamic range.
-                multiplier = MAX_OUT_MULTIPLIER;
-            }
-
-            // Common weights scale calculation
-            quantized->_weights_quant.SetScale(min_channel_scale * multiplier);
             continue;
         }
 
+        size_t depth = 1;
         intel_dnn_component_t component;
         component.num_columns_in = weightDims[1];
         component.num_rows_in    = weightDims[0];
+
+        if (LayerInfo(weightableLayer).isConvolution()) {
+            depth = (weightDims.size() == 4)? weightDims[3]: 1;
+        }
 
         intel_piecewiselinear_t *transform = reinterpret_cast<intel_piecewiselinear_t *>(&component.op.pwl);
         transform->func_id = gnaFakeQuantizeLayer.parseAsActivation();
 
         auto quantizedWeightsData = quantizedWeights->buffer();
-        component.ptr_inputs = quantizedWeightsData.as<float*>();
-
         auto dequantizedWeights = make_shared_blob<float>(TensorDesc(Precision::FP32, {outputSize}, Layout::C));
         dequantizedWeights->allocate();
 
         auto resultBuffer = dequantizedWeights->buffer();
-        component.ptr_outputs = resultBuffer.as<float*>();
+        for (size_t i = 0; i < depth; ++i) {
+            component.ptr_inputs = quantizedWeightsData.as<float*>() + i * component.num_columns_in * component.num_rows_in;
+            component.ptr_outputs = resultBuffer.as<float*>() + i * component.num_columns_in * component.num_rows_in;
 
-        PwlApply32(&component, 0, component.num_rows_in - 1, 0, component.num_columns_in - 1);
+            PwlApply32(&component, 0, component.num_rows_in - 1, 0, component.num_columns_in - 1);
+        }
 
         // 3. assign dequantized const blob to weightable layer
         assignWeightsAndBiases(weightableLayer, dequantizedWeights, biases);
@@ -1947,6 +1927,97 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
     auto donotSkip = [](CNNLayerPtr) {
         return false;
     };
+
+    auto allowFQFuse = [](CNNLayerPtr layer) -> bool {
+        auto doNotSkup = [](CNNLayerPtr layer) {
+            return false;
+        };
+
+        if (CNNNetGetAllNextLayersSkipCertain(layer, -1, doNotSkup).empty()) {
+            return false;
+        }
+
+        auto skipNonFunctional = [](CNNLayerPtr layer) {
+            return LayerInfo(layer).isNonFunctional();
+        };
+
+        auto prevLayer = CNNNetPrevLayerSkipCertain(layer, 0, skipNonFunctional);
+        if (LayerInfo(prevLayer).isActivation() || LayerInfo(prevLayer).isConst()) {
+            return true;
+        }
+
+        auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer, -1, skipNonFunctional);
+        for (auto& l : nextLayers) {
+            if (!LayerInfo(l).isActivation()) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    std::function<void(QuantizedLayerParams*, CNNLayerPtr)> propagateStatistics =
+        [&propagateStatistics](QuantizedLayerParams* srcQuantParams, CNNLayerPtr layer) {
+        if (LayerInfo(layer).isFakeQuantize()) {
+            return;
+        }
+
+        auto donotSkip = [](CNNLayerPtr) {
+            return false;
+        };
+
+        auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+
+        // Find all output layers connected to FQ
+        auto nextLayers = CNNNetGetAllNextLayersSkipCertain(layer.get(), -1, donotSkip);
+        if (nextLayers.empty()) {
+            quantParams->_src_quant.CopyStats(srcQuantParams->_dst_quant);
+            if (LayerInfo(layer).isNonFunctional()) {
+                quantParams->_dst_quant.CopyStats(srcQuantParams->_dst_quant);
+            }
+            return;
+        }
+
+        auto srcMinVals = srcQuantParams->_dst_quant.GetMinValues().front();
+        auto srcMaxVals = srcQuantParams->_dst_quant.GetMaxValues().front();
+        // If a next layer is concat, find minimum nad maximum statistics
+        if (LayerInfo(layer).isConcat() && quantParams->_src_quant.IsStatsSet()) {
+            auto concatMinVal = quantParams->_src_quant.GetMinValues().front();
+            auto concatMaxVal = quantParams->_src_quant.GetMaxValues().front();
+            quantParams->_src_quant.SetMinValues({ std::min(srcMinVals, concatMinVal) });
+            quantParams->_src_quant.SetMaxValues({ std::max(srcMaxVals, concatMaxVal) });
+        } else if (quantParams->_src_quant.IsStatsSet()) {
+            return;
+        } else {
+            quantParams->_src_quant.CopyStats(srcQuantParams->_dst_quant);
+        }
+
+        if (!LayerInfo(layer).isWeightable() && !LayerInfo(layer).isEltwise() &&
+            !LayerInfo(layer).isActivation() && !LayerInfo(layer).isFakeQuantize()) {
+            auto doNotSetDstStats = false;
+            for (auto& l : nextLayers) {
+                if (LayerInfo(l).isFakeQuantize()) {
+                    doNotSetDstStats = true;
+                    continue;
+                }
+            }
+
+            if (doNotSetDstStats) {
+                return;
+            }
+
+            quantParams->_dst_quant.CopyStats(quantParams->_src_quant);
+
+            for (auto& l : nextLayers) {
+                if (LayerInfo(l).isFakeQuantize()) {
+                    continue;
+                }
+
+                propagateStatistics(quantParams, l);
+            }
+        }
+    };
+
     for (auto &&l : *pLayers) {
         if (!LayerInfo(l).isFakeQuantize()) {
             continue;
@@ -1959,28 +2030,56 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
 
         auto inputRange = fqLayer.getInputRange();
         auto outputRange = fqLayer.getOutputRange();
-        if (inputRange.second.size() != 1 || inputRange.second.size() != 1 ||
-            outputRange.second.size() != 1 || outputRange.second.size() != 1) {
+        if (inputRange.first.size() != 1 || inputRange.second.size() != 1 ||
+            outputRange.first.size() != 1 || outputRange.second.size() != 1) {
             THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported per-channel quantisation";
         }
 
+        if (!LayerInfo(prevLayer).isConst() &&
+            !fp32eq(inputRange.first.front(), outputRange.first.front()) &&
+            !fp32eq(inputRange.second.front(), outputRange.second.front())) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " unsupported data range conversion. Input: (" <<
+                inputRange.first.front() << "," << inputRange.second.front() << "), output: (" <<
+                outputRange.first.front() << "," << outputRange.second.front() << ")";
+        }
+
         float fqLevels = fqLayer.getLevels();
-        float scaleOutputs = (fqLevels - 1) / (outputRange.second[0] - outputRange.first[0]);
 
         // Before FQ layer is removed, the previous layer has to be updated with its quantization data
         auto quantParamsPrevLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
-        quantParamsPrevLayer->_dst_quant.SetScale(scaleOutputs);
         quantParamsPrevLayer->_dst_quant.SetLevels(fqLevels);
-        quantParamsPrevLayer->_dst_quant.SetMinValues({ inputRange.first[0] });
-        quantParamsPrevLayer->_dst_quant.SetMaxValues({ inputRange.second[0] });
+        quantParamsPrevLayer->_dst_quant.SetMinValues({ inputRange.first[0] }, true);
+        quantParamsPrevLayer->_dst_quant.SetMaxValues({ inputRange.second[0] }, true);
+        quantParamsPrevLayer->_dst_quant.SetMinValues({ outputRange.first[0] }, false);
+        quantParamsPrevLayer->_dst_quant.SetMaxValues({ outputRange.second[0] }, false);
 
+        auto fqQauntParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
+        fqQauntParams->_dst_quant.SetLevels(fqLevels);
+        fqQauntParams->_dst_quant.SetMinValues({ inputRange.first[0] }, true);
+        fqQauntParams->_dst_quant.SetMaxValues({ inputRange.second[0] }, true);
+        fqQauntParams->_dst_quant.SetMinValues({ outputRange.first[0] }, false);
+        fqQauntParams->_dst_quant.SetMaxValues({ outputRange.second[0] }, false);
+        fqQauntParams->_src_quant = fqQauntParams->_dst_quant;
+
+        l->insData.resize(1);
+        if (!CNNNetHasPrevLayer(prevLayer.get())) {
+            quantParamsPrevLayer->_src_quant = quantParamsPrevLayer->_dst_quant;
+        }
+
+        // Allow FQ Fuse checks if FQ layer can be fused to a layer before or after.
+        // FQ Layer is fused only when previous layer is const or activation layer
+        // or a next layer is activation layer.
+        bool isFQFuseAllowed = allowFQFuse(l);
         auto prevData = prevLayer->outData.front();
-        getInputTo(prevLayer->outData.front()).clear();
 
         // Find all output layers connected to FQ
         auto nextLayers = CNNNetGetAllNextLayersSkipCertain(*fqLayer, -1, donotSkip);
         if (nextLayers.empty()) {
-            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " fake quantize does not have any output layers connected";
+            return;
+        }
+
+        if (isFQFuseAllowed) {
+            getInputTo(prevLayer->outData.front()).clear();
         }
 
         // Connect all next layers after FQ to the layer that is before FQ
@@ -1992,29 +2091,29 @@ void MoveFakeQuantizeLayerIntoQuantParamsPass :: run() {
                     << LAYER_NAME(nextLayers[i]) << " is not correct";
             }
 
-            nextLayers[i]->insData[insDatas.front()] = prevData;
-            getInputTo(prevLayer->outData.front())[nextLayers[i]->name] = nextLayers[i];
+            if (isFQFuseAllowed) {
+                nextLayers[i]->insData[insDatas.front()] = prevData;
+                getInputTo(prevLayer->outData.front())[nextLayers[i]->name] = nextLayers[i];
+            }
 
-            // After layer gets removed lets absorb its params in QuantParams structure
-            // replacing scale factor from this fq layer
-            auto quantParamsNextLayer = InferenceEngine::getInjectedData<QuantizedLayerParams>(nextLayers[i]);
-            quantParamsNextLayer->_src_quant.SetScale(scaleOutputs);
-            quantParamsNextLayer->_src_quant.SetLevels(fqLevels);
-            quantParamsNextLayer->_src_quant.SetMinValues({ outputRange.first[0] });
-            quantParamsNextLayer->_src_quant.SetMaxValues({ outputRange.second[0] });
+            propagateStatistics(quantParamsPrevLayer, nextLayers[i]);
         }
     }
 }
 
 int PassManager::run(int index) {
-#ifdef PLOT
+#if defined PLOT || defined ENABLE_V7_SERIALIZE
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
+#ifdef PLOT
         std::ofstream out(name + ".dot");
         saveGraphToDot(network, out, [](const CNNLayerPtr layer,
                                         ordered_properties &printed_properties,
                                         ordered_properties &node_properties) {});
-        network.serialize(name + ".xml", name + ".bin", nullptr);
+#endif
+#ifdef ENABLE_V7_SERIALIZE
+        network.serialize(name + ".xml", name + ".bin");
+#endif
     };
 #else
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};

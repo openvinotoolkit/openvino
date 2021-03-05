@@ -130,9 +130,11 @@ Standard TensorFlow\* operations:
 | Asinh | No |
 | Atanh | No |
 | AvgPool | No |
+| AvgPoolV2 | Supported only for constant-foldable kernel_size and strides inputs |
 | BatchToSpaceND | No |
 | BiasAdd | No |
 | Bucketize | CPU only |
+| BroadcastTo | No |
 | Cast | No |
 | Ceil | No |
 | Concat | No |
@@ -180,6 +182,7 @@ Standard TensorFlow\* operations:
 | MatMul | No |
 | Max | No |
 | MaxPool | No |
+| MaxPoolV2 | Supported only for constant-foldable kernel_size and strides inputs |
 | Maximum | No |
 | Mean | No |
 | Merge | Supported only when it is fused to the TensorIterator layer |
@@ -231,7 +234,7 @@ Standard TensorFlow\* operations:
 | Square| No |
 | Squeeze | The case when squeeze axis is not specified is not supported |
 | StopGradient | Not needed for shape inference |
-| StridedSlice | No |
+| StridedSlice | Supported only for constant-foldable begin, end, and strides inputs |
 | Sub | No |
 | Sum | No |
 | Swish | No |

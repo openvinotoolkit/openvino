@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -141,7 +141,9 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         producer_port = tensor_port.get_source()
         tensor_port.disconnect()
         const_port.disconnect()
-        node.out_port(0).get_connection().set_source(producer_port)
+        # as Mul node is added before convolution, output tensor from Convolution node
+        # corresponds to original Mul node
+        node.out_port(0).get_connection().set_source(producer_port, "dest")
 
     return is_fused
 

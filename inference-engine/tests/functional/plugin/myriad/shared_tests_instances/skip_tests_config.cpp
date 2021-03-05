@@ -25,16 +25,15 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*TopKLayerTest.*mode=min.*sort=index.*)",
         // TODO: Issue: 40961
         R"(.*(ConstantResultSubgraphTest).*)",
-        // TODO: Issue: 43795
-        R"(.*(PreprocessTest).*(SetMeanValuePreProcess).*)",
-        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
         // TODO: Issue: 42828
         R"(.*DSR_NonMaxSuppression.*NBoxes=(5|20|200).*)",
         // TODO: Issue: 42721
         R"(.*(DSR_GatherND).*)",
         // TODO: Issue 26090
         ".*DSR_GatherStaticDataDynamicIdx.*f32.*1.3.200.304.*",
-        // TODO: Issue 46755
-        ".*DSR_GatherElements.*"
+        // TODO: Issue 47315
+        ".*ProposalLayerTest.*",
+        // TODO: Issue 48183
+        R"(.*CTCGreedyDecoderSeqLen.*?\(1.1.1\).*)",
     };
 }

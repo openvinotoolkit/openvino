@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -35,9 +35,11 @@ def pad_op_transform(graph: Graph, match: dict):
         log.info('The pad node "{}" with pad mode "{}" cannot be fused.'.format(pad_op.soft_get('name'), pad_op.mode))
         return
 
-    if pad_op.mode == 'constant' and pad_op.fill_value != 0.0:
-        log.info('The pad node "{}" with non-zero fill value cannot be fused.'.format(pad_op.soft_get('name')))
-        return
+    if pad_op.mode == 'constant':
+        fill_value = pad_op.in_port(3).data.get_value()
+        if fill_value is None or fill_value != 0.0:
+            log.info('The pad node "{}" with non-zero fill value cannot be fused.'.format(pad_op.soft_get('name')))
+            return
 
     input_tensor_dims = len(match['pad_output'].shape)
     for in_port in [1, 2]:

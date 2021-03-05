@@ -61,7 +61,7 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
             auto reshape_output = op::util::reshapeTo(fc_new, output_shape);
             new_ops.push_back(reshape_output);
             reshape_output->set_friendly_name(fc->get_friendly_name());
-            fc->set_friendly_name(fc->get_friendly_name() + "/FC");
+            fc_new->set_friendly_name(fc->get_friendly_name() + "/FC");
             ngraph::copy_runtime_info(fc, new_ops);
             ngraph::replace_node(fc, reshape_output);
         } else {

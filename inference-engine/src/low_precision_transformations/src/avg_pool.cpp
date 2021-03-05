@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,12 +29,12 @@ bool AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
         return false;
     }
 
-    const std::shared_ptr<Node> pooling = separateInStandaloneBranch(m.get_match_root());
+    const std::shared_ptr<Node> pooling = NetworkHelper::separateInStandaloneBranch(m.get_match_root());
 
     const std::vector<std::shared_ptr<ngraph::Node>> children = getChildrenRecursivelyExceptPrecisionPreserved(pooling);
 
     bool updatePrecision;
-    // issue #40768
+
     if ((children.size() == 1ul) && (!this->layerTransformationsManager->isQuantized(children[0]))) {
         updatePrecision = false;
     } else {

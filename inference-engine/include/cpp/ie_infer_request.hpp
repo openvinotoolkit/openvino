@@ -18,6 +18,7 @@
 #include "ie_iinfer_request.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
+#include "ie_blob.h"
 
 namespace InferenceEngine {
 
@@ -162,10 +163,13 @@ public:
         CALL_STATUS_FNC_NO_ARGS(Infer);
     }
 
-    StatusCode Cancel() {
-        ResponseDesc resp;
-        if (actual == nullptr) THROW_IE_EXCEPTION << "InferRequest was not initialized.";
-        return actual->Cancel(&resp);
+    /**
+     * @copybrief IInferRequest::Cancel
+     *
+     * Wraps IInferRequest::Cancel
+     */
+    void Cancel() {
+        CALL_STATUS_FNC_NO_ARGS(Cancel);
     }
 
     /**
@@ -241,7 +245,7 @@ public:
         auto res = actual->Wait(millis_timeout, &resp);
         if (res != OK && res != RESULT_NOT_READY &&
             res != INFER_NOT_STARTED && res != INFER_CANCELLED) {
-            InferenceEngine::details::extract_exception(res, resp.msg);
+            THROW_IE_EXCEPTION << InferenceEngine::details::as_status << res << resp.msg;
         }
         return res;
     }

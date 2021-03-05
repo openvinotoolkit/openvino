@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,9 +34,25 @@ enum DnnActivationType : uint8_t {
     kActNumType
 };
 
+struct FakeQuantizeParams {
+    int8_t set;
+    int32_t levels;
+    // if input is per-channel quantization - input pointers contains per-channel ranges
+    int8_t  inputPerChannel;
+    float* input_low;
+    float* input_high;
+    // if output is per-channel quantization - output pointers contains per-channel ranges
+    int8_t  outputPerChannel;
+    float* output_low;
+    float* output_high;
+};
+
 struct DnnActivation {
     // for prelu
     DnnActivationType type;
+    FakeQuantizeParams fqParams;
+    FakeQuantizeParams srcFQParams;
+
     union {
         struct {
             float negative_slope;
@@ -47,16 +63,9 @@ struct DnnActivation {
             float offset;
         } pow;
         struct {
-            int32_t levels;
-            // if input is per-channel quantization - input pointers contains per-channel ranges
-            int8_t  inputPerChannel;
-            float  *input_low;
-            float  *input_high;
-            // if output is per-channel quantization - output pointers contains per-channel ranges
-            int8_t  outputPerChannel;
-            float  *output_low;
-            float  *output_high;
-        } fakeQuantize;
+            float low;
+            float high;
+        } clamp;
     } args;
     operator DnnActivationType () const noexcept {
         return type;
@@ -148,6 +157,7 @@ typedef struct {
 
 typedef struct {
     std::array<uint32_t, 2> convStride;
+    std::array<uint32_t, 2> zeroPadding;
     float weight_scale_factor;
     void* ptr_filters;     // filters stored one after the other
     void* ptr_biases;

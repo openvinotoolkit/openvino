@@ -31,12 +31,13 @@ struct QuantizationCallback {
     uint32_t num_rows_padded;
     uint32_t num_columns_padded;
 
+    bool quantizedWeights;
     int32_t fq_levels;
+    const size_t fq_num_stats;
     const float *fq_ptr_input_low;
     const float *fq_ptr_input_high;
-    const float *fq_ptr_output_low;
-    const float *fq_ptr_output_high;
-    const bool* ptr_quantized_weights;
+    const float* fq_ptr_output_low;
+    const float* fq_ptr_output_high;
 
     void runQuantize() const;
     void runFakeQuantize() const;
@@ -45,5 +46,6 @@ struct QuantizationCallback {
 template class QuantizationCallback<int16_t, int32_t>;
 template class QuantizationCallback<int8_t, gna_compound_bias_t>;
 
+std::pair<float, float> FindMinMaxValues(void* ptr_float_memory, size_t num_elements);
 float ScaleFactorForQuantization(void *ptr_float_memory, float target_max, size_t num_elements);
 void QuantizeVector16(float *ptr_float_memory, int16_t *ptr_int_memory, uint32_t num_elements, float scale_factor);

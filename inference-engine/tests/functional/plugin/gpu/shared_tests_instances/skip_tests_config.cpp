@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,8 +19,11 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*eltwiseOpType=Pow.*netPRC=I64.*)",
             R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
             // TODO: Issue: 43794
-            R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
-            R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
+            R"(.*(PreprocessTest).*(SetScalePreProcessSetBlob).*)",
+            R"(.*(PreprocessTest).*(SetScalePreProcessGetBlob).*)",
+            R"(.*(PreprocessTest).*(SetMeanValuePreProcessSetBlob).*)",
+            R"(.*(PreprocessTest).*(SetMeanImagePreProcessSetBlob).*)",
+            R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcessGetBlob).*)",
             // TODO: Issue: 41467 -- "unsupported element type f16 op Convert"
             R"(.*(ConvertLayerTest).*targetPRC=FP16.*)",
             // TODO: Issue: 41462
@@ -48,9 +51,11 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(LSTMSequence).*mode=CONVERT_TO_TI_RAND_SEQ_LEN.*)",
             R"(.*(smoke_DetectionOutput3In).*)",
             R"(.*(smoke_DetectionOutput5In).*)",
-            R"(.*(ScatterUpdateLayerTest).*)",
-
+            // TODO: Issue: 47773
+            R"(.*(ProposalLayerTest).*)",
             // INT8 StridedSlice not supported
             R"(.*(LPT/StridedSliceTransformation).*)",
+            // TODO: Issue: 48106
+            R"(.*ConstantResultSubgraphTest.*inPrc=I16.*)",
     };
 }

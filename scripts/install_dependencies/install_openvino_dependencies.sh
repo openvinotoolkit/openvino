@@ -19,7 +19,7 @@ set -e
 #===================================================================================================
 # Option parsing
 
-all_comp=(opencv_req opencv_opt python dev myriad dlstreamer installer pot)
+all_comp=(opencv_req opencv_opt python dev myriad dlstreamer installer pot cl_compiler)
 os=${os:-auto}
 
 # public options
@@ -93,8 +93,11 @@ fi
 
 if [ "$os" == "auto" ] ; then
     os=$( . /etc/os-release ; echo "${ID}${VERSION_ID}" )
+    if [[ "$os" =~ "rhel8".* ]] ; then
+      os="rhel8"
+    fi
     case $os in
-        centos7|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
+        centos7|rhel8|ubuntu18.04|ubuntu20.04) [ -z "$print" ] && echo "Detected OS: ${os}" ;;
         *) echo "Unsupported OS: ${os:-detection failed}" >&2 ; exit 1 ;;
     esac
 fi
@@ -106,17 +109,19 @@ extra_repos=()
 
 if [ "$os" == "ubuntu18.04" ] ; then
 
-    pkgs_opencv_req=(libgtk-3-0)
+    pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
     pkgs_dev=(cmake g++ gcc libc6-dev make curl)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
     pkgs_pot=()
+    pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
         gstreamer1.0-plugins-bad
         gstreamer1.0-plugins-base
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
+        gstreamer1.0-tools
         libavcodec57
         libavformat57
         libavresample3
@@ -133,29 +138,33 @@ if [ "$os" == "ubuntu18.04" ] ; then
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
         gstreamer1.0-vaapi
+        gstreamer1.0-tools
         libfaac0
         libfluidsynth1
         libgl-dev
-        libglib2.0
+        libglib2.0-dev
         libgstreamer1.0-0
         libnettle6
         libtag-extras1
         python3-gi
+        vainfo
     )
 
 elif [ "$os" == "ubuntu20.04" ] ; then
 
-    pkgs_opencv_req=(libgtk-3-0)
+    pkgs_opencv_req=(libgtk-3-0 libgl1)
     pkgs_python=(python3 python3-dev python3-venv python3-setuptools python3-pip)
     pkgs_dev=(cmake g++ gcc libc6-dev make curl)
     pkgs_myriad=(libusb-1.0-0)
     pkgs_installer=(cpio)
     pkgs_pot=(libblas-dev liblapack-dev gfortran)
+    pkgs_cl_compiler=(libtinfo5)
     pkgs_opencv_opt=(
         gstreamer1.0-plugins-bad
         gstreamer1.0-plugins-base
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
+        gstreamer1.0-tools
         libavcodec58
         libavformat58
         libavresample4
@@ -173,10 +182,12 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         gstreamer1.0-plugins-good
         gstreamer1.0-plugins-ugly
         gstreamer1.0-vaapi
+        gstreamer1.0-tools
+        gstreamer1.0-x
         libfaac0
         libfluidsynth2
         libgl-dev
-        libglib2.0-0
+        libglib2.0-dev
         libgstreamer-plugins-base1.0-dev
         libgstreamer1.0-0
         libgstrtspserver-1.0-dev
@@ -185,7 +196,25 @@ elif [ "$os" == "ubuntu20.04" ] ; then
         libtag-extras1
         python3-gi
         python3-gst-1.0
+        vainfo
     )
+
+elif [ "$os" == "rhel8" ] ; then
+
+    pkgs_opencv_req=(gtk3)
+    pkgs_python=(python3 python3-devel python3-setuptools python3-pip)
+    pkgs_dev=(gcc gcc-c++ make glibc libstdc++ libgcc cmake curl)
+    pkgs_myriad=()
+    pkgs_installer=()
+    pkgs_pot=()
+    pkgs_opencv_opt=(
+        gstreamer1
+        gstreamer1-plugins-bad-free
+        gstreamer1-plugins-good
+        gstreamer1-plugins-ugly-free
+    )
+    pkgs_dlstreamer=()
+    extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm)
 
 elif [ "$os" == "centos7" ] ; then
 
@@ -197,6 +226,7 @@ elif [ "$os" == "centos7" ] ; then
     pkgs_myriad=(libusbx)
     pkgs_installer=()
     pkgs_pot=()
+    pkgs_cl_compiler=()
     pkgs_opencv_opt=(
         gstreamer1
         gstreamer1-plugins-bad-free
@@ -261,6 +291,9 @@ elif [ "$os" == "centos7" ] ; then
         wavpack
         xz-libs
         zlib
+        python36-gi
+        python36-gobject
+        python36-gobject-devel
     )
 
     if [ -n "$extra" ] ; then
@@ -345,7 +378,7 @@ if [ "$os" == "ubuntu18.04" ] || [ "$os" == "ubuntu20.04" ] ; then
 
     apt-get update && apt-get install --no-install-recommends $iopt ${pkgs[@]}
 
-elif [ "$os" == "centos7" ] ; then
+elif [ "$os" == "centos7" ] || [ "$os" == "rhel8" ] ; then
 
     [ -z "$interactive" ] && iopt="--assumeyes"
     [ -n "$dry" ] && iopt="--downloadonly"

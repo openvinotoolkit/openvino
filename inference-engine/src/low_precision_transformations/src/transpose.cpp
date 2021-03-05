@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -80,7 +80,7 @@ bool TransposeTransformation::transform(TransformationContext& context, ngraph::
         return false;
     }
 
-    transpose = separateInStandaloneBranch(transpose);
+    transpose = NetworkHelper::separateInStandaloneBranch(transpose);
     transposeDequantizationConstant(transpose);
     moveDequantizationAfter(context, transpose, NetworkHelper::getDequantization(transpose, 0), false);
     return true;
@@ -102,16 +102,13 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
 
     const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
     const bool isPerTensor =  [&] {
-        const auto sub = dequantization.subtract;
-        const auto mul = dequantization.multiply;
-        if (sub) {
-            auto subConst = as_type_ptr<ngraph::op::v0::Constant>(sub->get_input_node_shared_ptr(1));
-            if (!NetworkHelper::isScalarLike(subConst)) {
+        if (dequantization.subtractConstant != nullptr) {
+            if (!NetworkHelper::isScalarLike(dequantization.subtractConstant)) {
                 return false;
             }
         }
-        if (mul) {
-            auto mulConst = as_type_ptr<ngraph::op::v0::Constant>(mul->get_input_node_shared_ptr(1));
+        if (dequantization.multiply != nullptr) {
+            const auto mulConst = as_type_ptr<ngraph::op::v0::Constant>(dequantization.multiplyConstant);
             if (!NetworkHelper::isScalarLike(mulConst)) {
                 return false;
             }
@@ -126,7 +123,7 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
         }
     }
 
-    auto checkConstant = [](const std::shared_ptr<Node>& dequantizationConstant, const Shape& transposeOutputShape) -> bool {
+    auto checkShape = [](const std::shared_ptr<Node>& dequantizationConstant, const Shape& transposeOutputShape) -> bool {
         const auto dequantizationShape = dequantizationConstant->get_output_shape(0);
         if (dequantizationShape.empty() || (dequantizationShape.size() == 1ul) || (dequantizationShape.size() == transposeOutputShape.size())) {
             return true;
@@ -141,8 +138,8 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
 
     return
         !dequantization.empty() &&
-        ((dequantization.subtract == nullptr) || checkConstant(dequantization.subtract->get_input_node_shared_ptr(1), op->get_output_shape(0))) &&
-        ((dequantization.multiply == nullptr) || checkConstant(dequantization.multiply->get_input_node_shared_ptr(1), op->get_output_shape(0)));
+        ((dequantization.subtract == nullptr) || checkShape(dequantization.subtract->get_input_node_shared_ptr(1), op->get_output_shape(0))) &&
+        ((dequantization.multiply == nullptr) || checkShape(dequantization.multiply->get_input_node_shared_ptr(1), op->get_output_shape(0)));
 }
 
 } // namespace low_precision

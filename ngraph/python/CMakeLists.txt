@@ -58,6 +58,8 @@ if(OpenVINO_MAIN_SOURCE_DIR)
     endif()
     
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+    set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
+    set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY})
 endif()
 
 # compile options
@@ -70,6 +72,9 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     add_link_options(-stdlib=libc++)
     add_compile_options(-Wno-unused-value)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
+    add_compile_options(-Wno-error=attributes)
 endif()
 
 # create target

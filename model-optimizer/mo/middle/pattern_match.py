@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 import logging as log
 
+import numpy as np
 from networkx.algorithms import isomorphism as ism
 
 from mo.graph.graph import Node, dict_includes, Graph
@@ -163,3 +164,7 @@ def find_isomorphisms(graph: Graph, nodes: list, edges: list):
         match = {k: Node(graph, match[k]) for k in match.keys()}
         result.append(match)
     return result
+
+
+def check_value(v: np.ndarray, check: callable):
+    return v is not None and np.all(np.isreal(v)) and check(v)

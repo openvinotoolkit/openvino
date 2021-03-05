@@ -192,8 +192,7 @@ public:
         pugi::xml_node ieNode = xmlDoc.document_element();
         pugi::xml_node devicesNode = ieNode.child("plugins");
 
-        for (auto pluginNode = devicesNode.child("plugin"); !pluginNode.empty();
-             pluginNode = pluginNode.next_sibling("plugin")) {
+        FOREACH_CHILD(pluginNode, devicesNode, "plugin") {
             std::string deviceName = GetStrAttr(pluginNode, "name");
             FileUtils::FilePath pluginPath = FileUtils::toFilePath(GetStrAttr(pluginNode, "location").c_str());
 
@@ -212,8 +211,7 @@ public:
             std::map<std::string, std::string> config;
 
             if (propertiesNode) {
-                for (auto propertyNode = propertiesNode.child("property"); !propertyNode.empty();
-                     propertyNode = propertyNode.next_sibling("property")) {
+                FOREACH_CHILD(propertyNode, propertiesNode, "property") {
                     std::string key = GetStrAttr(propertyNode, "key");
                     std::string value = GetStrAttr(propertyNode, "value");
                     config[key] = value;
@@ -225,8 +223,7 @@ public:
             std::vector<FileUtils::FilePath> listOfExtentions;
 
             if (extensionsNode) {
-                for (auto extensionNode = extensionsNode.child("extension"); !extensionNode.empty();
-                     extensionNode = extensionNode.next_sibling("extension")) {
+                FOREACH_CHILD(extensionNode, extensionsNode, "extension") {
                     FileUtils::FilePath extensionLocation = FileUtils::toFilePath(GetStrAttr(extensionNode, "location").c_str());
                     listOfExtentions.push_back(extensionLocation);
                 }
@@ -367,7 +364,7 @@ public:
 
                     allowNotImplemented([&]() {
                         for (auto&& extensionLocation : desc.listOfExtentions) {
-                            plugin.AddExtension(make_so_pointer<IExtension>(extensionLocation));
+                            plugin.AddExtension(std::make_shared<Extension>(extensionLocation));
                         }
                     });
                 }
@@ -741,11 +738,10 @@ std::vector<std::string> Core::GetAvailableDevices() const {
 
     for (auto&& deviceName : _impl->GetListOfDevicesInRegistry()) {
         std::vector<std::string> devicesIDs;
-
         try {
             Parameter p = GetMetric(deviceName, propertyName);
             devicesIDs = p.as<std::vector<std::string>>();
-        } catch (details::InferenceEngineException&) {
+        } catch (details::InferenceEngineException& e) {
             // plugin is not created by e.g. invalid env
         } catch (const std::exception& ex) {
             THROW_IE_EXCEPTION << "An exception is thrown while trying to create the " << deviceName

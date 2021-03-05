@@ -88,16 +88,29 @@ void calcRowLinear_8UC1(uint8_t       *dst[],
                     //      function: resize_bilinear_u8
                     //         label: vertical_pass
                     //--------------------------------------------
-
+#ifdef __i386__
+                    __m128i val0lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[0][w])),
+                                                                      reinterpret_cast<const double*>(&src0[1][w])));
+                    __m128i val0hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[2][w])),
+                                                                      reinterpret_cast<const double*>(&src0[3][w])));
+                    __m128i val1lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[0][w])),
+                                                                      reinterpret_cast<const double*>(&src1[1][w])));
+                    __m128i val1hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[2][w])),
+                                                                      reinterpret_cast<const double*>(&src1[3][w])));
+#else
                     __m128i val0lo = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[0][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src0[1][w]), 1);
+                                                                      *reinterpret_cast<const int64_t*>(&src0[1][w]), 1);
                     __m128i val0hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[2][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src0[3][w]), 1);
+                                                                      *reinterpret_cast<const int64_t*>(&src0[3][w]), 1);
                     __m128i val1lo = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src1[0][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src1[1][w]), 1);
+                                                                      *reinterpret_cast<const int64_t*>(&src1[1][w]), 1);
                     __m128i val1hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src1[2][w])),
-                                                                     *reinterpret_cast<const int64_t*>(&src1[3][w]), 1);
-
+                                                                      *reinterpret_cast<const int64_t*>(&src1[3][w]), 1);
+#endif
                     __m128i val0_0 = _mm_cvtepu8_epi16(val0lo);
                     __m128i val0_2 = _mm_cvtepu8_epi16(val0hi);
                     __m128i val1_0 = _mm_cvtepu8_epi16(val1lo);
@@ -382,15 +395,29 @@ void calcRowLinear_8UC1(uint8_t       *dst[],
             for (int x = 0; x < outSz.width; ) {
                 for (; x <= outSz.width - 8; x += 8) {
                     v_uint8x16 t0, t1, t2, t3;
+#ifdef __i386__
+                    t0.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 0]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 1]])));
+                    t1.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 2]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 3]])));
+                    t2.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 4]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 5]])));
+                    t3.val = _mm_castpd_si128(_mm_loadh_pd(
+                                                  _mm_load_sd(reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 6]])),
+                                                              reinterpret_cast<const double*>(&tmp[4 * mapsx[x + 7]])));
+#else
                     t0.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 0]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]), 1);
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 1]]), 1);
                     t1.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 2]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]), 1);
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3]]), 1);
                     t2.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 4]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]), 1);
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 5]]), 1);
                     t3.val = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<__m128i*>(&tmp[4 * mapsx[x + 6]])),
-                                                             *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]), 1);
-
+                                                              *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 7]]), 1);
+#endif
                     v_uint8x16 r0, r1, r2, r3;
                     v_deinterleave(t0, t1, t2, t3, r0, r1, r2, r3);
 
@@ -512,7 +539,20 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                 //      function: resize_bilinear_u8
                 //         label: vertical_pass
                 //--------------------------------------------
-
+#ifdef __i386__
+                    __m128i val0lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[0][w])),
+                                                                      reinterpret_cast<const double*>(&src0[1][w])));
+                    __m128i val0hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src0[2][w])),
+                                                                      reinterpret_cast<const double*>(&src0[3][w])));
+                    __m128i val1lo = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[0][w])),
+                                                                      reinterpret_cast<const double*>(&src1[1][w])));
+                    __m128i val1hi = _mm_castpd_si128(_mm_loadh_pd(
+                                                          _mm_load_sd(reinterpret_cast<const double*>(&src1[2][w])),
+                                                                      reinterpret_cast<const double*>(&src1[3][w])));
+#else
                 __m128i val0lo = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[0][w])),
                         *reinterpret_cast<const int64_t*>(&src0[1][w]), 1);
                 __m128i val0hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src0[2][w])),
@@ -521,7 +561,7 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
                         *reinterpret_cast<const int64_t*>(&src1[1][w]), 1);
                 __m128i val1hi = _mm_insert_epi64(_mm_loadl_epi64(reinterpret_cast<const __m128i*>(&src1[2][w])),
                         *reinterpret_cast<const int64_t*>(&src1[3][w]), 1);
-
+#endif
                 __m128i val0_0 = _mm_cvtepu8_epi16(val0lo);
                 __m128i val0_2 = _mm_cvtepu8_epi16(val0hi);
                 __m128i val1_0 = _mm_cvtepu8_epi16(val1lo);

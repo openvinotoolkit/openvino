@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -156,18 +156,17 @@ REGISTER_FACTORY(v3, EmbeddingBagOffsetsSum);
 REGISTER_FACTORY(v3, EmbeddingBagPackedSum);
 REGISTER_FACTORY(v3, EmbeddingSegmentsSum);
 REGISTER_FACTORY(v3, ExtractImagePatches);
+REGISTER_FACTORY(v3, ScatterUpdate);
+REGISTER_FACTORY(v3, ScatterElementsUpdate);
 // REGISTER_FACTORY(v3, NonMaxSuppression); Supported via v3 -> v5 internal conversion
 
 // ----------------------------- Unsupported v3 ops ----------------------------- //
-// REGISTER_FACTORY(v3, ScatterUpdate); // There is the scatter_update primitive, but seems like it produces wrong results
 // REGISTER_FACTORY(v3, Assign);
 // REGISTER_FACTORY(v3, Bucketize);
 // REGISTER_FACTORY(v3, GRUCell);
 // REGISTER_FACTORY(v3, NonZero);
 // REGISTER_FACTORY(v3, ROIAlign);
 // REGISTER_FACTORY(v3, ReadValue);
-// REGISTER_FACTORY(v3, ScatterElementsUpdate);
-// REGISTER_FACTORY(v3, ScatterUpdate);
 // REGISTER_FACTORY(v3, ScatterNDUpdate);
 // REGISTER_FACTORY(v3, ShapeOf);
 // REGISTER_FACTORY(v3, TopK);
@@ -201,6 +200,10 @@ REGISTER_FACTORY(v5, Round);
 // REGISTER_FACTORY(v5, GRUSequence);
 // REGISTER_FACTORY(v5, Loop);
 // REGISTER_FACTORY(v5, RNNSequence);
+
+// ------------------------------ Supported v6 ops ------------------------------ //
+REGISTER_FACTORY(v6, CTCGreedyDecoderSeqLen);
+REGISTER_FACTORY(v6, MVN);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
