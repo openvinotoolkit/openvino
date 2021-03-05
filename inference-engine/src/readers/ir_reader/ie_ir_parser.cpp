@@ -17,6 +17,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset7.hpp>
 #include <ngraph/variant.hpp>
 #include <set>
 #include <sstream>
@@ -865,6 +866,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) : _exts(exts) {
     opsets["opset4"] = ngraph::get_opset4();
     opsets["opset5"] = ngraph::get_opset5();
     opsets["opset6"] = ngraph::get_opset6();
+    opsets["opset7"] = ngraph::get_opset7();
 
     // Load custom opsets
     for (const auto& ext : exts) {
