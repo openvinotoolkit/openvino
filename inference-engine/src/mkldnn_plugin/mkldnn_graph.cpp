@@ -6,6 +6,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <tuple>
 #include <unordered_set>
 #include <limits>
 #include <fstream>
@@ -66,6 +67,8 @@ using namespace InferenceEngine::details;
 
 typedef std::unordered_set<MKLDNNEdgePtr> edge_cluster_t;
 typedef std::vector<edge_cluster_t> edge_clusters_t;
+
+mkldnn::engine MKLDNNGraph::eng(mkldnn::engine::kind::cpu, 0);
 
 template<typename NET>
 void MKLDNNGraph::ApplyUnrollPasses(NET &net) {
@@ -453,15 +456,24 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
 
     auto acquireSharedOutputs = [this](MKLDNNNodePtr & graphNode) {
         std::vector<shared_memory_ptr> outputs;
+        bool hasLocalAllocatedEdges = false;
+        bool hasExternalInvalidEdges = false;
 
         for (size_t i = 0; i < graphNode->getChildEdges().size(); ++i) {
             auto edgePtr = graphNode->getChildEdgeAt(i);
-            if (edgePtr && edgePtr->isUseExternalMemory()) {
-                outputs.emplace_back(weightsCache->get(edgePtr->name()));
+            if (edgePtr) {
+                if (edgePtr->isUseExternalMemory()) {
+                    auto ptr = weightsCache->get(edgePtr->name());
+                    outputs.emplace_back(ptr);
+                    if (!ptr->isValid())
+                        hasExternalInvalidEdges = true;
+                } else {
+                    hasLocalAllocatedEdges = true;
+                }
             }
         }
 
-        return outputs;
+        return std::make_tuple(hasExternalInvalidEdges, hasLocalAllocatedEdges, outputs);
     };
 
     for (auto &graphNode : graphNodes) {
@@ -471,12 +483,10 @@ void MKLDNNGraph::ExecuteConstantNodesOnly() {
         if (weightsCache) {
             auto sharedOutputs = acquireSharedOutputs(graphNode);
 
-            if (std::find_if(sharedOutputs.begin(), sharedOutputs.end(),
-                [](const shared_memory_ptr & ptr) {
-                    return !ptr->isValid();
-                }) != sharedOutputs.end()) {
+            if (std::get<0>(sharedOutputs) || std::get<1>(sharedOutputs)) {
                 graphNode->execute(stream);
-                for (auto & output : sharedOutputs)
+
+                for (auto & output : std::get<2>(sharedOutputs))
                     output->valid(true);
             }
         } else {

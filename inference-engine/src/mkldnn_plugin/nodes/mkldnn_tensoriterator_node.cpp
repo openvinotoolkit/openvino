@@ -187,8 +187,7 @@ private:
 }  // namespace MKLDNNPlugin
 
 MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache),
-        sub_graph(eng) {}
+        MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
     auto *ti = dynamic_cast<class InferenceEngine::TensorIterator*>(getCnnLayer().get());
