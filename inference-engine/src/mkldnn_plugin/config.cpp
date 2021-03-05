@@ -40,11 +40,23 @@ Config::Config() {
 
 
 void Config::readProperties(const std::map<std::string, std::string> &prop) {
-    auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
-    for (auto& kvp : prop) {
-        auto& key = kvp.first;
-        auto& val = kvp.second;
+    std::map<std::string, std::string> props = prop;
+    const auto streamExecutorConfigKeys = streamExecutorConfig.SupportedKeys();
+    const auto mode = props.find(PluginConfigParams::KEY_OV_PERFORMANCE_MODE);
+    const auto streams = props.find(PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS);
+    if (mode != props.end()) {
+        if (streams == props.end()) {
+            if (mode->second == CONFIG_VALUE(LATENCY))
+                props[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_NUMA);
+            else if (mode->second == CONFIG_VALUE(THROUGHPUT))
+                props[PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS] = CONFIG_VALUE(CPU_THROUGHPUT_AUTO);
+        }
+        props.erase(mode);
+    }
 
+    for (const auto& kvp : props) {
+        const auto& key = kvp.first;
+        const auto& val = kvp.second;
         if (streamExecutorConfigKeys.end() !=
             std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streamExecutorConfig.SetConfig(key, val);
