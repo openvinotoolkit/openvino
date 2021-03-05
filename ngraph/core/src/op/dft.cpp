@@ -19,8 +19,8 @@
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/axis_vector.hpp"
 #include "ngraph/axis_set.hpp"
+#include "ngraph/axis_vector.hpp"
 #include "ngraph/op/dft.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
