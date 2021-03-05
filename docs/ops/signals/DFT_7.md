@@ -59,7 +59,7 @@ There is no `signal_size` input (4D input tensor):
             <dim>2</dim>
         </port>
         <port id="1">
-            <dim>2</dim> <!-- [1, 2] -->
+            <dim>2</dim> <!-- axes input contains [1, 2] -->
         </port>
     <output>
         <port id="2">
@@ -82,7 +82,7 @@ There is no `signal_size` input (3D input tensor):
             <dim>2</dim>
         </port>
         <port id="1">
-            <dim>2</dim> <!-- [0, 1] -->
+            <dim>2</dim> <!-- axes input contains [0, 1] -->
         </port>
     <output>
         <port id="2">
@@ -106,10 +106,10 @@ There is `signal_size` input (4D input tensor):
             <dim>2</dim>
         </port>
         <port id="1">
-            <dim>2</dim> <!-- [1, 2] -->
+            <dim>2</dim> <!-- axes input contains [1, 2] -->
         </port>
         <port id="2">
-            <dim>2</dim> <!-- [512, 100] -->
+            <dim>2</dim> <!-- signal_size input contains [512, 100] -->
         </port>
     <output>
         <port id="3">
@@ -133,15 +133,75 @@ There is `signal_size` input (3D input tensor):
             <dim>2</dim>
         </port>
         <port id="1">
-            <dim>2</dim> <!-- [0, 1] -->
+            <dim>2</dim> <!-- axes input contains [0, 1] -->
         </port>
         <port id="2">
-            <dim>2</dim> <!-- [512, 100] -->
+            <dim>2</dim> <!-- signal_size input contains [512, 100] -->
         </port>
     <output>
         <port id="3">
             <dim>512</dim>
             <dim>100</dim>
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
+
+
+There is `signal_size` input (5D input tensor, `-1` in `signal_size`, unsorted axes):
+```xml
+<layer ... type="DFT" ... >
+    <input>
+        <port id="0">
+            <dim>16</dim>
+            <dim>768</dim>
+            <dim>580</dim>
+            <dim>320</dim>
+            <dim>2</dim>
+        </port>
+        <port id="1">
+            <dim>3</dim> <!-- axes input contains  [3, 1, 2] -->
+        </port>
+        <port id="2">
+            <dim>3</dim> <!-- signal_size input contains [170, -1, 1024] -->
+        </port>
+    <output>
+        <port id="3">
+            <dim>16</dim>
+            <dim>768</dim>
+            <dim>1024</dim>
+            <dim>170</dim>
+            <dim>2</dim>
+        </port>
+    </output>
+</layer>
+```
+
+
+There is `signal_size` input (5D input tensor, `-1` in `signal_size`, unsorted axes, the second example):
+```xml
+<layer ... type="DFT" ... >
+    <input>
+        <port id="0">
+            <dim>16</dim>
+            <dim>768</dim>
+            <dim>580</dim>
+            <dim>320</dim>
+            <dim>2</dim>
+        </port>
+        <port id="1">
+            <dim>3</dim> <!-- axes input contains  [3, 0, 2] -->
+        </port>
+        <port id="2">
+            <dim>3</dim> <!-- signal_size input contains [258, -1, 2056] -->
+        </port>
+    <output>
+        <port id="3">
+            <dim>16</dim>
+            <dim>768</dim>
+            <dim>2056</dim>
+            <dim>258</dim>
             <dim>2</dim>
         </port>
     </output>
