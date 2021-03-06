@@ -38,7 +38,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     try {
         InferenceEngine::Core ie;
         InferenceEngine::CNNNetwork network = ie.ReadNetwork(net, weights_blob);
-    } catch (const InferenceEngine::details::InferenceEngineException& error) {
+    } catch (const std::exception&) {
         return 0;  // fail gracefully on expected exceptions
     }
 
