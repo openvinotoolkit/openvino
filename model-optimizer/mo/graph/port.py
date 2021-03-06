@@ -320,7 +320,12 @@ class Port:
                     self.node.graph.remove_edge(self.node.id, port.node.id)
             else:
                 for port in consumer_ports:
-                    self.node.graph.remove_edge(port.node.in_node(port.idx).id, port.node.id)
+                    src_node = port.node.in_node(port.idx).id
+                    dst_node = port.node.id
+                    for key, val in self.node.graph.get_edge_data(src_node, dst_node).items():
+                        if val['in'] == port.idx:
+                            self.node.graph.remove_edge(src_node, dst_node, key=key)
+                            break
         else:
             source_port = self.get_source()
             if source_port is None:
