@@ -29,7 +29,7 @@ namespace ngraph
             {
                 inline uint8_t extract_bit(uint8_t val, uint8_t bit)
                 {
-                    return (uint8_t)((val >> bit) & 0x0001);
+                    return (uint8_t)((val >> bit) & 0x01);
                 }
 
                 template <typename T>
@@ -219,9 +219,6 @@ namespace ngraph
                     batch += batch_size;
                 }
             }
-
         } // namespace reference
-
-    } // namespace runtime
-
+    }     // namespace runtime
 } // namespace ngraph

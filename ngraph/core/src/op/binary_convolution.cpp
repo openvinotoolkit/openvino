@@ -118,9 +118,7 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
         const bool is_data_batch_ps_static = data_batch_pshape.rank().is_static();
         const auto output_ps_rank =
             is_data_batch_ps_static ? data_batch_pshape.rank() : filters_pshape.rank();
-        const auto num_spatial_dims = is_data_batch_ps_static
-                                          ? data_batch_pshape.rank().get_length() - 2
-                                          : filters_pshape.rank().get_length() - 2;
+        const auto num_spatial_dims = output_ps_rank.get_length() - 2;
 
         NODE_VALIDATION_CHECK(this,
                               m_strides.size() == num_spatial_dims,
