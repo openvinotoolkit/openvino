@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 #include <numeric>
 
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/variadic_split.hpp"
@@ -39,11 +40,13 @@ op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
 
 bool ngraph::op::v1::VariadicSplit::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_VariadicSplit_visit_attributes);
     return true;
 }
 
 void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_VariadicSplit_validate_and_infer_types);
     set_input_is_relevant_to_value(0);
     set_input_is_relevant_to_value(1);
     set_input_is_relevant_to_value(2);
@@ -60,23 +63,21 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
 
         auto num_outputs = split_lengths_pshape[0].get_length();
         auto data = input_value(0);
-        auto axis_input = input_value(1).get_node_shared_ptr();
-        auto split_lengths_input = input_value(2).get_node_shared_ptr();
+        auto axis_source = input_value(1);
+        auto split_lengths_source = input_value(2);
         auto data_shape = data.get_partial_shape();
         const auto& data_type = data.get_element_type();
 
         set_output_size(num_outputs);
-        if (data_shape.rank().is_static() && op::is_constant(axis_input) &&
-            op::is_constant(split_lengths_input))
+        const auto& axis_input_constant = get_constant_from_source(axis_source);
+        const auto& split_lengths_constant = get_constant_from_source(split_lengths_source);
+        if (data_shape.rank().is_static() && axis_input_constant && split_lengths_constant)
         {
-            const auto axis_input_constant = as_type_ptr<op::Constant>(axis_input);
             auto axis_val = axis_input_constant->cast_vector<int64_t>()[0];
-
             // Adjust split axis in case of negatives
             int64_t axis = ngraph::normalize_axis(this, axis_val, data_shape.rank());
 
-            auto split_lengths =
-                as_type_ptr<op::Constant>(split_lengths_input)->cast_vector<int64_t>();
+            auto split_lengths = split_lengths_constant->cast_vector<int64_t>();
             // Adjust split lengths in case of negatives
             size_t sum_of_splits = 0;
             int64_t negative_one = -1;
@@ -142,6 +143,7 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_VariadicSplit_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
@@ -164,61 +166,57 @@ namespace variadic_split
 
         return true;
     }
-
-    bool evaluate_variadic_split(const HostTensorPtr& data_tensor,
-                                 const HostTensorPtr& axis_tensor,
-                                 const HostTensorPtr& split_lengths_tensor,
-                                 const HostTensorVector& outputs,
-                                 const Node* split_node)
-    {
-        NGRAPH_CHECK(axis_tensor->get_element_type().is_integral_number(),
-                     "axis element type is not integral data type");
-
-        int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
-
-        axis = ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
-
-        NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
-                     "axis element type is not integral data type");
-
-        std::vector<int64_t> split_lengths = host_tensor_2_vector<int64_t>(split_lengths_tensor);
-
-        const auto data_shape = data_tensor->get_shape();
-        const auto neg_one = std::find(std::begin(split_lengths), std::end(split_lengths), -1);
-        if (neg_one != std::end(split_lengths)) // negative length set
-        {
-            const auto sum_of_known_splits =
-                std::accumulate(std::begin(split_lengths), std::end(split_lengths), 0) + 1;
-            split_lengths[std::distance(std::begin(split_lengths), neg_one)] =
-                data_shape[axis] - sum_of_known_splits;
-        }
-
-        Shape output_shape = data_shape;
-        std::vector<size_t> lower_bounds(data_shape.size(), 0);
-        std::vector<size_t> upper_bounds = data_shape;
-        upper_bounds.at(axis) = split_lengths[0];
-
-        int64_t split_pos = 0;
-        for (const auto& output : outputs)
-        {
-            output_shape.at(axis) = split_lengths[split_pos++];
-            output->set_shape(output_shape);
-            evaluate(data_tensor, output, lower_bounds, upper_bounds);
-            lower_bounds.at(axis) = upper_bounds.at(axis);
-            if (split_pos < split_lengths.size())
-                upper_bounds.at(axis) += split_lengths[split_pos];
-        }
-
-        return true;
-    }
 }
 
+bool op::v1::VariadicSplit::evaluate_variadic_split(const HostTensorVector& inputs,
+                                                    const HostTensorVector& outputs) const
+{
+    const auto& data_tensor = inputs[0];
+    const auto& axis_tensor = inputs[1];
+    const auto& split_lengths_tensor = inputs[2];
+    NGRAPH_CHECK(axis_tensor->get_element_type().is_integral_number(),
+                 "axis element type is not integral data type");
+
+    int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
+
+    axis = ngraph::normalize_axis(this, axis, data_tensor->get_partial_shape().rank());
+
+    NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
+                 "axis element type is not integral data type");
+
+    std::vector<int64_t> split_lengths = host_tensor_2_vector<int64_t>(split_lengths_tensor);
+
+    const auto data_shape = data_tensor->get_shape();
+    const auto neg_one = std::find(std::begin(split_lengths), std::end(split_lengths), -1);
+    if (neg_one != std::end(split_lengths)) // negative length set
+    {
+        const auto sum_of_known_splits =
+            std::accumulate(std::begin(split_lengths), std::end(split_lengths), 0) + 1;
+        split_lengths[std::distance(std::begin(split_lengths), neg_one)] =
+            data_shape[axis] - sum_of_known_splits;
+    }
+
+    Shape output_shape = data_shape;
+    std::vector<size_t> lower_bounds(data_shape.size(), 0);
+    std::vector<size_t> upper_bounds = data_shape;
+    upper_bounds.at(axis) = split_lengths[0];
+
+    int64_t split_pos = 0;
+    for (const auto& output : outputs)
+    {
+        output_shape.at(axis) = split_lengths[split_pos++];
+        output->set_shape(output_shape);
+        variadic_split::evaluate(data_tensor, output, lower_bounds, upper_bounds);
+        lower_bounds.at(axis) = upper_bounds.at(axis);
+        if (split_pos < split_lengths.size())
+            upper_bounds.at(axis) += split_lengths[split_pos];
+    }
+
+    return true;
+}
 bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
-    const auto& data = inputs[0];
-    const auto& axis = inputs[1];
-    const auto& split_lengths = inputs[2];
-
-    return variadic_split::evaluate_variadic_split(data, axis, split_lengths, outputs, this);
+    NGRAPH_OP_SCOPE(v1_VariadicSplit_evaluate);
+    return evaluate_variadic_split(inputs, outputs);
 }

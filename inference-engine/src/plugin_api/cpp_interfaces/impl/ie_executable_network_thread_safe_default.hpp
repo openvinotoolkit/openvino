@@ -55,6 +55,11 @@ public:
     }
 
 protected:
+    /**
+     * @brief Creates asyncronous inference request from synchronous request returned by CreateInferRequestImpl
+     * @tparam AsyncInferRequestType A type of asynchronous inference request to use a wrapper for synchronous request
+     * @return A shared pointer to an asynchronous inference request
+     */
     template <typename AsyncInferRequestType = AsyncInferRequestThreadSafeDefault>
     IInferRequest::Ptr CreateAsyncInferRequestFromSync() {
         IInferRequest::Ptr asyncRequest;
@@ -64,7 +69,7 @@ protected:
 
         auto asyncThreadSafeImpl = std::make_shared<AsyncInferRequestType>(
             syncRequestImpl, _taskExecutor, _callbackExecutor);
-        asyncRequest.reset(new InferRequestBase<AsyncInferRequestType>(asyncThreadSafeImpl),
+        asyncRequest.reset(new InferRequestBase(asyncThreadSafeImpl),
             [](IInferRequest *p) { p->Release(); });
         asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 

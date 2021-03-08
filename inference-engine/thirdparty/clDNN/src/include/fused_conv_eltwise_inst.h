@@ -37,7 +37,7 @@ public:
         if (get_primitive()->eltw.with_activation) {
             auto slope = get_primitive()->eltw.activation_negative_slope;
             if (slope == 0.f) {
-                this->add_fused_activation(activation_func::relu, {});
+                this->add_fused_activation(activation_func::relu, {0.0f, 0.0f});
             } else {
                 this->add_fused_activation(activation_func::relu_negative_slope, { slope, 0.f });
             }

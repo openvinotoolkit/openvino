@@ -32,7 +32,7 @@ memory memory::allocate(const engine& engine, const layout& layout, uint32_t net
 
 memory memory::share_buffer(const engine& engine, const layout& layout, shared_handle buf, uint32_t net_id) {
     shared_mem_params params = { shared_mem_type::shared_mem_buffer, nullptr, nullptr, buf,
-#ifdef WIN32
+#ifdef _WIN32
         nullptr,
 #else
         0,
@@ -43,7 +43,7 @@ memory memory::share_buffer(const engine& engine, const layout& layout, shared_h
 
 memory memory::share_image(const engine& engine, const layout& layout, shared_handle img, uint32_t net_id) {
     shared_mem_params params = { shared_mem_type::shared_mem_image, nullptr, nullptr, img,
-#ifdef WIN32
+#ifdef _WIN32
         nullptr,
 #else
         0,
@@ -52,7 +52,7 @@ memory memory::share_image(const engine& engine, const layout& layout, shared_ha
     return memory(engine.get()->reinterpret_handle(layout, &params, net_id).detach());
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 memory memory::share_surface(const engine& engine, const layout& layout, shared_handle surf, uint32_t plane,
     uint32_t net_id) {
     shared_mem_params params = { shared_mem_type::shared_mem_vasurface, nullptr, nullptr, nullptr, surf, plane };

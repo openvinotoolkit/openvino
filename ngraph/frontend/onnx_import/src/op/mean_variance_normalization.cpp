@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,11 +16,12 @@
 #include <cstdint>
 #include <memory>
 
-#include "mean_variance_normalization.hpp"
+#include "default_opset.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/mvn.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "ngraph/validation_util.hpp"
-#include "onnx_import/default_opset.hpp"
+#include "op/mean_variance_normalization.hpp"
 
 namespace ngraph
 {
@@ -38,7 +39,7 @@ namespace ngraph
                     bool normalize_variance =
                         node.get_attribute_value<std::int64_t>("normalize_variance", 1);
 
-                    return {std::make_shared<default_opset::MVN>(
+                    return {std::make_shared<ngraph::opset5::MVN>(
                         data, across_channels, normalize_variance)};
                 }
 
@@ -49,11 +50,14 @@ namespace ngraph
                 OutputVector mean_variance_normalization(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
-                    auto axes = node.get_attribute_value<std::vector<int64_t>>("axes", {0, 2, 3});
+                    auto axes =
+                        node.get_attribute_value<std::vector<std::int64_t>>("axes", {0, 2, 3});
                     const std::vector<std::size_t> normalized_axes = ngraph::normalize_axes(
                         node.get_description(), axes, data.get_partial_shape().rank());
-
-                    return {std::make_shared<default_opset::MVN>(data, AxisSet(normalized_axes))};
+                    auto const_axes = default_opset::Constant::create(
+                        element::i64, Shape{normalized_axes.size()}, normalized_axes);
+                    return {std::make_shared<ngraph::op::v6::MVN>(
+                        data, const_axes, true, 1e-09, ngraph::op::MVNEpsMode::OUTSIDE_SQRT)};
                 }
 
             } // namespace set_9

@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,10 +27,15 @@ if sys.platform == "win32":
     # ngraph.dll is installed 3 directories above by default
     # and this path needs to be visible to the _pyngraph module
     #
-    # If you're using a custom installation of nGraph,
-    # add the location of ngraph.dll to your system PATH.
     ngraph_dll = os.path.join(os.path.dirname(__file__), "..", "..", "..")
-    os.environ["PATH"] = os.path.abspath(ngraph_dll) + ";" + os.environ["PATH"]
+
+    # PIP installs openvino and ngraph dlls 2 directories above in openvino.libs by default
+    # and this path needs to be visible to the _pyngraph modules
+    #
+    openvino_dlls = os.path.join(os.path.dirname(__file__), "..", "..", "openvino.libs")
+    # If you're using a custom installation of openvino,
+    # add the location of openvino dlls to your system PATH.
+    os.environ["PATH"] = os.path.abspath(openvino_dlls) + ";" + os.path.abspath(ngraph_dll) + ";" + os.environ["PATH"]
 
 from _pyngraph import Dimension
 from _pyngraph import Function
@@ -45,5 +50,6 @@ from _pyngraph import CoordinateDiff
 from _pyngraph import AxisSet
 from _pyngraph import AxisVector
 from _pyngraph import Coordinate
+from _pyngraph import Output
 
 from _pyngraph import util

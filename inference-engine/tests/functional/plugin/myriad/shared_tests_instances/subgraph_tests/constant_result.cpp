@@ -7,7 +7,7 @@
 #include "subgraph_tests/constant_result.hpp"
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     INSTANTIATE_TEST_CASE_P(smoke_Check, ConstantResultSubgraphTest,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/hsigmoid_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -16,6 +17,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusion, "HSigmoidFusion", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithReluDiv, "HSigmoidFusionWithReluDiv", 0);
 
 ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
+    MATCHER_SCOPE(HSigmoidFusionWithReluDiv);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) / 6 with a HSigmoid op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -55,13 +57,14 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "HSigmoidWithReluDivFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithReluMul, "HSigmoidFusionWithReluMul", 0);
 
 ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
+    MATCHER_SCOPE(HSigmoidFusionWithReluMul);
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) * const(1/6) with a HSigmoid op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -102,13 +105,14 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, "HSigmoidWithReluMulFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithoutRelu, "HSigmoidFusionWithoutRelu", 0);
 
 ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
+    MATCHER_SCOPE(HSigmoidFusionWithoutRelu);
     // Replaces a sub-graph (min(max(x + 3, 0), 6) / 6) with a HSigmoid op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -152,13 +156,14 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "HSigmoidWithoutReluFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
     register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithClamp, "HSigmoidFusionWithClamp", 0);
 
 ngraph::pass::HSigmoidFusionWithClamp::HSigmoidFusionWithClamp() {
+    MATCHER_SCOPE(HSigmoidFusionWithClamp);
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * const(1/6)) with a HSigmoid op.
     auto input = ngraph::pattern::any_input();
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
@@ -193,6 +198,6 @@ ngraph::pass::HSigmoidFusionWithClamp::HSigmoidFusionWithClamp() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_first, "HSigmoidWithClampFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_first, matcher_name);
     register_matcher(m, callback);
 }

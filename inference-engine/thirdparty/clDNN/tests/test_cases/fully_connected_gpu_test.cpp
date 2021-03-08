@@ -1150,6 +1150,109 @@ INSTANTIATE_TEST_CASE_P(smoke_bfyx_batched,
                             ::testing::Values(format::bfyx),
                             ::testing::Values("")), );
 
+
+template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
+struct fully_connected_random_test_3d : ::testing::TestWithParam<fully_connected_test_params> {
+    void run_test() {
+        size_t batch, input_f, input_x, input_y, output_y;
+        format::type input_format, output_format;
+        std::string kernel;
+
+        std::tie(batch, input_f, input_x, input_y, output_y, input_format, output_format, kernel) = GetParam();
+
+        auto input_data = generate_smart_random_4d<InputT>(batch, input_f, input_y, input_x);
+        auto weights_data = generate_smart_random_4d<WeightsT>(output_y, input_y, 1, 1);
+        auto bias_data = generate_smart_random_2d<BiasT>(1, output_y);
+
+        auto eng = get_test_engine();
+        auto net = network_test(eng);
+        auto input = net.add_input_layout<InputT, 4>("input", input_format, std::move(input_data));
+        auto weights = net.add_data<WeightsT, 4>("weights", format::oiyx, std::move(weights_data));
+        auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
+        auto fc = net.add_fully_connected_3d<OutputT>("fc", input, weights, bias, implementation_desc{ output_format, kernel }, 3);
+
+        net.run(build_options(build_option::optimize_data(true)));
+    }
+};
+
+
+using fully_connected_random_test_f32_3d = fully_connected_random_test_3d<float, float, float, float>;
+using fully_connected_random_test_f16_3d = fully_connected_random_test_3d<FLOAT16, FLOAT16, FLOAT16, FLOAT16>;
+using fully_connected_random_test_i8_3d = fully_connected_random_test_3d<int8_t, int8_t, int8_t, float>;
+
+TEST_P(fully_connected_random_test_f32_3d, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        fully_connected_random_test_f32_3d,
+                        ::testing::Combine(
+                            ::testing::Values(1,3),
+                            ::testing::Values(1,3),
+                            ::testing::Values(1),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+INSTANTIATE_TEST_CASE_P(smoke_big,
+                        fully_connected_random_test_f32_3d,
+                        ::testing::Combine(
+                            ::testing::Values(3),
+                            ::testing::Values(16, 17, 32),
+                            ::testing::Values(1),
+                            ::testing::Values(17, 32),
+                            ::testing::Values(17, 32),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+TEST_P(fully_connected_random_test_f16_3d, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        fully_connected_random_test_f16_3d,
+                        ::testing::Combine(
+                            ::testing::Values(1,3),
+                            ::testing::Values(1,3),
+                            ::testing::Values(1),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+TEST_P(fully_connected_random_test_i8_3d, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        fully_connected_random_test_i8_3d,
+                        ::testing::Combine(
+                            ::testing::Values(1,3),
+                            ::testing::Values(1,3),
+                            ::testing::Values(1),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(1,3,16),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+INSTANTIATE_TEST_CASE_P(smoke_big,
+                        fully_connected_random_test_i8_3d,
+                        ::testing::Combine(
+                            ::testing::Values(1,3),
+                            ::testing::Values(16,17),
+                            ::testing::Values(1),
+                            ::testing::Values(17, 32),
+                            ::testing::Values(17, 32),
+                            ::testing::Values(format::bfyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+
 struct quantization_t {
     VF<float> input_low;
     VF<float> input_high;

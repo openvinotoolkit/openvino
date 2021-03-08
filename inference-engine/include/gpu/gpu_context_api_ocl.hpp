@@ -25,16 +25,16 @@ namespace InferenceEngine {
 
 namespace gpu {
 /**
-* @brief This class represents an abstraction for GPU plugin remote context
-* which is shared with OpenCL context object.
-* The plugin object derived from this class can be obtained either with
-* GetContext() method of Executable network or using CreateContext() Core call.
-*/
+ * @brief This class represents an abstraction for GPU plugin remote context
+ * which is shared with OpenCL context object.
+ * The plugin object derived from this class can be obtained either with
+ * GetContext() method of Executable network or using CreateContext() Core call.
+ */
 class ClContext : public RemoteContext, public details::param_map_obj_getter {
 public:
     /**
-    * @brief A smart pointer to the ClContext object
-    */
+     * @brief A smart pointer to the ClContext object
+     */
     using Ptr = std::shared_ptr<ClContext>;
 
     /**
@@ -63,14 +63,14 @@ public:
 };
 
 /**
-* @brief The basic class for all GPU plugin remote blob objects.
-* The OpenCL memory object handle (cl_mem) can be obtained from this class object.
-*/
+ * @brief The basic class for all GPU plugin remote blob objects.
+ * The OpenCL memory object handle (cl_mem) can be obtained from this class object.
+ */
 class ClBlob : public RemoteBlob {
 public:
     /**
-    * @brief A smart pointer to the ClBlob object
-    */
+     * @brief A smart pointer to the ClBlob object
+     */
     using Ptr = std::shared_ptr<ClBlob>;
 
     /**
@@ -81,16 +81,16 @@ public:
 };
 
 /**
-* @brief This class represents an abstraction for GPU plugin remote blob
-* which can be shared with user-supplied OpenCL buffer.
-* The plugin object derived from this class can be obtained with CreateBlob() call.
-* @note User can obtain OpenCL buffer handle from this class.
-*/
+ * @brief This class represents an abstraction for GPU plugin remote blob
+ * which can be shared with user-supplied OpenCL buffer.
+ * The plugin object derived from this class can be obtained with CreateBlob() call.
+ * @note User can obtain OpenCL buffer handle from this class.
+ */
 class ClBufferBlob : public ClBlob, public details::param_map_obj_getter {
 public:
     /**
-    * @brief A smart pointer to the ClBufferBlob object
-    */
+     * @brief A smart pointer to the ClBufferBlob object
+     */
     using Ptr = std::shared_ptr<ClBufferBlob>;
 
     /**
@@ -124,16 +124,16 @@ public:
 };
 
 /**
-* @brief This class represents an abstraction for GPU plugin remote blob
-* which can be shared with user-supplied OpenCL 2D Image.
-* The plugin object derived from this class can be obtained with CreateBlob() call.
-* @note User can obtain OpenCL image handle from this class.
-*/
+ * @brief This class represents an abstraction for GPU plugin remote blob
+ * which can be shared with user-supplied OpenCL 2D Image.
+ * The plugin object derived from this class can be obtained with CreateBlob() call.
+ * @note User can obtain OpenCL image handle from this class.
+ */
 class ClImage2DBlob : public ClBlob, public details::param_map_obj_getter {
 public:
     /**
-    * @brief A smart pointer to the ClImage2DBlob object
-    */
+     * @brief A smart pointer to the ClImage2DBlob object
+     */
     using Ptr = std::shared_ptr<ClImage2DBlob>;
 
     /**
@@ -167,13 +167,13 @@ public:
 };
 
 /**
-* @brief This function is used to construct a NV12 compound blob object from two cl::Image2D wrapper objects.
-* The resulting compound contains two remote blobs for Y and UV planes of the surface.
-* @param ctx RemoteContext plugin object derived from ClContext class.
-* @param nv12_image_plane_y cl::Image2D object containing Y plane data.
-* @param nv12_image_plane_uv cl::Image2D object containing UV plane data.
-* @return Pointer to plugin-specific context class object, which is derived from RemoteContext.
-*/
+ * @brief This function is used to construct a NV12 compound blob object from two cl::Image2D wrapper objects.
+ * The resulting compound contains two remote blobs for Y and UV planes of the surface.
+ * @param ctx RemoteContext plugin object derived from ClContext class.
+ * @param nv12_image_plane_y cl::Image2D object containing Y plane data.
+ * @param nv12_image_plane_uv cl::Image2D object containing UV plane data.
+ * @return A shared remote blob instance
+ */
 static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx, cl::Image2D& nv12_image_plane_y, cl::Image2D& nv12_image_plane_uv) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
@@ -201,8 +201,12 @@ static inline Blob::Ptr make_shared_blob_nv12(RemoteContext::Ptr ctx, cl::Image2
 }
 
 /**
-* @brief This function is used to obtain remote context object from user-supplied OpenCL context handle
-*/
+ * @brief This function is used to obtain remote context object from user-supplied OpenCL context handle
+ * @param core A reference to Inference Engine Core object
+ * @param deviceName A name of device to create a remote context for
+ * @param ctx A OpenCL context to be used to create shared remote context
+ * @return A shared remote context instance
+ */
 static inline RemoteContext::Ptr make_shared_context(Core& core, std::string deviceName, cl_context ctx) {
     ParamMap contextParams = {
         { GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(OCL) },
@@ -212,15 +216,22 @@ static inline RemoteContext::Ptr make_shared_context(Core& core, std::string dev
 }
 
 /**
-* @brief This function is used to create remote blob object within default GPU plugin OpenCL context
-*/
+ * @brief This function is used to create remote blob object within default GPU plugin OpenCL context
+ * @param desc A tensor descriptor object representing remote blob configuration
+ * @param ctx A remote context used to create remote blob
+ * @return A remote blob instance
+ */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, ClContext::Ptr ctx) {
     return std::dynamic_pointer_cast<Blob>(ctx->CreateBlob(desc));
 }
 
 /**
-* @brief This function is used to obtain remote blob object from user-supplied cl::Buffer wrapper object
-*/
+ * @brief This function is used to obtain remote blob object from user-supplied cl::Buffer wrapper object
+ * @param desc A tensor descriptor object representing remote blob configuration
+ * @param ctx A remote context used to create remote blob
+ * @param buffer A cl::Buffer object wrapped by a remote blob
+ * @return A remote blob instance
+ */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl::Buffer& buffer) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
@@ -235,8 +246,12 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
 }
 
 /**
-* @brief This function is used to obtain remote blob object from user-supplied OpenCL buffer handle
-*/
+ * @brief This function is used to obtain remote blob object from user-supplied OpenCL buffer handle
+ * @param desc A tensor descriptor object representing remote blob configuration
+ * @param ctx A remote context used to create remote blob
+ * @param buffer A cl_mem object wrapped by a remote blob
+ * @return A remote blob instance
+ */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl_mem buffer) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {
@@ -251,8 +266,12 @@ static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::
 }
 
 /**
-* @brief This function is used to obtain remote blob object from user-supplied cl::Image2D wrapper object
-*/
+ * @brief This function is used to obtain remote blob object from user-supplied cl::Image2D wrapper object
+ * @param desc A tensor descriptor object representing remote blob configuration
+ * @param ctx A remote context used to create remote blob
+ * @param buffer A cl::Image2D object wrapped by a remote blob
+ * @return A remote blob instance
+ */
 static inline Blob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx, cl::Image2D& image) {
     auto casted = std::dynamic_pointer_cast<ClContext>(ctx);
     if (nullptr == casted) {

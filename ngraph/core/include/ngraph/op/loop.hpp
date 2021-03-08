@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -65,19 +65,6 @@ namespace ngraph
                 Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition);
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
-                void set_sliced_input(const std::shared_ptr<Parameter>& parameter,
-                                      const Output<Node>& value,
-                                      int64_t start,
-                                      int64_t stride,
-                                      int64_t part_size,
-                                      int64_t end,
-                                      int64_t axis) override
-                {
-                    NGRAPH_CHECK(false,
-                                 "Incorrect type of input. Implicit slicing is not supported in "
-                                 "Loop operation.");
-                }
-
                 Output<Node> get_concatenated_slices(const Output<Node>& value,
                                                      int64_t start,
                                                      int64_t stride,
@@ -99,10 +86,30 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
 
+            protected:
+                Loop(const Loop&);
+
             private:
+                void clone_to(Loop& dst, const OutputVector& new_args) const;
+
                 SpecialBodyPorts m_special_body_ports;
                 int64_t m_num_iterations = -1; // -1 means infinity
             };
         }
     }
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::v5::Loop::SpecialBodyPorts>
+        : public DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>
+    {
+    public:
+        AttributeAdapter(op::v5::Loop::SpecialBodyPorts& value)
+            : DirectValueAccessor<op::v5::Loop::SpecialBodyPorts>(value)
+        {
+        }
+
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<op::v5::Loop::SpecialBodyPorts>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
 }

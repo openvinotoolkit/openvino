@@ -29,6 +29,7 @@
 #include "binary_convolution_inst.h"
 #include "lstm_gemm_inst.h"
 #include "generic_layer.hpp"
+#include "region_yolo_inst.h"
 
 #include "kernel_selector_common.h"
 #include "kernel_selector_helper.h"

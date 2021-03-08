@@ -174,6 +174,9 @@ VPU_DECLARE_ENUM(StageType,
     GatherND = 136,
     HSwish = 137,
     Ceiling = 138,
+    GatherElements = 139,
+    Round = 140,
+    CTCGreedyDecoderSeqLen = 141,
 )
 
 //
@@ -267,10 +270,21 @@ VPU_DECLARE_ENUM(BroadcastMode,
     EXPLICIT = 1,
     BIDIRECTIONAL = 2)
 
+// Modes for Round operation according to specification
+VPU_DECLARE_ENUM(RoundMode,
+    HALF_TO_EVEN = 0,
+    HALF_AWAY_FROM_ZERO = 1)
+
 //
 // StageDataInfo
 //
 
+VPU_DECLARE_ENUM(InterpolateMode,
+    Nearest = 0,
+    Linear = 1,
+    Cubic = 2,
+    LinearOnnx = 3
+)
 VPU_DECLARE_ENUM(InterpolateCoordTransMode,
     HalfPixel = 0,
     PytorchHalfPixel = 1,

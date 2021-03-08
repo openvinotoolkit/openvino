@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2020 Intel Corporation
+// Copyright (c) 2020-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,6 +31,9 @@ public:
 
     program_node& input() const { return get_dependency(0); }
     program_node& seq_indicators() const { return get_dependency(1); }
+
+    bool has_second_output() const { return !get_primitive()->second_output.empty(); }
+    program_node& second_output() const { return get_dependency(2); }
 };
 
 using ctc_greedy_decoder_node = typed_program_node<ctc_greedy_decoder>;

@@ -212,12 +212,12 @@ template <typename InputT, typename AccT = typename accumulator_type<InputT>::ty
 VVVVVVF<OutputT> reference_reduce(VVVVVVF<InputT>& input,
                                   reduce_mode reduce_mode,
                                   std::vector<uint16_t> reduce_axis,
-                                  const int batch,
-                                  const int input_f,
-                                  const int input_w,
-                                  const int input_z,
-                                  const int input_y,
-                                  const int input_x,
+                                  const int /* batch */,
+                                  const int /* input_f */,
+                                  const int /* input_w */,
+                                  const int /* input_z */,
+                                  const int /* input_y */,
+                                  const int /* input_x */,
                                   const int dims,
                                   bool keepDims = false) {
 

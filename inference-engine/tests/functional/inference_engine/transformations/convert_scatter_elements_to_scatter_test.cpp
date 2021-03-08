@@ -18,6 +18,7 @@
 #include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -33,8 +34,13 @@ std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShap
     auto updates = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, updates_shape);
     auto axis_const = ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {axis});
 
-    uint64_t broadcast_len = broadcast_shape.rank().get_length();
-    auto broadcast_shape_param = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{broadcast_len});
+    auto broadcast_len = broadcast_shape.rank().get_length();
+    if (std::numeric_limits<size_t>::max() < broadcast_len) {
+        throw ngraph::ngraph_error("broadcast_len cannot be represented in size_t");
+    }
+
+    auto broadcast_shape_param = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64,
+        ngraph::Shape{static_cast<size_t>(broadcast_len)});
     auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(indexes, broadcast_shape_param);
 
     auto scatter = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(data, broadcast, updates, axis_const);
@@ -70,8 +76,10 @@ std::shared_ptr<ngraph::Function> get_reference_function(const ngraph::PartialSh
 }
 
 void test(std::shared_ptr<ngraph::Function> f, std::shared_ptr<ngraph::Function> f_ref) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertScatterElementsToScatter().run_on_function(f);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>();
+    manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
 

@@ -20,10 +20,8 @@ public:
     void getSupportedDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
-    using MKLDNNNode::createDescriptor;
     void createDescriptor(const std::vector<InferenceEngine::TensorDesc>& inputDesc,
-                          const std::vector<InferenceEngine::TensorDesc>& outputDesc,
-                          const std::vector<mkldnn::memory::format> &outputFormats);
+                          const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
 
     void execute(mkldnn::stream strm) override;
 
@@ -39,10 +37,13 @@ private:
     bool nativeOrder = true;
 
     /** Direction of iteration through sequence dimension */
-    mkldnn::rnn_direction direction = mkldnn::unidirectional;
+    mkldnn::rnn_direction direction = mkldnn::rnn_direction::unidirectional;
 
-    /** RNN Cell desc (type/activation_alg/clip)*/
-    mkldnn::rnn_cell::desc cell_desc { mkldnn::algorithm::vanilla_lstm };
+    /** RNN Cell type (type/activation_alg/clip)*/
+    mkldnn::algorithm cell_type = mkldnn::algorithm::vanilla_lstm;
+
+    /** activation type for vanilla RNN cell */
+    mkldnn::algorithm cell_act = mkldnn::algorithm::eltwise_tanh;
 
     // Internal attributes
     ptrdiff_t N = 0;   /**< Batch value */
@@ -58,8 +59,8 @@ private:
     MKLDNNMemoryDesc in_data_d;
     MKLDNNMemoryDesc out_data_d;
 
-    MKLDNNMemoryDesc in_state_d;
-    MKLDNNMemoryDesc out_state_d;
+    std::vector<MKLDNNMemoryDesc> in_states_d;
+    std::vector<MKLDNNMemoryDesc> out_states_d;
 
     MKLDNNMemoryDesc w_data_d;
     MKLDNNMemoryDesc w_state_d;

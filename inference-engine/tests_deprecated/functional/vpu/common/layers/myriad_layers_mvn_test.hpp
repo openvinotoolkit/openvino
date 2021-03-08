@@ -138,7 +138,7 @@ PRETTY_PARAM(Epsilon, float)
 
 typedef myriadLayerTestBaseWithParam<std::tuple<Dims, AcrossChannels, Normalize, Epsilon, IRVersion, std::string>> myriadLayersTestsMVN_smoke;
 
-TEST_P(myriadLayersTestsMVN_smoke, MVN)
+TEST_P(myriadLayersTestsMVN_smoke, DISABLED_MVN)
 {
     tensor_test_params dims  = std::get<0>(GetParam());
     int acrossChannels       = std::get<1>(GetParam());

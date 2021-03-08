@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 """
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import attr_getter
+from mo.front.extractor import attr_getter, bool_to_str
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
@@ -32,7 +32,9 @@ class ProposalOp(Op):
             'infer': ProposalOp.proposal_infer,
             'in_ports_count': 3,
             'out_ports_count': 2,
-            'normalize': 0,
+            'normalize': False,
+            'clip_before_nms': True,
+            'clip_after_nms': False,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -61,9 +63,9 @@ class ProposalOp(Op):
             'framework',
             'box_coordinate_scale',
             'box_size_scale',
-            'normalize',
-            'clip_after_nms',
-            'clip_before_nms',
+            ('normalize', lambda node: bool_to_str(node, 'normalize')),
+            ('clip_after_nms', lambda node: bool_to_str(node, 'clip_after_nms')),
+            ('clip_before_nms', lambda node: bool_to_str(node, 'clip_before_nms')),
         ]
 
     @staticmethod

@@ -25,6 +25,7 @@ public:
     LRNKernelAcrossChannelMultipleFeatures(const std::string& s = "lrn_gpu_across_channel_multiple_features") : Parent(s) {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:

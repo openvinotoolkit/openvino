@@ -39,6 +39,12 @@ KERNEL(quantize_ref)(const __global INPUT0_TYPE* input,
     const int x = zyx % OUTPUT_SIZE_X;
     const int y = (zyx / OUTPUT_SIZE_X) % OUTPUT_SIZE_Y;
     const int z = (zyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y;
+#elif OUTPUT_DIMS == 6
+    const int wzyx = get_global_id(2);
+    const int x = wzyx % OUTPUT_SIZE_X;
+    const int y = (wzyx / OUTPUT_SIZE_X) % OUTPUT_SIZE_Y;
+    const int z = ((wzyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z;
+    const int w = ((wzyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y) / OUTPUT_SIZE_Z;
 #endif
 
 #if PACKED_BINARY_OUTPUT
@@ -77,37 +83,49 @@ KERNEL(quantize_ref)(const __global INPUT0_TYPE* input,
 
 #else
 
-#if INPUT0_DIMS == 5
+#if INPUT0_DIMS == 6
+    const int input_offset = INPUT0_GET_INDEX(b, of, w, z, y, x);
+#elif INPUT0_DIMS == 5
     const int input_offset = INPUT0_GET_INDEX(b, of, z, y, x);
 #elif INPUT0_DIMS <= 4
     const int input_offset = INPUT0_GET_INDEX(b, of, y, x);
 #endif
 
-#if OUTPUT_DIMS == 5
+#if OUTPUT_DIMS == 6
+    const int output_offset = OUTPUT_GET_INDEX(b, of, w, z, y, x);
+#elif OUTPUT_DIMS == 5
     const int output_offset = OUTPUT_GET_INDEX(b, of, z, y, x);
 #elif OUTPUT_DIMS <= 4
     const int output_offset = OUTPUT_GET_INDEX(b, of, y, x);
 #endif
 
-#if INPUT1_DIMS == 5
+#if INPUT1_DIMS == 6
+    const int input_low_offset = INPUT1_GET_INDEX_SAFE(b, of, w, z, y, x);
+#elif INPUT1_DIMS == 5
     const int input_low_offset = INPUT1_GET_INDEX_SAFE(b, of, z, y, x);
 #elif INPUT1_DIMS <= 4
     const int input_low_offset = INPUT1_GET_INDEX_SAFE(b, of, y, x);
 #endif
 
-#if INPUT2_DIMS == 5
+#if INPUT2_DIMS == 6
+    const int input_high_offset = INPUT2_GET_INDEX_SAFE(b, of, w, z, y, x);
+#elif INPUT2_DIMS == 5
     const int input_high_offset = INPUT2_GET_INDEX_SAFE(b, of, z, y, x);
 #elif INPUT2_DIMS <= 4
     const int input_high_offset = INPUT2_GET_INDEX_SAFE(b, of, y, x);
 #endif
 
-#if INPUT3_DIMS == 5
+#if INPUT3_DIMS == 6
+    const int output_low_offset = INPUT3_GET_INDEX_SAFE(b, of, w, z, y, x);
+#elif INPUT3_DIMS == 5
     const int output_low_offset = INPUT3_GET_INDEX_SAFE(b, of, z, y, x);
 #elif INPUT3_DIMS <= 4
     const int output_low_offset = INPUT3_GET_INDEX_SAFE(b, of, y, x);
 #endif
 
-#if INPUT4_DIMS == 5
+#if INPUT4_DIMS == 6
+    const int output_high_offset = INPUT4_GET_INDEX_SAFE(b, of, w, z, y, x);
+#elif INPUT4_DIMS == 5
     const int output_high_offset = INPUT4_GET_INDEX_SAFE(b, of, z, y, x);
 #elif INPUT4_DIMS <= 4
     const int output_high_offset = INPUT4_GET_INDEX_SAFE(b, of, y, x);

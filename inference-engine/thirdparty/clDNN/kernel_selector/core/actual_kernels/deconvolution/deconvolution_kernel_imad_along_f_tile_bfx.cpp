@@ -122,14 +122,17 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernel_imad_along_f_tile_bfx:
 
     dispatchData.lws = { 1, simd, 1 };
 
-    // Currently most optimized for fsv16 formats
-    if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
-        dispatchData.efficiency = FORCE_PRIORITY_7;
-    } else {
-        dispatchData.efficiency = FORCE_PRIORITY_8;
-    }
-
     return dispatchData;
+}
+
+KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const deconvolution_params&>(params);
+    
+    // Currently most optimized for fsv16 formats
+    if (p.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16)
+        return FORCE_PRIORITY_7;
+    else
+        return FORCE_PRIORITY_8;
 }
 
 JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const deconvolution_params& params) const {

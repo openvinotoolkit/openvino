@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,33 +14,34 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "constant_folding.hpp"
-#include <ngraph/rt_info.hpp>
+#include "ngraph/pass/constant_folding.hpp"
+#include <ngraph/op/constant.hpp>
+#include "ngraph/op/util/sub_graph_base.hpp"
+#include "ngraph/rt_info.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConstantFolding, "ConstantFolding", 0);
 
-ngraph::pass::ConstantFolding::ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap)
-    : GraphRewrite()
-    , m_cfmap{cfmap}
+bool ngraph::pass::ConstantFolding::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
-    m_enable_shape_inference = true;
+    bool rewritten = pre_calculated_values_folding(f);
 
-    m_matchers.push_back(std::make_shared<MatcherPass>(
-        "Constant folding defaults",
-        nullptr,
-        [=](const std::shared_ptr<Node>& node) -> bool {
-            OutputVector replacements(node->get_output_size());
-            if (!node->constant_fold(replacements, node->input_values()))
-            {
-                return false;
-            }
+    for (const auto& node : f->get_ordered_ops())
+    {
+        if (rewritten)
+        {
+            node->validate_and_infer_types();
+        }
+
+        OutputVector replacements(node->get_output_size());
+        if (node->constant_fold(replacements, node->input_values()))
+        {
             NGRAPH_CHECK(replacements.size() == node->get_output_size(),
                          "constant_fold_default returned incorrect number of replacements for ",
                          node);
-            bool result{false};
+
             for (size_t i = 0; i < replacements.size(); ++i)
             {
                 auto node_output = node->output(i);
@@ -60,25 +61,25 @@ ngraph::pass::ConstantFolding::ConstantFolding(const ngraph::BuildNodeExecutorMa
                     node_output.replace(replacement);
                     // Propagate runtime info attributes to replacement consumer nodes
                     copy_runtime_info_to_target_inputs(node, replacement);
-                    result = true;
+
+                    rewritten = true;
                 }
             }
-            return result;
-        },
-        PassProperty::CHANGE_DYNAMIC_STATE));
-}
-
-bool ngraph::pass::revalidate_and_ensure_static(shared_ptr<Node> n)
-{
-    n->revalidate_and_infer_types();
-    for (auto& o : n->outputs())
-    {
-        if (o.get_partial_shape().is_dynamic() || o.get_element_type().is_dynamic())
+        }
+        else
         {
-            return false;
+            // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
+            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
+            {
+                if (const auto& sub_graph = sub_graph_node->get_function())
+                {
+                    rewritten |= run_on_function(sub_graph);
+                }
+            }
         }
     }
-    return true;
+
+    return rewritten;
 }
 
 void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
@@ -89,4 +90,59 @@ void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
         auto consumer = input.get_node()->shared_from_this();
         copy_runtime_info({node, consumer}, consumer);
     }
+}
+
+bool ngraph::pass::ConstantFolding::pre_calculated_values_folding(
+    const std::shared_ptr<ngraph::Function>& f)
+{
+    deque<shared_ptr<Node>> nodes;
+    set<shared_ptr<Node>> visited;
+    for (auto& r : f->get_results())
+        nodes.push_back(r);
+    for (auto& r : f->get_sinks())
+        nodes.emplace_back(r);
+
+    bool rewritten = false;
+    while (!nodes.empty())
+    {
+        auto curr_node = nodes.front();
+        nodes.pop_front();
+        if (visited.count(curr_node) || is_type<op::Constant>(curr_node))
+            continue;
+        visited.insert(curr_node);
+
+        for (auto& input_value : curr_node->input_values())
+        {
+            if (input_value.get_tensor().has_and_set_bound())
+            {
+                auto input_node = input_value.get_node_shared_ptr();
+                auto replacement =
+                    std::make_shared<op::Constant>(input_value.get_tensor().get_lower_value());
+                if (replacement && !is_type<op::Constant>(input_node))
+                {
+                    if (input_node->get_output_size() == 1)
+                    {
+                        replacement->set_friendly_name(input_node->get_friendly_name());
+                    }
+                    else
+                    {
+                        replacement->set_friendly_name(input_node->get_friendly_name() + "." +
+                                                       std::to_string(input_value.get_index()));
+                    }
+                    input_value.replace(replacement);
+                    // Propagate runtime info attributes to replacement consumer nodes
+                    copy_runtime_info_to_target_inputs(input_node, replacement);
+
+                    rewritten = true;
+                }
+            }
+            else
+            {
+                // continue searching
+                const auto& input_node = input_value.get_node_shared_ptr();
+                nodes.push_front(input_node);
+            }
+        }
+    }
+    return rewritten;
 }

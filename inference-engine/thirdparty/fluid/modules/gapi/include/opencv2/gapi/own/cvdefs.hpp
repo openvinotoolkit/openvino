@@ -96,10 +96,10 @@ typedef unsigned short ushort;
 #define CV_SUBMAT_FLAG          (1 << CV_SUBMAT_FLAG_SHIFT)
 #define CV_IS_SUBMAT(flags)     ((flags) & CV_MAT_SUBMAT_FLAG)
 
-///** Size of each channel item,
+//** Size of each channel item,
 //   0x8442211 = 1000 0100 0100 0010 0010 0001 0001 ~ array of sizeof(arr_type_elem) */
-//#define CV_ELEM_SIZE1(type) \
-//    ((((sizeof(size_t)<<28)|0x8442211) >> CV_MAT_DEPTH(type)*4) & 15)
+#define CV_ELEM_SIZE1(type) \
+   ((((sizeof(size_t)<<28)|0x8442211) >> CV_MAT_DEPTH(type)*4) & 15)
 
 #define CV_MAT_TYPE(flags)      ((flags) & CV_MAT_TYPE_MASK)
 

@@ -29,7 +29,7 @@ public:
 
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
 
-    MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network, const Config &cfg,
+    MKLDNNExecNetwork(const InferenceEngine::CNNNetwork &network, const Config &cfg,
                       const MKLDNNExtensionManager::Ptr &extMgr, NumaNodesWeights &weightsSharing);
 
     ~MKLDNNExecNetwork() override = default;
@@ -51,14 +51,14 @@ protected:
     friend class MKLDNNInferRequest;
     MKLDNNExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
-    InferenceEngine::details::CNNNetworkImplPtr _clonedNetwork;
+    InferenceEngine::CNNNetwork                 _clonedNetwork;
     std::mutex                                  _cfgMutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
 
 
-    bool CanProcessDynBatch(const InferenceEngine::ICNNNetwork &network) const;
+    bool CanProcessDynBatch(const InferenceEngine::CNNNetwork &network) const;
 };
 
 }  // namespace MKLDNNPlugin

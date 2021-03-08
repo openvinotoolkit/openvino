@@ -86,6 +86,10 @@ JitConstants LRNKernelAcrossChannel_b8::GetJitConstants(const lrn_params& params
 }
 
 KernelsData LRNKernelAcrossChannel_b8::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_8);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority LRNKernelAcrossChannel_b8::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_8;
 }
 }  // namespace kernel_selector

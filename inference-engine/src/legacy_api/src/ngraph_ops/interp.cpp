@@ -67,6 +67,15 @@ shared_ptr<Node> op::Interp::clone_with_new_inputs(const OutputVector& new_args)
     return make_shared<Interp>(new_args.at(0), m_attrs);
 }
 
+bool op::Interp::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("align_corners", m_attrs.align_corners);
+    visitor.on_attribute("width", m_attrs.width);
+    visitor.on_attribute("height", m_attrs.height);
+    visitor.on_attribute("pad_beg", m_attrs.pad_beg);
+    visitor.on_attribute("pad_end", m_attrs.pad_end);
+    return true;
+}
+
 constexpr NodeTypeInfo op::ResampleV2::type_info;
 
 op::ResampleV2::ResampleV2(const Output<Node>& image, const Output<Node>& output_shape,
@@ -105,4 +114,11 @@ void op::ResampleV2::validate_and_infer_types() {
 shared_ptr<Node> op::ResampleV2::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<ResampleV2>(new_args.at(0), new_args.at(1), m_attrs);
+}
+
+bool op::ResampleV2::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("antialias", m_attrs.antialias);
+    visitor.on_attribute("factor", m_attrs.factor);
+    visitor.on_attribute("mode", m_attrs.mode);
+    return true;
 }

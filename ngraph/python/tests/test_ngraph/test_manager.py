@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ def test_constant_folding():
     pass_manager.register_pass("ConstantFolding")
     pass_manager.run_passes(func)
 
-    assert count_ops_of_type(func, node_ceil) == 0 
+    assert count_ops_of_type(func, node_ceil) == 0
     assert count_ops_of_type(func, node_constant) == 1
 
     new_const = func.get_results()[0].input(0).get_source_output().get_node()

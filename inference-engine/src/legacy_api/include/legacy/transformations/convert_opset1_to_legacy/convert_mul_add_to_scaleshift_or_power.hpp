@@ -19,15 +19,10 @@ class INFERENCE_ENGINE_API_CLASS(ConvertMulAddToScaleShiftOrPower);
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertMulAddToScaleShiftOrPower: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertMulAddToScaleShiftOrPower: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertMulAddToScaleShiftOrPower() : GraphRewrite() {
-        convert_mul_add_to_scaleshift_or_power();
-    }
-
-private:
-    void convert_mul_add_to_scaleshift_or_power();
+    ConvertMulAddToScaleShiftOrPower();
 };
 
 enum class CONVERSION_RESULT {

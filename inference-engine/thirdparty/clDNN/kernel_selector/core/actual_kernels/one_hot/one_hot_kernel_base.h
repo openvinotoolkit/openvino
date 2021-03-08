@@ -49,6 +49,6 @@ public:
 protected:
     JitConstants GetJitConstants(const one_hot_params& params) const;
     static DispatchData SetDefault(const one_hot_params& params);
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
 };
 }  // namespace kernel_selector

@@ -1822,7 +1822,7 @@ std::string ClampActivationModel() {
             </output>
         </layer>
         <layer name="Clamp_Activation" id="2" type="Activation" precision="FP32">
-            <data type="clamp" min="-5" max="5" />
+            <data type="clamp" min="-50" max="50" />
             <input>
                 <port id="0">
                     <dim>1</dim>

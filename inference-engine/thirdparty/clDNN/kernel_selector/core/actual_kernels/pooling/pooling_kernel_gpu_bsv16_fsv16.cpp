@@ -68,9 +68,11 @@ PoolingKernelBase::DispatchData PoolingKernel_bsv16_fsv16::SetDefault(const pool
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
+}
+
+KernelsPriority PoolingKernel_bsv16_fsv16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
 }
 
 bool PoolingKernel_bsv16_fsv16::Validate(const Params& p, const optional_params& o) const {
@@ -136,6 +138,6 @@ JitConstants PoolingKernel_bsv16_fsv16::GetJitConstants(const pooling_params& pa
 }
 
 KernelsData PoolingKernel_bsv16_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_1);
+    return GetCommonKernelsData(params, options);
 }
 }  // namespace kernel_selector

@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <iterator>
 #include <samples/common.hpp>
 
 #include <inference_engine.hpp>
@@ -34,12 +35,13 @@ cv::Mat imreadW(std::wstring input_image_path) {
         std::iostream::binary | std::ios_base::ate | std::ios_base::in);
     if (input_image_stream.is_open()) {
         if (input_image_stream.good()) {
+            input_image_stream.seekg(0, std::ios::end);
             std::size_t file_size = input_image_stream.tellg();
             input_image_stream.seekg(0, std::ios::beg);
             std::vector<char> buffer(0);
             std::copy(
-                std::istream_iterator<char>(input_image_stream),
-                std::istream_iterator<char>(),
+                std::istreambuf_iterator<char>(input_image_stream),
+                std::istreambuf_iterator<char>(),
                 std::back_inserter(buffer));
             image = cv::imdecode(cv::Mat(1, file_size, CV_8UC1, &buffer[0]), cv::IMREAD_COLOR);
         } else {

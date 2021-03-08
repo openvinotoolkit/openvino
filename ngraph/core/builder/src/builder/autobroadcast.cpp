@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,14 +14,14 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "builder/autobroadcast.hpp"
+#include "ngraph/builder/autobroadcast.hpp"
 
 #include <memory>
 #include <numeric>
 #include <sstream>
 
-#include "builder/reshape.hpp"
 #include "ngraph/axis_vector.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/reshape.hpp"

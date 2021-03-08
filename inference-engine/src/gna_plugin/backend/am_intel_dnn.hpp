@@ -29,8 +29,11 @@ public:
               num_left_context(0),
               num_right_context(0),
               do_rotate_input(false),
+              do_rotate_output(false),
               num_rotate_rows(0),
               num_rotate_columns(0),
+              num_rotate_output_rows(0),
+              num_rotate_output_columns(0),
               softmax_type(kSoftmaxNone),
               ptr_sumgroup_sizes(NULL),
               num_sumgroup_sizes(0),
@@ -130,6 +133,34 @@ public:
                                             true);
     }
 
+#if GNA_LIB_VER == 2
+    template<class A, class B, class C, class D>
+    static void InitConvolutional2DComponent(intel_dnn_component_t& comp,
+        OvGnaTensor inputTensor,
+        OvGnaTensor outputTensor,
+        OvGnaTensor filterTensor,
+        OvGnaTensor biasTensor,
+        std::array<uint32_t, 2> convStride,
+        float weight_scale_factor,
+        float output_scale_factor,
+        A*& ptr_inputs,
+        B*& ptr_outputs,
+        C*& ptr_filters,
+        D*& ptr_biases) {
+        InitConvolutional2DComponentPrivate(comp,
+            inputTensor,
+            outputTensor,
+            filterTensor,
+            biasTensor,
+            convStride,
+            weight_scale_factor,
+            output_scale_factor,
+            (void*&)ptr_inputs,
+            (void*&)ptr_outputs,
+            (void*&)ptr_filters,
+            (void*&)ptr_biases);
+    }
+#endif
 
     template<class A, class B>
     static void InitMaxpoolComponent(intel_dnn_component_t &cmp,
@@ -309,8 +340,11 @@ public:
     uint32_t num_right_context;
     uint32_t new_num_conv_columns = 0;
     bool do_rotate_input;
+    bool do_rotate_output;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;
+    uint32_t num_rotate_output_rows = 0;
+    uint32_t num_rotate_output_columns = 0;
     DnnSoftmaxType softmax_type;
     uint32_t *ptr_sumgroup_sizes;
     uint32_t num_sumgroup_sizes;
@@ -425,6 +459,21 @@ private:
                                                     void *&ptr_filters,
                                                     void *&ptr_biases,
                                                     bool postInitMem);
+
+#if GNA_LIB_VER == 2
+    static void InitConvolutional2DComponentPrivate(intel_dnn_component_t& comp,
+        OvGnaTensor inputTensor,
+        OvGnaTensor outputTensor,
+        OvGnaTensor filterTensor,
+        OvGnaTensor biasTensor,
+        std::array<uint32_t, 2> convStride,
+        float weight_scale_factor,
+        float output_scale_factor,
+        void*& ptr_inputs,
+        void*& ptr_outputs,
+        void*& ptr_filters,
+        void*& ptr_biases);
+#endif
 
     static void InitAffineComponentPrivate(intel_dnn_component_t &comp,
                                            uint32_t num_rows_in,

@@ -71,7 +71,7 @@ protected:
     virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const mvn_params& params) const;
     virtual std::string GetKernelName(const mvn_params&) const { return kernelName; }
-    KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
+    KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     Datatype GetActivationType(const mvn_params& params) const;
 };
 }  // namespace kernel_selector

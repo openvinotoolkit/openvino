@@ -87,7 +87,10 @@ JitConstants ReduceKernelRef::GetJitConstants(const reduce_params& params) const
 }
 
 KernelsData ReduceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, DONT_USE_IF_HAVE_SOMETHING_ELSE);
+    return GetCommonKernelsData(params, options);
 }
 
+KernelsPriority ReduceKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
 }  // namespace kernel_selector

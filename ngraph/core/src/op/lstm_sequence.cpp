@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/lstm_sequence.hpp"
+#include "itt.hpp"
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
@@ -29,11 +30,95 @@
 using namespace ngraph;
 using namespace std;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 NGRAPH_RTTI_DEFINITION(op::v0::LSTMSequence, "LSTMSequence", 0);
 NGRAPH_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);
 
-bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
+op::v0::LSTMSequence::LSTMSequence()
+    : FusedOp()
+    , m_activations_alpha()
+    , m_activations_beta()
+    , m_activations()
+    , m_clip_threshold()
+    , m_direction()
+    , m_hidden_size()
+    , m_input_forget()
+    , m_weights_format()
 {
+}
+
+op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
+                                   const Output<Node>& initial_hidden_state,
+                                   const Output<Node>& initial_cell_state,
+                                   const Output<Node>& sequence_lengths,
+                                   const Output<Node>& W,
+                                   const Output<Node>& R,
+                                   const Output<Node>& B,
+                                   const Output<Node>& P,
+                                   const std::int64_t hidden_size,
+                                   const LSTMSequence::direction lstm_direction,
+                                   LSTMWeightsFormat weights_format,
+                                   const std::vector<float> activations_alpha,
+                                   const std::vector<float> activations_beta,
+                                   const std::vector<std::string> activations,
+                                   const float clip_threshold,
+                                   const bool input_forget)
+    : FusedOp({X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B, P})
+    , m_activations_alpha(activations_alpha)
+    , m_activations_beta(activations_beta)
+    , m_activations(activations)
+    , m_clip_threshold(clip_threshold)
+    , m_direction(lstm_direction)
+    , m_hidden_size(hidden_size)
+    , m_input_forget(input_forget)
+    , m_weights_format(weights_format)
+{
+    constructor_validate_and_infer_types();
+}
+
+op::v0::LSTMSequence::LSTMSequence(const Output<Node>& X,
+                                   const Output<Node>& initial_hidden_state,
+                                   const Output<Node>& initial_cell_state,
+                                   const Output<Node>& sequence_lengths,
+                                   const Output<Node>& W,
+                                   const Output<Node>& R,
+                                   const Output<Node>& B,
+                                   const std::int64_t hidden_size,
+                                   const LSTMSequence::direction lstm_direction,
+                                   LSTMWeightsFormat weights_format,
+                                   const std::vector<float>& activations_alpha,
+                                   const std::vector<float>& activations_beta,
+                                   const std::vector<std::string>& activations,
+                                   const float clip_threshold,
+                                   const bool input_forget)
+    : op::v0::LSTMSequence(
+          X,
+          initial_hidden_state,
+          initial_cell_state,
+          sequence_lengths,
+          W,
+          R,
+          B,
+          Constant::create(
+              element::f32,
+              Shape{(lstm_direction == LSTMSequence::direction::BIDIRECTIONAL ? 2UL : 1UL),
+                    3UL * static_cast<size_t>(hidden_size)},
+              std::vector<float>{0.f}),
+          hidden_size,
+          lstm_direction,
+          weights_format,
+          activations_alpha,
+          activations_beta,
+          activations,
+          clip_threshold,
+          input_forget)
+{
+}
+
+bool op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
+{
+    NGRAPH_OP_SCOPE(v0_LSTMSequence_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -45,6 +130,7 @@ bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("weights_format", m_weights_format);
     return true;
 }
+
 OutputVector op::v0::LSTMSequence::decompose_op() const
 {
     OutputVector results;
@@ -71,6 +157,7 @@ OutputVector op::v0::LSTMSequence::decompose_op() const
 
 shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_LSTMSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 8)
     {
@@ -263,6 +350,7 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
 
 void op::v0::LSTMSequence::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_LSTMSequence_validate_and_infer_types);
     std::vector<ngraph::PartialShape> input_param{};
 
     auto lstm_seq_gates_count = 4;
@@ -272,7 +360,8 @@ void op::v0::LSTMSequence::validate_and_infer_types()
     auto merged_num_directions = Dimension::dynamic();
     auto result_et = element::dynamic;
 
-    // Copy all inputs without peephole and initial_cell_state information for further validation
+    // Copy all inputs without peephole and initial_cell_state information for further
+    // validation
     for (size_t i = 0; i < get_input_size() - 1; i++)
     {
         // exclude initial_cell_state from the loop
@@ -320,7 +409,8 @@ void op::v0::LSTMSequence::validate_and_infer_types()
             element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(6)),
-        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do not "
+        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do "
+        "not "
         "match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension
@@ -421,12 +511,14 @@ void op::v0::LSTMSequence::validate_and_infer_types()
 
 bool ngraph::op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v5_LSTMSequence_visit_attributes);
     visitor.on_attribute("direction", m_direction);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v5_LSTMSequence_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 7)
     {
@@ -452,6 +544,7 @@ shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector&
 
 void op::v5::LSTMSequence::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v5_LSTMSequence_validate_and_infer_types);
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())
@@ -505,7 +598,8 @@ void op::v5::LSTMSequence::validate_and_infer_types()
             element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(5)) &&
             element::Type::merge(result_et, result_et, get_input_element_type(6)),
-        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do not "
+        "Element types for X, initial_hidden_state, initial_cell_state, W, R and B inputs do "
+        "not "
         "match.");
 
     // Merge batch_size dimension across all inputs to evaluate output[0] dimension

@@ -29,7 +29,7 @@ std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>> a
     {{10, 9, 10, 9, 10}, {{{8}, {-3, -1, 0, 2, 4}}, {{4, 2}, {-2, 2}}}},
 };
 //indices should not be random value
-const std::vector<std::vector<size_t>> idxValue = {
+const std::vector<std::vector<int64_t>> idxValue = {
         {0, 2, 4, 6, 1, 3, 5, 7}
 };
 

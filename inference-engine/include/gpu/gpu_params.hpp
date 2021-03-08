@@ -101,7 +101,7 @@ DECLARE_GPU_PARAM_KEY(MEM_HANDLE, gpu_handle_param);
 * @brief This key identifies video decoder surface handle
 * in a shared memory blob parameter map
 */
-#ifdef WIN32
+#ifdef _WIN32
 DECLARE_GPU_PARAM_KEY(DEV_OBJECT_HANDLE, gpu_handle_param);
 #else
 DECLARE_GPU_PARAM_KEY(DEV_OBJECT_HANDLE, uint32_t);

@@ -37,7 +37,7 @@ TEST(ExecutableNetworkTests, throwsOnUninitializedExportStream) {
 
 TEST(ExecutableNetworkTests, nothrowsOnUninitializedCast) {
     ExecutableNetwork exec;
-    ASSERT_NO_THROW(auto &enet = static_cast<IExecutableNetwork::Ptr &>(exec));
+    ASSERT_NO_THROW((void)static_cast<IExecutableNetwork::Ptr &>(exec));
 }
 
 TEST(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {

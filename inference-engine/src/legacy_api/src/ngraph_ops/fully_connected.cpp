@@ -28,11 +28,14 @@ shared_ptr<Node> op::FullyConnected::clone_with_new_inputs(const OutputVector& n
 }
 
 void op::FullyConnected::validate_and_infer_types() {
-    if (m_output_shape.size() < 2)
-        throw ngraph_error("FullyConnected shape is incorrect");
     m_output_size = m_output_shape.back();
     set_output_type(
         0,
         m_output_type == element::undefined ? input_value(0).get_element_type() : m_output_type,
         m_output_shape);
+}
+
+bool op::FullyConnected::visit_attributes(AttributeVisitor &visitor) {
+    visitor.on_attribute("out-size", m_output_size);
+    return true;
 }

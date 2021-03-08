@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ NGRAPH_TEST(${BACKEND_NAME}, power)
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Power>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Power>(A, B), ParameterVector{A, B});
 
     std::vector<float> a{1, 2, 3, 5};
     std::vector<float> b{2, 0, 6, 3};

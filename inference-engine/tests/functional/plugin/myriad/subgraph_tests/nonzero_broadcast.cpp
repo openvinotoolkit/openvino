@@ -15,7 +15,7 @@ using TensorType  = ngraph::element::Type;
 using TensorShape = ngraph::Shape;
 
 struct BroadcastInputParams {
-    TensorShape inputShape;
+    DataShapeWithUpperBound inputShape;
     DataShapeWithUpperBound targetShape;
     InferenceEngine::SizeVector axesMapping;
 };
@@ -24,8 +24,8 @@ using BroadcastTestParams = std::tuple<
         BroadcastInputParams, TensorType, LayerTestsUtils::TargetDevice>;
 
 
-class NonZero_BroadcastBidirectional : public testing::WithParamInterface<BroadcastTestParams>,
-                                       virtual public LayerTestsUtils::LayerTestsCommon {
+class NonZero_Broadcast : public testing::WithParamInterface<BroadcastTestParams>,
+                          public DSR_TestsCommon {
 protected:
     size_t getDynamicAxis(const DataShape& shapeA, const DataShape& shapeB) const {
         size_t res = 0;
@@ -35,9 +35,7 @@ protected:
         return res;
     }
 
-    void prepareBroadcastInputs() {
-        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
-
+    std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
         const auto& broadcastParams = std::get<0>(parameters);
         const auto& tensorType = std::get<1>(parameters);
@@ -48,133 +46,99 @@ protected:
 
         const auto dynamicAxis = getDynamicAxis(upperBoundShape, realShape);
 
-        m_param = std::make_shared<ngraph::opset5::Parameter>(tensorType, TensorShape{upperBoundShape[dynamicAxis]});
-        m_nonZero = std::make_shared<ngraph::opset5::NonZero>(m_param);
-        const auto shapeOfNonZero = std::make_shared<ngraph::opset5::ShapeOf>(m_nonZero);
+        const auto& nonZeroParam = createParameter(tensorType, TensorShape{upperBoundShape[dynamicAxis]});
+        const auto& nonZero = std::make_shared<ngraph::opset5::NonZero>(nonZeroParam, ngraph::element::i32);
+        m_additionalResults.push_back(std::make_shared<ngraph::opset3::Result>(nonZero->output(0)));
+        const auto shapeOfNonZero = std::make_shared<ngraph::opset5::ShapeOf>(nonZero, ngraph::element::i32);
         const auto numNonZeros = std::make_shared<ngraph::opset5::Gather>(
             shapeOfNonZero,
             ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1}),
             ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0}));
 
-        m_broadcastTargetShape = numNonZeros;
+        std::shared_ptr<ngraph::Node> broadcastTargetShape = numNonZeros;
 
         if (dynamicAxis > 0) {
-            m_broadcastTargetShape = std::make_shared<ngraph::opset5::Concat>(
+            broadcastTargetShape = std::make_shared<ngraph::opset5::Concat>(
                 ngraph::NodeVector{
                     ngraph::opset5::Constant::create(
-                        ngraph::element::i64,
+                        ngraph::element::i32,
                         ngraph::Shape{dynamicAxis},
                         std::vector<size_t>{upperBoundShape.begin(), upperBoundShape.begin() + dynamicAxis}),
-                    m_broadcastTargetShape},
+                    broadcastTargetShape},
                 0);
         }
 
         if (dynamicAxis < upperBoundShape.size() - 1) {
-            m_broadcastTargetShape = std::make_shared<ngraph::opset5::Concat>(
+            broadcastTargetShape = std::make_shared<ngraph::opset5::Concat>(
                 ngraph::NodeVector{
-                    m_broadcastTargetShape,
+                    broadcastTargetShape,
                     ngraph::opset5::Constant::create(
-                        ngraph::element::i64,
+                        ngraph::element::i32,
                         ngraph::Shape{upperBoundShape.size() - dynamicAxis - 1},
                         std::vector<size_t>{upperBoundShape.begin() + dynamicAxis + 1, upperBoundShape.end()})},
                 0);
         }
 
-        m_broadcastInput = ngraph::builder::makeConstant(tensorType, ngraph::Shape{broadcastParams.inputShape}, std::vector<int64_t>{}, true);
-    }
+        const auto& broadcastInput = broadcastParams.inputShape.upperBoundShape.size() ?
+            createInputSubgraphWithDSR(tensorType, broadcastParams.inputShape) :
+            ngraph::builder::makeConstant(tensorType, ngraph::Shape{broadcastParams.inputShape.shape}, std::vector<int64_t>{}, true);
 
-    void SetUp() override {
-        prepareBroadcastInputs();
+        if (broadcastParams.axesMapping.size() != 0) {
+            const auto& axesMapping = std::get<0>(GetParam()).axesMapping;
+            const auto axesMappingConst = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{axesMapping.size()}, axesMapping);
 
-        const auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(m_broadcastInput, m_broadcastTargetShape, ngraph::op::BroadcastType::BIDIRECTIONAL);
+            return std::make_shared<ngraph::opset5::Broadcast>(broadcastInput, broadcastTargetShape, axesMappingConst);
+        }
 
-        function = std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{broadcast, m_nonZero},
-            ngraph::ParameterVector{m_param},
-            "NonZero-Broadcast");
+        return std::make_shared<ngraph::opset5::Broadcast>(broadcastInput, broadcastTargetShape, ngraph::op::BroadcastType::BIDIRECTIONAL);
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
-        // We emulate dynamic shape through the number of non-zeros in NonZero input tensor
-        const auto& broadcastParams = std::get<0>(GetParam());
-        const auto numNonZeros = broadcastParams.targetShape.shape[getDynamicAxis(
-            broadcastParams.targetShape.upperBoundShape,
-            broadcastParams.targetShape.shape)];
+        if (info.name() == m_parameterVector.front()->get_friendly_name()) {
+            // We emulate dynamic target shape through the number of non-zeros in NonZero input tensor
+            const auto &broadcastParams = std::get<0>(GetParam());
+            const auto numNonZeros = broadcastParams.targetShape.shape[getDynamicAxis(
+                    broadcastParams.targetShape.upperBoundShape,
+                    broadcastParams.targetShape.shape)];
 
-        auto tensorDesc = info.getTensorDesc();
-        auto blob = make_blob_with_precision(tensorDesc);
-        blob->allocate();
-        CommonTestUtils::fill_data_const(blob, 0);
+            auto tensorDesc = info.getTensorDesc();
+            auto blob = make_blob_with_precision(tensorDesc);
+            blob->allocate();
+            CommonTestUtils::fill_data_const(blob, 0);
 
-        InferenceEngine::SizeVector newDims = {numNonZeros};
-        blob->getTensorDesc().setDims(newDims);
-        CommonTestUtils::fill_data_const(blob, 1);
+            InferenceEngine::SizeVector newDims = {numNonZeros};
+            blob->getTensorDesc().setDims(newDims);
+            CommonTestUtils::fill_data_const(blob, 1);
 
-        blob->getTensorDesc().setDims(tensorDesc.getDims());
+            blob->getTensorDesc().setDims(tensorDesc.getDims());
 
-        return blob;
-    }
+            return blob;
+        }
 
-protected:
-    std::shared_ptr<ngraph::Node> m_broadcastInput;
-    std::shared_ptr<ngraph::Node> m_broadcastTargetShape;
-    std::shared_ptr<ngraph::opset5::NonZero> m_nonZero;
-    std::shared_ptr<ngraph::opset5::Parameter> m_param;
-};
-
-TEST_P(NonZero_BroadcastBidirectional, CompareWithReference) {
-    Run();
-}
-
-std::vector<BroadcastInputParams> broadcastBidirectionalTestParams = {
-        { {1, 1, 4}, DataShapeWithUpperBound{ {200, 2, 4}, {300, 2, 4} }, {} },
-        { {15, 14}, DataShapeWithUpperBound{ {2, 16, 1, 14}, {2, 16, 15, 14} }, {} },
-        { {15, 1}, DataShapeWithUpperBound{ {1, 16, 15, 14}, {2, 16, 15, 14} }, {} },
-        { {2, 16, 15, 14}, DataShapeWithUpperBound{ {1, 15, 14}, {16, 15, 14} }, {} },
-        { {2, 16, 15, 14}, DataShapeWithUpperBound{ {16,  1,  1}, {16,  1,  14}}, {} },
-        { {16, 15,  1}, DataShapeWithUpperBound{ {2, 1, 15, 14}, {2, 16, 15, 14} }, {} },
-};
-
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBroadcast, NonZero_BroadcastBidirectional,
-        ::testing::Combine(
-            ::testing::ValuesIn(broadcastBidirectionalTestParams),
-            ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
-            ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
-
-using BroadcastExplicitTestParams = std::tuple<
-        BroadcastTestParams, TensorShape, TensorType, LayerTestsUtils::TargetDevice>;
-
-class NonZero_BroadcastExplicit : public NonZero_BroadcastBidirectional {
-protected:
-    void SetUp() override {
-        prepareBroadcastInputs();
-
-        const auto& axesMapping = std::get<0>(GetParam()).axesMapping;
-        const auto axesMappingConst = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{axesMapping.size()}, axesMapping);
-
-        const auto broadcast = std::make_shared<ngraph::opset5::Broadcast>(m_broadcastInput, m_broadcastTargetShape, axesMappingConst);
-
-        function = std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{broadcast, m_nonZero},
-            ngraph::ParameterVector{m_param},
-            "NonZero-Broadcast");
+        return DSR_TestsCommon::GenerateInput(info);
     }
 };
 
-TEST_P(NonZero_BroadcastExplicit, CompareWithReference) {
+TEST_P(NonZero_Broadcast, CompareWithReference) {
     Run();
 }
 
-std::vector<BroadcastInputParams> broadcastExplicitTestParams = {
-        { {1}, DataShapeWithUpperBound{ {1, 800}, {1, 1000} }, {0} },
-        { {4}, DataShapeWithUpperBound{ {100, 4}, {1000, 4} }, {1} },
-        { {128, 256}, DataShapeWithUpperBound{ {1, 128, 256}, {3, 128, 256} }, {1, 2} },
+std::vector<BroadcastInputParams> broadcastTestParams = {
+        { DataShapeWithUpperBound{ {1, 1, 4}, {} }, DataShapeWithUpperBound{ {200, 2, 4}, {300, 2, 4} }, {} },
+        { DataShapeWithUpperBound{ {15, 14}, {} }, DataShapeWithUpperBound{ {2, 16, 1, 14}, {2, 16, 15, 14} }, {} },
+        { DataShapeWithUpperBound{ {15, 1}, {} }, DataShapeWithUpperBound{ {1, 16, 15, 14}, {2, 16, 15, 14} }, {} },
+        { DataShapeWithUpperBound{ {2, 16, 15, 14}, {} }, DataShapeWithUpperBound{ {1, 15, 14}, {16, 15, 14} }, {} },
+        { DataShapeWithUpperBound{ {2, 16, 15, 14}, {} }, DataShapeWithUpperBound{ {16,  1,  1}, {16,  1,  14}}, {} },
+        { DataShapeWithUpperBound{ {16, 15, 1}, {} }, DataShapeWithUpperBound{ {2, 1, 15, 14}, {2, 16, 15, 14} }, {} },
+        { DataShapeWithUpperBound{ {142, 1, 1, 64}, {300, 1, 1, 64} }, DataShapeWithUpperBound { {142, 3, 64, 64}, {300, 3, 64, 64} }, {} },
+        { DataShapeWithUpperBound{ {1}, {} }, DataShapeWithUpperBound{ {1, 800}, {1, 1000} }, {0} },
+        { DataShapeWithUpperBound{ {4}, {} }, DataShapeWithUpperBound{ {100, 4}, {1000, 4} }, {1} },
+        { DataShapeWithUpperBound{ {128, 256}, {} }, DataShapeWithUpperBound{ {1, 128, 256}, {3, 128, 256} }, {1, 2} },
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_DynamicBroadcast, NonZero_BroadcastExplicit,
+INSTANTIATE_TEST_CASE_P(smoke_DynamicBroadcast, NonZero_Broadcast,
         ::testing::Combine(
-            ::testing::ValuesIn(broadcastExplicitTestParams),
+            ::testing::ValuesIn(broadcastTestParams),
             ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
-
 }  // namespace

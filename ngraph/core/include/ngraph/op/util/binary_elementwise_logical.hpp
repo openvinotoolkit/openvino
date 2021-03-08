@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ namespace ngraph
 
             private:
                 void validate_and_infer_elementwise_logical(const op::AutoBroadcastSpec& autob);
-                AutoBroadcastSpec m_autob;
+                AutoBroadcastSpec m_autob = AutoBroadcastSpec::NUMPY;
             };
         }
     }

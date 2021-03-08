@@ -1,3 +1,21 @@
+<!--
+******************************************************************************
+Copyright 2017-2021 Intel Corporation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+******************************************************************************
+-->
+
 <doxygenlayout xmlns:xi="http://www.w3.org/2001/XInclude" version="1.0">
     <!-- Navigation index tabs for HTML output -->
     <navindex>
@@ -32,22 +50,21 @@
                             <tab type="user" title="Convert Kaldi* ASpIRE Chain Time Delay Neural Network (TDNN) Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_kaldi_specific_Aspire_Tdnn_Model"/>
                         </tab>
                         <tab type="usergroup" title="Converting Your ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX">
+                            <tab type="user" title="Convert ONNX* Faster R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Faster_RCNN"/>
                             <tab type="user" title="Convert ONNX* Mask R-CNN Model to the Intermediate Representation" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_Mask_RCNN"/>
                             <tab type="user" title="Converting DLRM ONNX* Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_onnx_specific_Convert_DLRM"/>
                         </tab>
                         <tab type="user" title="Model Optimizations Techniques" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimization_Techniques"/>
                         <tab type="user" title="Cutting off Parts of a Model" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Cutting_Model"/>
-                        <tab type="usergroup" title="Sub-graph Replacement in Model Optimizer" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Subgraph_Replacement_Model_Optimizer">
-                            <tab type="user" title="[DEPRECATED] Case-Study: Converting SSD models created with the TensorFlow* Object Detection API" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_TensorFlow_SSD_ObjectDetection_API"/>
-                            <tab type="user" title="[DEPRECATED] Case-Study: Converting Faster R-CNN models created with the TensorFlow* Object Detection API" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_TensorFlow_Faster_RCNN_ObjectDetection_API"/>
-                        </tab>
+                        <tab type="user" title="Sub-graph Replacement in Model Optimizer" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Subgraph_Replacement_Model_Optimizer"/>
                         <tab type="user" title="Supported Framework Layers" url="@ref openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers"/>
                         <tab type="user" title="[DEPRECATED] IR Notation Reference" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_Legacy_IR_Layers_Catalog_Spec"/>
                         <tab type="user" title="IR suitable for INT8 inference" url="@ref openvino_docs_MO_DG_prepare_model_convert_model_IR_suitable_for_INT8_inference"/>
                     </tab>
-                    <tab type="usergroup" title="Custom Layers in Model Optimizer" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer">
+                    <tab type="usergroup" title="Model Optimizer Extensibility" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer">
                         <tab type="user" title="Extending Model Optimizer with New Primitives" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_with_New_Primitives"/>
-                        <tab type="user" title="Extending MXNet Model Optimizer with New Primitives" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives"/>
+                        <tab type="user" title="Extending Model Optimizer with Caffe* Python Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers"/>
+                        <tab type="user" title="Extending Model Optimizer for Custom MXNet* Operations" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_MXNet_Model_Optimizer_with_New_Primitives"/>
                         <tab type="user" title="Legacy Mode for Caffe* Custom Layers" url="@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Legacy_Mode_for_Caffe_Custom_Layers"/>
                         <tab type="user" title="[DEPRECATED] Offloading Sub-Graph Inference" url="https://docs.openvinotoolkit.org/2020.1/_docs_MO_DG_prepare_model_customize_model_optimizer_Offloading_Sub_Graph_Inference.html"/>
                     </tab>
@@ -56,14 +73,15 @@
                 <tab type="user" title="Known Issues" url="@ref openvino_docs_MO_DG_Known_Issues_Limitations"/>
             </tab>
             <!-- Model Downloader -->
-            <tab id="model_downloader" type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
-            <!-- Custom Layers Guide -->
-            <tab type="usergroup" title="Custom Layers Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
-        </tab>    
-        
+            <tab id="model_downloader" type="user" title="Model Downloader" url="@ref omz_tools_downloader"/>
+            <!-- Custom Operations Guide -->
+            <tab type="usergroup" title="Custom Operations Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
+        </tab>
+
         <!-- Intermediate Representation and Operations Sets -->
         <tab id="intermediate_representaton_and_operations_sets" type="usergroup" title="Intermediate Representation and Operations Sets" url="@ref openvino_docs_MO_DG_IR_and_opsets">
             <tab type="usergroup" title="Available Operations Sets" url="@ref openvino_docs_ops_opset">
+                <tab type="user" title="opset6 Specification" url="@ref openvino_docs_ops_opset6"/>
                 <tab type="user" title="opset5 Specification" url="@ref openvino_docs_ops_opset5"/>
                 <tab type="user" title="opset4 Specification" url="@ref openvino_docs_ops_opset4"/>
                 <tab type="user" title="opset3 Specification" url="@ref openvino_docs_ops_opset3"/>
@@ -81,6 +99,7 @@
                 <tab type="user" title="Atan-1" url="@ref openvino_docs_ops_arithmetic_Atan_1"/>
                 <tab type="user" title="Atanh-3" url="@ref openvino_docs_ops_arithmetic_Atanh_3"/>
                 <tab type="user" title="AvgPool-1" url="@ref openvino_docs_ops_pooling_AvgPool_1"/>
+                <tab type="user" title="BatchNormInference-1" url="@ref openvino_docs_ops_normalization_BatchNormInference_1"/>
                 <tab type="user" title="BatchNormInference-5" url="@ref openvino_docs_ops_normalization_BatchNormInference_5"/>
                 <tab type="user" title="BatchToSpace-2" url="@ref openvino_docs_ops_movement_BatchToSpace_2"/>
                 <tab type="user" title="BinaryConvolution-1" url="@ref openvino_docs_ops_convolution_BinaryConvolution_1"/>
@@ -88,6 +107,7 @@
                 <tab type="user" title="Broadcast-3" url="@ref openvino_docs_ops_movement_Broadcast_3"/>
                 <tab type="user" title="Bucketize-3" url="@ref openvino_docs_ops_condition_Bucketize_3"/>
                 <tab type="user" title="CTCGreedyDecoder-1" url="@ref openvino_docs_ops_sequence_CTCGreedyDecoder_1"/>
+                <tab type="user" title="CTCGreedyDecoderSeqLen-6" url="@ref openvino_docs_ops_sequence_CTCGreedyDecoderSeqLen_6"/>
                 <tab type="user" title="Ceiling-1" url="@ref openvino_docs_ops_arithmetic_Ceiling_1"/>
                 <tab type="user" title="Clamp-1" url="@ref openvino_docs_ops_activation_Clamp_1"/>
                 <tab type="user" title="Concat-1" url="@ref openvino_docs_ops_movement_Concat_1"/>
@@ -121,6 +141,7 @@
                 <tab type="user" title="GRUSequence-5" url="@ref openvino_docs_ops_sequence_GRUSequence_5"/>
                 <tab type="user" title="GatherTree-1" url="@ref openvino_docs_ops_movement_GatherTree_1"/>
                 <tab type="user" title="Gather-1" url="@ref openvino_docs_ops_movement_Gather_1"/>
+                <tab type="user" title="GatherElements-6" url="@ref openvino_docs_ops_movement_GatherElements_6"/>
                 <tab type="user" title="GatherND-5" url="@ref openvino_docs_ops_movement_GatherND_5"/>
                 <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>
                 <tab type="user" title="GreaterEqual-1" url="@ref openvino_docs_ops_comparison_GreaterEqual_1"/>
@@ -145,6 +166,7 @@
                 <tab type="user" title="LogSoftmax-5" url="@ref openvino_docs_ops_activation_LogSoftmax_5"/>
                 <tab type="user" title="Loop-5" url="@ref openvino_docs_ops_infrastructure_Loop_5"/>
                 <tab type="user" title="MVN-1" url="@ref openvino_docs_ops_normalization_MVN_1"/>
+                <tab type="user" title="MVN-6" url="@ref openvino_docs_ops_normalization_MVN_6"/>
                 <tab type="user" title="MatMul-1" url="@ref openvino_docs_ops_matrix_MatMul_1"/>
                 <tab type="user" title="MaxPool-1" url="@ref openvino_docs_ops_pooling_MaxPool_1"/>
                 <tab type="user" title="Maximum-1" url="@ref openvino_docs_ops_arithmetic_Maximum_1"/>
@@ -276,7 +298,6 @@
                     <tab type="user" title="GNA Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GNA"/>
                 </tab>
                 <tab type="user" title="Known Issues" url="@ref openvino_docs_IE_DG_Known_Issues_Limitations"/>
-                <tab type="user" title="Optimization Notice" url="@ref openvino_docs_Optimization_notice"/>
                 <tab type="user" title="Glossary" url="@ref openvino_docs_IE_DG_Glossary"/>
             </tab>
 
@@ -296,7 +317,7 @@
 
             <!-- Compile Tool -->
             <tab type="user" title="Compile Tool" url="@ref openvino_inference_engine_tools_compile_tool_README"/>
-            
+
             <!-- API References -->
             <tab id="api_references" type="usergroup" title="API References">
                 <!-- IE C -->

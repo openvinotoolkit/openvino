@@ -216,8 +216,10 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
 
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return {kd};
+}
+
+KernelsPriority GatherKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

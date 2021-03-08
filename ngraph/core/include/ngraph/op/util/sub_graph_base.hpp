@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 #pragma once
 
 #include <ngraph/op/parameter.hpp>
-#include "ngraph/factory_adapter.hpp"
 #include "ngraph/op/op.hpp"
 
 namespace ngraph
@@ -31,6 +30,7 @@ namespace ngraph
             class NGRAPH_API SubGraphOp : public Op
             {
             public:
+                NGRAPH_RTTI_DECLARATION;
                 /// \brief Describes a connection between a SubGraphOp input and the body.
                 class InputDescription
                 {
@@ -50,7 +50,6 @@ namespace ngraph
                     virtual std::shared_ptr<InputDescription> copy() const = 0;
 
                     virtual const type_info_t& get_type_info() const = 0;
-                    virtual bool visit_attributes(AttributeVisitor& visitor);
 
                     uint64_t m_input_index{0};
                     uint64_t m_body_parameter_index{0};
@@ -85,7 +84,6 @@ namespace ngraph
                                           int64_t axis);
                     SliceInputDescription() = default;
                     std::shared_ptr<InputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
                     int64_t m_start{0};
                     int64_t m_stride{0};
                     int64_t m_part_size{0};
@@ -118,7 +116,6 @@ namespace ngraph
                                            uint64_t body_value_index);
                     MergedInputDescription() = default;
                     std::shared_ptr<InputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
                     uint64_t m_body_value_index{0};
                 };
 
@@ -140,7 +137,6 @@ namespace ngraph
                     InvariantInputDescription(uint64_t input_index, uint64_t body_parameter_index);
                     InvariantInputDescription() = default;
                     std::shared_ptr<InputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
                 };
 
                 /// \brief Describes how a SubGraphOp output is produced from the body.
@@ -160,7 +156,6 @@ namespace ngraph
                     using type_info_t = DiscreteTypeInfo;
                     virtual ~OutputDescription() = default;
                     virtual std::shared_ptr<OutputDescription> copy() const = 0;
-                    virtual bool visit_attributes(AttributeVisitor& visitor);
                     virtual const type_info_t& get_type_info() const = 0;
 
                     uint64_t m_body_value_index{0};
@@ -194,7 +189,6 @@ namespace ngraph
                     ConcatOutputDescription() = default;
 
                     std::shared_ptr<OutputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
                     int64_t m_start{0};
                     int64_t m_stride{0};
                     int64_t m_part_size{0};
@@ -221,11 +215,11 @@ namespace ngraph
                                           int64_t iteration);
                     BodyOutputDescription() = default;
                     std::shared_ptr<OutputDescription> copy() const override;
-                    bool visit_attributes(AttributeVisitor& visitor) override;
                     int64_t m_iteration{0};
                 };
 
                 virtual std::shared_ptr<Function> get_function() { return m_body; };
+                virtual std::shared_ptr<const Function> get_function() const { return m_body; };
                 virtual void set_function(const std::shared_ptr<Function>& func) { m_body = func; };
                 /// \return a reference to the input descriptions.
                 const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const
@@ -327,6 +321,12 @@ namespace ngraph
                                                              int64_t end,
                                                              int64_t axis);
 
+                SubGraphOp(const SubGraphOp&) = delete;
+                SubGraphOp(SubGraphOp&&) = default;
+
+                SubGraphOp& operator=(const SubGraphOp&) = delete;
+                SubGraphOp& operator=(SubGraphOp&&) = default;
+
             protected:
                 // Find an input corresponding to value, adding one if necessary.
                 Input<Node> input_for_value(const Output<Node>& value);
@@ -347,79 +347,48 @@ namespace ngraph
             using OutputDescriptionVector = std::vector<OutputDescriptionPtr>;
         }
     }
-    template class NGRAPH_API FactoryRegistry<op::util::SubGraphOp::InputDescription>;
 
     template <>
-    FactoryRegistry<op::util::SubGraphOp::InputDescription>&
-        FactoryRegistry<op::util::SubGraphOp::InputDescription>::get();
-
-    template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::InputDescription>>
-        : public FactoryAttributeAdapter<op::util::SubGraphOp::InputDescription>
+    class NGRAPH_API AttributeAdapter<
+        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>
+        : public DirectValueAccessor<
+              std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>
     {
     public:
-        using FactoryAttributeAdapter::FactoryAttributeAdapter;
+        AttributeAdapter(
+            std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>& value)
+            : DirectValueAccessor<
+                  std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>>>(
+                  value)
+        {
+        }
+
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::InputDescription>>"
-            ">>",
+            "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::"
+            "InputDescription>>>",
             0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 
     template <>
-    class NGRAPH_API
-        AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>>
-        : public VisitorAdapter
+    class NGRAPH_API AttributeAdapter<
+        std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>
+        : public DirectValueAccessor<
+              std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>
     {
     public:
-        explicit AttributeAdapter(
-            std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>& ref);
+        AttributeAdapter(
+            std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>& value)
+            : DirectValueAccessor<
+                  std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::OutputDescription>>>(
+                  value)
+        {
+        }
 
-        bool visit_attributes(AttributeVisitor& visitor) override;
         static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>"
-            ">>",
+            "AttributeAdapter<std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::"
+            "OutputDescription>>>",
             0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    protected:
-        std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>& m_ref;
-    };
-
-    template class NGRAPH_API FactoryRegistry<op::util::SubGraphOp::OutputDescription>;
-
-    template <>
-    FactoryRegistry<op::util::SubGraphOp::OutputDescription>&
-        FactoryRegistry<op::util::SubGraphOp::OutputDescription>::get();
-
-    template <>
-    class NGRAPH_API AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>
-        : public FactoryAttributeAdapter<op::util::SubGraphOp::OutputDescription>
-    {
-    public:
-        using FactoryAttributeAdapter::FactoryAttributeAdapter;
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>"
-            ">>",
-            0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    };
-
-    template <>
-    class NGRAPH_API
-        AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>>
-        : public VisitorAdapter
-    {
-    public:
-        explicit AttributeAdapter(
-            std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>& ref);
-
-        bool visit_attributes(AttributeVisitor& visitor) override;
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>"
-            ">>",
-            0};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    protected:
-        std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>& m_ref;
     };
 }

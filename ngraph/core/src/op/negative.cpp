@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,11 +32,13 @@ op::Negative::Negative(const Output<Node>& arg)
 
 bool ngraph::op::v0::Negative::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Negative_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::Negative::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Negative_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Negative>(new_args.at(0));
 }
@@ -58,20 +60,13 @@ namespace negativeop
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_negative, boolean, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_negative, i32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_negative, i64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_negative, u32, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_negative, u64, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_negative, f16, arg0, out, count);
+            NGRAPH_TYPE_CASE(evaluate_negative, f32, arg0, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -80,7 +75,7 @@ namespace negativeop
 
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Negative::evaluate");
+    NGRAPH_OP_SCOPE(v0_Negative_evaluate);
     return negativeop::evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,11 +15,11 @@
 //*****************************************************************************
 
 #include <memory>
+#include <ngraph/validation_util.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 
 using namespace std;
@@ -41,12 +41,14 @@ op::Concat::Concat(const NodeVector& args, int64_t axis)
 
 bool op::Concat::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Concat_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
 void op::Concat::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_Concat_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
 
     PartialShape inputs_shape_scheme{PartialShape::dynamic()};
@@ -85,7 +87,8 @@ void op::Concat::validate_and_infer_types()
             NODE_VALIDATION_CHECK(
                 this,
                 PartialShape::merge_into(inputs_shape_scheme, this_input_shape),
-                "Argument shapes are inconsistent; they must have the same rank, and must have ",
+                "Argument shapes are inconsistent; they must have the same rank, and must "
+                "have ",
                 "equal dimension everywhere except on the concatenation axis (axis ",
                 concat_axis,
                 ").");
@@ -110,6 +113,7 @@ void op::Concat::validate_and_infer_types()
 
 shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Concat_clone_with_new_inputs);
     // TODO(amprocte): Should we check the new_args count here?
     return make_shared<Concat>(new_args, m_axis);
 }
@@ -144,7 +148,19 @@ namespace
 
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Concat::evaluate");
+    NGRAPH_OP_SCOPE(v0_Concat_evaluate);
+    NGRAPH_CHECK(this, !inputs.empty());
+    NGRAPH_CHECK(this, validate_host_tensor_vector(inputs, inputs.size()));
+    NGRAPH_CHECK(this, validate_host_tensor_vector(outputs, 1));
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
+}
+bool op::Concat::evaluate_lower(const HostTensorVector& output_values) const
+{
+    return default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::Concat::evaluate_upper(const HostTensorVector& output_values) const
+{
+    return default_upper_bound_evaluator(this, output_values);
 }

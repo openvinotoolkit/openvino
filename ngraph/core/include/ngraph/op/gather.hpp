@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,6 +49,8 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
 
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
@@ -57,6 +59,9 @@ namespace ngraph
                 static const int PARAMS;
                 static const int INDICES;
                 static const int AXIS;
+
+                bool evaluate_gather(const HostTensorVector& outputs,
+                                     const HostTensorVector& inputs) const;
             };
         } // namespace v1
     }     // namespace op

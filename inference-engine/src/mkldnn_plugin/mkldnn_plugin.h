@@ -22,7 +22,7 @@ public:
     ~Engine() override;
 
     InferenceEngine::ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
+    LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                        const std::map<std::string, std::string> &config) override;
 
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
@@ -33,7 +33,7 @@ public:
 
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
-    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::CNNNetwork& network,
                                                      const std::map<std::string, std::string>& config) const override;
 
 private:

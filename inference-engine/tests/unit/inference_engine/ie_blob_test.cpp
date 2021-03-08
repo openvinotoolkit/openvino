@@ -261,9 +261,12 @@ TEST_F(BlobTests, canMakeSharedBlob) {
             { InferenceEngine::Precision::FP32, size, InferenceEngine::CHW });
     InferenceEngine::TBlob<float>::Ptr blob3
             = InferenceEngine::make_shared_blob<float>({ InferenceEngine::Precision::FP32, { 0 }, InferenceEngine::C });
+    InferenceEngine::TBlob<float>::Ptr blob4 = InferenceEngine::make_shared_blob<float>(
+            { InferenceEngine::Precision::FP32, size, InferenceEngine::HWC });
     ASSERT_EQ(blob1->size(), 0);
     ASSERT_EQ(blob2->size(), 1);
     ASSERT_EQ(blob3->size(), 0);
+    ASSERT_EQ(blob4->size(), 1);
 }
 
 TEST_F(BlobTests, cannotCreateBlobWithIncorrectPrecision) {

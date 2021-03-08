@@ -6,9 +6,11 @@ cmake_minimum_required (VERSION 3.13)
 
 # Set the project name
 project (ie_python_api)
-set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
 option(ENABLE_CONDA_FOLDER "Create output folder with conda python bindings" OFF)
+option(ENABLE_WHEEL "Create wheel package" OFF)
+
+set(PYTHON_BRIDGE_CPACK_PATH "python")
 
 string(TOLOWER ${CMAKE_SYSTEM_PROCESSOR} ARCH)
 if(ARCH STREQUAL "x86_64" OR ARCH STREQUAL "amd64") # Windows detects Intel's 64-bit CPU as AMD64
@@ -30,7 +32,7 @@ if(UNIX)
     set(CMAKE_C_VISIBILITY_PRESET default)
 endif()
 
-include (UseCython)
+include (cmake/UseCython.cmake)
 
 if(PYTHONINTERP_FOUND)
     set(PYTHON_VERSION python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR})
@@ -54,9 +56,18 @@ endif()
 
 set (PYTHON_BRIDGE_SRC_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory (src/openvino/inference_engine)
+add_subdirectory (src/openvino/offline_transformations)
+
+if (ENABLE_TESTS)
+    add_subdirectory(src/openvino/test_utils)
+endif()
+
+if(ENABLE_WHEEL)
+    add_subdirectory(wheel)
+endif()
 
 # Check Cython version
-if("${CYTHON_VERSION}" VERSION_LESS "0.29")
+if(CYTHON_VERSION VERSION_LESS "0.29")
     message(FATAL_ERROR "OpenVINO Python API needs at least Cython version 0.29, found version ${CYTHON_VERSION}")
 else()
     message(STATUS "Found Cython version ${CYTHON_VERSION}")
@@ -67,11 +78,11 @@ endif()
 ie_cpack_add_component(${PYTHON_VERSION} REQUIRED)
 
 install(FILES requirements.txt
-        DESTINATION python/${PYTHON_VERSION}
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}
         COMPONENT ${PYTHON_VERSION})
 
 install(PROGRAMS src/openvino/__init__.py
-        DESTINATION python/${PYTHON_VERSION}/openvino
+        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino
         COMPONENT ${PYTHON_VERSION})
 
 ie_cpack(${PYTHON_VERSION})

@@ -26,8 +26,11 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 5.  Takes top *pre_nms_topn* proposals
 6.  Calculates intersections for boxes and filter out all boxes with \f$intersection/union > nms\_thresh\f$
 7.  Takes top *post_nms_topn* proposals
-8.  Returns top proposals and optionally their probabilities 
+8.  Returns the results:
+    *   Top proposals, if there is not enough proposals to fill the whole output tensor, the valid proposals will be terminated with a single -1.
+    *   Optionally returns probabilities for each proposal, which are not terminated by any special value.
 
+**Attributes**:
 
 * *base_size*
 
@@ -94,25 +97,25 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 * *clip_before_nms*
 
   * **Description**: *clip_before_nms* flag that specifies whether to perform clip bounding boxes before non-maximum suppression or not.
-  * **Range of values**: True or False
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: True
+  * **Default value**: true
   * **Required**: *no*
 
 * *clip_after_nms*
 
   * **Description**: *clip_after_nms* is a flag that specifies whether to perform clip bounding boxes after non-maximum suppression or not.
-  * **Range of values**: True or False
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *normalize*
 
   * **Description**: *normalize* is a flag that specifies whether to perform normalization of output boxes to *[0,1]* interval or not.
-  * **Range of values**: True or False
+  * **Range of values**: true or false
   * **Type**: `boolean`
-  * **Default value**: False
+  * **Default value**: false
   * **Required**: *no*
 
 * *box_size_scale*
@@ -153,7 +156,7 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 
 *   **1**: tensor of type *T* and shape `[batch_size * post_nms_topn, 5]`.
 
-*   **2**: tensor of type *T* and shape `[batch_size * post_nms_topn]` with probabilities. *Optional*.
+*   **2**: tensor of type *T* and shape `[batch_size * post_nms_topn]` with probabilities.
 
 **Types**
 

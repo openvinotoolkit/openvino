@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -37,7 +38,7 @@ namespace ngraph
             ///
             ///        Output node produces a tensor with shape:
             ///        [N, C/(blocksize * blocksize), H * blocksize, W * blocksize]
-            class NGRAPH_API DepthToSpace : public ngraph::op::util::FusedOp
+            class NGRAPH_API DepthToSpace : public Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
@@ -68,15 +69,20 @@ namespace ngraph
 
                 std::size_t get_block_size() const { return m_blocksize; }
                 DepthToSpaceMode get_mode() const { return m_mode; }
-                virtual OutputVector decompose_op() const override;
-
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+                void validate_and_infer_types() override;
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
 
             protected:
                 std::size_t m_blocksize;
                 DepthToSpaceMode m_mode;
                 DepthToSpaceMode mode_from_string(const std::string& mode) const;
+
+            private:
+                bool evaluate_depth_to_space(const HostTensorVector& outputs,
+                                             const HostTensorVector& inputs) const;
             };
         }
         using v0::DepthToSpace;

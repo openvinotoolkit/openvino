@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,9 +7,9 @@
 #include <memory>
 #include <queue>
 
+#include <ngraph/dimension.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/dimension.hpp>
 #include <ngraph/pass/pass.hpp>
 
 #include "test_common.hpp"
@@ -18,58 +18,97 @@
 
 using TransformationTests = CommonTestUtils::TestsCommon;
 
-bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant);
+class FunctionsComparator {
+public:
+    enum CmpValues {
+        NONE = 0,
+        CONST_VALUES = 1 << 0,
+        NAMES = 1 << 1,
+        RUNTIME_KEYS = 1 << 2,
+        PRECISIONS = 1 << 3,
+        ATTRIBUTES = 1 << 4,
+    };
 
-std::pair<bool, std::string> compare_functions(
+    struct Result {
+        bool valid;
+        std::string message;
+
+        static Result ok(std::string msg = {}) {
+            return {true, std::move(msg)};
+        }
+        static Result error(std::string msg) {
+            return {false, std::move(msg)};
+        }
+    };
+
+    static constexpr FunctionsComparator no_default() noexcept {
+        return FunctionsComparator{NONE};
+    }
+    static constexpr FunctionsComparator with_default() noexcept {
+        return FunctionsComparator{PRECISIONS};
+    }
+    FunctionsComparator& enable(CmpValues f) noexcept {
+        m_comparition_flags = static_cast<CmpValues>(m_comparition_flags | f);
+        return *this;
+    }
+    constexpr bool should_compare(CmpValues f) const noexcept {
+        return m_comparition_flags & f;
+    }
+    Result compare(
+        const std::shared_ptr<ngraph::Function>& f1,
+        const std::shared_ptr<ngraph::Function>& f2) const;
+
+    Result operator()(
+        const std::shared_ptr<ngraph::Function>& f1,
+        const std::shared_ptr<ngraph::Function>& f2) const {
+        return compare(f1, f2);
+    }
+
+private:
+    constexpr explicit FunctionsComparator(CmpValues f) noexcept : m_comparition_flags(f) {}
+    CmpValues m_comparition_flags;
+};
+
+///
+/// \deprecated
+/// \brief compare_functions is obsolete function use FunctionComparator instead.
+///
+inline std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f1,
     const std::shared_ptr<ngraph::Function>& f2,
     const bool compareConstValues = false,
     const bool compareNames = false,
     const bool compareRuntimeKeys = false,
-    const bool comparePrecisions = true);
+    const bool comparePrecisions = true,
+    const bool compareAttributes = false) {
+    auto fc = FunctionsComparator::no_default();
 
-void check_rt_info(const std::shared_ptr<ngraph::Function> & f);
+    using Cmp = FunctionsComparator::CmpValues;
+    if (compareConstValues) fc.enable(Cmp::CONST_VALUES);
+    if (compareNames) fc.enable(Cmp::NAMES);
+    if (compareRuntimeKeys) fc.enable(Cmp::RUNTIME_KEYS);
+    if (comparePrecisions) fc.enable(Cmp::PRECISIONS);
+    if (compareAttributes) fc.enable(Cmp::ATTRIBUTES);
 
-
-template<typename T>
-std::vector<std::shared_ptr<T>> get(const std::shared_ptr<ngraph::Function>& f) {
-    std::vector<std::shared_ptr<T>> nodes;
-
-    std::queue<std::shared_ptr<ngraph::Node>> q;
-    for (const auto result : f->get_results()) {
-        q.push(result);
-    }
-
-    while (!q.empty()) {
-        auto node = q.front();
-        q.pop();
-
-        std::shared_ptr<T> op = ngraph::as_type_ptr<T>(node);
-        if (op != nullptr) {
-            nodes.push_back(op);
-        }
-
-        for (size_t i = 0; i < node->inputs().size(); ++i) {
-            q.push(node->get_input_node_shared_ptr(i));
-        }
-    }
-
-    return nodes;
+    const auto r = fc(f1, f2);
+    return {r.valid, r.message};
 }
+
+void check_rt_info(const std::shared_ptr<ngraph::Function>& f);
 
 namespace ngraph {
 namespace pass {
-
 class InjectionPass;
 
-} // namespace pass
-} // namespace ngraph
+}  // namespace pass
+}  // namespace ngraph
 
 class ngraph::pass::InjectionPass : public ngraph::pass::FunctionPass {
 public:
     using injection_callback = std::function<void(std::shared_ptr<ngraph::Function>)>;
 
-    explicit InjectionPass(injection_callback callback) : FunctionPass(), m_callback(std::move(callback)) {}
+    explicit InjectionPass(injection_callback callback)
+        : FunctionPass(), m_callback(std::move(callback)) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
         m_callback(f);
@@ -107,8 +146,8 @@ public:
         set_output_type(1, get_input_element_type(1), get_input_partial_shape(1));
     }
 
-    std::shared_ptr<Node>
-        clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
+    std::shared_ptr<Node> clone_with_new_inputs(
+        const ngraph::OutputVector& new_args) const override {
         return std::make_shared<TestOpMultiOut>(new_args.at(0), new_args.at(1));
     }
 };

@@ -91,6 +91,10 @@ bool LRNKernelWithinChannelByxfOpt::Validate(const Params& p, const optional_par
 }
 
 KernelsData LRNKernelWithinChannelByxfOpt::GetKernelsData(const Params& params, const optional_params& options) const {
-    return GetCommonKernelsData(params, options, FORCE_PRIORITY_7);
+    return GetCommonKernelsData(params, options);
+}
+
+KernelsPriority LRNKernelWithinChannelByxfOpt::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_7;
 }
 }  // namespace kernel_selector

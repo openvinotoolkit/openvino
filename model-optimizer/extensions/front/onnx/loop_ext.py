@@ -28,30 +28,6 @@ from mo.graph.graph import Graph, Node, add_opoutput
 from mo.utils.error import Error
 
 
-def connect_body_output(loop_node: Node, loop_output_port_idx: int, internal_result: Node, axis: [int, None] = None,
-                        start: [int, None] = None, end: [int, None] = None, stride: [int, None] = None,
-                        part_size: [int, None] = None):
-    assert loop_node.soft_get('op') == 'Loop'
-    assert internal_result.soft_get('op') == 'Result'
-    assert internal_result.id in loop_node.body
-
-    loop_node.output_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
-                                      'end': end, 'external_port_id': loop_output_port_idx,
-                                      'internal_layer_id': internal_result['internal_layer_id']})
-
-
-def connect_body_input(loop_node: Node, loop_input_port_idx: int, body_parameter: Node,
-                       axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
-                       stride: [int, None] = None, part_size: [int, None] = None):
-    assert loop_node.soft_get('op') == 'Loop'
-    assert body_parameter.soft_get('op') == 'Parameter'
-    assert body_parameter.id in loop_node.body
-
-    loop_node.input_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
-                                     'end': end, 'external_port_id': loop_input_port_idx,
-                                     'internal_layer_id': body_parameter['internal_layer_id']})
-
-
 class LoopExtractor(FrontExtractorOp):
     op = 'Loop'
     enabled = True
@@ -177,14 +153,14 @@ class LoopExtractor(FrontExtractorOp):
                                                            'out_attrs': ['out', 'name'],
                                                            'data_attrs': ['fw_tensor_debug_info']}
                                 )
-            connect_body_input(loop_node, next_loop_input_port_idx, body_node)
+            Loop.connect_body_input(loop_node, next_loop_input_port_idx, body_node)
             next_loop_input_port_idx += 1
 
         # mark current iteration input Parameter node
         Loop.mark_current_iteration_parameter_node(loop_node, body_parameters[0])
 
         # connect initial value for "execution condition" input of the loop
-        connect_body_input(loop_node, 1, body_parameters[1])
+        Loop.connect_body_input(loop_node, 1, body_parameters[1])
         # add back edge with "execution condition"
         Loop.add_back_edge(loop_node, body_parameters[1], body_results[0])
         # mark "execution condition" Result node
@@ -192,17 +168,17 @@ class LoopExtractor(FrontExtractorOp):
 
         # connect initial value for "loop carried" dependencies variables
         for idx in range(loop_carried_dependencies_count):
-            connect_body_input(loop_node, idx + 2, body_parameters[idx + 2])
+            Loop.connect_body_input(loop_node, idx + 2, body_parameters[idx + 2])
         # add back edge for "loop carried" dependencies variables
         for idx in range(loop_carried_dependencies_count):
             Loop.add_back_edge(loop_node, body_parameters[idx + 2], body_results[idx + 1])
         # connect final value for "loop carried" dependencies variables
         for idx in range(loop_carried_dependencies_count):
-            connect_body_output(loop_node, idx, body_results[idx + 1])
+            Loop.connect_body_output(loop_node, idx, body_results[idx + 1])
 
         # connect "scan outputs" and mark axis for concatenation
         for idx in range(loop_carried_dependencies_count, loop_carried_dependencies_count + scan_outputs_count):
-            connect_body_output(loop_node, idx, body_results[idx + 1], axis=0)
+            Loop.connect_body_output(loop_node, idx, body_results[idx + 1], axis=0)
 
         # run function to parse body nodes attributes similar to the main graph
         extract_node_attrs(body_graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))

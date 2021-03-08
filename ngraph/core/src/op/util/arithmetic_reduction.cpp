@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/arithmetic_reduction.hpp"
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -49,9 +50,13 @@ bool op::util::ArithmeticReduction::reduction_axes_constant() const
 const AxisSet op::util::ArithmeticReduction::get_reduction_axes() const
 {
     AxisSet axes;
-    if (auto const_op = as_type<op::Constant>(input_value(1).get_node()))
+    if (const auto& const_op = get_constant_from_source(input_value(1)))
     {
-        axes = const_op->get_axis_set_val();
+        const auto const_data = const_op->cast_vector<int64_t>();
+        const auto input_data_rank = get_input_partial_shape(0).rank();
+        const auto normalized_axes =
+            ngraph::normalize_axes(get_friendly_name(), const_data, input_data_rank);
+        axes = AxisSet{normalized_axes};
     }
     return axes;
 }
@@ -65,16 +70,17 @@ void op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_
 
 void op::util::ArithmeticReduction::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(util_ArithmeticReduction_validate_and_infer_types);
     auto input_shape = get_input_partial_shape(0);
     const auto input_rank = input_shape.rank();
 
     PartialShape result_shape{PartialShape::dynamic()};
 
-    if (input_rank.is_static() && reduction_axes_constant())
+    auto axes = get_constant_from_source(input_value(1));
+    if (input_rank.is_static() && axes)
     {
         AxisSet reduction_axes;
-        const auto reduction_axes_val =
-            as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
+        const auto reduction_axes_val = axes->cast_vector<int64_t>();
         for (auto axis : reduction_axes_val)
         {
             try

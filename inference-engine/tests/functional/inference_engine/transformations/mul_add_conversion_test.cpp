@@ -23,6 +23,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
 #include <legacy/ngraph_ops/power.hpp>
 #include <legacy/ngraph_ops/scaleshift.hpp>
+#include <legacy/ngraph_ops/eltwise.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -132,8 +133,10 @@ public:
 class MulOrAddConversionTests: public MulAddConversionTests {};
 
 TEST_P(MulAddConversionTests, CompareFunctions) {
-    ngraph::pass::InitNodeInfo().run_on_function(f);
-    ngraph::pass::ConvertMulAddToScaleShiftOrPower().run_on_function(f);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
+    manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
     ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();

@@ -112,8 +112,10 @@ KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params, const op
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return {kd};
+}
+
+KernelsPriority SpaceToDepthKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

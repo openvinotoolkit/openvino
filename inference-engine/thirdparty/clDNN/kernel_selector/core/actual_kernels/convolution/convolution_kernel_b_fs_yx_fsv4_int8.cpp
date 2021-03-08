@@ -49,9 +49,6 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefault(const convolution_params& cp, int) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
-    dispatchData.efficiency = FORCE_PRIORITY_9;
-    if (cp.output.X().v > 512 && cp.filterSize.x == 5 && cp.filterSize.y == 5)
-        dispatchData.efficiency = FORCE_PRIORITY_2;
     dispatchData.gws[0] = CeilDiv(cp.output.X().v, sub_group_size) / 2;
     dispatchData.gws[1] = cp.output.Y().v;
     dispatchData.gws[2] = sub_group_size;
@@ -61,6 +58,15 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefa
     dispatchData.lws[2] = sub_group_size;
 
     return dispatchData;
+}
+
+KernelsPriority ConvolutionKernel_b_fs_yx_fsv4_int8::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const convolution_params&>(params);
+
+    if (p.output.X().v > 512 && p.filterSize.x == 5 && p.filterSize.y == 5)
+        return FORCE_PRIORITY_2;
+    else
+        return FORCE_PRIORITY_9;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p, const optional_params& o) const {

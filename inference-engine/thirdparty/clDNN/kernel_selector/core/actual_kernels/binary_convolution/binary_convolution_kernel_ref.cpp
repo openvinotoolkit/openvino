@@ -57,9 +57,11 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelRef::SetDefault
     dispatchData.lws[1] = 1;
     dispatchData.lws[2] = 1;
 
-    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
     return dispatchData;
+}
+
+KernelsPriority BinaryConvolutionKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 JitConstants BinaryConvolutionKernelRef::GetJitConstants(const binary_convolution_params& params,

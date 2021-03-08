@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(TARGET fluid_preproc_tests)
+
 find_package(OpenCV COMPONENTS gapi QUIET)
 if(NOT OpenCV_FOUND)
-    message(WARNING "No suitable OpenCV version detected, " ${TARGET_NAME} " skipped")
+    message(WARNING "No suitable OpenCV version detected, ${TARGET} skipped")
     return()
 endif()
 
@@ -13,7 +15,6 @@ add_subdirectory(fluid_test_computations)
 file(GLOB SOURCES *.cpp common/*.cpp cpu/*.cpp)
 file(GLOB HEADERS *.hpp common/*.hpp cpu/*.hpp)
 
-set(TARGET fluid_preproc_tests)
 add_executable(${TARGET} ${SOURCES} ${HEADERS})
 
 target_include_directories(${TARGET} PRIVATE

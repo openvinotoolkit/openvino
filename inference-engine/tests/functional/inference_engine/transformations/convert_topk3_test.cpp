@@ -15,6 +15,7 @@
 #include <transformations/op_conversions/convert_topk3.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -32,8 +33,11 @@ TEST(TransformationTests, ConvertTopK3I32Output0) {
         // due to the 'compare_functions' limitation we will check only one output
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertTopK3().run_on_function(f);
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertTopK3>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -67,8 +71,10 @@ TEST(TransformationTests, ConvertTopK3I32Output1) {
         // due to the 'compare_functions' limitation we will check only one output
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(1)}, ngraph::ParameterVector{input});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertTopK3().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertTopK3>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -102,8 +108,10 @@ TEST(TransformationTests, ConvertTopK3I64Output0) {
         // due to the 'compare_functions' limitation we will check only one output
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertTopK3().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertTopK3>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -137,8 +145,10 @@ TEST(TransformationTests, ConvertTopK3I64Output1) {
         // due to the 'compare_functions' limitation we will check only one output
         f = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(1)}, ngraph::ParameterVector{input});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertTopK3().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertTopK3>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 

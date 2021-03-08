@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 #include "ngraph/op/selu.hpp"
+#include "itt.hpp"
 
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
@@ -30,6 +31,11 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::v0::Selu::type_info;
 
+op::v0::Selu::Selu()
+    : FusedOp()
+{
+}
+
 op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Output<Node>& lambda)
     : FusedOp({data, alpha, lambda})
 {
@@ -38,6 +44,7 @@ op::v0::Selu::Selu(const Output<Node>& data, const Output<Node>& alpha, const Ou
 
 bool ngraph::op::v0::Selu::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_Selu_visit_attributes);
     return true;
 }
 
@@ -62,6 +69,7 @@ OutputVector op::v0::Selu::decompose_op() const
 
 shared_ptr<Node> op::v0::Selu::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_Selu_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v0::Selu>(new_args.at(0), new_args.at(1), new_args.at(2));
 }

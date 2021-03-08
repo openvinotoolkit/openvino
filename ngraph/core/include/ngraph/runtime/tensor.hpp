@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,6 +63,7 @@ namespace ngraph
 
             /// \brief Get tensor's unique name
             /// \return tensor's name
+            NGRAPH_DEPRECATED("Only output ports have names")
             const std::string& get_name() const;
 
             /// \brief Get the stale value of the tensor. A tensor is stale if its data is

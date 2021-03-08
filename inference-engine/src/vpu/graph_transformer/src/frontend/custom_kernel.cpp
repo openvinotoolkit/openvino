@@ -196,7 +196,7 @@ CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir):
     _maxShaves = XMLParseUtils::GetIntAttr(kernel, "max-shaves", 0);
 
     std::string fileName;
-    for (auto source = kernel.child("Source"); !source.empty(); source = source.next_sibling("Source")) {
+    FOREACH_CHILD(source, kernel, "Source") {
         fileName = _configDir + "/" + XMLParseUtils::GetStrAttr(source, "filename", "");
 
         std::ifstream inputFile(fileName, std::ios::binary);
@@ -307,7 +307,7 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
     const auto cmp = ie::details::CaselessEq<std::string> {};
     const auto parameters = node.child("Parameters");
 
-    for (auto tensor = parameters.child("Tensor"); !tensor.empty(); tensor = tensor.next_sibling("Tensor")) {
+    FOREACH_CHILD(tensor, parameters, "Tensor") {
         KernelParam kp;
 
         auto typeStr = XMLParseUtils::GetStrAttr(tensor, "type");
@@ -340,7 +340,7 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
         _kernelParams.push_back(std::move(kp));
     }
 
-    for (auto data = parameters.child("Data"); !data.empty(); data = data.next_sibling("Data")) {
+    FOREACH_CHILD(data, parameters, "Data") {
         KernelParam kp;
 
         auto typeStr = XMLParseUtils::GetStrAttr(data, "type");
@@ -377,7 +377,7 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
         _kernelParams.push_back(std::move(kp));
     }
 
-    for (auto scalar = parameters.child("Scalar"); !scalar.empty(); scalar = scalar.next_sibling("Scalar")) {
+    FOREACH_CHILD(scalar, parameters, "Scalar") {
         KernelParam kp;
 
         const auto type = XMLParseUtils::GetStrAttr(scalar, "type");

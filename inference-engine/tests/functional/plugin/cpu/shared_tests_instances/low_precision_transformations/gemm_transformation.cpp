@@ -11,20 +11,20 @@ using namespace LayerTestsDefinitions;
 using namespace ngraph::pass::low_precision;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> netPrecisions = {
+        ngraph::element::f32,
+        // ngraph::element::f16
 };
 
-const std::vector<InferenceEngine::SizeVector> dimensions = {
-    InferenceEngine::SizeVector({ 1, 3, 16, 16 })
+const std::vector<ngraph::Shape> dimensions = {
+    { 1, 3, 16, 16 }
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams().setSupportAsymmetricQuantization(true),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams().setSupportAsymmetricQuantization(false),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setSupportAsymmetricQuantization(true),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setSupportAsymmetricQuantization(false),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsI8I8(),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, GemmTransformation,

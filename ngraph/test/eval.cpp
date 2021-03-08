@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -132,7 +132,7 @@ TEST(eval, max_eval_minimum_constant)
 {
     auto c = op::Constant::create<int64_t>(element::i64, Shape{}, {27});
     auto p = make_shared<op::Parameter>(element::i64, Shape{});
-    auto m = make_shared<op::Minimum>(c, p);
+    auto m = make_shared<op::v1::Minimum>(c, p);
     auto result = maximum_value(m);
     ASSERT_TRUE(result.first);
     EXPECT_EQ(result.second, 27);

@@ -8,7 +8,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include <transformations/itt.hpp>
+#include <itt.hpp>
 #include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 #include <transformations/smart_reshape/reshape_to_1D.hpp>
 #include <transformations/smart_reshape/set_batch_size.hpp>
@@ -17,6 +17,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SetBatchSize, "SetBatchSize", 0);
 
 bool ngraph::pass::SetBatchSize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    RUN_ON_FUNCTION_SCOPE(SetBatchSize);
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::SetBatchSize");
 
     ngraph::pass::Manager manager;

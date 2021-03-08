@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,28 +19,8 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/multiply.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
-
-// ------------------------------------ v0 -------------------------------------
-
-constexpr NodeTypeInfo op::v0::Multiply::type_info;
-
-op::v0::Multiply::Multiply(const Output<Node>& arg0,
-                           const Output<Node>& arg1,
-                           const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast)
-{
-    constructor_validate_and_infer_types();
-}
-
-shared_ptr<Node> op::v0::Multiply::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<op::v0::Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
-}
 
 namespace multiplyop
 {
@@ -68,29 +48,17 @@ namespace multiplyop
         out->set_broadcast(broadcast_spec, arg0, arg1);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_multiply, i32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_multiply, i64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_multiply, u32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_multiply, u64, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_multiply, f16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_multiply, f32, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_multiply, bf16, arg0, arg1, out, broadcast_spec);
         default: rc = false; break;
         }
         return rc;
     }
-}
-
-bool op::v0::Multiply::evaluate(const HostTensorVector& outputs,
-                                const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Multiply::evaluate");
-    return multiplyop::evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 // ------------------------------------ v1 -------------------------------------
@@ -107,6 +75,7 @@ op::v1::Multiply::Multiply(const Output<Node>& arg0,
 
 shared_ptr<Node> op::v1::Multiply::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Multiply_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Multiply>(new_args.at(0), new_args.at(1), this->get_autob());
 }
@@ -114,13 +83,6 @@ shared_ptr<Node> op::v1::Multiply::clone_with_new_inputs(const OutputVector& new
 bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Multiply::evaluate");
+    NGRAPH_OP_SCOPE(v1_Multiply_evaluate);
     return multiplyop::evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
-}
-
-// -----------------------------------------------------------------------------
-
-shared_ptr<Node> ngraph::operator*(const Output<Node>& arg0, const Output<Node>& arg1)
-{
-    return make_shared<op::Multiply>(arg0, arg1);
 }

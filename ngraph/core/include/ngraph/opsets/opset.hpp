@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -98,7 +98,7 @@ namespace ngraph
         {
             std::lock_guard<std::mutex> guard(get_mutex());
             return m_case_insensitive_type_info_map.find(to_upper_name(name)) !=
-                   m_name_type_info_map.end();
+                   m_case_insensitive_type_info_map.end();
         }
 
         /// \brief Return true if node's type is in the opset
@@ -133,4 +133,5 @@ namespace ngraph
     const NGRAPH_API OpSet& get_opset3();
     const NGRAPH_API OpSet& get_opset4();
     const NGRAPH_API OpSet& get_opset5();
+    const NGRAPH_API OpSet& get_opset6();
 }

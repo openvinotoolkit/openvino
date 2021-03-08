@@ -25,16 +25,19 @@ public:
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
     void createPrimitive() override;
     bool created() const override;
+
     bool fusedWithScale() const {return fusedWith.size() == 1 && fusedWith[0]->getType() == Eltwise
                                         && fusedWith[0]->getCnnLayer()->type == "ScaleShift";}
 
     MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
+
 private:
+    mkldnn::normalization_flags flag = mkldnn::normalization_flags::none;
     float eps = 0.0f;
-    MKLDNNMemoryDesc GetVarianceDesc(const mkldnn::memory::primitive_desc& primitive_desc) const;
-    MKLDNNMemoryDesc GetMeanDesc(const mkldnn::memory::primitive_desc& primitive_desc) const;
-    MKLDNNMemoryDesc GetScaleShiftWeightsDesc(const mkldnn::memory::primitive_desc& primitive_desc) const;
+    MKLDNNMemoryDesc GetVarianceDesc(const mkldnn::primitive_desc& primitive_desc) const;
+    MKLDNNMemoryDesc GetMeanDesc(const mkldnn::primitive_desc& primitive_desc) const;
+    MKLDNNMemoryDesc GetScaleShiftWeightsDesc(const mkldnn::primitive_desc& primitive_desc) const;
 };
 
 }  // namespace MKLDNNPlugin

@@ -68,12 +68,18 @@ def parse_args():
     args.add_argument('-shape', type=str, required=False, default='',
                       help='Optional. '
                            'Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.')
+    args.add_argument('-layout', type=str, required=False, default='',
+                      help='Optional. '
+                           'Prompts how network layouts should be treated by application. '
+                           'For example, "input1[NCHW],input2[NC]" or "[NCHW]" in case of one input size.')
     args.add_argument('-nstreams', '--number_streams', type=str, required=False, default=None,
-                      help='Optional. Number of streams to use for inference on the CPU/GPU in throughput mode '
+                      help='Optional. Number of streams to use for inference on the CPU/GPU/MYRIAD '
                            '(for HETERO and MULTI device cases use format <device1>:<nstreams1>,<device2>:<nstreams2> '
                            'or just <nstreams>). '
                            'Default value is determined automatically for a device. Please note that although the automatic selection '
                            'usually provides a reasonable performance, it still may be non - optimal for some cases, especially for very small networks. '
+                           'Also, using nstreams>1 is inherently throughput-oriented option, while for the best-latency '
+                           'estimations the number of streams should be set to 1. '
                            'See samples README for more details.')
     args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.')
@@ -81,7 +87,7 @@ def parse_args():
                       help='Number of threads to use for inference on the CPU, GNA '
                            '(including HETERO and MULTI cases).')
     args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False, default='YES', choices=['YES', 'NO', 'NUMA'],
-                      help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')' 
+                      help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')'
                            'CPU threads pinning for CPU-involved inference.')
     args.add_argument('-exec_graph_path', '--exec_graph_path', type=str, required=False,
                       help='Optional. Path to a file where to store executable graph information serialized.')

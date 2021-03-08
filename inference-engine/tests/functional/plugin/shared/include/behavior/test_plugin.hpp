@@ -15,9 +15,9 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <functional_test_utils/test_model/test_model.hpp>
 #include <fstream>
-#include <functional_test_utils/behavior_test_utils.hpp>
+#include <base/behavior_test_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
-#include "functional_test_utils/layer_test_utils.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
@@ -87,7 +87,7 @@ TEST_P(BehaviorTestInput, canSetInputPrecisionForNetwork) {
         InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
         try {
             ie->LoadNetwork(cnnNet, targetDevice, configuration);
-        } catch (InferenceEngine::details::InferenceEngineException ex) {
+        } catch (InferenceEngine::details::InferenceEngineException & ex) {
             msg = ex.what();
             sts = ex.getStatus();
         }
@@ -113,7 +113,7 @@ TEST_P(BehaviorTestOutput, canSetOutputPrecisionForNetwork) {
 
     try {
         InferenceEngine::ExecutableNetwork exeNetwork = ie->LoadNetwork(cnnNet, targetDevice, configuration);
-    } catch (InferenceEngine::details::InferenceEngineException ex) {
+    } catch (InferenceEngine::details::InferenceEngineException & ex) {
         sts = ex.getStatus();
         msg = ex.what();
         std::cout << "LoadNetwork() threw InferenceEngineException. Status: " << sts << ", message: " << msg << std::endl;

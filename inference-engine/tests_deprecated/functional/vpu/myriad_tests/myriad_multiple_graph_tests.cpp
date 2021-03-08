@@ -17,12 +17,9 @@ typedef myriadLayerTestBaseWithParam<num_graphs> myriadMultipleGraphsTests_night
 TEST_P(myriadMultipleGraphsTests_nightly, LoadGraphsOnDevice) {
     ASSERT_NO_THROW(_cnnNetwork = InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
     const int num_graphs = GetParam();
-    StatusCode st;
-    std::vector<InferenceEngine::IExecutableNetwork::Ptr> exeNetwork(num_graphs);
-    std::map<std::string, std::string> networkConfig;
+    std::vector<InferenceEngine::ExecutableNetwork> exeNetworks(num_graphs);
     for (int i = 0; i < num_graphs; ++i) {
-        st = _vpuPluginPtr->LoadNetwork(exeNetwork[i], _cnnNetwork, networkConfig, &_resp);
-        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(exeNetworks[i] = _vpuPluginPtr->LoadNetwork(_cnnNetwork));
     }
 }
 

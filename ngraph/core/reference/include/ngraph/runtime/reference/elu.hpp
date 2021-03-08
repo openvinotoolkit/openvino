@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ namespace ngraph
             {
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = arg[i] < 0 ? alpha * (std::exp(arg[i]) - 1.0) : arg[i];
+                    out[i] = arg[i] < T(0) ? T(alpha * (std::exp(arg[i]) - 1.0)) : arg[i];
                 }
             }
         }

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "ngraph/descriptor/input.hpp"
@@ -40,6 +42,9 @@ namespace ngraph
         public:
             Output()
                 : m_node(nullptr)
+                , m_index(0)
+                , m_tensor(nullptr)
+                , m_inputs()
             {
             }
 

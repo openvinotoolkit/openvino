@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.upsample import UpsampleOp
+from extensions.ops.ONNXResize10 import ONNXResize10
 from extensions.ops.ONNXResize11 import ONNXResize11Op
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
@@ -43,5 +43,5 @@ class ResizeExtractor(FrontExtractorOp):
             ONNXResize11Op.update_node_stat(node, attrs)
         else:
             mode = onnx_attr(node, 'mode', 's', default=b'nearest').decode()
-            UpsampleOp.update_node_stat(node, {'mode': mode})
+            ONNXResize10.update_node_stat(node, {'mode': mode})
         return cls.enabled

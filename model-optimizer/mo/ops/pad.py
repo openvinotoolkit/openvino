@@ -42,7 +42,6 @@ class Pad(Op):
             'infer': self.infer,
 
             'mode': 'constant',
-            'fill_value': float(0),
 
             'force_precision_in_ports': {
                 1: 'int64',
@@ -54,11 +53,7 @@ class Pad(Op):
         }, attrs)
 
     def backend_attrs(self):
-        return [('pad_mode', 'mode'),
-                ('pad_value', 'fill_value'),
-                ('pads_begin', lambda node: ','.join(map(str, node.pads[:, 0])) if node.has_valid('pads') else None),
-                ('pads_end', lambda node: ','.join(map(str, node.pads[:, 1])) if node.has_valid('pads') else None),
-                ]
+        return [('pad_mode', 'mode')]
 
     @staticmethod
     def infer(node):

@@ -24,7 +24,7 @@ void dynamicToStaticShapeSqueeze(std::shared_ptr<ngraph::Node> target) {
                      target, ngraph::opset3::Squeeze::type_info);
 
     const auto dsr = target->input_value(0).get_node_shared_ptr();
-    VPU_THROW_UNLESS(std::dynamic_pointer_cast<ngraph::vpu::op::DynamicShapeResolver>(dsr),
+    VPU_THROW_UNLESS(ngraph::is_type<ngraph::vpu::op::DynamicShapeResolver>(dsr),
         "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
         target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
 

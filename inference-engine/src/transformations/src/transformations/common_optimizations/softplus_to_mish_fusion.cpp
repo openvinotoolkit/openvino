@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/softplus_to_mish_fusion.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusToMishFusion, "SoftPlusToMishFusion", 0);
 
 ngraph::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
+    MATCHER_SCOPE(SoftPlusToMishFusion);
     auto input = ngraph::pattern::any_input();
     auto softplus = ngraph::pattern::wrap_type<ngraph::opset4::SoftPlus>({input}, pattern::consumers_count(1));
     auto tanh = ngraph::pattern::wrap_type<ngraph::opset4::Tanh>({softplus}, pattern::consumers_count(1));
@@ -33,6 +35,6 @@ ngraph::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SoftPlusToMishFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
     register_matcher(m, callback);
 }

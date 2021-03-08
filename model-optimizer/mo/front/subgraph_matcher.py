@@ -199,7 +199,7 @@ class SubgraphMatcher(object):
                     node_name, self.replacement_desc.id))
                 return None
 
-        matched_nodes = sub_graph_between_nodes(graph, start_points, end_points)
+        matched_nodes = sub_graph_between_nodes(graph, start_points, end_points, include_control_flow=False)
         return SubgraphMatch(graph, self.replacement_desc, matched_nodes,
                              self.replacement_desc.get_inputs_description(),
                              self.replacement_desc.get_outputs_description(), '')

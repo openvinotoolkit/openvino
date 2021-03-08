@@ -48,9 +48,11 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeaturesFSV16::SetDefault(const
                          out.Y().v * out.Batch().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    dispatchData.efficiency = FORCE_PRIORITY_6;
-
     return dispatchData;
+}
+
+KernelsPriority LRNKernelAcrossChannelMultipleFeaturesFSV16::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_6;
 }
 
 JitConstants LRNKernelAcrossChannelMultipleFeaturesFSV16::GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const {

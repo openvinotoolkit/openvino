@@ -5,7 +5,7 @@
 #include <subgraph_tests/cascade_concat.hpp>
 #include "common_test_utils/test_constants.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace SubgraphTestsDefinitions;
 
 namespace {
     std::vector<std::vector<std::vector<size_t>>> shape1{

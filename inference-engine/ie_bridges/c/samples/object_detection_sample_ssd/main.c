@@ -463,6 +463,8 @@ int main(int argc, char **argv) {
     if (status != OK)
         goto err;
 
+    /** Using ie_network_reshape() to set the batch size equal to the number of input images **/
+    /** For input with NCHW/NHWC layout the first dimension N is the batch size **/
     shapes.shapes[0].shape.dims[0] = image_num;
     status = ie_network_reshape(network, shapes);
     if (status != OK)

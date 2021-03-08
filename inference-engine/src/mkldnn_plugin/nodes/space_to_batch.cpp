@@ -54,15 +54,11 @@ public:
                 auto inData = spaceToBatchLayer->insData[i].lock();
                 if (inData == nullptr)
                     THROW_IE_EXCEPTION << "'" << spaceToBatchLayer->name << "' layer has nullable input data";
-                config.inConfs[i].desc = TensorDesc(inData->getTensorDesc().getPrecision(),
-                        inData->getTensorDesc().getDims(),
-                        inData->getTensorDesc().getLayout());
+                config.inConfs[i].desc = TensorDesc(precision, inData->getTensorDesc().getDims(), inData->getTensorDesc().getLayout());
             }
 
             DataConfig outConfig;
-            outConfig.desc = TensorDesc(layer->outData[0]->getTensorDesc().getPrecision(),
-                    out_dims,
-                    layer->outData[0]->getTensorDesc().getLayout());
+            outConfig.desc = TensorDesc(precision, out_dims, layer->outData[0]->getTensorDesc().getLayout());
             config.outConfs.push_back(outConfig);
             config.dynBatchSupport = false;
             confs.push_back(config);

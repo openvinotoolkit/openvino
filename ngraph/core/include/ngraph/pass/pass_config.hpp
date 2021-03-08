@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,7 +77,9 @@ namespace ngraph
             template <typename T>
             void disable()
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 disable(T::type_info);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             /// \brief Enable transformation by its type_info
@@ -87,7 +89,9 @@ namespace ngraph
             template <typename T>
             void enable()
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 enable(T::type_info);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             /// \brief Set callback for all kind of transformations
@@ -142,7 +146,9 @@ namespace ngraph
             template <typename T>
             param_callback get_callback() const
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 return get_callback(T::type_info);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             /// \brief Check either transformation type is disabled or not
@@ -158,7 +164,9 @@ namespace ngraph
             template <typename T>
             bool is_disabled() const
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
                 return is_disabled(T::type_info);
+                NGRAPH_SUPPRESS_DEPRECATED_END
             }
 
             /// \brief Check either transformation type is force enabled or not

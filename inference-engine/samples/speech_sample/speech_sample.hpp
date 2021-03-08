@@ -84,7 +84,7 @@ static const char context_window_message_r[] = "Optional. Number of frames for r
 /// @brief message for output layer names
 static const char output_layer_names_message[] = "Optional. Layer names for output blobs. " \
                                           "The names are separated with \",\" " \
-                                          "Example: input1:port,input2:port ";
+                                          "Example: Output1:port,Output2:port ";
 
 /// @brief message for inputs layer names
 static const char input_layer_names_message[] = "Optional. Layer names for input blobs. " \
@@ -107,7 +107,7 @@ DEFINE_string(m, "", model_message);
 DEFINE_string(p, "", plugin_message);
 
 /// \brief device the target device to infer on <br>
-DEFINE_string(d, "GNA_AUTO", target_device_message);
+DEFINE_string(d, "CPU", target_device_message);
 
 /// \brief Enable per-layer performance report
 DEFINE_bool(pc, false, performance_counter_message);

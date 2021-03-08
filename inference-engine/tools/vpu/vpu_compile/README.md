@@ -57,25 +57,26 @@ To do this, you should call the `Export()` method on the `ExecutableNetwork` obj
 Example:
 
 ```sh
-InferenceEngine::ExecutableNetwork executableNetwork = plugin.LoadNetwork(network,{});
+InferenceEngine::Core core;
+InferenceEngine::ExecutableNetwork executableNetwork = core.LoadNetwork(network);
 executableNetwork.Export("model_name.blob");
 ```
 
 #### Import
 
 You can upload blob with network into your application.
-To do this, you should call the `ImportNetwork()` method on the `InferencePlugin` object.
+To do this, you should call the `ImportNetwork()` method on the `Core` object.
 `ImportNetwork()` has the following arguments:
-* ExecutableNetwork [OUT]
 * Path to blob [IN]
 * Config options [IN]
+And returns `ExecutableNetwork` object
 
 Example:
 
 ```sh
 std::string modelFilename ("model_name.blob");
-InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;
-pluginPtr->ImportNetwork(importedNetworkPtr, modelFilename, {});
+InferenceEngine::Core core;
+InferenceEngine::ExecutableNetwork importedNetwork = core.ImportNetwork(modelFilename);
 ```
 
 > **NOTE**: Models should be first converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer).

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "single_layer_tests/proposal.hpp"
+#include "shared_test_classes/single_layer/proposal.hpp"
 
 namespace BehaviorTestsDefinitions {
 
@@ -23,6 +23,7 @@ public:
 protected:
     void SetUp() override;
     void Validate() override {};
+    void Run() override;
 
     const LayerTestsDefinitions::normalize_type normalize = true;
     const LayerTestsDefinitions::feat_stride_type feat_stride = 1;

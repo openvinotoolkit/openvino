@@ -73,8 +73,10 @@ KernelsData RegionYoloKernelRef::GetKernelsData(const Params& params, const opti
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
-    kd.estimatedTime = FORCE_PRIORITY_9;
-
     return {kd};
+}
+
+KernelsPriority RegionYoloKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_9;
 }
 }  // namespace kernel_selector

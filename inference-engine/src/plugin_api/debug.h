@@ -204,7 +204,8 @@ inline bool endsWith(const std::string& src, const char* with) {
 inline std::string tolower(const std::string& s) {
     std::string ret;
     ret.resize(s.length());
-    std::transform(s.begin(), s.end(), ret.begin(), ::tolower);
+    std::transform(s.begin(), s.end(), ret.begin(),
+        [](char c) { return static_cast<char>(::tolower(static_cast<int>(c))); });
     return ret;
 }
 }  // namespace details

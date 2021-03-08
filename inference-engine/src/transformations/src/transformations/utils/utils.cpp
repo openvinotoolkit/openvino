@@ -51,7 +51,7 @@ bool get_single_value(const std::shared_ptr<op::Constant>& const_node, float& va
 std::shared_ptr<Node> normalize_constant(const std::shared_ptr<op::Constant>& constant,
                                          const PartialShape& shape) {
     auto const_shape = constant->get_shape();
-    if (const_shape.size() == shape.rank().get_length()) {
+    if (static_cast<int64_t>(const_shape.size()) == shape.rank().get_length()) {
         return constant;
     }
     int64_t cnt = shape.rank().get_length() - const_shape.size();

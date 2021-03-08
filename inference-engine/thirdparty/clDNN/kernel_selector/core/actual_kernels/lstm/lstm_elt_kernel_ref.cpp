@@ -38,4 +38,8 @@ ParamsKey LSTMEltKernelRef::GetSupportedKey() const {
 KernelsData LSTMEltKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
+
+KernelsPriority LSTMEltKernelRef::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
+}
 }  // namespace kernel_selector

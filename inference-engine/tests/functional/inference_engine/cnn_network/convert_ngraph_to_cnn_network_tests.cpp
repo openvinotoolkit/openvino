@@ -12,12 +12,14 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_precision.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph_ops/convolution_ie.hpp>
 #include <transformations/init_node_info.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -41,8 +43,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
-        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
+        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
@@ -71,8 +72,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
-        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
+        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(nGraphImpl);
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         FAIL();
     }
@@ -82,7 +82,6 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
     ngraph::NodeVector should_converted_to_ie = {
             std::make_shared<ngraph::opset4::Broadcast>(),
             std::make_shared<ngraph::opset4::Convolution>(),
-            std::make_shared<ngraph::opset4::Gather>(),
             std::make_shared<ngraph::opset4::GatherTree>(),
             std::make_shared<ngraph::opset4::GroupConvolution>(),
             std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(),
@@ -392,3 +391,77 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesParametersNegative) {
         EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Detected two output operations with the same name:")));
     }
 }
+
+TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers) {
+    std::shared_ptr<ngraph::Function> f(nullptr);
+    {
+        auto constReadVal = ngraph::opset5::Constant::create(ngraph::element::f32, {1, 37632}, {0});
+        constReadVal->set_friendly_name("const");
+        auto readVal = std::make_shared<ngraph::opset5::ReadValue>(constReadVal, "buffer_1");
+        readVal->set_friendly_name("readVal_Buf1");
+
+        auto constVarSplit1 = ngraph::opset5::Constant::create(ngraph::element::i64, {}, {1});
+        constVarSplit1->set_friendly_name("varSplitConst1");
+        auto constVarSplit2 = ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {5376, 32256});
+        constVarSplit2->set_friendly_name("varSplitConst2");
+
+        auto varSplit = std::make_shared<ngraph::opset5::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
+
+        auto param1 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
+        auto varConcat = std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(0), param1}, 1);
+        auto result = std::make_shared<ngraph::opset5::Result>(varConcat);
+
+        auto param2 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
+        auto varConcat2 = std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
+
+        auto assign = std::make_shared<ngraph::opset5::Assign>(varConcat2, "buffer_1");
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::SinkVector{assign}, ngraph::ParameterVector{param1, param2});
+    }
+
+    InferenceEngine::CNNNetwork nGraphImpl(f);
+    nGraphImpl = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
+    int memory_count(0);
+    IE_SUPPRESS_DEPRECATED_START
+    for (details::CNNNetworkIterator itLayer{nGraphImpl}; itLayer != details::CNNNetworkIterator(); itLayer++) {
+        if ((*itLayer)->type == "Memory")
+            memory_count++;
+    }
+    IE_SUPPRESS_DEPRECATED_END
+    ASSERT_EQ(2, memory_count);
+}
+
+TEST(ConvertFunctionToCNNNetworkTests, IteratorForMemoryLayers2) {
+    std::shared_ptr<ngraph::Function> f(nullptr);
+    {
+        auto constReadVal = ngraph::opset5::Constant::create(ngraph::element::f32, {1, 37632}, {0});
+        constReadVal->set_friendly_name("const");
+        auto readVal = std::make_shared<ngraph::opset5::ReadValue>(constReadVal, "buffer_1");
+        readVal->set_friendly_name("readVal_Buf1");
+
+        auto constVarSplit1 = ngraph::opset5::Constant::create(ngraph::element::i64, {}, {1});
+        constVarSplit1->set_friendly_name("varSplitConst1");
+        auto constVarSplit2 = ngraph::opset5::Constant::create(ngraph::element::i64, {2}, {5376, 32256});
+        constVarSplit2->set_friendly_name("varSplitConst2");
+
+        auto varSplit = std::make_shared<ngraph::opset5::VariadicSplit>(readVal, constVarSplit1, constVarSplit2);
+
+        auto param2 = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::Shape{1, 5376});
+        auto varConcat2 = std::make_shared<ngraph::opset5::Concat>(ngraph::OutputVector{varSplit->output(1), param2}, 1);
+
+        auto assign = std::make_shared<ngraph::opset5::Assign>(varConcat2, "buffer_1");
+        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{}, ngraph::SinkVector{assign}, ngraph::ParameterVector{param2});
+    }
+
+    InferenceEngine::CNNNetwork nGraphImpl(f);
+    nGraphImpl = CNNNetwork(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
+    int memory_count(0);
+    IE_SUPPRESS_DEPRECATED_START
+    for (details::CNNNetworkIterator itLayer{nGraphImpl}; itLayer != details::CNNNetworkIterator(); itLayer++) {
+        if ((*itLayer)->type == "Memory")
+            memory_count++;
+    }
+    IE_SUPPRESS_DEPRECATED_END
+    ASSERT_EQ(2, memory_count);
+}
+
+

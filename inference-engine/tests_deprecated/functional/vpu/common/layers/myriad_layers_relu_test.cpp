@@ -162,7 +162,6 @@ TEST_F(myriadLayersTests_nightly, graphTransformerNotThrowExceptionIfConvOutputI
         )V0G0N";
 
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights(120));
-    StatusCode st;
 
     ASSERT_NO_THROW(readNetwork(model, weightsBlob));
 
@@ -175,9 +174,8 @@ TEST_F(myriadLayersTests_nightly, graphTransformerNotThrowExceptionIfConvOutputI
     _outputsInfo["conv1/relu"]->setPrecision(Precision::FP16);
     _outputsInfo["deconv"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
-}
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, {}));
+    }
 
 TEST_F(myriadLayersTests_nightly, ReLU_PostOp_Conflict) {
     const std::string model = R"V0G0N(
@@ -274,8 +272,6 @@ TEST_F(myriadLayersTests_nightly, ReLU_PostOp_Conflict) {
 
     TBlob<uint8_t>::Ptr weights(GenWeights(num_weights + num_bias));
 
-    StatusCode st;
-
     ASSERT_NO_THROW(readNetwork(model, weights));
 
     const auto& network = _cnnNetwork;
@@ -287,6 +283,5 @@ TEST_F(myriadLayersTests_nightly, ReLU_PostOp_Conflict) {
     _outputsInfo["relu"]->setPrecision(Precision::FP16);
     _outputsInfo["power"]->setPrecision(Precision::FP16);
 
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, {}, &_resp));
-    ASSERT_EQ(st, StatusCode::OK);
+    ASSERT_NO_THROW(_exeNetwork = _vpuPluginPtr->LoadNetwork(network, {}));
 }

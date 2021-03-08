@@ -78,7 +78,7 @@ bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
     }
     size_t outputRank = data->get_shape()[0];
 
-    for (int i = 0; i < outputRank; i++) {
+    for (size_t i = 0; i < outputRank; i++) {
         result.push_back(dataPtr[i]);
     }
 
@@ -97,7 +97,7 @@ bool setShapeToHostTensorData(const HostTensorPtr& data, const Shape& shape) {
         return false;
     }
 
-    for (int i = 0; i < outputRank; i++) {
+    for (size_t i = 0; i < outputRank; i++) {
         dataPtr[i] = static_cast<T>(shape[i]);
     }
     return true;

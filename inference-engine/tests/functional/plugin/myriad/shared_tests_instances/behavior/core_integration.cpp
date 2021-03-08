@@ -38,8 +38,7 @@ INSTANTIATE_TEST_CASE_P(
 // IEClassNetworkTestP tests, customized to add SKIP_IF_CURRENT_TEST_IS_DISABLED()
 //
 
-class IEClassNetworkTestP_VPU : public IEClassNetworkTestP {
-};
+using IEClassNetworkTestP_VPU = IEClassNetworkTestP;
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowIfNoDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
@@ -62,11 +61,9 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
     std::stringstream strm;
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(strm));
-    SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.Export(strm));
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
 TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
@@ -76,18 +73,13 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrow
     std::string fileName{"ExportedNetwork"};
     {
         ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(actualNetwork, deviceName));
-        SKIP_IF_NOT_IMPLEMENTED(executableNetwork.Export(fileName));
+        ASSERT_NO_THROW(executableNetwork.Export(fileName));
     }
-    if (CommonTestUtils::fileExists(fileName)) {
-        {
-            std::ifstream strm(fileName);
-            SKIP_IF_NOT_IMPLEMENTED(executableNetwork = ie.ImportNetwork(strm, deviceName));
-        }
-        ASSERT_EQ(0, remove(fileName.c_str()));
+    {
+        std::ifstream strm(fileName);
+        ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(strm, deviceName));
     }
-    if (nullptr != static_cast<IExecutableNetwork::Ptr &>(executableNetwork)) {
-        ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
-    }
+    ASSERT_NO_THROW(executableNetwork.CreateInferRequest());
 }
 
 using IEClassNetworkTestP_VPU_GetMetric = IEClassNetworkTestP_VPU;

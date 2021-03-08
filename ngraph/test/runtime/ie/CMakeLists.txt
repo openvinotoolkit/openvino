@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,11 +38,5 @@ if(COMMAND ie_add_vs_version_file)
 endif()
 
 add_dependencies(ie_backend inference_engine)
-target_compile_definitions(ie_backend PRIVATE IE_BACKEND_DLL_EXPORTS)
 target_include_directories(ie_backend PUBLIC ${IE_MAIN_SOURCE_DIR}/include)
 target_link_libraries(ie_backend PUBLIC ngraph_backend inference_engine)
-
-install(TARGETS ie_backend
-    LIBRARY DESTINATION "${NGRAPH_INSTALL_LIB}"
-    ARCHIVE DESTINATION "${NGRAPH_INSTALL_LIB}"
-)
