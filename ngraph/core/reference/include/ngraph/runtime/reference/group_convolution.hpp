@@ -22,6 +22,7 @@
 namespace
 {
     constexpr size_t filter_group_axis = 0;
+    constexpr size_t filter_in_channels = 2;
     constexpr size_t in_batch_axis = 0;
     constexpr size_t in_channel_axis = 1;
     constexpr size_t out_batch_axis = 0;
@@ -34,6 +35,28 @@ namespace ngraph
     {
         namespace reference
         {
+            void validate_group_convolution_input_shapes(const Shape& in_shape,
+                                                         const Shape& f_shape)
+            {
+                // this implementation supports 1D, 2D and 3D convolutions
+                NGRAPH_CHECK(in_shape.size() >= 3 && in_shape.size() <= 5,
+                             "Unsupported input rank: ",
+                             in_shape);
+
+                NGRAPH_CHECK(f_shape.size() >= 4 && f_shape.size() <= 6,
+                             "Unsupported filter rank: ",
+                             f_shape.size());
+
+                const size_t groups = f_shape[filter_group_axis];
+                const size_t in_channels = in_shape[in_channel_axis];
+                NGRAPH_CHECK(in_channels % groups == 0,
+                             "Input channels of data batch input must be multiple of groups");
+
+                NGRAPH_CHECK(in_channels == groups * f_shape[filter_in_channels],
+                             "Input channels of data batch input must be the result of multiplying"
+                             "groups and filters input channels");
+            }
+
             template <typename INPUT,
                       typename FILTER,
                       typename OUTPUT,
@@ -50,9 +73,7 @@ namespace ngraph
                                    const CoordinateDiff& pads_end)
 
             {
-                NGRAPH_CHECK(filter_shape.size() >= 4 && filter_shape.size() <= 6,
-                             "Unsupported kernel rank: ",
-                             filter_shape);
+                validate_group_convolution_input_shapes(in_shape, filter_shape);
 
                 const size_t group_count = filter_shape[filter_group_axis];
 
@@ -81,11 +102,6 @@ namespace ngraph
                 }();
                 const size_t group_out_size = shape_size(group_out_shape);
 
-                // TODO: delete in_dilation when Convolution PR (#3922) is merged
-                // in_dilation parameter is needed only for old implementation (CoordinateTransform
-                // based)
-                Strides in_dilation(in_shape.size());
-                std::fill(in_dilation.begin(), in_dilation.end(), 1);
                 for (size_t batch_idx = 0; batch_idx < in_shape[in_batch_axis]; ++batch_idx)
                 {
                     group_filter = f;
@@ -100,8 +116,7 @@ namespace ngraph
                                                         strides,
                                                         dilation,
                                                         pads_begin,
-                                                        pads_end,
-                                                        in_dilation);
+                                                        pads_end);
                         group_batch += group_batch_size;
                         group_filter += group_filter_size;
                         group_out += group_out_size;
