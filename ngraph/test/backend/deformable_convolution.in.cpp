@@ -50,7 +50,6 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
     const CoordinateDiff pads_begin{padding};
     const CoordinateDiff pads_end{padding};
     const op::PadType auto_pad{op::PadType::EXPLICIT};
-
     auto inputs_param = make_shared<op::Parameter>(element::f32, inputs_shape);
     auto offsets_param = make_shared<op::Parameter>(element::f32, offsets_shape);
     auto filter_param = make_shared<op::Parameter>(element::f32, filter_shape);
@@ -66,7 +65,6 @@ static void DeformableConvolutionTest(const std::vector<float>& inputs,
                                                            deformable_group);
     auto f =
         make_shared<Function>(conv, ParameterVector{inputs_param, offsets_param, filter_param});
-
     auto test_case = test::TestCase<TestEngine>(f);
 
     test_case.add_input<float>(inputs);
@@ -647,34 +645,34 @@ NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_2group_1batch_2channel)
 
     const Shape filter_shape{2, 2, 3, 3};
     const std::vector<float> filter{1.0f, 0.0f, 3.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     1.0f, 0.0f, 3.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     1.0f, 0.0f, 3.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     1.0f, 0.0f, 3.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     3.0f, 0.0f, 1.0f};
+                                    3.0f, 0.0f, 1.0f,
+                                    3.0f, 0.0f, 1.0f,
+                                    1.0f, 0.0f, 3.0f,
+                                    3.0f, 0.0f, 1.0f,
+                                    3.0f, 0.0f, 1.0f,
+                                    1.0f, 0.0f, 3.0f,
+                                    3.0f, 0.0f, 1.0f,
+                                    3.0f, 0.0f, 1.0f,
+                                    1.0f, 0.0f, 3.0f,
+                                    3.0f, 0.0f, 1.0f,
+                                    3.0f, 0.0f, 1.0f};
     
     const Shape offsets_shape{1, 18, 3, 3};
     const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 2, 3, 3};
-    const std::vector<float> outputs{44.0f, 62.0f, 72.0f, 
-                                     44.0f, 62.0f, 72.0f, 
-                                     44.0f, 62.0f, 72.0f, 
-                                     44.0f, 62.0f, 72.0f,  
-                                     44.0f, 62.0f, 72.0f,  
-                                     44.0f, 62.0f, 72.0f};
+    const std::vector<float> outputs{22.0f, 31.0f, 36.0f,
+                                     22.0f, 31.0f, 36.0f, 
+                                     22.0f, 31.0f, 36.0f,
+                                     22.0f, 31.0f, 36.0f,
+                                     22.0f, 31.0f, 36.0f, 
+                                     22.0f, 31.0f, 36.0f,};
 
     DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
                               filter_shape, outputs, outputs_shape,strides, padding, dilations, group);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_deformable_convolution_2D_2group_1batch_2_filter_2channel)
+NGRAPH_TEST(${BACKEND_NAME}, deformable_convolution_2D_2group_1batch_2_filter_2channel)
 {
     const Strides strides{1, 1};
     const CoordinateDiff padding{0, 0};
@@ -687,6 +685,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_deformable_convolution_2D_2group_1batch_2_
                                     -1.0f, -3.0f, -3.0f, 2.0f, 3.0f,
                                     1.0f, 3.0f, 3.0f, 2.0f, 3.0f,
                                     0.0f, 1.0f, 2.0f, 2.0f, 3.0f,
+                                    
                                     0.0f, 1.0f, 2.0f, 2.0f, 3.0f,
                                     -1.0f, -3.0f, -3.0f, 2.0f, 3.0f,
                                     1.0f, 3.0f, 3.0f, 2.0f, 3.0f,
@@ -695,31 +694,35 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_deformable_convolution_2D_2group_1batch_2_
 
     const Shape filter_shape{2, 2, 3, 3};
     const std::vector<float> filter{1.0f, 0.0f, 3.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     -3.0f, 0.0f, 1.0f,
-                                     1.0f, 0.0f, 3.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     -3.0f, 0.0f, 1.0f,
-                                     1.0f, 0.0f, 3.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     -3.0f, 0.0f, 1.0f,
-                                     1.0f, 0.0f, 3.0f,
-                                     3.0f, 0.0f, 1.0f,
-                                     -3.0f, 0.0f, 1.0f};
+                                    3.0f, 0.0f, 1.0f,
+                                    -3.0f, 0.0f, 1.0f,
+                                    
+                                    1.0f, 0.0f, 3.0f,
+                                    3.0f, 0.0f, 1.0f,
+                                    -3.0f, 0.0f, 1.0f,
+                                    
+                                    1.0f, 0.0f, 3.0f,
+                                    3.0f, 0.0f, 1.0f,
+                                    -3.0f, 0.0f, 1.0f,
+                                    
+                                    1.0f, 0.0f, 3.0f,
+                                    3.0f, 0.0f, 1.0f,
+                                    -3.0f, 0.0f, 1.0f};
     
     const Shape offsets_shape{1, 18, 3, 3};
     const std::vector<float> offsets(ngraph::shape_size(offsets_shape), 0);
 
     const Shape outputs_shape{1, 2, 3, 3};
-    const std::vector<float> outputs{12.0f, 18.0f, 26.0f, 
-                                     -2.0f, 6.0f, 14.0f,
-                                     12.0f, 26.0f, 33.0f,
-                                     12.0f, 18.0f, 26.0f,
-                                     -2.0f, 6.0f, 14.0f,
-                                     12.0f, 26.0f, 33.0f};
+    const std::vector<float> outputs{12.0f, 25.0f, 27.0f, 
+                                     0.0f, -7.0f, -1.0f,
+                                     -2.0f, 13.0f, 15.0f,
+                                     
+                                     0.0f, -7.0f, -1.0f,
+                                     -2.0f, 13.0f, 15.0f,
+                                     14.0f, 13.0f, 18.0f};
 
     DeformableConvolutionTest(inputs, inputs_shape, offsets, offsets_shape, filter,
-                              filter_shape, outputs, outputs_shape,strides, padding, dilations, group);
+                              filter_shape, outputs, outputs_shape, strides, padding, dilations, group);
 }
 
 // --------------------- 2D deformable convolution ------------------------------------------
