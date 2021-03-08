@@ -100,40 +100,44 @@ namespace ngraph
                     if (data.get_partial_shape().is_static())
                     {
                         auto output_shape = data.get_shape();
-                        const auto output_rank = output_shape.size();
-                        std::vector<float> scales(output_rank, 1.f);
-                        // scale up last two dimensions
-                        auto i = output_rank - 1;
-                        output_shape[i] = std::floor(output_shape[i] * width_scale);
-                        scales[i] = width_scale;
-                        --i;
-                        output_shape[i] = std::floor(output_shape[i] * height_scale);
-                        scales[i] = height_scale;
+                        const auto rank = output_shape.size();
+                        std::vector<float> scales(rank, 1.f);
+                        scales[rank - 1] = width_scale;
+                        scales[rank - 2] = height_scale;
+                        output_shape[rank - 1] = std::floor(output_shape[rank - 1] * width_scale);
+                        output_shape[rank - 2] = std::floor(output_shape[rank - 2] * height_scale);
+
                         const auto output_shape_const = default_opset::Constant::create(
                             element::u64, Shape({output_shape.size()}), output_shape);
-
                         const auto scales_const = default_opset::Constant::create(
                             ngraph::element::f32, Shape({scales.size()}), scales);
 
                         return {std::make_shared<default_opset::Interpolate>(
                             data, output_shape_const, scales_const, attrs)};
                     }
+                    else
+                    {
+                        NGRAPH_CHECK(data.get_partial_shape().rank().is_static(),
+                                     "Input tensor's rank must static.");
 
-#if 0
-                    const auto scales_const = default_opset::Constant::create(
-                        ngraph::element::f32, Shape({scales.size()}), scales);
+                        const auto rank = data.get_partial_shape().rank().get_length();
+                        std::vector<float> scales(rank, 1.f);
+                        scales[rank - 1] = width_scale;
+                        scales[rank - 2] = height_scale;
 
-                    auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-                    auto multiply =
-                        std::make_shared<default_opset::Multiply>(shape_of_data, scales_const);
-                    auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
+                        const auto scales_const = default_opset::Constant::create(
+                            ngraph::element::f32, Shape({scales.size()}), scales);
 
-                    return {std::make_shared<default_opset::Interpolate>(
-                        data, output_shape, scales_const, attrs)};
-#endif
-                    return {};
+                        const auto shape_of_data = std::make_shared<default_opset::Convert>(
+                            std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
+                        const auto multiply =
+                            std::make_shared<default_opset::Multiply>(shape_of_data, scales_const);
+                        const auto output_shape = std::make_shared<default_opset::Convert>(
+                            std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
+
+                        return {std::make_shared<default_opset::Interpolate>(
+                            data, output_shape, scales_const, attrs)};
+                    }
                 }
             } // namespace set_1
 
