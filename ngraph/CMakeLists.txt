@@ -358,11 +358,13 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
 
     set(BEFORE_ONNX_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
     set(BUILD_SHARED_LIBS ON)
+
     if (NOT NGRAPH_USE_SYSTEM_PROTOBUF)
         include(cmake/external_protobuf.cmake)
     else()
         find_package(Protobuf 2.6.1 REQUIRED)
     endif()
+
     # target onnx_proto will be shared lib, onnx static
     include(cmake/external_onnx.cmake)
     if (TARGET ext_protobuf)

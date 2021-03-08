@@ -59,7 +59,7 @@ macro(onnx_set_target_properties)
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
-        if (NGRAPH_EXPORT_TARGETS_ENABLE)
+    if (NGRAPH_EXPORT_TARGETS_ENABLE)
         export(TARGETS onnx onnx_proto NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
     endif()
 endmacro()
@@ -75,7 +75,7 @@ if(NOT ext_onnx_POPULATED)
         set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
     endif()
 
-    # fix problems with symbols visibility for MSVC
+    # apply patch to fix problems with symbols visibility for MSVC
     execute_process(COMMAND git apply --verbose ${ONNX_PATCH_FILE}
       WORKING_DIRECTORY ${ext_onnx_SOURCE_DIR})
 
