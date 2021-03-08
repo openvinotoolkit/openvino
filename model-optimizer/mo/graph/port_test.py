@@ -127,3 +127,15 @@ class TestsGetTensorNames(unittest.TestCase):
 
         self.assertTrue(input_node_out_port.get_tensor_names() == [])
         self.assertTrue(op3_node.out_port(0).get_tensor_names() == ['Op3', 'input', 'Op1\\,Op2'])
+
+
+class TestPortMethods(unittest.TestCase):
+
+    def test_middle_disconnect_several_edges_between_two_nodes(self):
+        graph = build_graph(nodes, [('input', 'input_data'), ('input_data', 'Op1'),
+                                    ('Op1', 'Op1_data'), ('Op1_data', 'Op2', {'in': 0}), ('Op1_data', 'Op2', {'in': 1}),
+                                    ('Op1_data', 'Op2', {'in': 2})],
+                            nodes_with_edges_only=True)
+        op1_node = Node(graph, 'Op1')
+        op1_node.out_port(0).disconnect()
+        self.assertTrue(op1_node.out_port(0).disconnected())
