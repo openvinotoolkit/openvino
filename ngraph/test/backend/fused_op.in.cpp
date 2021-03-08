@@ -69,8 +69,9 @@ NGRAPH_TEST(${BACKEND_NAME}, elu_negative_alpha)
 
 NGRAPH_TEST(${BACKEND_NAME}, prelu)
 {
+    // Shape and rshape must be broadcastable to the same shape
     Shape shape{3, 2};
-    Shape rshape{3};
+    Shape rshape{3, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, rshape);
     auto prelu = make_shared<op::PRelu>(A, B);
