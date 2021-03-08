@@ -76,3 +76,4 @@ class ResultRenameTest(unittest.TestCase):
         res2_node = Node(graph, 'result2')
         self.assertTrue(res1_node['name'] == 'Op1_tensor')
         self.assertTrue(res2_node['name'] == 'Op2_tensor')
+

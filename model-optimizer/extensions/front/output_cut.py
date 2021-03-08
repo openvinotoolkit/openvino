@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -38,13 +38,17 @@ class OutputCut(FrontReplacementPattern):
         # and tensor names information is moved to output->Result edge.
         for node in graph.get_op_nodes():
             if node.soft_get('needs_removal') is True:
-                fw_info = None
-                if 0 in node.in_edges():
-                    in_node = node.in_node(node.in_edge(0)['out'])
-                    fw_info = get_attribute_between_nodes(in_node, node, 'fw_tensor_debug_info')
+                fw_info = []
+                for idx in node.in_edges():
+                    node_idx = node.in_edge(idx)['out']
+                    if node_idx in node.in_nodes():
+                        in_node = node.in_node(node_idx)
+                        fw_info_value = get_attribute_between_nodes(in_node, node, 'fw_tensor_debug_info')
+                        if fw_info_value is not None:
+                            fw_info += fw_info_value
                 graph.erase_node(node)
 
-                if fw_info is not None and in_node is not None:
+                if fw_info and in_node is not None:
                     for out_idx in in_node.out_nodes():
                         set_attribute_between_nodes(in_node, in_node.out_node(out_idx),
                                                     'fw_tensor_debug_info', fw_info)
