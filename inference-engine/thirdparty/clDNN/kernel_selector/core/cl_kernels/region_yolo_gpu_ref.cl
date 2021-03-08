@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "include/include_all.cl"
+#include "include/fetch.cl"
 
-inline UNIT_TYPE FUNC(logistic_activate)(UNIT_TYPE x) {
+inline INPUT0_TYPE FUNC(logistic_activate)(INPUT0_TYPE x) {
     return 1. / (1. + exp(-x));
 }
 
@@ -26,7 +26,7 @@ inline int FUNC(output_index)(int batch, int region_num, int x, int y, int xy, i
 #endif
 }
 
-KERNEL (region_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
+KERNEL (region_yolo_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
     int xy = get_global_id(0);
     int region_num = get_global_id(1);
@@ -62,13 +62,13 @@ KERNEL (region_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* ou
     /// class score(confidence)
 #if DO_SOFTMAX
     in_i = INPUT0_GET_INDEX(batch, COORDS + 1 + region_offset, y_index, x_index);
-    UNIT_TYPE max_value = input[in_i];
+    INPUT0_TYPE max_value = input[in_i];
     for (int j = 1; j < CLASSES; j++) {
         in_i = INPUT0_GET_INDEX(batch, COORDS + 1 + j + region_offset, y_index, x_index);
         max_value = max(max_value, input[in_i]);
     }
 
-    UNIT_TYPE expSum = 0;
+    OUTPUT_TYPE expSum = 0;
     for (int j = 0; j < CLASSES; j++) {
         in_i = INPUT0_GET_INDEX(batch, COORDS + 1 + j + region_offset, y_index, x_index);
         out_i = FUNC_CALL(output_index)(batch, region_num, x_index, y_index, xy, COORDS + 1 + j + region_offset);
