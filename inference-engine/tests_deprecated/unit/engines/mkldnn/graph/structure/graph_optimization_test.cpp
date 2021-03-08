@@ -303,9 +303,6 @@ public:
 
     void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override {}
     void Unload() noexcept override {}
-    void Release() noexcept override {
-        delete this;
-    }
     InferenceEngine::StatusCode getPrimitiveTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
         types = new char *[factories.size()];
         size_t count = 0;

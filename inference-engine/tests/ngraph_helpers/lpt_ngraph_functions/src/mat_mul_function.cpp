@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -327,7 +327,9 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
         true);
     matMul->set_friendly_name("matMul");
 
-    const auto result = std::make_shared<ngraph::opset1::Result>(matMul);
+    const std::shared_ptr<ngraph::opset1::Result> result = std::make_shared<ngraph::opset1::Result>(matMul);
+    result->set_friendly_name("result");
+
     std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
         ngraph::ResultVector{ result },
         std::vector<std::shared_ptr<ngraph::op::Parameter>> { input },
