@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,134 +20,141 @@
 #include <string>
 #include <unordered_map>
 
+#include "core/attribute.hpp"
 #include "ngraph/log.hpp"
-#include "onnx_import/core/attribute.hpp"
-#include "onnx_import/op/abs.hpp"
-#include "onnx_import/op/acos.hpp"
-#include "onnx_import/op/acosh.hpp"
-#include "onnx_import/op/add.hpp"
-#include "onnx_import/op/and.hpp"
-#include "onnx_import/op/argmax.hpp"
-#include "onnx_import/op/argmin.hpp"
-#include "onnx_import/op/asin.hpp"
-#include "onnx_import/op/asinh.hpp"
-#include "onnx_import/op/atan.hpp"
-#include "onnx_import/op/atanh.hpp"
-#include "onnx_import/op/average_pool.hpp"
-#include "onnx_import/op/batch_norm.hpp"
-#include "onnx_import/op/cast.hpp"
-#include "onnx_import/op/ceil.hpp"
-#include "onnx_import/op/clip.hpp"
-#include "onnx_import/op/concat.hpp"
-#include "onnx_import/op/constant.hpp"
-#include "onnx_import/op/constant_of_shape.hpp"
-#include "onnx_import/op/conv.hpp"
-// #include "onnx_import/op/conv_integer.hpp"
-#include "onnx_import/op/conv_transpose.hpp"
-#include "onnx_import/op/cos.hpp"
-#include "onnx_import/op/cosh.hpp"
-#include "onnx_import/op/cum_sum.hpp"
-#include "onnx_import/op/depth_to_space.hpp"
-#include "onnx_import/op/dequantize_linear.hpp"
-#include "onnx_import/op/div.hpp"
-#include "onnx_import/op/dropout.hpp"
-#include "onnx_import/op/elu.hpp"
-#include "onnx_import/op/equal.hpp"
-#include "onnx_import/op/erf.hpp"
-#include "onnx_import/op/exp.hpp"
-#include "onnx_import/op/expand.hpp"
-#include "onnx_import/op/eye_like.hpp"
-#include "onnx_import/op/flatten.hpp"
-#include "onnx_import/op/floor.hpp"
-#include "onnx_import/op/gather.hpp"
-#include "onnx_import/op/gather_nd.hpp"
-#include "onnx_import/op/gemm.hpp"
-#include "onnx_import/op/global_average_pool.hpp"
-#include "onnx_import/op/global_max_pool.hpp"
-#include "onnx_import/op/greater.hpp"
-#include "onnx_import/op/gru.hpp"
-#include "onnx_import/op/hard_sigmoid.hpp"
-#include "onnx_import/op/hardmax.hpp"
-#include "onnx_import/op/identity.hpp"
-#include "onnx_import/op/image_scaler.hpp"
-#include "onnx_import/op/instance_norm.hpp"
-#include "onnx_import/op/leaky_relu.hpp"
-#include "onnx_import/op/less.hpp"
-#include "onnx_import/op/log.hpp"
-#include "onnx_import/op/log_softmax.hpp"
-#include "onnx_import/op/loop.hpp"
-#include "onnx_import/op/lp_norm.hpp"
-#include "onnx_import/op/lp_pool.hpp"
-#include "onnx_import/op/lrn.hpp"
-#include "onnx_import/op/lstm.hpp"
-#include "onnx_import/op/matmul.hpp"
-//#include "onnx_import/op/matmul_integer.hpp"
-#include "onnx_import/op/max.hpp"
-#include "onnx_import/op/max_pool.hpp"
-#include "onnx_import/op/mean.hpp"
-#include "onnx_import/op/mean_variance_normalization.hpp"
-#include "onnx_import/op/min.hpp"
-#include "onnx_import/op/mod.hpp"
-#include "onnx_import/op/mul.hpp"
-#include "onnx_import/op/neg.hpp"
-#include "onnx_import/op/non_max_suppression.hpp"
-#include "onnx_import/op/non_zero.hpp"
-#include "onnx_import/op/not.hpp"
-#include "onnx_import/op/onehot.hpp"
-#include "onnx_import/op/or.hpp"
-#include "onnx_import/op/pad.hpp"
-#include "onnx_import/op/pow.hpp"
-#include "onnx_import/op/prelu.hpp"
-//#include "onnx_import/op/qlinear_matmul.hpp"
-// #include "onnx_import/op/quant_conv.hpp"
-#include "onnx_import/op/quantize_linear.hpp"
-#include "onnx_import/op/range.hpp"
-#include "onnx_import/op/reciprocal.hpp"
-#include "onnx_import/op/reduce.hpp"
-#include "onnx_import/op/relu.hpp"
-#include "onnx_import/op/reshape.hpp"
-#include "onnx_import/op/resize.hpp"
-#include "onnx_import/op/reverse_sequence.hpp"
-#include "onnx_import/op/rnn.hpp"
-#include "onnx_import/op/roi_align.hpp"
-#include "onnx_import/op/round.hpp"
-#include "onnx_import/op/scatter_elements.hpp"
-#include "onnx_import/op/scatter_nd.hpp"
-#include "onnx_import/op/selu.hpp"
-#include "onnx_import/op/shape.hpp"
-#include "onnx_import/op/shrink.hpp"
-#include "onnx_import/op/sigmoid.hpp"
-#include "onnx_import/op/sign.hpp"
-#include "onnx_import/op/sin.hpp"
-#include "onnx_import/op/sinh.hpp"
-#include "onnx_import/op/size.hpp"
-#include "onnx_import/op/slice.hpp"
-#include "onnx_import/op/softmax.hpp"
-#include "onnx_import/op/softplus.hpp"
-#include "onnx_import/op/softsign.hpp"
-#include "onnx_import/op/space_to_depth.hpp"
-#include "onnx_import/op/split.hpp"
-#include "onnx_import/op/sqrt.hpp"
-#include "onnx_import/op/squeeze.hpp"
-#include "onnx_import/op/sub.hpp"
-#include "onnx_import/op/sum.hpp"
-#include "onnx_import/op/tan.hpp"
-#include "onnx_import/op/tanh.hpp"
-#include "onnx_import/op/thresholded_relu.hpp"
-#include "onnx_import/op/tile.hpp"
-#include "onnx_import/op/topk.hpp"
-#include "onnx_import/op/transpose.hpp"
-#include "onnx_import/op/unsqueeze.hpp"
-#include "onnx_import/op/upsample.hpp"
-#include "onnx_import/op/where.hpp"
-#include "onnx_import/op/xor.hpp"
-#include "onnx_import/ops_bridge.hpp"
+#include "op/abs.hpp"
+#include "op/acos.hpp"
+#include "op/acosh.hpp"
+#include "op/add.hpp"
+#include "op/and.hpp"
+#include "op/argmax.hpp"
+#include "op/argmin.hpp"
+#include "op/asin.hpp"
+#include "op/asinh.hpp"
+#include "op/atan.hpp"
+#include "op/atanh.hpp"
+#include "op/average_pool.hpp"
+#include "op/batch_norm.hpp"
+#include "op/cast.hpp"
+#include "op/ceil.hpp"
+#include "op/clip.hpp"
+#include "op/concat.hpp"
+#include "op/constant.hpp"
+#include "op/constant_of_shape.hpp"
+#include "op/conv.hpp"
+// #include "op/conv_integer.hpp"
+#include "op/conv_transpose.hpp"
+#include "op/cos.hpp"
+#include "op/cosh.hpp"
+#include "op/cum_sum.hpp"
+#include "op/depth_to_space.hpp"
+#include "op/dequantize_linear.hpp"
+#include "op/div.hpp"
+#include "op/dropout.hpp"
+#include "op/elu.hpp"
+#include "op/equal.hpp"
+#include "op/erf.hpp"
+#include "op/exp.hpp"
+#include "op/expand.hpp"
+#include "op/eye_like.hpp"
+#include "op/flatten.hpp"
+#include "op/floor.hpp"
+#include "op/gather.hpp"
+#include "op/gather_elements.hpp"
+#include "op/gather_nd.hpp"
+#include "op/gemm.hpp"
+#include "op/global_average_pool.hpp"
+#include "op/global_max_pool.hpp"
+#include "op/greater.hpp"
+#include "op/gru.hpp"
+#include "op/hard_sigmoid.hpp"
+#include "op/hardmax.hpp"
+#include "op/identity.hpp"
+#include "op/image_scaler.hpp"
+#include "op/instance_norm.hpp"
+#include "op/leaky_relu.hpp"
+#include "op/less.hpp"
+#include "op/log.hpp"
+#include "op/log_softmax.hpp"
+#include "op/loop.hpp"
+#include "op/lp_norm.hpp"
+#include "op/lp_pool.hpp"
+#include "op/lrn.hpp"
+#include "op/lstm.hpp"
+#include "op/matmul.hpp"
+//#include "op/matmul_integer.hpp"
+#include "op/max.hpp"
+#include "op/max_pool.hpp"
+#include "op/mean.hpp"
+#include "op/mean_variance_normalization.hpp"
+#include "op/min.hpp"
+#include "op/mod.hpp"
+#include "op/mul.hpp"
+#include "op/neg.hpp"
+#include "op/non_max_suppression.hpp"
+#include "op/non_zero.hpp"
+#include "op/not.hpp"
+#include "op/onehot.hpp"
+#include "op/or.hpp"
+#include "op/pad.hpp"
+#include "op/pow.hpp"
+#include "op/prelu.hpp"
+//#include "op/qlinear_matmul.hpp"
+// #include "op/quant_conv.hpp"
+#include "op/quantize_linear.hpp"
+#include "op/range.hpp"
+#include "op/reciprocal.hpp"
+#include "op/reduce.hpp"
+#include "op/relu.hpp"
+#include "op/reshape.hpp"
+#include "op/resize.hpp"
+#include "op/reverse_sequence.hpp"
+#include "op/rnn.hpp"
+#include "op/roi_align.hpp"
+#include "op/round.hpp"
+#include "op/scatter_elements.hpp"
+#include "op/scatter_nd.hpp"
+#include "op/selu.hpp"
+#include "op/shape.hpp"
+#include "op/shrink.hpp"
+#include "op/sigmoid.hpp"
+#include "op/sign.hpp"
+#include "op/sin.hpp"
+#include "op/sinh.hpp"
+#include "op/size.hpp"
+#include "op/slice.hpp"
+#include "op/softmax.hpp"
+#include "op/softplus.hpp"
+#include "op/softsign.hpp"
+#include "op/space_to_depth.hpp"
+#include "op/split.hpp"
+#include "op/sqrt.hpp"
+#include "op/squeeze.hpp"
+#include "op/sub.hpp"
+#include "op/sum.hpp"
+#include "op/tan.hpp"
+#include "op/tanh.hpp"
+#include "op/thresholded_relu.hpp"
+#include "op/tile.hpp"
+#include "op/topk.hpp"
+#include "op/transpose.hpp"
+#include "op/unsqueeze.hpp"
+#include "op/upsample.hpp"
+#include "op/where.hpp"
+#include "op/xor.hpp"
+#include "ops_bridge.hpp"
 
-#include "onnx_import/op/org.openvinotoolkit/detection_output.hpp"
-#include "onnx_import/op/org.openvinotoolkit/fake_quantize.hpp"
-#include "onnx_import/op/org.openvinotoolkit/group_norm.hpp"
-#include "onnx_import/op/org.openvinotoolkit/normalize.hpp"
-#include "onnx_import/op/org.openvinotoolkit/prior_box.hpp"
+#include "op/org.openvinotoolkit/detection_output.hpp"
+#include "op/org.openvinotoolkit/experimental_detectron/detection_output.hpp"
+#include "op/org.openvinotoolkit/experimental_detectron/generate_proposals_single_image.hpp"
+#include "op/org.openvinotoolkit/experimental_detectron/prior_grid_generator.hpp"
+#include "op/org.openvinotoolkit/experimental_detectron/roi_feature_extractor.hpp"
+#include "op/org.openvinotoolkit/experimental_detectron/topk_rios.hpp"
+#include "op/org.openvinotoolkit/fake_quantize.hpp"
+#include "op/org.openvinotoolkit/group_norm.hpp"
+#include "op/org.openvinotoolkit/normalize.hpp"
+#include "op/org.openvinotoolkit/prior_box.hpp"
+#include "op/org.openvinotoolkit/swish.hpp"
 
 namespace ngraph
 {
@@ -308,7 +315,9 @@ namespace ngraph
             REGISTER_OPERATOR("Add", 7, add);
             REGISTER_OPERATOR("And", 1, logical_and);
             REGISTER_OPERATOR("ArgMin", 1, argmin);
+            REGISTER_OPERATOR("ArgMin", 12, argmin);
             REGISTER_OPERATOR("ArgMax", 1, argmax);
+            REGISTER_OPERATOR("ArgMax", 12, argmax);
             REGISTER_OPERATOR("Asin", 1, asin);
             REGISTER_OPERATOR("Asinh", 1, asinh);
             REGISTER_OPERATOR("Atan", 1, atan);
@@ -334,6 +343,8 @@ namespace ngraph
             REGISTER_OPERATOR("Div", 1, div);
             REGISTER_OPERATOR("Div", 7, div);
             REGISTER_OPERATOR("Dropout", 1, dropout);
+            REGISTER_OPERATOR("Dropout", 7, dropout);
+            REGISTER_OPERATOR("Dropout", 12, dropout);
             REGISTER_OPERATOR("Elu", 1, elu);
             REGISTER_OPERATOR("Equal", 1, equal);
             REGISTER_OPERATOR("Erf", 1, erf);
@@ -343,6 +354,7 @@ namespace ngraph
             REGISTER_OPERATOR("Flatten", 1, flatten);
             REGISTER_OPERATOR("Floor", 1, floor);
             REGISTER_OPERATOR("Gather", 1, gather);
+            REGISTER_OPERATOR("GatherElements", 1, gather_elements);
             REGISTER_OPERATOR("GatherND", 1, gather_nd);
             REGISTER_OPERATOR("Gemm", 1, gemm);
             REGISTER_OPERATOR("Gemm", 6, gemm);
@@ -403,6 +415,7 @@ namespace ngraph
             REGISTER_OPERATOR("ReduceMin", 1, reduce_min);
             REGISTER_OPERATOR("ReduceProd", 1, reduce_prod);
             REGISTER_OPERATOR("ReduceSum", 1, reduce_sum);
+            REGISTER_OPERATOR("ReduceSum", 13, reduce_sum);
             REGISTER_OPERATOR("ReduceSumSquare", 1, reduce_sum_square);
             REGISTER_OPERATOR("Relu", 1, relu);
             REGISTER_OPERATOR("Reshape", 1, reshape);
@@ -426,12 +439,17 @@ namespace ngraph
             REGISTER_OPERATOR("Slice", 1, slice);
             REGISTER_OPERATOR("Slice", 10, slice);
             REGISTER_OPERATOR("Softmax", 1, softmax);
+            // Softmax v7 should be in the 11th opset but,
+            // other frameworks(mxnet and onnxruntime) already use for older models.
+            REGISTER_OPERATOR("Softmax", 7, softmax);
             REGISTER_OPERATOR("Softplus", 1, softplus);
             REGISTER_OPERATOR("Softsign", 1, softsign);
             REGISTER_OPERATOR("SpaceToDepth", 1, space_to_depth);
             REGISTER_OPERATOR("Split", 1, split);
+            REGISTER_OPERATOR("Split", 13, split);
             REGISTER_OPERATOR("Sqrt", 1, sqrt);
             REGISTER_OPERATOR("Squeeze", 1, squeeze);
+            REGISTER_OPERATOR("Squeeze", 13, squeeze);
             REGISTER_OPERATOR("Sub", 1, sub);
             REGISTER_OPERATOR("Sub", 7, sub);
             REGISTER_OPERATOR("Sum", 1, sum);
@@ -445,6 +463,7 @@ namespace ngraph
             REGISTER_OPERATOR("TopK", 11, topk);
             REGISTER_OPERATOR("Transpose", 1, transpose);
             REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
+            REGISTER_OPERATOR("Unsqueeze", 13, unsqueeze);
             REGISTER_OPERATOR("Upsample", 1, upsample);
             REGISTER_OPERATOR("Upsample", 9, upsample);
             REGISTER_OPERATOR("Where", 1, where);
@@ -453,10 +472,35 @@ namespace ngraph
             // custom OPs
             REGISTER_OPERATOR_WITH_DOMAIN(
                 OPENVINO_ONNX_DOMAIN, "DetectionOutput", 1, detection_output);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronDetectionOutput",
+                                          1,
+                                          experimental_detectron_detection_output);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronGenerateProposalsSingleImage",
+                                          1,
+                                          experimental_detectron_generate_proposals);
+            REGISTER_OPERATOR_WITH_DOMAIN(
+                OPENVINO_ONNX_DOMAIN, "ExperimentalDetectronGroupNorm", 1, group_norm);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronPriorGridGenerator",
+                                          1,
+                                          experimental_detectron_prior_grid_generator);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronROIFeatureExtractor",
+                                          1,
+                                          experimental_detectron_roi_feature_extractor);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN,
+                                          "ExperimentalDetectronTopKROIs",
+                                          1,
+                                          experimental_detectron_topk_rois);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GroupNorm", 1, group_norm);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
+            REGISTER_OPERATOR_WITH_DOMAIN(
+                OPENVINO_ONNX_DOMAIN, "PriorBoxClustered", 1, prior_box_clustered);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Swish", 1, swish);
         }
 
 #undef REGISTER_OPERATOR

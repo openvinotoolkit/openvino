@@ -331,6 +331,8 @@ void GNAPropagateMatcher :: match() {
 
             EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
 
+            EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
+
             EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
 
@@ -470,8 +472,7 @@ void GNAPropagateMatcher :: match() {
             }
         }
 
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap;
-        plugin.GetPerformanceCounts(perfMap);
+        auto perfMap = plugin.GetPerformanceCounts();
 
         if(_env.is_profiling_enabled != false) {
             ASSERT_NE(perfMap.empty(),true);
@@ -556,6 +557,8 @@ void GNAPluginAOTMatcher :: match() {
         }));
 
     EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
+
+    EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
@@ -657,6 +660,8 @@ void GNADumpXNNMatcher::match() {
             }));
 
         EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
+
+        EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
 
         EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 
@@ -782,6 +787,8 @@ void GNAQueryStateMatcher :: match() {
         }));
 
     EXPECT_CALL(mockApi, Gna2DeviceOpen(_)).WillOnce(Return(Gna2StatusSuccess));
+
+    EXPECT_CALL(mockApi, Gna2GetLibraryVersion(_,_)).Times(AtLeast(0)).WillRepeatedly(Return(Gna2StatusSuccess));
 
     EXPECT_CALL(mockApi, Gna2InstrumentationConfigCreate(_,_,_,_)).WillOnce(Return(Gna2StatusSuccess));
 

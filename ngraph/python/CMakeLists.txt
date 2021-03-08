@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,30 +16,37 @@
 
 cmake_minimum_required (VERSION 3.13)
 
-project (pyngraph)
+include(FetchContent)
 
-include(ExternalProject)
-
-ExternalProject_Add(
-        pybind11
-        GIT_REPOSITORY "https://github.com/pybind/pybind11.git"
-        GIT_TAG "v2.5.0"
-        SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pybind11"
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND ""
-        INSTALL_COMMAND ""
+FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY "https://github.com/pybind/pybind11.git"
+    GIT_TAG        "v2.5.0"
 )
 
-set(BUILD_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/build_wheel.py.in")
-set(BUILD_PY    "${CMAKE_CURRENT_BINARY_DIR}/build_wheel.py")
-configure_file(${BUILD_PY_IN} ${BUILD_PY} @ONLY)
+FetchContent_GetProperties(pybind11)
+if(NOT pybind11_POPULATED)
+    FetchContent_Populate(pybind11)
+    add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
+endif()
 
-add_custom_command(
-        DEPENDS pybind11
-        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dist/
-        POST_BUILD
-        WORKING_DIR ${CMAKE_CURRENT_BINARY_DIR}
-        COMMAND python ${BUILD_PY}
-)
 
-add_custom_target(python_wheel DEPENDS ngraph ${CMAKE_CURRENT_BINARY_DIR}/dist/)
+# compile options
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # disable warning: This operator was deprecated and will be removed with v0 operation.
+    add_compile_options(/wd4996)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wno-deprecated-register)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    add_link_options(-stdlib=libc++)
+    add_compile_options(-Wno-unused-value)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # WA for GCC 7.5 "PYBIND11_NOINLINE inline" warning
+    add_compile_options(-Wno-error=attributes)
+endif()
+
+# configure targets
+
+add_subdirectory (src/pyopenvino)
+add_subdirectory (src/pyngraph)

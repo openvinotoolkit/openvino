@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2018-2021 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,56 +14,15 @@
  limitations under the License.
 """
 
+from typing import List, Tuple
+
 import numpy as np
 
-from mo.front.common.partial_infer.slice import tf_strided_slice_infer
-from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.partial_infer.utils import get_shape_from_slice
 from mo.graph.graph import Node, Graph
-from mo.ops.op import Op, PermuteAttrs
+from mo.ops.op import Op
+from mo.utils.error import Error
 from mo.utils.utils import array_to_str
-
-
-def extend_mask_according_ellipsis(ellipsis_mask, shrink_axis_mask, length_output_shape, attr_mask_extended, ins_value):
-    # ellipsis is set, add dimensions in right place otherwise insert in the end
-    if np.any(ellipsis_mask):
-        idx = np.nonzero(ellipsis_mask)
-        assert len(idx[0]) == 1
-        insert_ind = idx[0][0]
-    else:
-        insert_ind = len(attr_mask_extended) - 1
-
-    ellipse_ext = length_output_shape + np.count_nonzero(shrink_axis_mask) - len(attr_mask_extended)
-    for i in range(0, ellipse_ext):
-        attr_mask_extended.insert(insert_ind + i + 1, ins_value)
-
-    return attr_mask_extended
-
-
-def permute_array(node: Node, array: np.array):
-    """
-    This function permutes masks according to permutation parameter. Mask have the same or more length than output
-    """
-    attr_mask_extended = list(array)
-
-    # If input and output have length of shape 3 and less, no need to permute
-    if len(node.in_port(0).data.get_shape()) < 4 and len(node.out_port(0).data.get_shape()) < 4:
-        return attr_mask_extended
-
-    perm_len = len(node.out_port(0).data.get_shape()) + np.count_nonzero(node.shrink_axis_mask)
-    perm = PermuteAttrs.get_nhwc_to_nchw_permutation(perm_len)
-    perm_list = list(perm.perm)
-    # if mask length is more than output, just add tail that will not be permuted to avoid error
-    for i in range(perm_len, len(attr_mask_extended)):
-        perm_list.append(i)
-    return int64_array(attr_mask_extended)[int64_array(perm_list)]
-
-
-def permute_masks(node: Node, permutation: PermuteAttrs.Permutation, attr: str):
-    if not node.has_valid(attr):
-        return None
-
-    node[attr] = permute_array(node, node[attr])
-    return node[attr]
 
 
 class StridedSlice(Op):
@@ -79,11 +38,12 @@ class StridedSlice(Op):
             'out_ports_count': 1,
             'infer': __class__.infer
         }, attrs)
-        assert 'new_axis_mask' in attrs, "Attribute 'new_axis_mask' of the StridedSlice node is not given."
-        assert 'shrink_axis_mask' in attrs, "Attribute 'shrink_axis_mask' of the StridedSlice node is not given."
-        assert 'ellipsis_mask' in attrs, "Attribute 'ellipsis_mask' of the StridedSlice node is not given."
-        assert 'begin_mask' in attrs, "Attribute 'begin_mask' of the StridedSlice node is not given."
-        assert 'end_mask' in attrs, "Attribute 'end_mask' of the StridedSlice node is not given."
+        for mask_name in StridedSlice.get_mask_names():
+            assert mask_name in attrs, 'Attribute {} of the StridedSlice node is not given.'.format(mask_name)
+
+    @staticmethod
+    def get_mask_names():
+        return ['begin_mask', 'end_mask', 'new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask']
 
     def backend_attrs(self):
         al = list()
@@ -91,61 +51,86 @@ class StridedSlice(Op):
         def convert(attr):
             return lambda node: array_to_str(node, attr)
 
-        for a in list(['new_axis_mask', 'shrink_axis_mask', 'ellipsis_mask', 'begin_mask', 'end_mask']):
+        for a in StridedSlice.get_mask_names():
             al.append((a, convert(a)))
         return al
 
     @staticmethod
     def infer(node: Node):
-        tf_strided_slice_infer(node)
+        begin, end, strides = StridedSlice.validate_inputs_and_get_args(node)
 
-        out_shape = node.out_port(0).data.get_shape()
-        assert out_shape is not None, \
-            'Output shape was not calculated for node {}'.format(node.name)
-        # extend inputs according to ellipsis mask and/or input_shape
-        for i_port in node.in_ports().values():
-            if i_port.idx == 0 or i_port.disconnected():
-                continue
-            old_value = i_port.data.get_value()
-            # additional check for non-const input
-            # error will be return in shape inference if non-const will be added
-            # it is paranoid check for case if shape inference will be changed
-            assert old_value is not None, \
-                '{} input of {} node is not constant: \'value\' attribute for edge ' + \
-                'contains None'.format(i_port.idx, node.name)
-            # insert 0 for begin and end and 1 for stride
-            new_value = int64_array(extend_mask_according_ellipsis(node.ellipsis_mask, node.shrink_axis_mask,
-                                                                   len(out_shape), list(old_value),
-                                                                   int(i_port.idx == 3)))
-            # set_value additionally set_shape and propagate value to Const node
-            if not np.array_equal(new_value, old_value):
-                i_port.data.set_value(new_value)
+        StridedSlice.align_mask_with_slice_rank(node, len(begin))
 
-        # extend masks before removing ellipsis
-        for attr in ["new_axis_mask", "shrink_axis_mask", "begin_mask", "end_mask", "ellipsis_mask"]:
-            node[attr] = int64_array(extend_mask_according_ellipsis(node.ellipsis_mask, node.shrink_axis_mask,
-                                                                    len(out_shape), list(node[attr]), 0))
+        data_shape = node.in_port(0).data.get_shape()
+        data_value = node.in_port(0).data.get_value()
+        slices = StridedSlice.get_slices(node, data_shape, begin, end, strides)
 
-        # we will extend all masks and inputs to simplify future transformations
-        idx = np.nonzero(node.ellipsis_mask)
-        node.ellipsis_mask[idx] = 0
+        if data_value is not None:
+            node.out_port(0).data.set_value(data_value[tuple(slices)])
+        else:
+            node.out_port(0).data.set_shape(get_shape_from_slice(data_shape, slices))
 
-        if node.graph.graph['layout'] == 'NHWC' and node.out_port(0).data.get_value() is None:
-            PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0', permute_masks),
-                                                           ('new_axis_mask', 'input:0', permute_masks),
-                                                           ('ellipsis_mask', 'input:0', permute_masks),
-                                                           ('begin_mask', 'input:0', permute_masks),
-                                                           ('end_mask', 'input:0', permute_masks),
-                                                           ])
-            # permute inputs
-            in_shape = node.in_port(0).get_source().data.get_shape()
-            assert in_shape is not None, \
-                'Input shape is unknown for 0 input of node {}'.format(node.name)
-            input_rank = len(in_shape)
-            if input_rank > 3:
-                for i_port in node.in_ports().values():
-                    if i_port.idx == 0 or i_port.disconnected():
-                        continue
-                    new_value = permute_array(node, i_port.data.get_value())
-                    # set_value additionally set_shape and propagate value to Const node
-                    i_port.data.set_value(new_value)
+        node['slices'] = slices
+        node['force_precision_in_ports'] = {port: 'int64' for port in range(1, len(node.in_nodes()))}
+
+        # StridedSliceNormalizer inserts nodes that change original begin, end, and strides data nodes
+        # and since input permutations are stored in data nodes we end up having permutations
+        # in the wrong place of the graph.
+        # Therefore PermuteInputs will be set after StridedSliceNormalizer.
+
+    @staticmethod
+    def get_slices(node: Node, data_shape: Tuple, begin: np.array, end: np.array, strides: np.array) -> List:
+        input_rank = len(data_shape)
+        slice_rank = len(begin)
+        # from now slices are without ellipsis
+        slices = [[]] * slice_rank
+        in_idx = 0  # index along input tensor shapes, note that input_rank not necessary is equal to slice_rank
+        for i in range(slice_rank):
+            if node.new_axis_mask[i]:
+                slices[i] = np.newaxis
+            elif node.shrink_axis_mask[i]:
+                slices[i] = int(begin[i])
+                if slices[i] < 0:  # need for ConvertGroupedStridedSlice
+                    slices[i] += int(data_shape[in_idx])
+            elif node.ellipsis_mask[i]:
+                slices[i] = ...
+                in_idx += input_rank - slice_rank + np.count_nonzero(node.new_axis_mask)
+            else:
+                start, stop = begin[i], end[i]
+                if not node.begin_mask[i]:  # if begin, and end are not specified take the whole range
+                    start = None
+                if not node.end_mask[i]:
+                    stop = None
+                slices[i] = slice(start, stop, strides[i])
+            in_idx += 1 if not node.new_axis_mask[i] else 0
+        return slices
+
+    @staticmethod
+    def align_mask_with_slice_rank(node: Node, slice_rank: int):
+        # align masks sizes with slice_rank (not confuse with extending, mask_aligment != mask_extending)
+        for mask_name in StridedSlice.get_mask_names():
+            num_insertations = slice_rank - len(node[mask_name])
+            val = 0 if mask_name not in ['begin_mask', 'end_mask'] else 1  # extend with ones only for begin and end
+            node[mask_name] = np.append(node[mask_name], [val] * num_insertations).astype(int)
+
+    @staticmethod
+    def validate_inputs_and_get_args(node: Node) -> (np.ndarray, np.ndarray, np.ndarray):
+        node_name = node.soft_get('name', node.id)
+        begin = node.in_port(1).data.get_value()
+        end = node.in_port(2).data.get_value()
+
+        if begin is None or end is None:
+            raise Error(
+                'StridedSlice operation for node {} supports only constant begin and end inputs'.format(node_name))
+
+        if node.is_in_port_connected(3):
+            strides = node.in_port(3).data.get_value()
+            if strides is None:
+                raise Error(
+                    'StridedSlice operation for node {} supports only constant strides input'.format(node_name))
+        else:
+            strides = np.ones_like(begin)
+        assert len(begin) == len(end) == len(strides), \
+            'begin, end, and strides of StridedSlice node {} must be of the same length. Got insted:' \
+            'begin = {}, end = {}, strides = {}'.format(node_name, begin, end, strides)
+        return begin, end, strides

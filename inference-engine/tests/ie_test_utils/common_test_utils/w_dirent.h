@@ -36,6 +36,7 @@
 #include <windef.h>
 #include <fileapi.h>
 #include <Winbase.h>
+#include <sys/types.h>
 #include <sys/stat.h>
 
 // Copied from linux libc sys/stat.h:

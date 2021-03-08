@@ -1,5 +1,5 @@
 # ******************************************************************************
-# Copyright 2017-2020 Intel Corporation
+# Copyright 2017-2021 Intel Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ import logging
 from typing import Dict, List, Union
 
 import numpy as np
-from openvino.inference_engine import IECore, IENetwork
+from openvino.inference_engine import IECore, IENetwork, Blob, DataPtr
 
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, Node, PartialShape
+from ngraph.impl import Function, Node, PartialShape, Type
+from ngraph.opset1.ops import result
 from ngraph.utils.types import NumericData, get_shape, get_dtype
 
 import tests
@@ -36,13 +37,37 @@ def runtime(backend_name: str = "CPU") -> "Runtime":
 
 def get_runtime():
     """Return runtime object."""
-    return runtime(backend_name=tests.BACKEND_NAME)
+    if tests.BACKEND_NAME is not None:
+        return runtime(backend_name=tests.BACKEND_NAME)
+    else:
+        return runtime()
 
 
-def convert_i64_to_i32(cnn_network: IENetwork) -> None:
+def _convert_inputs(cnn_network: IENetwork) -> None:
+    """WA converts unsupported input images formats."""
+    precision_map = {
+        "FP64": "FP32",
+        "U32": "I32",
+    }
+
     for cnn_input in cnn_network.input_info:
-        if cnn_network.input_info[cnn_input].precision == "I64":
-            cnn_network.input_info[cnn_input].precision = "I32"
+        try:
+            _precision = precision_map[cnn_network.input_info[cnn_input].precision]
+            cnn_network.input_info[cnn_input].precision = _precision
+        except KeyError:
+            pass
+
+
+def apply_ng_type(output: DataPtr, ng_type: Type):
+    ng_ie_supported_type_map = {
+        Type.boolean.get_type_name(): "BOOL",
+        Type.f32.get_type_name(): "FP32",
+        Type.i8.get_type_name(): "I8",
+        Type.i32.get_type_name(): "I32",
+        Type.u8.get_type_name(): "U8",
+    }
+    if ng_type.get_type_name() in ng_ie_supported_type_map:
+        output.precision = ng_ie_supported_type_map[ng_type.get_type_name()]
 
 
 class Runtime(object):
@@ -93,8 +118,30 @@ class Computation(object):
         params_string = ", ".join([param.name for param in self.parameters])
         return "<Computation: {}({})>".format(self.function.get_name(), params_string)
 
+    def _get_ie_output_blob_name(self, outputs: Dict, ng_result: result) -> str:
+        if len(self.results) == 1:
+            return next(iter(outputs.keys()))
+        else:
+            prev_layer = ng_result.input(0).get_source_output()
+            out_name = prev_layer.get_node().get_friendly_name()
+            if prev_layer.get_node().get_output_size() != 1:
+                out_name += "." + str(prev_layer.get_index())
+            return out_name
+
+    def _get_ie_output_blob_buffer(self, output_blobs: Dict[str, Blob], ng_result: result) -> np.ndarray:
+        out_name = self._get_ie_output_blob_name(output_blobs, ng_result)
+        return output_blobs[out_name].buffer
+
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
+        # Input validation
+        if len(input_values) < len(self.parameters):
+            raise UserInputError(
+                "Expected %s params, received not enough %s values.", len(self.parameters), len(input_values)
+            )
+        # ignore not needed input values
+        input_values = input_values[:len(self.parameters)]
+
         input_values = [np.array(input_value) for input_value in input_values]
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
@@ -105,19 +152,19 @@ class Computation(object):
             cnn_network = IENetwork(capsule)
             if self.function.is_dynamic():
                 cnn_network.reshape(dict(zip(param_names, input_shapes)))
-            # Convert inputs of the network from I64 to I32
-            convert_i64_to_i32(cnn_network)
+            # Convert unsupported inputs of the network
+            _convert_inputs(cnn_network)
             self.network_cache[str(input_shapes)] = cnn_network
         else:
             cnn_network = self.network_cache[str(input_shapes)]
 
+        # set output blobs precission based on nG results
+        for ng_result in self.results:
+            ie_out_name = self._get_ie_output_blob_name(cnn_network.outputs, ng_result)
+            apply_ng_type(cnn_network.outputs[ie_out_name], ng_result.get_output_element_type(0))
+
         executable_network = self.runtime.backend.load_network(cnn_network, self.runtime.backend_name)
 
-        # Input validation
-        if len(input_values) != len(self.parameters):
-            raise UserInputError(
-                "Expected %s parameters, received %s.", len(self.parameters), len(input_values)
-            )
         for parameter, input in zip(self.parameters, input_values):
             parameter_shape = parameter.get_output_partial_shape(0)
             input_shape = PartialShape(input.shape)
@@ -131,9 +178,12 @@ class Computation(object):
         request = executable_network.requests[0]
         request.infer(dict(zip(param_names, input_values)))
 
+        # Set order of output blobs compatible with nG Function
+        result_buffers = [self._get_ie_output_blob_buffer(request.output_blobs, result)
+                          for result in self.results]
+
         # Since OV overwrite result data type we have to convert results to the original one.
         original_dtypes = [get_dtype(result.get_output_element_type(0)) for result in self.results]
-        result_buffers = [blob.buffer for blob in request.output_blobs.values()]
         converted_buffers = [buffer.astype(original_dtype) for buffer, original_dtype in
                              zip(result_buffers, original_dtypes)]
         return converted_buffers

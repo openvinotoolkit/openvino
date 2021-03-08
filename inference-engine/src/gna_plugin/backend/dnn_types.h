@@ -1,13 +1,16 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <map>
+#include <string>
 #include <type_traits>
-#include "gna_types.h"
 
+#include "gna_types.h"
 #include "gna_plugin_log.hpp"
 
 enum DnnActivationType : uint8_t {
@@ -44,15 +47,20 @@ struct DnnActivation {
             float offset;
         } pow;
         struct {
-            int32_t levels;
-            float input_low;
-            float input_high;
-            float output_low;
-            float output_high;
-        } fakeQuantize;
+            float low;
+            float high;
+        } clamp;
         struct {
-            float reserved[5];
-        };
+            int32_t levels;
+            // if input is per-channel quantization - input pointers contains per-channel ranges
+            int8_t  inputPerChannel;
+            float  *input_low;
+            float  *input_high;
+            // if output is per-channel quantization - output pointers contains per-channel ranges
+            int8_t  outputPerChannel;
+            float  *output_low;
+            float  *output_high;
+        } fakeQuantize;
     } args;
     operator DnnActivationType () const noexcept {
         return type;
@@ -67,25 +75,7 @@ struct DnnActivation {
 
 static_assert(std::is_trivial<DnnActivation>::value, "DnnActivation is not trival type");
 
-static const char *intel_dnn_activation_name[kActNumType] = {
-        "kActNone",
-        "kActSigmoid",
-        "kActTanh",
-        "kActRelu",
-        "kActLeakyRelu",
-        "kActIdentity",
-        "kActKaldiLstmClipping",
-        "kActExp",
-        "kActLog",
-        "kActSign",
-        "kActAbs",
-        "kActNegLog",
-        "kActNegHalfLog",
-        "kActCustom",
-        "kActSoftSign",
-        "kActPow",
-        "kActFakeQuantize"
-};
+extern const char *intel_dnn_activation_name[kActNumType];
 
 typedef enum DnnSoftmaxType {
     kSoftmaxNone,
@@ -95,12 +85,7 @@ typedef enum DnnSoftmaxType {
     kSoftmaxNumType
 } intel_dnn_softmax_type_t;
 
-static const char *intel_dnn_softmax_name[kSoftmaxNumType] = {
-        "kSoftmaxNone",
-        "kSoftmaxKaldiSumGroup",
-        "kSoftmaxKaldiApplyLog",
-        "kSoftmaxGoogle"
-};
+extern const char *intel_dnn_softmax_name[kSoftmaxNumType];
 
 typedef enum {
     kDnnUnknownOrientation = 100,
@@ -114,6 +99,7 @@ typedef enum {
     kDnnAffineOp,
     kDnnDiagonalOp,
     kDnnConvolutional1dOp,
+    kDnnConvolutional2dOp,
     kDnnPiecewiselinearOp,
     kDnnMaxPoolOp,
     kDnnRecurrentOp,
@@ -123,18 +109,7 @@ typedef enum {
     kDnnNumOp
 } intel_dnn_operation_t;
 
-static const char *intel_dnn_operation_name[kDnnNumOp] = {
-        "kDnnNullOp",
-        "kDnnAffineOp",
-        "kDnnDiagonalOp",
-        "kDnnConvolutional1dOp",
-        "kDnnPiecewiselinearOp",
-        "kDnnMaxPoolOp",
-        "kDnnRecurrentOp",
-        "kDnnInterleaveOp",
-        "kDnnDeinterleaveOp",
-        "kDnnCopyOp"
-};
+extern const char* intel_dnn_operation_name[kDnnNumOp];
 
 typedef enum {
     kDnnMacroOpNone,
@@ -143,11 +118,7 @@ typedef enum {
     kDnnNumMacroOp
 } intel_dnn_macro_operation_t;
 
-static const char *intel_dnn_macro_operation_name[kDnnNumMacroOp] = {
-        "kDnnMacroOpNone",
-        "kDnnMacroOpLstm",
-        "kDnnMacroOpBiLstm"
-};
+extern const char *intel_dnn_macro_operation_name[kDnnNumMacroOp];
 
 typedef enum {
     kDnnFloat,
@@ -155,10 +126,7 @@ typedef enum {
     kDnnNumNumberType
 } intel_dnn_number_type_t;
 
-static const char *intel_dnn_number_type_name[kDnnNumNumberType] = {
-        "kDnnFloat",
-        "kDnnInt"
-};
+extern const char *intel_dnn_number_type_name[kDnnNumNumberType];
 
 typedef struct {
     uint32_t num_bytes_per_weight;
@@ -181,6 +149,13 @@ typedef struct {
     void *ptr_filters;     // filters stored one after the other
     void *ptr_biases;
 } intel_convolutionalD_t;
+
+typedef struct {
+    std::array<uint32_t, 2> convStride;
+    float weight_scale_factor;
+    void* ptr_filters;     // filters stored one after the other
+    void* ptr_biases;
+} intel_convolutional2D_t;
 
 typedef struct {
     uint32_t num_inputs;         // pool size
@@ -216,7 +191,70 @@ typedef struct {
     uint32_t num_copy_rows;            // number of rows to copy
 } intel_copy_t;
 
+#if GNA_LIB_VER == 2
+enum OvGnaType {
+    OvGnaTypeInt8 = 1,
+    OvGnaTypeInt16 = 2,
+    OvGnaTypeInt32 = 4,
+    OvGnaTypePwl = 8,
+};
+
+enum OvGnaMode {
+    OvGnaModeDefault = 0,
+    OvGnaModeDisabled = -1
+};
+
+struct OvGnaTensor {
+    std::vector<uint32_t> dimensions;
+    OvGnaType type;
+    OvGnaMode mode;
+};
+
+template <class T>
+OvGnaType OvGnaTypeIntFromBytes(T bytesPerElement) {
+    static const std::map<T, OvGnaType> m = {
+        {1, OvGnaTypeInt8},
+        {2, OvGnaTypeInt16},
+        {4, OvGnaTypeInt32}
+    };
+    const auto r = m.find(bytesPerElement);
+    if (r == m.end()) {
+        THROW_GNA_EXCEPTION << "OvGnaTypeIntFromBytes: unknown bytesPerElement == " << bytesPerElement;
+    }
+    return r->second;
+}
+
+static std::string OvGnaTypeToString(OvGnaType type) {
+    static const std::map<OvGnaType, std::string> typeToString = {
+        {OvGnaTypeInt8, "OvGnaTypeInt8"},
+        {OvGnaTypeInt16, "OvGnaTypeInt16"},
+        {OvGnaTypeInt32, "OvGnaTypeInt32"},
+        {OvGnaTypePwl, "OvGnaTypePwl"},
+    };
+    const auto r = typeToString.find(type);
+    if (r == typeToString.end()) {
+        THROW_GNA_EXCEPTION << "OvGnaTypeToString: unknown type == " << type;
+    }
+    return r->second;
+}
+
+static std::string OvGnaModeToString(OvGnaMode mode) {
+    static const std::map<OvGnaMode, std::string> modeToString = {
+        {OvGnaModeDefault, "OvGnaModeDefault"},
+        {OvGnaModeDisabled, "OvGnaModeDisabled"},
+    };
+    const auto r = modeToString.find(mode);
+    if (r == modeToString.end()) {
+        THROW_GNA_EXCEPTION << "OvGnaModeToString: unknown mode == " << mode;
+    }
+    return r->second;
+}
+#endif
+
 typedef struct {
+#if GNA_LIB_VER == 2
+    std::vector < OvGnaTensor > tensors;
+#endif
     uint32_t num_rows_in;
     uint32_t num_columns_in;
     uint32_t num_rows_out;
@@ -230,6 +268,7 @@ typedef struct {
     union operation_struct_t {
         intel_affine_t affine;
         intel_convolutionalD_t conv1D;
+        intel_convolutional2D_t conv2D;
         intel_maxpool_t maxpool;
         intel_piecewiselinear_t pwl;
         intel_recurrent_t recurrent;

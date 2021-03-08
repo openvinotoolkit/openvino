@@ -24,7 +24,6 @@ namespace kernel_selector {
 
 namespace {
 constexpr size_t fsv = 4;
-constexpr size_t pref_simd = 16;
 constexpr size_t max_reg_usage = 64;
 
 enum mode : size_t {
@@ -374,10 +373,12 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetD
                                      | (static_cast<size_t>(autoTuneParam.preload_input) * mode::preload_input)
                                      | (static_cast<size_t>(autoTuneParam.preload_weights) * mode::preload_weights);
 
-    dispatchData.efficiency = FORCE_PRIORITY_1;
-
     return dispatchData;
 }  // SetDefault
+
+KernelsPriority ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
+    return FORCE_PRIORITY_1;
+}
 
 KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetTunedKernelsDataByIndex(const Params& params,
                                                                                const optional_params& options,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/common_optimizations/softplus_fusion.hpp"
 
 #include <memory>
@@ -14,6 +15,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusFusion, "SoftPlusFusion", 0);
 
 ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
+    MATCHER_SCOPE(SoftPlusFusion);
     // fuses ln(exp(x) + 1.0) operations into SoftPlus(x)
     auto input = ngraph::pattern::any_input();
     auto exp = std::make_shared<ngraph::opset4::Exp>(input);
@@ -50,6 +52,6 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(log, "SoftPlusFusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(log, matcher_name);
     register_matcher(m, callback);
 }

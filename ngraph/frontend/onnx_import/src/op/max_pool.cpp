@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,10 +16,10 @@
 
 #include <memory>
 
-#include "max_pool.hpp"
-#include "ngraph/op/max_pool.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/utils/pooling_factory.hpp"
+#include "core/null_node.hpp"
+#include "ngraph/log.hpp"
+#include "op/max_pool.hpp"
+#include "utils/pooling_factory.hpp"
 
 namespace ngraph
 {
@@ -31,7 +31,11 @@ namespace ngraph
             {
                 OutputVector max_pool(const Node& node)
                 {
-                    auto max_pool = pooling::LocalPoolingFactory(node).make_max_pool();
+                    if (node.get_outputs_size() > 1)
+                    {
+                        NGRAPH_WARN << "MaxPool: Indices output is not supported and was ignored";
+                    }
+                    auto max_pool = pooling::PoolingFactory(node).make_max_pool();
                     max_pool.emplace_back(std::make_shared<NullNode>()); // Indices (optional)
                     return max_pool;
                 }

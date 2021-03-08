@@ -49,13 +49,16 @@ ngraph::HostTensorVector evaluateOp(ngraph::Node* node, const ngraph::HostTensor
 
 std::vector<std::int64_t> evaluateTargetShape(const ngraph::Output<ngraph::Node>& value) {
     static ngraph::Evaluator<ngraph::HostTensorPtr>::op_handler_map handlers = {
-        {ngraph::opset3::ShapeOf::type_info,  evaluateShapeOf},
-        {ngraph::opset3::Constant::type_info, evaluateConstant},
-        {ngraph::opset3::Gather::type_info,   evaluateOp},
-        {ngraph::opset3::Concat::type_info,   evaluateOp},
-        {ngraph::opset3::Reshape::type_info,  evaluateOp},
-        {ngraph::opset3::Multiply::type_info, evaluateOp},
-        {ngraph::opset3::Squeeze::type_info,  evaluateOp},
+        {ngraph::opset3::ShapeOf::type_info,   evaluateShapeOf},
+        {ngraph::opset3::Constant::type_info,  evaluateConstant},
+        {ngraph::opset3::Gather::type_info,    evaluateOp},
+        {ngraph::opset3::Concat::type_info,    evaluateOp},
+        {ngraph::opset3::Reshape::type_info,   evaluateOp},
+        {ngraph::opset3::Multiply::type_info,  evaluateOp},
+        {ngraph::opset3::Squeeze::type_info,   evaluateOp},
+        {ngraph::opset5::Unsqueeze::type_info, evaluateOp},
+        {ngraph::opset5::Equal::type_info,     evaluateOp},
+        {ngraph::opset5::Select::type_info,    evaluateOp},
     };
     ngraph::Evaluator<ngraph::HostTensorPtr>::value_map value_map;
     ngraph::Evaluator<ngraph::HostTensorPtr> evaluator(handlers, value_map);
@@ -83,8 +86,11 @@ std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::N
         ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
 }
 
-void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object) {
-    stream << object.name << " ver. " << object.version;
+std::shared_ptr<ngraph::Node> gatherShapeElements(const ngraph::Output<ngraph::Node>& shape, const std::vector<int64_t>& indicesToGather) {
+    return std::make_shared<ngraph::opset5::Gather>(
+            shape,
+            ngraph::opset5::Constant::create(ngraph::element::i64, {indicesToGather.size()}, indicesToGather),
+            ngraph::opset5::Constant::create(ngraph::element::i64, {}, {0}));
 }
 
 }  // namespace vpu

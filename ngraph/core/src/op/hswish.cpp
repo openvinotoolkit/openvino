@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/hswish.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 
@@ -34,11 +35,13 @@ op::v4::HSwish::HSwish(const Output<Node>& arg)
 
 bool op::v4::HSwish::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v4_HSwish_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v4::HSwish::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v4_HSwish_clone_with_new_inputs);
     return make_shared<op::v4::HSwish>(new_args.at(0));
 }
 
@@ -60,12 +63,9 @@ namespace hswish
 
         switch (arg->get_element_type())
         {
-            TYPE_CASE(bf16)(arg, out, count);
-            break;
-            TYPE_CASE(f16)(arg, out, count);
-            break;
-            TYPE_CASE(f32)(arg, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_hswish, bf16, arg, out, count);
+            NGRAPH_TYPE_CASE(evaluate_hswish, f16, arg, out, count);
+            NGRAPH_TYPE_CASE(evaluate_hswish, f32, arg, out, count);
         default: rc = false; break;
         }
         return rc;
@@ -74,5 +74,6 @@ namespace hswish
 
 bool op::v4::HSwish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    NGRAPH_OP_SCOPE(v4_HSwish_evaluate);
     return hswish::evaluate_hswish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

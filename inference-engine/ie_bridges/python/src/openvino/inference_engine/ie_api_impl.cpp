@@ -8,6 +8,7 @@
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map <std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
+                                                                    {"FP64", InferenceEngine::Precision::FP64},
                                                                     {"FP16", InferenceEngine::Precision::FP16},
                                                                     {"I8",   InferenceEngine::Precision::I8},
                                                                     {"I16",  InferenceEngine::Precision::I16},
@@ -257,6 +258,14 @@ const std::map <std::string, InferenceEngine::DataPtr> InferenceEnginePython::IE
         outputs[out.first] = out.second;
     }
     return outputs;
+}
+
+std::string InferenceEnginePython::IENetwork::getOVNameForTensor(const std::string& orig_name) {
+    return actual->getOVNameForTensor(orig_name);
+}
+
+std::string InferenceEnginePython::IENetwork::getOVNameForOperation(const std::string& orig_name) {
+    return actual->getOVNameForOperation(orig_name);
 }
 
 void
@@ -530,12 +539,14 @@ InferenceEnginePython::IECore::readNetwork(const std::string& modelPath, const s
 }
 
 InferenceEnginePython::IENetwork
-InferenceEnginePython::IECore::readNetwork(const std::string& model, uint8_t *bin, size_t bin_size) {
-    InferenceEngine::Blob::Ptr weights_blob;
+InferenceEnginePython::IECore::readNetwork(const std::string& model, const uint8_t *bin, size_t bin_size) {
+    InferenceEngine::MemoryBlob::Ptr weights_blob;
     if(bin_size!=0)
     {
         InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, { bin_size }, InferenceEngine::Layout::C);
-        weights_blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, bin, bin_size);
+        weights_blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc);
+        weights_blob->allocate();
+        memcpy(weights_blob->rwmap().as<uint8_t*>(), bin, bin_size);
     }
     InferenceEngine::CNNNetwork net = actual.ReadNetwork(model, weights_blob);
     return IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));

@@ -398,7 +398,7 @@ INSTANTIATE_TEST_CASE_P(
 //                                   2, {MKLDNNPlugin::impl_desc_type::jit}},
                 deconv_test_params{{1, 48, 3, 3}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, 96, 3, true, "", 2, {MKLDNNPlugin::impl_desc_type::jit}},
         // 5D
-        /*17*/  deconv_test_params{{1, 2, 8, 5, 5}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 4, 1, true, "", 4,
+                deconv_test_params{{1, 2, 8, 5, 5}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 4, 1, true, "", 4,
                                    {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any} },
                 deconv_test_params{{1, 6, 5, 5, 5}, {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 9, 3, true, "", 2,
                                    {MKLDNNPlugin::impl_desc_type::ref_any}, {MKLDNNPlugin::impl_desc_type::ref_any} },

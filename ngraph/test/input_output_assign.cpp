@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ TEST(input_output, simple_output)
 {
     auto param_0 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
     auto param_1 = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto add = make_shared<op::Add>(param_0, param_1);
+    auto add = make_shared<op::v1::Add>(param_0, param_1);
 
     // Sort the ops
     vector<shared_ptr<Node>> nodes;

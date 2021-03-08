@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "itt.hpp"
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 
 #include <memory>
@@ -10,18 +11,19 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShuffleChannels3, "ConvertShuffleChannels3", 0);
 
-void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
-    auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto shuffle_channels = std::make_shared<::opset3::ShuffleChannels>(input);
+ngraph::pass::ConvertShuffleChannels3::ConvertShuffleChannels3() {
+    MATCHER_SCOPE(ConvertShuffleChannels3);
+    auto shuffle_channels = pattern::wrap_type<opset3::ShuffleChannels>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
         auto shuffle_channels = std::dynamic_pointer_cast<::opset3::ShuffleChannels>(m.get_match_root());
-        if (!shuffle_channels || m_transformation_callback(shuffle_channels)) {
+        if (!shuffle_channels || transformation_callback(shuffle_channels)) {
             return false;
         }
         if (shuffle_channels->input_value(0).get_partial_shape().rank().is_dynamic()) {
@@ -97,6 +99,6 @@ void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shuffle_channels, "ConvertShuffleChannels3");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(shuffle_channels, matcher_name);
+    register_matcher(m, callback);
 }

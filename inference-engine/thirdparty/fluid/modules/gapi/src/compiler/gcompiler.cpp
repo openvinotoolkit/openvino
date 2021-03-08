@@ -35,6 +35,8 @@
 #include "executor/gexecutor.hpp"
 #include "executor/gstreamingexecutor.hpp"
 #include "backends/common/gbackend.hpp"
+#include "backends/common/gmetabackend.hpp"
+#include "backends/streaming/gstreamingbackend.hpp" // cv::gimpl::streaming::kernels()
 
 // <FIXME:>
 #if !defined(GAPI_STANDALONE)
@@ -58,7 +60,11 @@ namespace
             for (const auto &b : pkg.backends()) {
                 aux_pkg = combine(aux_pkg, b.priv().auxiliaryKernels());
             }
-            return combine(pkg, aux_pkg);
+            // Always include built-in meta<> and copy implementation
+            return combine(pkg,
+                           aux_pkg,
+                           cv::gimpl::meta::kernels(),
+                           cv::gimpl::streaming::kernels());
         };
 
         auto has_use_only = cv::gapi::getCompileArg<cv::gapi::use_only>(args);
@@ -70,7 +76,8 @@ namespace
             combine(cv::gapi::core::cpu::kernels(),
                     cv::gapi::imgproc::cpu::kernels(),
                     cv::gapi::video::cpu::kernels(),
-                    cv::gapi::render::ocv::kernels());
+                    cv::gapi::render::ocv::kernels(),
+                    cv::gapi::streaming::kernels());
 #else
             cv::gapi::GKernelPackage();
 #endif // !defined(GAPI_STANDALONE)
@@ -91,7 +98,7 @@ namespace
         auto dump_info = cv::gapi::getCompileArg<cv::graph_dump_path>(args);
         if (!dump_info.has_value())
         {
-            const char* path = getenv("GRAPH_DUMP_PATH");
+            const char* path = std::getenv("GRAPH_DUMP_PATH");
             return path
                 ? cv::util::make_optional(std::string(path))
                 : cv::util::optional<std::string>();
@@ -238,6 +245,11 @@ cv::gimpl::GCompiler::GCompiler(const cv::GComputation &c,
                                                       // (no compound backend present here)
     m_e.addPass("kernels", "check_islands_content", passes::checkIslandsContent);
 
+    // Special stage for intrinsics handling
+    m_e.addPassStage("intrin");
+    m_e.addPass("intrin", "desync",         passes::intrinDesync);
+    m_e.addPass("intrin", "finalizeIntrin", passes::intrinFinalize);
+
     //Input metas may be empty when a graph is compiled for streaming
     m_e.addPassStage("meta");
     if (!m_metas.empty())
@@ -311,8 +323,10 @@ void cv::gimpl::GCompiler::validateInputMeta()
         // FIXME: Auto-generate methods like this from traits:
         case GProtoArg::index_of<cv::GMat>():
         case GProtoArg::index_of<cv::GMatP>():
-        case GProtoArg::index_of<cv::GFrame>():
             return util::holds_alternative<cv::GMatDesc>(meta);
+
+        case GProtoArg::index_of<cv::GFrame>():
+            return util::holds_alternative<cv::GFrameDesc>(meta);
 
         case GProtoArg::index_of<cv::GScalar>():
             return util::holds_alternative<cv::GScalarDesc>(meta);
@@ -382,6 +396,9 @@ cv::gimpl::GCompiler::GPtr cv::gimpl::GCompiler::generateGraph()
     {
         GModel::Graph(*g).metadata().set(OriginalInputMeta{m_metas});
     }
+    // FIXME: remove m_args, remove GCompileArgs from backends' method signatures,
+    // rework backends to access GCompileArgs from graph metadata
+    GModel::Graph(*g).metadata().set(CompileArgs{m_args});
     return g;
 }
 
@@ -405,6 +422,19 @@ void cv::gimpl::GCompiler::compileIslands(ade::Graph &g, const cv::GCompileArgs 
     GIslandModel::compileIslands(gim, g, args);
 }
 
+static cv::GTypesInfo collectInfo(const cv::gimpl::GModel::ConstGraph& g,
+                                  const std::vector<ade::NodeHandle>& nhs) {
+    cv::GTypesInfo info;
+    info.reserve(nhs.size());
+
+    ade::util::transform(nhs, std::back_inserter(info), [&g](const ade::NodeHandle& nh) {
+        const auto& data = g.metadata(nh).get<cv::gimpl::Data>();
+        return cv::GTypeInfo{data.shape, data.kind};
+    });
+
+    return info;
+}
+
 cv::GCompiled cv::gimpl::GCompiler::produceCompiled(GPtr &&pg)
 {
     // This is the final compilation step. Here:
@@ -423,6 +453,8 @@ cv::GCompiled cv::gimpl::GCompiler::produceCompiled(GPtr &&pg)
     //     an execution plan for it (backend-specific execution)
     // ...before call to produceCompiled();
 
+    GModel::ConstGraph cgr(*pg);
+
     const auto &outMetas = GModel::ConstGraph(*pg).metadata()
         .get<OutputMeta>().outMeta;
     std::unique_ptr<GExecutor> pE(new GExecutor(std::move(pg)));
@@ -431,6 +463,14 @@ cv::GCompiled cv::gimpl::GCompiler::produceCompiled(GPtr &&pg)
 
     GCompiled compiled;
     compiled.priv().setup(m_metas, outMetas, std::move(pE));
+
+    // NB: Need to store input/output GTypeInfo to allocate output arrays for python bindings
+    auto out_meta = collectInfo(cgr, cgr.metadata().get<cv::gimpl::Protocol>().out_nhs);
+    auto in_meta  = collectInfo(cgr, cgr.metadata().get<cv::gimpl::Protocol>().in_nhs);
+
+    compiled.priv().setOutInfo(std::move(out_meta));
+    compiled.priv().setInInfo(std::move(in_meta));
+
     return compiled;
 }
 
@@ -445,6 +485,16 @@ cv::GStreamingCompiled cv::gimpl::GCompiler::produceStreamingCompiled(GPtr &&pg)
     {
         outMetas = GModel::ConstGraph(*pg).metadata().get<OutputMeta>().outMeta;
     }
+
+
+    GModel::ConstGraph cgr(*pg);
+
+    // NB: Need to store input/output GTypeInfo to allocate output arrays for python bindings
+    auto out_meta = collectInfo(cgr, cgr.metadata().get<cv::gimpl::Protocol>().out_nhs);
+    auto in_meta  = collectInfo(cgr, cgr.metadata().get<cv::gimpl::Protocol>().in_nhs);
+
+    compiled.priv().setOutInfo(std::move(out_meta));
+    compiled.priv().setInInfo(std::move(in_meta));
 
     std::unique_ptr<GStreamingExecutor> pE(new GStreamingExecutor(std::move(pg),
                                                                   m_args));
@@ -526,7 +576,7 @@ cv::gimpl::GCompiler::GPtr cv::gimpl::GCompiler::makeGraph(const cv::GComputatio
         gm.metadata().set(p);
     } else if (cv::util::holds_alternative<cv::GComputation::Priv::Dump>(priv.m_shape)) {
         auto c_dump = cv::util::get<cv::GComputation::Priv::Dump>(priv.m_shape);
-        cv::gimpl::s11n::reconstruct(c_dump, g);
+        cv::gapi::s11n::reconstruct(c_dump, g);
     }
     return pG;
 }

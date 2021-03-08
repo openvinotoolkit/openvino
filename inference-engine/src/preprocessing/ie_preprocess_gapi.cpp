@@ -81,6 +81,7 @@ inline int get_cv_depth(const TensorDesc &ie_desc) {
     case Precision::U8:   return CV_8U;
     case Precision::FP32: return CV_32F;
     case Precision::U16:  return CV_16U;
+    case Precision::FP16: return CV_16U;
 
     default: THROW_IE_EXCEPTION << "Unsupported data type";
     }
@@ -119,7 +120,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const Blob::Ptr& blob,
                                       "expected >0, actual: " << desc.d.C;
             }
             const auto planeType = CV_MAKETYPE(cv_depth, 1);
-            for (size_t ch = 0; ch < desc.d.C; ch++) {
+            for (int ch = 0; ch < desc.d.C; ch++) {
                 cv::gapi::own::Mat plane(planeSize.height, planeSize.width, planeType,
                     curr_data_ptr + ch*desc.s.C*blob->element_size(), stride);
                 planes.emplace_back(plane);
@@ -142,7 +143,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const NV12Blob::Ptr& i
 
     // combine corresponding Y and UV mats into 2-element vectors of (Y, UV) pairs
     std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
-    for (size_t i = 0; i < batch_size; ++i) {
+    for (int i = 0; i < batch_size; ++i) {
         auto& input = batched_input_plane_mats[i];
         input.emplace_back(std::move(batched_y_plane_mats[i][0]));
         input.emplace_back(std::move(batched_uv_plane_mats[i][0]));
@@ -165,7 +166,7 @@ std::vector<std::vector<cv::gapi::own::Mat>> bind_to_blob(const I420Blob::Ptr& i
 
     // combine corresponding Y and UV mats into 2-element vectors of (Y, U, V) triple
     std::vector<std::vector<cv::gapi::own::Mat>> batched_input_plane_mats(batch_size);
-    for (size_t i = 0; i < batch_size; ++i) {
+    for (int i = 0; i < batch_size; ++i) {
         auto& input = batched_input_plane_mats[i];
         input.emplace_back(std::move(batched_y_plane_mats[i][0]));
         input.emplace_back(std::move(batched_u_plane_mats[i][0]));
@@ -276,8 +277,8 @@ void validateColorFormats(const G::Desc &in_desc,
     };
 
     // verify inputs/outputs and throw on error
-
-    if (output_color_format == ColorFormat::RAW) {
+    const bool color_conv_required = !((output_color_format == input_color_format) || (input_color_format == ColorFormat::RAW));
+    if (color_conv_required && (output_color_format == ColorFormat::RAW)) {
         THROW_IE_EXCEPTION << "Network's expected color format is unspecified";
     }
 
@@ -288,7 +289,7 @@ void validateColorFormats(const G::Desc &in_desc,
     verify_layout(in_layout, "Input blob");
     verify_layout(out_layout, "Network's blob");
 
-    if (input_color_format == ColorFormat::RAW) {
+    if (!color_conv_required) {
         // verify input and output have the same number of channels
         if (in_desc.d.C != out_desc.d.C) {
             THROW_IE_EXCEPTION << "Input and network expected blobs have different number of "
@@ -416,7 +417,7 @@ class PlanarColorConversions {
         // if there's no resize after color convert && output is planar, we have to copy input to
         // output by doing actual G-API operation. otherwise, the graph will be empty (no
         // operations)
-        if (algorithm == NO_RESIZE && in_layout == out_layout == NCHW) {
+        if (algorithm == NO_RESIZE && in_layout == out_layout && out_layout == NCHW) {
             std::vector<cv::GMat> reversed(3);
             reversed[0] = gapi::ChanToPlane::on(planes[2], 0);
             reversed[1] = gapi::ChanToPlane::on(planes[1], 0);
@@ -757,15 +758,6 @@ PreprocEngine::Update PreprocEngine::needUpdate(const CallDesc &newCallOrig) con
     return Update::NOTHING;
 }
 
-bool PreprocEngine::useGAPI() {
-    static const bool NO_GAPI = [](const char *str) -> bool {
-        std::string var(str ? str : "");
-        return var == "N" || var == "NO" || var == "OFF" || var == "0";
-    } (getenv("USE_GAPI"));
-
-    return !NO_GAPI;
-}
-
 void PreprocEngine::checkApplicabilityGAPI(const Blob::Ptr &src, const Blob::Ptr &dst) {
     // Note: src blob is the ROI blob, dst blob is the network's input blob
 
@@ -904,7 +896,7 @@ void PreprocEngine::executeGraph(Opt<cv::GComputation>& lastComputation,
 }
 
 template<typename BlobTypePtr>
-bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
+void PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
     ResizeAlgorithm algorithm, ColorFormat in_fmt, ColorFormat out_fmt, bool omp_serial,
     int batch_size) {
 
@@ -949,6 +941,12 @@ bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
                                             out_desc_ie.getDims(),
                                             out_fmt },
                                   algorithm };
+
+    if (algorithm == NO_RESIZE && std::get<0>(thisCall) == std::get<1>(thisCall)) {
+        //if requested output parameters match input blob no need to do anything
+        THROW_IE_EXCEPTION  << "No job to do in the PreProcessing ?";
+    }
+
     const Update update = needUpdate(thisCall);
 
     Opt<cv::GComputation> _lastComputation;
@@ -976,17 +974,11 @@ bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
 
     executeGraph(_lastComputation, batched_input_plane_mats, batched_output_plane_mats, batch_size,
         omp_serial, update);
-
-    return true;
 }
 
-bool PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+void PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
         const ResizeAlgorithm& algorithm, ColorFormat in_fmt, bool omp_serial, int batch_size) {
-    if (!useGAPI()) {
-        return false;
-    }
-
-    const auto out_fmt = ColorFormat::BGR;  // FIXME: get expected color format from network
+    const auto out_fmt = (in_fmt == ColorFormat::RAW) ? ColorFormat::RAW : ColorFormat::BGR;  // FIXME: get expected color format from network
 
     // output is always a memory blob
     auto outMemoryBlob = as<MemoryBlob>(outBlob);

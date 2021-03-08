@@ -6,15 +6,14 @@
 
 #include <string>
 #include <memory>
-#include "ngraph_functions/low_precision_transformations/fake_quantize_function.hpp"
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "lpt_ngraph_functions/fake_quantize_function.hpp"
+#include "shared_test_classes/base/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
-// ngraph::builder::subgraph::FakeQuantizeOnData
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
     ngraph::builder::subgraph::FakeQuantizeOnData> FakeQuantizeTransformationParams;
@@ -27,6 +26,9 @@ public:
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

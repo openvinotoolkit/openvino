@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 #include <string>
 #include <vector>
 
-#include "gru.hpp"
+#include "core/null_node.hpp"
+#include "default_opset.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/shape.hpp"
-#include "onnx_import/core/null_node.hpp"
-#include "onnx_import/default_opset.hpp"
-#include "onnx_import/utils/recurrent.hpp"
+#include "op/gru.hpp"
+#include "utils/recurrent.hpp"
 
 namespace ngraph
 {
@@ -58,8 +58,10 @@ namespace ngraph
                                     const int split_parts = 2 * 3;
                                     const auto split_bias =
                                         builder::opset1::split(bias, split_parts, 1);
-                                    const auto wr_z_bias = split_bias.at(0) + split_bias.at(3);
-                                    const auto wr_r_bias = split_bias.at(1) + split_bias.at(4);
+                                    const auto wr_z_bias = std::make_shared<ngraph::op::v1::Add>(
+                                        split_bias.at(0), split_bias.at(3));
+                                    const auto wr_r_bias = std::make_shared<ngraph::op::v1::Add>(
+                                        split_bias.at(1), split_bias.at(4));
                                     // The result has shape: [num_directions, 4 * hidden_size]
                                     // and data layout:
                                     //       [

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 
 #include <legacy/details/ie_cnn_network_tools.h>
@@ -14,7 +15,7 @@
 
 using ngraph::Shape;
 using ngraph::element::Type;
-using namespace ngraph::op;
+using namespace ngraph::opset5;
 using std::make_shared;
 using InferenceEngine::Precision;
 
@@ -68,16 +69,16 @@ TEST(BF16TransformerTest, KeepMemoryPrecision) {
     auto mem_r = make_shared<ReadValue>(mem_i, "id");
     mem_r->set_friendly_name("mem_r");
 
-    auto mul = make_shared<Multiply>(mem_r, input);
+    auto mul = make_shared<ngraph::op::v1::Multiply>(mem_r, input);
     auto sig = make_shared<Sigmoid>(mul);
 
     auto fc1_w = make_shared<Constant>(type, Shape{2, 2}, 1);
     auto fc1_b = make_shared<Constant>(type, Shape{2}, 1);
-    auto fc1 = make_shared<FullyConnected>(sig, fc1_w, fc1_b, shape);
+    auto fc1 = make_shared<ngraph::op::FullyConnected>(sig, fc1_w, fc1_b, shape);
 
     auto fc2_w = make_shared<Constant>(type, Shape{2, 2}, 1);
     auto fc2_b = make_shared<Constant>(type, Shape{2}, 1);
-    auto fc2 = make_shared<FullyConnected>(fc1, fc2_w, fc2_b, shape);
+    auto fc2 = make_shared<ngraph::op::FullyConnected>(fc1, fc2_w, fc2_b, shape);
 
     auto mem_w = make_shared<Assign>(fc1, "id");
     mem_w->set_friendly_name("mem_w");
@@ -131,7 +132,7 @@ TEST(BF16TransformerTest, DISABLED_KeepMemoryPrecisionWithGEMM) {
     auto mem_r = make_shared<ReadValue>(mem_i, "id");
     mem_r->set_friendly_name("mem_r");
 
-    auto mul = make_shared<Multiply>(mem_r, input);
+    auto mul = make_shared<ngraph::op::v1::Multiply>(mem_r, input);
     auto sig = make_shared<Sigmoid>(mul);
 
     auto fc1_w = make_shared<Constant>(type, Shape{2, 2}, 1);

@@ -782,7 +782,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
                     EXPECT_FLOAT_EQ(-((float)input_ptr[i]), output_ptr[i]);
                     break;
                 case activation_func::swish:
-                    EXPECT_FLOAT_EQ((float)input_ptr[i] / (1.f + std::exp((float)(-input_ptr[i]))), output_ptr[i]);
+                    EXPECT_FLOAT_EQ((float)input_ptr[i] / (1.f + std::exp((float)(-params.a * input_ptr[i]))), output_ptr[i]);
                     break;
                 case activation_func::hswish:
                     EXPECT_FLOAT_EQ((float)input_ptr[i] * std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f, output_ptr[i]);

@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,7 +54,9 @@ namespace ngraph
                 /// \param values A vector of literals for initializing the tensor constant. The
                 ///               size of values must match the size of the shape.
                 template <typename T>
-                Constant(const element::Type& type, Shape shape, const std::vector<T>& values)
+                Constant(const element::Type& type,
+                         const Shape& shape,
+                         const std::vector<T>& values)
                     : Constant(type, shape)
                 {
                     NODE_VALIDATION_CHECK(
@@ -91,7 +93,7 @@ namespace ngraph
                 ///               value is broadcast to the specified shape.
                 template <class T,
                           class = typename std::enable_if<std::is_fundamental<T>::value>::type>
-                Constant(const element::Type& type, Shape shape, T value)
+                Constant(const element::Type& type, const Shape& shape, T value)
                     : Constant(type, shape)
                 {
                     auto size = shape_size(m_shape);
@@ -224,7 +226,7 @@ namespace ngraph
                 /// \param shape The shape of the tensor constant.
                 /// \param values A list of string values to use as the constant data.
                 Constant(const element::Type& type,
-                         Shape shape,
+                         const Shape& shape,
                          const std::vector<std::string>& values);
 
                 /// \brief Constructs a tensor constant with the supplied data
@@ -265,6 +267,8 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                bool evaluate_lower(const HostTensorVector& outputs) const override;
+                bool evaluate_upper(const HostTensorVector& outputs) const override;
 
                 // Don't constant fold a constant; it would make a copy
                 bool constant_fold(OutputVector& outputs, const OutputVector& inputs) override
@@ -466,6 +470,14 @@ namespace ngraph
                 }
                 std::string convert_value_to_string(size_t index) const;
 
+                /**
+                 * \brief Allows to avoid buffer allocation on the visit_attributes call
+                 */
+                void alloc_buffer_on_visit_attributes(bool val)
+                {
+                    m_alloc_buffer_on_visit_attributes = val;
+                }
+
             protected:
                 template <typename IN_T, typename OUT_T>
                 void cast_vector(std::vector<OUT_T>& output_vector) const
@@ -479,8 +491,7 @@ namespace ngraph
                                    [](IN_T c) { return static_cast<OUT_T>(c); });
                 }
 
-                /// \brief Allocate a buffer and return a pointer to it
-                void* allocate_buffer();
+                void allocate_buffer();
 
                 void* get_data_ptr_nc() { return (m_data ? m_data->get_ptr() : nullptr); }
                 template <element::Type_t ET>
@@ -507,7 +518,7 @@ namespace ngraph
                 }
 
                 template <typename T, typename U>
-                void write_buffer(void* target, const std::vector<U>& source, size_t count)
+                static void write_buffer(void* target, const std::vector<U>& source, size_t count)
                 {
                     T* p = reinterpret_cast<T*>(target);
                     for (size_t i = 0; i < count; i++)
@@ -517,11 +528,11 @@ namespace ngraph
                 }
 
                 template <typename T>
-                void write_to_buffer(const element::Type& target_type,
-                                     const Shape& /* target_shape */,
-                                     const std::vector<T>& source,
-                                     void* target,
-                                     size_t target_element_count)
+                static void write_to_buffer(const element::Type& target_type,
+                                            const Shape& /* target_shape */,
+                                            const std::vector<T>& source,
+                                            void* target,
+                                            size_t target_element_count)
                 {
                     if (source.size() != target_element_count)
                     {
@@ -588,6 +599,7 @@ namespace ngraph
                 std::shared_ptr<runtime::AlignedBuffer> m_data;
                 bool m_all_elements_bitwise_identical;
                 bool are_all_data_elements_bitwise_identical() const;
+                bool m_alloc_buffer_on_visit_attributes = true;
             };
         }
         using v0::Constant;

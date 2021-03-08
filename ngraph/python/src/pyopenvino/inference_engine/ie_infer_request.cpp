@@ -26,7 +26,6 @@
 
 #include "../../../pybind11/include/pybind11/pybind11.h"
 #include "pyopenvino/inference_engine/ie_infer_request.hpp"
-// #include "pyopenvino/inference_engine/ie_executable_network.hpp"
 
 namespace py = pybind11;
 

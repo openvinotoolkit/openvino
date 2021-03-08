@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -388,19 +388,23 @@ namespace ngraph
                         Shape arg1_padded_shape = arg1_shape;
                         Shape arg2_padded_shape = arg2_shape;
 
-                        while (arg1_padded_shape.size() < arg2_padded_shape.size())
+                        size_t max_shape_size = std::max({arg0_padded_shape.size(),
+                                                          arg1_padded_shape.size(),
+                                                          arg2_padded_shape.size()});
+
+                        while (arg0_padded_shape.size() < max_shape_size)
+                        {
+                            arg0_padded_shape.insert(arg0_padded_shape.begin(), 1);
+                        }
+
+                        while (arg1_padded_shape.size() < max_shape_size)
                         {
                             arg1_padded_shape.insert(arg1_padded_shape.begin(), 1);
                         }
 
-                        while (arg2_padded_shape.size() < arg1_padded_shape.size())
+                        while (arg2_padded_shape.size() < max_shape_size)
                         {
                             arg2_padded_shape.insert(arg2_padded_shape.begin(), 1);
-                        }
-
-                        while (arg0_padded_shape.size() < arg1_padded_shape.size())
-                        {
-                            arg0_padded_shape.insert(arg0_padded_shape.begin(), 1);
                         }
 
                         Shape arg0_squeezed_shape;
@@ -411,7 +415,7 @@ namespace ngraph
                         AxisSet arg2_squeezed_axes;
                         Shape output_shape;
 
-                        for (size_t i = 0; i < arg1_padded_shape.size(); i++)
+                        for (size_t i = 0; i < max_shape_size; i++)
                         {
                             if (arg1_padded_shape[i] == 1)
                             {
@@ -440,9 +444,9 @@ namespace ngraph
                                 arg0_squeezed_shape.push_back(arg0_padded_shape[i]);
                             }
 
-                            output_shape.push_back(arg1_padded_shape[i] == 1
-                                                       ? arg2_padded_shape[i]
-                                                       : arg1_padded_shape[i]);
+                            output_shape.push_back(std::max({arg0_padded_shape[i],
+                                                             arg2_padded_shape[i],
+                                                             arg1_padded_shape[i]}));
                         }
 
                         CoordinateTransform arg0_transform(arg0_squeezed_shape);

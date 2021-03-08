@@ -4,6 +4,7 @@
 
 #include "tests_utils.h"
 #include "../common/tests_utils.h"
+#include "../common/ie_utils.h"
 #include "../common/managers/thread_manager.h"
 #include "tests_pipelines/tests_pipelines.h"
 
@@ -75,6 +76,12 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
         CNNNetwork cnnNetwork = ie.ReadNetwork(model);
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
+
+        auto batchSize = cnnNetwork.getBatchSize();
+        batchSize = batchSize != 0 ? batchSize : 1;
+        const ConstInputsDataMap inputsInfo(exeNetwork.GetInputsInfo());
+        fillBlobs(inferRequest, inputsInfo, batchSize);
+
         inferRequest.Infer();
         OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
         for (auto &output : output_info)

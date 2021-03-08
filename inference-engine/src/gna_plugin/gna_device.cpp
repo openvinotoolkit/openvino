@@ -29,6 +29,7 @@
 std::mutex GNADeviceHelper::acrossPluginsSync{};
 
 uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     void * memPtr = nullptr;
 #if GNA_LIB_VER == 1
     memPtr = GNAAlloc(nGNAHandle, size_requested, size_granted);
@@ -45,6 +46,7 @@ uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted)
 }
 
 void GNADeviceHelper::free(void * ptr) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
     GNAFree(nGNAHandle);
 #else
@@ -53,11 +55,30 @@ void GNADeviceHelper::free(void * ptr) {
 #endif
 }
 
+std::string GNADeviceHelper::getGnaLibraryVersionPrivate() {
+#if GNA_LIB_VER == 1
+    return "1.X";
+#else
+    char buffer[64] = {};
+    const auto status = Gna2GetLibraryVersion(buffer, sizeof(buffer));
+    if (status != Gna2StatusSuccess) {
+        return "2.Gna2GetLibraryVersionReturned[" + std::to_string(status) + "]";
+    }
+    return buffer;
+#endif
+}
+
+std::string GNADeviceHelper::GetGnaLibraryVersion() {
+    static std::string gnaLibraryVersion{ getGnaLibraryVersionPrivate() };
+    return gnaLibraryVersion;
+}
+
 #if GNA_LIB_VER == 1
 uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
                    const uint32_t *pActiveIndices,
                    uint32_t nActiveIndices,
                    intel_gna_proc_t nGNAProcType) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqId;
 
     nGNAStatus = GNAPropagateForward(nGNAHandle, pNeuralNetwork,
@@ -68,6 +89,7 @@ uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
 #else
 
 void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2RequestConfigEnableActiveList(requestConfigId, layerIndex, num_active_indices, ptr_active_indices);
     checkGna2Status(status, "Gna2RequestConfigEnableActiveList");
 }
@@ -76,6 +98,7 @@ void GNADeviceHelper::propagateSync(const uint32_t requestConfigId, Gna2Accelera
 }
 
 uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqId{};
     if (gna2AccelerationMode == Gna2AccelerationModeHardware &&
         detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
@@ -93,7 +116,7 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
 
 void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
     for (uint32_t i = 0; i < gnaModel.NumberOfOperations; i++) {
-        if (gnaModel.Operations->Type == Gna2OperationTypeConvolution) {
+        if (gnaModel.Operations[i].Type == Gna2OperationTypeConvolution) {
             snprintf(
                 const_cast<char*>(gnaModel.Operations[i].Operands[1]->Layout),
                 sizeof(gnaModel.Operations[i].Operands[1]->Layout) / sizeof(char),
@@ -102,22 +125,10 @@ void GNADeviceHelper::enforceLegacyCnns(Gna2Model& gnaModel) {
     }
 }
 
-std::string GNADeviceHelper::getGnaLibraryVersion() {
-#if GNA_LIB_VER == 1
-    return "1.X";
-#else
-    char buffer[64] = {};
-    const auto status = Gna2GetLibraryVersion(buffer, sizeof(buffer));
-    if (status != Gna2StatusSuccess) {
-        return "Gna2GetLibraryVersionReturned[" + std::to_string(status) + "]";
-    }
-    return buffer;
-#endif
-}
-
 uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t modelId;
-    if (isUpTo20GnaDevice()) {
+    if (isUpTo20GnaHwDevice() && isGnaLibVersion2_1) {
         enforceLegacyCnns(gnaModel);
     }
     const auto status = Gna2ModelCreate(nGnaDeviceIndex, &gnaModel, &modelId);
@@ -127,15 +138,17 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
 }
 
 void GNADeviceHelper::releaseModel(const uint32_t model_id) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2ModelRelease(model_id);
     checkGna2Status(status, "Gna2ModelRelease");
 }
 
 uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     uint32_t reqConfId;
     auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
     checkGna2Status(status, "Gna2RequestConfigCreate");
-    if (gna2HwConsistency != Gna2DeviceVersionSoftwareEmulation) {
+    if (gna2HwConsistency != Gna2DeviceVersionSoftwareEmulation && !isGnaLibVersion2_1) {
         status = Gna2RequestConfigEnableHardwareConsistency(reqConfId,
             isUpTo20GnaDevice() ? gna2HwConsistency : detectedGnaDevVersion);
         checkGna2Status(status, "Gna2RequestConfigEnableHardwareConsistency");
@@ -327,6 +340,7 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 #endif
 
 GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 2
     const auto status = Gna2RequestWait(reqId, millisTimeout);
     if (status == Gna2StatusWarningDeviceBusy) {
@@ -434,8 +448,8 @@ void GNADeviceHelper::open(uint8_t n_threads) {
 }
 
 void GNADeviceHelper::close() {
-    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     GNADeviceClose(nGNAHandle);
     nGNAHandle = 0;
 #else
@@ -447,8 +461,11 @@ void GNADeviceHelper::close() {
             gnawarn() << "Request with Id " << requestId << " was not awaited successfully";
         }
     }
-    const auto status = Gna2DeviceClose(nGnaDeviceIndex);
-    checkGna2Status(status, "Gna2DeviceClose");
+    {
+        std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+        const auto status = Gna2DeviceClose(nGnaDeviceIndex);
+        checkGna2Status(status, "Gna2DeviceClose");
+    }
 #endif
     deviceOpened = false;
 }

@@ -50,6 +50,17 @@ InferenceEngine::Blob::CPtr InferenceEngine::details::BlobStream::getBlob() {
     return blob;
 }
 
-InferenceEngine::details::BlobStream::BlobStream(const InferenceEngine::Blob::CPtr& blob): buffer(blob), std::ios(0), std::istream(&buffer), blob(blob) {}
+
+#if defined __GNUC__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wreorder"
+#endif
+
+InferenceEngine::details::BlobStream::BlobStream(const InferenceEngine::Blob::CPtr& blob) :
+    buffer(blob), std::ios(0), std::istream(&buffer), blob(blob) {}
+
+#if defined __GNUC__
+# pragma GCC diagnostic pop
+#endif
 
 InferenceEngine::details::BlobStream::~BlobStream() {}

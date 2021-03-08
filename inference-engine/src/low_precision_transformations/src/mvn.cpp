@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,11 +41,14 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
         return false;
     }
 
-    if (!canSubtractBeHandled(operation)) {
+    if (NetworkHelper::getDequantization(operation).subtract != nullptr) {
         return false;
     }
 
     auto mvn = as_type_ptr<op::MVN>(operation);
+    if (mvn == nullptr) {
+        return false;
+    }
 
     const std::shared_ptr<Node> multiply = mvn->get_input_node_shared_ptr(0);
     auto scalesConst = as_type_ptr<ngraph::opset1::Constant>(multiply->get_input_node_shared_ptr(1));
@@ -57,8 +60,6 @@ bool MVNTransformation::canBeTransformed(const TransformationContext& context, s
     }
 
     const bool acrossChannels = mvn->get_reduction_axes().count(1) > 0;
-    const bool normalizeVariance = mvn->get_normalize_variance();
-
     if (!NetworkHelper::isScalarLike(scalesConst) && acrossChannels) {
         return false;
     }
@@ -78,7 +79,7 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
         return false;
     }
 
-    auto mvn = as_type_ptr<op::MVN>(separateInStandaloneBranch(operation));
+    auto mvn = as_type_ptr<op::MVN>(NetworkHelper::separateInStandaloneBranch(operation));
 
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(mvn);
     auto scalesConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
@@ -86,7 +87,6 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
         scalesConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
     }
 
-    const bool acrossChannels = mvn->get_reduction_axes().count(1) > 0;
     const bool normalizeVariance = mvn->get_normalize_variance();
 
     auto newScalesConst = scalesConst;

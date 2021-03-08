@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,11 +18,9 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/ctc_greedy_decoder.hpp"
-#include "ngraph/op/detection_output.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/prior_box.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
-#include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/op/region_yolo.hpp"
 #include "ngraph/op/reorg_yolo.hpp"
 #include "ngraph/op/roi_pooling.hpp"
@@ -37,20 +35,6 @@ TEST(type_prop_layers, ctc_greedy_decoder)
     auto seq_len = make_shared<op::Parameter>(element::f32, Shape{88, 2});
     auto op = make_shared<op::CTCGreedyDecoder>(input, seq_len, false);
     ASSERT_EQ(op->get_shape(), (Shape{2, 88, 1, 1}));
-}
-
-TEST(type_prop_layers, detection_output)
-{
-    auto box_logits = make_shared<op::Parameter>(element::f32, Shape{4, 1, 5, 5});
-    auto class_preds = make_shared<op::Parameter>(element::f32, Shape{2, 1, 4, 5});
-    auto proposals = make_shared<op::Parameter>(element::f32, Shape{2, 1, 4, 5});
-    auto aux_class_preds = make_shared<op::Parameter>(element::f32, Shape{2, 1, 4, 5});
-    auto aux_box_preds = make_shared<op::Parameter>(element::f32, Shape{2, 1, 4, 5});
-    op::DetectionOutputAttrs attrs;
-    attrs.keep_top_k = {200};
-    auto op = make_shared<op::DetectionOutput>(
-        box_logits, class_preds, proposals, aux_class_preds, aux_box_preds, attrs);
-    ASSERT_EQ(op->get_shape(), (Shape{1, 1, 800, 7}));
 }
 
 TEST(type_prop_layers, interpolate)
@@ -79,6 +63,7 @@ TEST(type_prop_layers, prior_box1)
     op::PriorBoxAttrs attrs;
     attrs.min_size = {2.0f, 3.0f};
     attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
+    attrs.scale_all_sizes = false;
 
     auto layer_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {32, 32});
     auto image_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
@@ -92,6 +77,7 @@ TEST(type_prop_layers, prior_box2)
     attrs.min_size = {2.0f, 3.0f};
     attrs.aspect_ratio = {1.5f, 2.0f, 2.5f};
     attrs.flip = true;
+    attrs.scale_all_sizes = false;
 
     auto layer_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {32, 32});
     auto image_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
@@ -106,7 +92,6 @@ TEST(type_prop_layers, prior_box3)
     attrs.max_size = {315.0f};
     attrs.aspect_ratio = {2.0f};
     attrs.flip = true;
-    attrs.scale_all_sizes = true;
 
     auto layer_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {1, 1});
     auto image_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {300, 300});
@@ -156,18 +141,10 @@ TEST(type_prop_layers, reorg_yolo)
     ASSERT_EQ(op->get_shape(), (Shape{2, 96, 17, 31}));
 }
 
-TEST(type_prop_layers, psroi_pooling)
-{
-    auto inputs = make_shared<op::Parameter>(element::f32, Shape{1, 3, 4, 5});
-    auto coords = make_shared<op::Parameter>(element::f32, Shape{150, 5});
-    auto op = make_shared<op::PSROIPooling>(inputs, coords, 2, 6, 0.0625, 0, 0, "Avg");
-    ASSERT_EQ(op->get_shape(), (Shape{150, 2, 6, 6}));
-}
-
 TEST(type_prop_layers, roi_pooling)
 {
     auto inputs = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4, 5});
     auto coords = make_shared<op::Parameter>(element::f32, Shape{150, 5});
-    auto op = make_shared<op::ROIPooling>(inputs, coords, Shape{6, 6}, 0.0625, "Max");
+    auto op = make_shared<op::ROIPooling>(inputs, coords, Shape{6, 6}, 0.0625, "max");
     ASSERT_EQ(op->get_shape(), (Shape{150, 3, 6, 6}));
 }

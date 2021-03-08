@@ -27,9 +27,11 @@ public:
     MOCK_METHOD1(GetUserData, void(void **));
     MOCK_METHOD1(SetUserData, void(void *));
     MOCK_METHOD0(InferImpl, void());
-    MOCK_CONST_METHOD1(GetPerformanceCounts, void(std::map<std::string, InferenceEngineProfileInfo> &));
+    MOCK_CONST_METHOD0(GetPerformanceCounts, std::map<std::string, InferenceEngineProfileInfo>());
     MOCK_METHOD1(setNetworkInputs, void(InputsDataMap));
     MOCK_METHOD1(setNetworkOutputs, void(OutputsDataMap));
-    MOCK_METHOD2(GetBlob, void(const char *name, Blob::Ptr &));
+    MOCK_METHOD1(GetBlob, Blob::Ptr(const std::string&));
     MOCK_METHOD1(SetCompletionCallback, void(IInferRequest::CompletionCallback));
+    MOCK_METHOD0(Cancel, void());
+    MOCK_METHOD0(Cancel_ThreadUnsafe, void());
 };

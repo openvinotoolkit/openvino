@@ -20,9 +20,9 @@ class DSR_ReshapeWithStaticDescriptor : public testing::WithParamInterface<Param
 protected:
     std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
-        const auto& inDataType = std::get<0>(GetParam());
-        const auto& reshapeTestParams = std::get<1>(GetParam());
-        targetDevice = std::get<2>(GetParam());
+        const auto& inDataType = std::get<0>(parameters);
+        const auto& reshapeTestParams = std::get<1>(parameters);
+        targetDevice = std::get<2>(parameters);
 
         const auto& inDataShapes = std::get<0>(reshapeTestParams);
         const auto& specialZero = std::get<1>(reshapeTestParams);
@@ -46,9 +46,9 @@ class DSR_ReshapeWithDynamicDescriptor : public testing::WithParamInterface<Para
 protected:
     std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
-        const auto& inDataType = std::get<0>(GetParam());
-        const auto& inDataShapes = std::get<0>(std::get<1>(GetParam()));
-        targetDevice = std::get<2>(GetParam());
+        const auto& inDataType = std::get<0>(parameters);
+        const auto& inDataShapes = std::get<0>(std::get<1>(parameters));
+        targetDevice = std::get<2>(parameters);
 
         const auto inputSubgraph = createInputSubgraphWithDSR(inDataType, inDataShapes);
 

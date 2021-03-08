@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 //*****************************************************************************
 #include "ngraph/runtime/reference/split.hpp"
 #include <numeric>
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/op/constant.hpp"
@@ -38,12 +39,14 @@ op::v1::Split::Split(const Output<Node>& data, const Output<Node>& axis, const s
 
 bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v1_Split_visit_attributes);
     visitor.on_attribute("num_splits", m_num_splits);
     return true;
 }
 
 void op::v1::Split::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v1_Split_validate_and_infer_types);
     const auto data_ps = input_value(0).get_partial_shape();
     const auto axis_ps = input_value(1).get_partial_shape();
     const auto axis_et = input_value(1).get_element_type();
@@ -60,9 +63,9 @@ void op::v1::Split::validate_and_infer_types()
         this, axis_et.is_integral(), "The 'axis' input only accepts integral types");
 
     PartialShape each_output_shape{data_ps};
-    if (op::is_constant(input_value(1).get_node()) && data_ps.rank().is_static())
+    const auto axis_input = get_constant_from_source(input_value(1));
+    if (axis_input && data_ps.rank().is_static())
     {
-        const auto axis_input = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
         auto axis = axis_input->cast_vector<int64_t>()[0];
 
         const auto data_rank = get_input_partial_shape(0).rank();
@@ -101,6 +104,7 @@ void op::v1::Split::validate_and_infer_types()
 
 shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v1_Split_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<v1::Split>(new_args.at(0), new_args.at(1), m_num_splits);
 }
@@ -148,8 +152,8 @@ namespace split
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    NGRAPH_OP_SCOPE(v1_Split_evaluate);
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
-
     return split::evaluate_split(data, axis, outputs, m_num_splits, this);
 }

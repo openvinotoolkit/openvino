@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -94,20 +94,14 @@ bool ngraph::op::is_constant(const ngraph::Node* node)
 
 bool ngraph::op::is_commutative(const ngraph::Node* node)
 {
-    return dynamic_cast<const ngraph::op::v0::Add*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v1::Add*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::Maximum*>(node) != nullptr ||
+    return dynamic_cast<const ngraph::op::v1::Add*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::Maximum*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::Equal*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::Equal*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::NotEqual*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::NotEqual*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::LogicalAnd*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v0::Xor*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::LogicalXor*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::Minimum*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::Minimum*>(node) != nullptr ||
-           dynamic_cast<const ngraph::op::v0::Multiply*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::Multiply*>(node) != nullptr ||
            dynamic_cast<const ngraph::op::v1::LogicalOr*>(node) != nullptr;
 }

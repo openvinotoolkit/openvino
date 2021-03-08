@@ -424,7 +424,7 @@ protected:
             InferenceEngine::TBlob<float> dst_ref(item.second->getTensorDesc());
             dst_ref.allocate();
 
-            SizeVector dims_src = {p.in.w, p.in.h};
+            SizeVector dims_src = {p.in.h, p.in.w};
             TBlob<float> src({Precision::FP32, dims_src, Layout::HW});
             src.allocate();
             float * s = src.buffer().as<float*>();
@@ -582,7 +582,7 @@ protected:
             InferenceEngine::TBlob<float> dst_ref(item.second->getTensorDesc());
             dst_ref.allocate();
 
-            SizeVector dims_src = {p.in.w, p.in.h, p.in.c};
+            SizeVector dims_src = {p.in.c, p.in.h, p.in.w};
 
             TBlob<float> src({Precision::FP32, dims_src, Layout::CHW});
             src.allocate();
@@ -754,7 +754,7 @@ protected:
             InferenceEngine::TBlob<float> dst_ref(item.second->getTensorDesc());
             dst_ref.allocate();
 
-            SizeVector dims_src = {p.in.w, p.in.h, p.in.c, p.in.n};
+            SizeVector dims_src = {p.in.n, p.in.c, p.in.h, p.in.w};
 
             TBlob<float> src({Precision::FP32, dims_src, Layout::NCHW});
             src.allocate();

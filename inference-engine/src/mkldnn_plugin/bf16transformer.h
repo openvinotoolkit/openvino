@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2020-2021 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,20 +8,28 @@
 #include <caseless.hpp>
 #include <string>
 #include <set>
+#include <legacy/details/ie_cnn_network_tools.h>
 
 namespace MKLDNNPlugin {
 
 class BF16Transformer {
     const InferenceEngine::details::caseless_set<std::string> _initbf16 =
-        { "convolution", "fullyconnected", "innerproduct", "gemm" };
+        { "convolution", "fullyconnected", "innerproduct", "gemm", "RegionYolo", "Interpolate", "PSROIPooling", "Deconvolution" };
+
     const InferenceEngine::details::caseless_set<std::string> _complementbf16 =
-        { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "logistic",
-          "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather", "memory" };
+        { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "normalize",
+          "sigmoid", "ReLU6", "not", "activation", "HSwish", "mish", "logistic", "mod", "resample",
+          "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather", "gather_elements", "memory", "mvn", "crop", "activation",
+          "broadcast", "convert", "BatchToSpace", "DepthToSpace", "ExtractImagePatches", "concat", "power", "lrn",
+          "permute", "ScatterUpdate", "ScatterElementsUpdate", "ScatterNDUpdate", "depthwise",
+          "select", "ShuffleChannels", "SpaceToBatch", "SpaceToDepth", "squeeze", "StridedSlice", "unsqueeze", "eltwise",
+          "ReduceAnd", "ReduceOr", "ReduceMax", "ReduceMin", "ScaleShift", "SoftMax"};
+
     const InferenceEngine::details::caseless_set<std::string> _multiinput =
         { "concat", "eltwise" };
     //  prevent fallback to fp32 without considering both input and output nodes
     const InferenceEngine::details::caseless_set<std::string> _skipmarking =
-        { "memory" };
+        { "memory", "Split" };
 
     /**
     * Tries to mark tensor as FP32 by analyzing of local consumers of the tensor. Do not mark if
@@ -32,6 +40,13 @@ class BF16Transformer {
     * if tensor goes to layer not supporting BF16, this tensor will be marked as FP32
     */
     bool tryToMarkFP32(InferenceEngine::DataPtr data, const std::set<InferenceEngine::DataPtr> &immutable);
+
+    /**
+    * Because of singularity of input node, layer, following input doesn't support bf16 itself.
+    * We fix it by insertion of convert layer, which has to be replaced to reorder in graph optimizer.
+    *
+    */
+    void insertConvertAfterInput(InferenceEngine::CNNNetwork &network);
 
 public:
     /**
@@ -60,6 +75,16 @@ public:
     * converts all fp32 edges excepting inputs and outputs to bf16 and call restoreFloatPrecision
     */
     void convertToBFloat16(InferenceEngine::CNNNetwork &network);
+
+    /**
+     * inserts given layer after current tensor
+     */
+    static void addLayerToCNNNetworkAfterData(
+            InferenceEngine::DataPtr parentOutData,
+            InferenceEngine::CNNLayerPtr layer,
+            const std::string& nextLayerName,
+            InferenceEngine::ICNNNetwork& net,
+            const int childInsDataIndex = -1);
 
     InferenceEngine::MemoryBlob::Ptr convertBF16ToFloat(InferenceEngine::MemoryBlob::Ptr);
 };

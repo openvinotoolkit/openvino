@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <ngraph/validation_util.hpp>
 #include "itt.hpp"
 
 #include "ngraph/op/constant.hpp"
@@ -38,6 +39,7 @@ op::PriorBox::PriorBox(const Output<Node>& layer_shape,
 
 void op::PriorBox::validate_and_infer_types()
 {
+    NGRAPH_OP_SCOPE(v0_PriorBox_validate_and_infer_types);
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
@@ -62,7 +64,7 @@ void op::PriorBox::validate_and_infer_types()
 
     set_input_is_relevant_to_shape(0);
 
-    if (auto const_shape = as_type_ptr<op::Constant>(input_value(0).get_node_shared_ptr()))
+    if (auto const_shape = get_constant_from_source(input_value(0)))
     {
         NODE_VALIDATION_CHECK(this,
                               shape_size(const_shape->get_shape()) == 2,
@@ -85,6 +87,7 @@ void op::PriorBox::validate_and_infer_types()
 
 shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    NGRAPH_OP_SCOPE(v0_PriorBox_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<PriorBox>(new_args.at(0), new_args.at(1), m_attrs);
 }
@@ -136,6 +139,7 @@ std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float
 
 bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
 {
+    NGRAPH_OP_SCOPE(v0_PriorBox_visit_attributes);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("max_size", m_attrs.max_size);
     visitor.on_attribute("aspect_ratio", m_attrs.aspect_ratio);
@@ -175,22 +179,14 @@ namespace prior_box
         bool rc = true;
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i8)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(i16)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u8)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u16)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, attrs);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs);
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs);
         default: rc = false; break;
         }
         return rc;
@@ -200,9 +196,6 @@ namespace prior_box
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::PriorBox::evaluate");
-    return false;
-    // Todo (itikhono): enable the use of the reference implementation after supporting constants as
-    // outputs in plugins
-    // return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
+    NGRAPH_OP_SCOPE(v0_PriorBox_evaluate);
+    return prior_box::evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }

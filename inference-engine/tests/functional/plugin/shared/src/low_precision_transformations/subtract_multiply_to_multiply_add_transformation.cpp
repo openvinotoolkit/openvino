@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/subtract_multiply_to_multiply_add_function.hpp"
+#include "lpt_ngraph_functions/subtract_multiply_to_multiply_add_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -38,15 +38,15 @@ void SubtractMultiplyToMultiplyAddTransformation::SetUp() {
         testValues.precision,
         testValues.fqOnData);
 
-    validateNGraph();
+    validate();
 }
 
-void SubtractMultiplyToMultiplyAddTransformation::validateNGraph() {
+void SubtractMultiplyToMultiplyAddTransformation::validate() {
     SubtractMultiplyToMultiplyAddTransformationTestValues testValues;
     std::tie(targetDevice, testValues) = this->GetParam();
 
     const ngraph::pass::low_precision::LayerTransformation::Params params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams();
-    auto transformed = transformNGraph(params);
+    auto transformed = transformNGraph(params, getLowPrecisionTransformationsNGraph(params));
 
     ASSERT_EQ(1ul, transformed->get_output_size());
     std::shared_ptr<ngraph::Node> output = transformed->get_output_op(0);

@@ -4,6 +4,8 @@
 
 #include "vpu/middleend/pass_manager.hpp"
 
+#include "vpu/utils/shape_io.hpp"
+
 #include <set>
 #include <memory>
 
@@ -70,9 +72,7 @@ public:
         model->connectDataWithShape(shape, output);
 
         if (output->usage() == DataUsage::Output) {
-            // MyriadInferRequest::GetResult assumes that dynamic data object has shape data object
-            // with the same name + suffix "@shape"
-            const auto shapeName = output->name() + "@shape";
+            const auto shapeName = createIOShapeName(output->name());
             const auto& shapeOutput = model->addOutputData(shapeName, shape->desc());
 
             const auto& shapeProducer = shape->producer();

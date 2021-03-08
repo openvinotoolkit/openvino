@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2017-2021 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,8 +41,6 @@
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
@@ -53,7 +51,7 @@ NGRAPH_TEST(${BACKEND_NAME}, maximum)
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>(make_shared<op::Maximum>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Maximum>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -75,7 +73,7 @@ NGRAPH_TEST(${BACKEND_NAME}, maximum_int32)
     Shape shape{2, 2};
     auto A = make_shared<op::Parameter>(element::i32, shape);
     auto B = make_shared<op::Parameter>(element::i32, shape);
-    auto f = make_shared<Function>(make_shared<op::Maximum>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Maximum>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
@@ -96,7 +94,7 @@ NGRAPH_TEST(${BACKEND_NAME}, maximum_int64)
     Shape shape{2, 2, 2};
     auto A = make_shared<op::Parameter>(element::i64, shape);
     auto B = make_shared<op::Parameter>(element::i64, shape);
-    auto f = make_shared<Function>(make_shared<op::Maximum>(A, B), ParameterVector{A, B});
+    auto f = make_shared<Function>(make_shared<op::v1::Maximum>(A, B), ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 

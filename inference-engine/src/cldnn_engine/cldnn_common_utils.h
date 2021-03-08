@@ -9,20 +9,10 @@
 #include <cpp_interfaces/exception2status.hpp>
 #include <api/layout.hpp>
 
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+#include "ngraph/type/element_type.hpp"
 
 namespace CLDNNPlugin {
 
-#ifndef NDEBUG
-#define THROW_CLDNN_EXCEPTION(desc)\
-do { \
-InferenceEngineException ex(__FILE__, __LINE__);\
-std::cout << desc << "\n---\nException detected at " << __FILE__ << ":" << \
-__LINE__ << " (" << __FUNCTION__ << ")\n---\n" << std::endl; THROW_IE_EXCEPTION << desc; } while (0);
-#else
-#define THROW_CLDNN_EXCEPTION(desc) THROW_IE_EXCEPTION << desc;
-#endif  // NDEBUG
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
 
 const auto CldnnTensorFromIEDims = [](const InferenceEngine::SizeVector& dims, int def = 1) {
@@ -34,33 +24,57 @@ const auto CldnnTensorFromIEDims = [](const InferenceEngine::SizeVector& dims, i
     case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
     case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
     case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-    default: THROW_CLDNN_EXCEPTION("Invalid dimensions size(" << dims.size() << ") for clDNN tensor");
+    default: THROW_IE_EXCEPTION << "Invalid dimensions size(" << dims.size() << ") for clDNN tensor";
     }
 };
 
 inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
     switch (p) {
-    case Precision::I16:
-    case Precision::U16:
-    case Precision::FP32:
+    case InferenceEngine::Precision::I16:
+    case InferenceEngine::Precision::U16:
+    case InferenceEngine::Precision::FP32:
         return cldnn::data_types::f32;
-    case Precision::FP16:
+    case InferenceEngine::Precision::FP16:
         return cldnn::data_types::f16;
-    case Precision::U8:
+    case InferenceEngine::Precision::U8:
         return cldnn::data_types::u8;
-    case Precision::I8:
+    case InferenceEngine::Precision::I8:
         return cldnn::data_types::i8;
-    case Precision::I32:
+    case InferenceEngine::Precision::I32:
         return cldnn::data_types::i32;
-    case Precision::I64:
+    case InferenceEngine::Precision::I64:
         return cldnn::data_types::i64;
-    case Precision::BIN:
+    case InferenceEngine::Precision::BIN:
         return cldnn::data_types::bin;
-    case Precision::BOOL:
+    case InferenceEngine::Precision::BOOL:
         return cldnn::data_types::i8;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << p.name() << " precision";
-        break;
+    }
+}
+
+inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
+    switch (t) {
+    case ngraph::element::Type_t::i16:
+    case ngraph::element::Type_t::u16:
+    case ngraph::element::Type_t::f32:
+        return cldnn::data_types::f32;
+    case ngraph::element::Type_t::f16:
+        return cldnn::data_types::f16;
+    case ngraph::element::Type_t::u8:
+        return cldnn::data_types::u8;
+    case ngraph::element::Type_t::i8:
+        return cldnn::data_types::i8;
+    case ngraph::element::Type_t::i32:
+        return cldnn::data_types::i32;
+    case ngraph::element::Type_t::i64:
+        return cldnn::data_types::i64;
+    case ngraph::element::Type_t::boolean:
+        return cldnn::data_types::i8;
+    case ngraph::element::Type_t::u1:
+        return cldnn::data_types::bin;
+    default:
+        THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << t.get_type_name()<< " precision";
     }
 }
 
@@ -81,7 +95,6 @@ inline cldnn::format FormatFromLayout(InferenceEngine::Layout l) {
         return cldnn::format::byxf;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << l << " layout";
-        break;
     }
 }
 
@@ -107,7 +120,6 @@ inline cldnn::format FormatFromTensorDesc(InferenceEngine::TensorDesc desc) {
         return cldnn::format::byxf;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << desc.getLayout() << " layout";
-        break;
     }
 }
 
@@ -124,12 +136,10 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
         return cldnn::format::nv12;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << l << " image layout";
-        break;
     }
 }
 
-
-inline cldnn::format defaultFormatForDims(size_t dimensions) {
+inline cldnn::format DefaultFormatForDims(size_t dimensions) {
     switch (dimensions) {
     case 0:
     case 1:
@@ -142,10 +152,35 @@ inline cldnn::format defaultFormatForDims(size_t dimensions) {
     case 6:
         return cldnn::format::bfwzyx;
     default:
-        THROW_CLDNN_EXCEPTION("Unsupported number of dimensions: " << dimensions);
+        THROW_IE_EXCEPTION << "Unsupported number of dimensions: " << dimensions;
     }
 
     return cldnn::format::bfyx;  // Should not get here
+}
+
+// This helper function is needed to convert permute order from IE format (bfyx) into cldnn format (bfxy)
+inline std::vector<uint16_t> ConvertPermuteOrder(const std::vector<uint16_t>& ie_order, size_t rank = 0) {
+    std::vector<uint16_t> ie_order_aligned = ie_order;
+    // if order size is less than 4 - fill the rest with just copy
+    rank = std::max(rank, (size_t)4);
+    for (auto o = ie_order_aligned.size(); o < rank; o++)
+        ie_order_aligned.push_back((uint16_t)o);
+
+    std::vector<uint16_t> cldnn_order;
+    // 1. Switch permute order values for spatial dims
+    for (auto const& o : ie_order_aligned) {
+        if (o >= 2)
+            cldnn_order.push_back(1 + ie_order_aligned.size() - o);
+        else
+            cldnn_order.push_back(o);
+    }
+
+    // 2. Swap spatial positions
+    for (int i = 0; i < (cldnn_order.size() - 2) / 2; i++) {
+        std::swap(cldnn_order[2 + i], cldnn_order[1 + cldnn_order.size() - (2 + i)]);
+    }
+
+    return cldnn_order;
 }
 
 }  // namespace CLDNNPlugin
