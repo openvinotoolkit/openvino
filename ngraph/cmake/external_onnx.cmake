@@ -29,7 +29,7 @@ set(ONNX_VERSION 1.8.1)
 set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
 set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
-set(ONNX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/onnx_patch.txt")
+set(ONNX_PATCH_FILE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/patches/onnx_patch.diff")
 
 FetchContent_Declare(
     ext_onnx
