@@ -519,6 +519,10 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("Invalid value for 'cw_l' argument. It must be greater than or equal to 0");
     }
 
+    if (FLAGS_pwl_me < 0.0 || FLAGS_pwl_me > 100.0) {
+        throw std::logic_error("Invalid value for 'pwl_me' argument. It must be greater than 0.0 and less than 100.0");
+    }
+
     return true;
 }
 
@@ -671,6 +675,7 @@ int main(int argc, char *argv[]) {
 
         gnaPluginConfig[GNAConfigParams::KEY_GNA_LIB_N_THREADS] = std::to_string((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         gnaPluginConfig[GNA_CONFIG_KEY(COMPACT_MODE)] = CONFIG_VALUE(NO);
+        gnaPluginConfig[GNA_CONFIG_KEY(PWL_MAX_ERROR_PERCENT)] = std::to_string(FLAGS_pwl_me);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 5. Write model to file --------------------------------------------------
